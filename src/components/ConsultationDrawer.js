@@ -8,7 +8,7 @@ import React, {
   Suspense,
   lazy,
 } from "react";
-import { Drawer, Button, Input, message, Menu, Dropdown, Spin } from "antd";
+import { Drawer, Button, Input, message, Menu, Dropdown, Spin, Tooltip, Divider } from "antd";
 import styles from "./ConsultationDrawer.module.css";
 import deleteIcon from "../assets/images/delete-gen-rx.svg";
 import micIcon from "../assets/images/mic-gen-rx.svg";
@@ -50,8 +50,9 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import VoiceWaveVisualizer from "./WaveVisualizer";
 import GenRXLoaders from "./GenRxLoaders";
 import genRxSendCta from "../assets/images/genRxSendCta.svg";
+import zydusDataEngineIcon from "../assets/images/intersect.svg";
 import tatvaAiChakra from "../assets/lotties/tatvaAiChakra.lottie";
-import { FAILED_VERIFICATION, FREE, MESSAGE_KEY, S_DDX, S_VOICE_RX } from "../utils/constants";
+import { FAILED_VERIFICATION, FREE, MESSAGE_KEY, S_DDX, S_VOICE_RX, S_AMBIENT_VOICE_RX, GB_ZYDUS_USER, GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
@@ -67,16 +68,6 @@ import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
 import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
 import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import MedicationsTable from "./MedicationsTable";
-import {
-  FAILED_VERIFICATION,
-  FREE,
-  GB_APOLLO_DISABLE_FEATURE,
-  GB_ZYDUS_USER,
-  MESSAGE_KEY,
-  S_DDX,
-  S_VOICE_RX,
-  S_AMBIENT_VOICE_RX,
-} from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
@@ -87,6 +78,13 @@ import { deviceType, osName } from "react-device-detect";
 import SCBanner from "./SCBanner";
 import GenRxKnowMore from "./GenRxKnowMore";
 import { setSelectAutofill } from "../redux/ddxSlice";
+import growIcon from "../assets/images/grow.svg";
+import accuracyIcon from "../assets/images/accuracy.svg";
+import healthIcon from "../assets/images/health-care.svg";
+import playIcons from "../assets/images/tube-icon.svg";
+import VideoModal from "../common/VideoModal";
+import tagNew from "../assets/images/new-gif.gif";
+import CustomMedicinePopup from "./CustomMedicinePopup";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -143,6 +141,7 @@ const ConsultationDrawer = ({
   const [isAmbientMode, setIsAmbientMode] = useState(false);
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
@@ -155,6 +154,12 @@ const ConsultationDrawer = ({
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const [shouldShowVideo, setShowVideo] = useState(false);
+  const isGroundingAccessable = true;
+  const videoLink = {
+  link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
+  thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+};
 
   useEffect(() => {
     if (mode === 'ambient') {
@@ -2426,6 +2431,122 @@ const ConsultationDrawer = ({
                 )}
             </div>
             <div className="d-flex align-items-center gap-2">
+              {isGroundingAccessable && (
+                <button
+                  type="button"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 14px",
+                    borderRadius: 16,
+                    background: "#F7F1FF",
+                    border: "1px solid #E6D8FF",
+                    color: "#A461D8",
+                    height: "41px",
+                  }}
+                >
+                  <img
+                    src={zydusDataEngineIcon}
+                    alt="zydus-data-engine"
+                    width={28}
+                    height={28}
+                    style={{ marginRight: 8 }}
+                  />
+                  <div className="d-flex flex-column">
+                    <span
+                      className="grouding-color fs-10"
+                      style={{ lineHeight: "12px" }}
+                    >
+                      Powered by
+                    </span>
+                    <span
+                      className="grouding-color fs-16 semi-bold-text"
+                      style={{ lineHeight: "20px" }}
+                    >
+                      Zydus Data Engine
+                    </span>
+                  </div>
+                  <Tooltip
+                    placement="bottomRight"
+                    overlayClassName="groundingTooltip"
+                    title={
+                      <div style={{padding: "12px"}}>
+                        <div>
+                          <span className="semi-bold-text fs-21" style={{lineHeight: "18px"}}>Zydus Data Engine</span>
+                           <img className="img-fluid" width={39} height={16} style={{ marginLeft: 10, marginBottom: 5 }} src={tagNew} alt={"new-gif"} />
+                        </div>
+                        <Divider style={{ margin: "15px 0px" }} />
+                        <div>
+                          <span>What is Zydus Data Engine?</span>
+                          <span>
+                            With a curated list of{" "}
+                            <span className="semi-bold-text">medicines</span> and{" "}
+                            <span className="semi-bold-text">lab tests</span>
+                            from the{" "}
+                            <span className="semi-bold-text">Zydus Data Engine</span>, our
+                            AI adapts to your prescribing style, surfacing the most
+                            <span className="semi-bold-text">
+                              relevant suggestions
+                            </span>{" "}
+                            while you prescribe, and helps to
+                          </span>
+                          <div className="d-flex align-items-center gap-3 mt-3">
+                            <div
+                              className="d-flex align-items-center gap-1 p-2 rounded-20px fs-12"
+                              style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                            >
+                              <img src={healthIcon} alt="health-icon" />
+                              Boosting Patient Fulfilment
+                              <img src={growIcon} alt="grow-icon" />
+                            </div>
+                            <div
+                              className="d-flex align-items-center gap-1 p-2 rounded-20px fs-12"
+                              style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                            >
+                              <img src={accuracyIcon} alt="accuracy-icon" />
+                              Improve Rx Accuracy by{" "}
+                              <span className="semi-bold-text">80%</span>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              width: "503px",
+                              height: "239px",
+                              marginTop: "12px"
+                            }}
+                          >
+                            <div
+                              className="d-flex align-items-center justify-content-center"
+                              style={{
+                                background: `url(${videoLink.thumbnail})`,
+                                width: "503px",
+                                height: "239px",
+                                borderRadius: 24,
+                                cursor: "pointer",
+                                backgroundSize: "cover",
+                                backgroundRepeat: "no-repeat",
+                                backgroundPosition: "center",
+                              }}
+                              onClick={() => setShowVideo(true)}
+                            >
+                              <img
+                                width={55}
+                                height={55}
+                                src={playIcons}
+                                alt="play-icon"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <i className="icon-info fs-21" />
+                  </Tooltip>
+                </button>
+              )}
               <button
                 className="btn d-flex align-items-center btn-text me-10 tutorial"
                 onClick={() => setGenRxKnowMoreDrawer(true)}
@@ -3144,6 +3265,9 @@ const ConsultationDrawer = ({
           <GenRxKnowMore handleGenRxKnowMore={() => setGenRxKnowMoreDrawer(false)} />
         </div>
       </Drawer>
+      {showAddMedicinePopup && 
+        <CustomMedicinePopup isOpen={showAddMedicinePopup} onCancel={() => setShowAddMedicinePopup(false)} />
+      }
     </Drawer>
   );
 };

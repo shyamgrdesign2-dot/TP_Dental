@@ -114,6 +114,13 @@ import genRxBg from "../assets/images/gen-rx-bg.gif";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import carePlanIcon from "../assets/images/Care plan_Active.svg";
+import TatvaAiBanner from "../components/TatvaAiBanner";
+import ApexAIPopup from "../components/ApexAIPopup";
+import GenRxBanner from "../components/GenRxBanner";
+import Carousel from "react-multi-carousel";
+import GroundingBanner from "../components/GroundingBanner";
+import GroundingKnowMore from "../components/GroundingKnowMore";
+import GroundingBox from "../components/GroundingBox";
 
 function Prescription() {
   const {
@@ -293,6 +300,7 @@ function Prescription() {
   const [shouldShowApexPopup, setShowApexPopup] = useState(true);
   const [shouldShowGenRxPopup, setShowGenRxPopup] = useState(true);
   const [shouldShowTatvaAiPopup, setShowTatvaAiPopup] = useState(true);
+  const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(true);
   const [ddxKnowMoreDrawer, setDDxKnowMoreDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
@@ -301,12 +309,14 @@ function Prescription() {
   const [likeDislike, setLikeDislike] = useState([]);
   const [isDDxGenerated, setIsDDxGenerated] = useState(false);
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
+  const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const [showShimmer, setShowShimmer] = useState(false);
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isGroundingAccessable = true;  // enabling only for zydus users
   const {
     isVaccinationAccessable,
     isGrowthChartAccessable,
@@ -1046,6 +1056,10 @@ function Prescription() {
     setTatvaAiKnowMoreDrawer((prev) => !prev);
   };
 
+  const handleGroundingKnowMore = () => {
+    setGroundingKnowMoreDrawer((prev) => !prev);
+  };
+
   const ShimmerLoader = () => {
     return (
       <div className="sc-shimmer-container">
@@ -1607,6 +1621,9 @@ function Prescription() {
                     }
                     key="apexAI"
                   >
+                    {isGroundingAccessable && <div className="prescription-box-sm">
+                      <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
+                    </div>}
                     {(isVoiceRxAccessable || tp_monetization_enable) && <div className="prescription-box-sm">
                       <GenRxBox setIsGenRxDrawerVisible={setIsGenRxDrawerVisible} handleGenRxKnowMore={handleGenRxKnowMore} />
                     </div>}
@@ -1636,7 +1653,7 @@ function Prescription() {
             </div>
             <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
-                {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup) && 
+                {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
                   <Carousel
                   responsive={responsive}
                   infinite={true}
@@ -1660,8 +1677,11 @@ function Prescription() {
                       handleDDxKnowMore={handleDDxKnowMore}
                     />
                   )}
+                  {shouldShowGroundingBanner && (
+                    <GroundingBanner key="grounding-banner" setShowGroundingPopup={setShowGroundingBanner} handleGroundingKnowMore={handleGroundingKnowMore} />
+                  )}
                   </Carousel>
-                } */}
+                }
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
@@ -1950,6 +1970,21 @@ function Prescription() {
               handleTatvaAiKnowMore={handleTatvaAiKnowMore}
               handleDDxKnowMore={handleDDxKnowMore}
               handleGenRxKnowMore={handleGenRxKnowMore}
+            />
+          </Drawer>
+        )}
+
+        {groundingKnowMoreDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            open={groundingKnowMoreDrawer}
+            onClose={handleGroundingKnowMore}
+            className=".modalWidth-800"
+            width={825}
+          >
+            <GroundingKnowMore
+              handleGroundingKnowMore={handleGroundingKnowMore}
             />
           </Drawer>
         )}

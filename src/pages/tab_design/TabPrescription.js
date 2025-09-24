@@ -56,6 +56,8 @@ import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
 import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
 import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
 import labParamsDark from "../../assets/images/Lab-Parameters.svg";
+import groundingImgWhite from "../../assets/images/grounding-white.svg";
+import groundingImgDark from "../../assets/images/grounding-purple.svg";
 import genRxBg from "../../assets/images/gen-rx-bg.gif";
 import carePlanIcon from "../../assets/images/Care plan.svg";
 import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
@@ -113,6 +115,8 @@ import CarePlanDropdown from "../../components/CarePlanDropdown";
 import CarePlanList from "../../components/CarePlanList";
 import { getCarePlanNames, getCarePlanAssignments } from "../smartSync/services/carePlanService";
 import TabCarePlanList from "../../components/tab_design/TabCarePlanList";
+import GroundingBox from "../../components/GroundingBox";
+import GroundingKnowMore from "../../components/GroundingKnowMore";
 
 function TabPrescription() {
   const {
@@ -126,6 +130,7 @@ function TabPrescription() {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isGroundingAccessable = true;  // enabling only for zydus users
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -895,6 +900,10 @@ function TabPrescription() {
     setGenRxKnowMoreDrawer((prev) => !prev);
   };
 
+  const handleGroundingKnowMore = () => {
+    setGroundingKnowMoreDrawer((prev) => !prev);
+  };
+
   const handleTatvaAiKnowMore = () => {
     setTatvaAiKnowMoreDrawer((prev) => !prev);
   };
@@ -1044,7 +1053,7 @@ function TabPrescription() {
 
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
-    openCollapsed((isVoiceRxAccessable || tp_monetization_enable) ? 10 : 9);
+    openCollapsed(isGroundingAccessable ? 11 : (isVoiceRxAccessable || tp_monetization_enable) ? 10 : 9);
     window.Moengage.track_event("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
@@ -1100,10 +1109,12 @@ function TabPrescription() {
                 <>
                   <img
                     src={ddxVector}
+                    alt="ddxVector"
                     className="prescription-sidebar-ai-vector"
                   />
                   <img
                     src={ddxVector}
+                    alt="ddxVectorReverse"
                     className="prescription-sidebar-ai-vector-reverse"
                   />
                   <button
@@ -1119,14 +1130,37 @@ function TabPrescription() {
                       <i className="icon-Cross" style={{ color: "#7742FE" }} />
                     </div>
                   </button>
+                  {isGroundingAccessable && <button
+                    type="button"
+                    className="mb-3 text-center btn btn-action"
+                    onClick={() => openCollapsed(11)}
+                  >
+                    <div
+                      className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
+                      style={{ backgroundColor: "inherit", height: "100%" }}
+                    >
+                      <div
+                        className={`prescription-tab-button rounded-10px`}
+                      style={{backgroundColor: "inherit"}}
+                      >
+                        <img
+                          src={collapsedFlag == 11 ? groundingImgDark : groundingImgWhite}
+                          alt="Grounding"
+                          width={42}
+                          height={42}
+                        />
+                      </div>
+                      <label className="text-white mt-1">AI Formu..</label>
+                    </div>  
+                  </button>}
                   {(isVoiceRxAccessable || tp_monetization_enable) && <button
                     type="button"
                     className="mb-3 text-center btn btn-action"
                     onClick={() => openCollapsed(10)}
                   >
                     <div
-                      className={`prescription-tab-button rounded-10px`}
-                      style={{ backgroundColor: "inherit" }}
+                      className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
+                      style={{ backgroundColor: "inherit", height: "100%" }}
                     >
                       <div
                         className={`prescription-tab-button rounded-10px`}
@@ -1148,8 +1182,8 @@ function TabPrescription() {
                     onClick={() => openCollapsed(9)}
                   >
                     <div
-                      className={`prescription-tab-button rounded-10px`}
-                      style={{ backgroundColor: "inherit" }}
+                      className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
+                      style={{ backgroundColor: "inherit", height: "100%" }}
                     >
                       <div
                         className={`prescription-tab-button rounded-10px`}
@@ -1166,7 +1200,7 @@ function TabPrescription() {
                 </>
               ) : (
                 <>
-                  {((isApexAIAccessable || isVoiceRxAccessable) || tp_monetization_enable) && (
+                  {((isApexAIAccessable || isVoiceRxAccessable || isGroundingAccessable) || tp_monetization_enable) && (
                     <button
                       type="button"
                       className="mb-3 text-center btn btn-action"
@@ -1925,6 +1959,21 @@ function TabPrescription() {
             <TatvaAiKnowMore handleTatvaAiKnowMore={handleTatvaAiKnowMore} handleDDxKnowMore={handleDDxKnowMore} handleGenRxKnowMore={handleGenRxKnowMore} />
           </Drawer>
         }
+
+        {groundingKnowMoreDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            open={groundingKnowMoreDrawer}
+            onClose={handleGroundingKnowMore}
+            className=".modalWidth-800"
+            width={825}
+          >
+            <GroundingKnowMore
+              handleGroundingKnowMore={handleGroundingKnowMore}
+            />
+          </Drawer>
+        )}
 
         {isLoading ? (
           <div>

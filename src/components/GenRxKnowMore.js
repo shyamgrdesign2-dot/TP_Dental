@@ -1,6 +1,17 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Button, Spin, Tabs } from "antd";
 import genRxIcon from "../assets/images/gen-rx-icon.svg";
+import growIcon from "../assets/images/grow.svg";
+import accuracyIcon from "../assets/images/accuracy.svg";
+import healthIcon from "../assets/images/health-care.svg";
+import intersect from "../assets/images/intersect.svg";
 import playIcons from "../assets/images/tube-icon.svg";
 import VideoModal from "../common/VideoModal";
 import ExpiredText from "../pages/monetization/components/ExpiredText";
@@ -30,6 +41,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
     howGenRxWorks: null,
     genRxTips: null,
     contactSupport: null,
+    aiDataEngine: null,
   });
 
   const videoLink = {
@@ -147,7 +159,10 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
               </Button>
               <div className="drawer-title">AI-Powered Voice Rx</div>
             </div>
-            <FreeTrialButton title={S_VOICE_RX} showHideSubModal={showHideSubModal} />
+            <FreeTrialButton
+              title={S_VOICE_RX}
+              showHideSubModal={showHideSubModal}
+            />
           </div>
 
           {/* Tabs */}
@@ -158,6 +173,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
             >
               <TabPane tab="Basic Info" key="basicGenRxInfo" />
               <TabPane tab="How it works" key="howGenRxWorks" />
+              <TabPane tab="AI Data Engine" key="aiDataEngine" />
               <TabPane tab="Tips for better Rx" key="genRxTips" />
               <TabPane tab="Contact Support" key="contactSupport" />
             </Tabs>
@@ -238,6 +254,76 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
 
           <div className="section">
             <span
+              id="aiDataEngine"
+              ref={(el) => (sectionsRef.current.aiDataEngine = el)}
+              className="section-side-header"
+            >
+              AI Data Engine
+            </span>
+            <div className="know-more-section-tilte">
+              What is Zydus Data Engine
+            </div>
+            <div className="know-more-section-content basic-info-section align-items-flex-start">
+              <img src={intersect} alt="intersect" width={72} height={72} />
+              <div>
+                <div>
+                  With a curated list of{" "}
+                  <span className="semi-bold-text">medicines</span> and{" "}
+                  <span className="semi-bold-text">lab tests</span>
+                  from the{" "}
+                  <span className="semi-bold-text">Zydus Data Engine</span>, our
+                  AI adapts to your prescribing style, surfacing the most
+                  <span className="semi-bold-text">
+                    relevant suggestions
+                  </span>{" "}
+                  while you prescribe, and helps to
+                </div>
+                <div className="d-flex align-items-center gap-3 mt-3">
+                  <div
+                    className="d-flex align-items-center gap-1 p-2 rounded-20px"
+                    style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                  >
+                    <img src={healthIcon} alt="health-icon" />
+                    Boosting Patient Fulfilment
+                    <img src={growIcon} alt="grow-icon" />
+                  </div>
+                  <div
+                    className="d-flex align-items-center gap-1 p-2 rounded-20px"
+                    style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                  >
+                    <img src={accuracyIcon} alt="accuracy-icon" />
+                    Improve Rx Accuracy by{" "}
+                    <span className="semi-bold-text">80%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="know-more-section-content">
+              <div className="instruction-cvt-tutorial">
+                Please watch this video to know how AI Data Engine works👇
+              </div>
+
+              <div
+                className="d-flex align-items-center justify-content-center"
+                style={{
+                  background: `url(${videoLink.thumbnail})`,
+                  width: 447,
+                  height: 252,
+                  borderRadius: 24,
+                  cursor: "pointer",
+                  backgroundSize: "cover",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+                onClick={() => setShowVideo(true)}
+              >
+                <img width={55} height={55} src={playIcons} alt="play-icon" />
+              </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <span
               id="genRxTips"
               ref={(el) => (sectionsRef.current.genRxTips = el)}
               className="section-side-header"
@@ -271,7 +357,8 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
         <ExpiredSubModal
           title={S_VOICE_RX}
           isSubModalOpen={isSubModalOpen}
-          showHideSubModal={showHideSubModal} />
+          showHideSubModal={showHideSubModal}
+        />
 
         {shouldShowVideo && (
           <VideoModal

@@ -14,6 +14,7 @@ import DDXIcon from "../../../assets/images/DDX-icon.png";
 import supportwhite from "../../../assets/images/support.png";
 import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.png";
 import smartSyncIcon from "../../../assets/images/smart-sync-icon.png";
+import newGif from "../../../assets/images/new-gif.gif";
 
 import { FREE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_ASK_TATVA, S_RX_DIGITIZATION, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FAILED_VERIFICATION, PENDING_VERIFICATION } from "../../../utils/constants";
 import GenRxKnowMore from "../../../components/GenRxKnowMore";
@@ -32,6 +33,7 @@ import ExpiredSubModal from "./ExpiredSubModal";
 import ReceptionistKnowMore from "../../appointmentAgent/components/knowMore/ReceptionistKnowMore";
 import ContactSupportModal from "../../../common/ContactSupportModal";
 import { EVENTS } from "../../../utils/events";
+import GroundingKnowMore from "../../../components/GroundingKnowMore";
 
 function AiSuite({ aiModal, handleAiSuite }) {
 
@@ -55,6 +57,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
     const [ddxKnowMoreDrawer, setDDxKnowMoreDrawer] = useState(false);
     const [smartSyncKnowMoreDrawer, setSmartSyncKnowMoreDrawer] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
+    const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
     const [askTatvaKnowMoreDrawer, setAskTatvaKnowMoreDrawer] = useState(false);
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -123,6 +126,10 @@ function AiSuite({ aiModal, handleAiSuite }) {
 
     const handleAskTatvaKnowMore = () => {
         setAskTatvaKnowMoreDrawer((prev) => !prev);
+    };
+
+    const handleGroundingKnowMore = () => {
+        setGroundingKnowMoreDrawer((prev) => !prev);
     };
 
     const showHideSubModal = useCallback(() => {
@@ -260,6 +267,33 @@ function AiSuite({ aiModal, handleAiSuite }) {
                     </div>
                 </div>
                 <div className="px-4 h-100 bg-white overflow-y-auto" style={{ maxHeight: 'calc(100vh - 60px)' }}>
+                    {
+                        true && (
+                            <div className={`ai-suite my-4`}>
+                                <div className="d-flex align-items-center mb-3">
+                                    <img style={{ background: '#EDDFF780', padding: 6 }} className="rounded-10px me-2" src={RxVoice} alt="item.type" />
+                                    <div className="fs-18 fw-semibold text-1F2933">{"Zydus Data Engine"}</div>
+                                    <img
+                                        src={newGif}
+                                        alt="New"
+                                        width={40}
+                                        height={18}
+                                        style={{ marginLeft: 10 }}
+                                    />
+                                </div>
+                                <div>
+                                    With a curated list of <span className="semi-bold-text">medicines</span> and tests from the <span className="semi-bold-text">Zydus Data Engine</span>, our AI adapts to your <span className="semi-bold-text">prescribing style</span>, surfacing the most <span className="semi-bold-text">relevant suggestions</span> while you prescribe, and helping <span className="semi-bold-text">boost patient fulfilment</span> and <span className="semi-bold-text">improve accuracy</span>.
+                                </div>
+                                <Row className="mt-4">
+                                    <Col lg={12}>
+                                        <Button className='w-100 btn ant-btn btn-41 btn-primary1 btn-outline-primary' onClick={handleGroundingKnowMore}>
+                                            Know More
+                                        </Button>
+                                    </Col>
+                                </Row>
+                            </div>
+                        )
+                    }
                     {aiServicesData?.map((item, index) => {
                         return (
                             <div key={index}>
@@ -395,6 +429,19 @@ function AiSuite({ aiModal, handleAiSuite }) {
                     width={800}
                 >
                     <CvtKnowMore handleDrawerCvtKnowMore={handleDrawerCvtKnowMore} handleCollapsed={handleDrawerCvtKnowMore} />
+                </Drawer>
+            )}
+
+            {groundingKnowMoreDrawer && (
+                <Drawer
+                    closeIcon={false}
+                    placement="right"
+                    onClose={handleGroundingKnowMore}
+                    open={groundingKnowMoreDrawer}
+                    className=".modalWidth-800"
+                    width={800}
+                >
+                    <GroundingKnowMore handleGroundingKnowMore={handleGroundingKnowMore} />
                 </Drawer>
             )}
 
