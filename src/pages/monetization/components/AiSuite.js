@@ -16,7 +16,7 @@ import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.png";
 import smartSyncIcon from "../../../assets/images/smart-sync-icon.png";
 import newGif from "../../../assets/images/new-gif.gif";
 
-import { FREE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_ASK_TATVA, S_RX_DIGITIZATION, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FAILED_VERIFICATION, PENDING_VERIFICATION } from "../../../utils/constants";
+import { FREE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_ASK_TATVA, S_RX_DIGITIZATION, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FAILED_VERIFICATION, PENDING_VERIFICATION, GB_ZYDUS_USER } from "../../../utils/constants";
 import GenRxKnowMore from "../../../components/GenRxKnowMore";
 import DDxKnowMore from "../../../components/DDxKnowMore";
 import SmartSyncKnowMore from "../components/SmartSyncKnowMore";
@@ -34,6 +34,8 @@ import ReceptionistKnowMore from "../../appointmentAgent/components/knowMore/Rec
 import ContactSupportModal from "../../../common/ContactSupportModal";
 import { EVENTS } from "../../../utils/events";
 import GroundingKnowMore from "../../../components/GroundingKnowMore";
+import { env } from "../../../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 function AiSuite({ aiModal, handleAiSuite }) {
 
@@ -62,6 +64,10 @@ function AiSuite({ aiModal, handleAiSuite }) {
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAIReceptionistKnowMoreDrawer, setIsAIReceptionistKnowMoreDrawer] = useState(false);
+    const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+    const isGroundingAccessable =
+        tokenData?.hospital_business_id == env.zydus_business_id &&
+        isZydusUserAccessableFromGB;
 
 
     const clickContactSupport = useCallback(() => {
@@ -268,7 +274,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
                 </div>
                 <div className="px-4 h-100 bg-white overflow-y-auto" style={{ maxHeight: 'calc(100vh - 60px)' }}>
                     {
-                        true && (
+                        isGroundingAccessable && (
                             <div className={`ai-suite my-4`}>
                                 <div className="d-flex align-items-center mb-3">
                                     <img style={{ background: '#EDDFF780', padding: 6 }} className="rounded-10px me-2" src={RxVoice} alt="item.type" />

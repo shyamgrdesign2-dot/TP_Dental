@@ -130,7 +130,6 @@ function TabPrescription() {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
-  const isGroundingAccessable = true;  // enabling only for zydus users
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -170,6 +169,9 @@ function TabPrescription() {
   );
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
+  const isGroundingAccessable =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
 
   const { state } = useLocation();

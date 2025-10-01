@@ -3,6 +3,7 @@ import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
+const fuzzySearchBaseUrl = { customBaseUrl: config.searchengine_url };
 
 const ApiMedication = {};
 
@@ -46,6 +47,13 @@ ApiMedication.searchMedication = function (query) {
   return api.post(`/api/v1/medicine/searchMedicine`, {
     search: query
   }, baseUrl);
+};
+
+ApiMedication.getFuzzySearch = function (query) {
+  return api.get(
+    `/api/v1/medicines/fuzzySearch?search=${query}&max_results=1`,
+    fuzzySearchBaseUrl
+  );
 };
 
 ApiMedication.showMedicineFrequency = function () {

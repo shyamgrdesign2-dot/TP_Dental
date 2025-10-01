@@ -316,7 +316,9 @@ function Prescription() {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
-  const isGroundingAccessable = true;  // enabling only for zydus users
+  const isGroundingAccessable =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   const {
     isVaccinationAccessable,
     isGrowthChartAccessable,

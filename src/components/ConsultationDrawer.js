@@ -8,7 +8,18 @@ import React, {
   Suspense,
   lazy,
 } from "react";
-import { Drawer, Button, Input, message, Menu, Dropdown, Spin, Tooltip, Divider } from "antd";
+import {
+  Drawer,
+  Button,
+  Input,
+  message,
+  Menu,
+  Dropdown,
+  Spin,
+  Tooltip,
+  Divider,
+  AutoComplete,
+} from "antd";
 import styles from "./ConsultationDrawer.module.css";
 import deleteIcon from "../assets/images/delete-gen-rx.svg";
 import micIcon from "../assets/images/mic-gen-rx.svg";
@@ -39,7 +50,16 @@ import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
 import { addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType } from "../utils/utils";
+import {
+  errorMessage,
+  getClinicName,
+  trackEvent,
+  getTokenData,
+  getDeviceSdkData,
+  isVoiceRxFree,
+  getSupportedMimeType,
+  removeBeforeWhiteSpace,
+} from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -68,6 +88,14 @@ import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
 import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
 import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import MedicationsTable from "./MedicationsTable";
+import {
+  FAILED_VERIFICATION,
+  FREE,
+  GB_ZYDUS_USER,
+  MESSAGE_KEY,
+  S_DDX,
+  S_VOICE_RX,
+} from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
@@ -85,6 +113,11 @@ import playIcons from "../assets/images/tube-icon.svg";
 import VideoModal from "../common/VideoModal";
 import tagNew from "../assets/images/new-gif.gif";
 import CustomMedicinePopup from "./CustomMedicinePopup";
+import { searchMedication } from "../redux/medicationSlice";
+import ApiMedication from "../api/services/ApiMedication";
+import ApiInvestigation from "../api/services/ApiInvestigation";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -95,9 +128,13 @@ const ConsultationDrawer = ({
   digitizedData,
   typedInputText,
   mode,
+  handleGenRxKnowMore,
+  labReportID,
 }) => {
   const { servicesList } = useSelector((state) => state.doctors);
-  const VOICE_RX_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
+  const VOICE_RX_planDetails = servicesList?.find(
+    (e) => e.service_name === S_VOICE_RX
+  );
 
   const { useVoiceRx, setUseVoiceRx, useDDX } = useContext(CashManagerContext);
 
@@ -108,6 +145,12 @@ const ConsultationDrawer = ({
   const [recordingTime, setRecordingTime] = useState(0);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const isFuzzyUpdatingRef = useRef(false);
+  const lastFuzzyNamesRef = useRef("");
+  const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
+  const isFuzzyUpdatingTestsRef = useRef(false);
+  const lastFuzzyTestsRef = useRef("");
+  const lastFuzzyTestsCallRef = useRef({ sig: "", ts: 0 });
   const [prescriptionData, setPrescriptionData] = useState(null);
   const isAutoFocusShownRef = useRef(false);
   const hasAutoSubmittedRef = useRef(false);
@@ -134,6 +177,10 @@ const ConsultationDrawer = ({
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableLineItem, setEditableLineItem] = useState("");
+  const [editableName, setEditableName] = useState("");
+  const [searchParentQuery, setSearchParentQuery] = useState("");
+  const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  // const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
   const [editableKey, setEditableKey] = useState("");
   const [queries, setQueries] = useState([]);
   const [isRxEdited, setIsRxEdited] = useState(false);
@@ -142,12 +189,18 @@ const ConsultationDrawer = ({
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
   const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
+  const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState(null);
+  const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
+    return localStorage.getItem("dontShowZydusWarning") === "true";
+  });
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const { profile, userId } = useSelector((state) => state.doctors);
+  const { parentOptionsList } = useSelector((state) => state.medication);
   const { symptomCollector, isAutofillSelected, selectedSymptomsCollector } =
     useSelector((state) => state.ddx);
   const { TextArea } = Input;
@@ -155,11 +208,15 @@ const ConsultationDrawer = ({
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const [shouldShowVideo, setShowVideo] = useState(false);
-  const isGroundingAccessable = true;
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const tokenData = getTokenData();
+  const isGroundingAccessable =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   const videoLink = {
-  link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
-  thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
-};
+    link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
+    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+  };
 
   useEffect(() => {
     if (mode === 'ambient') {
@@ -327,6 +384,16 @@ const ConsultationDrawer = ({
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
+      const correctedNames = await Promise.all(
+        meds.map(async (med) => {
+          const currentName = (med?.name || "").trim();
+          if (!currentName) return currentName;
+          try {
+            const result = await ApiMedication.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.tmm_medicine_name?.trim();
+            return corrected || currentName;
+          } catch (e) {
+            return currentName;
           }
         })
       );
@@ -339,6 +406,12 @@ const ConsultationDrawer = ({
       const correctedSig = correctedResults
         .map((r) => r.correctedName)
         .join("|");
+        (m, i) => (m?.name || "").trim() !== correctedNames[i]
+      );
+      if (!anyChanged) return;
+
+      // Update the signature to the corrected names to avoid an immediate second run
+      const correctedSig = correctedNames.join("|");
       lastFuzzyNamesRef.current = correctedSig;
 
       setPrescriptionData((prev) => ({
@@ -354,6 +427,7 @@ const ConsultationDrawer = ({
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
+          name: correctedNames[idx],
         })),
       }));
     } finally {
@@ -381,6 +455,16 @@ const ConsultationDrawer = ({
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
+      const correctedNames = await Promise.all(
+        tests.map(async (it) => {
+          const currentName = (it?.name || "").trim();
+          if (!currentName) return currentName;
+          try {
+            const result = await ApiInvestigation.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.investigation_name?.trim();
+            return corrected || currentName;
+          } catch (e) {
+            return currentName;
           }
         })
       );
@@ -393,6 +477,12 @@ const ConsultationDrawer = ({
       const correctedSig = correctedResults
         .map((r) => r.correctedName)
         .join("|");
+        (m, i) => (m?.name || "").trim() !== correctedNames[i]
+      );
+      if (!anyChanged) return;
+
+      // Prevent immediate re-run by updating signature to corrected names
+      const correctedSig = correctedNames.join("|");
       lastFuzzyTestsRef.current = correctedSig;
 
       setPrescriptionData((prev) => ({
@@ -408,6 +498,7 @@ const ConsultationDrawer = ({
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
+          name: correctedNames[idx],
         })),
       }));
     } finally {
@@ -422,7 +513,7 @@ const ConsultationDrawer = ({
         VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
     ) {
       setTimeout(() => {
-        setIsSubModalOpen(true)
+        setIsSubModalOpen(true);
       }, 500);
     }
   }, [VOICE_RX_planDetails]);
@@ -431,7 +522,6 @@ const ConsultationDrawer = ({
     setIsSubModalOpen(!isSubModalOpen);
 
     const clinic_name = getClinicName(profile?.hospital_data);
-    const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
     window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
@@ -442,7 +532,6 @@ const ConsultationDrawer = ({
       um_id: tokenData?.user_id,
       clinic_Name: clinic_name,
       ...deviceSdkData,
-
     });
   }, [isSubModalOpen]);
 
@@ -478,6 +567,7 @@ const ConsultationDrawer = ({
   };
   
   const [leftWidthPercent, setLeftWidthPercent] = useState(getInitialWidthPercent());
+  const [leftWidthPercent, setLeftWidthPercent] = useState(45); // default matches previous CSS 45%
 
   const onMouseMoveResizer = useCallback((e) => {
     if (!isResizingRefSplit.current || !splitRef.current) return;
@@ -499,6 +589,10 @@ const ConsultationDrawer = ({
       const clamped = Math.min(100, Math.max(0, pct));
       setLeftWidthPercent(clamped);
     }
+    const pct = (relativeX / rect.width) * 100;
+    // clamp between 25% and 75%
+    const clamped = Math.min(75, Math.max(25, pct));
+    setLeftWidthPercent(clamped);
   }, []);
 
   const stopResizing = useCallback(() => {
@@ -569,25 +663,29 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     if (isAutoFocusShownRef.current) return;
-    if (!prescriptionData || activeIndex !== null || activeType !== null) return;
+    if (!prescriptionData || activeIndex !== null || activeType !== null)
+      return;
 
     const fieldsToCheck = [
-      { name: 'vitalsAndBodyComposition', type: 'object' },
-      { name: 'medicalHistory', type: 'array' },
-      { name: 'symptoms', type: 'array' },
-      { name: 'examinations', type: 'array' },
-      { name: 'diagnosis', type: 'array' },
-      { name: 'medications', type: 'array' },
-      { name: 'labInvestigation', type: 'array' },
-      { name: 'advice', type: 'array' },
-      { name: 'vaccinations', type: 'array' },
-      { name: 'others', type: 'array' },
-      { name: 'dynamicFields', type: 'object' },
-      { name: 'followUp', type: 'string' }
+      { name: "vitalsAndBodyComposition", type: "object" },
+      { name: "medicalHistory", type: "array" },
+      { name: "symptoms", type: "array" },
+      { name: "examinations", type: "array" },
+      { name: "diagnosis", type: "array" },
+      { name: "medications", type: "array" },
+      { name: "labInvestigation", type: "array" },
+      { name: "advice", type: "array" },
+      { name: "vaccinations", type: "array" },
+      { name: "others", type: "array" },
+      { name: "dynamicFields", type: "object" },
+      { name: "followUp", type: "string" },
     ];
 
     for (const field of fieldsToCheck) {
-      if (field.type === 'object' && field.name === 'vitalsAndBodyComposition') {
+      if (
+        field.type === "object" &&
+        field.name === "vitalsAndBodyComposition"
+      ) {
         const keysWithValue = Object.entries(prescriptionData[field.name] || {})
           .filter(([_, value]) => value)
           .map(([key]) => key);
@@ -598,16 +696,19 @@ const ConsultationDrawer = ({
           }, 0);
           return;
         }
-      } else if (field.type === 'object' && field.name === 'dynamicFields') {
+      } else if (field.type === "object" && field.name === "dynamicFields") {
         const modules = Object.keys(prescriptionData[field.name] || {});
-        if (modules.length && prescriptionData[field.name][modules[0]]?.length) {
+        if (
+          modules.length &&
+          prescriptionData[field.name][modules[0]]?.length
+        ) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
             return handleItemClick(modules[0], 0, true);
           }, 100);
           return;
         }
-      } else if (field.type === 'array') {
+      } else if (field.type === "array") {
         if (prescriptionData[field.name]?.length) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
@@ -618,7 +719,7 @@ const ConsultationDrawer = ({
           }, 100);
           return;
         }
-      } else if (field.type === 'string') {
+      } else if (field.type === "string") {
         if (prescriptionData[field.name]) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
@@ -786,25 +887,42 @@ const ConsultationDrawer = ({
   };
 
   const handleSend = async () => {
-    if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0) {
-      showHideSubModal()
-    } else if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
-      showHideSubModal()
+    if (
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails?.plan_tier === FREE &&
+      VOICE_RX_planDetails?.credit_balance <= 0
+    ) {
+      showHideSubModal();
+    } else if (
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION
+    ) {
+      showHideSubModal();
     } else {
       let sendData = {
         b2c_id: profile?.b2c,
-        service_name: S_VOICE_RX
-      }
+        service_name: S_VOICE_RX,
+      };
       const action = await dispatch(checkCredits(sendData));
       if (action.meta.requestStatus === "fulfilled") {
         if (action?.payload?.hasOwnProperty("service_name")) {
-          if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0) {
-            if (action?.payload?.credit_balance != VOICE_RX_planDetails?.credit_balance) {
-              await dispatch(services(sendData?.b2c_id))
+          if (
+            !isFreeVoiceRxUser &&
+            action?.payload?.plan_tier === FREE &&
+            action?.payload?.credit_balance <= 0
+          ) {
+            if (
+              action?.payload?.credit_balance !=
+              VOICE_RX_planDetails?.credit_balance
+            ) {
+              await dispatch(services(sendData?.b2c_id));
             }
-            showHideSubModal()
-          } else if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FAILED_VERIFICATION) {
-            showHideSubModal()
+            showHideSubModal();
+          } else if (
+            !isFreeVoiceRxUser &&
+            action?.payload?.plan_tier === FAILED_VERIFICATION
+          ) {
+            showHideSubModal();
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
             if (genRxDetails?._id) {
@@ -844,13 +962,12 @@ const ConsultationDrawer = ({
             }
           }
         } else {
-          typeof action?.payload?.data?.error === 'object' ?
-            errorMessage(action?.payload?.data?.error?.description)
-            :
-            errorMessage(action?.payload?.data?.message)
+          typeof action?.payload?.data?.error === "object"
+            ? errorMessage(action?.payload?.data?.error?.description)
+            : errorMessage(action?.payload?.data?.message);
         }
       } else {
-        errorMessage(action.payload.message)
+        errorMessage(action.payload.message);
       }
     }
   };
@@ -1181,11 +1298,11 @@ const ConsultationDrawer = ({
               getFormattedSymptomsCollectorData(selectedSymptomsCollector);
             const mergedData =
               formattedSymptomsCollectorData &&
-                Object.keys(formattedSymptomsCollectorData)?.length > 0
+              Object.keys(formattedSymptomsCollectorData)?.length > 0
                 ? mergeData(
-                  response.data.digitize,
-                  formattedSymptomsCollectorData
-                )
+                    response.data.digitize,
+                    formattedSymptomsCollectorData
+                  )
                 : response.data.digitize;
 
             return {
@@ -1197,9 +1314,9 @@ const ConsultationDrawer = ({
           setQueries(
             isEditing
               ? [
-                ...queries.slice(0, queries.length - 1),
-                response.data.transcription,
-              ]
+                  ...queries.slice(0, queries.length - 1),
+                  response.data.transcription,
+                ]
               : [...queries, response.data.transcription]
           );
         }
@@ -1446,8 +1563,10 @@ const ConsultationDrawer = ({
   const handleKeyDown = (e, type, index, isExisting) => {
     if (e.key === "Enter") {
       e.preventDefault(); // Prevent newline in the input field
-      
-      const trimmedText =  isExisting ? editableLineItem?.trim() : editableText.trim();
+
+      const trimmedText = isExisting
+        ? editableLineItem?.trim()
+        : editableText.trim();
       if (trimmedText) {
         setPrescriptionData((prevData) => {
           const updatedData = { ...prevData };
@@ -1456,16 +1575,19 @@ const ConsultationDrawer = ({
             if (!updatedData?.[type]) {
               updatedData[type] = [];
             }
-            if (['advice', 'others'].includes(type)) {
+            if (["advice", "others"].includes(type)) {
               updatedData[type][index] = trimmedText;
               updatedData[type].splice(index + 1, 0, "");
             } else {
               updatedData[type][index].lineItem = trimmedText;
-              updatedData[type].splice(index + 1, 0, { lineItem: " ", name: " " });
+              updatedData[type].splice(index + 1, 0, {
+                lineItem: " ",
+                name: " ",
+              });
             }
             setEditableLineItem(" ");
             setEditableText("");
-          return updatedData;
+            return updatedData;
           }
           if (!updatedData.dynamicFields[type]) {
             updatedData.dynamicFields[type] = [];
@@ -1482,7 +1604,7 @@ const ConsultationDrawer = ({
         // Update active index and clear input
         setActiveIndex(index + 1);
         setIsRxEdited(true);
-        if (isExisting && !['advice', 'others'].includes(type)) {
+        if (isExisting && !["advice", "others"].includes(type)) {
           setActiveType(`${type}-lineItem`);
           setEditableLineItem("");
         } else {
@@ -1494,8 +1616,7 @@ const ConsultationDrawer = ({
         setTimeout(() => {
           const nextIndex = index + 1;
           if (isExisting) inputLineItemRefs.current[nextIndex]?.focus();
-          else
-          inputRefs.current[nextIndex]?.focus();
+          else inputRefs.current[nextIndex]?.focus();
         }, 0);
       }
     }
@@ -1517,11 +1638,30 @@ const ConsultationDrawer = ({
   };
 
   const handleInputBlur = (type, index, isCustom, isExisting) => {
-    if ((activeIndex !== null && activeType !== null) || (isCustom || isExisting)) {
+    if (
+      (activeIndex !== null && activeType !== null) ||
+      isCustom ||
+      isExisting
+    ) {
       setPrescriptionData((prevData) => {
         const updatedData = { ...prevData };
-        const trimmedText = isCustom ? editableText.trim() : isExisting ? editableLineItem?.trim() : "";
+        const trimmedText = isCustom
+          ? editableText.trim()
+          : isExisting
+          ? editableLineItem?.trim()
+          : "";
         if (!trimmedText) {
+          // For medications and labInvestigation, lineItem is optional.
+          // Do NOT delete the item when editing existing lineItem to empty.
+          if (
+            isExisting &&
+            (type === "medications" || type === "labInvestigation")
+          ) {
+            if (updatedData?.[type]?.[index]) {
+              updatedData[type][index].lineItem = "";
+            }
+            return updatedData;
+          }
           if (type === "vitalsAndBodyComposition") {
             updatedData.vitalsAndBodyComposition[index] = "";
           } else if (isCustom) {
@@ -1529,11 +1669,8 @@ const ConsultationDrawer = ({
               type
             ].filter((_, i) => i !== index);
           } else if (isExisting) {
-            updatedData[type] = updatedData[
-              type
-            ].filter((_, i) => i !== index);
-          }
-           else if (type === "followUp") {
+            updatedData[type] = updatedData[type].filter((_, i) => i !== index);
+          } else if (type === "followUp") {
             updatedData.followUp = "";
           } else {
             updatedData[type] = updatedData?.[type]?.filter(
@@ -1551,8 +1688,18 @@ const ConsultationDrawer = ({
           type === "medicalHistory" ||
           type === "vaccinations"
         ) {
-          updatedData[type][index].name = trimmedText;
-          updatedData[type][index].lineItem = trimmedText;
+          // When editing existing structured items, only update lineItem here.
+          // Name field is handled separately via handleNameBlur
+          if (type === "medications" || type === "labInvestigation") {
+            // For medications and labInvestigation, only update if lineItem has changed
+            const originalLineItem = updatedData[type][index].lineItem || "";
+            if (trimmedText !== originalLineItem) {
+              updatedData[type][index].lineItem = trimmedText;
+            }
+          } else {
+            updatedData[type][index].name = trimmedText;
+            updatedData[type][index].lineItem = trimmedText;
+          }
         } else if (type === "advice" || type === "others") {
           updatedData[type][index] = trimmedText;
         } else if (type === "vitalsAndBodyComposition") {
@@ -1566,9 +1713,47 @@ const ConsultationDrawer = ({
       });
       setIsRxEdited(true);
     }
+    // Clear all editing states
     setActiveIndex(null);
     setActiveType(null);
     setEditableText(""); // Clear editable text after blur
+    setEditableLineItem(""); // Clear editable lineItem after blur
+    setEditableName(""); // Clear editable name after blur
+  };
+
+  const handleNameChange = (e) => {
+    setEditableName(e.target.value);
+    setIsRxEdited(true);
+  };
+
+  const handleNameBlur = (type, index) => {
+    const trimmed = (editableName || "").trim();
+    const originalName = prescriptionData[type][index]?.name || "";
+
+    // Name is mandatory: if empty, do not update or clear the existing value
+    if (!trimmed) {
+      // Exit edit mode without changes
+      setActiveIndex(null);
+      setActiveType(null);
+      setEditableName("");
+      return;
+    }
+
+    // Only update if the value has actually changed
+    if (trimmed !== originalName) {
+      setPrescriptionData((prevData) => {
+        const updatedData = { ...prevData };
+        if (updatedData?.[type]?.[index]) {
+          updatedData[type][index].name = trimmed;
+        }
+        return updatedData;
+      });
+      setIsRxEdited(true);
+    }
+    // Exit edit mode for name explicitly
+    setActiveIndex(null);
+    setActiveType(null);
+    setEditableName("");
   };
 
   // Handle click on an item (to edit)
@@ -1599,6 +1784,13 @@ const ConsultationDrawer = ({
 
     setActiveIndex(index);
     setActiveType(type);
+  };
+
+  // Handle click on name/details to edit
+  const handleNameClick = (type, index) => {
+    setEditableName(prescriptionData[type][index]?.name || "");
+    setActiveIndex(index);
+    setActiveType(`${type}-name`);
   };
 
   // Handle click on a lineItem (to edit)
@@ -1760,7 +1952,6 @@ const ConsultationDrawer = ({
       });
 
       const clinic_name = getClinicName(profile?.hospital_data);
-      const tokenData = getTokenData();
       const deviceSdkData = getDeviceSdkData();
       window.Moengage.track_event("TP_Voice_Submit", {
         doctor_name: profile?.um_name,
@@ -1778,16 +1969,16 @@ const ConsultationDrawer = ({
       if (!isFreeVoiceRxUser && useVoiceRx) {
         let sendData = {
           b2c_id: profile?.b2c,
-          service_name: S_VOICE_RX
-        }
-        dispatch(updateCredits(sendData))
+          service_name: S_VOICE_RX,
+        };
+        dispatch(updateCredits(sendData));
       }
       if (useDDX) {
         let sendData = {
           b2c_id: profile?.b2c,
-          service_name: S_DDX
-        }
-        dispatch(updateCredits(sendData))
+          service_name: S_DDX,
+        };
+        dispatch(updateCredits(sendData));
       }
 
       if (isAutofillSelected) {
@@ -1833,7 +2024,114 @@ const ConsultationDrawer = ({
     setEditableKey("");
   };
 
+  useEffect(() => {
+    const data = [];
+    parentOptionsList?.map((e) => {
+      return data.push({
+        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+        value: e.tmm_medicine_name,
+        label: (
+          <div>
+            <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
+            <span>{e.tmm_generic}</span>{" "}
+            {e?.tmm_hm_type === 1 && e?.um_id === 0 && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+          </div>
+        ),
+      });
+    });
+
+    if (searchParentQuery.length == 0) {
+      data.unshift({
+        key: -1,
+        label: (
+          <>
+            <div>SUGGESTED</div>
+          </>
+        ),
+      });
+    } else {
+      searchParentQuery &&
+        data.push({
+          key: JSON.stringify({
+            unique_id: uuidv4(),
+            tmm_id: 0,
+            tmm_medicine_name: searchParentQuery,
+          }),
+          value: searchParentQuery,
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16">
+                {" "}
+                <i className="icon-Add mx-1 fs-6"></i> Add{" "}
+                <span className="fw-medium fontroboto text-primary">
+                  "{searchParentQuery}"
+                </span>{" "}
+                <a className="text-primary fontroboto">as a new medicine</a>
+              </div>
+            </>
+          ),
+        });
+    }
+    setParentSearchOptions(data);
+  }, [parentOptionsList]);
+
+  const onSearchParent = useCallback(
+    (query) => {
+      setSearchParentQuery(removeBeforeWhiteSpace(query));
+    },
+    [searchParentQuery, editableName]
+  );
+
+  useEffect(() => {
+    if (editableName) {
+      const timeOutId = setTimeout(() => {
+        dispatch(
+          searchMedication({
+            searchQuery: editableName,
+            type: "parent",
+          })
+        );
+      }, 500);
+      return () => {
+        clearTimeout(timeOutId);
+      };
+    }
+  }, [editableName]);
+
   const renderItems = (type) => {
+    const onSelectParent = (data, item) => {
+      if (
+        item.key &&
+        JSON.parse(item.key).tmm_id === 0 &&
+        type === "medications"
+      ) {
+        setShowAddMedicinePopup(true);
+      } else {
+        // Check if medicine is not from Zydus Data Engine
+        const medicineData = item.key ? JSON.parse(item.key) : null;
+        const isZydusMedicine =
+          medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
+
+        if (
+          !isZydusMedicine &&
+          !dontShowZydusWarning &&
+          type === "medications"
+        ) {
+          setPendingSelection({ data, item, type });
+          setShowNonZydusWarning(true);
+        } else {
+          setEditableName(data);
+        }
+      }
+    };
+
     if (type === "followUp") {
       // Dynamically calculate input width
       let textWidth = 0;
@@ -1911,7 +2209,8 @@ const ConsultationDrawer = ({
                       <div className="medicine-item">
                         <span className="digitised-item">
                           {/* Format the key to be human-readable */}
-                          {activeIndex === key && activeType === "vitalsAndBodyComposition-key" ? (
+                          {activeIndex === key &&
+                          activeType === "vitalsAndBodyComposition-key" ? (
                             <input
                               type="text"
                               value={editableKey || key}
@@ -1919,7 +2218,11 @@ const ConsultationDrawer = ({
                               onChange={(e) => setEditableKey(e.target.value)}
                               onBlur={() => handleKeyEditBlur(key)}
                               autoFocus
-                              style={{ width: `clamp(12px, ${(editableKey || key).length * 8 + 20}px, 100%)` }}
+                              style={{
+                                width: `clamp(12px, ${
+                                  (editableKey || key).length * 8 + 20
+                                }px, 100%)`,
+                              }}
                             />
                           ) : (
                             <span
@@ -1935,7 +2238,7 @@ const ConsultationDrawer = ({
                           )}
                         </span>
                         {activeIndex === key &&
-                          activeType === "vitalsAndBodyComposition" ? (
+                        activeType === "vitalsAndBodyComposition" ? (
                           <input
                             type="text"
                             value={editableText} // Pre-fill the input with the current value
@@ -1943,7 +2246,9 @@ const ConsultationDrawer = ({
                             onChange={(e) => setEditableText(e.target.value)}
                             onBlur={() => handleInputBlur(type, key)}
                             autoFocus
-                            style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }} // Add padding for better UX
+                            style={{
+                              width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                            }} // Add padding for better UX
                           />
                         ) : (
                           <span
@@ -1978,6 +2283,7 @@ const ConsultationDrawer = ({
                 // Measure the width of the editable text
                 let textWidth = 0;
                 let lineItemWidth = 0;
+                let nameWidth = 0;
 
                 // For name or other primary data (editableText)
                 if (activeIndex === index && activeType === type) {
@@ -2006,12 +2312,24 @@ const ConsultationDrawer = ({
                   document.body.removeChild(tempSpanLineItem);
                 }
 
+                // For name width when editing name
+                if (activeIndex === index && activeType === `${type}-name`) {
+                  const tempSpanName = document.createElement("span");
+                  tempSpanName.style.visibility = "hidden";
+                  tempSpanName.style.position = "absolute";
+                  tempSpanName.style.whiteSpace = "nowrap";
+                  tempSpanName.innerText = editableName || item?.name || "";
+                  document.body.appendChild(tempSpanName);
+                  nameWidth = tempSpanName.offsetWidth;
+                  document.body.removeChild(tempSpanName);
+                }
+
                 return (
                   <li key={index}>
                     <div className="medicine-item">
                       {activeIndex === index &&
-                        activeType === type &&
-                        ["advice", "others"].includes(type) ? (
+                      activeType === type &&
+                      ["advice", "others"].includes(type) ? (
                         <input
                           type="text"
                           value={editableText}
@@ -2020,7 +2338,9 @@ const ConsultationDrawer = ({
                           onBlur={() => handleInputBlur(type, index)}
                           onKeyDown={(e) => handleKeyDown(e, type, index, true)}
                           autoFocus
-                          style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
+                          style={{
+                            width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                          }}
                         />
                       ) : (
                         ["advice", "others"].includes(type) && (
@@ -2033,27 +2353,124 @@ const ConsultationDrawer = ({
                         )
                       )}
 
-                      {/* Editable input for lineItem */}
+                      {/* Special handling for medications and labInvestigation with dual inputs */}
                       {(type === "medications" ||
-                        type === "symptoms" ||
+                        type === "labInvestigation") &&
+                        (activeIndex === index &&
+                        (activeType === `${type}-lineItem` ||
+                          activeType === `${type}-name`) ? (
+                          <div className="d-flex gap-2 align-items-center">
+                            {activeType === `${type}-name` ? (
+                              <>
+                                <AutoComplete
+                                  value={editableName}
+                                  onSearch={onSearchParent}
+                                  options={parentSearchOptions}
+                                  className="autocomplete-custom grounding-select"
+                                  popupClassName="grounding-boxpopup grounding-select"
+                                  onSelect={onSelectParent}
+                                  defaultActiveFirstOption={true}
+                                  autoFocus={true}
+                                  popupMatchSelectWidth={false}
+                                  dropdownStyle={{ width: 420 }}
+                                >
+                                  <input
+                                    type="text"
+                                    value={editableName}
+                                    className="editable-digitised-item"
+                                    onChange={handleNameChange}
+                                    onBlur={() => handleNameBlur(type, index)}
+                                    onKeyDown={(e) =>
+                                      handleKeyDown(e, type, index, true)
+                                    }
+                                    autoFocus
+                                    style={{
+                                      width: `clamp(12px, ${
+                                        nameWidth + 10
+                                      }px, 100%)`,
+                                    }}
+                                  />
+                                </AutoComplete>
+                                <span className="digitised-item">
+                                  {item.lineItem}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="digitised-item">{`${item.name}`}</span>
+                                <input
+                                  type="text"
+                                  value={editableLineItem}
+                                  className="editable-digitised-item"
+                                  onChange={handleLineItemChange}
+                                  onBlur={() =>
+                                    handleInputBlur(type, index, false, true)
+                                  }
+                                  onKeyDown={(e) =>
+                                    handleKeyDown(e, type, index, true)
+                                  }
+                                  autoFocus
+                                  style={{
+                                    width: `clamp(12px, ${
+                                      lineItemWidth + 10
+                                    }px, 100%)`,
+                                  }}
+                                />
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <span
+                              onClick={() => handleNameClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {`${item.name}`}
+                            </span>
+                            <span
+                              onClick={() => handleLineItemClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {item.lineItem !== undefined
+                                ? item.lineItem
+                                : `(${item.dosage ?? ""} ${
+                                    item.duration ?? ""
+                                  } ${item.frequency ?? ""} ${
+                                    item.schedule ?? ""
+                                  } ${item.notes ?? ""})`}
+                            </span>
+                          </>
+                        ))}
+
+                      {/* Editable input for lineItem for other types */}
+                      {(type === "symptoms" ||
                         type === "vaccinations" ||
                         type === "medicalHistory" ||
-                        type === "labInvestigation" ||
                         type === "examinations" ||
                         type === "diagnosis") &&
                         item?.lineItem &&
                         (activeIndex === index &&
-                          activeType === `${type}-lineItem` ? (
+                        activeType === `${type}-lineItem` ? (
                           <input
                             type="text"
                             value={editableLineItem}
                             className="editable-digitised-item"
                             onChange={handleLineItemChange}
-                            onBlur={() => handleInputBlur(type, index, false, true)}
-                            onKeyDown={(e) => handleKeyDown(e, type, index, true)}
-                            ref={(el) => (inputLineItemRefs.current[index] = el)}
+                            onBlur={() =>
+                              handleInputBlur(type, index, false, true)
+                            }
+                            onKeyDown={(e) =>
+                              handleKeyDown(e, type, index, true)
+                            }
+                            ref={(el) =>
+                              (inputLineItemRefs.current[index] = el)
+                            }
                             autoFocus
-                            style={{ width: `clamp(12px, ${lineItemWidth + 10}px, 100%)` }}
+                            style={{
+                              width: `clamp(12px, ${
+                                lineItemWidth + 10
+                              }px, 100%)`,
+                            }}
                           />
                         ) : (
                           <span
@@ -2151,8 +2568,8 @@ const ConsultationDrawer = ({
                     {localModules?.includes(module)
                       ? module
                       : module
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/^./, (str) => str.toUpperCase())}
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (str) => str.toUpperCase())}
                     {localModules?.includes(module) && (
                       <i
                         className={`icon-Edit fs-21 ms-2 cursor-pointer`}
@@ -2194,8 +2611,8 @@ const ConsultationDrawer = ({
                           {localModules?.includes(module)
                             ? module
                             : module
-                              .replace(/([A-Z])/g, " $1")
-                              .replace(/^./, (str) => str.toUpperCase())}{" "}
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}{" "}
                           Module
                         </Menu.Item>
                       </Menu>
@@ -2260,7 +2677,9 @@ const ConsultationDrawer = ({
                                 }
                                 autoFocus
                                 style={{
-                                  width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                                  width: `clamp(12px, ${
+                                    textWidth + 10
+                                  }px, 100%)`,
                                 }}
                                 onPaste={(e) => handlePaste(e, module)}
                                 onKeyDown={(e) =>
@@ -2471,21 +2890,37 @@ const ConsultationDrawer = ({
                     placement="bottomRight"
                     overlayClassName="groundingTooltip"
                     title={
-                      <div style={{padding: "12px"}}>
+                      <div style={{ padding: "12px" }}>
                         <div>
-                          <span className="semi-bold-text fs-21" style={{lineHeight: "18px"}}>Zydus Data Engine</span>
-                           <img className="img-fluid" width={39} height={16} style={{ marginLeft: 10, marginBottom: 5 }} src={tagNew} alt={"new-gif"} />
+                          <span
+                            className="semi-bold-text fs-21"
+                            style={{ lineHeight: "18px" }}
+                          >
+                            Zydus Data Engine
+                          </span>
+                          <img
+                            className="img-fluid"
+                            width={39}
+                            height={16}
+                            style={{ marginLeft: 10, marginBottom: 5 }}
+                            src={tagNew}
+                            alt={"new-gif"}
+                          />
                         </div>
                         <Divider style={{ margin: "15px 0px" }} />
                         <div>
                           <span>What is Zydus Data Engine?</span>
                           <span>
                             With a curated list of{" "}
-                            <span className="semi-bold-text">medicines</span> and{" "}
+                            <span className="semi-bold-text">medicines</span>{" "}
+                            and{" "}
                             <span className="semi-bold-text">lab tests</span>
                             from the{" "}
-                            <span className="semi-bold-text">Zydus Data Engine</span>, our
-                            AI adapts to your prescribing style, surfacing the most
+                            <span className="semi-bold-text">
+                              Zydus Data Engine
+                            </span>
+                            , our AI adapts to your prescribing style, surfacing
+                            the most
                             <span className="semi-bold-text">
                               relevant suggestions
                             </span>{" "}
@@ -2514,7 +2949,7 @@ const ConsultationDrawer = ({
                             style={{
                               width: "503px",
                               height: "239px",
-                              marginTop: "12px"
+                              marginTop: "12px",
                             }}
                           >
                             <div
@@ -2557,7 +2992,12 @@ const ConsultationDrawer = ({
                 </span>
               </button>
 
-              {!isFreeVoiceRxUser && <FreeTrialButton title={S_VOICE_RX} showHideSubModal={showHideSubModal} />}
+              {!isFreeVoiceRxUser && (
+                <FreeTrialButton
+                  title={S_VOICE_RX}
+                  showHideSubModal={showHideSubModal}
+                />
+              )}
 
               {showPrescription && (
                 <Button
@@ -2701,84 +3141,23 @@ const ConsultationDrawer = ({
                   )}
                 </>
               ) : (
-                  <div
-                    className={`${styles.splitView} w-100`}
-                    ref={splitRef}
-                     style={{
-                       padding: "0 0 24px 0",
-                       "--divider-left": `${leftWidthPercent}%`,
-                     }}
-                  >
+                <div
+                  className={`${styles.splitView} w-100`}
+                  ref={splitRef}
+                  style={{
+                    padding: 24,
+                    "--divider-left": `${leftWidthPercent}%`,
+                  }}
+                >
                   <div
                     className={styles.inputSection}
                     style={{ width: `${leftWidthPercent}%` }}
                   >
-                      <div className={styles.chatSection}>
-                        {/* Introductory Text */}
-                        <div className={styles.introTextContainer}>
-                          <img src={doctorAvatar} alt="Doctor Assistant" className={styles.doctorAvatarIcon} />
-                          <div className={styles.introText}>
-                            Hi Doctor! Start your consultation by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the patient.</strong>
-                            I'll <strong>transcribe</strong> & <strong>structure</strong> it into the <strong>Rx Pad</strong> automagically!
-                          </div>
-                        </div>
-                        
-                        {/* Transcript Card */}
-                        {(fullTranscript || genRxDetails?.source) && (
-                          <div className={styles.transcriptCard}>
-                            <div 
-                              className={styles.transcriptHeader}
-                              onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
-                            >
-                              <div className={styles.transcriptTitle}>
-                                <div className={styles.transcriptTitleContent}>
-                                  <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
-                                  <div className={styles.transcriptDuration}>
-                                    <i className="icon-time"></i>
-                                    <span>{audioDuration || formatTime(recordingTime) || "0:00"}</span>
-                                    <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
-                                  </div>
-                                </div>
-                                <div className={styles.transcriptPreview}>
-                                  {!isAmbientMode && (fullTranscript || (conversations?.map(conv => conv.message || conv.text || conv.content).join(' ')))}
-                                </div>
-                              </div>
-                              <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
-                                <i className="icon-down"></i>
-                              </div>
-                            </div>
-                            {isTranscriptExpanded && (
-                              <div className={styles.transcriptContent}>
-                                  {isAmbientMode ? (
-                                  <div>
-                                    {Array.isArray(conversations) && conversations.length > 0 ? (
-                                      conversations.map((conv, idx) => {
-                                        const text = conv?.message || conv?.text || conv?.content || '';
-                                        const speaker = (conv?.speaker || '').toLowerCase();
-                                        const isDoctor = speaker === 'doctor';
-                                        return (
-                                          <div key={idx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
-                                        <div className={styles.conversationBubble}>
-                                              <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
-                                              <div className={styles.messageText}>{text}</div>
-                                          </div>
-                                          </div>
-                                        );
-                                      })
-                                    ) : null}
-                                        </div>
-                                ) : (
-                                  <div className={styles.transcriptText}>
-                                    {(Array.isArray(queries) && queries.length > 0)
-                                      ? queries.join(' ')
-                                      : (fullTranscript || '')}
-                                </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                    <div>
+                      <img src={documentIcon} alt="Document" />
+                      <span className={styles.heading}>Your input</span>
+                    </div>
+                    <div className={styles.chatSection}>
                       {isProcessing ? (
                         <BubbleSkeleton />
                       ) : (
@@ -2860,20 +3239,24 @@ const ConsultationDrawer = ({
                     className={styles.prescriptionSection}
                     style={{ width: `${100 - leftWidthPercent}%` }}
                   >
-                      <div className={styles.rxPadHeader}>
-                        <img src={require("../assets/images/document-normal.svg").default} alt="Rx Pad" className={styles.rxPadIcon} />
-                        <span className={styles.rxPadTitle}>Rx Pad</span>
+                    {!isProcessing && (
+                      <div>
+                        <img src={documentIcon} alt="Document" />
+                        <span className={styles.heading}>
+                          Generated Digitised Rx
+                        </span>
                       </div>
-                      
+                    )}
                     {isProcessing ? (
                       <GenRXLoaders
                         isProcessing={isProcessing}
-                        showAbsHeaderInsideLoader={false}
+                        showAbsHeaderInsideLoader={true}
                       />
                     ) : (
                       <div
-                        className={`${styles.rightSection} ${isProcessing ? styles.gradientBorder : ""
-                          }`}
+                        className={`${styles.rightSection} ${
+                          isProcessing ? styles.gradientBorder : ""
+                        }`}
                         style={{
                           background: isProcessing ? `url(${genRxBg})` : "",
                         }}
@@ -3065,6 +3448,14 @@ const ConsultationDrawer = ({
                       </div>
                     )}
                   </div>
+                  <div
+                    className={styles.dividerHandle}
+                    onMouseDown={startResizing}
+                  >
+                    <div className={styles.dividerKnob}>
+                      <div className={styles.dividerDots} />
+                    </div>
+                  </div>
                 </div>
               )}
               {DELETE_MODULE_MODAL}
@@ -3112,11 +3503,21 @@ const ConsultationDrawer = ({
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{
-            mask: { marginLeft: showPrescription ? 0 : window.innerWidth - 640, marginTop: 60, background: 'rgba(0, 0, 0, 0.28)', backdropFilter: 'blur(2px)' },
-            wrapper: { marginLeft: showPrescription ? 0 : window.innerWidth - 640, marginTop: 60, background: 'rgba(0, 0, 0, 0.28)' },
+            mask: {
+              marginLeft: showPrescription ? 0 : window.innerWidth - 640,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+              backdropFilter: "blur(2px)",
+            },
+            wrapper: {
+              marginLeft: showPrescription ? 0 : window.innerWidth - 640,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+            },
           }}
           isSubModalOpen={isSubModalOpen}
-          showHideSubModal={showHideSubModal} />
+          showHideSubModal={showHideSubModal}
+        />
       )}
 
       {shouldShowVideo && (
@@ -3199,43 +3600,7 @@ const ConsultationDrawer = ({
                 <Button
                   onClick={() => {
                     if (pendingSelection) {
-                      // Set the active editing state from pending selection
-                      setActiveIndex(pendingSelection.activeIndex);
-                      setActiveType(pendingSelection.activeType);
                       setEditableName(pendingSelection.data);
-
-                      // Update the prescriptionData with the selected medicine
-                      setPrescriptionData((prevData) => {
-                        const updatedData = { ...prevData };
-                        if (
-                          updatedData?.[pendingSelection.type]?.[
-                            pendingSelection.activeIndex
-                          ]
-                        ) {
-                          updatedData[pendingSelection.type][
-                            pendingSelection.activeIndex
-                          ].name = pendingSelection.data;
-                          // Add complete option data as metadata
-                          if (pendingSelection.item.key) {
-                            const medicineData = JSON.parse(
-                              pendingSelection.item.key
-                            );
-                            updatedData[pendingSelection.type][
-                              pendingSelection.activeIndex
-                            ].metadata = {
-                              ...medicineData,
-                              selectedValue: pendingSelection.data,
-                            };
-                          }
-                        }
-                        return updatedData;
-                      });
-                      setIsRxEdited(true);
-
-                      // Clear editing states after selection
-                      setActiveIndex(null);
-                      setActiveType(null);
-                      setEditableName("");
                     }
                     setShowNonZydusWarning(false);
                     setPendingSelection(null);
@@ -3249,25 +3614,6 @@ const ConsultationDrawer = ({
           </>
         }
       />
-      
-      {/* Tutorial Drawer */}
-      <Drawer
-        placement="right"
-        width={window.innerWidth ? Math.min(window.innerWidth * 0.8, 1200) : 1200}
-        closeIcon={null}
-        destroyOnClose
-        maskClosable
-        open={genRxKnowMoreDrawer}
-        onClose={() => setGenRxKnowMoreDrawer(false)}
-        bodyStyle={{ padding: 0, height: '100%', overflow: 'hidden' }}
-      >
-        <div style={{ height: '100%', overflow: 'hidden' }}>
-          <GenRxKnowMore handleGenRxKnowMore={() => setGenRxKnowMoreDrawer(false)} />
-        </div>
-      </Drawer>
-      {showAddMedicinePopup && 
-        <CustomMedicinePopup isOpen={showAddMedicinePopup} onCancel={() => setShowAddMedicinePopup(false)} />
-      }
     </Drawer>
   );
 };
