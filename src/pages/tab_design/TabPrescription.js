@@ -1055,7 +1055,7 @@ function TabPrescription() {
 
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
-    openCollapsed(isGroundingAccessable ? 11 : (isVoiceRxAccessable || tp_monetization_enable) ? 10 : 9);
+    openCollapsed(isGroundingAccessable ? 12 : (isVoiceRxAccessable || tp_monetization_enable) ? 10 : 9);
     window.Moengage.track_event("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
@@ -1135,7 +1135,7 @@ function TabPrescription() {
                   {isGroundingAccessable && <button
                     type="button"
                     className="mb-3 text-center btn btn-action"
-                    onClick={() => openCollapsed(11)}
+                    onClick={() => openCollapsed(12)}
                   >
                     <div
                       className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
@@ -1146,7 +1146,7 @@ function TabPrescription() {
                       style={{backgroundColor: "inherit"}}
                       >
                         <img
-                          src={collapsedFlag == 11 ? groundingImgDark : groundingImgWhite}
+                          src={collapsedFlag == 12 ? groundingImgDark : groundingImgWhite}
                           alt="Grounding"
                           width={42}
                           height={42}
@@ -1603,7 +1603,10 @@ function TabPrescription() {
                         clinicId={decodedToken?.result?.clinic_id}
                         carePlanPlaceholder={carePlanPlaceholder}
                     />
-                  ) : null}
+                  ) : collapsedFlag === 12 && isGroundingAccessable && (
+                    <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
+                  )
+              }
             </Sider>
             <div
               className="p-20 w-100 overflow-y-auto"

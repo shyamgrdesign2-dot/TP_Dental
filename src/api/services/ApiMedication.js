@@ -4,6 +4,7 @@ import config from '../../config';
 const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
 const fuzzySearchBaseUrl = { customBaseUrl: config.searchengine_url };
+const quantityBaseUrl = { customBaseUrl: config.symptoms_collector_api_url };
 
 const ApiMedication = {};
 
@@ -54,6 +55,10 @@ ApiMedication.getFuzzySearch = function (query) {
     `/api/v1/medicines/fuzzySearch?search=${query}&max_results=1`,
     fuzzySearchBaseUrl
   );
+};
+
+ApiMedication.getQuantity = function (data) {
+  return api.post(`/api/v1/cvt/get-medicine-quantity`, data, quantityBaseUrl);
 };
 
 ApiMedication.showMedicineFrequency = function () {

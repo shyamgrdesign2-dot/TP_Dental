@@ -813,9 +813,9 @@ function Cardiology(props) {
               <div className="medicine-item">
                 {["advice", "others"].includes(type) && <span>{item}</span>}
 
+                {type === "medications" && <span>{item.name} {item.lineItem}</span>}
                 {/* Optional rendering for lineItem */}
-                {(type === "medications" ||
-                  type === "vaccinations" ||
+                {(type === "vaccinations" ||
                   type === "medicalHistory" ||
                   type === "labInvestigation" ||
                   type === "symptoms" ||

@@ -21,6 +21,7 @@ import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
+import ApiMedication from "../../api/services/ApiMedication";
 
 function SnapRxDigitise() {
   const divRef = useRef(null);
@@ -55,6 +56,16 @@ function SnapRxDigitise() {
 
   const baseUrlRxDigitise = env.digitization_api_url;
 
+  // Ensure medications default edited flag is present
+  const normalizeEditedFlag = useCallback((src) => {
+    if (!src || typeof src !== "object") return src;
+    const meds = Array.isArray(src.medications) ? src.medications : [];
+    return {
+      ...src,
+      medications: meds.map((m) => ({ ...m, edited: m?.edited ?? false })),
+    };
+  }, []);
+
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
@@ -85,10 +96,10 @@ function SnapRxDigitise() {
     if (smartRxFile?.length > 0 && token && state.type === "new") {
       digitizeRx();
     } else if (state.type === "edit" && digitisedData) {
-      setData(digitisedData?.editedData);
+      setData(normalizeEditedFlag(digitisedData?.editedData));
       setIsLoading(false);
     } else if (state.type === "review" && digitisedData) {
-      setData(digitisedData?.refinedData);
+      setData(normalizeEditedFlag(digitisedData?.refinedData));
       setIsLoading(false);
     }
   }, [token, smartRxFile, digitisedData]);
@@ -149,6 +160,9 @@ function SnapRxDigitise() {
             getInvestigationAndMedicine(sendInvestigationAndMedicine)
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
+            const quantityActionMedicine = await ApiMedication.getQuantity({
+              medicines: data?.medications,
+            });
             let zydusSendData = {
               action: tcm_id == 0 ? "add" : "edit",
               tcmId: tcm_id,
@@ -162,9 +176,10 @@ function SnapRxDigitise() {
               duplicateCheck: 1,
               investigationList: data?.tests?.map((item) => item.name) || [],
               medicineList:
-                data?.medications?.map(({ name, quantity, notes }) => ({
+                data?.medications?.map(({ name, notes }, index) => ({
                   name: name,
-                  quantity: quantity,
+                  quantity:
+                    quantityActionMedicine?.medicines?.[index]?.quantity,
                   instruction: notes,
                 })) || [],
               pillupSwitch: 0,
@@ -228,7 +243,7 @@ function SnapRxDigitise() {
 
       // Update the digitized data
       if (response?.data?.data) {
-        setData(response.data.data.refinedData);
+        setData(normalizeEditedFlag(response.data.data.refinedData));
         setIsLoading(false);
       }
     } catch (error) {

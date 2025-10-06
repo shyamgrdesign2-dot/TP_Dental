@@ -13,10 +13,16 @@ import { FETCH_SMART_RX, S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { env } from "../EnvironmentConfig";
+import { getInvestigationAndMedicine } from "../redux/caseManagerSlice";
+import { placeIctOrder } from "../redux/appointmentsSlice";
+import { getTokenData } from "../utils/utils";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_ZYDUS_USER } from "../utils/constants";
 import HeaderSmartRxDigitise from "../common/HeaderSmartRxDigitise";
 import DigitisedPrescription from "../components/DigitisedPrescription";
 import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
+import ApiMedication from "../api/services/ApiMedication";
 
 function SmartRxDigitise() {
   const divRef = useRef(null);
@@ -24,7 +30,7 @@ function SmartRxDigitise() {
   const isResizingRef = useRef(false);
   const [leftWidthPercent, setLeftWidthPercent] = useState(50);
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
   const { loading } = useSelector((state) => state.caseManager);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -50,8 +56,24 @@ function SmartRxDigitise() {
   const [isDigitiseRxSubmit, setIsDigitiseRxSubmit] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  // Grounding check (Zydus users)
+  const tokenDataLocal = getTokenData();
+  const isGroundingAccessable =
+    tokenDataLocal?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
 
   const baseUrlRxDigitise = env.rx_digitization;
+
+  // Ensure medications default edited flag is present
+  const normalizeEditedFlag = useCallback((src) => {
+    if (!src || typeof src !== "object") return src;
+    const meds = Array.isArray(src.medications) ? src.medications : [];
+    return {
+      ...src,
+      medications: meds.map((m) => ({ ...m, edited: m?.edited ?? false })),
+    };
+  }, []);
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -125,6 +147,47 @@ function SmartRxDigitise() {
 
       // Handle navigation based on the API response
       if (response.status === 204) {
+          if (isGroundingAccessable && patient_data?.departmentId) {
+          let sendInvestigationAndMedicine = {
+            patient_unique_id:
+              patient_data !== undefined ? patient_data.patient_unique_id : 0,
+            tcm_id: tcm_id,
+          };
+          const actionIM = await dispatch(
+            getInvestigationAndMedicine(sendInvestigationAndMedicine)
+          );
+          if (actionIM.meta.requestStatus === "fulfilled") {
+            const quantityActionMedicine = await ApiMedication.getQuantity({
+              medicines: data?.medications,
+            });
+            let zydusSendData = {
+              action: tcm_id == 0 ? "add" : "edit",
+              tcmId: tcm_id,
+              siteId: siteId,
+              departmentId: patient_data?.departmentId,
+              visitId: patient_data?.visitId,
+              encounterId: patient_data?.encounterId,
+              mrno: patient_data?.mrno,
+              doctorCode: patient_data?.employeeId,
+              storeCode: storeCode,
+              duplicateCheck: 1,
+              investigationList:
+                actionIM?.payload?.investigation?.map(
+                  (item) => item.investigation_name
+                ) || [],
+              medicineList:
+                (data?.medications || []).map(({ name, notes }, index) => ({
+                  name: name,
+                  quantity:
+                    quantityActionMedicine?.medicines?.[index]?.quantity,
+                  instruction: notes,
+                })) || [],
+              pillupSwitch: 0,
+            };
+            await dispatch(placeIctOrder(zydusSendData));
+          }
+        }
+
         let sendData = {
           b2c_id: profile?.b2c,
           service_name: S_RX_DIGITIZATION,
@@ -211,7 +274,11 @@ function SmartRxDigitise() {
 
       // Update the digitized data
       if (response?.data?.data) {
-        setData(response.data.data.refinedData);
+        setData(
+          isGroundingAccessable
+            ? normalizeEditedFlag(response.data.data.refinedData)
+            : response.data.data.refinedData
+        );
         setIsLoading(false);
       }
     } catch (error) {

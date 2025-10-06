@@ -106,7 +106,9 @@ const DigitisedPrescription = ({
   const inputRef = useRef(null);
   const dispatch = useDispatch();
   const { parentOptionsList } = useSelector((state) => state.medication);
-  const { testOptionsList } = useSelector((state) => state.investigation);
+  const { parentOptionsList: testOptionsList } = useSelector(
+    (state) => state.investigation
+  );
   // Fuzzy search run-once guards for meds and tests
   const hasFuzzyRunMedsRef = useRef(false);
   const hasFuzzyRunTestsRef = useRef(false);
@@ -123,9 +125,13 @@ const DigitisedPrescription = ({
         const updatedData = { ...prevData };
         const arr = [...(updatedData[itemType] || [])];
         if (itemType === "diagnosis" || itemType === "examination") {
-          arr[index] = { ...arr[index], notes: editableLineItem };
+          arr[index] = { ...arr[index], notes: editableLineItem, edited: true };
         } else {
-          arr[index] = { ...arr[index], lineItem: editableLineItem };
+          arr[index] = {
+            ...arr[index],
+            lineItem: editableLineItem,
+            edited: true,
+          };
         }
         updatedData[itemType] = arr;
         return updatedData;
@@ -480,6 +486,7 @@ const DigitisedPrescription = ({
             // Add metadata for fuzzy search corrected name with full data
             metadata: {
               ...m.metadata,
+              edited: false,
               fuzzyCorrectedName: correctedResults[idx].correctedName,
               originalName: m.name,
               isFuzzyCorrected: true,

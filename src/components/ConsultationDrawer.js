@@ -204,9 +204,7 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
-  const { profile, siteId, storeCode } = useSelector(
-    (state) => state.doctors
-  );
+  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
   const { parentOptionsList } = useSelector((state) => state.medication);
   const { symptomCollector, isAutofillSelected, selectedSymptomsCollector } =
     useSelector((state) => state.ddx);
@@ -411,6 +409,7 @@ const ConsultationDrawer = ({
         medications: (prev?.medications || []).map((m, idx) => ({
           ...m,
           name: correctedResults[idx].correctedName,
+          edited: false,
           // Add metadata for fuzzy search corrected name with full data
           metadata: {
             ...m.metadata,
@@ -1562,6 +1561,8 @@ const ConsultationDrawer = ({
               updatedData[type].splice(index + 1, 0, "");
             } else {
               updatedData[type][index].lineItem = trimmedText;
+              // mark item as user-edited when line item is changed via Enter
+              updatedData[type][index].edited = true;
               updatedData[type].splice(index + 1, 0, {
                 lineItem: " ",
                 name: " ",
@@ -1677,6 +1678,8 @@ const ConsultationDrawer = ({
             const originalLineItem = updatedData[type][index].lineItem || "";
             if (trimmedText !== originalLineItem) {
               updatedData[type][index].lineItem = trimmedText;
+              // mark item as user-edited when line item is changed on blur
+              updatedData[type][index].edited = true;
             }
           } else {
             updatedData[type][index].name = trimmedText;
@@ -1981,6 +1984,9 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
+          const quantityActionMedicine = await ApiMedication.getQuantity({
+            medicines: prescriptionData?.medications,
+          });
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -1996,13 +2002,11 @@ const ConsultationDrawer = ({
               prescriptionData?.labInvestigation?.map((item) => item.name) ||
               [],
             medicineList:
-              prescriptionData?.medications?.map(
-                ({ name, quantity, notes }) => ({
-                  name: name,
-                  quantity: quantity,
-                  instruction: notes,
-                })
-              ) || [],
+              prescriptionData?.medications?.map(({ name, notes }, index) => ({
+                name: name,
+                quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
+                instruction: notes,
+              })) || [],
             pillupSwitch: 0,
           };
           await dispatch(placeIctOrder(zydusSendData));
