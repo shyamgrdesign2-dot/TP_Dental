@@ -448,22 +448,26 @@ const DigitisedPrescription = ({
         const meds = medsSnapshot || data?.medications || [];
         if (!meds.length) return;
 
-        const correctedNames = await Promise.all(
+        const correctedResults = await Promise.all(
           meds.map(async (med) => {
             const currentName = (med?.name || "").trim();
-            if (!currentName) return currentName;
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
             try {
               const result = await ApiMedication.getFuzzySearch(currentName);
               const corrected = result?.[0]?.tmm_medicine_name?.trim();
-              return corrected || currentName;
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
             } catch {
-              return currentName;
+              return { correctedName: currentName, fullData: null };
             }
           })
         );
 
         const anyChanged = meds.some(
-          (m, i) => (m?.name || "").trim() !== correctedNames[i]
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
         );
         if (!anyChanged) return;
 
@@ -471,8 +475,16 @@ const DigitisedPrescription = ({
           ...prev,
           medications: (prev?.medications || []).map((m, idx) => ({
             ...m,
-            name: correctedNames[idx],
-            refinedName: correctedNames[idx],
+            name: correctedResults[idx].correctedName,
+            refinedName: correctedResults[idx].correctedName,
+            // Add metadata for fuzzy search corrected name with full data
+            metadata: {
+              ...m.metadata,
+              fuzzyCorrectedName: correctedResults[idx].correctedName,
+              originalName: m.name,
+              isFuzzyCorrected: true,
+              ...(correctedResults[idx].fullData || {}),
+            },
           })),
         }));
       } finally {
@@ -487,22 +499,26 @@ const DigitisedPrescription = ({
       try {
         const tests = testsSnapshot || data?.tests || [];
         if (!tests.length) return;
-        const correctedNames = await Promise.all(
+        const correctedResults = await Promise.all(
           tests.map(async (it) => {
             const currentName = (it?.name || "").trim();
-            if (!currentName) return currentName;
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
             try {
               const result = await ApiInvestigation.getFuzzySearch(currentName);
               const corrected = result?.[0]?.investigation_name?.trim();
-              return corrected || currentName;
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
             } catch {
-              return currentName;
+              return { correctedName: currentName, fullData: null };
             }
           })
         );
 
         const anyChanged = tests.some(
-          (m, i) => (m?.name || "").trim() !== correctedNames[i]
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
         );
         if (!anyChanged) return;
 
@@ -510,8 +526,16 @@ const DigitisedPrescription = ({
           ...prev,
           tests: (prev?.tests || []).map((m, idx) => ({
             ...m,
-            name: correctedNames[idx],
-            refinedName: correctedNames[idx],
+            name: correctedResults[idx].correctedName,
+            refinedName: correctedResults[idx].correctedName,
+            // Add metadata for fuzzy search corrected name with full data
+            metadata: {
+              ...m.metadata,
+              fuzzyCorrectedName: correctedResults[idx].correctedName,
+              originalName: m.name,
+              isFuzzyCorrected: true,
+              ...(correctedResults[idx].fullData || {}),
+            },
           })),
         }));
       } finally {
@@ -570,6 +594,12 @@ const DigitisedPrescription = ({
             ...arr[activeIndex],
             name: value,
             refinedName: value,
+            // Add metadata for selected option
+            metadata: {
+              ...arr[activeIndex].metadata,
+              ...(option?.key ? JSON.parse(option.key) : {}),
+              selectedValue: value,
+            },
           };
           updated[activeType] = arr;
         }
@@ -601,6 +631,12 @@ const DigitisedPrescription = ({
                 ...arr[activeIndex],
                 name: value,
                 refinedName: value,
+                // Add metadata for selected option
+                metadata: {
+                  ...arr[activeIndex].metadata,
+                  ...(option?.key ? JSON.parse(option.key) : {}),
+                  selectedValue: value,
+                },
               };
               updated[activeType] = arr;
             }
@@ -627,6 +663,12 @@ const DigitisedPrescription = ({
             ...arr[activeIndex],
             name: value,
             refinedName: value,
+            // Add metadata for selected option
+            metadata: {
+              ...arr[activeIndex].metadata,
+              ...(option?.key ? JSON.parse(option.key) : {}),
+              selectedValue: value,
+            },
           };
           updated[activeType] = arr;
         }

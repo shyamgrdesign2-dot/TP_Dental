@@ -9,7 +9,9 @@ import writtenRxIcon from "../../assets/images/written-rx.svg";
 import digitiseRxIcon from "../../assets/images/digitise-rx.svg";
 import cvtInfoIcon from "../../assets/images/cvt-info.svg";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { getInvestigationAndMedicine } from "../../redux/caseManagerSlice";
+import { placeIctOrder } from "../../redux/appointmentsSlice";
 import { env } from "../../EnvironmentConfig";
 import HeaderSmartRxDigitise from "../../common/HeaderSmartRxDigitise";
 import DigitisedPrescription from "../../components/DigitisedPrescription";
@@ -17,6 +19,8 @@ import axios from "axios";
 import { trackEvent } from "../../utils/utils";
 import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_ZYDUS_USER } from "../../utils/constants";
 
 function SnapRxDigitise() {
   const divRef = useRef(null);
@@ -26,6 +30,8 @@ function SnapRxDigitise() {
   const [leftWidthPercent, setLeftWidthPercent] = useState(50);
 
   const { loading } = useSelector((state) => state.caseManager);
+  const { siteId, storeCode } = useSelector((state) => state.doctors);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const { state } = useLocation();
@@ -39,6 +45,7 @@ function SnapRxDigitise() {
     isCustomSSRX,
   } = state;
 
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
@@ -127,6 +134,44 @@ function SnapRxDigitise() {
             consultation_id: state?.tcm_id,
             doctor_id: getDecodedToken()?.user_id,
           });
+        const isGroundingAccessable =
+          tokenData?.hospital_business_id == env.zydus_business_id &&
+          isZydusUserAccessableFromGB;
+
+        // Call placeIctOrder for Zydus users
+        if (isGroundingAccessable && patient_data?.departmentId) {
+          let sendInvestigationAndMedicine = {
+            patient_unique_id:
+              patient_data !== undefined ? patient_data.patient_unique_id : 0,
+            tcm_id: tcm_id,
+          };
+          const actionIM = await dispatch(
+            getInvestigationAndMedicine(sendInvestigationAndMedicine)
+          );
+          if (actionIM.meta.requestStatus === "fulfilled") {
+            let zydusSendData = {
+              action: tcm_id == 0 ? "add" : "edit",
+              tcmId: tcm_id,
+              siteId: siteId,
+              departmentId: patient_data?.departmentId,
+              visitId: patient_data?.visitId,
+              encounterId: patient_data?.encounterId,
+              mrno: patient_data?.mrno,
+              doctorCode: patient_data?.employeeId,
+              storeCode: storeCode,
+              duplicateCheck: 1,
+              investigationList: data?.tests?.map((item) => item.name) || [],
+              medicineList:
+                data?.medications?.map(({ name, quantity, notes }) => ({
+                  name: name,
+                  quantity: quantity,
+                  instruction: notes,
+                })) || [],
+              pillupSwitch: 0,
+            };
+            await dispatch(placeIctOrder(zydusSendData));
+          }
+        }
 
         // // Navigate based on isCustomSSRX flag
         // if (isCustomSSRX) {

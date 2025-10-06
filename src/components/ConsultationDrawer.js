@@ -48,7 +48,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
-import { addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
+import {
+  addCaseManager,
+  editCaseManager,
+  getInvestigationAndMedicine,
+} from "../redux/caseManagerSlice";
+import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import {
   errorMessage,
@@ -199,7 +204,9 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode } = useSelector(
+    (state) => state.doctors
+  );
   const { parentOptionsList } = useSelector((state) => state.medication);
   const { symptomCollector, isAutofillSelected, selectedSymptomsCollector } =
     useSelector((state) => state.ddx);
@@ -384,16 +391,6 @@ const ConsultationDrawer = ({
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
-      const correctedNames = await Promise.all(
-        meds.map(async (med) => {
-          const currentName = (med?.name || "").trim();
-          if (!currentName) return currentName;
-          try {
-            const result = await ApiMedication.getFuzzySearch(currentName);
-            const corrected = result?.[0]?.tmm_medicine_name?.trim();
-            return corrected || currentName;
-          } catch (e) {
-            return currentName;
           }
         })
       );
@@ -403,15 +400,10 @@ const ConsultationDrawer = ({
       );
       if (!anyChanged) return;
 
+      // Update the signature to the corrected names to avoid an immediate second run
       const correctedSig = correctedResults
         .map((r) => r.correctedName)
         .join("|");
-        (m, i) => (m?.name || "").trim() !== correctedNames[i]
-      );
-      if (!anyChanged) return;
-
-      // Update the signature to the corrected names to avoid an immediate second run
-      const correctedSig = correctedNames.join("|");
       lastFuzzyNamesRef.current = correctedSig;
 
       setPrescriptionData((prev) => ({
@@ -419,7 +411,7 @@ const ConsultationDrawer = ({
         medications: (prev?.medications || []).map((m, idx) => ({
           ...m,
           name: correctedResults[idx].correctedName,
-          edited: false,
+          // Add metadata for fuzzy search corrected name with full data
           metadata: {
             ...m.metadata,
             fuzzyCorrectedName: correctedResults[idx].correctedName,
@@ -427,7 +419,6 @@ const ConsultationDrawer = ({
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
-          name: correctedNames[idx],
         })),
       }));
     } finally {
@@ -455,16 +446,6 @@ const ConsultationDrawer = ({
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
-      const correctedNames = await Promise.all(
-        tests.map(async (it) => {
-          const currentName = (it?.name || "").trim();
-          if (!currentName) return currentName;
-          try {
-            const result = await ApiInvestigation.getFuzzySearch(currentName);
-            const corrected = result?.[0]?.investigation_name?.trim();
-            return corrected || currentName;
-          } catch (e) {
-            return currentName;
           }
         })
       );
@@ -482,7 +463,9 @@ const ConsultationDrawer = ({
       if (!anyChanged) return;
 
       // Prevent immediate re-run by updating signature to corrected names
-      const correctedSig = correctedNames.join("|");
+      const correctedSig = correctedResults
+        .map((r) => r.correctedName)
+        .join("|");
       lastFuzzyTestsRef.current = correctedSig;
 
       setPrescriptionData((prev) => ({
@@ -498,7 +481,6 @@ const ConsultationDrawer = ({
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
-          name: correctedNames[idx],
         })),
       }));
     } finally {
@@ -1988,6 +1970,45 @@ const ConsultationDrawer = ({
         });
         dispatch(setSelectAutofill(false));
       }
+
+      if (isGroundingAccessable && patient_data?.departmentId) {
+        let sendInvestigationAndMedicine = {
+          patient_unique_id:
+            patient_data !== undefined ? patient_data.patient_unique_id : 0,
+          tcm_id: action?.payload?.tcm_id,
+        };
+        const actionIM = await dispatch(
+          getInvestigationAndMedicine(sendInvestigationAndMedicine)
+        );
+        if (actionIM.meta.requestStatus === "fulfilled") {
+          let zydusSendData = {
+            action: tcmId == 0 ? "add" : "edit",
+            tcmId: action?.payload?.tcm_id,
+            siteId: siteId,
+            departmentId: patient_data?.departmentId,
+            visitId: patient_data?.visitId,
+            encounterId: patient_data?.encounterId,
+            mrno: patient_data?.mrno,
+            doctorCode: patient_data?.employeeId,
+            storeCode: storeCode,
+            duplicateCheck: 1,
+            investigationList:
+              prescriptionData?.labInvestigation?.map((item) => item.name) ||
+              [],
+            medicineList:
+              prescriptionData?.medications?.map(
+                ({ name, quantity, notes }) => ({
+                  name: name,
+                  quantity: quantity,
+                  instruction: notes,
+                })
+              ) || [],
+            pillupSwitch: 0,
+          };
+          await dispatch(placeIctOrder(zydusSendData));
+        }
+      }
+
       navigate("/gen-rx-print", {
         replace: true,
         state: {
@@ -2105,31 +2126,60 @@ const ConsultationDrawer = ({
     }
   }, [editableName]);
 
-  const renderItems = (type) => {
-    const onSelectParent = (data, item) => {
-      if (
-        item.key &&
-        JSON.parse(item.key).tmm_id === 0 &&
-        type === "medications"
-      ) {
-        setShowAddMedicinePopup(true);
-      } else {
-        // Check if medicine is not from Zydus Data Engine
-        const medicineData = item.key ? JSON.parse(item.key) : null;
-        const isZydusMedicine =
-          medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
+  const handleMedicineSelection = (data, item, type) => {
+    if (
+      item.key &&
+      JSON.parse(item.key).tmm_id === 0 &&
+      type === "medications"
+    ) {
+      setShowAddMedicinePopup(true);
+    } else {
+      // Check if medicine is not from Zydus Data Engine
+      const medicineData = item.key ? JSON.parse(item.key) : null;
+      const isZydusMedicine =
+        medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
 
-        if (
-          !isZydusMedicine &&
-          !dontShowZydusWarning &&
-          type === "medications"
-        ) {
-          setPendingSelection({ data, item, type });
-          setShowNonZydusWarning(true);
-        } else {
-          setEditableName(data);
+      if (!isZydusMedicine && !dontShowZydusWarning && type === "medications") {
+        setPendingSelection({
+          data,
+          item,
+          type,
+          activeIndex,
+          activeType,
+        });
+        setShowNonZydusWarning(true);
+      } else {
+        setEditableName(data);
+        // Update the prescriptionData with the selected medicine
+        if (activeIndex !== null && activeType === `${type}-name`) {
+          setPrescriptionData((prevData) => {
+            const updatedData = { ...prevData };
+            if (updatedData?.[type]?.[activeIndex]) {
+              updatedData[type][activeIndex].name = data;
+              // Add complete option data as metadata
+              if (item.key) {
+                const medicineData = JSON.parse(item.key);
+                updatedData[type][activeIndex].metadata = {
+                  ...medicineData,
+                  selectedValue: data,
+                };
+              }
+            }
+            return updatedData;
+          });
+          setIsRxEdited(true);
+          // Clear editing states after selection
+          setActiveIndex(null);
+          setActiveType(null);
+          setEditableName("");
         }
       }
+    }
+  };
+
+  const renderItems = (type) => {
+    const onSelectParent = (data, item) => {
+      handleMedicineSelection(data, item, type);
     };
 
     if (type === "followUp") {
@@ -3600,7 +3650,43 @@ const ConsultationDrawer = ({
                 <Button
                   onClick={() => {
                     if (pendingSelection) {
+                      // Set the active editing state from pending selection
+                      setActiveIndex(pendingSelection.activeIndex);
+                      setActiveType(pendingSelection.activeType);
                       setEditableName(pendingSelection.data);
+
+                      // Update the prescriptionData with the selected medicine
+                      setPrescriptionData((prevData) => {
+                        const updatedData = { ...prevData };
+                        if (
+                          updatedData?.[pendingSelection.type]?.[
+                            pendingSelection.activeIndex
+                          ]
+                        ) {
+                          updatedData[pendingSelection.type][
+                            pendingSelection.activeIndex
+                          ].name = pendingSelection.data;
+                          // Add complete option data as metadata
+                          if (pendingSelection.item.key) {
+                            const medicineData = JSON.parse(
+                              pendingSelection.item.key
+                            );
+                            updatedData[pendingSelection.type][
+                              pendingSelection.activeIndex
+                            ].metadata = {
+                              ...medicineData,
+                              selectedValue: pendingSelection.data,
+                            };
+                          }
+                        }
+                        return updatedData;
+                      });
+                      setIsRxEdited(true);
+
+                      // Clear editing states after selection
+                      setActiveIndex(null);
+                      setActiveType(null);
+                      setEditableName("");
                     }
                     setShowNonZydusWarning(false);
                     setPendingSelection(null);
