@@ -2143,7 +2143,7 @@ const ConsultationDrawer = ({
       const isZydusMedicine =
         medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
 
-      if (!isZydusMedicine && !dontShowZydusWarning && type === "medications") {
+      if (isGroundingAccessable && !isZydusMedicine && !dontShowZydusWarning && type === "medications") {
         setPendingSelection({
           data,
           item,
