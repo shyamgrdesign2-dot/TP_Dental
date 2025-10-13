@@ -2868,7 +2868,6 @@ const ConsultationDrawer = ({
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
       width={showPrescription ? "100%" : "750px"}
-      mask={!genRxKnowMoreDrawer}
     >
       <Suspense
         fallback={
@@ -3558,13 +3557,13 @@ const ConsultationDrawer = ({
           title={S_VOICE_RX}
           styles={{
             mask: {
-              marginLeft: showPrescription ? 0 : window.innerWidth - 640,
+              marginLeft: showPrescription ? 0 : window.innerWidth - 750,
               marginTop: 60,
               background: "rgba(0, 0, 0, 0.28)",
               backdropFilter: "blur(2px)",
             },
             wrapper: {
-              marginLeft: showPrescription ? 0 : window.innerWidth - 640,
+              marginLeft: showPrescription ? 0 : window.innerWidth - 750,
               marginTop: 60,
               background: "rgba(0, 0, 0, 0.28)",
             },

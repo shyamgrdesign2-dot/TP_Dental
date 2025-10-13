@@ -252,7 +252,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
             </div>
           </div>
 
-          <div className="section">
+          <div style={{ padding: "0 30px", width: "100%" }}>
             <span
               id="aiDataEngine"
               ref={(el) => (sectionsRef.current.aiDataEngine = el)}
