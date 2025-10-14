@@ -118,11 +118,18 @@ import playIcons from "../assets/images/tube-icon.svg";
 import VideoModal from "../common/VideoModal";
 import tagNew from "../assets/images/new-gif.gif";
 import CustomMedicinePopup from "./CustomMedicinePopup";
-import { searchMedication } from "../redux/medicationSlice";
+import {
+  getFrequentlySearchedMedication,
+  searchMedication,
+} from "../redux/medicationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import {
+  getFrequentlySearchedInvestigation,
+  searchInvestigation,
+} from "../redux/investigationSlice";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -205,7 +212,12 @@ const ConsultationDrawer = ({
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
-  const { parentOptionsList } = useSelector((state) => state.medication);
+  const { parentOptionsList: medicationParentOptionsList } = useSelector(
+    (state) => state.medication
+  );
+  const { parentOptionsList: investigationParentOptionsList } = useSelector(
+    (state) => state.investigation
+  );
   const { symptomCollector, isAutofillSelected, selectedSymptomsCollector } =
     useSelector((state) => state.ddx);
   const { TextArea } = Input;
@@ -2051,7 +2063,7 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     const data = [];
-    parentOptionsList?.map((e) => {
+    medicationParentOptionsList?.map((e) => {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
@@ -2105,7 +2117,70 @@ const ConsultationDrawer = ({
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList]);
+  }, [medicationParentOptionsList]);
+
+    useEffect(() => {
+      const data = [];
+      investigationParentOptionsList.map((e) => {
+        return data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.investigation_name,
+          label: (
+            <div>
+              {e.investigation_name}{" "}
+              {e?.hm_type === 1 && e?.um_id === 0 && (
+                <span
+                  className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                  style={{ width: 18, height: 18, background: "#c44ea2" }}
+                >
+                  Z
+                </span>
+              )}
+            </div>
+          ),
+        });
+      });
+      if (searchParentQuery.length === 0) {
+        data.unshift({
+          key: -1,
+          label: (
+            <>
+              <div>FREQUENTLY USED</div>
+            </>
+          ),
+        });
+      } else {
+        searchParentQuery &&
+          investigationParentOptionsList.findIndex(
+            (e) =>
+              e.investigation_name?.toLowerCase()?.trim() ==
+              searchParentQuery?.toLowerCase()?.trim()
+          ) === -1 &&
+          tokenData?.hospital_business_id != env.zydus_business_id &&
+          !isZydusUserAccessableFromGB &&
+          data.push({
+            key: JSON.stringify({
+              unique_id: uuidv4(),
+              change: 1,
+              investigation_name: searchParentQuery,
+            }),
+            value: searchParentQuery,
+            label: (
+              <>
+                <div>
+                  {searchParentQuery}
+                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
+                  <a className="fw-medium text-decoration-underline text-primary">
+                    {" "}
+                    Add Custom
+                  </a>
+                </div>
+              </>
+            ),
+          });
+      }
+      setParentSearchOptions(data);
+    }, [investigationParentOptionsList]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -2115,20 +2190,44 @@ const ConsultationDrawer = ({
   );
 
   useEffect(() => {
-    if (editableName) {
+    if (isGroundingAccessable && editableName === "") {
+      setSearchParentQuery("");
+      setParentSearchOptions([]);
+    }
+  }, [editableName, activeType]);
+
+  useEffect(() => {
+    if (isGroundingAccessable && activeType) {
       const timeOutId = setTimeout(() => {
-        dispatch(
-          searchMedication({
-            searchQuery: editableName,
-            type: "parent",
-          })
-        );
+        if (activeType === "medications-name") {
+          if (editableName) {
+            dispatch(
+              searchMedication({
+                searchQuery: editableName,
+                type: "parent",
+              })
+            );
+          } else {
+            dispatch(getFrequentlySearchedMedication());
+          }
+        } else if (activeType === "labInvestigation-name") {
+          if (editableName) {
+            dispatch(
+              searchInvestigation({
+                searchQuery: editableName,
+                type: "parent",
+              })
+            );
+          } else {
+            dispatch(getFrequentlySearchedInvestigation());
+          }
+        }
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     }
-  }, [editableName]);
+  }, [editableName, activeType]);
 
   const handleMedicineSelection = (data, item, type) => {
     if (
@@ -2143,7 +2242,12 @@ const ConsultationDrawer = ({
       const isZydusMedicine =
         medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
 
-      if (isGroundingAccessable && !isZydusMedicine && !dontShowZydusWarning && type === "medications") {
+      if (
+        isGroundingAccessable &&
+        !isZydusMedicine &&
+        !dontShowZydusWarning &&
+        type === "medications"
+      ) {
         setPendingSelection({
           data,
           item,
@@ -2423,10 +2527,18 @@ const ConsultationDrawer = ({
                                   className="autocomplete-custom grounding-select"
                                   popupClassName="grounding-boxpopup grounding-select"
                                   onSelect={onSelectParent}
+                                  getPopupContainer={(trigger) =>
+                                    trigger.parentNode
+                                  }
                                   defaultActiveFirstOption={true}
                                   autoFocus={true}
                                   popupMatchSelectWidth={false}
                                   dropdownStyle={{ width: 420 }}
+                                  open={
+                                    activeIndex === index &&
+                                    activeType === `${type}-name` &&
+                                    parentSearchOptions.length > 0
+                                  }
                                 >
                                   <input
                                     type="text"
