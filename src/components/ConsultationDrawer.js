@@ -96,6 +96,7 @@ import MedicationsTable from "./MedicationsTable";
 import {
   FAILED_VERIFICATION,
   FREE,
+  GB_APOLLO_DISABLE_FEATURE,
   GB_ZYDUS_USER,
   MESSAGE_KEY,
   S_DDX,
@@ -225,6 +226,9 @@ const ConsultationDrawer = ({
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const [shouldShowVideo, setShowVideo] = useState(false);
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_APOLLO_DISABLE_FEATURE
+  );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
   const isGroundingAccessable =
@@ -2158,6 +2162,7 @@ const ConsultationDrawer = ({
           ) === -1 &&
           tokenData?.hospital_business_id != env.zydus_business_id &&
           !isZydusUserAccessableFromGB &&
+          !isApolloHosBusinessIdAccessableFromGB &&
           data.push({
             key: JSON.stringify({
               unique_id: uuidv4(),

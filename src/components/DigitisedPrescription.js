@@ -17,7 +17,7 @@ import ApiInvestigation from "../api/services/ApiInvestigation";
 import { getTokenData } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ZYDUS_USER } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -113,6 +113,9 @@ const DigitisedPrescription = ({
   const hasFuzzyRunMedsRef = useRef(false);
   const hasFuzzyRunTestsRef = useRef(false);
   const tokenData = getTokenData();
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_APOLLO_DISABLE_FEATURE
+  );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isGroundingAccessable =
     tokenData?.hospital_business_id == env.zydus_business_id &&
@@ -426,7 +429,7 @@ const DigitisedPrescription = ({
       ),
     }));
 
-    if (searchTestQuery?.length > 0) {
+    if (searchTestQuery?.length > 0 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB) {
       opts.push({
         key: JSON.stringify({
           unique_id: uuidv4(),
@@ -1159,6 +1162,11 @@ const DigitisedPrescription = ({
                             popupMatchSelectWidth={false}
                             dropdownStyle={{ width: 420 }}
                             getPopupContainer={() => suggestionRef.current}
+                            open={
+                              activeIndex === index &&
+                              activeType === type &&
+                              parentSearchOptions.length > 0
+                            }
                             style={{ minWidth: 260 }}
                           >
                             <input
@@ -1201,6 +1209,11 @@ const DigitisedPrescription = ({
                             popupMatchSelectWidth={false}
                             dropdownStyle={{ width: 420 }}
                             getPopupContainer={() => suggestionRef.current}
+                            open={
+                              activeIndex === index &&
+                              activeType === type &&
+                              testSearchOptions.length > 0
+                            }
                             style={{ minWidth: 260 }}
                           >
                             <input
