@@ -54,7 +54,6 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
 
     const [loading, setLoading] = useState(false);
     const [isSubmit, setIsSubmit] = useState(false);
-    const [cartId, setCartId] = useState(null);
 
     useEffect(() => {
         if (profile?.hospital_data !== null && profile?.hospital_data !== undefined) {
@@ -210,16 +209,13 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                 const cartAction = await dispatch(createCart(cartData));
                 if (cartAction.meta.requestStatus === "fulfilled") {
                     if (cartAction?.payload?.cart_id) {
-                        // Store cart_id for later use in purchase details
-                        setCartId(cartAction.payload.cart_id);
-                        
                         const orderData = {
                             cart_id: cartAction.payload.cart_id
                         };
                         const orderAction = await dispatch(paymentOrder(orderData));
                         if (orderAction.meta.requestStatus === "fulfilled") {
                             if (orderAction?.payload?.hasOwnProperty("id")) {
-                                initRazorPayPayment(orderAction?.payload);
+                                initRazorPayPayment(orderAction?.payload, cartAction.payload.cart_id);
                             } else {
                                 setLoading(false)
                                 typeof orderAction?.payload?.data?.error === 'object' ?
@@ -245,7 +241,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         }
     }
 
-    const initRazorPayPayment = (data) => {
+    const initRazorPayPayment = (data, cart_id) => {
         const options = {
             key: config.razorPay_key,
             amount: data.amount,
@@ -256,7 +252,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
             order_id: data.id,
             handler: async (response) => {
                 try {
-                    verifyRazorPayPayment(response, data)
+                    verifyRazorPayPayment(response, data, cart_id)
                 } catch (error) {
                     setLoading(false)
                     console.log(error);
@@ -286,7 +282,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         return prefix + randomNumber;
     }
 
-    const verifyRazorPayPayment = async (r_response, data) => {
+    const verifyRazorPayPayment = async (r_response, data, cart_id) => {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
@@ -333,7 +329,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                             "requestId": salesDetails ? salesDetails?.requestId : '',
                         }
                     ],
-                    cart_id: cartId
+                    cart_id: cart_id
                 }
                 const actionPurchaseDetails = await dispatch(purchaseDetails(sendData));
                 if (actionPurchaseDetails.meta.requestStatus === "fulfilled") {
