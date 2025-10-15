@@ -11,7 +11,7 @@ import visitEnd from '../../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../../assets/images/close-visit.svg';
 import logoSm from '../../../assets/images/logo-sm.svg';
 import { currencyFormat, errorMessage, formatAmount, getClinic, getClinicName, getDeviceSdkData, getTokenData, isNumeric, isValidGST, onlyDecimalFormat, onlyNumberFormat, removeBeforeWhiteSpace } from "../../../utils/utils";
-import { discountCode, discountCodeValidate, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
+import { createCart, discountCode, discountCodeValidate, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
 import { searchPincode } from "../../../redux/appointmentsSlice";
 import { services } from "../../../redux/doctorsSlice";
 import { S_SMARTSYNC, S_TATVA_PRACTICE, MESSAGE_KEY } from "../../../utils/constants";
@@ -197,23 +197,43 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     ...deviceSdkData
                 });
                 setLoading(true)
-                let sendData = {
-                    amount: totalAmount,
-                }
-                const action = await dispatch(paymentOrder(sendData));
-                if (action.meta.requestStatus === "fulfilled") {
-                    if (action?.payload?.hasOwnProperty("id")) {
-                        initRazorPayPayment(action?.payload);
+                const cartData = {
+                    b2c_id: profile?.b2c,
+                    cart_items: selectedServices.map(service => ({
+                        service_id: service._id || service.service_id,
+                        no_of_years: service.validity / 12
+                    })),
+                    referral_code: salesCode || null,
+                    request_id: salesDetails?.requestId || Date.now()
+                };
+                const cartAction = await dispatch(createCart(cartData));
+                if (cartAction.meta.requestStatus === "fulfilled") {
+                    if (cartAction?.payload?.cart_id) {
+                        const orderData = {
+                            cart_id: cartAction.payload.cart_id
+                        };
+                        const orderAction = await dispatch(paymentOrder(orderData));
+                        if (orderAction.meta.requestStatus === "fulfilled") {
+                            if (orderAction?.payload?.hasOwnProperty("id")) {
+                                initRazorPayPayment(orderAction?.payload);
+                            } else {
+                                setLoading(false)
+                                typeof orderAction?.payload?.data?.error === 'object' ?
+                                    errorMessage(orderAction?.payload?.data?.error?.description)
+                                    :
+                                    errorMessage(orderAction?.payload?.data?.message)
+                            }
+                        } else {
+                            setLoading(false)
+                            errorMessage(orderAction.payload.message)
+                        }
                     } else {
                         setLoading(false)
-                        typeof action?.payload?.data?.error === 'object' ?
-                            errorMessage(action?.payload?.data?.error?.description)
-                            :
-                            errorMessage(action?.payload?.data?.message)
+                        errorMessage('Failed to create cart')
                     }
                 } else {
                     setLoading(false)
-                    errorMessage(action.payload.message)
+                    errorMessage(cartAction.payload.message)
                 }
             }
         } else {

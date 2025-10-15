@@ -48,6 +48,18 @@ export const otpVerify = createAsyncThunk(
     }
 );
 
+export const createCart = createAsyncThunk(
+    "monetization/createCart",
+    async (data, { rejectWithValue }) => {
+        try {
+            const result = await ApiMonetization.createCart(data);
+            return result;
+        } catch (error) {
+            return rejectWithValue({ visible: false, message: error.response.data.message });
+        }
+    }
+);
+
 export const paymentOrder = createAsyncThunk(
     "monetization/paymentOrder",
     async (data, { rejectWithValue }) => {

@@ -41,6 +41,10 @@ ApiMonetization.otpVerify = function (data) {
     return api.post(`/api/v1/onboarding/otp/verify`, data, baseTatvaAiUrl);
 };
 
+ApiMonetization.createCart = function (data) {
+    return api.post(`/api/v1/monetization/create-cart`, data, baseUrl);
+};
+
 ApiMonetization.paymentOrder = function (data) {
     return api.post(`/api/v1/payment/create-order`, data, baseUrl);
 };
