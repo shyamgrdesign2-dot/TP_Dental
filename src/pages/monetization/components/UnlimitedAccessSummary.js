@@ -54,6 +54,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
 
     const [loading, setLoading] = useState(false);
     const [isSubmit, setIsSubmit] = useState(false);
+    const [cartId, setCartId] = useState(null);
 
     useEffect(() => {
         if (profile?.hospital_data !== null && profile?.hospital_data !== undefined) {
@@ -209,6 +210,9 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                 const cartAction = await dispatch(createCart(cartData));
                 if (cartAction.meta.requestStatus === "fulfilled") {
                     if (cartAction?.payload?.cart_id) {
+                        // Store cart_id for later use in purchase details
+                        setCartId(cartAction.payload.cart_id);
+                        
                         const orderData = {
                             cart_id: cartAction.payload.cart_id
                         };
@@ -303,20 +307,12 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     payment_status: action?.payload?.status,
                     ...deviceSdkData,
                 });
-                const summaryData = selectedServices.map(({ service_name, service_type, service_cost, max_applicable_discount, validity }) => ({
-                    service_name,
-                    service_type,
-                    plan_validity_months: validity,
-                    plan_amount: formatAmount(parseFloat(service_cost)),
-                    max_applicable_discount: formatAmount(parseFloat(max_applicable_discount))
-                }));
                 let sendData = {
                     b2c_id: profile?.b2c,
                     owner_b2c_id: clinic_b2c,
                     purchase_city: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_city,
                     purchase_state: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_state,
                     purchase_date: moment().toISOString(),
-                    purchase_amount: totalAmount,
                     purchase_type: "subscription",
                     purchase_status: "completed",
                     discount_applied: true,
@@ -328,7 +324,6 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     organization_name: taxInvoice ? clinicName : '',
                     gst_no: taxInvoice ? gstNo : '',
                     billing_address: taxInvoice ? `${clinicAddress}, ${clinicCity}, ${clinicState}, ${clinicPincode}` : '',
-                    summary: summaryData,
                     discount_details: [
                         {
                             "kam_id": '',
@@ -337,7 +332,8 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                             "discountCode": salesCode,
                             "requestId": salesDetails ? salesDetails?.requestId : '',
                         }
-                    ]
+                    ],
+                    cart_id: cartId
                 }
                 const actionPurchaseDetails = await dispatch(purchaseDetails(sendData));
                 if (actionPurchaseDetails.meta.requestStatus === "fulfilled") {
