@@ -387,39 +387,43 @@ function Prescription() {
   };
 
   const handleVideoConsult = async () => {
-    
+    if (!videoConsultData?.pam_id) {
+      message.error("Invalid appointment ID");
+      return;
+    }
+
     setIsInitiatingCall(true);
     
     try {
-      // Call the API to initiate the tele-call
-      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData?.pam_id);
+      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData.pam_id);
       
-      if (response.message === "success") {
-        if (response.action === "join-video-call" && response.callJoinUrlForDoctor) {
-          // Video call - open modal with iframe
-          setVideoConsultUrl(response.callJoinUrlForDoctor);
-          setVideoConsultAction(response.action);
+      if (response.error) {
+        message.error(response.error);
+        return;
+      }
+      
+      if (response.data?.message === "success") {
+        if (response.data.action === "join-video-call" && response.data.callJoinUrlForDoctor) {
+          setVideoConsultUrl(response.data.callJoinUrlForDoctor);
+          setVideoConsultAction(response.data.action);
           setIsVideoModalVisible(true);
-        } else if (response.action === "join-audio-call") {
-          // Audio call - show message to user
-          message.info(response.displayMessage || "Audio call initiated successfully");
+        } else if (response.data.action === "join-audio-call") {
+          message.info(response.data.displayMessage || "Audio call initiated successfully");
         }
         
-        const clinic_name = getClinicName(profile?.hospital_data);
         trackEvent("TP_VideoConsult_Started", {
           patient_contact: patient_data?.pm_contact_no || "",
           patient_id: patient_data?.patient_unique_id || "",
           doctor_speciality: profile?.dp_name,
           doctor_unique_id: profile?.doctor_unique_id,
-          clinic_name,
+          clinic_name: getClinicName(profile?.hospital_data),
           page: "Prescription",
-          call_type: response.action,
+          call_type: response.data.action,
         });
       } else {
         message.error("Failed to initiate consultation");
       }
     } catch (error) {
-      console.error('VC Error initiating call:', error);
       message.error("Failed to start video consultation. Please try again.");
     } finally {
       setIsInitiatingCall(false);

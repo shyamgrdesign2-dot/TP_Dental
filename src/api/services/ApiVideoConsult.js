@@ -18,22 +18,28 @@ const ApiVideoConsult = {};
  * @returns {Promise} Response containing callJoinUrlForDoctor and action type
  */
 ApiVideoConsult.initiateTeleCall = async function (appointmentId) {
+  if (!appointmentId) {
+    return { error: "Invalid appointment ID", data: null };
+  }
+
+  const url = `${getBaseUrl()}/api/v1/teleconsult/initiate-tele-call`;
+  const payload = { appointmentId: appointmentId };
+  
+
   try {
-    const response = await fetch(`${getBaseUrl()}/api/v1/teleconsult/initiate-tele-call`, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "authorization": `Bearer ${getAuthToken()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        appointmentId: appointmentId,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.message || `Failed to initiate call: ${response.status}`;
-      return { error: errorMessage, status: response.status };
+      const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      return { error: errorMessage, data: null };
     }
 
     const data = await response.json();
