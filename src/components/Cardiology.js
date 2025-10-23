@@ -23,6 +23,7 @@ import vitalsIcon from "../assets/images/Vitals.svg";
 import medicalHistoryIcon from "../assets/images/Medical-History.svg";
 import vaccinationIcon from "../assets/images/Vaccination.svg";
 import customModuleIcon from "../assets/images/custom-module.svg";
+import videoIcon from "../assets/images/video_icon.svg";
 import {
   getClinic,
   getTokenData,
@@ -59,7 +60,7 @@ import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
-
+import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import {
   getSnapRxDigitization,
   getSnapRxFiles,
@@ -112,6 +113,8 @@ function Cardiology(props) {
   const [genRxData, setGenRxData] = useState(null);
   const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [hasVideoConsult, setHasVideoConsult] = useState(false);
+  const [isLoadingVideoStatus, setIsLoadingVideoStatus] = useState(false);
   const [ambientConversations, setAmbientConversations] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
@@ -136,6 +139,7 @@ function Cardiology(props) {
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
       fetchData();
+      checkVideoConsultStatus(viewCaseManagerData.tcm_id);
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -205,6 +209,25 @@ function Cardiology(props) {
       setPrintUrl(updatedUrl);
     }
   }, [showDigitalRx, showDigitalSnapRx]);
+
+  const checkVideoConsultStatus = async (tcmId) => {
+    if (!tcmId) return;
+    
+    setIsLoadingVideoStatus(true);
+    try {
+      const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+      if (response?.data?.pam_status_type_appointment === 1) {
+        setHasVideoConsult(true);
+      } else {
+        setHasVideoConsult(false);
+      }
+    } catch (error) {
+      console.error("Error checking video consult status:", error);
+      setHasVideoConsult(false);
+    } finally {
+      setIsLoadingVideoStatus(false);
+    }
+  };
 
   useEffect(() => {
     if (defaultPrintSettings) {
@@ -1423,8 +1446,38 @@ function Cardiology(props) {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
-      
+                  <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
+                    {hasVideoConsult && (
+                      <span
+                        style={{
+                          padding: "4px 6px",
+                          background: "#667eea",
+                          color: "#fff",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          lineHeight: 1,
+                          marginLeft: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "2px"
+                        }}
+                        title="Video Consultation"
+                      >
+                        <svg 
+                          width="12" 
+                          height="12" 
+                          viewBox="0 0 32 32" 
+                          style={{ 
+                            fill: "white",
+                            flexShrink: 0
+                          }}
+                        >
+                          <path d="M30,6h-0.887c-0.525,0-1.029,0.207-1.404,0.576L25,9.248V8c0-1.657-1.344-3-3-3H3  C1.346,5,0,6.345,0,8v6.972V24c0,1.656,1.343,3,3,3h19c1.656,0,3-1.344,3-3v-1.221l2.709,2.672c0.375,0.369,0.879,0.576,1.404,0.576  H30c1.104,0,2-0.895,2-2V8C32,6.895,31.104,6,30,6z M3,25c-0.552,0-1-0.449-1-1V8c0-0.553,0.447-1,1-1h19c0.551,0,1,0.448,1,1v16  c0,0.551-0.449,1-1,1H3z M30,24.027h-0.887H29l-4-4V20l-1-1v-6l5-5h0.113H30V24.027z"/>
+                        </svg>
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="align-items-center d-flex">
                   <Button

@@ -22,6 +22,11 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
+import VideoConsultButton from "../../components/VideoConsultButton";
+import VideoConsultModal from "../../components/VideoConsultModal";
+import { GB_VIDEO_CONSULT } from "../../utils/constants";
+import ApiVideoConsult from "../../api/services/ApiVideoConsult";
+import { message } from "antd";
 
 function SnapRxDigitise() {
   const divRef = useRef(null);
@@ -44,6 +49,8 @@ function SnapRxDigitise() {
     digitisedData,
     pam_id,
     isCustomSSRX,
+    caseManagerData,
+    videoConsultData,
   } = state;
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -53,6 +60,13 @@ function SnapRxDigitise() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
+  const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
+  const [videoConsultUrl, setVideoConsultUrl] = useState(null);
+  const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+
+  const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
 
   const baseUrlRxDigitise = env.digitization_api_url;
 
@@ -65,6 +79,38 @@ function SnapRxDigitise() {
       medications: meds.map((m) => ({ ...m, edited: false })),
     };
   }, []);
+
+  const handleVideoConsult = async () => {
+    setIsInitiatingCall(true);
+    
+    try {
+      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData?.pam_id);      
+      if (response.message === "success") {
+        if (response.action === "join-video-call" && response.callJoinUrlForDoctor) {
+          // Video call - open modal with iframe
+          setVideoConsultUrl(response.callJoinUrlForDoctor);
+          setVideoConsultAction(response.action);
+          setIsVideoModalVisible(true);
+        } else if (response.action === "join-audio-call") {
+          // Audio call - show message to user
+          message.info(response.displayMessage || "Audio call initiated successfully");
+        }
+        
+        trackEvent("TP_VideoConsult_Started_SnapRx", {
+          patient_id: patient_data?.patient_unique_id || "",
+          page: "Snap Rx Digitise",
+          call_type: response.action,
+        });
+      } else {
+        message.error("Failed to initiate consultation");
+      }
+    } catch (error) {
+      console.error('VC Error initiating call:', error);
+      message.error("Failed to start video consultation. Please try again.");
+    } finally {
+      setIsInitiatingCall(false);
+    }
+  };
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -298,6 +344,8 @@ function SnapRxDigitise() {
         isDigitiseRxLoading={isLoading}
         patient_data={patient_data}
         isSnapRx={true}
+        handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
+        isVideoConsultLoading={isInitiatingCall}
       />
       <div className="cvt-info">
         <img src={cvtInfoIcon} alt="cvt-info-icon" className="me-2" />
@@ -474,6 +522,20 @@ function SnapRxDigitise() {
           </div>
         </div>
       </div>
+      {isVideoConsultAvailable && (
+        <VideoConsultModal
+          visible={isVideoModalVisible}
+          onClose={() => {
+            setIsVideoModalVisible(false);
+            setVideoConsultUrl(null);
+            setVideoConsultAction(null);
+          }}
+          videoUrl={videoConsultUrl}
+          patientName={patient_data?.pm_fullname}
+          appointmentId={videoConsultData?.pam_id}
+          callAction={videoConsultAction}
+        />
+      )}
     </>
   );
 }

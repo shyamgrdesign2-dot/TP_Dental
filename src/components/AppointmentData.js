@@ -157,6 +157,7 @@ import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
+import { useGrowthBook } from "@growthbook/growthbook-react";
 import AbhaDrawer from "./abha/AbhaDrawer";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 
@@ -214,6 +215,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
     useFeatureIsOn("appointment-agent");
+  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
+
+  useEffect(() => {
+    try {
+      if (!appointmentsData) return;
+      const count = Array.isArray(appointmentsData) ? appointmentsData.length : 0;
+      const first = Array.isArray(appointmentsData) && count > 0 ? appointmentsData[0] : null;
+        const check = first ? (isVideoConsultAccessibleFromGB && first?.pam_status_type_appointment === 1) : null;
+    } catch (e) {
+    }
+  }, [appointmentsData, isVideoConsultAccessibleFromGB]);
   const [zydusSearchQuery, setZydusSearchQuery] = useState("");
   const [matchedAppointment, setMatchedAppointment] = useState([]);
 
@@ -252,6 +264,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
+
+  const gb = useGrowthBook();
+  useEffect(() => {
+    if (!gb) return;
+  }, [gb, isVideoConsultAccessibleFromGB]);
 
 
   const showHideSubModal = () => {
@@ -1379,6 +1396,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const goToPatientDetails = async (record, route) => {
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
+    
+    // Create video consultation data object with only necessary fields
+    const videoConsultData = record.pam_status_type_appointment === 1 ? {
+      pam_id: record.pam_id,
+      pam_status_type_appointment: record.pam_status_type_appointment,
+    } : undefined;
+    
     if (
       tokenData?.hospital_business_id == env.zydus_business_id &&
       isZydusUserAccessableFromGB
@@ -1408,14 +1432,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 encounterId: data.encounterId,
                 employeeId: empNo[empNo.length - 1],
               },
+              videoConsultData: videoConsultData,
             },
           });
         } else {
-          navigate(route, { state: { patient_data: record } });
+          navigate(route, { state: { patient_data: record, videoConsultData: videoConsultData } });
         }
       }
     } else {
-      navigate(route, { state: { patient_data: record } });
+      navigate(route, { state: { patient_data: record, videoConsultData: videoConsultData } });
     }
   };
 
@@ -1583,7 +1608,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       source: "Appointment Landing Page",
       device_details: navigator.userAgent
   });
-    navigate("/smart-prescription", { state: { patient_data: record } });
+
+  // Create video consultation data object with only necessary fields
+  const videoConsultData = record.pam_status_type_appointment === 1 ? {
+    pam_id: record.pam_id,
+    pam_status_type_appointment: record.pam_status_type_appointment,
+  } : undefined;
+
+  navigate("/smart-prescription", { state: { patient_data: record, videoConsultData: videoConsultData } });
   };
 
   const onAppointmentAgentClick = async () => {
@@ -1797,6 +1829,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         tcm_id
       );
 
+      // Create video consultation data object with only necessary fields
+      const videoConsultData = record.pam_status_type_appointment === 1 ? {
+        pam_id: record.pam_id,
+        pam_status_type_appointment: record.pam_status_type_appointment,
+      } : undefined;
+
       navigate("/snap-rx/digitise", {
         state: {
           patient_data: record,
@@ -1807,6 +1845,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           page: "pending-digitization",
           type: isReview ? "review" : "new",
           digitisedData: snapRxDigitisedData?.digitization,
+          videoConsultData: videoConsultData,
         },
       });
     } catch (error) {
@@ -2153,13 +2192,47 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         };
         
         const displayText = getDisplayText();
+        const isVideoConsultation = isVideoConsultAccessibleFromGB &&
+          record.pam_status_type_appointment === 1;
         
         return (
-          <div>
-            <span className="text-lowercase">
-              {record.apTime} {displayText}
-            </span> <br />{" "}
-            <small> {record.apDate}</small>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div>
+              <span className="text-lowercase">
+                {record.apTime} {displayText}
+              </span> <br />{" "}
+              <small> {record.apDate}</small>
+            </div>
+            {isVideoConsultation && (
+              <span
+                style={{
+                  padding: "4px 6px",
+                  background: "#667eea",
+                  color: "#fff",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "2px"
+                }}
+                title="Video Consultation Available"
+              >
+                <svg 
+                  width="12" 
+                  height="12" 
+                  viewBox="0 0 32 32" 
+                  style={{ 
+                    fill: "white",
+                    flexShrink: 0
+                  }}
+                >
+                  <path d="M30,6h-0.887c-0.525,0-1.029,0.207-1.404,0.576L25,9.248V8c0-1.657-1.344-3-3-3H3  C1.346,5,0,6.345,0,8v6.972V24c0,1.656,1.343,3,3,3h19c1.656,0,3-1.344,3-3v-1.221l2.709,2.672c0.375,0.369,0.879,0.576,1.404,0.576  H30c1.104,0,2-0.895,2-2V8C32,6.895,31.104,6,30,6z M3,25c-0.552,0-1-0.449-1-1V8c0-0.553,0.447-1,1-1h19c0.551,0,1,0.448,1,1v16  c0,0.551-0.449,1-1,1H3z M30,24.027h-0.887H29l-4-4V20l-1-1v-6l5-5h0.113H30V24.027z"/>
+                </svg>
+              </span>
+            )}
           </div>
         );
       },
@@ -2952,7 +3025,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       doctor_id: getDecodedToken()?.user_id,
       upload_source: "EMR",
     });
-    navigate("/snap-rx", { state: { patient_data: record } });
+
+    // Create video consultation data object with only necessary fields
+    const videoConsultData = record.pam_status_type_appointment === 1 ? {
+      pam_id: record.pam_id,
+      pam_status_type_appointment: record.pam_status_type_appointment,
+      pam_teleconsultation_url: record.pam_teleconsultation_url,
+    } : undefined;
+    
+    navigate("/snap-rx", { state: { patient_data: record, videoConsultData: videoConsultData } });
   };
 
   const onVoiceRxClick = async (record) => {

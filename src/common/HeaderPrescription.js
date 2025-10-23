@@ -49,10 +49,11 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
+import VideoConsultButton from '../components/VideoConsultButton';
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading }) {
 
     const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
 
@@ -1455,6 +1456,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </Button>
                                 </div>
                             </Tooltip> */}
+                            {handleVideoConsult && (
+                                <VideoConsultButton 
+                                    onClick={handleVideoConsult} 
+                                    loading={isVideoConsultLoading}
+                                />
+                            )}
+                            {(tp_monetization_enable || isFreeVoiceRxUser) && (
+                                <GenRxButton onClick={handleGenRx} />
+                            )}
                             <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) ? "" : "Please fill your prescription to end visit."}>
                                 <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) && onEndVisitClick()} loading={loading}>
                                     <i className='icon-exit me-2'></i>

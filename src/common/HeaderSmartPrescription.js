@@ -65,6 +65,7 @@ import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
+import VideoConsultButton from "../components/VideoConsultButton";
 
 function HeaderPrescription({
   prescription,
@@ -78,7 +79,10 @@ function HeaderPrescription({
   isCustomSSRX,
   selectedTemplateId,
   prepareMetadataForSubmissionData,
-  selectedCarePlan
+  selectedCarePlan,
+  setBuildNumber,
+  handleVideoConsult,
+  isVideoConsultLoading
 }) {
   const { templates, loading } = useSelector((state) => state.caseManager);
   const { profile, videoList } = useSelector((state) => state.doctors);
@@ -998,6 +1002,12 @@ function HeaderPrescription({
                   </>
                 }
               />
+              {handleVideoConsult && (
+                <VideoConsultButton 
+                  onClick={handleVideoConsult} 
+                  loading={isVideoConsultLoading}
+                />
+              )}
               <Button
                 type="button"
                 className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
