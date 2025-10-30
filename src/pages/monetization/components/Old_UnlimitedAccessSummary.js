@@ -327,8 +327,6 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     purchase_type: "subscription",
                     purchase_status: "completed",
                     discount_applied: true,
-                    payment_id: action?.payload?.id,
-                    order_id: r_response?.razorpay_order_id,
                     campaign_applied: null,
                     campaign_id: null,
                     gst_applied: taxInvoice,
