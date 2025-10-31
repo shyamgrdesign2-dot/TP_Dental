@@ -71,6 +71,7 @@ import {
   NEO_NATOLOGISTS_DP_ID,
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
+  GB_VIDEO_CONSULT,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";

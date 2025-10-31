@@ -161,7 +161,7 @@ function Prescription() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;

@@ -168,7 +168,7 @@ function TabPrescription() {
   const dispatch = useDispatch();
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
+  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
