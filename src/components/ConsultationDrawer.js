@@ -231,6 +231,7 @@ const ConsultationDrawer = ({
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
+  const isApolloConsultationsEnabled = useFeatureIsOn("apollo-consultations");
   const isGroundingAccessable =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
@@ -240,111 +241,7 @@ const ConsultationDrawer = ({
   };
 
   useEffect(() => {
-    if (mode === 'ambient') {
-      setIsAmbientMode(true);
-      window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
-    } else if (mode === 'dictation') {
-      setIsAmbientMode(false);
-      window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-    } else {
-      const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
-      setIsAmbientMode(activeService === S_AMBIENT_VOICE_RX);
-    }
-  }, [visible, mode]);
-
-  useEffect(() => {
-    if (audioBlob && audioBlob instanceof Blob) {
-      const audio = new Audio();
-      const url = URL.createObjectURL(audioBlob);
-      audio.src = url;
-      
-      audio.addEventListener('loadedmetadata', () => {
-        const duration = audio.duration;
-        const minutes = Math.floor(duration / 60);
-        const seconds = Math.floor(duration % 60);
-        setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-        URL.revokeObjectURL(url);
-      });
-    } else if (!audioBlob && !fromVoiceRecording) {
-      setAudioDuration(null);
-    }
-  }, [audioBlob, fromVoiceRecording]);
-
-  useEffect(() => {
-    if (!visible) {
-      hasAutoSubmittedRef.current = false;
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    if (hasAutoSubmittedRef.current) return;
-    
-    const shouldAutoSubmit = visible && fromVoiceRecording && audioBlob && !isProcessing && !prescriptionData;
-    if (!shouldAutoSubmit) return;
-
-    hasAutoSubmittedRef.current = true;
-
-    const run = async () => {
-      try {
-        await new Promise((r) => setTimeout(r, 80));
-        setShowPrescription(true);
-        setRecordingTime(0);
-        setIsProcessing(true);
-
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-          await new Promise((r) => setTimeout(r, 80));
-        }
-        if (audioStreamRef.current) {
-          audioStreamRef.current.getTracks().forEach((t) => t.stop());
-        }
-        setIsRecording(false);
-        setIsPaused(false);
-
-        await handleVoiceDigitize(audioBlob, "");
-      } catch (e) {
-        console.error('Auto submit failed:', e);
-        setIsProcessing(false);
-        hasAutoSubmittedRef.current = false;
-      }
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, fromVoiceRecording, audioBlob]);
-
-  useEffect(() => {
-    if (hasAutoSubmittedRef.current) return;
-    
-    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
-    if (!shouldSubmitTyped) return;
-
-    hasAutoSubmittedRef.current = true;
-
-    const run = async () => {
-      try {
-        await new Promise((r) => setTimeout(r, 60));
-        setShowPrescription(true);
-        setIsProcessing(true);
-        await handleVoiceDigitize(null, typedInputText);
-      } catch (e) {
-        console.error('Typed submit failed:', e);
-        setIsProcessing(false);
-        hasAutoSubmittedRef.current = false;
-      }
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, typedInputText]);
-
-  
-  useEffect(() => {
-    if (prescriptionData && Object.keys(prescriptionData).length > 0) {
-      setShowPrescription(true);
-    }
-  }, [prescriptionData]);
-
-  useEffect(() => {
-    if (!isGroundingAccessable) return;
+    if (!isGroundingAccessable && !isApolloConsultationsEnabled) return;
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
@@ -366,7 +263,7 @@ const ConsultationDrawer = ({
 
   // Fuzzy-correct lab investigations (tests) names with guards
   useEffect(() => {
-    if (!isGroundingAccessable) return;
+    if (!isGroundingAccessable && !isApolloConsultationsEnabled) return;
     const tests = prescriptionData?.labInvestigation || [];
     if (!tests.length) return;
     if (isFuzzyUpdatingTestsRef.current) return;
@@ -1561,9 +1458,19 @@ const ConsultationDrawer = ({
     if (e.key === "Enter") {
       e.preventDefault(); // Prevent newline in the input field
 
-      const trimmedText = isExisting
-        ? editableLineItem?.trim()
-        : editableText.trim();
+      // Determine which field is being edited and capture appropriate text
+      let trimmedText = "";
+      if (isExisting) {
+        if (activeType === `${type}-name`) {
+          trimmedText = (editableName || "").trim();
+        } else if (activeType === `${type}-lineItem`) {
+          trimmedText = (editableLineItem || "").trim();
+        } else {
+          trimmedText = (editableText || "").trim();
+        }
+      } else {
+        trimmedText = (editableText || "").trim();
+      }
       if (trimmedText) {
         setPrescriptionData((prevData) => {
           const updatedData = { ...prevData };
@@ -1576,16 +1483,25 @@ const ConsultationDrawer = ({
               updatedData[type][index] = trimmedText;
               updatedData[type].splice(index + 1, 0, "");
             } else {
-              updatedData[type][index].lineItem = trimmedText;
-              // mark item as user-edited when line item is changed via Enter
-              updatedData[type][index].edited = true;
+              // For structured items (medications/labInvestigation etc.)
+              if (activeType === `${type}-name`) {
+                updatedData[type][index].name = trimmedText;
+              } else if (activeType === `${type}-lineItem`) {
+                updatedData[type][index].lineItem = trimmedText;
+                updatedData[type][index].edited = true;
+              } else {
+                // Fallback to name when context is unclear
+                updatedData[type][index].name = trimmedText;
+              }
+              // Insert next empty row
               updatedData[type].splice(index + 1, 0, {
-                lineItem: " ",
-                name: " ",
+                name: "",
+                lineItem: "",
               });
             }
             setEditableLineItem(" ");
             setEditableText("");
+            setEditableName("");
             return updatedData;
           }
           if (!updatedData.dynamicFields[type]) {
@@ -1604,7 +1520,9 @@ const ConsultationDrawer = ({
         setActiveIndex(index + 1);
         setIsRxEdited(true);
         if (isExisting && !["advice", "others"].includes(type)) {
-          setActiveType(`${type}-lineItem`);
+          // Move focus to the next item's NAME for quick entry
+          setActiveType(`${type}-name`);
+          setEditableName("");
           setEditableLineItem("");
         } else {
           setActiveType(type);
@@ -1614,8 +1532,12 @@ const ConsultationDrawer = ({
         // Focus on the newly added input
         setTimeout(() => {
           const nextIndex = index + 1;
-          if (isExisting) inputLineItemRefs.current[nextIndex]?.focus();
-          else inputRefs.current[nextIndex]?.focus();
+          if (isExisting) {
+            // For structured items, focus will be controlled by activeType conditionals
+            if (activeType === `${type}-lineItem`) {
+              inputLineItemRefs.current[nextIndex]?.focus();
+            }
+          } else inputRefs.current[nextIndex]?.focus();
         }, 0);
       }
     }
@@ -1741,16 +1663,16 @@ const ConsultationDrawer = ({
     }
 
     // Only update if the value has actually changed
-    if (trimmed !== originalName) {
-      setPrescriptionData((prevData) => {
-        const updatedData = { ...prevData };
-        if (updatedData?.[type]?.[index]) {
-          updatedData[type][index].name = trimmed;
-        }
-        return updatedData;
-      });
-      setIsRxEdited(true);
-    }
+    // if (trimmed !== originalName) {
+    //   setPrescriptionData((prevData) => {
+    //     const updatedData = { ...prevData };
+    //     if (updatedData?.[type]?.[index]) {
+    //       updatedData[type][index].name = trimmed;
+    //     }
+    //     return updatedData;
+    //   });
+    //   setIsRxEdited(true);
+    // }
     // Exit edit mode for name explicitly
     setActiveIndex(null);
     setActiveType(null);
@@ -2195,14 +2117,14 @@ const ConsultationDrawer = ({
   );
 
   useEffect(() => {
-    if (isGroundingAccessable && editableName === "") {
+    if (editableName === "") {
       setSearchParentQuery("");
       setParentSearchOptions([]);
     }
   }, [editableName, activeType]);
 
   useEffect(() => {
-    if (isGroundingAccessable && activeType) {
+    if (activeType) {
       const timeOutId = setTimeout(() => {
         if (activeType === "medications-name") {
           if (editableName) {
@@ -2443,6 +2365,38 @@ const ConsultationDrawer = ({
           prescriptionData[type].length > 0 && (
             <ul>
               {prescriptionData[type].map((item, index) => {
+                // Skip rendering of completely empty rows
+                const isStructured =
+                  type === "medications" || type === "labInvestigation";
+                const isNamedStruct =
+                  type === "symptoms" ||
+                  type === "vaccinations" ||
+                  type === "medicalHistory" ||
+                  type === "examinations" ||
+                  type === "diagnosis";
+
+                if (isStructured) {
+                  const empty =
+                    !(item?.name && item?.name.toString().trim()) &&
+                    !(item?.lineItem && item?.lineItem.toString().trim());
+                  const isActiveEmptyRow =
+                    activeIndex === index &&
+                    (activeType === `${type}-name` ||
+                      activeType === `${type}-lineItem`);
+                  if (empty && !isActiveEmptyRow) return null; // keep active row even if empty so Enter can land here
+                } else if (isNamedStruct) {
+                  const empty =
+                    !(item?.name && item?.name.toString().trim()) &&
+                    !(item?.lineItem && item?.lineItem.toString().trim());
+                  const isActiveEmptyRow =
+                    activeIndex === index && activeType === type;
+                  if (empty && !isActiveEmptyRow) return null;
+                } else if (type === "advice" || type === "others") {
+                  const isActiveEmptyRow =
+                    activeIndex === index && activeType === type;
+                  if ((!item || !item.toString().trim()) && !isActiveEmptyRow)
+                    return null;
+                }
                 // Measure the width of the editable text
                 let textWidth = 0;
                 let lineItemWidth = 0;

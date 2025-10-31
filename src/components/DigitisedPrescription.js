@@ -117,9 +117,11 @@ const DigitisedPrescription = ({
     GB_APOLLO_DISABLE_FEATURE
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isApolloConsultationsEnabled = useFeatureIsOn("apollo-consultations");
   const isGroundingAccessable =
-    tokenData?.hospital_business_id == env.zydus_business_id &&
-    isZydusUserAccessableFromGB;
+    (tokenData?.hospital_business_id == env.zydus_business_id &&
+      isZydusUserAccessableFromGB) ||
+    isApolloConsultationsEnabled;
 
   const handleLineItemBlur = useCallback(
     (type, index) => {
@@ -273,25 +275,25 @@ const DigitisedPrescription = ({
                 refinedName: item?.name || val,
               };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else if (type === "dynamicFields") {
             if (val) {
               arr[index] = { ...item, title: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else if (type === "labResults") {
             if (val) {
               arr[index] = { ...item, testname: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else {
             if (val) {
               arr[index] = { ...item, name: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           }
           if (type === "advice" || type === "others") {
@@ -912,8 +914,10 @@ const DigitisedPrescription = ({
       setEditableText("");
       setEditableLineItem("");
       const sec = sectionRefs.current[type];
-      const inputs = sec?.querySelectorAll("input");
-      inputs?.[index + 1]?.focus?.();
+      // Focus the input within the next list item to avoid picking up hidden inputs from AutoComplete
+      const nextLi = sec?.querySelectorAll("li")[index + 1];
+      const nextInput = nextLi?.querySelector("input");
+      nextInput?.focus?.();
     }, 0);
   };
 
