@@ -121,10 +121,22 @@ function SnapRxDigitise() {
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
+      const quantityActionMedicine = await ApiMedication.getQuantity({
+        medicines: data?.medications,
+      });
+      const updatedPrescriptionData = {
+        ...data,
+        medicineList:
+          data?.medications?.map((item, index) => ({
+            ...data?.medications[index],
+            quantity:
+              quantityActionMedicine?.medicines?.[index]?.quantity,
+          })) || [],
+      };
       const payload = {
         tcm_id: tcm_id,
         patient_unique_id: patient_data?.patient_unique_id,
-        editedData: { ...data },
+        editedData: { ...updatedPrescriptionData },
       };
 
       // API call to save the data
@@ -160,9 +172,7 @@ function SnapRxDigitise() {
             getInvestigationAndMedicine(sendInvestigationAndMedicine)
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
-            const quantityActionMedicine = await ApiMedication.getQuantity({
-              medicines: data?.medications,
-            });
+            
             let zydusSendData = {
               action: tcm_id == 0 ? "add" : "edit",
               tcmId: tcm_id,

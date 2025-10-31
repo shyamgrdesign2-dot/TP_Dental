@@ -688,9 +688,16 @@ const ConsultationDrawer = ({
       }
 
       if (response.success) {
-        setPrescriptionData(
-          response.data.editedData || response.data.digitizeData
-        );
+        const data = response.data.editedData || response.data.digitizeData;
+        // Add edited: false to all items on first load
+        if (data && Array.isArray(data.medications)) {
+          data.medications = data.medications.map((item) => ({
+            ...item,
+            edited: false,
+          }));
+        }
+
+        setPrescriptionData(data);
         setGenRxDetails({
           source: response.data.source,
           source_duration: response.data.source_duration,
@@ -1199,6 +1206,14 @@ const ConsultationDrawer = ({
                   )
                 : response.data.digitize;
 
+            // Add edited: false to medications on first load from API
+            if (Array.isArray(mergedData.medications)) {
+              mergedData.medications = mergedData.medications.map((item) => ({
+                ...item,
+                edited: false,
+              }));
+            }
+
             return {
               ...mergedData,
               dynamicFields: mergedDynamicFields, // Updated dynamicFields with localModules
@@ -1305,13 +1320,18 @@ const ConsultationDrawer = ({
     }
   };
 
-  const handleUpdateGenRX = async () => {
+  const handleUpdateGenRX = async (quantityActionMedicine) => {
     try {
-      let response;
-      
-      if (isAmbientMode && genRxDetails?.type === "ambient") {
-        response = await editAmbientRx(
-        { editedData: prescriptionData },
+      const updatedPrescriptionData = {
+        ...prescriptionData,
+        medicineList:
+          prescriptionData?.medications?.map((item, index) => ({
+            ...prescriptionData?.medications[index],
+            quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
+          })) || [],
+      };
+      const response = await editGenRxDetails(
+        { editedData: updatedPrescriptionData },
         genRxDetails?._id
       );
       } else {
@@ -1453,10 +1473,15 @@ const ConsultationDrawer = ({
 
   const inputRefs = useRef({});
   const inputLineItemRefs = useRef({});
+  const inputNameRefs = useRef({});
+  const shouldCleanupOnBlurRef = useRef(false);
 
   const handleKeyDown = (e, type, index, isExisting) => {
     if (e.key === "Enter") {
       e.preventDefault(); // Prevent newline in the input field
+
+      // Capture the current activeType before state updates
+      const currentActiveType = activeType;
 
       // Determine which field is being edited and capture appropriate text
       let trimmedText = "";
@@ -1497,6 +1522,7 @@ const ConsultationDrawer = ({
               updatedData[type].splice(index + 1, 0, {
                 name: "",
                 lineItem: "",
+                edited: false,
               });
             }
             setEditableLineItem(" ");
@@ -1534,7 +1560,9 @@ const ConsultationDrawer = ({
           const nextIndex = index + 1;
           if (isExisting) {
             // For structured items, focus will be controlled by activeType conditionals
-            if (activeType === `${type}-lineItem`) {
+            if (currentActiveType === `${type}-name`) {
+              inputNameRefs.current[nextIndex]?.focus();
+            } else if (currentActiveType === `${type}-lineItem`) {
               inputLineItemRefs.current[nextIndex]?.focus();
             }
           } else inputRefs.current[nextIndex]?.focus();
@@ -1637,12 +1665,46 @@ const ConsultationDrawer = ({
       setIsRxEdited(true);
     }
     // Clear all editing states
+    shouldCleanupOnBlurRef.current = true; // Set flag to trigger cleanup
     setActiveIndex(null);
     setActiveType(null);
     setEditableText(""); // Clear editable text after blur
     setEditableLineItem(""); // Clear editable lineItem after blur
     setEditableName(""); // Clear editable name after blur
   };
+
+  // Clean up empty entries when user finishes editing
+  useEffect(() => {
+    if (
+      activeIndex === null &&
+      prescriptionData &&
+      shouldCleanupOnBlurRef.current
+    ) {
+      shouldCleanupOnBlurRef.current = false; // Reset the flag
+
+      setPrescriptionData((prevData) => {
+        const updatedData = { ...prevData };
+        let hasChanges = false;
+
+        // Clean medications
+        if (updatedData.medications && Array.isArray(updatedData.medications)) {
+          const originalLength = updatedData.medications.length;
+          updatedData.medications = updatedData.medications.filter((item) => {
+            if (!item || typeof item !== "object") return false;
+            const hasName = item.name && item.name.toString().trim() !== "";
+            const hasLineItem =
+              item.lineItem && item.lineItem.toString().trim() !== "";
+            return hasName || hasLineItem;
+          });
+          if (updatedData.medications.length !== originalLength) {
+            hasChanges = true;
+          }
+        }
+
+        return hasChanges ? updatedData : prevData;
+      });
+    }
+  }, [activeIndex, prescriptionData]);
 
   const handleNameChange = (e) => {
     setEditableName(e.target.value);
@@ -1653,9 +1715,16 @@ const ConsultationDrawer = ({
     const trimmed = (editableName || "").trim();
     const originalName = prescriptionData[type][index]?.name || "";
 
-    // Name is mandatory: if empty, do not update or clear the existing value
     if (!trimmed) {
-      // Exit edit mode without changes
+      setPrescriptionData((prevData) => {
+        const updatedData = { ...prevData };
+        if (updatedData?.[type]) {
+          updatedData[type] = updatedData[type].filter((_, i) => i !== index);
+        }
+        return updatedData;
+      });
+      setIsRxEdited(true);
+      shouldCleanupOnBlurRef.current = true; // Set flag to trigger cleanup
       setActiveIndex(null);
       setActiveType(null);
       setEditableName("");
@@ -1674,6 +1743,7 @@ const ConsultationDrawer = ({
     //   setIsRxEdited(true);
     // }
     // Exit edit mode for name explicitly
+    shouldCleanupOnBlurRef.current = true; // Set flag to trigger cleanup
     setActiveIndex(null);
     setActiveType(null);
     setEditableName("");
@@ -1822,12 +1892,10 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
-    if (
-      isRxEdited ||
-      localModules?.length ||
-      (symptomsCollectorData && Object.keys(symptomsCollectorData)?.length > 0)
-    )
-      handleUpdateGenRX();
+    const quantityActionMedicine = await ApiMedication.getQuantity({
+      medicines: prescriptionData?.medications,
+    });
+    handleUpdateGenRX(quantityActionMedicine);
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -1922,9 +1990,6 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
-          const quantityActionMedicine = await ApiMedication.getQuantity({
-            medicines: prescriptionData?.medications,
-          });
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -2500,6 +2565,9 @@ const ConsultationDrawer = ({
                                   }
                                 >
                                   <input
+                                    ref={(el) =>
+                                      (inputNameRefs.current[index] = el)
+                                    }
                                     type="text"
                                     value={editableName}
                                     className="editable-digitised-item"
@@ -2517,7 +2585,9 @@ const ConsultationDrawer = ({
                                   />
                                 </AutoComplete>
                                 <span className="digitised-item">
-                                  {item.lineItem}
+                                  {item.lineItem && item.lineItem.trim() !== ""
+                                    ? item.lineItem
+                                    : "()"}
                                 </span>
                               </>
                             ) : (
@@ -2556,7 +2626,7 @@ const ConsultationDrawer = ({
                               onClick={() => handleLineItemClick(type, index)}
                               className="digitised-item"
                             >
-                              {item.lineItem !== undefined
+                              {item.lineItem && item.lineItem.trim() !== ""
                                 ? item.lineItem
                                 : `(${item.dosage ?? ""} ${
                                     item.duration ?? ""
