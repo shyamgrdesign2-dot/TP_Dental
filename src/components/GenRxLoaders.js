@@ -97,7 +97,7 @@ const GenRXLoaders = ({ isProcessing, showAbsHeaderInsideLoader = false, isSnapR
       {showAbsHeaderInsideLoader ? (
         <div className="title-digitise-card-inside-loader">
           <img src={digitiseRxIcon} alt="rx-icon2" className="me-2" />
-          {`Digitised Rx`}
+          {`Rx Pad`}
         </div>
       ) : null}
       <div className="d-flex justify-content-center align-items-center flex-column z-3">

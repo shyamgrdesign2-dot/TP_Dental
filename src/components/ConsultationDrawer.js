@@ -13,19 +13,26 @@ import styles from "./ConsultationDrawer.module.css";
 import deleteIcon from "../assets/images/delete-gen-rx.svg";
 import micIcon from "../assets/images/mic-gen-rx.svg";
 import pauseIcon from "../assets/images/pause.svg";
+import voiceRxButton from "../assets/images/voice-rx-button.svg";
+import vitalsIcons from "../assets/images/vitals-icons.svg";
+import stopIcon from "../assets/images/stop-icon.svg";
+import muteIcon from "../assets/images/mute-icon.svg";
+import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
   editGenRxDetails,
-  generateRx,
   getGenRx,
+  getAmbientRx,
   setAddToRx,
+  generateRx,
   updateGenRx,
+  generateAmbientRx,
+  updateAmbientRx,
+  editAmbientRx,
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
-import documentIcon from "../assets/images/digitise-rx.svg";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
 import genRxRecordIcon from "../assets/images/gen-rx-record.svg";
-import tatvaAiStrip from "../assets/images/apexAI.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
@@ -37,6 +44,7 @@ import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
+import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import VoiceWaveVisualizer from "./WaveVisualizer";
@@ -44,6 +52,31 @@ import GenRXLoaders from "./GenRxLoaders";
 import genRxSendCta from "../assets/images/genRxSendCta.svg";
 import tatvaAiChakra from "../assets/lotties/tatvaAiChakra.lottie";
 import { FAILED_VERIFICATION, FREE, MESSAGE_KEY, S_DDX, S_VOICE_RX } from "../utils/constants";
+import doctorAvatar from "../assets/images/doctor-avatar.png";
+import arrowBoxDown from "../assets/images/arrow-box-down.svg";
+import dictateActiveIcon from "../assets/images/dictate-active.svg";
+import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
+import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
+import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
+import LabInvestigationTable from "./LabInvestigationTable";
+import AdviceRichTextEditor from "./AdviceRichTextEditor";
+import VitalsRichTextEditor from "./VitalsRichTextEditor";
+import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
+import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
+import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
+import MedicationsTable from "./MedicationsTable";
+import {
+  FAILED_VERIFICATION,
+  FREE,
+  GB_APOLLO_DISABLE_FEATURE,
+  GB_ZYDUS_USER,
+  MESSAGE_KEY,
+  S_DDX,
+  S_VOICE_RX,
+  S_AMBIENT_VOICE_RX,
+} from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
@@ -52,19 +85,26 @@ import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import { services } from "../redux/doctorsSlice";
 import { deviceType, osName } from "react-device-detect";
 import SCBanner from "./SCBanner";
+import GenRxKnowMore from "./GenRxKnowMore";
 import { setSelectAutofill } from "../redux/ddxSlice";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
-const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID }) => {
-
+const ConsultationDrawer = ({
+  visible,
+  onClose,
+  labReportID,
+  digitizedData,
+  typedInputText,
+  mode,
+}) => {
   const { servicesList } = useSelector((state) => state.doctors);
   const VOICE_RX_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
 
   const { useVoiceRx, setUseVoiceRx, useDDX } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData } = state;
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -72,20 +112,27 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   const [isProcessing, setIsProcessing] = useState(false);
   const [prescriptionData, setPrescriptionData] = useState(null);
   const isAutoFocusShownRef = useRef(false);
+  const hasAutoSubmittedRef = useRef(false);
   const [symptomsCollectorData, setSymptomsCollectorData] = useState(null);
   const [localModules, setLocalModules] = useState([]);
   const [showInput, setShowInput] = useState(false);
   const [newModuleName, setNewModuleName] = useState("");
   const [updatedModuleName, setUpdatedModuleName] = useState("");
   const [genRxDetails, setGenRxDetails] = useState(null);
+  const [fullTranscript, setFullTranscript] = useState("");
+  const [conversations, setConversations] = useState([]);
   const [showPrescription, setShowPrescription] = useState(
     caseManagerData?.smart_prescription_filename || false
   );
   const [inputText, setInputText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
+  const [audioDuration, setAudioDuration] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [editableText, setEditableText] = useState("");
   const [editableQuery, setEditableQuery] = useState("");
+  const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
+  const [showInstructionMessage, setShowInstructionMessage] = useState(true);
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableLineItem, setEditableLineItem] = useState("");
@@ -93,11 +140,12 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   const [queries, setQueries] = useState([]);
   const [isRxEdited, setIsRxEdited] = useState(false);
   const [editingModule, setEditingModule] = useState("");
+  const [isAmbientMode, setIsAmbientMode] = useState(false);
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
-  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const { profile, userId } = useSelector((state) => state.doctors);
@@ -109,7 +157,265 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   const isFreeVoiceRxUser = isVoiceRxFree();
 
   useEffect(() => {
-    if (VOICE_RX_planDetails !== undefined && (VOICE_RX_planDetails?.plan_tier === FREE || VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)) {
+    if (mode === 'ambient') {
+      setIsAmbientMode(true);
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+    } else if (mode === 'dictation') {
+      setIsAmbientMode(false);
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+    } else {
+      const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
+      setIsAmbientMode(activeService === S_AMBIENT_VOICE_RX);
+    }
+  }, [visible, mode]);
+
+  useEffect(() => {
+    if (audioBlob && audioBlob instanceof Blob) {
+      const audio = new Audio();
+      const url = URL.createObjectURL(audioBlob);
+      audio.src = url;
+      
+      audio.addEventListener('loadedmetadata', () => {
+        const duration = audio.duration;
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.floor(duration % 60);
+        setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+        URL.revokeObjectURL(url);
+      });
+    } else if (!audioBlob && !fromVoiceRecording) {
+      setAudioDuration(null);
+    }
+  }, [audioBlob, fromVoiceRecording]);
+
+  useEffect(() => {
+    if (!visible) {
+      hasAutoSubmittedRef.current = false;
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (hasAutoSubmittedRef.current) return;
+    
+    const shouldAutoSubmit = visible && fromVoiceRecording && audioBlob && !isProcessing && !prescriptionData;
+    if (!shouldAutoSubmit) return;
+
+    hasAutoSubmittedRef.current = true;
+
+    const run = async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 80));
+        setShowPrescription(true);
+        setRecordingTime(0);
+        setIsProcessing(true);
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        }
+        setIsRecording(false);
+        setIsPaused(false);
+
+        await handleVoiceDigitize(audioBlob, "");
+      } catch (e) {
+        console.error('Auto submit failed:', e);
+        setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, fromVoiceRecording, audioBlob]);
+
+  useEffect(() => {
+    if (hasAutoSubmittedRef.current) return;
+    
+    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
+    if (!shouldSubmitTyped) return;
+
+    hasAutoSubmittedRef.current = true;
+
+    const run = async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 60));
+        setShowPrescription(true);
+        setIsProcessing(true);
+        await handleVoiceDigitize(null, typedInputText);
+      } catch (e) {
+        console.error('Typed submit failed:', e);
+        setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, typedInputText]);
+
+  
+  useEffect(() => {
+    if (prescriptionData && Object.keys(prescriptionData).length > 0) {
+      setShowPrescription(true);
+    }
+  }, [prescriptionData]);
+
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const meds = prescriptionData?.medications || [];
+    if (!meds.length) return;
+    if (isFuzzyUpdatingRef.current) return;
+    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    if (!namesSignature || namesSignature === lastFuzzyNamesRef.current) return;
+
+    const now = Date.now();
+    if (
+      lastFuzzyCallRef.current.sig === namesSignature &&
+      now - lastFuzzyCallRef.current.ts < 800
+    ) {
+      return; // ignore rapid duplicate (e.g., StrictMode double effect)
+    }
+    lastFuzzyCallRef.current = { sig: namesSignature, ts: now };
+
+    lastFuzzyNamesRef.current = namesSignature;
+    getFuzzySearchMedicine(meds);
+  }, [prescriptionData?.medications]);
+
+  // Fuzzy-correct lab investigations (tests) names with guards
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const tests = prescriptionData?.labInvestigation || [];
+    if (!tests.length) return;
+    if (isFuzzyUpdatingTestsRef.current) return;
+    const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
+    if (!namesSignature || namesSignature === lastFuzzyTestsRef.current) return;
+
+    const now = Date.now();
+    if (
+      lastFuzzyTestsCallRef.current.sig === namesSignature &&
+      now - lastFuzzyTestsCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyTestsCallRef.current = { sig: namesSignature, ts: now };
+    lastFuzzyTestsRef.current = namesSignature;
+    getFuzzySearchLabs(tests);
+  }, [prescriptionData?.labInvestigation]);
+
+  const getFuzzySearchMedicine = async (medsSnapshot) => {
+    try {
+      const meds = medsSnapshot || prescriptionData?.medications || [];
+      if (!meds.length) return;
+      isFuzzyUpdatingRef.current = true;
+
+      const correctedResults = await Promise.all(
+        meds.map(async (med) => {
+          const currentName = (med?.name || "").trim();
+          if (!currentName)
+            return { correctedName: currentName, fullData: null };
+          try {
+            const result = await ApiMedication.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.tmm_medicine_name?.trim();
+            return {
+              correctedName: corrected || currentName,
+              fullData: result?.[0] || null,
+            };
+          } catch (e) {
+            return { correctedName: currentName, fullData: null };
+          }
+        })
+      );
+
+      const anyChanged = meds.some(
+        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+      );
+      if (!anyChanged) return;
+
+      const correctedSig = correctedResults
+        .map((r) => r.correctedName)
+        .join("|");
+      lastFuzzyNamesRef.current = correctedSig;
+
+      setPrescriptionData((prev) => ({
+        ...prev,
+        medications: (prev?.medications || []).map((m, idx) => ({
+          ...m,
+          name: correctedResults[idx].correctedName,
+          edited: false,
+          metadata: {
+            ...m.metadata,
+            fuzzyCorrectedName: correctedResults[idx].correctedName,
+            originalName: m.name,
+            isFuzzyCorrected: true,
+            ...(correctedResults[idx].fullData || {}),
+          },
+        })),
+      }));
+    } finally {
+      isFuzzyUpdatingRef.current = false;
+    }
+  };
+
+  const getFuzzySearchLabs = async (testsSnapshot) => {
+    try {
+      const tests = testsSnapshot || prescriptionData?.labInvestigation || [];
+      if (!tests.length) return;
+      isFuzzyUpdatingTestsRef.current = true;
+
+      const correctedResults = await Promise.all(
+        tests.map(async (it) => {
+          const currentName = (it?.name || "").trim();
+          if (!currentName)
+            return { correctedName: currentName, fullData: null };
+          try {
+            const result = await ApiInvestigation.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.investigation_name?.trim();
+            return {
+              correctedName: corrected || currentName,
+              fullData: result?.[0] || null,
+            };
+          } catch (e) {
+            return { correctedName: currentName, fullData: null };
+          }
+        })
+      );
+
+      const anyChanged = tests.some(
+        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+      );
+      if (!anyChanged) return;
+
+      const correctedSig = correctedResults
+        .map((r) => r.correctedName)
+        .join("|");
+      lastFuzzyTestsRef.current = correctedSig;
+
+      setPrescriptionData((prev) => ({
+        ...prev,
+        labInvestigation: (prev?.labInvestigation || []).map((m, idx) => ({
+          ...m,
+          name: correctedResults[idx].correctedName,
+          // Add metadata for fuzzy search corrected name with full data
+          metadata: {
+            ...m.metadata,
+            fuzzyCorrectedName: correctedResults[idx].correctedName,
+            originalName: m.name,
+            isFuzzyCorrected: true,
+            ...(correctedResults[idx].fullData || {}),
+          },
+        })),
+      }));
+    } finally {
+      isFuzzyUpdatingTestsRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (
+      VOICE_RX_planDetails !== undefined &&
+      (VOICE_RX_planDetails?.plan_tier === FREE ||
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
+    ) {
       setTimeout(() => {
         setIsSubModalOpen(true)
       }, 500);
@@ -139,7 +445,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setIsBackModalOpen(!isBackModalOpen);
   }, [isBackModalOpen]);
 
-  // Add these refs
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
@@ -152,9 +457,110 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const textAreaRef = useRef(null);
 
+  // Split view resizer state
+  const splitRef = useRef(null);
+  const isResizingRefSplit = useRef(false);
+  
+  const getInitialWidthPercent = () => {
+    if (typeof window === 'undefined') return 33;
+    const screenWidth = window.innerWidth;
+    if (screenWidth >= 769 && screenWidth <= 1024) {
+      return 35;
+    }
+    if (screenWidth >= 1920) return 25;
+    if (screenWidth >= 1440) return 33;
+    return 33;
+  };
+  
+  const [leftWidthPercent, setLeftWidthPercent] = useState(getInitialWidthPercent());
+
+  const onMouseMoveResizer = useCallback((e) => {
+    if (!isResizingRefSplit.current || !splitRef.current) return;
+    const rect = splitRef.current.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const totalWidth = rect.width;
+    
+    const minLeftWidthPx = 480;
+    const minRxPadWidthPx = 960;
+    const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
+    const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
+    
+    const pct = (relativeX / totalWidth) * 100;
+    
+    if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
+      const clamped = Math.min(maxLeftPercent, Math.max(minLeftPercent, pct));
+    setLeftWidthPercent(clamped);
+    } else {
+      const clamped = Math.min(100, Math.max(0, pct));
+      setLeftWidthPercent(clamped);
+    }
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    if (!isResizingRefSplit.current) return;
+    isResizingRefSplit.current = false;
+    document.removeEventListener("mousemove", onMouseMoveResizer);
+    document.removeEventListener("mouseup", stopResizing);
+  }, [onMouseMoveResizer]);
+
+  const startResizing = useCallback(() => {
+    isResizingRefSplit.current = true;
+    document.addEventListener("mousemove", onMouseMoveResizer);
+    document.addEventListener("mouseup", stopResizing);
+  }, [onMouseMoveResizer, stopResizing]);
+
   useEffect(() => {
-    if (caseManagerData?.smart_prescription_filename) getGenRxDetails();
+    const handleWindowResize = () => {
+      if (!splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const totalWidth = rect.width;
+      
+      const minLeftWidthPx = 480;
+      const minRxPadWidthPx = 960;
+      
+      if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
+        const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
+        const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
+        
+        const currentLeftPx = (leftWidthPercent / 100) * totalWidth;
+        const currentRxPadPx = totalWidth - currentLeftPx;
+        
+        if (currentLeftPx < minLeftWidthPx) {
+          setLeftWidthPercent(minLeftPercent);
+        } else if (currentRxPadPx < minRxPadWidthPx) {
+          setLeftWidthPercent(maxLeftPercent);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [leftWidthPercent]);
+
+  useEffect(() => {
+    if (caseManagerData?.smart_prescription_filename) {
+      getGenRxDetails();
+    }
   }, [caseManagerData?.smart_prescription_filename]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!splitRef.current) return;
+      const totalWidth = splitRef.current.getBoundingClientRect().width || window.innerWidth;
+      const isTablet = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      const desiredLeftPx = isTablet ? 350 : 480;
+      const minLeftPx = desiredLeftPx;
+      const minRightPx = isTablet ? 674 : 960;
+      const minLeftPercent = (minLeftPx / totalWidth) * 100;
+      const maxLeftPercent = ((totalWidth - minRightPx) / totalWidth) * 100;
+      let pct = (desiredLeftPx / totalWidth) * 100;
+      if (!isFinite(pct)) pct = getInitialWidthPercent();
+      const clamped = Math.max(minLeftPercent, Math.min(maxLeftPercent, pct));
+      setLeftWidthPercent(clamped);
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (isAutoFocusShownRef.current) return;
@@ -262,7 +668,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     }
   }, [selectedSymptomsCollector, isAutofillSelected]);
 
-  // Timer logic
   useEffect(() => {
     let interval;
     if (isRecording && !isPaused) {
@@ -275,9 +680,12 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const getGenRxDetails = async () => {
     try {
-      const response = await getGenRx(
-        caseManagerData?.smart_prescription_filename
-      );
+      let response;
+      if (isAmbientMode || mode === 'ambient') {
+        response = await getAmbientRx(caseManagerData?.smart_prescription_filename);
+      } else {
+        response = await getGenRx(caseManagerData?.smart_prescription_filename);
+      }
 
       if (response.success) {
         setPrescriptionData(
@@ -478,6 +886,9 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     isFromSC = false
   ) => {
     try {
+      let response;
+
+      if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
       const formData = new FormData();
       if (audioBlob) {
         const audioContext = new (window.AudioContext ||
@@ -485,9 +896,252 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         const duration = audioBuffer.duration;
-        formData.append("file", audioBlob);
-        formData.append("voice_prescription_filename", `${uuidv4()}.webm`);
-        formData.append("source_duration", duration);
+        
+        formData.append("", audioFile);
+        formData.append("source_duration", duration.toString());
+      } else if (transcribedText) {
+        formData.append("", transcribedText);
+        }
+
+        if (genRxDetails?._id) {
+          const data = preparePayloadForApi();
+          formData.append(
+            "voice_prescription_previous_context",
+            JSON.stringify(data)
+          );
+        }
+        formData.append("doctorId", doctorId);
+        formData.append("patientId", patient_data?.patient_unique_id || "");
+        formData.append("schemaKey", "default");
+        formData.append("getConversation", "true");
+        
+        if (genRxDetails?._id) {
+          const updatedTranscript = fullTranscript + " " + transcribedText;
+      setFullTranscript(updatedTranscript);
+          
+          if (transcribedText) {
+            const newFormData = new FormData();
+            newFormData.append("", updatedTranscript);
+            
+            Array.from(formData.entries()).forEach(([key, value]) => {
+              if (key !== '' || typeof value !== 'string') {
+                newFormData.append(key, value);
+              }
+            });
+            
+            response = await updateAmbientRx(
+              newFormData,
+              genRxDetails?._id
+            );
+          } else {
+            response = await updateAmbientRx(
+              formData,
+              genRxDetails?._id
+            );
+          }
+        } else {
+          response = await generateAmbientRx(
+            formData
+          );
+          
+          if (transcribedText) {
+            setFullTranscript(transcribedText);
+          }
+        }
+        const responseData = response.data || response;
+        const isSuccess = response.success !== false && responseData && (
+          responseData.digitize || 
+          responseData.rx || 
+          responseData.symptoms || 
+          responseData.conversation ||
+          responseData.rxDigitizationHistory
+        );
+        
+        if (isSuccess) {
+          if (!responseData) {
+            console.error('❌ Response data is null or undefined');
+            throw new Error('No data received from API');
+          }
+          
+          if (!isFromSC) {
+            let prescriptionData = null;
+            let conversationData = null;
+            
+            if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+              prescriptionData = responseData;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].payload.response;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].response;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.symptoms || 
+                     responseData.rxDigitizationHistory?.[0]?.payload?.medications) {
+              prescriptionData = responseData.rxDigitizationHistory[0].payload;
+            }
+            else if (responseData.digitize) {
+              prescriptionData = responseData.digitize;
+            }
+            else if (responseData.prescription) {
+              prescriptionData = responseData.prescription;
+            }
+            else if (responseData.rx) {
+              prescriptionData = responseData.rx;
+            }
+            else if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+              prescriptionData = responseData;
+            }
+            
+            if (prescriptionData && prescriptionData.vitalsAndBodyComposition) {
+              const vitals = prescriptionData.vitalsAndBodyComposition;
+              const actualVitals = vitals._doc || vitals;
+              const cleanedVitals = {};
+              
+              const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+              vitalKeys.forEach(key => {
+                if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
+                  cleanedVitals[key] = actualVitals[key];
+                }
+              });
+              
+              prescriptionData.vitalsAndBodyComposition = cleanedVitals;
+            }
+            
+            if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+              conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+            } else if (responseData.conversation) {
+              conversationData = responseData.conversation;
+            } else if (responseData.digitize?.conversation) {
+              conversationData = responseData.digitize.conversation;
+            } else if (responseData.rx?.conversation) {
+              conversationData = responseData.rx.conversation;
+            } else if (prescriptionData?.conversation) {
+              conversationData = prescriptionData.conversation;
+            }
+            
+            if (conversationData) {
+              setConversations(conversationData);
+            }
+            
+            if (prescriptionData) {
+              const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
+              
+              setPrescriptionData((prevData) => {
+                const mergedDynamicFields = {
+                  ...(validatedPrescriptionData?.dynamicFields),
+                  ...localModules.reduce((acc, moduleName) => {
+                    acc[moduleName] = [];
+                    return acc;
+                  }, {}),
+                };
+
+                if (genRxDetails?._id) {
+                  const hasMeaningfulData = validatedPrescriptionData.symptoms?.length > 0 || 
+                                          validatedPrescriptionData.medications?.length > 0 || 
+                                          validatedPrescriptionData.vitalsAndBodyComposition || 
+                                          Object.keys(validatedPrescriptionData).length > 2;
+                  
+                  if (hasMeaningfulData) {
+                    const formattedSymptomsCollectorData =
+                      getFormattedSymptomsCollectorData(selectedSymptomsCollector);
+                    const finalPrescriptionData =
+                      formattedSymptomsCollectorData &&
+                      Object.keys(formattedSymptomsCollectorData)?.length > 0
+                        ? mergeData(
+                            validatedPrescriptionData,
+                            formattedSymptomsCollectorData
+                          )
+                        : validatedPrescriptionData;
+
+                    return {
+                      ...finalPrescriptionData,
+                      dynamicFields: mergedDynamicFields,
+                    };
+                  } else {
+                    return prevData || {};
+                  }
+                } else {
+                  const formattedSymptomsCollectorData =
+                    getFormattedSymptomsCollectorData(selectedSymptomsCollector);
+                  const finalPrescriptionData =
+                    formattedSymptomsCollectorData &&
+                    Object.keys(formattedSymptomsCollectorData)?.length > 0
+                      ? mergeData(
+                          validatedPrescriptionData,
+                          formattedSymptomsCollectorData
+                        )
+                      : validatedPrescriptionData;
+
+                  return {
+                    ...finalPrescriptionData,
+                    dynamicFields: mergedDynamicFields,
+                  };
+                }
+              });
+            } else {
+              setPrescriptionData({
+                symptoms: [],
+                medications: [],
+                vitalsAndBodyComposition: {},
+                advice: [],
+                diagnosis: [],
+                examinations: [],
+                followUp: "",
+                labInvestigation: [],
+                medicalHistory: [],
+                vaccinations: [],
+                others: [],
+                dynamicFields: localModules.reduce((acc, moduleName) => {
+                  acc[moduleName] = [];
+                  return acc;
+                }, {}),
+              });
+            }
+
+            setConversations((prevConversations) => {
+              if (conversationData && conversationData.length > 0) {
+                if (!genRxDetails?._id || prevConversations.length === 0) {
+                  return conversationData;
+                } else {
+                  return conversationData;
+                }
+              } else if (genRxDetails?._id) {
+                const currentInput = {
+                  speaker: "doctor",
+                  text: transcribedText,
+                  timestamp: new Date().toISOString()
+                };
+                return [...prevConversations, currentInput];
+              } else {
+                const initialConversation = {
+                  speaker: "doctor",
+                  text: transcribedText || "Initial consultation",
+                  timestamp: new Date().toISOString()
+                };
+                return [initialConversation];
+              }
+            });
+          }
+
+          setGenRxDetails({
+            source: responseData.source,
+            source_duration: responseData.source_duration,
+            timeRequiredInMs: responseData.timeRequiredInMs,
+            type: "ambient",
+            _id: responseData._id,
+          });
+          setInputText("");
+          setIsEditing(false);
+          setUseVoiceRx(true);
+          setShowPrescription(true);
+        } else {
+          if (response.success === false && response.data === null) {
+            throw new Error(response.error || "Server error - API returned failure with null data");
+          } else {
+            throw new Error(response.error || "Failed to process ambient prescription - check response structure");
+          }
+        }
       } else {
         formData.append("voice_prescription_text", transcribedText);
       }
@@ -545,20 +1199,86 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           );
         }
 
-        // Clear localModules after merging (optional)
-        // setLocalModules([]);
-        setGenRxDetails({
-          source: response.data.source,
-          source_duration: response.data.source_duration,
-          timeRequiredInMs: response.data.timeRequiredInMs,
-          type: response.data.type,
-          _id: response.data._id,
-        });
-        setInputText("");
-        setIsEditing(false);
-        setUseVoiceRx(true);
-      } else {
-        throw new Error(response.error || "Failed to process prescription");
+        response = genRxDetails?._id
+          ? await updateGenRx(formData, genRxDetails?._id)
+          : await generateRx(formData);
+
+        const responseData = response.data || response;
+        const isSuccess = response.success !== false && responseData && (
+          responseData.digitize || 
+          responseData.rx || 
+          responseData.symptoms || 
+          responseData.conversation ||
+          responseData.rxDigitizationHistory
+        );
+        
+        if (isSuccess) {
+          if (!responseData) {
+            console.error('❌ Response data is null or undefined');
+            throw new Error('No data received from API');
+          }
+          
+          if (!isFromSC) {
+            let prescriptionData = null;
+            let conversationData = null;
+            
+            if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+              prescriptionData = responseData;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].payload.response;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].response;
+            }
+            else if (responseData.digitize) {
+              prescriptionData = responseData.digitize;
+            }
+            
+            if (responseData.conversation) {
+              conversationData = responseData.conversation;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+              conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+            }
+            
+            if (prescriptionData) {
+              setPrescriptionData(prescriptionData);
+            }
+            
+            if (conversationData) {
+              setConversations(conversationData);
+            }
+            
+            if (responseData.transcription) {
+            setQueries(
+              isEditing
+                ? [
+                    ...queries.slice(0, queries.length - 1),
+                      responseData.transcription,
+                  ]
+                  : [...queries, responseData.transcription]
+            );
+            }
+          }
+
+          setGenRxDetails({
+            source: responseData.source,
+            source_duration: responseData.source_duration,
+            timeRequiredInMs: responseData.timeRequiredInMs,
+            type: "ambient",
+            _id: responseData._id,
+          });
+          setInputText("");
+          setIsEditing(false);
+          setUseVoiceRx(true);
+        } else {
+          if (response.success === false && response.data === null) {
+            throw new Error(response.error || "Server error - API returned failure with null data");
+          } else {
+            throw new Error(response.error || "Failed to process prescription");
+          }
+        }
       }
     } catch (error) {
       console.error("Error in voice digitization:", error);
@@ -571,11 +1291,21 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const handleUpdateGenRX = async () => {
     try {
-      const response = await editGenRxDetails(
+      let response;
+      
+      if (isAmbientMode && genRxDetails?.type === "ambient") {
+        response = await editAmbientRx(
         { editedData: prescriptionData },
         genRxDetails?._id
       );
-      if (response.status === 204) {
+      } else {
+        response = await editGenRxDetails(
+          { editedData: prescriptionData },
+          genRxDetails?._id
+        );
+      }
+      
+      if (response.status === 204 || response.success) {
         setGenRxDetails({
           source: response.data.source,
           source_duration: response.data.source_duration,
@@ -882,6 +1612,94 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setActiveIndex(index);
     setActiveType(`${type}-lineItem`);
   };
+
+  const handleSymptomsUpdate = useCallback((symptomsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      symptoms: symptomsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleExaminationsUpdate = useCallback((examinationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      examinations: examinationsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleDiagnosisUpdate = useCallback((diagnosisArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      diagnosis: diagnosisArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleInvestigationUpdate = useCallback((investigationArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      labInvestigation: investigationArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleAdviceUpdate = useCallback((adviceArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      advice: adviceArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleVitalsUpdate = useCallback((vitalsObject) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      vitalsAndBodyComposition: vitalsObject,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicalHistoryUpdate = useCallback((medicalHistoryArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      medicalHistory: medicalHistoryArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleFollowUpUpdate = useCallback((followUpText) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      followUp: followUpText,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleLabResultsUpdate = useCallback((labResultsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      labResults: labResultsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleAdditionalNotesUpdate = useCallback((othersArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      others: othersArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicationsUpdate = useCallback((medicationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      medications: medicationsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
 
   async function onEndVisitClick() {
     if (
@@ -1556,11 +2374,10 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const handleBack = () => {
     onClose();
-    navigate(".", {
-      replace: true, // Prevents adding a new entry to history
+    // Navigate to Voice Rx Consult page
+    navigate("/voice-rx-consult", {
       state: {
-        ...state,
-        caseManagerData: undefined, // Remove caseManagerData
+        patient_data,
       },
     });
   };
@@ -1572,7 +2389,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       open={visible}
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
-      width={showPrescription ? "100%" : "640px"}
+      width={showPrescription ? "100%" : "750px"}
+      mask={!genRxKnowMoreDrawer}
     >
       <Suspense
         fallback={
@@ -1590,15 +2408,30 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                   <i className="icon-right"></i>
                 </div>
               </div>
-              <div className="title-common">Voice Rx</div>
+                <ProfilePopover patient_data={patient_data} isPrescriptionPage />
+                {mode && (
+                  <div className={styles.modeIndicator}>
+                    {mode === 'dictation' ? (
+                      <>
+                        <img src={dictateActiveIcon} alt="Dictate mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Dictate Mode</span>
+                      </>
+                    ) : (
+                      <>
+                        <img src={ambientActiveIcon} alt="Ambient mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Ambient Mode</span>
+                      </>
+                    )}
+                  </div>
+                )}
             </div>
             <div className="d-flex align-items-center gap-2">
               <button
                 className="btn d-flex align-items-center btn-text me-10 tutorial"
-                onClick={handleGenRxKnowMore}
+                onClick={() => setGenRxKnowMoreDrawer(true)}
               >
                 <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                  <img height={42} src={tutorialIcon} />
+                  <img height={42} src={tutorialIcon} alt="Tutorial" />
                   Tutorial
                 </span>
               </button>
@@ -1747,120 +2580,137 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                   )}
                 </>
               ) : (
-                <div
-                  className={`${styles.splitView} w-100`}
-                  style={{ padding: 24 }}
-                >
-                  <div className={styles.inputSection}>
-                    <div>
-                      <img src={documentIcon} alt="Document" />
-                      <span className={styles.heading}>Your input</span>
-                    </div>
-                    <div className={styles.chatSection}>
+                  <div
+                    className={`${styles.splitView} w-100`}
+                    ref={splitRef}
+                     style={{
+                       padding: "0 0 24px 0",
+                       "--divider-left": `${leftWidthPercent}%`,
+                     }}
+                  >
+                  <div
+                    className={styles.inputSection}
+                    style={{ width: `${leftWidthPercent}%` }}
+                  >
+                      <div className={styles.chatSection}>
+                        {/* Introductory Text */}
+                        <div className={styles.introTextContainer}>
+                          <img src={doctorAvatar} alt="Doctor Assistant" className={styles.doctorAvatarIcon} />
+                          <div className={styles.introText}>
+                            Hi Doctor! Start your consultation by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the patient.</strong>
+                            I'll <strong>transcribe</strong> & <strong>structure</strong> it into the <strong>Rx Pad</strong> automagically!
+                          </div>
+                        </div>
+                        
+                        {/* Transcript Card */}
+                        {(fullTranscript || genRxDetails?.source) && (
+                          <div className={styles.transcriptCard}>
+                            <div 
+                              className={styles.transcriptHeader}
+                              onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+                            >
+                              <div className={styles.transcriptTitle}>
+                                <div className={styles.transcriptTitleContent}>
+                                  <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
+                                  <div className={styles.transcriptDuration}>
+                                    <i className="icon-time"></i>
+                                    <span>{audioDuration || formatTime(recordingTime) || "0:00"}</span>
+                                    <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
+                                  </div>
+                                </div>
+                                <div className={styles.transcriptPreview}>
+                                  {!isAmbientMode && (fullTranscript || (conversations?.map(conv => conv.message || conv.text || conv.content).join(' ')))}
+                                </div>
+                              </div>
+                              <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
+                                <i className="icon-down"></i>
+                              </div>
+                            </div>
+                            {isTranscriptExpanded && (
+                              <div className={styles.transcriptContent}>
+                                  {isAmbientMode ? (
+                                  <div>
+                                    {Array.isArray(conversations) && conversations.length > 0 ? (
+                                      conversations.map((conv, idx) => {
+                                        const text = conv?.message || conv?.text || conv?.content || '';
+                                        const speaker = (conv?.speaker || '').toLowerCase();
+                                        const isDoctor = speaker === 'doctor';
+                                        return (
+                                          <div key={idx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
+                                        <div className={styles.conversationBubble}>
+                                              <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
+                                              <div className={styles.messageText}>{text}</div>
+                                          </div>
+                                          </div>
+                                        );
+                                      })
+                                    ) : null}
+                                        </div>
+                                ) : (
+                                  <div className={styles.transcriptText}>
+                                    {(Array.isArray(queries) && queries.length > 0)
+                                      ? queries.join(' ')
+                                      : (fullTranscript || '')}
+                                </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                       {isProcessing ? (
                         <BubbleSkeleton />
                       ) : (
                         <>
+                          {(isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript))) && (
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                              <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
+                              <div className={styles.prescriptionReadyMessage}>
+                                Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
+                                      </div>
+                                    </div>
+                                  )}
                           <div className={styles.inputContainer}>
                             <div className={styles.inputQueries}>
-                              {queries.map((query, index) => (
-                                <div key={index}>
-                                  <div
-                                    className="position-relative ms-auto"
-                                    style={{ maxWidth: "457px" }}
-                                  >
-                                    <div
-                                      key={index}
-                                      className={styles.textContainer}
-                                    >
-                                      <span className={styles.inputText}>
-                                        {query}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div
-                                    className="d-flex gap-3 me-auto mb-5"
-                                    style={{ width: "87%" }}
-                                  >
-                                    <img
-                                      src={tatvaAiStrip}
-                                      alt="TatvaAI"
-                                      style={{
-                                        backgroundColor: "#22003C",
-                                        borderRadius: "10px 10px 0px",
-                                      }}
-                                      width={32}
-                                      height={32}
-                                    />
-                                    <div
-                                      className={
-                                        styles.prescriptionReadyMessage
-                                      }
-                                    >
-                                      Your prescription is ready! You can also
-                                      add details like diagnosis, Examinations
-                                      and more simply by speaking or typing
-                                      below.
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                              {null}
                             </div>
                           </div>
                           {isRecording ? (
-                            <div className={styles.recordingContainer}>
-                              <div className="d-flex align-items-center justify-content-between">
-                                <span>{formatTime(recordingTime)}</span>
-                                <VoiceWaveVisualizer
-                                  isRecording={isRecording}
-                                  isPaused={isPaused}
-                                />
-                                <div className={styles.controlButtons}>
-                                  {isPaused ? (
-                                    <button
-                                      className={styles.micBtn}
-                                      onClick={handlePauseResume}
-                                    >
-                                      <img src={micIcon} alt="resume" />
-                                    </button>
-                                  ) : (
-                                    <div
-                                      onClick={handlePauseResume}
-                                      role="button"
-                                    >
-                                      <img src={pauseIcon} alt="pause" />
-                                    </div>
-                                  )}
-
-                                  <div
-                                    role="button"
-                                    onClick={handleSend}
-                                    style={{ width: 32 }}
-                                  >
-                                    <img src={genRxSendCta} alt="send" />
-                                  </div>
+                            <div className={styles.bottomCenterBar}>
+                              <div className={styles.recBar}>
+                                {/* Delete Button */}
+                                <button className={styles.deleteButton} onClick={handleStopRecording}>
+                                  <img src={stopIcon} alt="stop" className={styles.stopIcon} />
+                                </button>
+                                
+                                {/* Pause/Resume Button */}
+                                <button className={styles.pauseButton} onClick={handlePauseResume}>
+                                  <img src={muteIcon} alt={isPaused ? "resume" : "pause"} className={styles.muteIcon} />
+                                </button>
+                                
+                                {/* Duration */}
+                                <div className={styles.timeLabel}>{formatTime(recordingTime)}</div>
+                                
+                                {/* Wave Visualizer */}
+                                <div className={styles.waveArea}>
+                                  <VoiceWaveVisualizer isRecording={isRecording} isPaused={isPaused} />
                                 </div>
+                                
+                                {/* Submit Button */}
+                                <button className={styles.sendCta} onClick={handleSend}>
+                                  <img src={vitalsIcons} alt="Submit" className={styles.vitalsIcon} />
+                                </button>
                               </div>
-                              <div className={styles.controlButtons}>
-                                <div
-                                  role="button"
-                                  onClick={handleStopRecording}
-                                  className={styles.deleteButton}
-                                >
-                                  <img src={deleteIcon} alt="delete" />
-                                </div>
-                                <span className={styles.recordingStatus}>
-                                  {isPaused
-                                    ? "Tap on the mic to continue recording!"
-                                    : "Listening..."}
-                                </span>
+                              
+                              {/* Listening Indicator with Gradient Ellipse */}
+                              <div className={styles.listeningSection}>
+                                <img src={ellipse895} alt="Gradient" className={styles.gradientEllipse} />
+                                <div className={styles.listeningText}>I'm Listening...</div>
                               </div>
                             </div>
                           ) : (
-                            <div
-                              style={{ marginTop: "auto", paddingRight: 20 }}
-                            >
-                              <div className={styles.inputContainerChat}>
+                            <div className={styles.curvedInputContainer}>
+                              <div className={styles.curvedInputWrapper}>
                                 <TextArea
                                   ref={textAreaRef}
                                   value={inputText}
@@ -1868,26 +2718,16 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                                   onKeyDown={handleKeyPress}
                                   onClick={() => setIsTyping(true)}
                                   onBlur={() => setIsTyping(false)}
-                                  placeholder={"Start speaking or typing..."}
-                                  className={styles.textArea}
+                                  placeholder={"Start Typing Rx..."}
+                                  className={styles.curvedTextInput}
                                   autoSize={{ minRows: 1, maxRows: 6 }}
                                 />
-
-                                <div className={styles.controls}>
-                                  <div
-                                    role="button"
-                                    onClick={handleStartRecording}
-                                  >
-                                    <img src={genRxRecordIcon} alt="MIC" />
-                                  </div>
-                                  <div
-                                    role="button"
-                                    onClick={handleSend}
-                                    style={{ width: 32 }}
-                                  >
-                                    <img src={genRxSendCta} alt="send" />
-                                  </div>
-                                </div>
+                                <img 
+                                  src={voiceRxButton}
+                                  alt="Voice Rx"
+                                  onClick={handleStartRecording}
+                                  style={{ cursor: 'pointer', minWidth: '112px', maxWidth: '159.99989318847656px', height: '41px', flexShrink: 0 }}
+                                />
                               </div>
                             </div>
                           )}
@@ -1895,15 +2735,20 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                       )}
                     </div>
                   </div>
-                  <div className={styles.prescriptionSection}>
-                    {!isProcessing && <div>
-                      <img src={documentIcon} alt="Document" />
-                      <span className={styles.heading}>
-                        Generated Digitised Rx
-                      </span>
-                    </div>}
+                  <div
+                    className={styles.prescriptionSection}
+                    style={{ width: `${100 - leftWidthPercent}%` }}
+                  >
+                      <div className={styles.rxPadHeader}>
+                        <img src={require("../assets/images/document-normal.svg").default} alt="Rx Pad" className={styles.rxPadIcon} />
+                        <span className={styles.rxPadTitle}>Rx Pad</span>
+                      </div>
+                      
                     {isProcessing ? (
-                      <GenRXLoaders isProcessing={isProcessing} showAbsHeaderInsideLoader={true} />
+                      <GenRXLoaders
+                        isProcessing={isProcessing}
+                        showAbsHeaderInsideLoader={false}
+                      />
                     ) : (
                       <div
                         className={`${styles.rightSection} ${isProcessing ? styles.gradientBorder : ""
@@ -1912,86 +2757,118 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                           background: isProcessing ? `url(${genRxBg})` : "",
                         }}
                       >
+                        {showInstructionMessage && (
+                          <div className={styles.rxPadInstruction}>
+                            <div className={styles.instructionIcon}>
+                              <img src={require("../assets/images/danger.svg").default} alt="Warning" className={styles.dangerIcon} />
+                            </div>
+                            <div className={styles.instructionText}>
+                              Dictate the Rx or start a conversation with Ambient Rx — I'll auto-magically fill these below Rx details so you can stay focused on the patient.
+                            </div>
+                            <button 
+                              className={styles.closeButton}
+                              onClick={() => setShowInstructionMessage(false)}
+                              aria-label="Close instruction message"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        
                         {prescriptionData?.vitalsAndBodyComposition &&
-                          Object.values(
-                            prescriptionData.vitalsAndBodyComposition
-                          ).some((value) => value) && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Vitals
-                              </div>
-                              {renderItems("vitalsAndBodyComposition")}
-                            </>
+                          typeof prescriptionData.vitalsAndBodyComposition === 'object' && 
+                          prescriptionData.vitalsAndBodyComposition !== null && 
+                          Object.values(prescriptionData.vitalsAndBodyComposition).some(value => 
+                            value !== undefined && value !== null && value !== ''
+                          ) && (
+                            <VitalsRichTextEditor
+                              vitalsAndBodyComposition={prescriptionData.vitalsAndBodyComposition}
+                              onUpdate={handleVitalsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.medicalHistory &&
+                          Array.isArray(prescriptionData.medicalHistory) && 
                           prescriptionData.medicalHistory.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Medical History
-                              </div>
-                              {renderItems("medicalHistory")}
-                            </>
+                            <MedicalHistoryRichTextEditor
+                              medicalHistory={prescriptionData.medicalHistory}
+                              onUpdate={handleMedicalHistoryUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.symptoms &&
+                          Array.isArray(prescriptionData.symptoms) && 
                           prescriptionData.symptoms.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Symptoms
-                              </div>
-                              {renderItems("symptoms")}
-                            </>
+                            <SymptomsRichTextEditor
+                              symptoms={prescriptionData.symptoms}
+                              onUpdate={handleSymptomsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.examinations &&
+                          Array.isArray(prescriptionData.examinations) && 
                           prescriptionData.examinations.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Examinations
-                              </div>
-                              {renderItems("examinations")}
-                            </>
+                            <ExaminationRichTextEditor
+                              examinations={prescriptionData.examinations}
+                              onUpdate={handleExaminationsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.diagnosis &&
+                          Array.isArray(prescriptionData.diagnosis) && 
                           prescriptionData.diagnosis.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Diagnosis
-                              </div>
-                              {renderItems("diagnosis")}
-                            </>
+                            <DiagnosisRichTextEditor
+                              diagnosis={prescriptionData.diagnosis}
+                              onUpdate={handleDiagnosisUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.medications &&
+                          Array.isArray(prescriptionData.medications) && 
                           prescriptionData.medications.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Medicine
-                              </div>
-                              {renderItems("medications")}
-                            </>
+                            <MedicationsTable
+                              medications={prescriptionData.medications}
+                              onUpdate={handleMedicationsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.labInvestigation &&
+                          Array.isArray(prescriptionData.labInvestigation) && 
                           prescriptionData.labInvestigation.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Lab Investigation
-                              </div>
-                              {renderItems("labInvestigation")}
-                            </>
+                            <LabInvestigationTable
+                              labInvestigation={prescriptionData.labInvestigation}
+                              onUpdate={handleInvestigationUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {prescriptionData?.labResults &&
+                          Array.isArray(prescriptionData.labResults) && 
+                          prescriptionData.labResults.length > 0 && (
+                            <LabResultsRichTextEditor
+                              labResults={prescriptionData.labResults}
+                              onUpdate={handleLabResultsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.advice &&
-                          prescriptionData.advice.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Advices
-                              </div>
-                              {renderItems("advice")}
-                            </>
+                          typeof prescriptionData.advice === 'string' && 
+                          prescriptionData.advice.trim() && (
+                            <AdviceRichTextEditor
+                              advice={prescriptionData.advice}
+                              onUpdate={handleAdviceUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.vaccinations &&
@@ -2004,23 +2881,23 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                             </>
                           )}
                         {prescriptionData?.others &&
+                          Array.isArray(prescriptionData.others) && 
                           prescriptionData.others.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Others
-                              </div>
-                              {renderItems("others")}
-                            </>
+                            <AdditionalNotesRichTextEditor
+                              others={prescriptionData.others}
+                              onUpdate={handleAdditionalNotesUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
-                        {renderCustomModules()}
-                        {prescriptionData?.followUp && (
-                          <>
-                            <div className="title-digitise-section mb-2">
-                              Follow Up
-                            </div>
-                            {renderItems("followUp")}
-                          </>
-                        )}
+                        {prescriptionData?.followUp &&
+                          typeof prescriptionData.followUp === 'string' && 
+                          prescriptionData.followUp.trim() && (
+                            <FollowUpRichTextEditor
+                              followUp={prescriptionData.followUp}
+                              onUpdate={handleFollowUpUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
                         {showInput && (
                           <>
                             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -2121,6 +2998,152 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           showHideSubModal={showHideSubModal} />
       )}
 
+      {shouldShowVideo && (
+        <VideoModal
+          videoLink={videoLink}
+          onCancel={() => setShowVideo(false)}
+        />
+      )}
+
+      {showAddMedicinePopup && (
+        <CustomMedicinePopup
+          isOpen={showAddMedicinePopup}
+          onCancel={() => setShowAddMedicinePopup(false)}
+          initialData={{ tmm_medicine_name: searchParentQuery }}
+        />
+      )}
+
+      <CommonModal
+        isModalOpen={showNonZydusWarning}
+        onCancel={() => {
+          setShowNonZydusWarning(false);
+          setPendingSelection(null);
+        }}
+        modalWidth={550}
+        title={"Not in Zydus Data Engine"}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-3">
+              <div className="d-flex align-items-start">
+                <i
+                  className="icon-Warning fs-24 me-3"
+                  style={{ color: "#F59E0B" }}
+                ></i>
+                <div>
+                  <span className="semi-bold-text">
+                    "{pendingSelection?.data}"
+                  </span>{" "}
+                  is <span className="semi-bold-text">not </span>in
+                  <span className="semi-bold-text"> Zydus Data Engine</span>.
+                  Prescribing it may impact{" "}
+                  <span className="semi-bold-text">patient fulfilment</span>.
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="d-flex align-items-center">
+                <input
+                  type="checkbox"
+                  id="dontShowAgain"
+                  checked={dontShowZydusWarning}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setDontShowZydusWarning(checked);
+                    localStorage.setItem(
+                      "dontShowZydusWarning",
+                      checked.toString()
+                    );
+                  }}
+                  style={{ marginRight: 8, width: 16, height: 16 }}
+                />
+                <label
+                  htmlFor="dontShowAgain"
+                  style={{ cursor: "pointer", marginBottom: 0 }}
+                >
+                  Don't show this again
+                </label>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  <span>Go Back</span>
+                </div>
+                <Button
+                  onClick={() => {
+                    if (pendingSelection) {
+                      // Set the active editing state from pending selection
+                      setActiveIndex(pendingSelection.activeIndex);
+                      setActiveType(pendingSelection.activeType);
+                      setEditableName(pendingSelection.data);
+
+                      // Update the prescriptionData with the selected medicine
+                      setPrescriptionData((prevData) => {
+                        const updatedData = { ...prevData };
+                        if (
+                          updatedData?.[pendingSelection.type]?.[
+                            pendingSelection.activeIndex
+                          ]
+                        ) {
+                          updatedData[pendingSelection.type][
+                            pendingSelection.activeIndex
+                          ].name = pendingSelection.data;
+                          // Add complete option data as metadata
+                          if (pendingSelection.item.key) {
+                            const medicineData = JSON.parse(
+                              pendingSelection.item.key
+                            );
+                            updatedData[pendingSelection.type][
+                              pendingSelection.activeIndex
+                            ].metadata = {
+                              ...medicineData,
+                              selectedValue: pendingSelection.data,
+                            };
+                          }
+                        }
+                        return updatedData;
+                      });
+                      setIsRxEdited(true);
+
+                      // Clear editing states after selection
+                      setActiveIndex(null);
+                      setActiveType(null);
+                      setEditableName("");
+                    }
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>Yes, Proceed</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+      
+      {/* Tutorial Drawer */}
+      <Drawer
+        placement="right"
+        width={window.innerWidth ? Math.min(window.innerWidth * 0.8, 1200) : 1200}
+        closeIcon={null}
+        destroyOnClose
+        maskClosable
+        open={genRxKnowMoreDrawer}
+        onClose={() => setGenRxKnowMoreDrawer(false)}
+        bodyStyle={{ padding: 0, height: '100%', overflow: 'hidden' }}
+      >
+        <div style={{ height: '100%', overflow: 'hidden' }}>
+          <GenRxKnowMore handleGenRxKnowMore={() => setGenRxKnowMoreDrawer(false)} />
+        </div>
+      </Drawer>
     </Drawer>
   );
 };

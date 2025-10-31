@@ -349,7 +349,10 @@ function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal 
                     className=".modalWidth-800"
                     width={825}
                 >
-                    <GenRxKnowMore handleGenRxKnowMore={handleGenRxKnowMore} />
+                    <GenRxKnowMore 
+                        handleGenRxKnowMore={handleGenRxKnowMore} 
+                        isOpen={genRxKnowMoreDrawer}
+                    />
                 </Drawer>
             )}
 

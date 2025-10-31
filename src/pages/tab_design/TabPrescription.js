@@ -168,7 +168,7 @@ function TabPrescription() {
   const dispatch = useDispatch();
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData } = state;
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -276,6 +276,7 @@ function TabPrescription() {
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [labReportID, setLabReportID] = useState(null);
   const [labParamsDrawer, setLabParamsDrawer] = useState(false);
   const [viewlabparamsDrawer, setViewlabparamsDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -289,7 +290,13 @@ function TabPrescription() {
   const [isFileLimitError, setIsFileLimitError] = useState(false);
   const [isFileTypeError, setIsFileTypeError] = useState(null);
   const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
-  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(caseManagerData?.smart_prescription_filename || false);
+  const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
+  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
+    caseManagerData?.smart_prescription_filename || 
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    (fromVoiceRecording && audioBlob) ||
+    false
+  );
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
 
@@ -815,6 +822,36 @@ function TabPrescription() {
     }
   }, [privateNotesList]);
 
+  // Auto-open ConsultationDrawer when coming from Voice Recording page
+  useEffect(() => {
+    if (fromVoiceRecording && audioBlob) {
+      setIsGenRxDrawerVisible(true);
+      const clinic_name = getClinicName(profile?.hospital_data);
+      trackEvent("TP_VoiceRx_Start", {
+        patient_contact: patient_data?.pm_contact_no || "",
+        patient_id: patient_data?.patient_unique_id || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name,
+      });
+    }
+  }, [fromVoiceRecording, audioBlob]);
+
+  // Auto-open ConsultationDrawer when coming from typed input (text Voice Rx)
+  useEffect(() => {
+    if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
+      setIsGenRxDrawerVisible(true);
+      const clinic_name = getClinicName(profile?.hospital_data);
+      trackEvent("TP_VoiceRx_Start", {
+        patient_contact: patient_data?.pm_contact_no || "",
+        patient_id: patient_data?.patient_unique_id || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name,
+      });
+    }
+  }, [inputText]);
+
   const handleSaveGynecHistory = (updatedGynecHistory) => {
     setUpdatedGynecHistory(updatedGynecHistory)
   };
@@ -1028,8 +1065,29 @@ function TabPrescription() {
     });
   };
 
+  // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
+  const showOnlyDrawer = isGenRxDrawerVisible && (
+    // Typed input from Voice Rx
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    // Audio recording from Voice Rx (dictation or ambient mode)
+    (fromVoiceRecording && audioBlob)
+  );
+
   return (
     <CashManagerContext.Provider value={contextApi}>
+      <>
+        {isGenRxDrawerVisible && (
+          <ConsultationDrawer
+            visible={isGenRxDrawerVisible}
+            onClose={() => setIsGenRxDrawerVisible(false)}
+            handleGenRxKnowMore={handleGenRxKnowMore}
+            labReportID={labReportID}
+            digitizedData={digitizedData}
+            typedInputText={inputText}
+            mode={mode}
+          />
+        )}
+        {!showOnlyDrawer && (
       <>
         <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={() => setIsGenRxDrawerVisible(true)} selectedCarePlan={selectedCarePlan} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
@@ -1620,6 +1678,8 @@ function TabPrescription() {
             </div>
           </Layout>
         </div>
+        </>
+        )}
         {vitalDrawer && (
           <Drawer
             closeIcon={false}
@@ -1837,14 +1897,6 @@ function TabPrescription() {
           </Drawer>
         )}
 
-        {isGenRxDrawerVisible && (
-          <ConsultationDrawer
-            visible={isGenRxDrawerVisible}
-            onClose={() => setIsGenRxDrawerVisible(false)}
-            handleGenRxKnowMore={handleGenRxKnowMore}
-          />
-        )}
-
         {genRxKnowMoreDrawer && (
           <Drawer
             closeIcon={false}
@@ -1854,7 +1906,10 @@ function TabPrescription() {
             className=".modalWidth-800"
             width={825}
           >
-            <GenRxKnowMore handleGenRxKnowMore={handleGenRxKnowMore} />
+            <GenRxKnowMore 
+              handleGenRxKnowMore={handleGenRxKnowMore} 
+              isOpen={genRxKnowMoreDrawer}
+            />
           </Drawer>
         )}
 

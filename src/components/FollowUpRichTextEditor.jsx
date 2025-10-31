@@ -1,0 +1,80 @@
+import React, { useCallback, useMemo } from 'react';
+import RichTextEditor from './richTextEditor/RichTextEditor';
+import './FollowUpRichTextEditor.scss';
+import followUpIcon from '../assets/images/followup.svg';
+
+/**
+ * FollowUpRichTextEditor - Rich text editor specifically for Follow Up section
+ * Handles follow up text (single value, not array)
+ */
+const FollowUpRichTextEditor = ({
+  followUp = '',
+  onUpdate,
+  isProcessing = false,
+  className = '',
+}) => {
+  const initialSlateValue = useMemo(() => {
+    if (!followUp || followUp.trim() === '') {
+      return [{ type: 'paragraph', children: [{ text: '' }] }];
+    }
+
+    return [{ type: 'paragraph', children: [{ text: followUp }] }];
+  }, []);
+
+  const handleChange = useCallback((value) => {
+    const text = value.map(n => n.children.map(c => c.text).join('')).join('\n');
+    
+    if (onUpdate) {
+      onUpdate(text);
+    }
+  }, [onUpdate]);
+
+  if (isProcessing) {
+    return (
+      <div className={`followup-rich-text-editor ${className}`}>
+        <div className="followup-header">
+          <div className="followup-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+            </svg>
+          </div>
+          <span className="followup-title">Follow Up</span>
+        </div>
+        <div className="editor-container">
+          <div className="shimmer-container">
+            <div className="shimmer"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`followup-rich-text-editor ${className}`}>
+      <div className="followup-header">
+        <div className="followup-icon">
+          <img src={followUpIcon} alt="Follow Up" />
+        </div>
+        <span className="followup-title">Follow Up</span>
+      </div>
+      <div className="editor-container">
+        <RichTextEditor
+          initialValue={initialSlateValue}
+          onChange={handleChange}
+          placeholder="Add follow up date or notes..."
+          spellCheck={true}
+          autoFocus={false}
+          showToolbar={true}
+          toolbarButtons={[
+            { type: 'mark', format: 'bold', icon: 'format_bold' },
+            { type: 'block', format: 'bulleted-list', icon: 'format_list_bulleted' },
+            { type: 'block', format: 'numbered-list', icon: 'format_list_numbered' },
+          ]}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default FollowUpRichTextEditor;
+

@@ -8,6 +8,7 @@ import ContactSupport from "../pages/monetization/components/ContactSupport";
 import { S_VOICE_RX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
+import "./GenRxKnowMore.scss";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -34,32 +35,25 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
   const videoLink = {
     link: "https://www.youtube.com/embed/OJQMLAidx9o",
     thumbnail: "https://i.ytimg.com/vi/OJQMLAidx9o/hqdefault.jpg",
+    title: "Voice Rx Tutorial"
   };
 
   const scrollToSection = (key) => {
     const section = sectionsRef.current[key];
     const scrollContainer = scrollContainerRef.current;
-
     if (!section || !scrollContainer) return;
 
     isScrollingProgrammatically.current = true;
     setActiveKey(key);
 
-    // Calculate offset relative to scroll container
-    let offsetTop = 0;
-    let currentElement = section;
+    // Robust offset calculation relative to the scroll container
+    const sectionRect = section.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const currentScrollTop = scrollContainer.scrollTop || 0;
+    const deltaTop = sectionRect.top - containerRect.top;
+    const targetScroll = Math.max(0, currentScrollTop + deltaTop - 150);
 
-    while (currentElement && currentElement !== scrollContainer) {
-      offsetTop += currentElement.offsetTop;
-      currentElement = currentElement.offsetParent;
-    }
-
-    const targetScroll = Math.max(0, offsetTop - 150);
-
-    scrollContainer.scrollTo({
-      top: targetScroll,
-      behavior: "smooth",
-    });
+    scrollContainer.scrollTo({ top: targetScroll, behavior: "smooth" });
 
     setTimeout(() => {
       isScrollingProgrammatically.current = false;
@@ -139,7 +133,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
         <Spin className="d-flex justify-content-center align-items-center mt-5" />
       }
     >
-      <div className="drawer-container">
+      <div className="know-more-drawer-container">
         {/* Modal Header */}
         <div className="drawer-header">
           <div className="drawer-header-content justify-content-between border-bottom">
@@ -210,7 +204,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
               </div>
 
               <div
-                className="d-flex align-items-center justify-content-center"
+                className="video-thumbnail-container"
                 style={{
                   background: `url(${videoLink.thumbnail})`,
                   width: 447,
@@ -220,10 +214,24 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
                   backgroundSize: "cover",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 24,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  overflow: "hidden",
                 }}
                 onClick={() => setShowVideo(true)}
               >
-                <img width={55} height={55} src={playIcons} />
+                    <img 
+                      width={55} 
+                      height={55} 
+                      src={playIcons} 
+                      alt="Play video"
+                      className="play-icon"
+                  style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }}
+                />
               </div>
             </div>
           </div>
@@ -268,6 +276,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
         {shouldShowVideo && (
           <VideoModal
             videoLink={videoLink}
+            isOpen={shouldShowVideo}
             onCancel={() => setShowVideo(false)}
           />
         )}

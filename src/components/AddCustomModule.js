@@ -2,12 +2,12 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Tooltip, Input, Button, message } from "antd";
 import {
   PlusOutlined,
-  InfoCircleOutlined,
   CheckOutlined,
   CloseOutlined,
 } from "@ant-design/icons";
 import "./CustomModule.scss";
 import CustomModuleIcon from "../assets/images/custom-module.svg";
+import infoCircleIcon from "../assets/images/info-circle.svg";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addModule,
@@ -35,18 +35,17 @@ const AddCustomModule = () => {
 
   const { setCustomModuleContents, tcmId } = useContext(CashManagerContext);
 
-  useEffect(() => {
-    if (tcmId) {
-      getCustomModuleContents();
+  // Define getCustomModuleContents before it's used
+  const getCustomModuleContents = useCallback(async () => {
+    const action = await dispatch(getModuleContents(tcmId));
+    if (action.meta.requestStatus === "fulfilled") {
+      setCustomModuleContents(
+        action.payload.moduleContents?.filter(
+          (e) => !!customModules.find((cm) => cm.module_id === e.module_id)
+        )
+      );
     }
-  }, [tcmId]);
-
-  useEffect(() => {
-    if (customModules?.length) {
-      syncPrintSettings();
-      syncRightRxPad();
-    }
-  }, [customModules]);
+  }, [tcmId, customModules, dispatch, setCustomModuleContents]);
 
   const syncPrintSettings = useCallback(() => {
     const customModuleMap = new Map(
@@ -113,7 +112,7 @@ const AddCustomModule = () => {
 
       dispatch(savePrintsettings(sendData));
     }
-  }, [customModules]);
+  }, [customModules, defaultPrintSettings, dispatch]);
 
   const syncRightRxPad = useCallback(() => {
     const customModuleMap = new Map(
@@ -172,24 +171,27 @@ const AddCustomModule = () => {
 
       dispatch(customizedPad(sendData));
     }
-  }, [customModules]);
+  }, [customModules, customizedPadLeftList, customizedPadRightList, dispatch]);
 
-  const getCustomModuleContents = useCallback(async () => {
-    const action = await dispatch(getModuleContents(tcmId));
-    if (action.meta.requestStatus === "fulfilled") {
-      setCustomModuleContents(
-        action.payload.moduleContents?.filter(
-          (e) => !!customModules.find((cm) => cm.module_id === e.module_id)
-        )
-      );
+  // useEffect hooks
+  useEffect(() => {
+    if (tcmId) {
+      getCustomModuleContents();
     }
-  }, [tcmId]);
+  }, [tcmId, getCustomModuleContents]);
+
+  useEffect(() => {
+    if (customModules?.length) {
+      syncPrintSettings();
+      syncRightRxPad();
+    }
+  }, [customModules, syncPrintSettings, syncRightRxPad]);
 
   useEffect(() => {
     dispatch(getModules(userId)).catch((error) =>
       message.error(error || "Failed to fetch modules.")
     );
-  }, [userId]);
+  }, [userId, dispatch]);
 
   const handleAddModule = async () => {
     if (!newModuleName.trim()) {
@@ -226,13 +228,14 @@ const AddCustomModule = () => {
           className: "message-appointment",
           content: (
             <div className="d-flex align-items-center">
-              <img src={visitEnd} className="me-3" />
+              <img src={visitEnd} className="me-3" alt="Success" />
               <div>
                 <div className="title-common text-start fontroboto">{`${newModuleName} module has been created successfully.`}</div>
               </div>
               <img
                 src={imgCloseVisit}
                 className="ms-3"
+                alt="Close"
                 onClick={() => message.destroy()}
               />
             </div>
@@ -281,18 +284,18 @@ const AddCustomModule = () => {
           type="link"
           icon={<PlusOutlined />}
           className="add-custom-module-link"
-          disabled={customModules.length >= 10}
+          disabled={(customModules?.length || 0) >= 10}
         >
           Add Custom Module
         </Button>
         <div className="module-info">
-          <span className="module-count">{`${customModules.length}/10 modules added`}</span>
+          <span className="module-count">{`${customModules?.length || 0}/10 modules added`}</span>
           <Tooltip
-            title="You can create up to 10 custom modules. If you’ve reached the limit, delete an existing custom module to add a new one."
+            title="You can create up to 10 custom modules. If you've reached the limit, delete an existing custom module to add a new one."
             placement="top"
             className="info-tooltip"
           >
-            <InfoCircleOutlined className="info-icon" />
+            <img src={infoCircleIcon} alt="Info" className="info-icon" />
           </Tooltip>
         </div>
       </div>
