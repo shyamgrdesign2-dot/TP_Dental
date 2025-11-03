@@ -95,6 +95,7 @@ export const FAILED_VERIFICATION = "FAILED-VERIFICATION";
 export const PENDING_VERIFICATION = "PENDING-VERIFICATION";
 export const S_TATVA_PRACTICE = "tatva_practice";
 export const S_VOICE_RX = "voice_rx";
+export const S_AMBIENT_VOICE_RX = "VOICE_RX_AMBIENT_DIGITIZATION";
 export const S_SMARTSYNC = "smartsync";
 export const S_RX_DIGITIZATION = "rx_digitization";
 export const S_DDX = "ddx";

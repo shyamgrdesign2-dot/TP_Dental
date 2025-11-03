@@ -48,7 +48,6 @@
 }
 
 .container {
-  /* padding: 24px; */
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -283,26 +282,92 @@
 
 .splitView {
   display: flex;
-  height: 100%;
+  height: calc(100vh - 60px);
   position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 100%;
+}
+
+/* Custom scrollbar for split view */
+.splitView::-webkit-scrollbar {
+  height: 8px;
+}
+
+.splitView::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.splitView::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.splitView::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Responsive transcript card sizing */
+@media (min-width: 1200px) {
+  .transcriptCard {
+    max-width: 600px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .transcriptCard {
+    max-width: 700px;
+  }
 }
 
 .inputSection {
   /* width controlled inline to allow resizing */
   display: flex;
   flex-direction: column;
-  margin-right: 30px;
+  margin-right: 0;
   align-items: flex-start;
-  gap: 10px;
-  min-width: 25%;
-  max-width: 75%;
+  gap: 0;
+  min-width: 480px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 100vh;
+  background: #F8F7FF;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.inputSection::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.inputSection::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.inputSection::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  border: 1px solid #f1f1f1;
+  min-height: 20px;
+}
+
+.inputSection::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.inputSection::-webkit-scrollbar-corner {
+  background: #f1f1f1;
 }
 
 .chatSection {
-  box-shadow: 0px 5px 10px 0px #aaaaaa26;
-  background: #ffffff;
-  padding: 20px 0 20px 20px;
-  border-radius: 20px;
+  box-shadow: none;
+  background: #F8F7FF;
+  padding: 20px;
+  border-radius: 0;
   width: 100%;
   flex: 1;
   min-height: calc(100vh - 60px);
@@ -340,14 +405,21 @@
 }
 
 .rightSection {
-  box-shadow: 0px 5px 10px 0px #aaaaaa26;
-  background: #ffffff;
+  box-shadow: none;
+  background: #F9F2FF80;
   padding: 20px;
   border-radius: 0;
   border-top: 1px solid #E5E7EB;
   width: 100%;
   display: flex;
   flex-direction: column;
+  margin-top: 0;
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+  
   ul,
   li {
     position: relative;
@@ -392,9 +464,34 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  min-width: 25%;
-  max-width: 75%;
+  gap: 0;
+  min-width: 960px;
+  padding: 0;
+  flex-shrink: 0;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  height: calc(100vh - 60px);
+}
+
+/* Add spacing between rich text editor sections */
+.prescriptionSection > div[class*="-rich-text-editor"] {
+  margin-bottom: 48px;
+}
+
+.prescriptionSection > div[class*="-rich-text-editor"]:last-child {
+  margin-bottom: 0;
+}
+
+/* Add spacing for table components */
+.prescriptionSection > div[class*="-content-box"] {
+  margin-bottom: 48px;
+}
+
+.prescriptionSection > div[class*="-content-box"]:last-child {
+  margin-bottom: 0;
 }
 
 .dividerHandle {
@@ -402,7 +499,7 @@
   top: 0;
   bottom: 0;
   width: 16px;
-  left: var(--divider-left, 45%);
+  left: var(--divider-left, 40%);
   transform: translateX(-6px);
   cursor: col-resize;
   display: flex;
@@ -1788,32 +1885,35 @@
 }
 
 .prescriptionReadyMessage {
-  display: flex;
   margin-right: auto;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 17.41px;
+  line-height: 1.5;
   text-align: left;
-  text-underline-position: from-font;
-  text-decoration-skip-ink: none;
-  color: #454551cc;
+  color: #374151;
+  width: 100%;
+}
+
+.prescriptionReadyMessage strong {
+  font-weight: 600;
+  color: #111827;
 }
 
 .inputQueries {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-  padding-right: 20px;
+  gap: 0;
+  width: 100%;
 }
 
 .disclaimer {
+  width: 100%;
+  height: 52px;
   font-size: 14px;
   font-weight: 400;
   line-height: 26px;
   text-align: left;
-  color: #44444f !important;
+  color: #454551 !important;
   margin-bottom: 30px;
 }
 
@@ -1830,9 +1930,6 @@
   padding: 2px; /* For the inner padding */
   position: relative;
   overflow: hidden;
-  /* background: linear-gradient(90deg, #ff7e5f, #feb47b, #86a8e7, #d16ba5); */
-  /* animation: gradient-animation 4s infinite; */
-  /* opacity: 0.3; */
 }
 
 /* Add animated gradient border */
@@ -1849,6 +1946,686 @@
   background-size: 300% 300%;
   animation: gradient-animation 4s infinite;
   z-index: -1;
+}
+
+/* Curved Input Container Styles */
+.curvedInputContainer {
+  margin-top: auto;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.curvedInputWrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: linear-gradient(135deg, #F8F7FF 0%, #F3E8FF 100%);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(154, 125, 218, 0.15);
+  width: 100%;
+  max-width: 600px;
+  border: 1px solid rgba(154, 125, 218, 0.2);
+}
+
+.curvedTextInput {
+  width: 280px;
+  height: 42px;
+  border: 1px solid rgba(154, 125, 218, 0.2);
+  outline: none;
+  padding: 12px 16px;
+  font-size: 16px;
+  color: #1f2937;
+  background: white;
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  min-height: 42px;
+  max-height: 120px;
+  resize: none;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(154, 125, 218, 0.1);
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.curvedTextInput::placeholder {
+  color: #a2a2a8;
+  opacity: 0.6;
+  font-weight: 400;
+  font-size: 16px;
+}
+
+.curvedTextInput:focus {
+  background: white;
+  border-color: rgba(154, 125, 218, 0.4);
+  box-shadow: 0 4px 12px rgba(154, 125, 218, 0.2);
+}
+
+.curvedVoiceButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  max-width: 159.99989318847656px;
+  height: 41px;
+}
+
+.curvedVoiceButton:hover {
+  opacity: 0.8;
+}
+
+.textBoxIcon {
+  width: 100%;
+  height: auto;
+}
+
+/* New Recorder UI Styles */
+.bottomCenterBar {
+  position: fixed;
+  right: 20px;
+  bottom: 0px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  pointer-events: none;
+}
+
+.recBar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  min-width: 480px;
+  height: 124px;
+  background: transparent;
+  padding: 0;
+  margin-bottom: -10px;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.pauseButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.timeLabel {
+  min-width: 64px;
+  color: #374151;
+  font-weight: 600;
+  letter-spacing: .4px;
+  font-size: 20px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.waveArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 300px;
+  height: 80px;
+}
+
+.sendCta {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 120px;
+  height: 46px;
+}
+
+.sendCta:hover {
+  opacity: 0.8;
+}
+
+.vitalsIcon {
+  width: 100%;
+  height: auto;
+}
+
+.stopIcon {
+  width: 100%;
+  height: auto;
+}
+
+.muteIcon {
+  width: 100%;
+  height: auto;
+}
+
+.listeningSection {
+  position: absolute;
+  bottom: -5px;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.gradientEllipse {
+  position: absolute;
+  width: 740px;
+  height: 163px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.listeningText {
+  position: relative;
+  z-index: 2;
+  color: #FFFFFF !important;
+  font-size: 16px;
+  font-weight: 400;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+/* Tablet responsive */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .splitView {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    min-width: auto !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  
+  .splitView::-webkit-scrollbar {
+    height: 0 !important;
+    width: 0 !important;
+    display: none !important;
+  }
+  
+  .splitView::-webkit-scrollbar-track {
+    display: none !important;
+  }
+  
+  .splitView::-webkit-scrollbar-thumb {
+    display: none !important;
+  }
+  
+  .inputSection {
+    min-width: 300px !important;
+    width: 300px !important;
+    max-width: 300px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .prescriptionSection {
+    min-width: 464px !important;
+    max-width: 464px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .transcriptCard {
+    min-width: 310px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    flex-shrink: 1 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+  
+  .transcriptHeader {
+    height: 36px;
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+  
+  .transcriptTitleContent > span {
+    font-size: 13px;
+  }
+  
+  .transcriptDuration {
+    height: 22px;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  
+  .arrowIcon {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .transcriptContent {
+    padding: 16px;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+  }
+  
+  .transcriptContent::-webkit-scrollbar {
+    width: 6px !important;
+  }
+  
+  .transcriptContent::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+    border-radius: 3px !important;
+  }
+  
+  .transcriptContent::-webkit-scrollbar-thumb {
+    background: #c1c1c1 !important;
+    border-radius: 3px !important;
+  }
+  
+  .transcriptContent::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8 !important;
+  }
+  
+  .transcriptText {
+    font-size: 12px !important;
+  }
+  
+  .transcriptPreview {
+    max-height: 60px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .conversationBubble {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+  
+  .conversationBubble .speakerLabel {
+    font-size: 11px;
+  }
+  
+  .conversationBubble .messageText {
+    font-size: 12px;
+  }
+  
+  .curvedTextInput {
+    width: 220px !important;
+    height: 42px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    padding: 12px 12px !important;
+  }
+  
+  .curvedTextInput::placeholder {
+    font-size: 11px !important;
+  }
+  
+  .curvedVoiceButton {
+    width: 60px !important;
+    height: 42px !important;
+  }
+  
+  .curvedInputContainer {
+    padding: 8px !important;
+  }
+  
+  .curvedInputWrapper {
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+  
+  .chatSection {
+    padding: 12px !important;
+  }
+  
+  .rxPadInstruction {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px 12px !important;
+  }
+  
+  .medications-content-box {
+    min-height: 300px !important;
+    max-height: 70vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .investigation-content-box {
+    min-height: 300px !important;
+    max-height: 70vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .medications-table-container {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    min-height: 150px !important;
+  }
+  
+  .investigation-table-container {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    min-height: 150px !important;
+  }
+  
+  .recBar {
+    min-width: 180px !important;
+    width: 100% !important;
+    max-width: 260px !important;
+    height: 60px !important;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+  
+  .deleteButton,
+  .pauseButton {
+    height: 28px !important;
+    width: 28px !important;
+  }
+  
+  .timeLabel {
+    font-size: 11px !important;
+    min-width: 40px !important;
+  }
+  
+  .waveArea {
+    min-width: 60px !important;
+    max-width: 80px !important;
+    height: 35px !important;
+  }
+  
+  .sendCta {
+    height: 28px !important;
+    width: 60px !important;
+  }
+  
+  .gradientEllipse {
+    width: 100% !important;
+    max-width: 180px !important;
+    height: 50px !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(100%) !important;
+  }
+  
+  .listeningText {
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+  
+  .listeningSection {
+    position: absolute !important;
+    bottom: -25px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 180px !important;
+    flex-direction: column !important;
+  }
+  
+  .bottomCenterBar {
+    position: relative !important;
+    left: 0 !important;
+    bottom: -10px !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin-bottom: 30px !important;
+  }
+}
+
+/* Mobile responsive for new recorder */
+@media (max-width: 768px) {
+  .inputSection {
+    min-width: 480px;
+  }
+  
+  .bottomCenterBar { 
+    right: 10px;
+    bottom: 0px; 
+  }
+  
+  .recBar { 
+    width: 90vw;
+    max-width: 480px;
+    height: 100px;
+    gap: 8px;
+    margin-bottom: -8px;
+  }
+  
+  .deleteButton,
+  .pauseButton {
+    height: 46px;
+    width: 46px;
+  }
+  
+  .waveArea {
+    min-width: 150px;
+    height: 65px;
+  }
+  
+  .timeLabel {
+    min-width: 50px;
+    font-size: 18px;
+  }
+
+  .sendCta {
+    .vitalsIcon {
+      width: 100%;
+      height: auto;
+    }
+  }
+  
+  .listeningSection {
+    bottom: -3px;
+  }
+  
+  .gradientEllipse {
+    width: 450px;
+    height: 100px;
+  }
+  
+  .listeningText {
+    font-size: 14px;
+  }
+}
+
+/* Tablet landscape (768px-1024px width with landscape orientation) */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  .inputSection {
+    min-width: 340px !important;
+    width: 340px !important;
+    max-width: 340px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .prescriptionSection {
+    min-width: 660px !important;
+    max-width: 660px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .rxPadInstruction {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px 12px !important;
+  }
+  
+  .curvedTextInput {
+    width: 300px !important;
+    height: 42px !important;
+  }
+  
+  .curvedVoiceButton {
+    width: 60px !important;
+    height: 42px !important;
+  }
+  
+  .curvedInputContainer {
+    padding: 8px !important;
+  }
+  
+  .curvedInputWrapper {
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+  
+  .chatSection {
+    padding: 12px !important;
+  }
+}
+
+/* Tablet portrait (768px-1024px width with portrait orientation) */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .rxPadInstruction {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px 10px !important;
+    height: auto !important;
+    min-height: 57px !important;
+  }
+  
+  .instructionText {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .instructionIcon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .transcriptCard {
+    min-width: 280px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  
+  .transcriptHeader {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 4px 8px !important;
+  }
+  
+  .transcriptTitleContent > span {
+    font-size: 12px !important;
+  }
+  
+  .transcriptDuration {
+    height: 20px !important;
+    padding: 2px 6px !important;
+    font-size: 10px !important;
+  }
+  
+  .transcriptContent {
+    padding: 12px !important;
+  }
+  
+  .transcriptText {
+    font-size: 11px !important;
+  }
+  
+  .gradientEllipse {
+    width: 100% !important;
+    max-width: 180px !important;
+    height: 40px !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(50%) !important;
+  }
+  
+  .listeningText {
+    font-size: 9px !important;
+    white-space: nowrap !important;
+  }
+  
+  .listeningSection {
+    position: absolute !important;
+    bottom: -2px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 180px !important;
+    flex-direction: column !important;
+  }
+  
+  .bottomCenterBar {
+    position: relative !important;
+    left: 0 !important;
+    bottom: -10px !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin-bottom: 25px !important;
+  }
+  
+  .medications-table-container {
+    overflow-x: scroll !important;
+    overflow-y: auto !important;
+  }
+  
+  .medications-table {
+    min-width: 650px !important;
+  }
 }
 
 @keyframes gradient-animation {
@@ -1925,4 +2702,719 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.chatTextInput {
+  width: 100%;
+  border: 2px solid rgba(154, 125, 218, 0.3);
+  outline: none;
+  padding: 11px 16px;
+  font-size: 14px;
+  color: #1f2937;
+  background: white;
+  border-radius: 16px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  min-height: 48px;
+  max-height: 120px;
+  height: 48px;
+  resize: none;
+  overflow-y: auto;
+  flex-shrink: 1;
+  line-height: 1.3;
+  box-sizing: border-box;
+  transition: height 0.1s ease-out;
+  display: flex;
+  align-items: center;
+
+  &::placeholder {
+    color: #a2a2a8;
+    opacity: 0.6;
+    font-weight: 400;
+    font-size: 14px;
+  }
+
+  &:focus {
+    background: white;
+    border-color: rgba(154, 125, 218, 0.4);
+  }
+
+  /* Hide scrollbar by default */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 #f1f1f1;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+
+    &:hover {
+      background: transparent;
+    }
+  }
+
+  /* Show scrollbar only when content exceeds viewport */
+  &:focus,
+  &:active,
+  &.hasContent {
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #c0c0c0;
+
+      &:hover {
+        background: #a0a0a0;
+      }
+    }
+  }
+}
+
+.chatVoiceRxButton {
+  background: linear-gradient(135deg, #B967D9 0%, #6B5DD3 50%, #5B6CF2 100%);
+  border: none;
+  border-radius: 16px;
+  padding: 0 20px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  min-width: 160px;
+  max-width: 200px;
+  width: auto;
+  justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  position: relative;
+  overflow: hidden;
+  height: 48px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  box-sizing: border-box;
+
+  &:hover {
+    background: linear-gradient(135deg, #E03DA3 0%, #3D6BE8 100%);
+    transform: translateY(-1px);
+  }
+
+  .chatButtonIcon {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    i {
+      font-size: 14px;
+      color: white;
+    }
+
+    .chatSoundBars {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+
+      .chatBar {
+        width: 2px;
+        height: 10px;
+        background: white;
+        border-radius: 1px;
+        animation: chatSoundBar 1.2s ease-in-out infinite;
+
+        &:nth-child(1) { animation-delay: 0s; }
+        &:nth-child(2) { animation-delay: 0.2s; }
+        &:nth-child(3) { animation-delay: 0.4s; }
+        &:nth-child(4) { animation-delay: 0.6s; }
+      }
+    }
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(138, 43, 226, 0.35);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes chatSoundBar {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 10px;
+  }
+}
+
+.chatSubmitButton {
+  background: linear-gradient(135deg, #F24DB6 0%, #4D77F2 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+
+  &:hover {
+    background: linear-gradient(135deg, #E03DA3 0%, #3D6BE8 100%);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.chatInputContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  border: none;
+  overflow: visible;
+  height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.transcriptCard {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 0 12px 2px rgba(162, 56, 255, 0.05);
+  border: 1px solid rgba(162, 56, 255, 0.1);
+  overflow: hidden;
+  margin-bottom: 20px;
+  width: 100%;
+  min-width: 400px;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.transcriptHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 40px;
+  min-height: 40px;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.transcriptHeader:hover {
+  background: #f3f4f6;
+}
+
+.transcriptTitle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  position: relative;
+  width: 100%;
+}
+
+.transcriptTitleContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.transcriptTitleContent > span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.transcriptPreview {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: 8px;
+  font-weight: 400;
+}
+
+.conversationBubbleWrapper {
+  margin-bottom: 8px;
+}
+
+.conversationBubble {
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.conversationBubble .speakerLabel {
+  font-weight: 600;
+  color: #374151;
+  font-size: 11px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.conversationBubble .messageText {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.doctorMessage .conversationBubble {
+  background: #e3f2fd;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.patientMessage .conversationBubble {
+  background: #f3f4f6;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.transcriptDuration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;            /* fits inside 40px header */
+  padding: 2px 8px;        /* compact pill */
+  font-size: 12px;
+  line-height: 20px;
+  color: #454551;
+  background: #f1f1f5;
+  border-radius: 999px;
+  border: 1px solid #e2e2ea;
+  flex-shrink: 0;          /* prevent squeezing */
+}
+
+.transcriptToggle {
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.transcriptToggle:hover {
+  opacity: 0.7;
+}
+
+.transcriptToggleOpen {
+  transform: rotate(180deg);
+}
+
+.transcriptContent {
+  padding: 20px;
+  background: #ffffff;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transcriptContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transcriptContent::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.transcriptContent::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.transcriptContent::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.transcriptText {
+  font-size: 12px !important;
+  line-height: 1.6;
+  color: #374151;
+  text-align: left;
+}
+
+.arrowIcon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
+}
+
+.doctorTextContainer {
+  background: #e3f2fd;
+  margin-bottom: 40px;
+  border-radius: 18px 0 18px 18px;
+  display: flex;
+  padding: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: fit-content;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: 0px;
+}
+
+.patientTextContainer {
+  background: #f3e5f5;
+  margin-bottom: 40px;
+  border-radius: 0 18px 18px 18px;
+  display: flex;
+  padding: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: fit-content;
+  max-width: 80%;
+  margin-left: 0px;
+  margin-right: auto;
+}
+
+.speakerLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+  text-transform: none;
+  font-family: 'Poppins', sans-serif;
+}
+
+.conversationText {
+  color: #374151;
+  word-wrap: break-word;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  text-align: left;
+  color: #5a6774;
+}
+
+/* Conversation Bubble Styles */
+.conversationBubbleWrapper {
+  display: flex;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.doctorMessage {
+  justify-content: flex-start;
+}
+
+.patientMessage {
+  justify-content: flex-end;
+}
+
+.conversationBubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: #E6E5FF80;
+  word-wrap: break-word;
+}
+
+.doctorMessage .conversationBubble {
+  background: #E6E5FF80;
+  border-radius: 16px 16px 16px 4px;
+}
+
+.patientMessage .conversationBubble {
+  background: #E6E5FF80;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.conversationBubble .speakerLabel {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #4B5563;
+}
+
+.conversationBubble .messageText {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5A5A5A;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Recorder Styles from VoiceRecordingPage */
+.bottomCenterBar {
+  position: relative;
+  left: -24px;
+  bottom: 20px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  width: 480px;
+  padding: 0 0 6px 0;
+  pointer-events: auto;
+  background: transparent;
+  margin-top: auto;
+}
+
+.recordingInterface {
+  pointer-events: auto;
+}
+
+.recBar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 480px;
+  background: transparent;
+  padding: 18px;
+  position: relative;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.pauseButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.timeLabel {
+  min-width: 50px;
+  flex-shrink: 0;
+  color: #374151;
+  font-weight: 600;
+  letter-spacing: .4px;
+  font-size: 14px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.waveArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  max-width: 180px;
+  height: 50px;
+  position: relative;
+}
+
+.sendCta {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 45.88px;
+  width: 123.63px;
+  flex-shrink: 0;
+}
+
+.listeningSection {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: auto;
+  z-index: 10;
+}
+
+.gradientEllipse {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 740px;
+  height: 163px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.listeningText {
+  position: relative;
+  z-index: 2;
+  color: #FFFFFF !important;
+  font-size: 13px;
+  font-weight: 400;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .inputSection {
+    min-width: 480px;
+  }
+  
+  .bottomCenterBar { 
+    position: sticky;
+    bottom: 15px;
+    width: 100%;
+    padding: 0 0 8px 0;
+    left: -16px;
+  }
+  
+  .recBar { 
+    width: 90vw;
+    max-width: 480px;
+    height: 100px;
+    gap: 4px;
+    margin-bottom: -8px;
+  }
+  
+  .deleteButton,
+  .pauseButton {
+    height: 46px;
+    width: 46px;
+  }
+  
+  .waveArea {
+    min-width: 100px;
+    max-width: 140px;
+    height: 45px;
+  }
+  
+  .timeLabel {
+    min-width: 45px;
+    font-size: 13px;
+  }
+
+  .sendCta {
+    .vitalsIcon {
+      width: 100%;
+      height: auto;
+    }
+  }
+  
+  .listeningSection {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+  }
+  
+  .gradientEllipse {
+    width: 350px;
+    height: 80px;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .listeningText {
+    font-size: 12px;
+  }
+  
+  .transcriptDuration {
+    font-size: 11px;
+    padding: 4px 5px;
+    gap: 2px;
+  }
+  
+  .arrowIcon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .transcriptPreview {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  
+  .transcriptCard {
+    min-width: 350px;
+    width: 100%;
+  }
+  
+  .conversationBubble {
+    padding: 6px 10px;
+    border-radius: 10px;
+  }
+  
+  .conversationBubble .speakerLabel {
+    font-size: 10px;
+  }
+  
+  .conversationBubble .messageText {
+    font-size: 11px;
+  }
 }

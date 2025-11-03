@@ -129,7 +129,8 @@ const DigitisedPrescription = ({
       setData((prevData) => {
         const updatedData = { ...prevData };
         const arr = [...(updatedData[itemType] || [])];
-        if (itemType === "diagnosis" || itemType === "examination") {
+        if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields"
+        ) {
           arr[index] = { ...arr[index], notes: editableLineItem, edited: true };
         } else {
           arr[index] = {
@@ -773,26 +774,6 @@ const DigitisedPrescription = ({
       });
     }
   };
-
-  
-  const handleLineItemBlur = (type, index) => {
-    const itemType = type?.split('-')?.[0];
-    setData((prevData) => {
-      const updatedData = { ...prevData };
-      const arr = [...(updatedData[itemType] || [])];
-      if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields") {
-        arr[index] = { ...arr[index], notes: editableLineItem };
-      } else {
-        arr[index] = { ...arr[index], lineItem: editableLineItem };
-      }
-      updatedData[itemType] = arr;
-      return updatedData;
-    });
-    setEditableLineItem("")
-    setActiveIndex(null);
-    setActiveType(null);
-  };
-
   const handleLineItemChange = (e) => setEditableLineItem(e.target.value);
   const handleValueChange = (e) => setEditableValue(e.target.value);
 

@@ -134,8 +134,7 @@ function SmartRxDigitise() {
         medicineList:
           data?.medications?.map((item, index) => ({
             ...data?.medications[index],
-            quantity:
-              quantityActionMedicine?.medicines?.[index]?.quantity,
+            quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
           })) || [],
       };
       const payload = {
@@ -159,7 +158,7 @@ function SmartRxDigitise() {
 
       // Handle navigation based on the API response
       if (response.status === 204) {
-          if (isGroundingAccessable && patient_data?.departmentId) {
+        if (isGroundingAccessable && patient_data?.departmentId) {
           let sendInvestigationAndMedicine = {
             patient_unique_id:
               patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -265,9 +264,9 @@ function SmartRxDigitise() {
       formData.append("caseId", tcm_id);
 
       // Append ocrModelSelected only if isCustomSSRX is true
-      if (isCustomSSRX) {
-        formData.append("ocrModelSelected", "zyvelor");
-      }
+      // if (isCustomSSRX) {
+      formData.append("ocrModelSelected", "zyvelor");
+      // }
 
       const cleanedToken = token.replace(/['"]+/g, "");
       const response = await axios.post(
