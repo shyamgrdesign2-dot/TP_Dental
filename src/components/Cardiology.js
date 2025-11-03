@@ -57,6 +57,7 @@ import {
   getSnapRxDigitization,
   getSnapRxFiles,
 } from "../pages/snapRx/services/snapRxService";
+import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -97,6 +98,7 @@ function Cardiology(props) {
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [selectedLang, setSelectedLang] = useState("");
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -184,6 +186,21 @@ function Cardiology(props) {
       setPrintUrl(updatedUrl);
     }
   }, [showDigitalRx, showDigitalSnapRx]);
+
+  useEffect(() => {
+    if (defaultPrintSettings) {
+      getPatientDefaultLanguage();
+    }
+  }, [defaultPrintSettings]);
+
+  const getPatientDefaultLanguage = async () => {
+    const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
+    if (res?.settings?.defaultLanguage) {
+      setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
+    } else {
+      setSelectedLang(btoa(defaultPrintSettings?.default_language?.toString()));
+    }
+  };
 
   const fetchCustomModules = async () => {
     try {
@@ -282,7 +299,7 @@ function Cardiology(props) {
   async function printRxInAppContent() {
     // sendMessageToParent(EVENTS.PRINT, { url: viewCaseManagerData?.print_rx_url });
     navigate(
-      `/patient_details/?url=${viewCaseManagerData?.print_rx_url}&key=print`,
+      `/patient_details/?url=${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}&key=print`,
       { replace: true, state: { patient_data: patient_data } }
     );
     navigate(0, { replace: true });
@@ -514,14 +531,14 @@ function Cardiology(props) {
           Doctor_Number: profile?.um_contact,
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
-      await window.open(printUrl);
+      await window.open(`${printUrl}&lg=${selectedLang}`);
     } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
       urlObj.searchParams.set("voiceRxDigitize", "true");
       const updatedUrl = urlObj.toString();
-      await window.open(updatedUrl);
+      await window.open(`${updatedUrl}&lg=${selectedLang}`);
     } else {
-      await window.open(viewCaseManagerData?.print_rx_url);
+      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`);
     }
   };
 
@@ -542,7 +559,7 @@ function Cardiology(props) {
         ? voiceRxUrl
         : viewCaseManagerData?.print_url;
     // sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-    navigate(`/patient_details/?url=${printUrl}&key=print`, {
+    navigate(`/patient_details/?url=${printUrl}&lg=${selectedLang}&key=print`, {
       replace: true,
       state: { patient_data: patient_data },
     });

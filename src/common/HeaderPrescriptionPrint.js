@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
@@ -15,16 +15,37 @@ import { updateVisitStatus } from '../api/services/VisitService';
 import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
+import { fetchPatientDefaultLanguage } from '../api/services/DefaultLanguageService';
 
 function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx }) {
     const navigate = useNavigate();
-    const { profile } = useSelector((state) => state.doctors);
+    const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const {
         loadingEndVisit,
     } = useSelector((state) => state.caseManager);
+    const [selectedLang, setSelectedLang] = useState("");
     const dispatch = useDispatch();
     const urlParams = new URLSearchParams(window.location.search);
     const isReceptionist = urlParams.has("receptionist");
+
+    useEffect(() => {
+        if (defaultPrintSettings) {
+            getPatientDefaultLanguage();
+        }
+    }, [defaultPrintSettings]);
+
+    const getPatientDefaultLanguage = async () => {
+        const res = await fetchPatientDefaultLanguage(
+            patient_data?.patient_unique_id
+        );
+        if (res?.settings?.defaultLanguage) {
+            setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
+        } else {
+            setSelectedLang(
+                btoa(defaultPrintSettings?.default_language?.toString())
+            );
+        }
+    };
 
     const onEndVisitClick = async () => {
         if (handleGoToAppointment) {
@@ -35,6 +56,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                 patient_data !== undefined ? patient_data.patient_unique_id : 0,
               pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
               tcm_id: tcm_id,
+              lg: selectedLang,
             };
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
             if (pam_id) {
