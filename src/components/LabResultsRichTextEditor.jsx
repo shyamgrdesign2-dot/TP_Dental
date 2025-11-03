@@ -93,12 +93,7 @@ const LabResultsRichTextEditor = ({
           placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
           spellCheck={true}
           autoFocus={false}
-          showToolbar={true}
-          toolbarButtons={[
-            { type: 'mark', format: 'bold', icon: 'format_bold' },
-            { type: 'block', format: 'bulleted-list', icon: 'format_list_bulleted' },
-            { type: 'block', format: 'numbered-list', icon: 'format_list_numbered' },
-          ]}
+          showToolbar={false}
         />
       </div>
     </div>

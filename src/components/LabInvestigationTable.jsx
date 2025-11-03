@@ -3,8 +3,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input } from 'antd';
 import styles from './ConsultationDrawer.module.css';
 import investigationIcon from '../assets/images/Lab.svg';
-import editIcon from '../assets/images/edit.svg';
-import deleteIcon from '../assets/images/Delete.svg';
 import menuIcon from '../assets/images/Menu Button.svg';
 import {
   getFrequentlySearchedInvestigation,
@@ -21,9 +19,8 @@ const LabInvestigationTable = ({
   
   const [searchQuery, setSearchQuery] = useState('');
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
-  const [editingItem, setEditingItem] = useState(null);
-  const [editName, setEditName] = useState('');
-  const [editNotes, setEditNotes] = useState('');
+  const [editingCell, setEditingCell] = useState(null); // { itemId: '...', field: 'name' }
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     dispatch(getFrequentlySearchedInvestigation());
@@ -111,53 +108,46 @@ const LabInvestigationTable = ({
     );
   }, [labInvestigation, searchQuery]);
 
-  const handleAddInvestigation = () => {
-    const newInvestigation = {
-      id: Date.now().toString(),
-      name: '',
-      notes: '',
-      lineItem: '',
-    };
-    const updatedInvestigations = [...labInvestigation, newInvestigation];
-    onUpdate(updatedInvestigations);
-    setEditingItem(newInvestigation.id);
-    setEditName('');
-    setEditNotes('');
+  const handleCellClick = (itemId, field, currentValue) => {
+    setEditingCell({ itemId, field });
+    setEditValue(currentValue || '');
   };
 
-  const handleEditInvestigation = (item) => {
-    setEditingItem(item.id);
-    setEditName(item.name || '');
-    setEditNotes(item.notes || '');
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingItem) return;
+  const handleCellSave = () => {
+    if (!editingCell) return;
     
-    const updatedInvestigations = labInvestigation.map(item => 
-      item.id === editingItem 
-        ? { 
-            ...item, 
-            name: editName, 
-            notes: editNotes,
-            lineItem: editName + (editNotes ? ` (${editNotes})` : '')
+    const { itemId, field } = editingCell;
+    const updatedInvestigations = labInvestigation.map(item => {
+      if (item.id === itemId) {
+        const updated = { ...item, [field]: editValue };
+        updated.lineItem = updated.name + (updated.notes ? ` (${updated.notes})` : '');
+        return updated;
           }
-        : item
-    );
+      return item;
+    });
     
     onUpdate(updatedInvestigations);
-    setEditingItem(null);
-    setEditName('');
-    setEditNotes('');
+    setEditingCell(null);
+    setEditValue('');
   };
 
-  const handleCancelEdit = () => {
-    setEditingItem(null);
-    setEditName('');
-    setEditNotes('');
+  const handleCellCancel = () => {
+    setEditingCell(null);
+    setEditValue('');
   };
 
-  const handleDeleteInvestigation = (itemId) => {
+  const handleCellKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCellSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCellCancel();
+    }
+  };
+
+  const handleRowDelete = (e, itemId) => {
+    e.stopPropagation();
     const updatedInvestigations = labInvestigation.filter(item => item.id !== itemId);
     onUpdate(updatedInvestigations);
   };
@@ -196,7 +186,6 @@ const LabInvestigationTable = ({
               <th className={styles['drag-column']}></th>
               <th className={styles['medicine-column']}>MEDICINE</th>
               <th className={styles['note-column']}>NOTE</th>
-              <th className={styles['action-column']}>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -205,12 +194,18 @@ const LabInvestigationTable = ({
                 <td className={styles['drag-cell']}>
                   <img src={menuIcon} alt="Drag" className={styles['drag-icon']} />
                 </td>
-                <td className={styles['medicine-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['medicine-cell']}
+                  onClick={() => handleCellClick(item.id, 'name', item.name)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
                     <input
                       type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter investigation name"
                       autoFocus
@@ -221,56 +216,27 @@ const LabInvestigationTable = ({
                     </span>
                   )}
                 </td>
-                <td className={styles['note-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['note-cell']}
+                  onClick={() => handleCellClick(item.id, 'notes', item.notes)}
+                  onContextMenu={(e) => handleRowDelete(e, item.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'notes' ? (
                     <input
                       type="text"
-                      value={editNotes}
-                      onChange={(e) => setEditNotes(e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter notes"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['note-text']}>
                       {item.notes || '-'}
                     </span>
-                  )}
-                </td>
-                <td className={styles['action-cell']}>
-                  {editingItem === item.id ? (
-                    <div className={styles['edit-actions']}>
-                      <button
-                        onClick={handleSaveEdit}
-                        className={styles['save-button']}
-                        title="Save"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className={styles['cancel-button']}
-                        title="Cancel"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className={styles['action-buttons']}>
-                      <button
-                        onClick={() => handleEditInvestigation(item)}
-                        className={styles['edit-button']}
-                        title="Edit"
-                      >
-                        <img src={editIcon} alt="Edit" className={styles['action-icon']} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteInvestigation(item.id)}
-                        className={styles['delete-button']}
-                        title="Delete"
-                      >
-                        <img src={deleteIcon} alt="Delete" className={styles['action-icon']} />
-                      </button>
-                    </div>
                   )}
                 </td>
               </tr>

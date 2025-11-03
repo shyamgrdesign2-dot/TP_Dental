@@ -115,12 +115,7 @@ const VitalsRichTextEditor = ({
           placeholder="Add vitals (e.g., Pulse: 78T | BP: 130/80 | Temperature: 98.6Frh)..."
           spellCheck={true}
           autoFocus={false}
-          showToolbar={true}
-          toolbarButtons={[
-            { type: 'mark', format: 'bold', icon: 'format_bold' },
-            { type: 'block', format: 'bulleted-list', icon: 'format_list_bulleted' },
-            { type: 'block', format: 'numbered-list', icon: 'format_list_numbered' },
-          ]}
+          showToolbar={false}
         />
         </div>
       </div>

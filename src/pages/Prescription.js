@@ -1547,7 +1547,9 @@ function Prescription() {
     // Typed input from Voice Rx
     (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
     // Audio recording from Voice Rx (dictation or ambient mode)
-    (fromVoiceRecording && audioBlob)
+    (fromVoiceRecording && audioBlob) ||
+    // Coming from edit prescription (print view)
+    caseManagerData?.smart_prescription_filename
   );
 
   return (

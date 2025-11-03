@@ -3,13 +3,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input } from 'antd';
 import styles from './ConsultationDrawer.module.css';
 import medicationsIcon from '../assets/images/Medication.svg';
-import editIcon from '../assets/images/edit.svg';
-import deleteIcon from '../assets/images/Delete.svg';
 import menuIcon from '../assets/images/Menu Button.svg';
 import {
   getFrequentlySearchedMedication,
   searchMedication
 } from "../redux/medicationSlice";
+import { capitalize } from '../utils/utils';
 
 const MedicationsTable = ({
   medications = [],
@@ -21,15 +20,8 @@ const MedicationsTable = ({
   
   const [searchQuery, setSearchQuery] = useState('');
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
-  const [editingItem, setEditingItem] = useState(null);
-  const [editData, setEditData] = useState({
-    name: '',
-    dosage: '',
-    frequency: '',
-    schedule: '',
-    duration: '',
-    notes: ''
-  });
+  const [editingCell, setEditingCell] = useState(null); // { itemId: '...', field: 'name' }
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     dispatch(getFrequentlySearchedMedication());
@@ -136,66 +128,48 @@ const MedicationsTable = ({
     [medications, onUpdate]
   );
 
-  const handleEditMedication = (item) => {
-    setEditingItem(item.id);
-    setEditData({
-      name: item.name || '',
-      dosage: item.dosage || '',
-      frequency: item.frequency || '',
-      schedule: item.schedule || '',
-      duration: item.duration || '',
-      notes: item.notes || ''
-    });
+  const handleCellClick = (itemId, field, currentValue) => {
+    setEditingCell({ itemId, field });
+    setEditValue(currentValue || '');
   };
 
-  const handleSaveEdit = () => {
-    if (!editingItem) return;
+  const handleCellSave = () => {
+    if (!editingCell) return;
     
-    const updatedMedications = medications.map(item => 
-      item.id === editingItem 
-        ? { 
-            ...item, 
-            ...editData,
-            lineItem: `${editData.name} (${[editData.dosage, editData.frequency, editData.schedule, editData.duration, editData.notes].filter(Boolean).join(', ')})`
+    const { itemId, field } = editingCell;
+    const updatedMedications = medications.map(item => {
+      if (item.id === itemId) {
+        const updated = { ...item, [field]: editValue };
+        updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        return updated;
           }
-        : item
-    );
+      return item;
+    });
     
     onUpdate(updatedMedications);
-    setEditingItem(null);
-    setEditData({
-      name: '',
-      dosage: '',
-      frequency: '',
-      schedule: '',
-      duration: '',
-      notes: ''
-    });
+    setEditingCell(null);
+    setEditValue('');
   };
 
-  // Handle canceling edit
-  const handleCancelEdit = () => {
-    setEditingItem(null);
-    setEditData({
-      name: '',
-      dosage: '',
-      frequency: '',
-      schedule: '',
-      duration: '',
-      notes: ''
-    });
+  const handleCellCancel = () => {
+    setEditingCell(null);
+    setEditValue('');
   };
 
-  const handleDeleteMedication = (itemId) => {
+  const handleCellKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCellSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCellCancel();
+    }
+  };
+
+  const handleRowDelete = (e, itemId) => {
+    e.stopPropagation();
     const updatedMedications = medications.filter(item => item.id !== itemId);
     onUpdate(updatedMedications);
-  };
-
-  const handleEditChange = (field, value) => {
-    setEditData(prev => ({
-      ...prev,
-      [field]: value
-    }));
   };
 
   if (isProcessing) {
@@ -236,7 +210,6 @@ const MedicationsTable = ({
               <th className={styles['when-column']}>WHEN</th>
               <th className={styles['duration-column']}>DURATION</th>
               <th className={styles['note-column']}>NOTE</th>
-              <th className={styles['action-column']}>ACTION</th>
             </tr>
           </thead>
           <tbody>
@@ -245,33 +218,46 @@ const MedicationsTable = ({
                 <td className={styles['drag-cell']}>
                   <img src={menuIcon} alt="Drag" className={styles['drag-icon']} />
                 </td>
-                <td className={styles['medicine-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['medicine-cell']}
+                  onClick={() => handleCellClick(item.id, 'name', item.name)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
                     <input
                       type="text"
-                      value={editData.name}
-                      onChange={(e) => handleEditChange('name', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter medicine name"
                       autoFocus
                     />
                   ) : (
                     <div className={styles['medicine-content']}>
-                      <div className={styles['medicine-name']}>{item.name || '-'}</div>
+                      <div className={styles['medicine-name']}>{capitalize(item.name || '-', true)}</div>
                       {item.corrected_name && (
                         <div className={styles['medicine-subtitle']}>{item.corrected_name}</div>
                       )}
                     </div>
                   )}
                 </td>
-                <td className={styles['unit-dose-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['unit-dose-cell']}
+                  onClick={() => handleCellClick(item.id, 'dosage', item.dosage)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'dosage' ? (
                     <input
                       type="text"
-                      value={editData.dosage}
-                      onChange={(e) => handleEditChange('dosage', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., 1 Tablet"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['unit-dose-text']}>
@@ -279,14 +265,21 @@ const MedicationsTable = ({
                     </span>
                   )}
                 </td>
-                <td className={styles['frequency-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['frequency-cell']}
+                  onClick={() => handleCellClick(item.id, 'frequency', item.frequency)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'frequency' ? (
                     <input
                       type="text"
-                      value={editData.frequency}
-                      onChange={(e) => handleEditChange('frequency', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., Twice daily"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['frequency-text']}>
@@ -294,14 +287,21 @@ const MedicationsTable = ({
                     </span>
                   )}
                 </td>
-                <td className={styles['when-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['when-cell']}
+                  onClick={() => handleCellClick(item.id, 'schedule', item.schedule)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'schedule' ? (
                     <input
                       type="text"
-                      value={editData.schedule}
-                      onChange={(e) => handleEditChange('schedule', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., Before breakfast"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['when-text']}>
@@ -309,14 +309,21 @@ const MedicationsTable = ({
                     </span>
                   )}
                 </td>
-                <td className={styles['duration-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['duration-cell']}
+                  onClick={() => handleCellClick(item.id, 'duration', item.duration)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'duration' ? (
                     <input
                       type="text"
-                      value={editData.duration}
-                      onChange={(e) => handleEditChange('duration', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., 5 days"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['duration-text']}>
@@ -324,56 +331,27 @@ const MedicationsTable = ({
                     </span>
                   )}
                 </td>
-                <td className={styles['note-cell']}>
-                  {editingItem === item.id ? (
+                <td 
+                  className={styles['note-cell']}
+                  onClick={() => handleCellClick(item.id, 'notes', item.notes)}
+                  onContextMenu={(e) => handleRowDelete(e, item.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {editingCell?.itemId === item.id && editingCell?.field === 'notes' ? (
                     <input
                       type="text"
-                      value={editData.notes}
-                      onChange={(e) => handleEditChange('notes', e.target.value)}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleCellSave}
+                      onKeyDown={handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter notes"
+                      autoFocus
                     />
                   ) : (
                     <span className={styles['note-text']}>
                       {item.notes || '-'}
                     </span>
-                  )}
-                </td>
-                <td className={styles['action-cell']}>
-                  {editingItem === item.id ? (
-                    <div className={styles['edit-actions']}>
-                      <button
-                        onClick={handleSaveEdit}
-                        className={styles['save-button']}
-                        title="Save"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className={styles['cancel-button']}
-                        title="Cancel"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className={styles['action-buttons']}>
-                      <button
-                        onClick={() => handleEditMedication(item)}
-                        className={styles['edit-button']}
-                        title="Edit"
-                      >
-                        <img src={editIcon} alt="Edit" className={styles['action-icon']} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMedication(item.id)}
-                        className={styles['delete-button']}
-                        title="Delete"
-                      >
-                        <img src={deleteIcon} alt="Delete" className={styles['action-icon']} />
-                      </button>
-                    </div>
                   )}
                 </td>
               </tr>
