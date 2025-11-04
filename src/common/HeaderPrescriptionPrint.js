@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navbar } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
@@ -16,7 +16,7 @@ import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang }) {
     const navigate = useNavigate();
     const { profile } = useSelector((state) => state.doctors);
     const {
@@ -35,6 +35,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                 patient_data !== undefined ? patient_data.patient_unique_id : 0,
               pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
               tcm_id: tcm_id,
+              lg: selectedLang !== undefined && selectedLang !== "English" ? btoa(selectedLang.toString()) : '',
             };
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
             if (pam_id) {
