@@ -1,4 +1,4 @@
-import { configureStore, createListenerMiddleware } from "@reduxjs/toolkit";
+import { configureStore } from "@reduxjs/toolkit";
 import { persistStore, persistReducer } from "redux-persist";
 import { combineReducers } from "redux";
 import storage from "redux-persist/lib/storage";
@@ -30,18 +30,6 @@ import snapRxDigitizationSlice from "./snapRxDigitizationSlice";
 import billingSlice from "./billingSlice";
 import shortLinkSlice from "./shortLinkSlice";
 import monetizationSlice from "./monetizationSlice";
-import prescriptionSlice from "./prescriptionSlice";
-import ipdSlice from "./ipd/ipdSlice";
-import assessmentSlice from "./ipd/assessmentsFormSlice";
-import otNotesSlice from "./ipd/otNotesSlice";
-import crossReferralSlice from "./ipd/crossReferralSlice";
-import inPatientsSlice from "./ipd/inPatientsSlice";
-import consultantNotesSlice from "./ipd/consultantNotesSlice";
-import progressNotesSlice from "./ipd/progressNotesSlice";
-import medicalRecordsSlice from "./ipd/medicalRecordsSlice";
-import labResultsSlice from "./ipd/labResultsSlice";
-import printSettingsSlice from "./ipd/printSettingsSlice";
-import dischargeSummarySlice from "./ipd/dischargeSummarySlice";
 
 const persistConfig = {
   key: "root",
@@ -54,9 +42,6 @@ const rootReducer = combineReducers({
   doctors: doctorsSlice,
   symptoms: symptomsSlice,
   examination: examinationSlice,
-  assessment: assessmentSlice,
-  otNotes: otNotesSlice,
-  ipd: ipdSlice,
   surgical: surgicalSlice,
   diagnosis: diagnosisSlice,
   advice: adviceSlice,
@@ -80,22 +65,9 @@ const rootReducer = combineReducers({
   snapRx: snapRxDigitizationSlice,
   shortLink: shortLinkSlice,
   monetization: monetizationSlice,
-  prescription: prescriptionSlice,
-  inPatients: inPatientsSlice,
-  consultantNotes: consultantNotesSlice,
-  progressNotes: progressNotesSlice,
-  medicalRecords: medicalRecordsSlice,
-  labResults: labResultsSlice,
-  crossReferral: crossReferralSlice,
-  dischargeSummary: dischargeSummarySlice,
-  printSettings: printSettingsSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
-
-// Create listener middleware
-const listenerMiddleware = createListenerMiddleware();
-
 
 const store = configureStore({
   reducer: persistedReducer,
@@ -103,7 +75,7 @@ const store = configureStore({
     getDefaultMiddleware({
       immutableCheck: false,
       serializableCheck: false,
-    }).prepend(listenerMiddleware.middleware),
+    }),
 });
 
 const persistor = persistStore(store);

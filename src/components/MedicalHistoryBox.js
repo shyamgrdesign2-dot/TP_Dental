@@ -34,26 +34,25 @@ import { useAccess } from "../pages/vaccination/useAccess";
 import { getClinicName } from "../utils/utils";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
-import { setGynecHistoryData, setMedicalHistoryData } from "../redux/prescriptionSlice";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, gynecHistoryFromProps, showMenstrualHistory = true, showMedicalHistory = true, fetchDataOnLaunch = true } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave } = props
     const { TabPane } = Tabs;
     const {
         searchList,
         defaultList,
         loading,
     } = useSelector((state) => state.medicalhistory);
-    const { medicalHistoryData } = useSelector((state) => state.prescription);
     const { profile, userId } = useSelector((state) => state.doctors);
     const dispatch = useDispatch();
 
     const { isGynaecHistoryAccessable } = useAccess();
 
+    const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
     // const [ medicalHistoryData, setMedicalHistoryData] = useState([]);
     const [cloneMedicalHistoryData, setCloneMedicalHistoryData] = useState([])
 
@@ -867,11 +866,11 @@ function MedicalHistoryBox(props) {
             }
         })
         if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
-            dispatch(setMedicalHistoryData([]))
-            handleDrawerMedicalHistory?.()
+            setMedicalHistoryData([])
+            handleDrawerMedicalHistory()
         } else {
-            dispatch(setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory))))
-            handleCollapsed?.(2)
+            setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)))
+            handleCollapsed(2)
         }
     }
 
@@ -1026,8 +1025,7 @@ function MedicalHistoryBox(props) {
             }
             return acc;
         }, {});
-        if (onSave) onSave(filteredGynecHistory);
-        else dispatch(setGynecHistoryData(filteredGynecHistory));
+        onSave(filteredGynecHistory);
         handleSaveClick()
     };
 
@@ -1036,16 +1034,10 @@ function MedicalHistoryBox(props) {
     }, []);
 
     useEffect(() => {
-        if (isGynaecHistoryAccessable && fetchDataOnLaunch && !showMedicalHistory && showMenstrualHistory) {
+        if (isGynaecHistoryAccessable) {
             fetchGynecHistory();
         }
-    }, [isGynaecHistoryAccessable, fetchDataOnLaunch, showMenstrualHistory, showMedicalHistory]);
-
-    useEffect(() => {
-        if (gynecHistoryFromProps) {
-            setGynecHistory(gynecHistoryFromProps);
-        }
-    }, [gynecHistoryFromProps])
+    }, [isGynaecHistoryAccessable]);
 
     const fetchGynecHistory = async () => {
         try {
@@ -1102,9 +1094,8 @@ function MedicalHistoryBox(props) {
         }, {});
 
         setGynecHistory(filteredGynecHistory)
-        handleCollapsed?.(2)
+        handleCollapsed(2)
 
-        if (onSave) return;
         if (gynecEditState === "CREATE") {
             const payload = {
                 patientId: patient_data.patient_unique_id,
@@ -1225,11 +1216,11 @@ function MedicalHistoryBox(props) {
                             </div>
                         </div>
                         <div className="title-common">
-                            {(isGynaecHistoryAccessable && showMenstrualHistory) ? `Gynec History` : `Medical History`}
+                            {isGynaecHistoryAccessable ? `Gynec History` : `Medical History`}
                         </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
-                        {(isGynaecHistoryAccessable && showMenstrualHistory) && (
+                        {isGynaecHistoryAccessable && (
                             <Popover
                                 open={popOverVideo}
                                 onOpenChange={showHideVideoListPopover}
@@ -1251,7 +1242,7 @@ function MedicalHistoryBox(props) {
                     </div>
                 </div>
                 <Tabs defaultActiveKey="gynec" onChange={onTabChange}>
-                    {isGynaecHistoryAccessable && showMenstrualHistory &&
+                    {isGynaecHistoryAccessable &&
                         <TabPane tab="Menstrual History" key="gynec">
                             <div style={{ marginTop: "-1rem" }}>
                                 <Row>
@@ -1686,8 +1677,7 @@ function MedicalHistoryBox(props) {
                             </div>
                         </TabPane>
                     }
-                    {showMedicalHistory &&
-                        <TabPane tab="Medical History" key="medical">
+                    <TabPane tab="Medical History" key="medical">
                         <div style={{ marginTop: "-1rem" }}>
                             <Row>
                                 <Col lg={15}>
@@ -2044,7 +2034,7 @@ function MedicalHistoryBox(props) {
                                 </Col>
                             </Row>
                         </div>
-                    </TabPane>}
+                    </TabPane>
                 </Tabs>
             </Card>
             {shouldShowVideo && (

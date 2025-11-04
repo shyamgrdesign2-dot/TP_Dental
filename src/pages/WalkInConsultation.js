@@ -148,7 +148,6 @@ function WalkInConsultation() {
     //   doctor_id: profile?.doctor_unique_id,
     // //   patient_id: record?.patient_unique_id,
     // });
-    console.log('INTEL ==,record', record)
     navigate("/prescription", { state: { patient_data: record } });
   };
 

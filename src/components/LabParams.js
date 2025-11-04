@@ -15,13 +15,11 @@ import alertIcon from '../assets/images/alertIcon.svg';
 import editIcon from '../assets/images/edit.svg';
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
-import { useDispatch } from 'react-redux';
-import { useLocation } from 'react-router-dom';
 
 
-const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, patient_unique_id, onSave = null, isBackModalOpen, showHideBackModal, patientGender, isIPD = false  }) => {
+const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, isBackModalOpen, showHideBackModal, patientGender  }) => {
 
-  const [token, setToken] = useState(null);
+    const [token, setToken] = useState(null);
     const searchRef = useRef(null);
     const [tokenData, setTokenData] = useState(null);
     const [dates, setDates] = useState([]);
@@ -166,26 +164,25 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
     };
 
     const getLabParams = async () => {
-      try {
-          const cleanedToken = token.replace(/['"]+/g, '');
-          const patientId = patient_unique_id;
-          const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientId}`, {
-              headers: {
-                  'Authorization': `Bearer ${cleanedToken}`,
-              },
-          });
-          setExistingResults(response.data?.data?.results || []); 
-      } catch (error) {
-          console.error("Error fetching lab params:", error);
-      }
+        try {
+            const cleanedToken = token.replace(/['"]+/g, '');
+            const patientId = patient_unique_id;
+            const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientId}`, {
+                headers: {
+                    'Authorization': `Bearer ${cleanedToken}`,
+                },
+            });
+            setExistingResults(response.data?.data?.results || []); 
+        } catch (error) {
+            console.error("Error fetching lab params:", error);
+        }
     };
 
     useEffect(() => {
-        if(token && !existingDataFromProps){
+        if(token){
             getLabParams();
         }
-    },[token, existingDataFromProps])
-  
+    },[token])
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -198,13 +195,11 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                 setExpandedReports({});
             } else {
                 const labParamsResults = await searchLabParams(searchQuery);
-                console.log('TEJA ==> labParamsResults', labParamsResults)
                 setLabParamsResults(labParamsResults);
             }
         };
         fetchLabParams(); 
     }, [searchQuery]);
-    // console.log('TEJA ==> existingDataFromProps', existingDataFromProps, dates)
     
     useEffect(() => {
         const timeOutId = setTimeout(async () => {
@@ -318,17 +313,14 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
 
     // Function to handle saving remarks
     const handleSaveRemarks = () => {
-        let updatedValues = { ...inputValues };
+        const updatedValues = { ...inputValues };
         if (!updatedValues[activeReport]) updatedValues[activeReport] = {};
         if (!updatedValues[activeReport][activeTest]) updatedValues[activeReport][activeTest] = {};
         if (!updatedValues[activeReport][activeTest][activeDate]) {
             updatedValues[activeReport][activeTest][activeDate] = {};
         }
 
-        updatedValues[activeReport][activeTest][activeDate] = {
-            ...updatedValues[activeReport][activeTest][activeDate],
-            value: modalContent
-        };
+        updatedValues[activeReport][activeTest][activeDate].value = modalContent;
 
         // Update input values
         setInputValues(updatedValues);
@@ -530,15 +522,13 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
     }, [inputValues]);
     
     useEffect(() => {
-      const existingDatesArr = existingDataFromProps || existingResults;
-        if (existingDatesArr?.length === 0) {
+        if (existingResults.length === 0) {
             setDates([currentDate]);
         } else {
-          
-            const uniqueDates = [...new Set(existingDatesArr?.map((result) => result.date))];
+            const uniqueDates = [...new Set(existingResults.map((result) => result.date))];
             setDates(uniqueDates);
         }
-    }, [existingResults?.length, existingDataFromProps?.length]);
+    }, [existingResults]);
 
   function replaceDate(inputValues, oldDate, newDate) {
     const updatedValues = { ...inputValues };
@@ -582,15 +572,15 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
     }
 
     const handleDateChange = (newDate, index) => {
-      setDates(prevDates => {
-        const oldDate = prevDates[index];
-        const next = [...prevDates];
-        next[index] = newDate;
-        setInputValues(prevValues => replaceDate(prevValues, oldDate, newDate));
-    
-        return next;
+      setDates((prevDates) => {
+        const updatedDates = [...prevDates];
+        updatedDates[index] = newDate;
+        return updatedDates;
       });
-
+      setInputValues((prev) => {
+        const updatedData = replaceDate(prev, dates[index], newDate);
+        return updatedData;
+      });
     };
 
     const handleDeleteDate = (dateToDelete) => {
@@ -606,8 +596,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
 
     const handleInputChange = (reportName, testName, date, value) => {
       setInputValues((prev) => {
-          let updatedData = { ...prev };
-          
+          const updatedData = { ...prev };
   
           if (!updatedData[reportName]) {
               updatedData[reportName] = {};
@@ -631,11 +620,8 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
           // Update value and calculate arrow direction using existing refRange if available
           const existingRefRange = updatedData[reportName][testName][date].refRange;
           const gender = patientGender || "Male"; // Assuming `patientGender` is available globally or passed in
-          
-          updatedData[reportName][testName][date] = {
-            ...updatedData[reportName][testName][date],
-            value: value
-          };
+  
+          updatedData[reportName][testName][date].value = value;
           updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender);
   
           // Fetch refRange if not already available
@@ -750,31 +736,19 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
     }
     };
 
-    useEffect(() => {
-      if (!dates || dates.length < 2) return;
-    
-      const sorted = [...dates].sort((a, b) => new Date(b) - new Date(a));
-    
-      const changed = sorted.length !== dates.length ||
-        sorted.some((d, i) => d !== dates[i]);
-    
-      if (changed) setDates(sorted);
-    }, [dates]); 
-
-    useEffect(() => {
-      setExistingResults(existingDataFromProps)
-    }, [existingDataFromProps])
+  useEffect(() => {
+    const sortedDates = dates.sort((a, b) => new Date(b) - new Date(a));
+  
+    setDates(sortedDates);
+  
+  }, [inputValues, dates]);
 
     const handleSave = async() =>{
-        
+
         const currentFilledData = assemblePayload(inputValues);
         const data = combineData(currentFilledData,filledData);
+        
         setFilledData([])
-
-        if (isIPD) {
-          onSave?.(data);
-          return;
-        }
 
         const payload = {
             patientId: patient_unique_id,
@@ -788,9 +762,9 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
               payload,
               baseUrl
             );
-            if (response) {
-              onSave?.();
-              handleAddLabParamsDrawer();
+            if(response){
+                onSave();
+                handleAddLabParamsDrawer();
             }
           } catch (error) {
             console.error("Error:", error);
@@ -849,7 +823,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
     };
     
     return (
-      <div className={isIPD ? 'ipd-lab-params-container': ''} style={{background:"#fff"}}>
+      <div style={{background:"#fff"}}>
         <div
           className="modalCard-header h-60 align-items-center justify-content-between d-flex"
           style={{ position: "sticky", top: "0", zIndex: "5" }}
@@ -961,11 +935,11 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                 >
                   {" "}
                   {/* Set a fixed width here */}
-                  <span>{isIPD ? 'Test Name' : 'Name'}</span>
+                  <span>Name</span>
                 </th>
 
                 <th>
-                  <div className='d-flex' style={isIPD ? {display: 'flex', justifyContent: 'flex-end'}: {}}>
+                  <div className='d-flex'>
                 {dates?.length < 2 ? (dates.map((date, index) => (
                   <>
                         <div
@@ -1012,11 +986,11 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                         />
                       </Tooltip>
                         </div>
-                        {!isIPD ? <div
+                        <div
                       className="date-values"
                           style={{ padding: "10px 0" }}
                     >
-                        </div>: null}
+                        </div>
                   </>
                 ))):(dates.map((date, index) => (
                         <div
@@ -1080,7 +1054,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                     </div>  
                   ) : labParamsResults?.length > 0 || searchQuery === "" ? (
                     <>
-                      {!isIPD ? <div style={{ height: "15px" }}></div>: null}
+                      <div style={{ height: "15px" }}></div>
                       <tbody>
                         {Object.keys(inputValues).map((reportName) => (
                           <>
@@ -1117,14 +1091,14 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                                 {!!expandedReports[reportName] ? (
                                   <button
                                     className="btn p-0 ms-2 iconrotate180"
-                                    style={{ position: "absolute", left: isMobile? "635px" : isIPD ? "calc(100vw - 70px)" : "816px" }}
+                                    style={{ position: "absolute", left: isMobile? "635px" : "816px" }}
                                   >
                                     <i className="icon-right fs-5" />
                                   </button>
                                 ) : (
                                   <button
                                     className="btn p-0 ms-2 iconrotate270"
-                                    style={{ position: "absolute", left: isIPD ? "calc(100vw - 70px)" : "816px" }}
+                                    style={{ position: "absolute", left: "816px" }}
                                   >
                                     <i className="icon-right fs-5" />
                                   </button>
@@ -1132,7 +1106,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                               </td>
                               {dates.length < 2 ? (
                                 // Render at least two empty <td>s if the length is less than 2
-                                !isIPD ? <>
+                                <>
                                   <td
                                     style={{
                                       background: "#FAFAFB",
@@ -1147,7 +1121,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                                       padding: "10px",
                                     }}
                                   ></td>
-                                </>: null
+                                </>
                               ) : (
                                 dates.map((entry, entryIndex) => {
                                   const isLastCell = entryIndex === dates.length - 1;
@@ -1169,7 +1143,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
                                 })
                               )}
                             </tr>
-                            {(!expandedReports[reportName] && !isIPD) && (
+                            {!expandedReports[reportName] && (
                               <div style={{ height: "10px" }}></div>
                             )}
                             {/* <div style="height: 15px;"></div> */}
@@ -1283,8 +1257,7 @@ const LabResultsTable = ({ existingDataFromProps, handleAddLabParamsDrawer, pati
 
                                     <td
                                       colSpan={Object.keys(inputValues).length}
-                                      style={{ padding: 0, display: 'flex',
-                                        justifyContent: 'flex-end', }}
+                                      style={{ padding: 0 }}
                                     >
                                       <div
                                         ref={scrollRef}
