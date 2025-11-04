@@ -11,7 +11,7 @@ import visitEnd from '../../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../../assets/images/close-visit.svg';
 import logoSm from '../../../assets/images/logo-sm.svg';
 import { currencyFormat, errorMessage, formatAmount, getClinic, getClinicName, getDeviceSdkData, getTokenData, isNumeric, isValidGST, onlyDecimalFormat, onlyNumberFormat, removeBeforeWhiteSpace } from "../../../utils/utils";
-import { discountCode, discountCodeValidate, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
+import { createCart, discountCode, discountCodeValidate, paymentOrder, purchaseDetails, verifyPayment } from "../../../redux/monetizationSlice";
 import { searchPincode } from "../../../redux/appointmentsSlice";
 import { services } from "../../../redux/doctorsSlice";
 import { S_SMARTSYNC, S_TATVA_PRACTICE, MESSAGE_KEY } from "../../../utils/constants";
@@ -197,23 +197,43 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     ...deviceSdkData
                 });
                 setLoading(true)
-                let sendData = {
-                    amount: totalAmount,
-                }
-                const action = await dispatch(paymentOrder(sendData));
-                if (action.meta.requestStatus === "fulfilled") {
-                    if (action?.payload?.hasOwnProperty("id")) {
-                        initRazorPayPayment(action?.payload);
+                const cartData = {
+                    b2c_id: profile?.b2c,
+                    cart_items: selectedServices.map(service => ({
+                        service_id: service._id || service.service_id,
+                        no_of_years: service.validity / 12
+                    })),
+                    referral_code: salesCode || null,
+                    request_id: salesDetails?.requestId || Date.now()
+                };
+                const cartAction = await dispatch(createCart(cartData));
+                if (cartAction.meta.requestStatus === "fulfilled") {
+                    if (cartAction?.payload?.cart_id) {
+                        const orderData = {
+                            cart_id: cartAction.payload.cart_id
+                        };
+                        const orderAction = await dispatch(paymentOrder(orderData));
+                        if (orderAction.meta.requestStatus === "fulfilled") {
+                            if (orderAction?.payload?.hasOwnProperty("id")) {
+                                initRazorPayPayment(orderAction?.payload, cartAction.payload.cart_id);
+                            } else {
+                                setLoading(false)
+                                typeof orderAction?.payload?.data?.error === 'object' ?
+                                    errorMessage(orderAction?.payload?.data?.error?.description)
+                                    :
+                                    errorMessage(orderAction?.payload?.data?.message)
+                            }
+                        } else {
+                            setLoading(false)
+                            errorMessage(orderAction.payload.message)
+                        }
                     } else {
                         setLoading(false)
-                        typeof action?.payload?.data?.error === 'object' ?
-                            errorMessage(action?.payload?.data?.error?.description)
-                            :
-                            errorMessage(action?.payload?.data?.message)
+                        errorMessage('Failed to create cart')
                     }
                 } else {
                     setLoading(false)
-                    errorMessage(action.payload.message)
+                    errorMessage(cartAction.payload.message)
                 }
             }
         } else {
@@ -221,7 +241,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         }
     }
 
-    const initRazorPayPayment = (data) => {
+    const initRazorPayPayment = (data, cart_id) => {
         const options = {
             key: config.razorPay_key,
             amount: data.amount,
@@ -232,7 +252,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
             order_id: data.id,
             handler: async (response) => {
                 try {
-                    verifyRazorPayPayment(response, data)
+                    verifyRazorPayPayment(response, data, cart_id)
                 } catch (error) {
                     setLoading(false)
                     console.log(error);
@@ -262,7 +282,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
         return prefix + randomNumber;
     }
 
-    const verifyRazorPayPayment = async (r_response, data) => {
+    const verifyRazorPayPayment = async (r_response, data, cart_id) => {
         const clinic_name = getClinicName(profile?.hospital_data);
         const tokenData = getTokenData();
         const deviceSdkData = getDeviceSdkData();
@@ -283,32 +303,21 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     payment_status: action?.payload?.status,
                     ...deviceSdkData,
                 });
-                const summaryData = selectedServices.map(({ service_name, service_type, service_cost, max_applicable_discount, validity }) => ({
-                    service_name,
-                    service_type,
-                    plan_validity_months: validity,
-                    plan_amount: formatAmount(parseFloat(service_cost)),
-                    max_applicable_discount: formatAmount(parseFloat(max_applicable_discount))
-                }));
                 let sendData = {
                     b2c_id: profile?.b2c,
                     owner_b2c_id: clinic_b2c,
                     purchase_city: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_city,
                     purchase_state: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_state,
                     purchase_date: moment().toISOString(),
-                    purchase_amount: totalAmount,
                     purchase_type: "subscription",
                     purchase_status: "completed",
                     discount_applied: true,
-                    payment_id: action?.payload?.id,
-                    order_id: r_response?.razorpay_order_id,
                     campaign_applied: null,
                     campaign_id: null,
                     gst_applied: taxInvoice,
                     organization_name: taxInvoice ? clinicName : '',
                     gst_no: taxInvoice ? gstNo : '',
                     billing_address: taxInvoice ? `${clinicAddress}, ${clinicCity}, ${clinicState}, ${clinicPincode}` : '',
-                    summary: summaryData,
                     discount_details: [
                         {
                             "kam_id": '',
@@ -317,7 +326,8 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                             "discountCode": salesCode,
                             "requestId": salesDetails ? salesDetails?.requestId : '',
                         }
-                    ]
+                    ],
+                    cart_id: cart_id
                 }
                 const actionPurchaseDetails = await dispatch(purchaseDetails(sendData));
                 if (actionPurchaseDetails.meta.requestStatus === "fulfilled") {
