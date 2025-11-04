@@ -45,19 +45,17 @@ import "./Obstetric.scss";
 const { TabPane } = Tabs;
 
 const Obstetric = ({
-  obstetricDetails: obstetricDetailsFromProps,
+  obstetricDetails,
   obstetricDrawer,
   handleDrawerObstetric,
   handleCollapsed,
   isPreviousPregnancyOverview = false,
   handleDrawerMedicalReport,
-  handleObstetricHistory,
-  isIPD,
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { state } = useLocation();
-  const { patient_data, caseManagerData } = state;
+  const { patient_data } = state;
   const {
     isPatientDiagnosisUpdated,
     isNavigateToObstetric,
@@ -67,8 +65,6 @@ const Obstetric = ({
     immunisationDoctorList,
     obstetricDetails: allObstetricDetails,
   } = useSelector((state) => state.obstetric);
-  const obstetricDetails =
-    obstetricDetailsFromProps || allObstetricDetails?.currentPregnancy || {};
   const isPregnancyCompleted =
     Object.keys(obstetricDetails)?.length === 0 &&
     allObstetricDetails &&
@@ -128,7 +124,9 @@ const Obstetric = ({
       40 * 7 -
       Math.ceil(
         Math.abs(
-          moment(ceed).startOf("day").diff(moment(today).startOf("day"), "days")
+          moment(ceed)
+            .startOf("day")
+            .diff(moment(today).startOf("day"), "days")
         )
       );
 
@@ -183,7 +181,7 @@ const Obstetric = ({
   }, [pastPregnancyEditIndex]);
 
   useEffect(() => {
-    if (!isPreviousPregnancyOverview && !isIPD) {
+    if (!isPreviousPregnancyOverview) {
       getPrefillObstetricDetails();
       getDefaultAndDoctorList();
     }
@@ -250,11 +248,9 @@ const Obstetric = ({
     }
     if (immunisationDoctorList?.length === 0) {
       let immunisationDoctorListResponse = await fetchImmunisationDoctorList();
-      immunisationDoctorListResponse = Array.isArray(
-        immunisationDoctorListResponse
-      )
-        ? immunisationDoctorListResponse?.filter((item) => !item?.deleted)
-        : [];
+      immunisationDoctorListResponse = immunisationDoctorListResponse?.filter(
+        (item) => !item?.deleted
+      );
       if (immunisationDoctorListResponse) {
         dispatch(setImmunisationDoctorList(immunisationDoctorListResponse));
       }
@@ -322,11 +318,7 @@ const Obstetric = ({
     }
   };
 
-  const getAllObstetricDetails = async (data) => {
-    if (data && isIPD) {
-      dispatch(addObstetricDetails(data));
-      return;
-    }
+  const getAllObstetricDetails = async () => {
     const obstetricResponse = await fetchObstetricDetails(
       patient_data.patient_unique_id
     );
@@ -419,15 +411,6 @@ const Obstetric = ({
       dispatch(addObstetricDetails(payload));
       dispatch(resetUpdatedPatientDiagnosis());
       setLoader(true);
-      if (handleObstetricHistory) {
-        setLoader(false);
-        trackUpdateEvent();
-        setShowSuccess(true);
-        // getAllObstetricDetails(payload);
-        handleObstetricBackBtn();
-        handleObstetricHistory?.(payload);
-        return;
-      }
       const obstetricResponse = await upsertObstetricDetails(
         patient_data.patient_unique_id,
         payload
@@ -454,7 +437,7 @@ const Obstetric = ({
   };
 
   const clearObstetricData = () => {
-    handleDrawerObstetric?.();
+    handleDrawerObstetric();
     getAllObstetricDetails();
     dispatch(resetUpdatedPatientDiagnosis());
     if (isNavigateToObstetric) {
@@ -469,7 +452,7 @@ const Obstetric = ({
   };
 
   const handleObstetricBackBtn = () => {
-    handleDrawerObstetric?.();
+    handleDrawerObstetric();
     if (isNavigateToObstetric) {
       navigate(-1);
       dispatch(navigateToObstetric(false));
@@ -511,7 +494,6 @@ const Obstetric = ({
             loader={loader}
             isPregnancyCompleted={isPregnancyCompleted}
             isObstetric={true}
-            isIPD={isIPD}
           />
         )}
         {isPregnancyCompleted ? (
@@ -575,55 +557,46 @@ const Obstetric = ({
                   />
                 </TabPane>
               )}
-              {(!isIPD ||
-                (isIPD && obstetricDetails?.examinationHistory?.length)) && (
-                <TabPane
-                  tab={
-                    isPreviousPregnancyOverview
-                      ? "Examination History"
-                      : "Current Examination"
+              <TabPane
+                tab={
+                  isPreviousPregnancyOverview
+                    ? "Examination History"
+                    : "Current Examination"
+                }
+                key="examination"
+              >
+                <Examination
+                  examinationHistory={obstetricDetails?.examinationHistory}
+                  handleExaminationDrawer={handleExaminationDrawer}
+                  handlePastPregnancyDrawer={() => {
+                    handlePastPregnancyDrawer();
+                    setIsCompletePregnancy(true);
+                  }}
+                  setEditIndex={setExaminationEditIndex}
+                  bottomRef={examinationRef}
+                  isPreviousPregnancyOverview={isPreviousPregnancyOverview}
+                />
+              </TabPane>
+              <TabPane
+                tab={
+                  isPreviousPregnancyOverview ? "ANC History" : "ANC Scheduler"
+                }
+                key="ancScheduler"
+              >
+                <AncScheduler
+                  ancHistory={obstetricDetails?.ancHistory}
+                  handleDrawerMedicalReport={handleDrawerMedicalReport}
+                  isPreviousPregnancyOverview={isPreviousPregnancyOverview}
+                />
+              </TabPane>
+              <TabPane tab="Immunisation History" key="immunisationHistory">
+                <ImmunisationHistory
+                  immunisationHistoryData={
+                    obstetricDetails?.immunisationHistory
                   }
-                  key="examination"
-                >
-                  <Examination
-                    examinationHistory={obstetricDetails?.examinationHistory}
-                    handleExaminationDrawer={handleExaminationDrawer}
-                    handlePastPregnancyDrawer={() => {
-                      handlePastPregnancyDrawer();
-                      setIsCompletePregnancy(true);
-                    }}
-                    setEditIndex={setExaminationEditIndex}
-                    bottomRef={examinationRef}
-                    isPreviousPregnancyOverview={isPreviousPregnancyOverview}
-                  />
-                </TabPane>
-              )}
-              {!isIPD ? (
-                <TabPane
-                  tab={
-                    isPreviousPregnancyOverview
-                      ? "ANC History"
-                      : "ANC Scheduler"
-                  }
-                  key="ancScheduler"
-                >
-                  <AncScheduler
-                    ancHistory={obstetricDetails?.ancHistory}
-                    handleDrawerMedicalReport={handleDrawerMedicalReport}
-                    isPreviousPregnancyOverview={isPreviousPregnancyOverview}
-                  />
-                </TabPane>
-              ) : null}
-              {!isIPD ? (
-                <TabPane tab="Immunisation History" key="immunisationHistory">
-                  <ImmunisationHistory
-                    immunisationHistoryData={
-                      obstetricDetails?.immunisationHistory
-                    }
-                    isPreviousPregnancyOverview={isPreviousPregnancyOverview}
-                  />
-                </TabPane>
-              ) : null}
+                  isPreviousPregnancyOverview={isPreviousPregnancyOverview}
+                />
+              </TabPane>
             </Tabs>
           </div>
         )}
@@ -651,7 +624,7 @@ const Obstetric = ({
             open={examinationDrawer}
             className="modalWidth-563"
             width="auto"
-            zIndex={2000}
+            zIndex={200}
           >
             <AddExamination
               editIndex={examinationEditIndex}
@@ -685,7 +658,7 @@ const Obstetric = ({
             open={pastPregnancyDrawer}
             className="modalWidth-563"
             width="auto"
-            zIndex={2000}
+            zIndex={200}
           >
             <PastPregnancy
               editIndex={pastPregnancyEditIndex}

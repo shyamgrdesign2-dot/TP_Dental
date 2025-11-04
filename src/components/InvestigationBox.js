@@ -39,9 +39,7 @@ import { env } from "../EnvironmentConfig";
 
 const { TextArea } = Input;
 
-function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: propInvestigationData,
-  setInvestigationData: propSetInvestigationData,
-  diagnosisData: propDiagnosisData}) {
+function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const {
     selectedInvestigationList,
     parentOptionsList,
@@ -51,15 +49,9 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
   } = useSelector((state) => state.investigation);
   const dispatch = useDispatch();
 
-  // Use context if available, otherwise use props
-  const contextData = useContext(CashManagerContext);
-
-  // Fallback to context if props are not provided
-  const investigationData =
-    propInvestigationData ?? contextData?.investigationData ?? [];
-  const setInvestigationData =
-    propSetInvestigationData ?? contextData?.setInvestigationData ?? (() => {});
-  const diagnosisData = propDiagnosisData ?? contextData?.diagnosisData ?? [];
+  const { investigationData, setInvestigationData, diagnosisData } =
+    useContext(CashManagerContext);
+  // const [ investigationData, setInvestigationData] = useState([]);
 
   const [ddxInvestigationOptionsList, setDdxInvestigationOptionsList] =
     useState([]);
@@ -182,7 +174,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
       });
     }
     else {
-      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && (propInvestigationData ? true : tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB) &&
+      searchParentQuery && parentOptionsList.findIndex(e => e.investigation_name?.toLowerCase()?.trim() == searchParentQuery?.toLowerCase()?.trim()) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -212,22 +204,22 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
       window.Moengage.track_event("investigation_select", {
         "value": data
       });
-      const newItem = {
+      investigationData.push({
         ...JSON.parse(e.key),
         note: "",
-      };
-      setInvestigationData((prev) => [...prev, newItem]);
+      });
+      setInvestigationData((prev) => [...prev]);
       setSearchParentQuery("");
     },
     [searchParentQuery, investigationData]
   );
 
   const onSelectDDx = (e) => {
-    const newItem = {
+    investigationData.push({
       ...e,
       note: "",
-    };
-    setInvestigationData((prev) => [...prev, newItem]);
+    });
+    setInvestigationData((prev) => [...prev]);
     setSearchParentQuery("");
   };
 
@@ -285,17 +277,13 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
 
   const onSearchChild = useCallback(
     (query, i) => {
-      const updateQuery = removeBeforeWhiteSpace(query);
-      const newData = investigationData.map((item, index) =>
-        index === i
-          ? {
-              ...item,
-              change: 1,
-              investigation_name: updateQuery,
-            }
-          : item
-      );
-      setInvestigationData(newData);
+      const updateQuery = removeBeforeWhiteSpace(query)
+      investigationData[i] = {
+        ...investigationData[i],
+        change: 1,
+        investigation_name: updateQuery
+      };
+      setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: updateQuery, index: i });
     },
     [searchChildQuery, investigationData]
@@ -303,31 +291,24 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      const newData = investigationData.map((item, index) =>
-        index === i ? { ...item, ...JSON.parse(e.key) } : item
-      );
-      setInvestigationData(newData);
-      setSearchChildQuery({
-        query: JSON.parse(e.key).investigation_name,
-        index: i,
-      });
+      investigationData[i] = { ...investigationData[i], ...JSON.parse(e.key) };
+      setInvestigationData((prev) => [...prev]);
+      setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
     },
     [searchChildQuery, investigationData]
   );
 
   const onChangeNoteChild = useCallback(
     (e, i) => {
-      const newData = investigationData.map((item, index) =>
-        index === i ? { ...item, note: e.target.value } : item
-      );
-      setInvestigationData(newData);
+      investigationData[i].note = e.target.value;
+      setInvestigationData((prev) => [...prev]);
     },
     [investigationData]
   );
 
   const onRemoveRow = (index) => {
-    const newData = investigationData.filter((_, i) => i !== index);
-    setInvestigationData(newData);
+    investigationData.splice(index, 1);
+    setInvestigationData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -390,7 +371,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
   );
 
   const onAddTemplateClicked = async () => {
-    if (investigationData?.length === 0) {
+    if (investigationData.length === 0) {
       errorMessage('At least 1 investigation added')
     } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
       errorMessage('Please fillup investigation name')
@@ -419,7 +400,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (investigationData?.length === 0) {
+    if (investigationData.length === 0) {
       errorMessage('At least 1 investigation added')
     } else if (investigationData.filter(e => e.investigation_name == "").length > 0) {
       errorMessage('Please fillup investigation name')
@@ -484,7 +465,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
   //Child Componet
   // const TABLE_INVESTIGATION = useMemo(() => {
   //   return (
-  //     investigationData?.length > 0 &&
+  //     investigationData.length > 0 &&
   //     investigationData.map((item, index) => {
   //       return (
   //         <Row
@@ -559,7 +540,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
         <Droppable droppableId="investigation" direction="vertical">
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef}>
-              {investigationData?.length > 0 &&
+              {investigationData.length > 0 &&
                 investigationData.map((item, index) => (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
@@ -864,7 +845,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
             <Tooltip
               placement="bottom"
               title={
-                investigationData?.length > 0
+                investigationData.length > 0
                   ? ""
                   : "Please enter some Investigation to save a template"
               }
@@ -872,7 +853,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
               <Popover
                 open={popOver2}
                 onOpenChange={() =>
-                  investigationData?.length > 0 && showHideSaveTemplatePopOver()
+                  investigationData.length > 0 && showHideSaveTemplatePopOver()
                 }
                 // onOpenChange={showHideSaveTemplatePopOver}
                 content={SAVE_CONTENT}
@@ -889,7 +870,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, investigationData: pro
             <button
               onClick={showHideClearData}
               className="btn btn-text clear-text d-flex align-items-center"
-              disabled={investigationData?.length > 0 ? false : true}
+              disabled={investigationData.length > 0 ? false : true}
             >
               <i className="icon-eraser1 me-2"></i> <span>Clear</span>
             </button>

@@ -45,17 +45,15 @@ import { env } from "../EnvironmentConfig";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
-import { useLocation } from "react-router-dom";
-import { setMedicationData, setPillupSwitch } from "../redux/prescriptionSlice";
 
 
 const { TextArea } = Input;
 
-function MedicationsBox(props) {
-  const { isEditable = true, isDischargeSummary = false } = props;
+function MedicationsBox() {
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
+    selectedMedicationList,
     parentOptionsList,
     templates,
     genericList,
@@ -63,13 +61,8 @@ function MedicationsBox(props) {
   } = useSelector((state) => state.medication);
   const { todayData } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
-  const { state } = useLocation();
-  const { patient_data, caseManagerData } = state;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
 
-  let { medicationData : medicationDataFromStore, pillupSwitch } = useSelector((state) => state.prescription);
-  const medicationData = medicationDataFromStore ? structuredClone(medicationDataFromStore) : [];
-
+  const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -318,7 +311,7 @@ function MedicationsBox(props) {
         if (doseCalculatorDrawer) {
           const modifyData = updatedData[0]
           const objDose = dosesList.find((e1) => e1.medicine_id == modifyData.tmm_id)
-          const newMedicine = {
+          medicationLibrary.push({
             ...modifyData,
             tmm_dosage_unit_name: "",
             tmm_dosage: '',
@@ -334,13 +327,15 @@ function MedicationsBox(props) {
             medicine_name: modifyData.tmm_medicine_name,
             medicine_generic_name: modifyData.tmm_generic,
             exist: dosesList.some((e1) => e1.medicine_id == modifyData.tmm_id) ? true : false
-          };
-          setMedicationLibrary(prev => [...prev, newMedicine]);
+          });
+          setMedicationLibrary((prev) => [...prev]);
           setSearchMLQuery("");
           setAddCustom(null);
         } else {
-          const next =  [...medicationData, updatedData?.[0]];
-          dispatch(setMedicationData(next));
+          medicationData.push({
+            ...updatedData[0],
+          });
+          setMedicationData((prev) => [...prev]);
           setSearchParentQuery("");
           setAddCustom(null);
         }
@@ -354,24 +349,12 @@ function MedicationsBox(props) {
   const onSearchUnitPerDoseChid = useCallback(
     (query, i) => {
       const updateQuery = onlyDecimalFormat(query);
-      
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          return {
-            ...item,
-            tmm_dosage_unit_name: updateQuery,
-            tmm_dosage: '',
-            tmm_unit: 0,
-            tmm_unit_name: '',
-            tmu_id: 0,
-          };
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
-      
+      medicationData[i].tmm_dosage_unit_name = updateQuery;
+      medicationData[i].tmm_dosage = '';
+      medicationData[i].tmm_unit = 0;
+      medicationData[i].tmm_unit_name = '';
+      medicationData[i].tmu_id = 0;
+      setMedicationData((prev) => [...prev]);
       if (updateQuery) {
         const options = medicationData[i].medicineUnit.map((e) => {
           return {
@@ -390,26 +373,14 @@ function MedicationsBox(props) {
 
   const onBlurUnitPerDoseChid = useCallback(
     async (i) => {
-      const currentItem = medicationData[i];
-      if (!isAlphabetExit(currentItem.tmm_dosage_unit_name)) {
+      if (!isAlphabetExit(medicationData[i].tmm_dosage_unit_name)) {
         setUnitPerDoseOptions([]);
-        
-        // Create a new array with updated medication data
-        const updatedMedicationData = medicationData.map((item, index) => {
-          if (index === i) {
-            return {
-              ...item,
-              tmm_dosage_unit_name: "",
-              tmm_dosage: '',
-              tmm_unit: 0,
-              tmm_unit_name: '',
-              tmu_id: 0,
-            };
-          }
-          return item;
-        });
-        
-        dispatch(setMedicationData(updatedMedicationData));
+        medicationData[i].tmm_dosage_unit_name = "";
+        medicationData[i].tmm_dosage = '';
+        medicationData[i].tmm_unit = 0;
+        medicationData[i].tmm_unit_name = '';
+        medicationData[i].tmu_id = 0;
+        setMedicationData((prev) => [...prev]);
       }
     },
     [unitPerDoseOptions, medicationData]
@@ -419,23 +390,12 @@ function MedicationsBox(props) {
     (data, e, i) => {
       setUnitPerDoseOptions([]);
       const objParse = JSON.parse(e.key);
-      
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          return {
-            ...item,
-            tmm_dosage_unit_name: data,
-            tmm_dosage: objParse.tmm_dosage,
-            tmm_unit: objParse.tmu_id,
-            tmm_unit_name: objParse.tmu_title,
-            tmu_id: objParse.tmu_id,
-          };
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
+      medicationData[i].tmm_dosage_unit_name = data;
+      medicationData[i].tmm_dosage = objParse.tmm_dosage;
+      medicationData[i].tmm_unit = objParse.tmu_id;
+      medicationData[i].tmm_unit_name = objParse.tmu_title;
+      medicationData[i].tmu_id = objParse.tmu_id;
+      setMedicationData((prev) => [...prev]);
     },
     [unitPerDoseOptions, medicationData]
   );
@@ -452,7 +412,7 @@ function MedicationsBox(props) {
   //       medicationData[i].tmm_freq_type_name = '';
   //       medicationData[i].tmf_block_val = 0;
   //     }
-  //     setMedicationData(medicationData);
+  //     setMedicationData((prev) => [...prev]);
   //   },
   //   [medicationData]
   // );
@@ -463,68 +423,50 @@ function MedicationsBox(props) {
 
   const onBlurFrequencyChild = useCallback(
     async (i) => {
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          if (isNumeric(frequencyQuery) && frequencyQuery.length <= 3) {
-            return {
-              ...item,
-              tmm_freq_type_name: `${frequencyQuery[0]}-${frequencyQuery[1] ? frequencyQuery[1] : 0}-${frequencyQuery[2] ? frequencyQuery[2] : 0}`,
-              tmf_block: 0,
-              tmm_freq_type: 0,
-              tcm_tmm_freq_afternoon: frequencyQuery[1] ? frequencyQuery[1] : 0,
-              tcm_tmm_freq_evening: 0,
-              tcm_tmm_freq_morning: frequencyQuery[0],
-              tcm_tmm_freq_night: frequencyQuery[2] ? frequencyQuery[2] : 0,
-            };
-          } else if (isNumeric(frequencyQuery) && frequencyQuery.length >= 4) {
-            return {
-              ...item,
-              tmm_freq_type_name: `${frequencyQuery[0]}-${frequencyQuery[1] ? frequencyQuery[1] : 0}-${frequencyQuery[2] ? frequencyQuery[2] : 0}-${frequencyQuery[3] ? frequencyQuery[3] : 0}`,
-              tmf_block: 0,
-              tmm_freq_type: 0,
-              tcm_tmm_freq_afternoon: frequencyQuery[1] ? frequencyQuery[1] : 0,
-              tcm_tmm_freq_evening: frequencyQuery[2] ? frequencyQuery[2] : 0,
-              tcm_tmm_freq_morning: frequencyQuery[0],
-              tcm_tmm_freq_night: frequencyQuery[3] ? frequencyQuery[3] : 0,
-            };
-          } else if (!frequencyFormat(item.tmm_freq_type_name) && filteredTitles.findIndex((x) => x.tmf_title == item.tmm_freq_type_name) == -1) {
-            return {
-              ...item,
-              tmm_freq_type_name: "",
-              tmf_block: 0,
-              tmm_freq_type: 0,
-              tcm_tmm_freq_afternoon: 0,
-              tcm_tmm_freq_evening: 0,
-              tcm_tmm_freq_morning: 0,
-              tcm_tmm_freq_night: 0,
-            };
-          } else if (frequencyFormat(item.tmm_freq_type_name)) {
-            const updatedItem = {
-              ...item,
-              tmm_freq_type_name: frequencyQuery,
-              tmf_block: 0,
-              tmm_freq_type: 0,
-            };
-            
-            if (frequencyQuery.split("-")[3] !== undefined) {
-              updatedItem.tcm_tmm_freq_afternoon = frequencyQuery.split("-")[1] ? frequencyQuery.split("-")[1] : 0;
-              updatedItem.tcm_tmm_freq_evening = frequencyQuery.split("-")[2] ? frequencyQuery.split("-")[2] : 0;
-              updatedItem.tcm_tmm_freq_morning = frequencyQuery.split("-")[0] ? frequencyQuery.split("-")[0] : 0;
-              updatedItem.tcm_tmm_freq_night = frequencyQuery.split("-")[3] ? frequencyQuery.split("-")[3] : 0;
-            } else {
-              updatedItem.tcm_tmm_freq_afternoon = frequencyQuery.split("-")[1] ? frequencyQuery.split("-")[1] : 0;
-              updatedItem.tcm_tmm_freq_evening = 0;
-              updatedItem.tcm_tmm_freq_morning = frequencyQuery.split("-")[0] ? frequencyQuery.split("-")[0] : 0;
-              updatedItem.tcm_tmm_freq_night = frequencyQuery.split("-")[2] ? frequencyQuery.split("-")[2] : 0;
-            }
-            
-            return updatedItem;
-          }
+      if (isNumeric(frequencyQuery) && frequencyQuery.length <= 3) {
+        medicationData[i].tmm_freq_type_name = `${frequencyQuery[0]}-${frequencyQuery[1] ? frequencyQuery[1] : 0}-${frequencyQuery[2] ? frequencyQuery[2] : 0}`;
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        medicationData[i].tcm_tmm_freq_afternoon = frequencyQuery[1] ? frequencyQuery[1] : 0;
+        medicationData[i].tcm_tmm_freq_evening = 0;
+        medicationData[i].tcm_tmm_freq_morning = frequencyQuery[0];
+        medicationData[i].tcm_tmm_freq_night = frequencyQuery[2] ? frequencyQuery[2] : 0;
+        setMedicationData((prev) => [...prev]);
+      } else if (isNumeric(frequencyQuery) && frequencyQuery.length >= 4) {
+        medicationData[i].tmm_freq_type_name = `${frequencyQuery[0]}-${frequencyQuery[1] ? frequencyQuery[1] : 0}-${frequencyQuery[2] ? frequencyQuery[2] : 0}-${frequencyQuery[3] ? frequencyQuery[3] : 0}`;
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        medicationData[i].tcm_tmm_freq_afternoon = frequencyQuery[1] ? frequencyQuery[1] : 0;
+        medicationData[i].tcm_tmm_freq_evening = frequencyQuery[2] ? frequencyQuery[2] : 0;
+        medicationData[i].tcm_tmm_freq_morning = frequencyQuery[0];
+        medicationData[i].tcm_tmm_freq_night = frequencyQuery[3] ? frequencyQuery[3] : 0;
+        setMedicationData((prev) => [...prev]);
+      } else if (!frequencyFormat(medicationData[i].tmm_freq_type_name) && filteredTitles.findIndex((x) => x.tmf_title == medicationData[i].tmm_freq_type_name) == -1) {
+        medicationData[i].tmm_freq_type_name = "";
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        medicationData[i].tcm_tmm_freq_afternoon = 0;
+        medicationData[i].tcm_tmm_freq_evening = 0;
+        medicationData[i].tcm_tmm_freq_morning = 0;
+        medicationData[i].tcm_tmm_freq_night = 0;
+        setMedicationData((prev) => [...prev]);
+      } else if (frequencyFormat(medicationData[i].tmm_freq_type_name)) {
+        medicationData[i].tmm_freq_type_name = frequencyQuery;
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        if (frequencyQuery.split("-")[3] !== undefined) {
+          medicationData[i].tcm_tmm_freq_afternoon = frequencyQuery.split("-")[1] ? frequencyQuery.split("-")[1] : 0;
+          medicationData[i].tcm_tmm_freq_evening = frequencyQuery.split("-")[2] ? frequencyQuery.split("-")[2] : 0;
+          medicationData[i].tcm_tmm_freq_morning = frequencyQuery.split("-")[0] ? frequencyQuery.split("-")[0] : 0;
+          medicationData[i].tcm_tmm_freq_night = frequencyQuery.split("-")[3] ? frequencyQuery.split("-")[3] : 0;
+        } else {
+          medicationData[i].tcm_tmm_freq_afternoon = frequencyQuery.split("-")[1] ? frequencyQuery.split("-")[1] : 0;
+          medicationData[i].tcm_tmm_freq_evening = 0;
+          medicationData[i].tcm_tmm_freq_morning = frequencyQuery.split("-")[0] ? frequencyQuery.split("-")[0] : 0;
+          medicationData[i].tcm_tmm_freq_night = frequencyQuery.split("-")[2] ? frequencyQuery.split("-")[2] : 0;
         }
-        return item;
-      });
-      dispatch(setMedicationData(updatedMedicationData));
+        setMedicationData((prev) => [...prev]);
+      }
     },
     [medicationData]
   );
@@ -557,23 +499,14 @@ function MedicationsBox(props) {
 
         setFrequencyOptions(data)
 
-        // Create a new array with updated medication data
-        const updatedMedicationData = medicationData.map((item, index) => {
-          if (index === i) {
-            return {
-              ...item,
-              tmm_freq_type_name: query,
-              tmf_block: 0,
-              tmm_freq_type: 0,
-              tcm_tmm_freq_afternoon: 0,
-              tcm_tmm_freq_evening: 0,
-              tcm_tmm_freq_morning: 0,
-              tcm_tmm_freq_night: 0,
-            };
-          }
-          return item;
-        });
-        dispatch(setMedicationData(updatedMedicationData));
+        medicationData[i].tmm_freq_type_name = query;
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        medicationData[i].tcm_tmm_freq_afternoon = 0;
+        medicationData[i].tcm_tmm_freq_evening = 0;
+        medicationData[i].tcm_tmm_freq_morning = 0;
+        medicationData[i].tcm_tmm_freq_night = 0;
+        setMedicationData((prev) => [...prev]);
       }
     },
     [frequencyOptions, medicationData]
@@ -581,79 +514,50 @@ function MedicationsBox(props) {
 
   const onSelectFrequencyChild = useCallback(
     (data, i) => {
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          if (data) {
-            const objParse = JSON.parse(data);
-            setFrequencyQuery(objParse.tmf_title);
-            
-            const updatedItem = {
-              ...item,
-              tmm_freq_type_name: objParse.tmf_title,
-              tmf_block: objParse.tmf_block,
-              tmf_block_val: objParse.tmf_block_val,
-              tmm_freq_type: objParse.tmf_id,
-            };
-
-            if (objParse.tmf_title.split("-")[3] !== undefined) {
-              updatedItem.tcm_tmm_freq_afternoon = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[1] ? objParse.tmf_title.split("-")[1] : 0;
-              updatedItem.tcm_tmm_freq_evening = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[2] ? objParse.tmf_title.split("-")[2] : 0;
-              updatedItem.tcm_tmm_freq_morning = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[0] ? objParse.tmf_title.split("-")[0] : 0;
-              updatedItem.tcm_tmm_freq_night = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[3] ? objParse.tmf_title.split("-")[3] : 0;
-            } else {
-              updatedItem.tcm_tmm_freq_afternoon = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[1] ? objParse.tmf_title.split("-")[1] : 0;
-              updatedItem.tcm_tmm_freq_evening = 0;
-              updatedItem.tcm_tmm_freq_morning = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[0] ? objParse.tmf_title.split("-")[0] : 0;
-              updatedItem.tcm_tmm_freq_night = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[2] ? objParse.tmf_title.split("-")[2] : 0;
-            }
-            
-            return updatedItem;
-          } else {
-            setFrequencyQuery("");
-            return {
-              ...item,
-              tmm_freq_type_name: "",
-              tmf_block: 0,
-              tmm_freq_type: 0,
-              tcm_tmm_freq_afternoon: 0,
-              tcm_tmm_freq_evening: 0,
-              tcm_tmm_freq_morning: 0,
-              tcm_tmm_freq_night: 0,
-            };
-          }
+      if (data) {
+        const objParse = JSON.parse(data);
+        setFrequencyQuery(objParse.tmf_title)
+        medicationData[i].tmm_freq_type_name = objParse.tmf_title;
+        medicationData[i].tmf_block = objParse.tmf_block;
+        medicationData[i].tmf_block_val = objParse.tmf_block_val;
+        medicationData[i].tmm_freq_type = objParse.tmf_id;
+        if (objParse.tmf_title.split("-")[3] !== undefined) {
+          medicationData[i].tcm_tmm_freq_afternoon = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[1] ? objParse.tmf_title.split("-")[1] : 0;
+          medicationData[i].tcm_tmm_freq_evening = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[2] ? objParse.tmf_title.split("-")[2] : 0;
+          medicationData[i].tcm_tmm_freq_morning = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[0] ? objParse.tmf_title.split("-")[0] : 0;
+          medicationData[i].tcm_tmm_freq_night = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[3] ? objParse.tmf_title.split("-")[3] : 0;
+        } else {
+          medicationData[i].tcm_tmm_freq_afternoon = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[1] ? objParse.tmf_title.split("-")[1] : 0;
+          medicationData[i].tcm_tmm_freq_evening = 0;
+          medicationData[i].tcm_tmm_freq_morning = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[0] ? objParse.tmf_title.split("-")[0] : 0;
+          medicationData[i].tcm_tmm_freq_night = objParse.tmf_id != 0 ? 0 : objParse.tmf_title.split("-")[2] ? objParse.tmf_title.split("-")[2] : 0;
         }
-        return item;
-      });
-      dispatch(setMedicationData(updatedMedicationData));
+      } else {
+        setFrequencyQuery("")
+        medicationData[i].tmm_freq_type_name = "";
+        medicationData[i].tmf_block = 0;
+        medicationData[i].tmm_freq_type = 0;
+        medicationData[i].tcm_tmm_freq_afternoon = 0;
+        medicationData[i].tcm_tmm_freq_evening = 0;
+        medicationData[i].tcm_tmm_freq_morning = 0;
+        medicationData[i].tcm_tmm_freq_night = 0;
+      }
+      setMedicationData((prev) => [...prev]);
     },
     [medicationData]
   );
 
   const onSelectTimingChild = useCallback(
     (data, i) => {
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          if (data) {
-            const objParse = JSON.parse(data);
-            return {
-              ...item,
-              tmm_time: objParse.tmt_id,
-              tmm_time_name: objParse.tmt_title,
-            };
-          } else {
-            return {
-              ...item,
-              tmm_time: 0,
-              tmm_time_name: '',
-            };
-          }
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
+      if (data) {
+        const objParse = JSON.parse(data);
+        medicationData[i].tmm_time = objParse.tmt_id;
+        medicationData[i].tmm_time_name = objParse.tmt_title;
+      } else {
+        medicationData[i].tmm_time = 0;
+        medicationData[i].tmm_time_name = '';
+      }
+      setMedicationData((prev) => [...prev]);
     },
     [medicationData]
   );
@@ -661,22 +565,10 @@ function MedicationsBox(props) {
   const onSearchSinceChid = useCallback(
     (query, i) => {
       const updateQuery = onlyNumberFormat(query);
-      
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          return {
-            ...item,
-            tmm_days_duration_type: updateQuery,
-            tmm_days: '',
-            tmm_duration_type: '',
-          };
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
-      
+      medicationData[i].tmm_days_duration_type = updateQuery;
+      medicationData[i].tmm_days = '';
+      medicationData[i].tmm_duration_type = '';
+      setMedicationData((prev) => [...prev]);
       if (updateQuery) {
         const options = SINCE_OPTIONS.map((option) => {
           return {
@@ -697,37 +589,22 @@ function MedicationsBox(props) {
     (data, e, i) => {
       setSinceOptions(EXTRA_OPTIONS);
       const objParse = JSON.parse(e.key);
-      
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          return {
-            ...item,
-            tmm_days_duration_type: data,
-            tmm_days: objParse.tmm_days,
-            tmm_duration_type: objParse.value,
-          };
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
+      medicationData[i].tmm_days_duration_type = data;
+      medicationData[i].tmm_days = objParse.tmm_days;
+      medicationData[i].tmm_duration_type = objParse.value;
+      setMedicationData((prev) => [...prev]);
     },
     [sinceOptions, medicationData]
   );
 
   const onAutoFillDuration = (index) => {
     const { tmm_days_duration_type, tmm_days, tmm_duration_type } = medicationData[index]
-    
-    // Create a new array with updated medication data
-    const updatedMedicationData = medicationData.map(e => ({
-      ...e,
-      tmm_days_duration_type: tmm_days_duration_type,
-      tmm_days: tmm_days,
-      tmm_duration_type: tmm_duration_type,
-    }));
-    
-    dispatch(setMedicationData(updatedMedicationData));
+    medicationData.forEach(e => {
+      e.tmm_days_duration_type = tmm_days_duration_type;
+      e.tmm_days = tmm_days;
+      e.tmm_duration_type = tmm_duration_type;
+    });
+    setMedicationData((prev) => [...prev]);
     message.open({
       key: MESSAGE_KEY,
       type: '',
@@ -747,26 +624,15 @@ function MedicationsBox(props) {
 
   const onChangeNoteChild = useCallback(
     (e, i) => {
-      // Create a new array with updated medication data
-      const updatedMedicationData = medicationData.map((item, index) => {
-        if (index === i) {
-          return {
-            ...item,
-            tmm_remarks: e.target.value,
-          };
-        }
-        return item;
-      });
-      
-      dispatch(setMedicationData(updatedMedicationData));
+      medicationData[i].tmm_remarks = e.target.value;
+      setMedicationData((prev) => [...prev]);
     },
     [medicationData]
   );
 
   const onRemoveRow = (index) => {
-    // Create a new array without the item at the specified index
-    const updatedMedicationData = medicationData.filter((_, i) => i !== index);
-    dispatch(setMedicationData(updatedMedicationData));
+    medicationData.splice(index, 1);
+    setMedicationData((prev) => [...prev]);
   };
 
   //PopOver1 function
@@ -828,7 +694,7 @@ function MedicationsBox(props) {
           unique_id: uuidv4(),
         };
       });
-      dispatch(setMedicationData([...medicationData, ...updatedData]));
+      setMedicationData([...medicationData, ...updatedData]);
     } else {
       errorMessage(action.error)
     }
@@ -873,7 +739,7 @@ function MedicationsBox(props) {
           unique_id: uuidv4(),
         };
       });
-      dispatch(setMedicationData([...medicationData, ...updatedData]));
+      setMedicationData([...medicationData, ...updatedData]);
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
@@ -1064,11 +930,8 @@ function MedicationsBox(props) {
       unique_id: uuidv4(),
     }
     let { index, ...updated } = updatedData
-    
-    // Create a new array with the new item inserted
-    const updatedMedicationData = [...medicationData];
-    updatedMedicationData.splice(parseInt(array.at(-1).index) + 1, 0, updated);
-    dispatch(setMedicationData(updatedMedicationData));
+    medicationData.splice(parseInt(array.at(-1).index) + 1, 0, updated);
+    setMedicationData((prev) => [...prev]);
   };
 
   const reorder = async (list, startIndex, endIndex) => {
@@ -1100,21 +963,20 @@ function MedicationsBox(props) {
       result.source.index,
       result.destination.index
     );
-    dispatch(setMedicationData(reorderedItems));
+    setMedicationData(reorderedItems);
   };
 
   const TABLE_MEDICATION = useMemo(() => {
-    const noteProps = isEditable ? { lg: 6, md: 6, sm: 6, xs: 6 } : { flex: 'auto' };
     return (
-      <div className="ipd-wrapper-class-medbox-readonly">
+      <>
         {medicationData.length > 0 &&
           <Row
             gutter={[0]}
-            className={`mt-14 border-top align-items-center ${!isEditable ? 'ipd-wrapper-class-medbox-thead-readonly' : ''}`}
+            className={`mt-14 border-top align-items-center`}
           >
-            {isEditable ? <Col lg={1} md={1} sm={1} xs={1}>
+            <Col lg={1} md={1} sm={1} xs={1}>
               &nbsp;
-            </Col> : null}
+            </Col>
             <Col lg={5} md={5} sm={5} xs={5}>
               <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                 <label>MEDICINE</label>
@@ -1138,7 +1000,7 @@ function MedicationsBox(props) {
                       arrow={false}
                       onOpenChange={showHideFrequencyPopOver}
                       overlayClassName="pp-0">
-                      {isEditable ? <i className='icon-info ms-1 fs-18'></i> : null}
+                      <i className='icon-info ms-1 fs-18'></i>
                     </Popover>
                   </div>
                 </Col>
@@ -1152,32 +1014,24 @@ function MedicationsBox(props) {
                     <label>DURATION</label>
                   </div>
                 </Col>
-                <Col {...noteProps} className="border-end">
+                <Col lg={6} md={6} sm={6} xs={6} className="border-end">
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>NOTE</label>
                   </div>
                 </Col>
-                {isEditable && <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                <Col lg={1} md={1} sm={2} xs={2} className="text-center">
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label></label>
                   </div>
-                </Col>}
+                </Col>
               </Row>
             </Col>
           </Row>
         }
         <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="medication" direction="vertical" className="ipd-wrapper-class-medbox-tbody-readonly"
-          //  style={{
-          //     borderRadius: '12px',
-          //     borderTopLeftRadius: 0,
-          //     borderTopRightRadius: 0,
-          //     border: '1px solid #dee2e6 !important',
-          //     borderTopWidth: '0 !important'
-          //   }}
-            >
+          <Droppable droppableId="medication" direction="vertical">
             {(provided) => (
-              <div  className="ipd-wrapper-class-medbox-tbody-readonly" {...provided.droppableProps} ref={provided.innerRef}>
+              <div {...provided.droppableProps} ref={provided.innerRef}>
                 {medicationData.length > 0 &&
                   medicationData.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], []).map((item, i) => (
                     <Draggable key={i} draggableId={`medication-${i}`} index={i}>
@@ -1189,14 +1043,14 @@ function MedicationsBox(props) {
                           gutter={[0]}
                           className={`taper-dose align-items-center ${i === 0 && "border-top"} border-bottom`}
                         >
-                          {isEditable ? <Col lg={1} md={1} sm={1} xs={1} className="text-center">
+                          <Col lg={1} md={1} sm={1} xs={1} className="text-center">
                             <MenuOutlined
                               {...provided.dragHandleProps}
                               className="drag-handle"
                               style={{ cursor: 'grab' }}
                             >
                             </MenuOutlined>
-                          </Col> : null}
+                          </Col>
                           <Col lg={5} md={5} sm={5} xs={5}>
                             <div className="fontroboto fw-medium p-2 pe-3">
                               <label>{item.tmm_medicine_name}</label>
@@ -1206,7 +1060,7 @@ function MedicationsBox(props) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18}>
-                            {(!item.pms_default && isEditable) &&
+                            {!item.pms_default &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
@@ -1254,7 +1108,7 @@ function MedicationsBox(props) {
                                   <Col lg={4} md={4} sm={4} xs={4} className="border-end">
                                     <Select
                                       showSearch
-                                      className={`autocomplete-custom w-100 h-100 inputborder ${!isEditable ? 'autoselect-medrx-readonly': ''}`}
+                                      className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g 1-0-1"
                                       defaultValue={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
                                       value={item.tmm_freq_type_name != "" ? item.tmm_freq_type_name : null}
@@ -1269,7 +1123,7 @@ function MedicationsBox(props) {
                                   </Col>
                                   <Col lg={4} md={4} sm={4} xs={4} className="border-end">
                                     <Select
-                                      className={`autocomplete-custom w-100 h-100 inputborder ${!isEditable ? 'autoselect-medrx-readonly': ''}`}
+                                      className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
                                       defaultValue={item.tmm_time_name != "" && item.tmm_time_name !== "None" ? item.tmm_time_name : null}
                                       value={item.tmm_time_name != "" && item.tmm_time_name !== "None" ? item.tmm_time_name : null}
@@ -1304,12 +1158,12 @@ function MedicationsBox(props) {
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col {...noteProps} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
                                     <TextArea
                                       className="notesinput border-0 h-100 align-self-center"
                                       placeholder="Notes"
                                       defaultValue={item.tmm_remarks}
-                                      value={item?.tmm_remarks}
+                                      value={item.tmm_remarks}
                                       autoSize={{
                                         minRows: 1,
                                         maxRows: 2,
@@ -1317,14 +1171,14 @@ function MedicationsBox(props) {
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
                                   </Col>
-                                  {isEditable ? <Col lg={1} md={1} sm={2} xs={2} className="d-flex align-items-center justify-content-center">
+                                  <Col lg={1} md={1} sm={2} xs={2} className="d-flex align-items-center justify-content-center">
                                     <Button
                                       className="btn py-0 btn-delete-prescription px-0"
                                       onClick={() => onRemoveRow(item?.index)}
                                     >
                                       <i className="icon-delete"></i>
                                     </Button>
-                                  </Col> : null}
+                                  </Col>
                                   {ii != 0 && (<div className="badge-then">Then</div>)}
                                 </Row>
                               )
@@ -1342,9 +1196,9 @@ function MedicationsBox(props) {
             )}
           </Droppable>
         </DragDropContext>
-      </div>
+      </>
     );
-  }, [medicationData, frequencyPopOver, isEditable]);
+  }, [medicationData, frequencyPopOver]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {
@@ -1799,26 +1653,21 @@ function MedicationsBox(props) {
             return item;
           });
         } else {
-          // Create a new array with updated medication data
-          const updatedMedicationData = medicationData.map(item => {
+          medicationData.map(item => {
             if (item.tmm_id == modifyData.tmm_id) {
-              return {
-                ...item,
-                tmm_medicine_name: modifyData.tmm_medicine_name,
-                tmm_generic: modifyData.tmm_generic,
-                tmm_company: modifyData.tmm_company,
-                tmm_type: modifyData.tmm_type,
-                tmm_dosage_unit_name: '',
-                tmm_dosage: '',
-                tmm_unit: 0,
-                tmm_unit_name: '',
-                tmu_id: 0,
-                medicineUnit: modifyData.medicineUnit,
-              };
+              item.tmm_medicine_name = modifyData.tmm_medicine_name;
+              item.tmm_generic = modifyData.tmm_generic;
+              item.tmm_company = modifyData.tmm_company;
+              item.tmm_type = modifyData.tmm_type;
+              item.tmm_dosage_unit_name = '';
+              item.tmm_dosage = '';
+              item.tmm_unit = 0;
+              item.tmm_unit_name = '';
+              item.tmu_id = 0;
+              item.medicineUnit = modifyData.medicineUnit;
             }
             return item;
           });
-          dispatch(setMedicationData(updatedMedicationData));
         }
       } else {
         const updatedData = action.payload.map((e) => {
@@ -1890,16 +1739,16 @@ function MedicationsBox(props) {
             exist: dosesList.some((e1) => e1.medicine_id == modifyData.tmm_id) ? true : false
           });
         } else {
-          // Create a new array with the new medication added
-          const updatedMedicationData = [...medicationData, updatedData[0]];
-          dispatch(setMedicationData(updatedMedicationData));
+          medicationData.push({
+            ...updatedData[0],
+          });
         }
       }
       if (doseCalculatorDrawer) {
-        setMedicationLibrary(medicationData);
+        setMedicationLibrary((prev) => [...prev]);
         setSearchMLQuery("");
       } else {
-        dispatch(setMedicationData(medicationData));
+        setMedicationData((prev) => [...prev]);
         setSearchParentQuery("");
       }
       showHideAddMedicineModal()
@@ -2024,7 +1873,7 @@ function MedicationsBox(props) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    dispatch(setMedicationData([]))
+    setMedicationData([])
     showHideClearData()
   };
 
@@ -2080,21 +1929,20 @@ function MedicationsBox(props) {
   }, [isPillUpAccessableFromGB]);
 
   const PILLUP_CONTENT = useCallback(() => {
-    if (!isEditable) return null;
-    
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
     const isZydusUser = tokenData?.hospital_business_id == env.zydus_business_id;
     
     const serviceName = isZydusUser ? "eaZY Dose" : "PillUp";
     const serviceNameTitle = isZydusUser ? "eaZY Dose Fulfilment" : "Pillup Fulfilment";
+    
     return (
       <div className="p-2">
         <div className="fs-18 fw-semibold text-black">{serviceNameTitle} <img className="img-fluid ms-2" src={tagNew} /></div>
         <div className="pt-1">You can now activate <b>{serviceName}</b> medicine <br /> fulfilment for the patient by enabling <br /> the toggle</div>
       </div>
     );
-  }, [popOver3, isEditable]);
+  }, [popOver3]);
 
   //PopOver3 function
   const showHidePillUpPopover = useCallback(() => {
@@ -2135,7 +1983,7 @@ function MedicationsBox(props) {
   ];
 
   const pillUpChange = (checked) => {
-    dispatch(setPillupSwitch(checked))
+    setPillupSwitch(checked)
   };
 
   return (
@@ -2144,8 +1992,8 @@ function MedicationsBox(props) {
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
-            <div className="title-common">{isDischargeSummary ? isPillUpAccessableFromGB ? 'Discharge Meds': 'Discharge Medications': isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)</div>
-            {(isPillUpAccessableFromGB && isEditable) &&
+            <div className="title-common">{isPillUpAccessableFromGB ? 'Meds' : 'Medications'} (Rx)</div>
+            {isPillUpAccessableFromGB &&
               <div ref={tourRef} className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center" style={{ backgroundColor: 'rgb(226, 226, 234, 0.2)' }}>
                 {(() => {
                   const decodedToken = getDecodedToken();
@@ -2167,7 +2015,7 @@ function MedicationsBox(props) {
               </div>
             }
           </div>
-          {isEditable && <div className="d-flex align-items-center">
+          <div className="d-flex align-items-center">
             {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
               <button
                 className="btn d-flex align-items-center btn-text"
@@ -2217,7 +2065,7 @@ function MedicationsBox(props) {
             <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={medicationData.length > 0 ? false : true}>
               <i className="icon-eraser1 me-2"></i> {!isPillUpAccessableFromGB && <span>Clear</span>}
             </button>
-          </div>}
+          </div>
         </div>
 
         {DELETE_MODAL}
@@ -2259,7 +2107,7 @@ function MedicationsBox(props) {
           </Drawer>
         }
 
-        {isEditable && <div className="p-14">
+        <div className="p-14">
           <AutoComplete
             // defaultValue={searchParentQuery}
             value={searchParentQuery}
@@ -2275,7 +2123,7 @@ function MedicationsBox(props) {
               prefix={<i className="icon-search"></i>}
             />
           </AutoComplete>
-        </div>}
+        </div>
       </div>
     </>
   );

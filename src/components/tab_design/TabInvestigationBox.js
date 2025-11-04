@@ -24,7 +24,7 @@ import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
 
-function TabInvestigationBox({handleDDxDrawer, generatedDDx, investigationData: propInvestigationData, setInvestigationData: propSetInvestigationData, diagnosisData: propDiagnosisData}) {
+function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
 
     const {
         selectedInvestigationList,
@@ -35,13 +35,9 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx, investigationData: 
     const dispatch = useDispatch();
 
     const { isLabTestBox } = useSelector((state) => state.ddx);
-    // Use context if available, otherwise use props
-  const contextData = useContext(CashManagerContext);
-
-  // Fallback to context if props are not provided
-  const investigationData = propInvestigationData ?? contextData?.investigationData ?? [];
-  const setInvestigationData = propSetInvestigationData ?? contextData?.setInvestigationData ?? (() => {});
-  const diagnosisData = propDiagnosisData ?? contextData?.diagnosisData ?? [];
+    const { investigationData, setInvestigationData, diagnosisData } =
+      useContext(CashManagerContext);
+    // const [ investigationData, setInvestigationData] = useState([]);
 
     const [ddxInvestigationOptionsList, setDdxInvestigationOptionsList] =
     useState([]);
@@ -650,7 +646,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx, investigationData: 
                     { filteredDdxInvestigationOptionsList?.length > 0 && <DifferentialDiagnosis handleDDxDrawer={handleDDxDrawer} ddxOptionsList={filteredDdxInvestigationOptionsList} onSelectParent={onSelectParent} />}
                 </div>
                 <Drawer closeIcon={false} placement="right" onClose={handleDrawerParent} open={parentDrawer || isLabTestBox} width={'100%'} className="searchdrawer-content">
-                    {(parentDrawer || isLabTestBox) && (<TabInvestigationSearch passIndex={isLabTestBox ? investigationData?.length - 1 : selectedIndex} onClose={handleDrawerParent} ddxOptionsList={filteredDdxInvestigationOptionsList} investigationData={investigationData} setInvestigationData={setInvestigationData} />)}
+                    {(parentDrawer || isLabTestBox) && (<TabInvestigationSearch passIndex={isLabTestBox ? investigationData?.length - 1 : selectedIndex} onClose={handleDrawerParent} ddxOptionsList={filteredDdxInvestigationOptionsList} />)}
                 </Drawer>
                 <div className="d-flex flex-wrap p-14-pb0 overflow-hidden" style={{ maxHeight: '114px' }}>
                     {parentOptionsList.length > 0 &&
