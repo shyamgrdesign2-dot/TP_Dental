@@ -191,33 +191,39 @@ const PatientsTable = ({
             className="view-details-btn"
             onClick={() => {
               onViewDetails(record?.patientData);
-            } }
+            }}
           >
             {isMobile ? "View" : "View Details"}
           </button>
           {!isDischargedPatients && !record?.isDischarged ? (
             <Popover
-              open={openMoreActionsPopover === record?.patientData?.admissionId}
+              open={openMoreActionsPopover === record?.patientData?._id}
               onOpenChange={(open) => {
                 if (!open) {
                   setOpenMoreActionsPopover(null);
                 }
-              } }
-              content={<MoreActionsContent
-                handleMarkPatientAsDischarged={handleMarkPatientAsDischarged}
-                record={record?.patientData} />}
+              }}
+              content={
+                <MoreActionsContent
+                  handleMarkPatientAsDischarged={handleMarkPatientAsDischarged}
+                  record={record?.patientData}
+                />
+              }
               trigger="click"
-              overlayClassName="zindex-1000 pp-0 videoTutorial"
+              overlayClassName="pop-200 pp-0 videoTutorial"
               placement="bottomRight"
               arrow={false}
             >
               <img
-                onClick={() => showHideMoreActionPopover(
-                  !openMoreActionsPopover ? record?.patientData?.admissionId : null
-                )}
+                onClick={() =>
+                  showHideMoreActionPopover(
+                    !openMoreActionsPopover ? record?.patientData?._id : null
+                  )
+                }
                 className="cursor-pointer"
                 src={defaultIcons.moreIcon}
-                alt={":"} />
+                alt={":"}
+              />
             </Popover>
           ) : null}
         </div>
