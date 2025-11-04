@@ -15,37 +15,16 @@ import { updateVisitStatus } from '../api/services/VisitService';
 import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
-import { fetchPatientDefaultLanguage } from '../api/services/DefaultLanguageService';
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang }) {
     const navigate = useNavigate();
-    const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+    const { profile } = useSelector((state) => state.doctors);
     const {
         loadingEndVisit,
     } = useSelector((state) => state.caseManager);
-    const [selectedLang, setSelectedLang] = useState("");
     const dispatch = useDispatch();
     const urlParams = new URLSearchParams(window.location.search);
     const isReceptionist = urlParams.has("receptionist");
-
-    useEffect(() => {
-        if (defaultPrintSettings) {
-            getPatientDefaultLanguage();
-        }
-    }, [defaultPrintSettings]);
-
-    const getPatientDefaultLanguage = async () => {
-        const res = await fetchPatientDefaultLanguage(
-            patient_data?.patient_unique_id
-        );
-        if (res?.settings?.defaultLanguage) {
-            setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
-        } else if (defaultPrintSettings?.default_language !== "English") {
-          setSelectedLang(
-            btoa(defaultPrintSettings?.default_language?.toString())
-          );
-        }
-    };
 
     const onEndVisitClick = async () => {
         if (handleGoToAppointment) {
@@ -56,7 +35,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                 patient_data !== undefined ? patient_data.patient_unique_id : 0,
               pm_pid: patient_data !== undefined ? patient_data.pm_pid : 0,
               tcm_id: tcm_id,
-              lg: selectedLang,
+              lg: selectedLang !== undefined && selectedLang !== "English" ? btoa(selectedLang.toString()) : '',
             };
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
             if (pam_id) {
