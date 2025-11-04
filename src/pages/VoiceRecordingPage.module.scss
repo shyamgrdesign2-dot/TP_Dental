@@ -216,10 +216,10 @@
     max-width: 700px;
 
     .greeting {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      line-height: 36px;
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      line-height: 44px;
       letter-spacing: 0px;
       opacity: 0.8;
       font-family: 'Poppins', sans-serif;
@@ -233,32 +233,36 @@
     }
 
     .title {
-      font-size: 42px;
-      font-weight: 700;
+      font-size: 32px;
+      font-weight: 600;
       background: linear-gradient(135deg, #943CD7 0%, #353CBB 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      margin-bottom: 24px;
-      line-height: 1.1;
+      margin-bottom: 4px;
+      line-height: 44px;
       font-family: 'Poppins', sans-serif;
     }
 
     .description {
-      font-size: 18px;
-      color: #6B7280;
-      line-height: 1.5;
-      width: 441px;
-      height: 66px;
+      font-size: 16px;
+      color: #3D4854;
+      line-height: 30px;
+      width: 570.14px;
+      min-height: 60px;
       margin: 0 auto;
       font-family: 'Poppins', sans-serif;
       font-weight: 400;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       text-align: center;
-      padding: 12px;
+      opacity: 0.8;
+      display: block;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
       box-sizing: border-box;
+
+      strong {
+        font-weight: 500;
+      }
     }
   }
 
@@ -687,7 +691,7 @@
   font-weight: 500;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .bottomCenterBar { bottom: 60px; }
   .recBar { 
     width: 92vw;
@@ -793,6 +797,9 @@
 
       .description {
         font-size: 16px;
+        width: auto !important;
+        max-width: 100%;
+        height: auto !important;
       }
     }
 

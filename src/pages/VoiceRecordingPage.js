@@ -268,7 +268,7 @@ const VoiceRecordingPage = () => {
             Start Your Consultation!
           </div>
           <div className={styles.description}>
-            Simply by dictating the Rx or by capturing your conversation with the patient. I'll transcribe & structure the Rx automagically!
+            Simply by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the patient</strong>. I'll transcribe & structure the <strong>Rx automagically!</strong>
           </div>
         </div>
 

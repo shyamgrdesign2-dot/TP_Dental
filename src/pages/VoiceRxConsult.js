@@ -71,14 +71,13 @@ const VoiceRxConsult = () => {
 
   return (
     <div className={styles.voiceRxConsultPage}>
-      <div>
-          {/* Header with Patient Details */}
+      {/* Header */}
           <div className={styles.header}>
         <div className={styles.leftSection}>
-          <div className={`${styles.backButtonContainer} h-100 text-center`}>
+          <div className={styles.backButtonContainer}>
             <div
               onClick={handleBack}
-              className="btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer"
+              className="btn-headerback align-items-center d-flex h-100 justify-content-center cursor-pointer"
             >
               <i className="icon-right"></i>
             </div>
@@ -91,11 +90,8 @@ const VoiceRxConsult = () => {
         </div>
         
         <div className={styles.rightSection}>
-          <button
-            onClick={showHideVideoListPopover}
-            className={`${styles.tutorialButton} btn d-flex align-items-center btn-text`}
-          >
-              <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'>
+          <button className={styles.tutorialButton} onClick={showHideVideoListPopover}>
+              <span className={styles.tutorialButtonContent}>
                 <img height={42} src={tutorial} alt="Tutorial" />
                 Tutorial
               </span>
@@ -114,8 +110,8 @@ const VoiceRxConsult = () => {
               </div>
               <div className={styles.title}>Start Your Consultation!</div>
               <div className={styles.description}>
-                Simply by dictating the Rx or by capturing your conversation with the
-                patient. I’ll transcribe & structure the Rx automagically!
+                Simply by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the
+                patient</strong>. I'll transcribe & structure the <strong>Rx automagically!</strong>
               </div>
             </div>
             <div className={styles.inputSection}>
@@ -221,7 +217,6 @@ const VoiceRxConsult = () => {
           <GenRxKnowMore handleGenRxKnowMore={showHideVideoListPopover} />
         </div>
       </Drawer>
-    </div>
   </div>
 );
 };
