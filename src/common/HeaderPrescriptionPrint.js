@@ -40,10 +40,10 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
         );
         if (res?.settings?.defaultLanguage) {
             setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
-        } else {
-            setSelectedLang(
-                btoa(defaultPrintSettings?.default_language?.toString())
-            );
+        } else if (defaultPrintSettings?.default_language !== "English") {
+          setSelectedLang(
+            btoa(defaultPrintSettings?.default_language?.toString())
+          );
         }
     };
 
