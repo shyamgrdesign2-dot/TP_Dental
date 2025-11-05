@@ -32,6 +32,7 @@ import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
   editGenRxDetails,
+  editAmbientRxDetails,
   getGenRx,
   getAmbientRx,
   setAddToRx,
@@ -39,7 +40,6 @@ import {
   updateGenRx,
   generateAmbientRx,
   updateAmbientRx,
-  editAmbientRx,
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
@@ -137,7 +137,7 @@ const ConsultationDrawer = ({
     (e) => e.service_name === S_VOICE_RX
   );
 
-  const { useVoiceRx, setUseVoiceRx, useDDX } = useContext(CashManagerContext);
+  const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
   const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation } = state || {};
@@ -169,6 +169,7 @@ const ConsultationDrawer = ({
   const [inputText, setInputText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
+  const [expandedTranscripts, setExpandedTranscripts] = useState(new Set([0])); // Track which transcript cards are expanded
   const [audioDuration, setAudioDuration] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [editableText, setEditableText] = useState("");
@@ -183,7 +184,7 @@ const ConsultationDrawer = ({
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   // const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
   const [editableKey, setEditableKey] = useState("");
-  const [queries, setQueries] = useState([]);
+  const [queries, setQueries] = useState([]); // Array of { text, isAudio, duration }
   const [isRxEdited, setIsRxEdited] = useState(false);
   const [editingModule, setEditingModule] = useState("");
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
@@ -813,10 +814,80 @@ const ConsultationDrawer = ({
           
           setPrescriptionData(prescriptionData);
           
+          // Convert API medicalHistory format to CashManagerContext format and populate it
+          if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+            const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
+            setMedicalHistoryData(convertedData);
+          }
+          
           const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
           const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
           
+          // Initialize queries array from all ambient entries for separate transcript boxes
+          // Each entry should only contain its own conversations, not cumulative
+          if (ambientEntries.length > 0) {
+            let previousConversations = [];
+            const ambientQueries = ambientEntries.map((entry, idx) => {
+              const entryConversations = entry?.payload?.conversation || [];
+              
+              // Extract only conversations that are NEW for this specific entry
+              // Compare with previous entries to identify new conversations
+              const newConversations = entryConversations.filter(conv => {
+                const convText = conv?.message || conv?.text || conv?.content || '';
+                const convSpeaker = (conv?.speaker || '').toLowerCase();
+                
+                // Check if this conversation already exists in previous entries
+                return !previousConversations.some(prevConv => {
+                  const prevText = prevConv?.message || prevConv?.text || prevConv?.content || '';
+                  const prevSpeaker = (prevConv?.speaker || '').toLowerCase();
+                  return prevText === convText && prevSpeaker === convSpeaker;
+                });
+              });
+              
+              // Update previous conversations for next iteration
+              previousConversations = [...previousConversations, ...entryConversations];
+              
+              // If no new conversations found, use transcription text as fallback
+              const transcription = entry?.payload?.transcription || entry?.transcription || '';
+              const conversationsToStore = newConversations.length > 0 ? newConversations : (
+                transcription ? [{
+                  speaker: 'doctor',
+                  text: transcription,
+                  message: transcription,
+                  content: transcription
+                }] : []
+              );
+              
+              return {
+                conversations: conversationsToStore,
+                isAudio: true, // Ambient entries are typically from audio
+                duration: entry?.payload?.source_duration || entry?.source_duration || null,
+                text: transcription
+              };
+            }).filter(query => query.conversations.length > 0 || query.text);
+            
+            if (ambientQueries.length > 0) {
+              setQueries(ambientQueries);
+              // Set first conversation for backward compatibility (use cumulative from latest entry)
           if (latestAmbientEntry?.payload?.conversation) {
+                setConversations(latestAmbientEntry.payload.conversation);
+              } else {
+                setConversations(ambientQueries[0].conversations);
+              }
+              // Expand first transcript box
+              setIsTranscriptExpanded(true);
+              setExpandedTranscripts(new Set());
+            } else if (latestAmbientEntry?.payload?.conversation) {
+            setConversations(latestAmbientEntry.payload.conversation);
+          } else if (response.data.source) {
+              const initialConversation = {
+                speaker: "doctor",
+                text: response.data.source,
+                timestamp: new Date().toISOString()
+              };
+              setConversations([initialConversation]);
+            }
+          } else if (latestAmbientEntry?.payload?.conversation) {
             setConversations(latestAmbientEntry.payload.conversation);
           } else if (response.data.source) {
             const initialConversation = {
@@ -842,9 +913,14 @@ const ConsultationDrawer = ({
         } else {
           
           if (response.data) {
-            setPrescriptionData(
-              response.data.editedData || response.data.digitizeData
-            );
+            const prescriptionDataFromResponse = response.data.editedData || response.data.digitizeData;
+            setPrescriptionData(prescriptionDataFromResponse);
+            
+            // Convert API medicalHistory format to CashManagerContext format and populate it
+            if (prescriptionDataFromResponse?.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
+              const convertedData = convertMedicalHistoryToContextFormat(prescriptionDataFromResponse.medicalHistory, medicalHistoryData);
+              setMedicalHistoryData(convertedData);
+            }
 
             let transcriptSource = response.data.source;
             if (!transcriptSource && response.data?.history?.length > 0) {
@@ -863,15 +939,19 @@ const ConsultationDrawer = ({
               timeRequiredInMs: response.data.timeRequiredInMs,
               type: response.data.type,
               _id: response.data._id,
-            });         
+            });
 
             if (transcriptSource && !caseManagerData?.smart_prescription_filename) {
               setFullTranscript(transcriptSource);
           
               if (!response.data.source && response.data?.history?.length > 0) {
             const validTranscriptions = response.data.history
-              .map(({ transcription }) => transcription)
-                  .filter((text) => text && text !== "null" && text);
+              .map(({ transcription, source_duration }) => ({
+                text: transcription,
+                isAudio: !!source_duration,
+                duration: source_duration || null
+              }))
+              .filter((query) => query.text && query.text !== "null" && query.text);
             if (validTranscriptions.length > 0) {
               setQueries(validTranscriptions);
             }
@@ -1023,7 +1103,7 @@ const ConsultationDrawer = ({
               }
             } catch (error) {
               console.error("Error processing prescription:", error);
-              message.error(error.message || "Failed to process prescription");
+              message.error(error?.message || "Failed to process prescription");
               setIsProcessing(false);
             }
           }
@@ -1033,7 +1113,7 @@ const ConsultationDrawer = ({
             : errorMessage(action?.payload?.data?.message);
         }
       } else {
-        errorMessage(action.payload.message);
+        errorMessage(action?.payload?.message || action?.error || "An error occurred");
       }
     }
   };
@@ -1170,6 +1250,9 @@ const ConsultationDrawer = ({
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
       const formData = new FormData();
       
+      // Store duration for this specific interaction (will be used for query duration)
+      let currentRecordingDuration = null;
+      
       if (audioBlobParam) {
         const audioFile = new File([audioBlobParam], `ambient-voice-rx-recording-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`, {
           type: audioBlobParam.type || 'audio/webm'
@@ -1179,10 +1262,15 @@ const ConsultationDrawer = ({
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         const duration = audioBuffer.duration;
         
-        formData.append("", audioFile);
+        // Store duration for this specific interaction
+        currentRecordingDuration = duration;
+        
+        // Append audio file with proper key for API
+        formData.append("file", audioFile);
         formData.append("source_duration", duration.toString());
       } else if (transcribedText) {
-        formData.append("", transcribedText);
+        // Append transcript text with proper key for API
+        formData.append("voice_prescription_text", transcribedText);
         }
 
         if (genRxDetails?._id) {
@@ -1192,8 +1280,11 @@ const ConsultationDrawer = ({
             JSON.stringify(data)
           );
         }
+        const patientId = patient_data?.patient_unique_id || "";
+        const admissionId = caseManagerData?.admission_id || null;
+        
         formData.append("doctorId", doctorId);
-        formData.append("patientId", patient_data?.patient_unique_id || "");
+        formData.append("patientId", patientId);
         formData.append("schemaKey", "default");
         formData.append("getConversation", "true");
         
@@ -1203,7 +1294,7 @@ const ConsultationDrawer = ({
           
           if (transcribedText) {
             const newFormData = new FormData();
-            newFormData.append("", updatedTranscript);
+            newFormData.append("voice_prescription_text", updatedTranscript);
             
             Array.from(formData.entries()).forEach(([key, value]) => {
               if (key !== '' || typeof value !== 'string') {
@@ -1211,36 +1302,104 @@ const ConsultationDrawer = ({
               }
             });
             
+            // Ensure all required fields are in FormData
+            if (!newFormData.has("doctorId")) {
+              newFormData.append("doctorId", doctorId);
+            }
+            if (!newFormData.has("patientId")) {
+              newFormData.append("patientId", patientId);
+            }
+            if (!newFormData.has("schemaKey")) {
+              newFormData.append("schemaKey", "default");
+            }
+            if (!newFormData.has("getConversation")) {
+              newFormData.append("getConversation", "true");
+            }
+            
             response = await updateAmbientRx(
               newFormData,
-              genRxDetails?._id
+              genRxDetails?._id,
+              patientId,
+              admissionId
             );
           } else {
+            // Ensure all required fields are in FormData
+            if (!formData.has("doctorId")) {
+              formData.append("doctorId", doctorId);
+            }
+            if (!formData.has("patientId")) {
+              formData.append("patientId", patientId);
+            }
+            if (!formData.has("schemaKey")) {
+              formData.append("schemaKey", "default");
+            }
+            if (!formData.has("getConversation")) {
+              formData.append("getConversation", "true");
+            }
+            
             response = await updateAmbientRx(
               formData,
-              genRxDetails?._id
+              genRxDetails?._id,
+              patientId,
+              admissionId
             );
           }
         } else {
+          // Ensure all required fields are in FormData
+          if (!formData.has("doctorId")) {
+            formData.append("doctorId", doctorId);
+          }
+          if (!formData.has("patientId")) {
+            formData.append("patientId", patientId);
+          }
+          if (!formData.has("schemaKey")) {
+            formData.append("schemaKey", "default");
+          }
+          if (!formData.has("getConversation")) {
+            formData.append("getConversation", "true");
+          }
+          
           response = await generateAmbientRx(
-            formData
+            formData,
+            patientId,
+            admissionId
           );
           
           if (transcribedText) {
             setFullTranscript(transcribedText);
           }
         }
-        const responseData = response.data || response;
-        const isSuccess = response.success !== false && responseData && (
-          responseData.digitize || 
-          responseData.rx || 
-          responseData.symptoms || 
-          responseData.conversation ||
-          responseData.rxDigitizationHistory
+                        // Handle response structure for ambient API
+        // Note: axiosService interceptor returns response.data, so response structure might be nested
+        const responseData = response?.data || response;
+        
+        // For ambient API, the actual data might be in responseData.data (double nesting)
+        const actualData = responseData?.data || responseData;
+        
+        // Check for success - ambient API might return data directly or wrapped
+        const isSuccess = (response?.success !== false || responseData?.success !== false || actualData?.success !== false) && (actualData || responseData) && (
+          actualData?.digitize || 
+          responseData?.digitize ||
+          actualData?.rx || 
+          responseData?.rx ||
+          actualData?.symptoms || 
+          responseData?.symptoms ||
+          actualData?.conversation ||
+          responseData?.conversation ||
+          actualData?.rxDigitizationHistory ||
+          responseData?.rxDigitizationHistory ||
+          actualData?._id || // Ambient API returns _id on success
+          responseData?._id ||
+          actualData?.source || // Ambient API might return source directly
+          responseData?.source ||
+          (actualData?.rxDigitizationHistory && Array.isArray(actualData.rxDigitizationHistory) && actualData.rxDigitizationHistory.length > 0) ||
+          (responseData?.rxDigitizationHistory && Array.isArray(responseData.rxDigitizationHistory) && responseData.rxDigitizationHistory.length > 0)            
         );
         
         if (isSuccess) {
-          if (!responseData) {
+          const finalResponseData = actualData || responseData;
+          
+          if (!finalResponseData) {
             console.error('❌ Response data is null or undefined');
             throw new Error('No data received from API');
           }
@@ -1249,30 +1408,107 @@ const ConsultationDrawer = ({
             let prescriptionData = null;
             let conversationData = null;
             
-            if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+            // Handle ambient API response structure
+            if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
+              // Priority 1: Check for editedData (contains user edits including dosage)
+              if (finalResponseData.editedData || responseData?.editedData) {
+                prescriptionData = finalResponseData.editedData || responseData.editedData;
+              }
+              // Priority 2: Check for digitizeData (aggregated data)
+              else if (finalResponseData.digitizeData || responseData?.digitizeData) {
+                prescriptionData = finalResponseData.digitizeData || responseData.digitizeData;
+              }
+              // Priority 3: Check for digitize object (single digitization)
+              else if (finalResponseData.digitize || responseData?.digitize) {
+                // Extract prescription data from digitize object
+                prescriptionData = finalResponseData.digitize || responseData.digitize;
+              } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
+                // Find the latest ambient entry (for get/edit operations)
+                const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+                const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
+                
+                if (latestAmbientEntry) {
+                  prescriptionData = latestAmbientEntry.payload?.response || 
+                                   latestAmbientEntry.response || 
+                                   latestAmbientEntry.payload;
+                  
+                  if (latestAmbientEntry.payload?.conversation) {
+                    conversationData = latestAmbientEntry.payload.conversation;
+                  }
+                }
+              } else if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+                // Direct prescription data in response (fallback)
               prescriptionData = responseData;
             }
-            else if (responseData.rxDigitizationHistory?.[0]?.payload?.response) {
+              
+              // Handle conversation data for ambient mode (if not already set)
+              if (!conversationData) {
+                if (responseData.conversation) {
+                  conversationData = responseData.conversation;
+                } else if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+                  conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+                }
+              }
+            } else {
+              // Handle dictate mode response structure (existing logic)
+              // Priority 1: Check for editedData (contains user edits including dosage)
+              if (actualData?.editedData) {
+                prescriptionData = actualData.editedData;
+              }
+              else if (responseData?.editedData) {
+                prescriptionData = responseData.editedData;
+              }
+              // Priority 2: Check for digitizeData (aggregated data)
+              else if (actualData?.digitizeData) {
+                prescriptionData = actualData.digitizeData;
+              }
+              else if (responseData?.digitizeData) {
+                prescriptionData = responseData.digitizeData;
+              }
+              // Priority 3: Check for direct prescription data
+              else if (actualData?.symptoms || actualData?.medications || actualData?.vitalsAndBodyComposition) {                                                   
+                prescriptionData = actualData;
+              }
+              else if (responseData?.symptoms || responseData?.medications || responseData?.vitalsAndBodyComposition) {                                                   
+                prescriptionData = responseData;
+              }
+              else if (actualData?.rxDigitizationHistory?.[0]?.payload?.response) {                                                                              
+                prescriptionData = actualData.rxDigitizationHistory[0].payload.response;                                                                        
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.payload?.response) {                                                                              
               prescriptionData = responseData.rxDigitizationHistory[0].payload.response;
             }
-            else if (responseData.rxDigitizationHistory?.[0]?.response) {
+              else if (actualData?.rxDigitizationHistory?.[0]?.response) {
+                prescriptionData = actualData.rxDigitizationHistory[0].response;
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.response) {
               prescriptionData = responseData.rxDigitizationHistory[0].response;
             }
-            else if (responseData.rxDigitizationHistory?.[0]?.payload?.symptoms || 
-                     responseData.rxDigitizationHistory?.[0]?.payload?.medications) {
+              else if (actualData?.rxDigitizationHistory?.[0]?.payload?.symptoms || actualData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                              
+                prescriptionData = actualData.rxDigitizationHistory[0].payload;
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.payload?.symptoms ||                                                                              
+                       responseData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                           
               prescriptionData = responseData.rxDigitizationHistory[0].payload;
             }
-            else if (responseData.digitize) {
+              else if (actualData?.digitize) {
+                prescriptionData = actualData.digitize;
+              }
+              else if (responseData?.digitize) {
               prescriptionData = responseData.digitize;
             }
-            else if (responseData.prescription) {
+              else if (actualData?.prescription) {
+                prescriptionData = actualData.prescription;
+              }
+              else if (responseData?.prescription) {
               prescriptionData = responseData.prescription;
             }
-            else if (responseData.rx) {
+              else if (actualData?.rx) {
+                prescriptionData = actualData.rx;
+              }
+              else if (responseData?.rx) {
               prescriptionData = responseData.rx;
             }
-            else if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
-              prescriptionData = responseData;
             }
             
             if (prescriptionData && prescriptionData.vitalsAndBodyComposition) {
@@ -1290,24 +1526,158 @@ const ConsultationDrawer = ({
               prescriptionData.vitalsAndBodyComposition = cleanedVitals;
             }
             
-            if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+                        // Handle conversation data for both modes
+            if (!conversationData) {
+                          // Handle conversation data for dictate mode (if not already set)
+            if (!conversationData) {
+              if (actualData?.rxDigitizationHistory?.[0]?.payload?.conversation) {                                                                               
+                conversationData = actualData.rxDigitizationHistory[0].payload.conversation;                                                                    
+              } else if (responseData?.rxDigitizationHistory?.[0]?.payload?.conversation) {                                                                               
               conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
-            } else if (responseData.conversation) {
+              } else if (actualData?.conversation) {
+                conversationData = actualData.conversation;
+              } else if (responseData?.conversation) {
               conversationData = responseData.conversation;
-            } else if (responseData.digitize?.conversation) {
+              } else if (actualData?.digitize?.conversation) {
+                conversationData = actualData.digitize.conversation;
+              } else if (responseData?.digitize?.conversation) {
               conversationData = responseData.digitize.conversation;
-            } else if (responseData.rx?.conversation) {
+              } else if (actualData?.rx?.conversation) {
+                conversationData = actualData.rx.conversation;
+              } else if (responseData?.rx?.conversation) {
               conversationData = responseData.rx.conversation;
             } else if (prescriptionData?.conversation) {
               conversationData = prescriptionData.conversation;
             }
+            }
+            }
             
-            if (conversationData) {
+            // For ambient mode, we need to track conversations separately for each transcript box
+            // Similar to how dictate mode uses queries array - each box should only contain its own conversations
+            if (conversationData && (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
+              const isAudioInput = !!audioBlobParam;
+              
+              // For text inputs, always use only the typed text to avoid cumulative conversation issues
+              // For audio inputs, try to extract only new conversations from API response
+              let conversationsToStore = [];
+              
+              if (!isAudioInput && transcribedText) {
+                // Text input: Use only the text that was just typed
+                conversationsToStore = [{
+                  speaker: 'doctor',
+                  text: transcribedText,
+                  message: transcribedText,
+                  content: transcribedText
+                }];
+              } else if (isAudioInput && conversationData) {
+                // Audio input: Extract only NEW conversations that weren't in previous queries
+                // Get all previous conversations from existing queries
+                const previousConversations = queries.flatMap(q => {
+                  if (q.conversations && Array.isArray(q.conversations)) {
+                    return q.conversations;
+                  }
+                  return [];
+                });
+                
+                // Extract only new conversations that weren't in previous queries
+                // Compare by text content and speaker to identify new ones
+                const newConversations = conversationData.filter(newConv => {
+                  const newText = newConv?.message || newConv?.text || newConv?.content || '';
+                  const newSpeaker = (newConv?.speaker || '').toLowerCase();
+                  
+                  // Check if this conversation already exists in previous queries
+                  return !previousConversations.some(prevConv => {
+                    const prevText = prevConv?.message || prevConv?.text || prevConv?.content || '';
+                    const prevSpeaker = (prevConv?.speaker || '').toLowerCase();
+                    return prevText === newText && prevSpeaker === newSpeaker;
+                  });
+                });
+                
+                // Use new conversations if found, otherwise fallback to transcription text
+                conversationsToStore = newConversations.length > 0 ? newConversations : (
+                  transcribedText ? [{
+                    speaker: 'doctor',
+                    text: transcribedText,
+                    message: transcribedText,
+                    content: transcribedText
+                  }] : []
+                );
+              }
+              
+              // Calculate duration for this specific interaction (same as dictate mode)
+              // Use duration from the audio blob that was just recorded (already calculated before API call)
+              // Use the duration that was calculated before the API call (stored in currentRecordingDuration)
+              // This ensures each box shows the duration of that specific recording, not cumulative
+              const queryDuration = isAudioInput ? currentRecordingDuration : null;
+              
+              // Create a new ambient query entry with ONLY the new conversations for this interaction
+              const newAmbientQuery = {
+                conversations: conversationsToStore,
+                isAudio: isAudioInput,
+                duration: queryDuration,
+                text: transcribedText || ''
+              };
+              
+              // Determine if this is editing existing or adding new
+              const newQueryIndex = isEditing ? queries.length - 1 : queries.length;
+              const updatedQueries = isEditing
+                ? [
+                    ...queries.slice(0, queries.length - 1),
+                    newAmbientQuery,
+                  ]
+                : [...queries, newAmbientQuery];
+              
+              setQueries(updatedQueries);
+              
+              // Auto-collapse previous boxes and expand only the new one (but only if this is not the first transcript)
+              if (!isEditing && queries.length > 0) {
+                // Collapse the first transcript box (only if we're adding a second or subsequent transcript)
+                setIsTranscriptExpanded(false);
+                
+                const newCardIndex = newQueryIndex;
+                
+                // Collapse all previous transcript boxes and only expand the new one
+                setExpandedTranscripts(new Set([newCardIndex]));
+              } else if (!isEditing && queries.length === 0) {
+                // This is the first transcript - keep it expanded
+                setIsTranscriptExpanded(true);
+                setExpandedTranscripts(new Set());
+              }
+              
+              // Also set conversations for backward compatibility (first box) - use cumulative for global state
+              setConversations(conversationData);
+            } else if (conversationData) {
               setConversations(conversationData);
             }
             
             if (prescriptionData) {
               const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
+              
+              // Process medications to ensure dosage/unitPerDose is properly mapped
+              if (validatedPrescriptionData?.medications && Array.isArray(validatedPrescriptionData.medications)) {
+                validatedPrescriptionData.medications = validatedPrescriptionData.medications.map(med => {
+                  // Map unitPerDose to dosage if dosage is not present but unitPerDose is
+                  if (!med.dosage && med.unitPerDose) {
+                    med.dosage = med.unitPerDose;
+                  }
+                  // If dosage is still not present, try to extract from lineItem or other fields
+                  if (!med.dosage) {
+                    // Check if there's a dosage field with different casing
+                    if (med.Dosage) {
+                      med.dosage = med.Dosage;
+                    } else if (med.unit_per_dose) {
+                      med.dosage = med.unit_per_dose;
+                    }
+                  }
+                  return med;
+                });
+              }
+              
+              // Convert medical history to CashManagerContext format for both ambient and dictate modes
+              if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
               
               setPrescriptionData((prevData) => {
                 const mergedDynamicFields = {
@@ -1338,10 +1708,16 @@ const ConsultationDrawer = ({
 
                     return {
                       ...finalPrescriptionData,
+                      // Preserve medical history from previous data if it exists and new data doesn't have it
+                      medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
                   } else {
-                    return prevData || {};
+                    // Preserve medical history even when there's no meaningful data
+                    return {
+                      ...(prevData || {}),
+                      medicalHistory: prevData?.medicalHistory || validatedPrescriptionData?.medicalHistory || [],
+                    };
                   }
                 } else {
                   const formattedSymptomsCollectorData =
@@ -1357,6 +1733,8 @@ const ConsultationDrawer = ({
 
                   return {
                     ...finalPrescriptionData,
+                    // Preserve medical history from previous data if it exists and new data doesn't have it
+                    medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                     dynamicFields: mergedDynamicFields,
                   };
                 }
@@ -1381,6 +1759,8 @@ const ConsultationDrawer = ({
               });
             }
 
+            // Only update conversations this way if not in ambient mode (ambient mode uses queries array above)
+            if (!isAmbientMode && mode !== 'ambient' && window.TATVA_ACTIVE_VOICE_SERVICE !== S_AMBIENT_VOICE_RX) {
             setConversations((prevConversations) => {
               if (conversationData && conversationData.length > 0) {
                 if (!genRxDetails?._id || prevConversations.length === 0) {
@@ -1405,13 +1785,20 @@ const ConsultationDrawer = ({
               }
             });
           }
+          }
+
+          // Update genRxDetails - check both actualData and responseData
+          const sourceFromResponse = actualData?.source || responseData?.data?.source || responseData?.source;
+          const sourceDurationFromResponse = actualData?.source_duration || responseData?.data?.source_duration || responseData?.source_duration;
+          const timeRequiredFromResponse = actualData?.timeRequiredInMs || responseData?.data?.timeRequiredInMs || responseData?.timeRequiredInMs;
+          const idFromResponse = actualData?._id || responseData?.data?._id || responseData?._id;
 
           setGenRxDetails({
-            source: responseData.source,
-            source_duration: responseData.source_duration,
-            timeRequiredInMs: responseData.timeRequiredInMs,
+            source: sourceFromResponse || genRxDetails?.source || '',
+            source_duration: sourceDurationFromResponse || genRxDetails?.source_duration,
+            timeRequiredInMs: timeRequiredFromResponse || genRxDetails?.timeRequiredInMs,
             type: "ambient",
-            _id: responseData._id,
+            _id: idFromResponse || genRxDetails?._id,
           });
           setInputText("");
           setIsEditing(false);
@@ -1467,6 +1854,10 @@ const ConsultationDrawer = ({
             throw new Error('No data received from API');
           }
           
+          // Initialize transcript variables outside the conditional block
+          let updatedTranscript = null;
+          let updatedQueries = queries;
+          
           if (!isFromSC) {
             let prescriptionData = null;
             let conversationData = null;
@@ -1493,34 +1884,165 @@ const ConsultationDrawer = ({
             
             if (prescriptionData) {
               setPrescriptionData(prescriptionData);
+              
+              // Convert API medicalHistory format to CashManagerContext format and populate it
+              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
             }
             
             if (conversationData) {
               setConversations(conversationData);
             }
             
-            if (responseData.transcription) {
-            setQueries(
-              isEditing
+                                    // Update transcript for dictate mode
+            // Check both responseData.data and responseData for transcription
+            const transcription = responseData?.data?.transcription || responseData?.transcription;
+            
+            if (transcription) {
+              // Determine if this is audio or text input
+              const isAudioInput = !!audioBlobParam;
+              // Get duration from response or calculate from audio blob
+              let queryDuration = null;
+              if (isAudioInput && audioBlobParam) {
+                                                                 // Use source_duration from response if available (check both levels)                                                                           
+                queryDuration = responseData?.data?.source_duration || responseData?.source_duration || null;
+                // If not available, try to calculate from blob
+                if (!queryDuration) {
+                  try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const arrayBuffer = await audioBlobParam.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    queryDuration = audioBuffer.duration;
+                  } catch (e) {
+                    console.warn('Could not calculate audio duration:', e);
+                  }
+                }
+              }
+              
+              // Create query object with metadata
+              const newQuery = {
+                text: transcription,
+                isAudio: isAudioInput,
+                duration: queryDuration
+              };
+              
+              // Add new transcription to queries
+              const newQueryIndex = isEditing ? queries.length - 1 : queries.length;
+              updatedQueries = isEditing
                 ? [
                     ...queries.slice(0, queries.length - 1),
-                      responseData.transcription,
+                    newQuery,
                   ]
-                  : [...queries, responseData.transcription]
-            );
+                : [...queries, newQuery];
+              
+                            setQueries(updatedQueries);
+              
+                            // Auto-collapse previous boxes and expand only the new one (but only if this is not the first transcript)
+              if (!isEditing && queries.length > 0) {
+                // Collapse the first transcript box (only if we're adding a second or subsequent transcript)
+                setIsTranscriptExpanded(false);
+                
+                const newCardIndex = newQueryIndex;
+                
+                // Collapse all previous transcript boxes and only expand the new one                                                                           
+                setExpandedTranscripts(new Set([newCardIndex]));
+              } else if (!isEditing && queries.length === 0) {
+                // This is the first transcript - keep it expanded
+                setIsTranscriptExpanded(true);
+                setExpandedTranscripts(new Set());
+              }
+              
+              // Update fullTranscript - append if updating, set if creating new
+              if (genRxDetails?._id) {
+                const existingTranscript = fullTranscript || genRxDetails?.source || '';
+                updatedTranscript = (existingTranscript + ' ' + responseData.transcription).trim();
+              } else {
+                updatedTranscript = responseData.transcription;
+              }
+              setFullTranscript(updatedTranscript);
+                                                   } else if ((responseData?.data?.history && Array.isArray(responseData.data.history) && responseData.data.history.length > 0) ||
+                         (responseData?.history && Array.isArray(responseData.history) && responseData.history.length > 0)) {
+                 // If history exists, use it to build the full transcript
+                 const history = responseData?.data?.history || responseData.history;
+              const validTranscriptions = history
+                .map(({ transcription, source_duration }) => ({
+                  text: transcription,
+                  isAudio: !!source_duration,
+                  duration: source_duration || null
+                }))
+                .filter((query) => query.text && query.text !== "null" && query.text);
+              
+              if (validTranscriptions.length > 0) {
+                updatedTranscript = validTranscriptions.map(q => q.text).join(' ');
+                updatedQueries = validTranscriptions;
+                setQueries(updatedQueries);
+                setFullTranscript(updatedTranscript);
+              }
+                                                                                                   } else if (responseData?.data?.source || responseData?.source) {
+                 // If source exists but no transcription, use source
+                 const source = responseData?.data?.source || responseData.source;
+              if (genRxDetails?._id) {
+                const existingTranscript = fullTranscript || genRxDetails?.source || '';                                                                        
+                updatedTranscript = (existingTranscript + ' ' + source).trim();                                                                    
+              } else {
+                updatedTranscript = source;
+              }
+              setFullTranscript(updatedTranscript);
+            }
+          }
+
+                    // Determine the correct type based on mode - for dictate mode, always keep as 'dictate'                                                              
+          const correctType = (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient')                                                                             
+            ? 'ambient' 
+            : 'dictate';
+
+          // Calculate the updated source transcript - use source from response if available, otherwise use updatedTranscript                                    
+          // For updates, append new transcription to existing source
+          // Check responseData.data first (for nested structure), then responseData directly
+          const sourceFromResponse = responseData?.data?.source || responseData?.source;
+          const transcriptionFromResponse = responseData?.data?.transcription || responseData?.transcription;
+          const sourceDurationFromResponse = responseData?.data?.source_duration || responseData?.source_duration;
+          const timeRequiredFromResponse = responseData?.data?.timeRequiredInMs || responseData?.timeRequiredInMs;
+          const idFromResponse = responseData?.data?._id || responseData?._id;
+          
+          let updatedSource = '';
+          
+          if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
+            // For ambient mode, use source from response or keep existing
+            if (sourceFromResponse) {
+              updatedSource = sourceFromResponse;
+            } else if (genRxDetails?._id && transcriptionFromResponse) {
+              // When updating, append the new transcription to existing source
+              const existingSource = genRxDetails?.source || fullTranscript || '';
+              updatedSource = (existingSource + ' ' + transcriptionFromResponse).trim();
+            } else {
+              updatedSource = genRxDetails?.source || fullTranscript || '';
+            }
+          } else {
+            // For dictate mode
+            if (genRxDetails?._id && transcriptionFromResponse) {
+              // When updating, append the new transcription to existing source
+              const existingSource = genRxDetails?.source || fullTranscript || '';
+              updatedSource = (existingSource + ' ' + transcriptionFromResponse).trim();                                                                         
+            } else {
+              // For new prescriptions or when source is provided directly
+              updatedSource = sourceFromResponse || updatedTranscript || fullTranscript || genRxDetails?.source || '';                                           
             }
           }
 
           setGenRxDetails({
-            source: responseData.source,
-            source_duration: responseData.source_duration,
-            timeRequiredInMs: responseData.timeRequiredInMs,
-            type: "ambient",
-            _id: responseData._id,
+            source: updatedSource || genRxDetails?.source || '',
+            source_duration: sourceDurationFromResponse || genRxDetails?.source_duration,                                                                     
+            timeRequiredInMs: timeRequiredFromResponse || genRxDetails?.timeRequiredInMs,                                                                  
+            type: correctType,
+            _id: idFromResponse || genRxDetails?._id,
           });
           setInputText("");
           setIsEditing(false);
           setUseVoiceRx(true);
+          setShowPrescription(true);
         } else {
           if (response.success === false && response.data === null) {
             throw new Error(response.error || "Server error - API returned failure with null data");
@@ -1532,30 +2054,30 @@ const ConsultationDrawer = ({
     } catch (error) {
       console.error("❌ Error in voice digitization:", error);
       console.error("❌ Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
       });
       
       // Handle specific error cases
-      if (error.message?.includes("Cannot set properties of null")) {
+      if (error?.message?.includes("Cannot set properties of null")) {
         message.error("Data processing error - please try again");
-      } else if (error.response?.status === 401) {
+      } else if (error?.response?.status === 401) {
         message.error("Authorization error - please check your login");
-      } else if (error.response?.status === 500) {
+      } else if (error?.response?.status === 500) {
         message.error("Server error - please try again later");
-      } else if (error.message?.includes("Network Error") || error.code === 'NETWORK_ERROR') {
+      } else if (error?.message?.includes("Network Error") || error?.code === 'NETWORK_ERROR') {                                                                  
         message.error("Network connection error - please check your internet connection");
-      } else if (error.message?.includes("timeout") || error.code === 'ECONNABORTED') {
+      } else if (error?.message?.includes("timeout") || error?.code === 'ECONNABORTED') {                                                                         
         message.error("Request timeout - the server is taking too long to respond");
-      } else if (error.response?.status === 404) {
+      } else if (error?.response?.status === 404) {
         message.error("Service not found - please contact support");
-      } else if (error.response?.status === 403) {
+      } else if (error?.response?.status === 403) {
         message.error("Access denied - insufficient permissions");
-      } else if (error.message?.includes("failed to load")) {
+      } else if (error?.message?.includes("failed to load")) {
         message.error("Failed to load prescription data - please refresh and try again");
       } else {
-        message.error(error.message || "Failed to process prescription");
+        message.error(error?.message || "Failed to process prescription");
       }
     } finally {
       setIsProcessing(false);
@@ -1568,7 +2090,7 @@ const ConsultationDrawer = ({
       let response;
       
       if (isAmbientMode && genRxDetails?.type === "ambient") {
-        response = await editAmbientRx(
+        response = await editAmbientRxDetails(
         { editedData: prescriptionData },
         genRxDetails?._id
       );
@@ -1592,7 +2114,7 @@ const ConsultationDrawer = ({
       }
     } catch (error) {
       console.error("Error in voice digitization:", error);
-      message.error(error.message || "Failed to process prescription");
+      message.error(error?.message || "Failed to process prescription");
     }
   };
 
@@ -2028,10 +2550,18 @@ const ConsultationDrawer = ({
   const handleMedicalHistoryUpdate = useCallback((medicalHistoryArray) => {
     setPrescriptionData((prevData) => ({
       ...prevData,
-      medicalHistory: medicalHistoryArray,
+      medicalHistory: medicalHistoryArray || [],
     }));
     setIsRxEdited(true);
-  }, []);
+    
+    // Also update CashManagerContext format for the drawer
+    // Note: convertMedicalHistoryToContextFormat is defined later in the file, but it's a stable function
+    if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
+      // Use the function directly - it will be available at runtime
+      const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, medicalHistoryData);
+      setMedicalHistoryData(convertedData);
+    }
+  }, [setMedicalHistoryData, medicalHistoryData]);
 
   const handleFollowUpUpdate = useCallback((followUpText) => {
     setPrescriptionData((prevData) => ({
@@ -2195,6 +2725,7 @@ const ConsultationDrawer = ({
         }
       }
 
+      // Navigate to print view for both ambient and dictate modes
       navigate("/gen-rx-print", {
         replace: true,
         state: {
@@ -2202,7 +2733,7 @@ const ConsultationDrawer = ({
           patient_data: patient_data,
           page: "prescription",
           rxId: genRxDetails?._id,
-          isAmbientRx: isAmbientMode,
+          isAmbientRx: isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX,
         },
       });
     } else {
@@ -3627,19 +4158,129 @@ const ConsultationDrawer = ({
     if (prescriptionData) {
       showHideBackModal();
     } else {
+      // If no prescription data, navigate directly based on mode
+      if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+        // Navigate to Voice Rx Consult page (mode selection) in ambient mode
+        navigate("/voice-rx-consult", {
+          replace: true,
+          state: {
+            patient_data,
+          },
+        });
+        onClose();
+    } else {
       onClose();
+      }
     }
   };
 
   const handleBack = () => {
+    // Check if we're in ambient mode
+    if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+      // Navigate to Voice Rx Consult page (mode selection)
+      navigate("/voice-rx-consult", {
+        replace: true,
+        state: {
+          patient_data,
+        },
+      });
+    } else {
+      // For non-ambient mode, just close the drawer
     onClose();
-    // Navigate to Voice Rx Consult page
     navigate("/voice-rx-consult", {
+        replace: true,
       state: {
         patient_data,
       },
     });
+    }
   };
+
+  // Helper function to convert API medicalHistory format to CashManagerContext format
+  const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
+    if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
+      return existingContextData || [];
+    }
+
+    // Map API types to tmmhs_id: Lifestyle=1, Medical Condition=2, Family History=3, Allergies=4, Surgical History=5
+    const typeToIdMap = {
+      'Lifestyle': 1,
+      'Medical Condition': 2,
+      'Family History': 3,
+      'Allergies': 4,
+      'Surgical History': 5,
+      'lifestyle': 1,
+      'medical_condition': 2,
+      'family_history': 3,
+      'allergies': 4,
+      'surgical_history': 5
+    };
+
+    // Group by type
+    const groupedByType = {};
+    apiMedicalHistory.forEach(item => {
+      const type = item.type || 'Lifestyle';
+      const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
+      const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
+      const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
+                         type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
+                         type === 'Family History' || normalizedType === 'family_history' ? 'Family History' :
+                         type === 'Allergies' || normalizedType === 'allergies' ? 'Allergies' :
+                         type === 'Surgical History' || normalizedType === 'surgical_history' ? 'Surgical History' : 'Lifestyle';
+      
+      if (!groupedByType[mappedType]) {
+        groupedByType[mappedType] = {
+          tmmhs_id: mappedType,
+          section_name: sectionName,
+          tags: []
+        };
+      }
+      
+      // Create tag object
+      const tag = {
+        tmmhst_id: Date.now() + Math.random(), // Generate unique ID
+        title: item.name || '',
+        enable: 'Y',
+        note: item.notes || '',
+        since: item.duration || '',
+        status: 'Active',
+        relationship: item.relation || ''
+      };
+      
+      groupedByType[mappedType].tags.push(tag);
+    });
+
+    // Convert to array format
+    const medicalHistoryDataArray = Object.values(groupedByType);
+
+    // Merge with existing medicalHistoryData if available
+    if (existingContextData && existingContextData.length > 0) {
+      const merged = existingContextData.map(existingSection => {
+        const apiSection = groupedByType[existingSection.tmmhs_id];
+        if (apiSection) {
+          // Merge tags, avoiding duplicates
+          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
+          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
+          return {
+            ...existingSection,
+            tags: [...existingSection.tags, ...newTags]
+          };
+        }
+        return existingSection;
+      });
+
+      // Add sections that don't exist in existing data
+      Object.values(groupedByType).forEach(apiSection => {
+        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
+          merged.push(apiSection);
+        }
+      });
+
+      return merged;
+    } else {
+      return medicalHistoryDataArray;
+    }
+  }, []);
 
   return (
     <Drawer
@@ -4001,8 +4642,9 @@ const ConsultationDrawer = ({
                           </div>
                         </div>
                         
-                        {/* Transcript Card */}
-                        {(fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
+                                                {/* Transcript Cards */}
+                        {/* First transcript card - show initial transcript */}
+                        {(fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (                                          
                           <div className={styles.transcriptCard}>
                             <div 
                               className={styles.transcriptHeader}
@@ -4011,19 +4653,28 @@ const ConsultationDrawer = ({
                               <div className={styles.transcriptTitle}>
                                 <div className={styles.transcriptTitleContent}>
                                   <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
-                                  {(audioDuration || recordingTime > 0) && (
+                                  <div className={styles.transcriptRightGroup}>
+                                    {(() => {
+                                      // Show timer only for audio inputs
+                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
+                                      const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
+                                      const firstDuration = firstQuery && typeof firstQuery === 'object' ? firstQuery.duration : null;
+                                      
+                                      // For both ambient and dictate mode, use duration from firstQuery
+                                      if (isFirstAudio && firstDuration) {
+                                        return (
                                   <div className={styles.transcriptDuration}>
                                     <i className="icon-time"></i>
-                                    <span>{audioDuration || formatTime(recordingTime) || "0:00"}</span>
+                                            <span>{formatTime(Math.floor(firstDuration))}</span>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      return null;
+                                    })()}
+                                    <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
                                   </div>
-                                  )}
-                                  <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
                                 </div>
-                                {!caseManagerData?.smart_prescription_filename && (
-                                  <div className={styles.transcriptPreview}>
-                                    {!isAmbientMode && (fullTranscript || genRxDetails?.source || (conversations?.map(conv => conv.message || conv.text || conv.content).join(' ')))}
-                                  </div>
-                                )}
                               </div>
                               <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
                                 <i className="icon-down"></i>
@@ -4033,8 +4684,15 @@ const ConsultationDrawer = ({
                               <div className={styles.transcriptContent}>
                                   {isAmbientMode ? (
                                   <div>
-                                    {Array.isArray(conversations) && conversations.length > 0 ? (
-                                      conversations.map((conv, idx) => {
+                                    {/* Use conversations from queries[0] instead of global conversations state */}
+                                    {(() => {
+                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
+                                      const firstConversations = firstQuery && typeof firstQuery === 'object' && firstQuery.conversations 
+                                        ? firstQuery.conversations 
+                                        : (Array.isArray(conversations) && conversations.length > 0 ? conversations : []);
+                                      
+                                      return firstConversations.length > 0 ? (
+                                        firstConversations.map((conv, idx) => {
                                         const text = conv?.message || conv?.text || conv?.content || '';
                                         const speaker = (conv?.speaker || '').toLowerCase();
                                         const isDoctor = speaker === 'doctor';
@@ -4047,13 +4705,14 @@ const ConsultationDrawer = ({
                                           </div>
                                         );
                                       })
-                                    ) : null}
+                                      ) : null;
+                                    })()}
                                         </div>
                                 ) : (
                                   <div className={styles.transcriptText}>
                                     {(Array.isArray(queries) && queries.length > 0)
-                                      ? queries.join(' ')
-                                      : (fullTranscript || genRxDetails?.source || '')}
+                                       ? (typeof queries[0] === 'string' ? queries[0] : queries[0]?.text || '')
+                                       : (fullTranscript || genRxDetails?.source || '')}                                                                         
                                 </div>
                                 )}
                               </div>
@@ -4061,11 +4720,8 @@ const ConsultationDrawer = ({
                           </div>
                         )}
 
-                      {isProcessing ? (
-                        <BubbleSkeleton />
-                      ) : (
-                        <>
-                          {(isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source))) && (
+                                                {/* Show "Your Rx is ready!" message after first transcript */}
+                        {!isProcessing && (isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source))) && (
                             <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
@@ -4073,6 +4729,101 @@ const ConsultationDrawer = ({
                                       </div>
                                     </div>
                                   )}
+
+                        {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
+                        {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
+                          const cardIndex = idx + 1;
+                          const isCardExpanded = expandedTranscripts.has(cardIndex);                                                                            
+                          return (
+                            <React.Fragment key={cardIndex}>
+                              <div className={styles.transcriptCard} style={{ marginTop: '16px' }}>                                                             
+                                <div 
+                                  className={styles.transcriptHeader}
+                                  onClick={() => {
+                                    const newExpanded = new Set(expandedTranscripts);                                                                           
+                                    if (isCardExpanded) {
+                                      newExpanded.delete(cardIndex);
+                                    } else {
+                                      newExpanded.add(cardIndex);
+                                    }
+                                    setExpandedTranscripts(newExpanded);
+                                  }}
+                                >
+                                  <div className={styles.transcriptTitle}>
+                                    <div className={styles.transcriptTitleContent}>                                                                             
+                                      <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
+                                      <div className={styles.transcriptRightGroup}>                                                                             
+                                        {(() => {
+                                          // Show timer only for audio inputs
+                                          const queryItem = Array.isArray(queries) && queries.length > cardIndex ? queries[cardIndex] : null;                   
+                                          const isAudio = queryItem && typeof queryItem === 'object' && queryItem.isAudio;                                      
+                                          const queryDuration = queryItem && typeof queryItem === 'object' ? queryItem.duration : null;                         
+                                          
+                                          if (isAudio && queryDuration) {
+                                            return (
+                                              <div className={styles.transcriptDuration}>                                                                       
+                                                <i className="icon-time"></i>
+                                                <span>{formatTime(Math.floor(queryDuration))}</span>                                                            
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                        <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />                                                    
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className={`${styles.transcriptToggle} ${isCardExpanded ? styles.transcriptToggleOpen : ''}`}>                           
+                                    <i className="icon-down"></i>
+                                  </div>
+                                </div>
+                                {isCardExpanded && (
+                                  <div className={styles.transcriptContent}>
+                                    {isAmbientMode && query?.conversations ? (
+                                      // Render conversations for ambient mode
+                                      <div>
+                                        {Array.isArray(query.conversations) && query.conversations.length > 0 ? (
+                                          query.conversations.map((conv, convIdx) => {
+                                            const text = conv?.message || conv?.text || conv?.content || '';
+                                            const speaker = (conv?.speaker || '').toLowerCase();
+                                            const isDoctor = speaker === 'doctor';
+                                            return (
+                                              <div key={convIdx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
+                                                <div className={styles.conversationBubble}>
+                                                  <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
+                                                  <div className={styles.messageText}>{text}</div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      // Render text for dictate mode
+                                      <div className={styles.transcriptText}>
+                                        {typeof query === 'string' ? query : (query?.text || '')}                                                                 
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Show "Your Rx is ready!" message after each additional transcript - only when not processing */}
+                              {!isProcessing && (
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                              <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
+                              <div className={styles.prescriptionReadyMessage}>
+                                Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
+                                      </div>
+                                    </div>
+                                  )}
+                            </React.Fragment>
+                          );
+                        })}
+
+                                            {isProcessing ? (
+                        <BubbleSkeleton />
+                      ) : (
+                        <>
                           <div className={styles.inputContainer}>
                             <div className={styles.inputQueries}>
                               {null}
@@ -4266,10 +5017,16 @@ const ConsultationDrawer = ({
                           )}
 
                         {prescriptionData?.advice &&
-                          typeof prescriptionData.advice === 'string' && 
-                          prescriptionData.advice.trim() && (
+                          ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) ||
+                           (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0)) && (
                             <AdviceRichTextEditor
-                              advice={prescriptionData.advice}
+                              advice={typeof prescriptionData.advice === 'string' 
+                                ? [{ lineItem: prescriptionData.advice }]
+                                : prescriptionData.advice.map(adv => 
+                                    typeof adv === 'string' 
+                                      ? { lineItem: adv }
+                                      : adv
+                                  )}
                               onUpdate={handleAdviceUpdate}
                               isProcessing={isProcessing}
                             />
@@ -4378,7 +5135,22 @@ const ConsultationDrawer = ({
                     <div className="mt-4">
                       <div className="d-flex align-items-center mt-2 justify-content-end">
                         <div
-                          onClick={handleBack}
+                          onClick={() => {
+                            // Check if we're in ambient mode
+                            if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+                              // Navigate to Voice Rx Consult page (mode selection) when leaving in ambient mode
+                              navigate("/voice-rx-consult", {
+                                replace: true,
+                                state: {
+                                  patient_data,
+                                },
+                              });
+                            } else {
+                              // For non-ambient mode, use the regular back handler
+                              handleBack();
+                            }
+                            showHideBackModal();
+                          }}
                           className="me-4 text-decoration-underline btn p-0 text-main"
                         >
                           Yes Leave

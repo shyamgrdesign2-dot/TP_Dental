@@ -8,6 +8,7 @@ import VoiceWaveVisualizer from '../components/WaveVisualizer';
 import vitalsIcons from '../assets/images/vitals-icons.svg';
 import stopIcon from '../assets/images/stop-icon.svg';
 import muteIcon from '../assets/images/microphone-2.svg';
+import mutedMicrophoneIcon from '../assets/images/muted-microphone-icon-new.svg';
 import dictateActiveIcon from '../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../assets/images/ambient-mode-active.svg';
 import styles from './VoiceRecordingPage.module.scss';
@@ -284,8 +285,16 @@ const VoiceRecordingPage = () => {
           </button>
           
           {/* Pause/Resume Button */}
-          <button className={styles.pauseButton} onClick={handlePauseResume}>
-            <img src={muteIcon} alt={isPaused ? "resume" : "pause"} className={styles.muteIcon} />
+          <button 
+            className={styles.pauseButton} 
+            onClick={handlePauseResume}
+            data-muted={isPaused}
+          >
+            {isPaused ? (
+              <img src={mutedMicrophoneIcon} alt="muted" className={styles.muteIcon} />
+            ) : (
+              <img src={muteIcon} alt="unmuted" className={styles.muteIcon} />
+            )}
           </button>
           
           {/* Duration */}
@@ -305,7 +314,9 @@ const VoiceRecordingPage = () => {
         {/* Listening Indicator with Gradient Ellipse */}
         <div className={styles.listeningSection}>
           <div className={styles.gradientEllipse}></div>
-          <div className={styles.listeningText}>I'm Listening...</div>
+          <div className={styles.listeningText}>
+            {isPaused ? "Unmute to Continue Recording" : "I'm Listening..."}
+          </div>
         </div>
       </div>
       )}

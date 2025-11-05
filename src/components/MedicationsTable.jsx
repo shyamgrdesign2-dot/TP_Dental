@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import styles from './ConsultationDrawer.module.css';
 import medicationsIcon from '../assets/images/Medication.svg';
-import menuIcon from '../assets/images/Menu Button.svg';
 import {
   getFrequentlySearchedMedication,
   searchMedication
@@ -22,6 +23,19 @@ const MedicationsTable = ({
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [editingCell, setEditingCell] = useState(null); // { itemId: '...', field: 'name' }
   const [editValue, setEditValue] = useState('');
+  const [editingRow, setEditingRow] = useState(null);
+  const [rowEditValues, setRowEditValues] = useState({});
+  const [isTablet, setIsTablet] = useState(false);
+  
+  // Detect tablet view
+  useEffect(() => {
+    const checkTablet = () => {
+      setIsTablet(window.innerWidth >= 768 && window.innerWidth <= 1024);
+    };
+    checkTablet();
+    window.addEventListener('resize', checkTablet);
+    return () => window.removeEventListener('resize', checkTablet);
+  }, []);
 
   useEffect(() => {
     dispatch(getFrequentlySearchedMedication());
@@ -151,6 +165,57 @@ const MedicationsTable = ({
     setEditValue('');
   };
 
+  // Handle editing entire row (tablet view)
+  const handleRowEdit = (itemId) => {
+    const item = medications.find(med => med.id === itemId);
+    if (item) {
+      setEditingRow(itemId);
+      setRowEditValues({
+      name: item.name || '',
+      dosage: item.dosage || '',
+      frequency: item.frequency || '',
+      schedule: item.schedule || '',
+      duration: item.duration || '',
+      notes: item.notes || ''
+    });
+    }
+  };
+
+  // Handle saving entire row (tablet view)
+  const handleRowSave = (itemId) => {
+    const updatedMedications = medications.map(item => {
+      if (item.id === itemId) {
+        const updated = { ...item, ...rowEditValues };
+        updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        return updated;
+          }
+      return item;
+    });
+    
+    onUpdate(updatedMedications);
+    setEditingRow(null);
+    setRowEditValues({});
+  };
+
+  const handleRowCancel = () => {
+    setEditingRow(null);
+    setRowEditValues({});
+  };
+
+  const handleRowFieldChange = (field, value) => {
+    setRowEditValues(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleRowFieldKeyDown = (e, itemId) => {
+    if (e.key === 'Enter' && isTablet && editingRow === itemId) {
+      e.preventDefault();
+      handleRowSave(itemId);
+    }
+  };
+
   const handleCellCancel = () => {
     setEditingCell(null);
     setEditValue('');
@@ -168,8 +233,26 @@ const MedicationsTable = ({
 
   const handleRowDelete = (e, itemId) => {
     e.stopPropagation();
+    e.preventDefault();
     const updatedMedications = medications.filter(item => item.id !== itemId);
     onUpdate(updatedMedications);
+  };
+
+  const reorder = (list, startIndex, endIndex) => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+    const reorderedMedications = reorder(
+      medications,
+      result.source.index,
+      result.destination.index
+    );
+    onUpdate(reorderedMedications);
   };
 
   if (isProcessing) {
@@ -199,6 +282,7 @@ const MedicationsTable = ({
         <span className={styles['medications-title']}>Medication (Rx)</span>
       </div>
       
+            <DragDropContext onDragEnd={onDragEnd}>
       <div className={styles['medications-table-container']}>
         <table className={styles['medications-table']}>
           <thead>
@@ -210,33 +294,50 @@ const MedicationsTable = ({
               <th className={styles['when-column']}>WHEN</th>
               <th className={styles['duration-column']}>DURATION</th>
               <th className={styles['note-column']}>NOTE</th>
+                <th className={styles['action-column']}></th>
             </tr>
           </thead>
-          <tbody>
+            <Droppable droppableId="medications-table" direction="vertical">
+              {(provided) => (
+                <tbody {...provided.droppableProps} ref={provided.innerRef}>
             {medications.map((item, index) => (
-              <tr key={item.id || index} className={styles['medications-row']}>
-                <td className={styles['drag-cell']}>
-                  <img src={menuIcon} alt="Drag" className={styles['drag-icon']} />
+                    <Draggable key={item.id || `med-${index}`} draggableId={`med-${item.id || index}`} index={index}>
+                      {(provided, snapshot) => (
+                        <tr 
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          key={item.id || index} 
+                          className={styles['medications-row']}
+                          style={{
+                            ...provided.draggableProps.style,
+                            backgroundColor: snapshot.isDragging ? '#f0f0f0' : 'transparent'
+                          }}
+                        >
+                          <td className={styles['drag-cell']} {...provided.dragHandleProps}>
+                            <MenuOutlined 
+                              className={styles['drag-icon']}
+                              style={{ cursor: 'grab', fontSize: '16px', color: '#92929D' }}
+                            />
                 </td>
                 <td 
                   className={styles['medicine-cell']}
-                  onClick={() => handleCellClick(item.id, 'name', item.name)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'name', item.name) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'name' ? (
+                                    {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter medicine name"
                       autoFocus
                     />
                   ) : (
                     <div className={styles['medicine-content']}>
-                      <div className={styles['medicine-name']}>{capitalize(item.name || '-', true)}</div>
+                      <div className={styles['medicine-name']}>{capitalize(item.name || '-', true)}</div>                                                       
                       {item.corrected_name && (
                         <div className={styles['medicine-subtitle']}>{item.corrected_name}</div>
                       )}
@@ -245,19 +346,19 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['unit-dose-cell']}
-                  onClick={() => handleCellClick(item.id, 'dosage', item.dosage)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'dosage', item.dosage) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'dosage' ? (
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'dosage') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.dosage : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('dosage', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., 1 Tablet"
-                      autoFocus
+                      autoFocus={!isTablet}
                     />
                   ) : (
                     <span className={styles['unit-dose-text']}>
@@ -267,19 +368,19 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['frequency-cell']}
-                  onClick={() => handleCellClick(item.id, 'frequency', item.frequency)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'frequency', item.frequency) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'frequency' ? (
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'frequency') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.frequency : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('frequency', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., Twice daily"
-                      autoFocus
+                      autoFocus={!isTablet}
                     />
                   ) : (
                     <span className={styles['frequency-text']}>
@@ -289,19 +390,19 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['when-cell']}
-                  onClick={() => handleCellClick(item.id, 'schedule', item.schedule)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'schedule', item.schedule) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'schedule' ? (
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'schedule') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.schedule : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('schedule', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., Before breakfast"
-                      autoFocus
+                      autoFocus={!isTablet}
                     />
                   ) : (
                     <span className={styles['when-text']}>
@@ -311,19 +412,19 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['duration-cell']}
-                  onClick={() => handleCellClick(item.id, 'duration', item.duration)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'duration', item.duration) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'duration' ? (
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'duration') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.duration : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('duration', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="e.g., 5 days"
-                      autoFocus
+                      autoFocus={!isTablet}
                     />
                   ) : (
                     <span className={styles['duration-text']}>
@@ -333,20 +434,19 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['note-cell']}
-                  onClick={() => handleCellClick(item.id, 'notes', item.notes)}
-                  onContextMenu={(e) => handleRowDelete(e, item.id)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'notes', item.notes) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
-                  {editingCell?.itemId === item.id && editingCell?.field === 'notes' ? (
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'notes') || (isTablet && editingRow === item.id) ? (
                     <input
                       type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={handleCellSave}
-                      onKeyDown={handleCellKeyDown}
+                      value={isTablet && editingRow === item.id ? rowEditValues.notes : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('notes', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
                       placeholder="Enter notes"
-                      autoFocus
+                      autoFocus={!isTablet}
                     />
                   ) : (
                     <span className={styles['note-text']}>
@@ -354,9 +454,44 @@ const MedicationsTable = ({
                     </span>
                   )}
                 </td>
+                <td className={`${styles['action-cell']} ${isTablet ? styles['action-cell-sticky'] : ''}`}>
+                  {isTablet ? (
+                    <div className={styles['action-buttons']}>
+                      <i 
+                        className={editingRow === item.id ? "icon-check text-main" : "icon-Edit text-main"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (editingRow === item.id) {
+                            handleRowSave(item.id);
+                          } else {
+                            handleRowEdit(item.id);
+                          }
+                        }}
+                        style={{ cursor: 'pointer', fontSize: '16px', marginRight: '8px', color: editingRow === item.id ? '#52c41a' : undefined }}
+                        title={editingRow === item.id ? 'Save changes' : 'Edit row'}
+                      />
+                      <i 
+                        className="icon-delete" 
+                        onClick={(e) => handleRowDelete(e, item.id)}
+                        style={{ cursor: 'pointer', fontSize: '16px', color: '#92929D' }}
+                      />
+                    </div>
+                  ) : (
+                    <i 
+                      className="icon-delete" 
+                      onClick={(e) => handleRowDelete(e, item.id)}
+                      style={{ cursor: 'pointer', fontSize: '16px', color: '#92929D' }}
+                    />
+                  )}
+                </td>
               </tr>
+                      )}
+                    </Draggable>
             ))}
+                  {provided.placeholder}
           </tbody>
+              )}
+            </Droppable>
         </table>
         
         {medications.length === 0 && (
@@ -365,6 +500,7 @@ const MedicationsTable = ({
           </div>
         )}
       </div>
+      </DragDropContext>
       
       <div className={styles['search-container']}>
         <div className={styles['search-input-wrapper']}>

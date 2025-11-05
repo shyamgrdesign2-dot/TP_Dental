@@ -891,8 +891,7 @@
 
 .investigation-content-box {
   width: 100%;
-  min-height: 400px;
-  max-height: 80vh;
+  min-height: auto;
   border-radius: 12px;
   padding: 20px;
   background: white;
@@ -900,14 +899,14 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 20px;
+  /* Allow container to grow dynamically with content */
 }
 
 .medications-content-box {
   width: 100%;
-  min-height: 250px;
-  max-height: 70vh;
+  min-height: auto;
   border-radius: 12px;
   padding: 16px;
   background: white;
@@ -915,8 +914,9 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 20px;
+  /* Allow container to grow dynamically with content */
 }
 
 /* Header styles for all parameters */
@@ -1193,11 +1193,14 @@
 .investigation-table-container {
   margin-bottom: 20px;
   border-radius: 8px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid #E5E7EB;
-  min-height: 250px;
-  max-height: 60vh;
-  flex: 1;
+  /* Dynamic height - grows with content based on number of rows */
+  /* Each row is approximately 66px (min-height 50px + padding 32px) */
+  /* Header is approximately 50px */
+  /* For very long lists (>~6 rows), enable scrolling to prevent taking entire viewport */
+  max-height: calc(100vh - 400px);
 }
 
 /* Custom scrollbar for investigation table */
@@ -1270,18 +1273,24 @@
 
 .drag-column {
   width: 60px;
+  min-width: 60px;
+  max-width: 60px;
 }
 
 .medicine-column {
   width: 35%;
+  min-width: 200px;
 }
 
 .note-column {
-  width: 45%;
+  width: calc(100% - 60px - 35%);
+  min-width: 150px;
 }
 
 .action-column {
-  width: 20%;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
 }
 
 .drag-cell {
@@ -1294,10 +1303,21 @@
   cursor: grab;
 }
 
+.action-cell {
+  text-align: center;
+  padding: 8px 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .medicine-cell, .note-cell {
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-size: 12px;
   color: #374151;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .medicine-text, .note-text {
@@ -1305,15 +1325,13 @@
   word-break: break-word;
 }
 
-.action-cell {
-  text-align: center;
-}
-
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: center;
   align-items: center;
+  flex-wrap: nowrap;
+  min-width: 70px;
 }
 
 .edit-button, .delete-button {
@@ -1477,9 +1495,10 @@
 .medications-table-container {
   margin-bottom: 16px;
   border-radius: 8px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   border: 1px solid #E5E7EB;
-  max-height: 50vh;
+  max-height: calc(100vh - 400px);
 }
 
 /* Custom scrollbar for medications table */
@@ -1576,7 +1595,7 @@
 .medications-table .action-column {
   width: 80px;
   max-width: 80px;
-  min-width: 50px;
+  min-width: 80px;
 }
 
 .medications-table .drag-cell {
@@ -1626,6 +1645,9 @@
 
 .medications-table .action-cell {
   text-align: center;
+  padding: 8px 4px;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .medications-table .action-buttons {
@@ -1633,6 +1655,8 @@
   gap: 8px;
   justify-content: center;
   align-items: center;
+  flex-wrap: nowrap;
+  min-width: 70px;
 }
 
 .medications-table .edit-button, 
@@ -2159,8 +2183,60 @@
   text-align: center;
 }
 
-/* Tablet responsive */
+  /* Tablet responsive */
 @media (min-width: 768px) and (max-width: 1024px) {
+  /* Sticky action column for tablet */
+  .medications-table-container {
+    position: relative !important;
+    overflow-x: scroll !important;
+    overflow-y: auto !important;
+  }
+  
+  .medications-table .action-cell-sticky {
+    position: sticky !important;
+    right: 0 !important;
+    background: white !important;
+    z-index: 10 !important;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .investigation-table-container {
+    position: relative !important;
+    overflow-x: scroll !important;
+    overflow-y: auto !important;
+  }
+  
+  .investigation-table .action-cell-sticky {
+    position: sticky !important;
+    right: 0 !important;
+    background: white !important;
+    z-index: 10 !important;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .medications-table .action-buttons,
+  .investigation-table .action-buttons {
+    display: flex !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    min-width: 70px !important;
+  }
+  
+  .medications-table .action-column,
+  .investigation-table .action-column {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+  }
+  
+  .medications-table .action-cell,
+  .investigation-table .action-cell {
+    padding: 8px 4px !important;
+    white-space: nowrap !important;
+  }
+  
   .splitView {
     display: flex !important;
     flex-wrap: nowrap !important;
@@ -2327,33 +2403,33 @@
   }
   
   .medications-content-box {
-    min-height: 300px !important;
-    max-height: 70vh !important;
-    overflow: hidden !important;
+    min-height: auto !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
+    /* Allow container to grow dynamically with content */
   }
   
   .investigation-content-box {
-    min-height: 300px !important;
-    max-height: 70vh !important;
-    overflow: hidden !important;
+    min-height: auto !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
+    /* Allow container to grow dynamically with content */
   }
   
   .medications-table-container {
-    flex: 1 !important;
     overflow-y: auto !important;
     overflow-x: auto !important;
-    min-height: 150px !important;
+    /* Dynamic height - grows with content, scrolls when needed */
+    max-height: calc(100vh - 400px) !important;
   }
   
   .investigation-table-container {
-    flex: 1 !important;
     overflow-y: auto !important;
     overflow-x: auto !important;
-    min-height: 150px !important;
+    /* Dynamic height - grows with content, scrolls when needed */
+    max-height: calc(100vh - 400px) !important;
   }
   
   .recBar {
@@ -2980,12 +3056,24 @@
   white-space: nowrap;
 }
 
+.transcriptRightGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .transcriptPreview {
   font-size: 12px;
   color: #6b7280;
   line-height: 1.4;
   margin-top: 8px;
   font-weight: 400;
+}
+
+.transcriptPreview * {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .conversationBubbleWrapper {

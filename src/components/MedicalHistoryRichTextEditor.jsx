@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
 import medicalHistoryIcon from '../assets/images/Medical-History.svg';
 import arrowBoxUpIcon from '../assets/images/arrow-box-up.svg';
 import addEditIcon from '../assets/images/Icon.svg';
+import MedicalHistoryBox from './MedicalHistoryBox';
 
 /**
  * MedicalHistoryRichTextEditor - Rich text editor for Medical History with type-based sub-boxes
@@ -16,7 +18,7 @@ const MedicalHistoryRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     medical_condition: true,
     surgical_history: true,
@@ -251,7 +253,7 @@ const MedicalHistoryRichTextEditor = ({
       status: '',
       notes: ''
     });
-    setShowAddModal(false);
+    setMedicalHistoryDrawer(false);
   }, [newHistoryItem, medicalHistory, onUpdate]);
 
   const typeConfig = {
@@ -338,114 +340,75 @@ const MedicalHistoryRichTextEditor = ({
         <div className={styles['add-medical-history-container']}>
             <button 
               className={styles['add-medical-history-button']}
-              onClick={() => setShowAddModal(true)}
+              onClick={() => setMedicalHistoryDrawer(true)}
             >
               <img 
                 src={addEditIcon} 
                 alt="Add/Edit" 
                 className={styles['add-medical-history-icon']}
               />
-              <span>Add/Edit Medical History</span>
+              <span>Add / Edit Medical History</span>
             </button>
         </div>
       </div>
 
-      {showAddModal && (
-        <div className={styles['medical-history-modal-overlay']}>
-          <div className={styles['medical-history-modal']}>
-            <div className={styles['medical-history-modal-header']}>
-              <h3>Add Medical History</h3>
-              <button 
-                className={styles['modal-close-button']}
-                onClick={() => setShowAddModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles['medical-history-modal-content']}>
-              <div className={styles['form-group']}>
-                <label>Type:</label>
-                <select 
-                  value={newHistoryItem.type}
-                  onChange={(e) => setNewHistoryItem({...newHistoryItem, type: e.target.value})}
-                >
-                  <option value="medical_condition">Medical Condition</option>
-                  <option value="surgical_history">Surgical History</option>
-                  <option value="family_history">Family History</option>
-                  <option value="lifestyle">Lifestyle</option>
-                  <option value="others">Others</option>
-                </select>
-              </div>
-              <div className={styles['form-group']}>
-                <label>Name:</label>
-                <input 
-                  type="text"
-                  value={newHistoryItem.name}
-                  onChange={(e) => setNewHistoryItem({...newHistoryItem, name: e.target.value})}
-                  placeholder="e.g., Diabetes, Heart Disease"
-                />
-              </div>
-              <div className={styles['form-group']}>
-                <label>Duration/Since:</label>
-                <input 
-                  type="text"
-                  value={newHistoryItem.duration}
-                  onChange={(e) => setNewHistoryItem({...newHistoryItem, duration: e.target.value})}
-                  placeholder="e.g., 2 years, since 2020"
-                />
-              </div>
-              <div className={styles['form-group']}>
-                <label>Status:</label>
-                <select 
-                  value={newHistoryItem.status}
-                  onChange={(e) => setNewHistoryItem({...newHistoryItem, status: e.target.value})}
-                >
-                  <option value="">Select Status</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Chronic">Chronic</option>
-                </select>
-              </div>
-              {newHistoryItem.type === 'family_history' && (
-                <div className={styles['form-group']}>
-                  <label>Relation:</label>
-                  <input 
-                    type="text"
-                    value={newHistoryItem.relation}
-                    onChange={(e) => setNewHistoryItem({...newHistoryItem, relation: e.target.value})}
-                    placeholder="e.g., father, mother, brother"
-                  />
-                </div>
-              )}
-              <div className={styles['form-group']}>
-                <label>Notes:</label>
-                <textarea 
-                  value={newHistoryItem.notes}
-                  onChange={(e) => setNewHistoryItem({...newHistoryItem, notes: e.target.value})}
-                  placeholder="Additional notes..."
-                  rows={3}
+      <Drawer
+        className="scroll-y-hidden"
+        closeIcon={false}
+        placement="right"
+        onClose={() => setMedicalHistoryDrawer(false)}
+        open={medicalHistoryDrawer}
+        width="75%"
+      >
+        <MedicalHistoryBox
+          handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
+          handleCollapsed={() => {}}
+          onSave={(savedData) => {
+            if (savedData && Array.isArray(savedData)) {
+              const convertedMedicalHistory = [];
+              
+              savedData.forEach(section => {
+                if (section.tags && section.tags.length > 0) {
+                  section.tags.forEach(tag => {
+                    if (tag.enable === 'Y' && tag.title) {
+                      const idToTypeMap = {
+                        1: 'Lifestyle',
+                        2: 'Medical Condition',
+                        3: 'Family History',
+                        4: 'Allergies',
+                        5: 'Surgical History'
+                      };
+                      
+                      const historyItem = {
+                        type: idToTypeMap[section.tmmhs_id] || 'Lifestyle',
+                        name: tag.title,
+                        duration: tag.since || '',
+                        relation: tag.relationship || '',
+                        notes: tag.note || '',
+                        status: tag.status || 'Active'
+                      };
+                      
+                      const lineParts = [tag.title];
+                      if (tag.since) lineParts.push(tag.since);
+                      if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
+                      if (tag.note) lineParts.push(tag.note);
+                      historyItem.lineItem = lineParts.join(', ');
+                      
+                      convertedMedicalHistory.push(historyItem);
+                    }
+                  });
+                }
+              });
+              if (onUpdate) {
+                onUpdate(convertedMedicalHistory);
+              }
+            }
+            setMedicalHistoryDrawer(false);
+          }}
+          initialActiveKey="medical"
+          hideMenstrualHistoryTab={true}
         />
-      </div>
-            </div>
-            <div className={styles['medical-history-modal-footer']}>
-              <button 
-                className={styles['modal-cancel-button']}
-                onClick={() => setShowAddModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className={styles['modal-add-button']}
-                onClick={handleAddHistory}
-                disabled={!newHistoryItem.name.trim()}
-              >
-                Add Medical History
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Drawer>
     </div>
   );
 };

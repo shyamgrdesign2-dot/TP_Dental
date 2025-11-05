@@ -13,8 +13,8 @@ import { listBloodGroup, editBloodGroup, viewPatient } from '../redux/appointmen
 import BloodIcon from '../assets/images/blood.svg';
 
 export const genderAge = (patient_data, profile, shouldShowGender = true) => {
-    var value = shouldShowGender
-        ? `${patient_data?.pm_gender[0].toUpperCase()}, `
+    var value = shouldShowGender && patient_data?.pm_gender
+        ? `${patient_data.pm_gender[0].toUpperCase()}, `
         : "";
     if (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) {
         if (patient_data?.ageYears != 0) {

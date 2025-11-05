@@ -588,10 +588,12 @@
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  padding: 0;
   
   img {
     width: 20px;
     height: 20px;
+    display: block;
   }
   
   &:hover {
@@ -601,6 +603,21 @@
   
   &:active {
     transform: scale(0.95);
+  }
+  
+  // When muted, remove background so SVG's orange circle shows
+  &[data-muted="true"] {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+    
+    img {
+      width: 56px;
+      height: 56px;
+      display: block;
+      object-fit: contain;
+    }
   }
 }
 
@@ -620,7 +637,9 @@
   align-items: center;
   justify-content: center;
   min-width: 300px;
+  max-width: none;
   height: 60px;
+  width: 100%;
 }
 
 .sendCta {
