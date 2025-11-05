@@ -135,11 +135,37 @@ const MedicalHistoryRichTextEditor = ({
     }));
   }, []);
 
-  const handleTextareaChange = useCallback((type, value) => {
-    const lines = value.split('\n').filter(line => {
-      const trimmed = line.trim();
-      return trimmed !== '' && trimmed !== '•';
+  const textareaRefs = React.useRef({});
+  const [localTextareaValues, setLocalTextareaValues] = React.useState({});
+
+  const isEditingRef = React.useRef({});
+
+  React.useEffect(() => {
+    const newValues = {};
+    const types = ['medical_condition', 'surgical_history', 'family_history', 'lifestyle', 'others'];
+    types.forEach((type) => {
+      if (isEditingRef.current[type]) {
+        return;
+      }
+      
+      if (groupedHistory[type] && groupedHistory[type].length > 0) {
+        newValues[type] = groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n');
+      } else if (localTextareaValues[type] === undefined) {
+        newValues[type] = '';
+      }
     });
+    
+    if (Object.keys(newValues).length > 0) {
+      setLocalTextareaValues(prev => ({ ...prev, ...newValues }));
+    }
+  }, [medicalHistory, groupedHistory, formatHistoryItem]);
+
+  const handleTextareaChange = useCallback((type, value) => {
+    isEditingRef.current[type] = true;
+    
+    setLocalTextareaValues(prev => ({ ...prev, [type]: value }));
+
+    const lines = value.split('\n');
     
     const updatedItems = lines.map(line => {
       const cleanLine = line.replace(/^•\s*/, '');
@@ -165,7 +191,7 @@ const MedicalHistoryRichTextEditor = ({
             item.status = part.substring(8);
           } else if (part.startsWith('Notes: ')) {
             item.notes = part.substring(7);
-      }
+          }
         });
         
         item.lineItem = cleanLine;
@@ -189,46 +215,73 @@ const MedicalHistoryRichTextEditor = ({
     if (onUpdate) {
       onUpdate(updatedHistory);
     }
-  }, [medicalHistory, onUpdate]);
+    
+    setTimeout(() => {
+      isEditingRef.current[type] = false;
+    }, 100);
+  }, [medicalHistory, onUpdate, formatHistoryItem]);
 
   const handleKeyDown = useCallback((e, type) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      e.stopPropagation();
+      
       const textarea = e.target;
       const cursorPosition = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
-      const textAfterCursor = textarea.value.substring(cursorPosition);
+      const currentValue = localTextareaValues[type] !== undefined 
+        ? localTextareaValues[type] 
+        : (textarea.value || '');
+      
+      const textBeforeCursor = currentValue.substring(0, cursorPosition);
+      const textAfterCursor = currentValue.substring(cursorPosition);
       
       const newText = textBeforeCursor + '\n• ' + textAfterCursor;
       
-      textarea.value = newText;
+      isEditingRef.current[type] = true;
       
-      const newCursorPosition = cursorPosition + 3;
-      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
-      
+
       handleTextareaChange(type, newText);
+      
+      setTimeout(() => {
+        if (textareaRefs.current[type]) {
+          const newCursorPosition = cursorPosition + 3;
+          textareaRefs.current[type].focus();
+          textareaRefs.current[type].setSelectionRange(newCursorPosition, newCursorPosition);
+        }
+      }, 10);
     } else if (e.key === 'Backspace') {
       const textarea = e.target;
       const cursorPosition = textarea.selectionStart;
-      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
-      const textAfterCursor = textarea.value.substring(cursorPosition);
+      const currentValue = localTextareaValues[type] !== undefined 
+        ? localTextareaValues[type] 
+        : (textarea.value || '');
+      
+      const textBeforeCursor = currentValue.substring(0, cursorPosition);
+      const textAfterCursor = currentValue.substring(cursorPosition);
       
       const lines = textBeforeCursor.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      if (currentLine.trim() === '•' || currentLine.trim() === '') {
+      if ((currentLine.trim() === '•' || currentLine.trim() === '') && lines.length > 1) {
         e.preventDefault();
+        e.stopPropagation();
         
         const newText = lines.slice(0, -1).join('\n') + textAfterCursor;
-        textarea.value = newText;
         
-        const newCursorPosition = lines.slice(0, -1).join('\n').length;
-        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        isEditingRef.current[type] = true;
         
         handleTextareaChange(type, newText);
+        
+        setTimeout(() => {
+          if (textareaRefs.current[type]) {
+            const newCursorPosition = lines.slice(0, -1).join('\n').length;
+            textareaRefs.current[type].focus();
+            textareaRefs.current[type].setSelectionRange(newCursorPosition, newCursorPosition);
+          }
+        }, 10);
       }
     }
-  }, [handleTextareaChange]);
+  }, [handleTextareaChange, localTextareaValues]);
 
   const handleAddHistory = useCallback(() => {
     if (!newHistoryItem.name.trim()) return;
@@ -302,8 +355,10 @@ const MedicalHistoryRichTextEditor = ({
               )
             );
             const isExpanded = expandedSections[type];
+            const hasLocalValue = localTextareaValues[type] !== undefined && localTextareaValues[type] !== '';
             
-            if (!hasContent && !hasTextContent) {
+            // Show section if it has content or if user has started typing
+            if (!hasContent && !hasTextContent && !hasLocalValue) {
               return null;
             }
             
@@ -323,12 +378,38 @@ const MedicalHistoryRichTextEditor = ({
                 {isExpanded && (
                   <div className={styles['medical-history-type-content']}>
                     <textarea
+                      ref={(el) => {
+                        if (el) {
+                          textareaRefs.current[type] = el;
+                        }
+                      }}
                       className={styles['medical-history-textarea']}
-                      value={groupedHistory[type]?.map(item => `• ${formatHistoryItem(item)}`).join('\n') || ''}
-                      onChange={(e) => handleTextareaChange(type, e.target.value)}
+                      value={localTextareaValues[type] !== undefined 
+                        ? localTextareaValues[type] 
+                        : (groupedHistory[type] && groupedHistory[type].length > 0
+                          ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
+                          : '')}
+                      onChange={(e) => {
+                        isEditingRef.current[type] = true;
+                        handleTextareaChange(type, e.target.value);
+                      }}
+                      onFocus={() => {
+                        isEditingRef.current[type] = true;
+                      }}
+                      onBlur={() => {
+                        // Clear editing flag after blur with delay to allow for state updates
+                        setTimeout(() => {
+                          isEditingRef.current[type] = false;
+                        }, 200);
+                      }}
                       onKeyDown={(e) => handleKeyDown(e, type)}
                       placeholder={`• Add ${config.title.toLowerCase()}...`}
-                      rows={3}
+                      rows={Math.max(3, Math.min(10, (groupedHistory[type]?.length || 0) + 2))}
+                      style={{ 
+                        minHeight: '60px',
+                        resize: 'vertical',
+                        overflow: 'auto'
+                      }}
                     />
                   </div>
                 )}
