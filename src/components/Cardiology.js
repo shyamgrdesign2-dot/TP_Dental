@@ -805,16 +805,36 @@ function Cardiology(props) {
                     </>
                   )}
 
-                  {/* Optional rendering for lineItem */}
-                  {(type === "medications" ||
-                    type === "vaccinations" ||
+                  {(type === "vaccinations" ||
                     type === "medicalHistory" ||
                     type === "tests" ||
-                    type === "symptoms") &&
+                    type === "symptoms" ||
+                    type === "examinations" ||
+                    type === "diagnosis") && (() => {
+                    const hasIndividualFields = (item?.severity && item?.severity !== '') || 
+                                               (item?.duration && item?.duration !== '') || 
+                                               (item?.notes && item?.notes !== '') ||
+                                               (item?.type && item?.type !== '') ||
+                                               (item?.relation && item?.relation !== '');
+                    
+                    const details = hasIndividualFields
+                      ? [
+                          item?.severity && item?.severity !== '' ? item?.severity : null,
+                          item?.duration && item?.duration !== '' ? item?.duration : null,
+                          item?.notes && item?.notes !== '' ? item?.notes : null,
+                          item?.type && item?.type !== '' ? item?.type : null,
+                          item?.relation && item?.relation !== '' ? item?.relation : null,
+                        ].filter(Boolean).join(', ')
+                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                    
+                    return details && (
+                      <span> ({details})</span>
+                    );
+                  })()}
+                  {type === "medications" &&
                     item.lineItem && <span>{` (${item.lineItem})`}</span>}
 
-                  {/* Optional rendering for notes */}
-                  {(type === "examination" || type === "diagnosis" || type === "dynamicFields") &&
+                  {type === "dynamicFields" &&
                     item.notes && <span>{` (${item.notes})`}</span>}
                 </div>
               </li>
@@ -902,7 +922,94 @@ function Cardiology(props) {
     );
   };
 
-  const renderGenRxItems = (type) => (
+  const renderMedicalHistoryGrouped = () => {
+    const medicalHistoryData = genRxData?.medicalHistory;
+    
+    if (!medicalHistoryData || !Array.isArray(medicalHistoryData) || medicalHistoryData.length === 0) {
+      return null;
+    }
+  
+    const groupedByType = medicalHistoryData.reduce((acc, item) => {
+      const type = item?.type || item?.subtype || 'other';
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(item);
+      return acc;
+    }, {});
+    
+    const typeDisplayNames = {
+      'medical_condition': 'Medical Conditions',
+      'allergy': 'Allergies',
+      'family_history': 'Family History',
+      'lifestyle': 'Lifestyle',
+      'other': 'others'
+    };
+    
+    return (
+      <div className="medical-history-grouped" style={{ marginTop: '8px' }}>
+        {Object.entries(groupedByType).map(([type, items]) => (
+          <div key={type} style={{ marginBottom: '8px' }}>
+            <div style={{ marginBottom: '4px', marginLeft: '16px' }}>
+              <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
+                • {typeDisplayNames[type] || type}:
+              </span>
+            </div>
+            
+            {items.map((item, itemIndex) => {
+              const itemName = item?.name || item?.condition || 'N/A';
+              const details = [];
+              
+              if (item?.duration && item.duration !== '') {
+                details.push(`Since: ${item.duration}`);
+              }
+              if (item?.relation && item.relation !== '') {
+                details.push(`Relation: ${item.relation}`);
+              }
+              if (item?.notes && item.notes !== '') {
+                details.push(`Note: ${item.notes}`);
+              }
+              if (item?.severity && item.severity !== '') {
+                details.push(`Severity: ${item.severity}`);
+              }
+              
+              return (
+                <div key={itemIndex} style={{ marginBottom: '2px', marginLeft: '32px' }}>
+                  <span style={{ fontWeight: 500, fontSize: 'inherit' }}>
+                    • {itemName}
+                  </span>
+                  {details.length > 0 && (
+                    <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
+                      {' ('}
+                      {details.map((detail, detailIndex) => {
+                        const [label, ...valueParts] = detail.split(':');
+                        const value = valueParts.join(':');
+                        return (
+                          <span key={detailIndex}>
+                            {detailIndex > 0 ? ' | ' : ''}
+                            <span style={{ fontWeight: 400 }}>{label}:</span>
+                            {value}
+                          </span>
+                        );
+                      })}
+                      {')'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderGenRxItems = (type) => {
+    if (type === "medicalHistory") {
+      return renderMedicalHistoryGrouped();
+    }
+    
+    return (
     <div className="digitised-data-section" style={{ marginLeft: 0 }}>
       <ol>
         {type === "followUp" && genRxData?.followUp && (
@@ -955,21 +1062,42 @@ function Cardiology(props) {
                   type === "labInvestigation" ||
                   type === "symptoms" ||
                   type === "examinations" ||
-                  type === "diagnosis") &&
-                  (item.lineItem ? <span>{item.lineItem}</span> : item.name ? (
-                    <span>
-                      {item.name}
+                  type === "diagnosis") && (() => {
+                    const hasIndividualFields = (item?.severity && item?.severity !== '') || 
+                                               (item?.duration && item?.duration !== '') || 
+                                               (item?.notes && item?.notes !== '') ||
+                                               (item?.type && item?.type !== '') ||
+                                               (item?.relation && item?.relation !== '') ||
+                                               (item?.dosage && item?.dosage !== '') ||
+                                               (item?.frequency && item?.frequency !== '') ||
+                                               (item?.schedule && item?.schedule !== '');
                     
-                      {item.duration && ` (duration: ${item.duration})`}
-                      {item.severity && ` (severity: ${item.severity})`}
-                      {item.notes && ` (note: ${item.notes})`}
-                      {item.type && ` (type: ${item.type})`}
-                      {item.relation && ` (relation: ${item.relation})`}
-                      {item.dosage && ` (dosage: ${item.dosage})`}
-                      {item.frequency && ` (frequency: ${item.frequency})`}
-                      {item.schedule && ` (schedule: ${item.schedule})`}
-                    </span>
-                  ) : <span>{item}</span>)}
+                    const details = hasIndividualFields
+                      ? [
+                          item?.severity && item?.severity !== '' ? item?.severity : null,
+                          item?.duration && item?.duration !== '' ? item?.duration : null,
+                          item?.notes && item?.notes !== '' ? item?.notes : null,
+                          item?.type && item?.type !== '' ? item?.type : null,
+                          item?.relation && item?.relation !== '' ? item?.relation : null,
+                          item?.dosage && item?.dosage !== '' ? item?.dosage : null,
+                          item?.frequency && item?.frequency !== '' ? item?.frequency : null,
+                          item?.schedule && item?.schedule !== '' ? item?.schedule : null,
+                        ].filter(Boolean).join(', ')
+                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                    
+                    return item.lineItem && !hasIndividualFields ? (
+                      <span>{item.lineItem}</span>
+                    ) : item.name ? (
+                      <span>
+                        {item.name}
+                        {details && (
+                          <span> ({details})</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span>{item}</span>
+                    );
+                  })()}
 
                 {type === "labResults" && (
                   <>
@@ -988,6 +1116,7 @@ function Cardiology(props) {
       </ol>
     </div>
   );
+  };
 
   const renderGenRxCustomModules = () =>
     Object.entries(genRxData?.dynamicFields || {})
@@ -1357,8 +1486,8 @@ function Cardiology(props) {
                       genRxData?.medicalHistory.length > 0 && (
                         <>
                           <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Medical History
+                            <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
+                              Medical History:
                             </div>
                           </div>
                           {renderGenRxItems("medicalHistory")}

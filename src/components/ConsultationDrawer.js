@@ -1954,13 +1954,10 @@ const ConsultationDrawer = ({
                 setExpandedTranscripts(new Set());
               }
               
-              // Update fullTranscript - append if updating, set if creating new
-              if (genRxDetails?._id) {
-                const existingTranscript = fullTranscript || genRxDetails?.source || '';
-                updatedTranscript = (existingTranscript + ' ' + responseData.transcription).trim();
-              } else {
-                updatedTranscript = responseData.transcription;
-              }
+              const existingTranscript = fullTranscript || genRxDetails?.source || '';
+              updatedTranscript = existingTranscript 
+                ? (existingTranscript + ' ' + transcription).trim()
+                : transcription;
               setFullTranscript(updatedTranscript);
                                                    } else if ((responseData?.data?.history && Array.isArray(responseData.data.history) && responseData.data.history.length > 0) ||
                          (responseData?.history && Array.isArray(responseData.history) && responseData.history.length > 0)) {
@@ -4644,7 +4641,7 @@ const ConsultationDrawer = ({
                         
                                                 {/* Transcript Cards */}
                         {/* First transcript card - show initial transcript */}
-                        {(fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (                                          
+                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (                                          
                           <div className={styles.transcriptCard}>
                             <div 
                               className={styles.transcriptHeader}
