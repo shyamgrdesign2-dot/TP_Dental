@@ -143,7 +143,6 @@ import { checkSymptomsCollectorTour } from "../api/services/ApiGenRx";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
-import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 const { TextArea } = Input;
 
@@ -153,7 +152,7 @@ const showDateFormat = "DD-MM-YYYY";
 function AppointmentData({ locationPath, appointmentAgentsData }) {
   const navigate = useNavigate();
 
-  const { sort_order, profile, siteId, empNo, userId, defaultPrintSettings } = useSelector(
+  const { sort_order, profile, siteId, empNo, userId } = useSelector(
     (state) => state.doctors
   );
   const { uploadDocCategories } = useSelector((state) => state.uploadDoc);
@@ -1705,28 +1704,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     return urlObj.toString();
   };
 
-  const getPatientDefaultLanguage = async (record) => {
-    const res = await fetchPatientDefaultLanguage(
-      record?.patient_unique_id
-    );
-    if (res?.settings?.defaultLanguage) {
-      return res.settings.defaultLanguage;
-    } else {
-      return defaultPrintSettings?.default_language;
-    }
-  };
-
   const onPrintRxUrlClick = async (record) => {
-    const patientDefaultLanguage = await getPatientDefaultLanguage(record);
-    const encodedData = btoa(patientDefaultLanguage?.toString());
     if (record.print_rx_url) {
       const printUrl = await updateRxDigitizeInUrl(record);
       if (!isChrome && !isSafari) {
-        // navigate(`/?url=${printUrl}&lg=${encodedData}&key=print`, { replace: true });
+        // navigate(`/?url=${printUrl}&key=print`, { replace: true });
         // navigate(0, { replace: true });
-        sendMessageToParent(EVENTS.PRINT, { url: `${record.print_rx_url}&lg=${encodedData}` });
+        sendMessageToParent(EVENTS.PRINT, { url: record.print_rx_url });
       } else {
-        await window.open(`${printUrl}&lg=${encodedData}`);
+        await window.open(printUrl);
       }
     } else {
       setAppointmentSelectedFromMenu(record);
