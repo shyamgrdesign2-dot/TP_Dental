@@ -171,6 +171,25 @@ function WalkInConsultation() {
       },
     ];
   
+    // Add Voice Rx option
+    items.unshift({
+      label: (
+        <span
+          style={{
+            display: "inline-block",
+            cursor: "pointer",
+          }}
+          onClick={() => {
+            setAutoCompleteFlag(false);
+            onVoiceRxClick(record);
+          }}
+        >
+          Voice Rx
+        </span>
+      ),
+      key: "voicerx",
+    });
+
     if (isSmartSyncAccessableFromGB && isSnapRxAccessable) {
       items.unshift({
         label: (
@@ -576,7 +595,13 @@ function WalkInConsultation() {
                                             </button>
                                         }
                                         <button
-                                            className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                            className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
+                                            onClick={() => onVoiceRxClick(clickedPatient)}
+                                        >
+                                            Voice Rx
+                                        </button>
+                                        <button
+                                            className={`btn-consult-patient-details bottom-br`}
                                             onClick={() => onConsultClick(clickedPatient)}
                                         >
                                             Consult
@@ -626,7 +651,13 @@ function WalkInConsultation() {
                                     {clickedDownArrow && (
                                         <div className='ps-rx-btns-grp' ref={consultButtonRef}>
                                             <button
-                                                className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                                className="btn-consult-patient-details top-br with-divider"
+                                                onClick={() => onVoiceRxClick(clickedPatient)}
+                                            >
+                                                Voice Rx
+                                            </button>
+                                            <button
+                                                className="btn-consult-patient-details bottom-br"
                                                 onClick={() => onConsultClick(clickedPatient)}
                                             >
                                                 Consult
@@ -715,6 +746,25 @@ function WalkInConsultation() {
 
   const onSnapRxClick = async (patient) => {
     navigate("/snap-rx", { state: { patient_data: patient } });
+  };
+
+  const onVoiceRxClick = async (patient) => {
+    const clinic_name = getClinicName(profile?.hospital_data);
+    window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+      patient_contact: patient?.pm_contact_no || "",
+      patient_id: patient?.patient_unique_id || "",
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+    });
+    
+    // Navigate to Voice Rx Doctor Consult Page
+    navigate("/voice-rx-consult", {
+      state: { 
+        patient_data: patient,
+        isFromTabView: isMobile
+      },
+    });
   };
 
   return (

@@ -328,7 +328,7 @@ const uat = {
   digitization_api_url: "https://pm-digitization-uat.tatvacare.in",
   monetization_url: "https://pm-tp-monetization-uat.tatvacare.in",
   tp_monetization_disabled_hospital: [
-    4851751290017377, 754811713438773, 912841712741834, 7591750931025038,
+    4851751290017377, 912841712741834, 7591750931025038,
   ],
   tp_agent_disabled_hospital: [
     4851751290017377, 754811713438773, 912841712741834, 7591750931025038,

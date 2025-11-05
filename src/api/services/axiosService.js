@@ -20,7 +20,8 @@ instance.interceptors.request.use(
         if (config.customBaseUrl) {
             config.baseURL = config.customBaseUrl;
         }
-        const token = config.customBaseUrl.startsWith(main_config.zydus_proxy_url) && !config.url.startsWith('/ictAuthProxy') ?
+        // Check if customBaseUrl exists before calling startsWith
+        const token = config.customBaseUrl && config.customBaseUrl.startsWith(main_config.zydus_proxy_url) && !config.url.startsWith('/ictAuthProxy') ?                                 
             localStorage.getItem(PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN) == null ? localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN) == null ? null : JSON.parse(localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN)) : JSON.parse(localStorage.getItem(PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN))
             : localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN) == null ? null : JSON.parse(localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN));
         if (token && !config.headers['api_key'] && !config.snapRxFileUpload) {
@@ -51,12 +52,21 @@ instance.interceptors.response.use(
             message: ''
         }
 
+        // Check if error.response exists before accessing its properties
+        if (!error.response) {
+            // Handle network errors, CORS errors, or other non-HTTP errors
+            notificationParam.message = error.message || 'Network Error'
+            notificationParam.key = "notification_key"
+            notification.error(notificationParam)
+            return Promise.reject(error);
+        }
+
         // Remove token and redirect 
         if (error.response.status === 400 || error.response.status === 403) {
             notificationParam.message = 'Authentication Fail'
             notificationParam.description = 'Please login again'
             console.log('Entry Route')
-            return error.response;
+            return Promise.reject(error);
         }
 
         if (error.response.status === 404) {

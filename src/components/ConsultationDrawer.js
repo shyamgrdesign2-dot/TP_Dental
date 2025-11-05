@@ -8,110 +8,506 @@ import React, {
   Suspense,
   lazy,
 } from "react";
-import { Drawer, Button, Input, message, Menu, Dropdown, Spin } from "antd";
+import {
+  Drawer,
+  Button,
+  Input,
+  message,
+  Menu,
+  Dropdown,
+  Spin,
+  Tooltip,
+  Divider,
+  AutoComplete,
+} from "antd";
 import styles from "./ConsultationDrawer.module.css";
 import deleteIcon from "../assets/images/delete-gen-rx.svg";
 import micIcon from "../assets/images/mic-gen-rx.svg";
 import pauseIcon from "../assets/images/pause.svg";
+import voiceRxButton from "../assets/images/voice-rx-button.svg";
+import vitalsIcons from "../assets/images/vitals-icons.svg";
+import stopIcon from "../assets/images/stop-icon.svg";
+import muteIcon from "../assets/images/mute-icon.svg";
+import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
   editGenRxDetails,
-  generateRx,
+  editAmbientRxDetails,
   getGenRx,
+  getAmbientRx,
   setAddToRx,
+  generateRx,
   updateGenRx,
+  generateAmbientRx,
+  updateAmbientRx,
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
-import documentIcon from "../assets/images/digitise-rx.svg";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
 import genRxRecordIcon from "../assets/images/gen-rx-record.svg";
-import tatvaAiStrip from "../assets/images/apexAI.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
-import { addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
+import {
+  addCaseManager,
+  editCaseManager,
+  getInvestigationAndMedicine,
+} from "../redux/caseManagerSlice";
+import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
+import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import VoiceWaveVisualizer from "./WaveVisualizer";
 import GenRXLoaders from "./GenRxLoaders";
 import genRxSendCta from "../assets/images/genRxSendCta.svg";
+import zydusDataEngineIcon from "../assets/images/intersect.svg";
 import tatvaAiChakra from "../assets/lotties/tatvaAiChakra.lottie";
-import { FAILED_VERIFICATION, FREE, MESSAGE_KEY, S_DDX, S_VOICE_RX } from "../utils/constants";
+import doctorAvatar from "../assets/images/doctor-avatar.png";
+import arrowBoxDown from "../assets/images/arrow-box-down.svg";
+import dictateActiveIcon from "../assets/images/dictate-active.svg";
+import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
+import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
+import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
+import LabInvestigationTable from "./LabInvestigationTable";
+import AdviceRichTextEditor from "./AdviceRichTextEditor";
+import VitalsRichTextEditor from "./VitalsRichTextEditor";
+import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
+import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
+import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
+import MedicationsTable from "./MedicationsTable";
+import {
+  FAILED_VERIFICATION,
+  FREE,
+  GB_APOLLO_DISABLE_FEATURE,
+  GB_ZYDUS_USER,
+  MESSAGE_KEY,
+  S_DDX,
+  S_VOICE_RX,
+  S_AMBIENT_VOICE_RX,
+} from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import { services } from "../redux/doctorsSlice";
-import { deviceType, osName } from "react-device-detect";
 import SCBanner from "./SCBanner";
+import GenRxKnowMore from "./GenRxKnowMore";
 import { setSelectAutofill } from "../redux/ddxSlice";
+import growIcon from "../assets/images/grow.svg";
+import accuracyIcon from "../assets/images/accuracy.svg";
+import healthIcon from "../assets/images/health-care.svg";
+import playIcons from "../assets/images/tube-icon.svg";
+import VideoModal from "../common/VideoModal";
+import tagNew from "../assets/images/new-gif.gif";
+import CustomMedicinePopup from "./CustomMedicinePopup";
+import {
+  getFrequentlySearchedMedication,
+  searchMedication,
+} from "../redux/medicationSlice";
+import ApiMedication from "../api/services/ApiMedication";
+import ApiInvestigation from "../api/services/ApiInvestigation";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import {
+  getFrequentlySearchedInvestigation,
+  searchInvestigation,
+} from "../redux/investigationSlice";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
-const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID }) => {
-
+const ConsultationDrawer = ({
+  visible,
+  onClose,
+  labReportID,
+  digitizedData,
+  typedInputText,
+  mode,
+}) => {
   const { servicesList } = useSelector((state) => state.doctors);
-  const VOICE_RX_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
+  const VOICE_RX_planDetails = servicesList?.find(
+    (e) => e.service_name === S_VOICE_RX
+  );
 
-  const { useVoiceRx, setUseVoiceRx, useDDX } = useContext(CashManagerContext);
+  const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData } = state;
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const isFuzzyUpdatingRef = useRef(false);
+  const lastFuzzyNamesRef = useRef("");
+  const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
+  const isFuzzyUpdatingTestsRef = useRef(false);
+  const lastFuzzyTestsRef = useRef("");
+  const lastFuzzyTestsCallRef = useRef({ sig: "", ts: 0 });
   const [prescriptionData, setPrescriptionData] = useState(null);
   const isAutoFocusShownRef = useRef(false);
+  const hasAutoSubmittedRef = useRef(false);
   const [symptomsCollectorData, setSymptomsCollectorData] = useState(null);
   const [localModules, setLocalModules] = useState([]);
   const [showInput, setShowInput] = useState(false);
   const [newModuleName, setNewModuleName] = useState("");
   const [updatedModuleName, setUpdatedModuleName] = useState("");
   const [genRxDetails, setGenRxDetails] = useState(null);
+  const [fullTranscript, setFullTranscript] = useState("");
+  const [conversations, setConversations] = useState([]);
   const [showPrescription, setShowPrescription] = useState(
     caseManagerData?.smart_prescription_filename || false
   );
   const [inputText, setInputText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
+  const [expandedTranscripts, setExpandedTranscripts] = useState(new Set([0])); // Track which transcript cards are expanded
+  const [audioDuration, setAudioDuration] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [editableText, setEditableText] = useState("");
   const [editableQuery, setEditableQuery] = useState("");
+  const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
+  const [showInstructionMessage, setShowInstructionMessage] = useState(true);
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableLineItem, setEditableLineItem] = useState("");
+  const [editableName, setEditableName] = useState("");
+  const [searchParentQuery, setSearchParentQuery] = useState("");
+  const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  // const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
   const [editableKey, setEditableKey] = useState("");
-  const [queries, setQueries] = useState([]);
+  const [queries, setQueries] = useState([]); // Array of { text, isAudio, duration }
   const [isRxEdited, setIsRxEdited] = useState(false);
   const [editingModule, setEditingModule] = useState("");
+  const [isAmbientMode, setIsAmbientMode] = useState(() => {
+    const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
+    return activeService === S_AMBIENT_VOICE_RX;
+  });
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
+  const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState(null);
+  const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
+    return localStorage.getItem("dontShowZydusWarning") === "true";
+  });
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
-  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+  const { parentOptionsList: medicationParentOptionsList } = useSelector(
+    (state) => state.medication
+  );
+  const { parentOptionsList: investigationParentOptionsList } = useSelector(
+    (state) => state.investigation
+  );
   const { symptomCollector, isAutofillSelected, selectedSymptomsCollector } =
     useSelector((state) => state.ddx);
   const { TextArea } = Input;
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const [shouldShowVideo, setShowVideo] = useState(false);
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_APOLLO_DISABLE_FEATURE
+  );
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const tokenData = getTokenData();
+  const isGroundingAccessable =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
+  const videoLink = {
+    link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
+    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+  };
+
 
   useEffect(() => {
-    if (VOICE_RX_planDetails !== undefined && (VOICE_RX_planDetails?.plan_tier === FREE || VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)) {
+    if (mode === 'ambient') {
+      setIsAmbientMode(true);
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+    } else if (mode === 'dictation') {
+      setIsAmbientMode(false);
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+    } else {
+      const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
+      setIsAmbientMode(activeService === S_AMBIENT_VOICE_RX);
+    }
+  }, [visible, mode]);
+
+  useEffect(() => {
+    if (audioBlob && audioBlob instanceof Blob) {
+      const audio = new Audio();
+      const url = URL.createObjectURL(audioBlob);
+      audio.src = url;
+      
+      audio.addEventListener('loadedmetadata', () => {
+        const duration = audio.duration;
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.floor(duration % 60);
+        setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+        URL.revokeObjectURL(url);
+      });
+    }
+  }, [audioBlob, fromVoiceRecording]);
+
+  // Set audio duration from genRxDetails when editing a prescription
+  useEffect(() => {
+    if (!audioBlob && !fromVoiceRecording) {
+      if (genRxDetails?.source_duration !== undefined && genRxDetails?.source_duration !== null) {
+        const duration = genRxDetails.source_duration;
+        // Handle duration as seconds (even if it's 0)
+        if (typeof duration === 'number' && duration >= 0) {
+          const minutes = Math.floor(duration / 60);
+          const seconds = Math.floor(duration % 60);
+          const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          setAudioDuration(formattedDuration);
+        }
+      }
+    }
+  }, [genRxDetails?.source_duration, audioBlob, fromVoiceRecording, genRxDetails]);
+
+  useEffect(() => {
+    if (!visible) {
+      hasAutoSubmittedRef.current = false;
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (hasAutoSubmittedRef.current) return;
+    
+    const shouldAutoSubmit = visible && fromVoiceRecording && audioBlob && !isProcessing && !prescriptionData;
+    if (!shouldAutoSubmit) return;
+
+    hasAutoSubmittedRef.current = true;
+
+    const run = async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 80));
+        setShowPrescription(true);
+        setRecordingTime(0);
+        setIsProcessing(true);
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        }
+        setIsRecording(false);
+        setIsPaused(false);
+
+        await handleVoiceDigitize(audioBlob, "");
+      } catch (e) {
+        console.error('Auto submit failed:', e);
+        setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, fromVoiceRecording, audioBlob]);
+
+  useEffect(() => {
+    if (hasAutoSubmittedRef.current) return;
+    
+    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
+    if (!shouldSubmitTyped) return;
+
+    hasAutoSubmittedRef.current = true;
+
+    const run = async () => {
+      try {
+        await new Promise((r) => setTimeout(r, 60));
+        setShowPrescription(true);
+        setIsProcessing(true);
+        await handleVoiceDigitize(null, typedInputText);
+      } catch (e) {
+        console.error('Typed submit failed:', e);
+        setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
+      }
+    };
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, typedInputText]);
+
+  
+  useEffect(() => {
+    if (prescriptionData && Object.keys(prescriptionData).length > 0) {
+      setShowPrescription(true);
+    }
+  }, [prescriptionData]);
+
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const meds = prescriptionData?.medications || [];
+    if (!meds.length) return;
+    if (isFuzzyUpdatingRef.current) return;
+    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    if (!namesSignature || namesSignature === lastFuzzyNamesRef.current) return;
+
+    const now = Date.now();
+    if (
+      lastFuzzyCallRef.current.sig === namesSignature &&
+      now - lastFuzzyCallRef.current.ts < 800
+    ) {
+      return; // ignore rapid duplicate (e.g., StrictMode double effect)
+    }
+    lastFuzzyCallRef.current = { sig: namesSignature, ts: now };
+
+    lastFuzzyNamesRef.current = namesSignature;
+    getFuzzySearchMedicine(meds);
+  }, [prescriptionData?.medications]);
+
+  // Fuzzy-correct lab investigations (tests) names with guards
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const tests = prescriptionData?.labInvestigation || [];
+    if (!tests.length) return;
+    if (isFuzzyUpdatingTestsRef.current) return;
+    const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
+    if (!namesSignature || namesSignature === lastFuzzyTestsRef.current) return;
+
+    const now = Date.now();
+    if (
+      lastFuzzyTestsCallRef.current.sig === namesSignature &&
+      now - lastFuzzyTestsCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyTestsCallRef.current = { sig: namesSignature, ts: now };
+    lastFuzzyTestsRef.current = namesSignature;
+    getFuzzySearchLabs(tests);
+  }, [prescriptionData?.labInvestigation]);
+
+  const getFuzzySearchMedicine = async (medsSnapshot) => {
+    try {
+      const meds = medsSnapshot || prescriptionData?.medications || [];
+      if (!meds.length) return;
+      isFuzzyUpdatingRef.current = true;
+
+      const correctedResults = await Promise.all(
+        meds.map(async (med) => {
+          const currentName = (med?.name || "").trim();
+          if (!currentName)
+            return { correctedName: currentName, fullData: null };
+          try {
+            const result = await ApiMedication.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.tmm_medicine_name?.trim();
+            return {
+              correctedName: corrected || currentName,
+              fullData: result?.[0] || null,
+            };
+          } catch (e) {
+            return { correctedName: currentName, fullData: null };
+          }
+        })
+      );
+
+      const anyChanged = meds.some(
+        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+      );
+      if (!anyChanged) return;
+
+      const correctedSig = correctedResults
+        .map((r) => r.correctedName)
+        .join("|");
+      lastFuzzyNamesRef.current = correctedSig;
+
+      setPrescriptionData((prev) => ({
+        ...prev,
+        medications: (prev?.medications || []).map((m, idx) => ({
+          ...m,
+          name: correctedResults[idx].correctedName,
+          edited: false,
+          metadata: {
+            ...m.metadata,
+            fuzzyCorrectedName: correctedResults[idx].correctedName,
+            originalName: m.name,
+            isFuzzyCorrected: true,
+            ...(correctedResults[idx].fullData || {}),
+          },
+        })),
+      }));
+    } finally {
+      isFuzzyUpdatingRef.current = false;
+    }
+  };
+
+  const getFuzzySearchLabs = async (testsSnapshot) => {
+    try {
+      const tests = testsSnapshot || prescriptionData?.labInvestigation || [];
+      if (!tests.length) return;
+      isFuzzyUpdatingTestsRef.current = true;
+
+      const correctedResults = await Promise.all(
+        tests.map(async (it) => {
+          const currentName = (it?.name || "").trim();
+          if (!currentName)
+            return { correctedName: currentName, fullData: null };
+          try {
+            const result = await ApiInvestigation.getFuzzySearch(currentName);
+            const corrected = result?.[0]?.investigation_name?.trim();
+            return {
+              correctedName: corrected || currentName,
+              fullData: result?.[0] || null,
+            };
+          } catch (e) {
+            return { correctedName: currentName, fullData: null };
+          }
+        })
+      );
+
+      const anyChanged = tests.some(
+        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+      );
+      if (!anyChanged) return;
+
+      const correctedSig = correctedResults
+        .map((r) => r.correctedName)
+        .join("|");
+      lastFuzzyTestsRef.current = correctedSig;
+
+      setPrescriptionData((prev) => ({
+        ...prev,
+        labInvestigation: (prev?.labInvestigation || []).map((m, idx) => ({
+          ...m,
+          name: correctedResults[idx].correctedName,
+          // Add metadata for fuzzy search corrected name with full data
+          metadata: {
+            ...m.metadata,
+            fuzzyCorrectedName: correctedResults[idx].correctedName,
+            originalName: m.name,
+            isFuzzyCorrected: true,
+            ...(correctedResults[idx].fullData || {}),
+          },
+        })),
+      }));
+    } finally {
+      isFuzzyUpdatingTestsRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (
+      VOICE_RX_planDetails !== undefined &&
+      (VOICE_RX_planDetails?.plan_tier === FREE ||
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
+    ) {
       setTimeout(() => {
-        setIsSubModalOpen(true)
+        setIsSubModalOpen(true);
       }, 500);
     }
   }, [VOICE_RX_planDetails]);
@@ -120,7 +516,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setIsSubModalOpen(!isSubModalOpen);
 
     const clinic_name = getClinicName(profile?.hospital_data);
-    const tokenData = getTokenData();
     const deviceSdkData = getDeviceSdkData();
     window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
@@ -131,7 +526,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       um_id: tokenData?.user_id,
       clinic_Name: clinic_name,
       ...deviceSdkData,
-
     });
   }, [isSubModalOpen]);
 
@@ -139,7 +533,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setIsBackModalOpen(!isBackModalOpen);
   }, [isBackModalOpen]);
 
-  // Add these refs
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioStreamRef = useRef(null);
@@ -152,31 +545,136 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const textAreaRef = useRef(null);
 
+  // Split view resizer state
+  const splitRef = useRef(null);
+  const isResizingRefSplit = useRef(false);
+  
+  const getInitialWidthPercent = () => {
+    if (typeof window === 'undefined') return 33;
+    const screenWidth = window.innerWidth;
+    if (screenWidth >= 769 && screenWidth <= 1024) {
+      return 35;
+    }
+    if (screenWidth >= 1920) return 25;
+    if (screenWidth >= 1440) return 33;
+    return 33;
+  };
+  
+  const [leftWidthPercent, setLeftWidthPercent] = useState(getInitialWidthPercent());
+
+  const onMouseMoveResizer = useCallback((e) => {
+    if (!isResizingRefSplit.current || !splitRef.current) return;
+    const rect = splitRef.current.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const totalWidth = rect.width;
+    
+    const minLeftWidthPx = 480;
+    const minRxPadWidthPx = 960;
+    const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
+    const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
+    
+    const pct = (relativeX / totalWidth) * 100;
+    
+    if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
+      const clamped = Math.min(maxLeftPercent, Math.max(minLeftPercent, pct));
+    setLeftWidthPercent(clamped);
+    } else {
+      const clamped = Math.min(100, Math.max(0, pct));
+      setLeftWidthPercent(clamped);
+    }
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    if (!isResizingRefSplit.current) return;
+    isResizingRefSplit.current = false;
+    document.removeEventListener("mousemove", onMouseMoveResizer);
+    document.removeEventListener("mouseup", stopResizing);
+  }, [onMouseMoveResizer]);
+
+  const startResizing = useCallback(() => {
+    isResizingRefSplit.current = true;
+    document.addEventListener("mousemove", onMouseMoveResizer);
+    document.addEventListener("mouseup", stopResizing);
+  }, [onMouseMoveResizer, stopResizing]);
+
   useEffect(() => {
-    if (caseManagerData?.smart_prescription_filename) getGenRxDetails();
+    const handleWindowResize = () => {
+      if (!splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const totalWidth = rect.width;
+      
+      const minLeftWidthPx = 480;
+      const minRxPadWidthPx = 960;
+      
+      if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
+        const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
+        const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
+        
+        const currentLeftPx = (leftWidthPercent / 100) * totalWidth;
+        const currentRxPadPx = totalWidth - currentLeftPx;
+        
+        if (currentLeftPx < minLeftWidthPx) {
+          setLeftWidthPercent(minLeftPercent);
+        } else if (currentRxPadPx < minRxPadWidthPx) {
+          setLeftWidthPercent(maxLeftPercent);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, [leftWidthPercent]);
+
+  useEffect(() => {
+    if (caseManagerData?.smart_prescription_filename) {
+      getGenRxDetails();
+    }
   }, [caseManagerData?.smart_prescription_filename]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!splitRef.current) return;
+      const totalWidth = splitRef.current.getBoundingClientRect().width || window.innerWidth;
+      const isTablet = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      const desiredLeftPx = isTablet ? 350 : 480;
+      const minLeftPx = desiredLeftPx;
+      const minRightPx = isTablet ? 674 : 960;
+      const minLeftPercent = (minLeftPx / totalWidth) * 100;
+      const maxLeftPercent = ((totalWidth - minRightPx) / totalWidth) * 100;
+      let pct = (desiredLeftPx / totalWidth) * 100;
+      if (!isFinite(pct)) pct = getInitialWidthPercent();
+      const clamped = Math.max(minLeftPercent, Math.min(maxLeftPercent, pct));
+      setLeftWidthPercent(clamped);
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (isAutoFocusShownRef.current) return;
-    if (!prescriptionData || activeIndex !== null || activeType !== null) return;
+    if (!prescriptionData || activeIndex !== null || activeType !== null)
+      return;
 
     const fieldsToCheck = [
-      { name: 'vitalsAndBodyComposition', type: 'object' },
-      { name: 'medicalHistory', type: 'array' },
-      { name: 'symptoms', type: 'array' },
-      { name: 'examinations', type: 'array' },
-      { name: 'diagnosis', type: 'array' },
-      { name: 'medications', type: 'array' },
-      { name: 'labInvestigation', type: 'array' },
-      { name: 'advice', type: 'array' },
-      { name: 'vaccinations', type: 'array' },
-      { name: 'others', type: 'array' },
-      { name: 'dynamicFields', type: 'object' },
-      { name: 'followUp', type: 'string' }
+      { name: "vitalsAndBodyComposition", type: "object" },
+      { name: "medicalHistory", type: "array" },
+      { name: "symptoms", type: "array" },
+      { name: "examinations", type: "array" },
+      { name: "diagnosis", type: "array" },
+      { name: "medications", type: "array" },
+      { name: "labInvestigation", type: "array" },
+      { name: "advice", type: "array" },
+      { name: "vaccinations", type: "array" },
+      { name: "others", type: "array" },
+      { name: "dynamicFields", type: "object" },
+      { name: "followUp", type: "string" },
     ];
 
     for (const field of fieldsToCheck) {
-      if (field.type === 'object' && field.name === 'vitalsAndBodyComposition') {
+      if (
+        field.type === "object" &&
+        field.name === "vitalsAndBodyComposition"
+      ) {
         const keysWithValue = Object.entries(prescriptionData[field.name] || {})
           .filter(([_, value]) => value)
           .map(([key]) => key);
@@ -187,16 +685,19 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           }, 0);
           return;
         }
-      } else if (field.type === 'object' && field.name === 'dynamicFields') {
+      } else if (field.type === "object" && field.name === "dynamicFields") {
         const modules = Object.keys(prescriptionData[field.name] || {});
-        if (modules.length && prescriptionData[field.name][modules[0]]?.length) {
+        if (
+          modules.length &&
+          prescriptionData[field.name][modules[0]]?.length
+        ) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
             return handleItemClick(modules[0], 0, true);
           }, 100);
           return;
         }
-      } else if (field.type === 'array') {
+      } else if (field.type === "array") {
         if (prescriptionData[field.name]?.length) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
@@ -207,7 +708,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           }, 100);
           return;
         }
-      } else if (field.type === 'string') {
+      } else if (field.type === "string") {
         if (prescriptionData[field.name]) {
           setTimeout(() => {
             isAutoFocusShownRef.current = true;
@@ -262,7 +763,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     }
   }, [selectedSymptomsCollector, isAutofillSelected]);
 
-  // Timer logic
   useEffect(() => {
     let interval;
     if (isRecording && !isPaused) {
@@ -275,30 +775,190 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const getGenRxDetails = async () => {
     try {
-      const response = await getGenRx(
-        caseManagerData?.smart_prescription_filename
-      );
+      let response;
+      if (isAmbientMode || mode === 'ambient') {
+        response = await getAmbientRx(caseManagerData?.smart_prescription_filename);
+      } else {
+        response = await getGenRx(caseManagerData?.smart_prescription_filename);
+      }
 
-      if (response.success) {
-        setPrescriptionData(
-          response.data.editedData || response.data.digitizeData
-        );
-        setGenRxDetails({
-          source: response.data.source,
-          source_duration: response.data.source_duration,
-          timeRequiredInMs: response.data.timeRequiredInMs,
-          type: response.data.type,
-          _id: response.data._id,
-        });
-        // Check if history exists and has data before mapping
-        if (response.data?.history?.length > 0) {
-          const validTranscriptions = response.data.history
-            .map(({ transcription }) => transcription)
-            .filter((text) => text && text !== "null");
-
-          if (validTranscriptions.length > 0) {
-            setQueries(validTranscriptions);
+        if (response.success && response.data) {
+       
+        const hasAmbientType = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
+        
+        if (hasAmbientType) {
+          let prescriptionData = null;
+          
+          if (response.data.editedData) {
+            prescriptionData = response.data.editedData;
+          } else {
+            const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+            const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
+            prescriptionData = latestAmbientEntry?.response || latestAmbientEntry?.payload?.response || latestAmbientEntry?.payload;
           }
+          
+          if (prescriptionData && prescriptionData.vitalsAndBodyComposition) {
+            const vitals = prescriptionData.vitalsAndBodyComposition;
+            const actualVitals = vitals._doc || vitals;
+            const cleanedVitals = {};
+            
+            const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+            vitalKeys.forEach(key => {
+              if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
+                cleanedVitals[key] = actualVitals[key];
+              }
+            });
+            
+            prescriptionData.vitalsAndBodyComposition = cleanedVitals;
+          }
+          
+          setPrescriptionData(prescriptionData);
+          
+          // Convert API medicalHistory format to CashManagerContext format and populate it
+          if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+            const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
+            setMedicalHistoryData(convertedData);
+          }
+          
+          const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+          const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
+          
+          // Initialize queries array from all ambient entries for separate transcript boxes
+          // Each entry should only contain its own conversations, not cumulative
+          if (ambientEntries.length > 0) {
+            let previousConversations = [];
+            const ambientQueries = ambientEntries.map((entry, idx) => {
+              const entryConversations = entry?.payload?.conversation || [];
+              
+              // Extract only conversations that are NEW for this specific entry
+              // Compare with previous entries to identify new conversations
+              const newConversations = entryConversations.filter(conv => {
+                const convText = conv?.message || conv?.text || conv?.content || '';
+                const convSpeaker = (conv?.speaker || '').toLowerCase();
+                
+                // Check if this conversation already exists in previous entries
+                return !previousConversations.some(prevConv => {
+                  const prevText = prevConv?.message || prevConv?.text || prevConv?.content || '';
+                  const prevSpeaker = (prevConv?.speaker || '').toLowerCase();
+                  return prevText === convText && prevSpeaker === convSpeaker;
+                });
+              });
+              
+              // Update previous conversations for next iteration
+              previousConversations = [...previousConversations, ...entryConversations];
+              
+              // If no new conversations found, use transcription text as fallback
+              const transcription = entry?.payload?.transcription || entry?.transcription || '';
+              const conversationsToStore = newConversations.length > 0 ? newConversations : (
+                transcription ? [{
+                  speaker: 'doctor',
+                  text: transcription,
+                  message: transcription,
+                  content: transcription
+                }] : []
+              );
+              
+              return {
+                conversations: conversationsToStore,
+                isAudio: true, // Ambient entries are typically from audio
+                duration: entry?.payload?.source_duration || entry?.source_duration || null,
+                text: transcription
+              };
+            }).filter(query => query.conversations.length > 0 || query.text);
+            
+            if (ambientQueries.length > 0) {
+              setQueries(ambientQueries);
+              // Set first conversation for backward compatibility (use cumulative from latest entry)
+          if (latestAmbientEntry?.payload?.conversation) {
+                setConversations(latestAmbientEntry.payload.conversation);
+              } else {
+                setConversations(ambientQueries[0].conversations);
+              }
+              // Expand first transcript box
+              setIsTranscriptExpanded(true);
+              setExpandedTranscripts(new Set());
+            } else if (latestAmbientEntry?.payload?.conversation) {
+            setConversations(latestAmbientEntry.payload.conversation);
+          } else if (response.data.source) {
+              const initialConversation = {
+                speaker: "doctor",
+                text: response.data.source,
+                timestamp: new Date().toISOString()
+              };
+              setConversations([initialConversation]);
+            }
+          } else if (latestAmbientEntry?.payload?.conversation) {
+            setConversations(latestAmbientEntry.payload.conversation);
+          } else if (response.data.source) {
+            const initialConversation = {
+              speaker: "doctor",
+              text: response.data.source,
+              timestamp: new Date().toISOString()
+            };
+            setConversations([initialConversation]);
+          }
+          
+          setGenRxDetails({
+            source: response.data.source,
+            source_duration: response.data.source_duration,
+            timeRequiredInMs: response.data.timeRequiredInMs,
+            type: "ambient",
+            _id: response.data._id,
+          });
+          
+         
+          if (response.data.source) {
+            setFullTranscript(response.data.source);
+          }
+        } else {
+          
+          if (response.data) {
+            const prescriptionDataFromResponse = response.data.editedData || response.data.digitizeData;
+            setPrescriptionData(prescriptionDataFromResponse);
+            
+            // Convert API medicalHistory format to CashManagerContext format and populate it
+            if (prescriptionDataFromResponse?.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
+              const convertedData = convertMedicalHistoryToContextFormat(prescriptionDataFromResponse.medicalHistory, medicalHistoryData);
+              setMedicalHistoryData(convertedData);
+            }
+
+            let transcriptSource = response.data.source;
+            if (!transcriptSource && response.data?.history?.length > 0) {
+              const validTranscriptions = response.data.history
+                .map(({ transcription }) => transcription)
+                .filter((text) => text && text !== "null" && text);
+              
+              if (validTranscriptions.length > 0) {
+                transcriptSource = validTranscriptions.join(' ');
+              }
+            }
+            
+            setGenRxDetails({
+              source: transcriptSource || response.data.source || '',
+              source_duration: response.data.source_duration,
+              timeRequiredInMs: response.data.timeRequiredInMs,
+              type: response.data.type,
+              _id: response.data._id,
+            });
+
+            if (transcriptSource && !caseManagerData?.smart_prescription_filename) {
+              setFullTranscript(transcriptSource);
+          
+              if (!response.data.source && response.data?.history?.length > 0) {
+            const validTranscriptions = response.data.history
+              .map(({ transcription, source_duration }) => ({
+                text: transcription,
+                isAudio: !!source_duration,
+                duration: source_duration || null
+              }))
+              .filter((query) => query.text && query.text !== "null" && query.text);
+            if (validTranscriptions.length > 0) {
+              setQueries(validTranscriptions);
+            }
+          }
+            }
+          }
+          
         }
       } else {
         throw new Error(response.error || "Failed to get Rx");
@@ -373,25 +1033,42 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   };
 
   const handleSend = async () => {
-    if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0) {
-      showHideSubModal()
-    } else if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
-      showHideSubModal()
+    if (
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails?.plan_tier === FREE &&
+      VOICE_RX_planDetails?.credit_balance <= 0
+    ) {
+      showHideSubModal();
+    } else if (
+      !isFreeVoiceRxUser &&
+      VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION
+    ) {
+      showHideSubModal();
     } else {
       let sendData = {
         b2c_id: profile?.b2c,
-        service_name: S_VOICE_RX
-      }
+        service_name: S_VOICE_RX,
+      };
       const action = await dispatch(checkCredits(sendData));
       if (action.meta.requestStatus === "fulfilled") {
         if (action?.payload?.hasOwnProperty("service_name")) {
-          if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0) {
-            if (action?.payload?.credit_balance != VOICE_RX_planDetails?.credit_balance) {
-              await dispatch(services(sendData?.b2c_id))
+          if (
+            !isFreeVoiceRxUser &&
+            action?.payload?.plan_tier === FREE &&
+            action?.payload?.credit_balance <= 0
+          ) {
+            if (
+              action?.payload?.credit_balance !=
+              VOICE_RX_planDetails?.credit_balance
+            ) {
+              await dispatch(services(sendData?.b2c_id));
             }
-            showHideSubModal()
-          } else if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FAILED_VERIFICATION) {
-            showHideSubModal()
+            showHideSubModal();
+          } else if (
+            !isFreeVoiceRxUser &&
+            action?.payload?.plan_tier === FAILED_VERIFICATION
+          ) {
+            showHideSubModal();
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
             if (genRxDetails?._id) {
@@ -426,18 +1103,17 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
               }
             } catch (error) {
               console.error("Error processing prescription:", error);
-              message.error(error.message || "Failed to process prescription");
+              message.error(error?.message || "Failed to process prescription");
               setIsProcessing(false);
             }
           }
         } else {
-          typeof action?.payload?.data?.error === 'object' ?
-            errorMessage(action?.payload?.data?.error?.description)
-            :
-            errorMessage(action?.payload?.data?.message)
+          typeof action?.payload?.data?.error === "object"
+            ? errorMessage(action?.payload?.data?.error?.description)
+            : errorMessage(action?.payload?.data?.message);
         }
       } else {
-        errorMessage(action.payload.message)
+        errorMessage(action?.payload?.message || action?.error || "An error occurred");
       }
     }
   };
@@ -472,97 +1148,937 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     };
   };
 
+  const validatePrescriptionData = (data) => {
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+    
+    
+    const deepClean = (obj) => {
+      if (obj === null || typeof obj !== 'object') {
+        return obj;
+      }
+      
+     
+      if (Array.isArray(obj)) {
+        return obj.map(item => deepClean(item));
+      }
+      
+     
+      if (obj.vitalsAndBodyComposition && typeof obj.vitalsAndBodyComposition === 'object') {
+        const vitals = obj.vitalsAndBodyComposition;
+       
+        const actualVitals = vitals._doc || vitals;
+        const cleanedVitals = {};
+        
+
+        const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+        vitalKeys.forEach(key => {
+          if (actualVitals[key] !== undefined && actualVitals[key] !== null) {
+            cleanedVitals[key] = actualVitals[key];
+          }
+        });
+        
+        obj.vitalsAndBodyComposition = cleanedVitals;
+      }
+      
+      // Handle objects - remove Mongoose internal properties
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        // Skip Mongoose internal properties
+        if (key.startsWith('$') || 
+            key.startsWith('_') || 
+            key === 'strictMode' || 
+            key === 'selected' || 
+            key === 'getters' || 
+            key === 'wasPopulated' || 
+            key === 'activePaths' || 
+            key === 'pathsToScopes' || 
+            key === 'cachedRequired' || 
+            key === 'session' || 
+            key === '$setCalled' || 
+            key === 'ownerDocument' || 
+            key === 'emitter' || 
+            key === '$options' ||
+            key === '$__parent' ||
+            key === '$__' ||
+            key === '$isSingleNested' ||
+            key === '$locals' ||
+            key === '$op' ||
+            key === '_doc' ||
+            key === '$init') {
+          continue;
+        }
+        
+        cleaned[key] = deepClean(value);
+      }
+      
+      return cleaned;
+    };
+    
+    // Clean the data first
+    const cleanedData = deepClean(data);
+    
+    // Ensure all required fields exist with proper defaults
+    const validatedData = {
+      symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
+      medications: Array.isArray(cleanedData.medications) ? cleanedData.medications : [],
+      vitalsAndBodyComposition: cleanedData.vitalsAndBodyComposition || {},
+      advice: Array.isArray(cleanedData.advice) ? cleanedData.advice : [],
+      diagnosis: Array.isArray(cleanedData.diagnosis) ? cleanedData.diagnosis : [],
+      examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
+      followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
+      labInvestigation: Array.isArray(cleanedData.labInvestigation) ? cleanedData.labInvestigation : [],
+      medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
+      vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
+      others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
+      dynamicFields: cleanedData.dynamicFields || {},
+      ...cleanedData // Preserve any additional fields (now cleaned)
+    };
+    
+    return validatedData;
+  };
+
   const handleVoiceDigitize = async (
-    audioBlob,
+    audioBlobParam,
     transcribedText,
     isFromSC = false
   ) => {
     try {
+      let response;
+
+      if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
       const formData = new FormData();
-      if (audioBlob) {
-        const audioContext = new (window.AudioContext ||
-          window.webkitAudioContext)();
-        const arrayBuffer = await audioBlob.arrayBuffer();
+      
+      // Store duration for this specific interaction (will be used for query duration)
+      let currentRecordingDuration = null;
+      
+      if (audioBlobParam) {
+        const audioFile = new File([audioBlobParam], `ambient-voice-rx-recording-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`, {
+          type: audioBlobParam.type || 'audio/webm'
+        });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuffer = await audioBlobParam.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         const duration = audioBuffer.duration;
-        formData.append("file", audioBlob);
-        formData.append("voice_prescription_filename", `${uuidv4()}.webm`);
-        formData.append("source_duration", duration);
-      } else {
+        
+        // Store duration for this specific interaction
+        currentRecordingDuration = duration;
+        
+        // Append audio file with proper key for API
+        formData.append("file", audioFile);
+        formData.append("source_duration", duration.toString());
+      } else if (transcribedText) {
+        // Append transcript text with proper key for API
         formData.append("voice_prescription_text", transcribedText);
-      }
-      if (genRxDetails?._id) {
-        const data = preparePayloadForApi();
-        formData.append(
-          "voice_prescription_previous_context",
-          JSON.stringify(data)
-        );
-      }
-      formData.append("doctorId", doctorId); // Replace with actual doctor ID
-      formData.append("patientId", patient_data?.patient_unique_id); // Replace with actual patient ID
-
-      const response = genRxDetails?._id
-        ? await updateGenRx(formData, genRxDetails?._id)
-        : await generateRx(formData);
-
-      if (response.success) {
-        if (!isFromSC) {
-          setPrescriptionData(response.data.digitize);
-          setPrescriptionData(() => {
-            // Merge localModules into dynamicFields
-            const mergedDynamicFields = {
-              ...response.data.digitize?.dynamicFields, // Retain API-provided dynamicFields
-              ...localModules.reduce((acc, moduleName) => {
-                acc[moduleName] = []; // Add local modules with default values
-                return acc;
-              }, {}),
-            };
-
-            const formattedSymptomsCollectorData =
-              getFormattedSymptomsCollectorData(selectedSymptomsCollector);
-            const mergedData =
-              formattedSymptomsCollectorData &&
-                Object.keys(formattedSymptomsCollectorData)?.length > 0
-                ? mergeData(
-                  response.data.digitize,
-                  formattedSymptomsCollectorData
-                )
-                : response.data.digitize;
-
-            return {
-              ...mergedData,
-              dynamicFields: mergedDynamicFields, // Updated dynamicFields with localModules
-            };
-          });
-
-          setQueries(
-            isEditing
-              ? [
-                ...queries.slice(0, queries.length - 1),
-                response.data.transcription,
-              ]
-              : [...queries, response.data.transcription]
-          );
         }
 
-        // Clear localModules after merging (optional)
-        // setLocalModules([]);
-        setGenRxDetails({
-          source: response.data.source,
-          source_duration: response.data.source_duration,
-          timeRequiredInMs: response.data.timeRequiredInMs,
-          type: response.data.type,
-          _id: response.data._id,
-        });
-        setInputText("");
-        setIsEditing(false);
-        setUseVoiceRx(true);
+        if (genRxDetails?._id) {
+          const data = preparePayloadForApi();
+          formData.append(
+            "voice_prescription_previous_context",
+            JSON.stringify(data)
+          );
+        }
+        const patientId = patient_data?.patient_unique_id || "";
+        const admissionId = caseManagerData?.admission_id || null;
+        
+        formData.append("doctorId", doctorId);
+        formData.append("patientId", patientId);
+        formData.append("schemaKey", "default");
+        formData.append("getConversation", "true");
+        
+        if (genRxDetails?._id) {
+          const updatedTranscript = fullTranscript + " " + transcribedText;
+      setFullTranscript(updatedTranscript);
+          
+          if (transcribedText) {
+            const newFormData = new FormData();
+            newFormData.append("voice_prescription_text", updatedTranscript);
+            
+            Array.from(formData.entries()).forEach(([key, value]) => {
+              if (key !== '' || typeof value !== 'string') {
+                newFormData.append(key, value);
+              }
+            });
+            
+            // Ensure all required fields are in FormData
+            if (!newFormData.has("doctorId")) {
+              newFormData.append("doctorId", doctorId);
+            }
+            if (!newFormData.has("patientId")) {
+              newFormData.append("patientId", patientId);
+            }
+            if (!newFormData.has("schemaKey")) {
+              newFormData.append("schemaKey", "default");
+            }
+            if (!newFormData.has("getConversation")) {
+              newFormData.append("getConversation", "true");
+            }
+            
+            response = await updateAmbientRx(
+              newFormData,
+              genRxDetails?._id,
+              patientId,
+              admissionId
+            );
+          } else {
+            // Ensure all required fields are in FormData
+            if (!formData.has("doctorId")) {
+              formData.append("doctorId", doctorId);
+            }
+            if (!formData.has("patientId")) {
+              formData.append("patientId", patientId);
+            }
+            if (!formData.has("schemaKey")) {
+              formData.append("schemaKey", "default");
+            }
+            if (!formData.has("getConversation")) {
+              formData.append("getConversation", "true");
+            }
+            
+            response = await updateAmbientRx(
+              formData,
+              genRxDetails?._id,
+              patientId,
+              admissionId
+            );
+          }
+        } else {
+          // Ensure all required fields are in FormData
+          if (!formData.has("doctorId")) {
+            formData.append("doctorId", doctorId);
+          }
+          if (!formData.has("patientId")) {
+            formData.append("patientId", patientId);
+          }
+          if (!formData.has("schemaKey")) {
+            formData.append("schemaKey", "default");
+          }
+          if (!formData.has("getConversation")) {
+            formData.append("getConversation", "true");
+          }
+          
+          response = await generateAmbientRx(
+            formData,
+            patientId,
+            admissionId
+          );
+          
+          if (transcribedText) {
+            setFullTranscript(transcribedText);
+          }
+        }
+                        // Handle response structure for ambient API
+        // Note: axiosService interceptor returns response.data, so response structure might be nested
+        const responseData = response?.data || response;
+        
+        // For ambient API, the actual data might be in responseData.data (double nesting)
+        const actualData = responseData?.data || responseData;
+        
+        // Check for success - ambient API might return data directly or wrapped
+        const isSuccess = (response?.success !== false || responseData?.success !== false || actualData?.success !== false) && (actualData || responseData) && (
+          actualData?.digitize || 
+          responseData?.digitize ||
+          actualData?.rx || 
+          responseData?.rx ||
+          actualData?.symptoms || 
+          responseData?.symptoms ||
+          actualData?.conversation ||
+          responseData?.conversation ||
+          actualData?.rxDigitizationHistory ||
+          responseData?.rxDigitizationHistory ||
+          actualData?._id || // Ambient API returns _id on success
+          responseData?._id ||
+          actualData?.source || // Ambient API might return source directly
+          responseData?.source ||
+          (actualData?.rxDigitizationHistory && Array.isArray(actualData.rxDigitizationHistory) && actualData.rxDigitizationHistory.length > 0) ||
+          (responseData?.rxDigitizationHistory && Array.isArray(responseData.rxDigitizationHistory) && responseData.rxDigitizationHistory.length > 0)            
+        );
+        
+        if (isSuccess) {
+          const finalResponseData = actualData || responseData;
+          
+          if (!finalResponseData) {
+            console.error('❌ Response data is null or undefined');
+            throw new Error('No data received from API');
+          }
+          
+          if (!isFromSC) {
+            let prescriptionData = null;
+            let conversationData = null;
+            
+            // Handle ambient API response structure
+            if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
+              // Priority 1: Check for editedData (contains user edits including dosage)
+              if (finalResponseData.editedData || responseData?.editedData) {
+                prescriptionData = finalResponseData.editedData || responseData.editedData;
+              }
+              // Priority 2: Check for digitizeData (aggregated data)
+              else if (finalResponseData.digitizeData || responseData?.digitizeData) {
+                prescriptionData = finalResponseData.digitizeData || responseData.digitizeData;
+              }
+              // Priority 3: Check for digitize object (single digitization)
+              else if (finalResponseData.digitize || responseData?.digitize) {
+                // Extract prescription data from digitize object
+                prescriptionData = finalResponseData.digitize || responseData.digitize;
+              } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
+                // Find the latest ambient entry (for get/edit operations)
+                const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+                const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
+                
+                if (latestAmbientEntry) {
+                  prescriptionData = latestAmbientEntry.payload?.response || 
+                                   latestAmbientEntry.response || 
+                                   latestAmbientEntry.payload;
+                  
+                  if (latestAmbientEntry.payload?.conversation) {
+                    conversationData = latestAmbientEntry.payload.conversation;
+                  }
+                }
+              } else if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+                // Direct prescription data in response (fallback)
+              prescriptionData = responseData;
+            }
+              
+              // Handle conversation data for ambient mode (if not already set)
+              if (!conversationData) {
+                if (responseData.conversation) {
+                  conversationData = responseData.conversation;
+                } else if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+                  conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+                }
+              }
+            } else {
+              // Handle dictate mode response structure (existing logic)
+              // Priority 1: Check for editedData (contains user edits including dosage)
+              if (actualData?.editedData) {
+                prescriptionData = actualData.editedData;
+              }
+              else if (responseData?.editedData) {
+                prescriptionData = responseData.editedData;
+              }
+              // Priority 2: Check for digitizeData (aggregated data)
+              else if (actualData?.digitizeData) {
+                prescriptionData = actualData.digitizeData;
+              }
+              else if (responseData?.digitizeData) {
+                prescriptionData = responseData.digitizeData;
+              }
+              // Priority 3: Check for direct prescription data
+              else if (actualData?.symptoms || actualData?.medications || actualData?.vitalsAndBodyComposition) {                                                   
+                prescriptionData = actualData;
+              }
+              else if (responseData?.symptoms || responseData?.medications || responseData?.vitalsAndBodyComposition) {                                                   
+                prescriptionData = responseData;
+              }
+              else if (actualData?.rxDigitizationHistory?.[0]?.payload?.response) {                                                                              
+                prescriptionData = actualData.rxDigitizationHistory[0].payload.response;                                                                        
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.payload?.response) {                                                                              
+              prescriptionData = responseData.rxDigitizationHistory[0].payload.response;
+            }
+              else if (actualData?.rxDigitizationHistory?.[0]?.response) {
+                prescriptionData = actualData.rxDigitizationHistory[0].response;
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].response;
+            }
+              else if (actualData?.rxDigitizationHistory?.[0]?.payload?.symptoms || actualData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                              
+                prescriptionData = actualData.rxDigitizationHistory[0].payload;
+              }
+              else if (responseData?.rxDigitizationHistory?.[0]?.payload?.symptoms ||                                                                              
+                       responseData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                           
+              prescriptionData = responseData.rxDigitizationHistory[0].payload;
+            }
+              else if (actualData?.digitize) {
+                prescriptionData = actualData.digitize;
+              }
+              else if (responseData?.digitize) {
+              prescriptionData = responseData.digitize;
+            }
+              else if (actualData?.prescription) {
+                prescriptionData = actualData.prescription;
+              }
+              else if (responseData?.prescription) {
+              prescriptionData = responseData.prescription;
+            }
+              else if (actualData?.rx) {
+                prescriptionData = actualData.rx;
+              }
+              else if (responseData?.rx) {
+              prescriptionData = responseData.rx;
+            }
+            }
+            
+            if (prescriptionData && prescriptionData.vitalsAndBodyComposition) {
+              const vitals = prescriptionData.vitalsAndBodyComposition;
+              const actualVitals = vitals._doc || vitals;
+              const cleanedVitals = {};
+              
+              const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+              vitalKeys.forEach(key => {
+                if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
+                  cleanedVitals[key] = actualVitals[key];
+                }
+              });
+              
+              prescriptionData.vitalsAndBodyComposition = cleanedVitals;
+            }
+            
+                        // Handle conversation data for both modes
+            if (!conversationData) {
+                          // Handle conversation data for dictate mode (if not already set)
+            if (!conversationData) {
+              if (actualData?.rxDigitizationHistory?.[0]?.payload?.conversation) {                                                                               
+                conversationData = actualData.rxDigitizationHistory[0].payload.conversation;                                                                    
+              } else if (responseData?.rxDigitizationHistory?.[0]?.payload?.conversation) {                                                                               
+              conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+              } else if (actualData?.conversation) {
+                conversationData = actualData.conversation;
+              } else if (responseData?.conversation) {
+              conversationData = responseData.conversation;
+              } else if (actualData?.digitize?.conversation) {
+                conversationData = actualData.digitize.conversation;
+              } else if (responseData?.digitize?.conversation) {
+              conversationData = responseData.digitize.conversation;
+              } else if (actualData?.rx?.conversation) {
+                conversationData = actualData.rx.conversation;
+              } else if (responseData?.rx?.conversation) {
+              conversationData = responseData.rx.conversation;
+            } else if (prescriptionData?.conversation) {
+              conversationData = prescriptionData.conversation;
+            }
+            }
+            }
+            
+            // For ambient mode, we need to track conversations separately for each transcript box
+            // Similar to how dictate mode uses queries array - each box should only contain its own conversations
+            if (conversationData && (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
+              const isAudioInput = !!audioBlobParam;
+              
+              // For text inputs, always use only the typed text to avoid cumulative conversation issues
+              // For audio inputs, try to extract only new conversations from API response
+              let conversationsToStore = [];
+              
+              if (!isAudioInput && transcribedText) {
+                // Text input: Use only the text that was just typed
+                conversationsToStore = [{
+                  speaker: 'doctor',
+                  text: transcribedText,
+                  message: transcribedText,
+                  content: transcribedText
+                }];
+              } else if (isAudioInput && conversationData) {
+                // Audio input: Extract only NEW conversations that weren't in previous queries
+                // Get all previous conversations from existing queries
+                const previousConversations = queries.flatMap(q => {
+                  if (q.conversations && Array.isArray(q.conversations)) {
+                    return q.conversations;
+                  }
+                  return [];
+                });
+                
+                // Extract only new conversations that weren't in previous queries
+                // Compare by text content and speaker to identify new ones
+                const newConversations = conversationData.filter(newConv => {
+                  const newText = newConv?.message || newConv?.text || newConv?.content || '';
+                  const newSpeaker = (newConv?.speaker || '').toLowerCase();
+                  
+                  // Check if this conversation already exists in previous queries
+                  return !previousConversations.some(prevConv => {
+                    const prevText = prevConv?.message || prevConv?.text || prevConv?.content || '';
+                    const prevSpeaker = (prevConv?.speaker || '').toLowerCase();
+                    return prevText === newText && prevSpeaker === newSpeaker;
+                  });
+                });
+                
+                // Use new conversations if found, otherwise fallback to transcription text
+                conversationsToStore = newConversations.length > 0 ? newConversations : (
+                  transcribedText ? [{
+                    speaker: 'doctor',
+                    text: transcribedText,
+                    message: transcribedText,
+                    content: transcribedText
+                  }] : []
+                );
+              }
+              
+              // Calculate duration for this specific interaction (same as dictate mode)
+              // Use duration from the audio blob that was just recorded (already calculated before API call)
+              // Use the duration that was calculated before the API call (stored in currentRecordingDuration)
+              // This ensures each box shows the duration of that specific recording, not cumulative
+              const queryDuration = isAudioInput ? currentRecordingDuration : null;
+              
+              // Create a new ambient query entry with ONLY the new conversations for this interaction
+              const newAmbientQuery = {
+                conversations: conversationsToStore,
+                isAudio: isAudioInput,
+                duration: queryDuration,
+                text: transcribedText || ''
+              };
+              
+              // Determine if this is editing existing or adding new
+              const newQueryIndex = isEditing ? queries.length - 1 : queries.length;
+              const updatedQueries = isEditing
+                ? [
+                    ...queries.slice(0, queries.length - 1),
+                    newAmbientQuery,
+                  ]
+                : [...queries, newAmbientQuery];
+              
+              setQueries(updatedQueries);
+              
+              // Auto-collapse previous boxes and expand only the new one (but only if this is not the first transcript)
+              if (!isEditing && queries.length > 0) {
+                // Collapse the first transcript box (only if we're adding a second or subsequent transcript)
+                setIsTranscriptExpanded(false);
+                
+                const newCardIndex = newQueryIndex;
+                
+                // Collapse all previous transcript boxes and only expand the new one
+                setExpandedTranscripts(new Set([newCardIndex]));
+              } else if (!isEditing && queries.length === 0) {
+                // This is the first transcript - keep it expanded
+                setIsTranscriptExpanded(true);
+                setExpandedTranscripts(new Set());
+              }
+              
+              // Also set conversations for backward compatibility (first box) - use cumulative for global state
+              setConversations(conversationData);
+            } else if (conversationData) {
+              setConversations(conversationData);
+            }
+            
+            if (prescriptionData) {
+              const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
+              
+              // Process medications to ensure dosage/unitPerDose is properly mapped
+              if (validatedPrescriptionData?.medications && Array.isArray(validatedPrescriptionData.medications)) {
+                validatedPrescriptionData.medications = validatedPrescriptionData.medications.map(med => {
+                  // Map unitPerDose to dosage if dosage is not present but unitPerDose is
+                  if (!med.dosage && med.unitPerDose) {
+                    med.dosage = med.unitPerDose;
+                  }
+                  // If dosage is still not present, try to extract from lineItem or other fields
+                  if (!med.dosage) {
+                    // Check if there's a dosage field with different casing
+                    if (med.Dosage) {
+                      med.dosage = med.Dosage;
+                    } else if (med.unit_per_dose) {
+                      med.dosage = med.unit_per_dose;
+                    }
+                  }
+                  return med;
+                });
+              }
+              
+              // Convert medical history to CashManagerContext format for both ambient and dictate modes
+              if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
+              
+              setPrescriptionData((prevData) => {
+                const mergedDynamicFields = {
+                  ...(validatedPrescriptionData?.dynamicFields),
+                  ...localModules.reduce((acc, moduleName) => {
+                    acc[moduleName] = [];
+                    return acc;
+                  }, {}),
+                };
+
+                if (genRxDetails?._id) {
+                  const hasMeaningfulData = validatedPrescriptionData.symptoms?.length > 0 || 
+                                          validatedPrescriptionData.medications?.length > 0 || 
+                                          validatedPrescriptionData.vitalsAndBodyComposition || 
+                                          Object.keys(validatedPrescriptionData).length > 2;
+                  
+                  if (hasMeaningfulData) {
+                    const formattedSymptomsCollectorData =
+                      getFormattedSymptomsCollectorData(selectedSymptomsCollector);
+                    const finalPrescriptionData =
+                      formattedSymptomsCollectorData &&
+                      Object.keys(formattedSymptomsCollectorData)?.length > 0
+                        ? mergeData(
+                            validatedPrescriptionData,
+                            formattedSymptomsCollectorData
+                          )
+                        : validatedPrescriptionData;
+
+                    return {
+                      ...finalPrescriptionData,
+                      // Preserve medical history from previous data if it exists and new data doesn't have it
+                      medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
+                      dynamicFields: mergedDynamicFields,
+                    };
+                  } else {
+                    // Preserve medical history even when there's no meaningful data
+                    return {
+                      ...(prevData || {}),
+                      medicalHistory: prevData?.medicalHistory || validatedPrescriptionData?.medicalHistory || [],
+                    };
+                  }
+                } else {
+                  const formattedSymptomsCollectorData =
+                    getFormattedSymptomsCollectorData(selectedSymptomsCollector);
+                  const finalPrescriptionData =
+                    formattedSymptomsCollectorData &&
+                    Object.keys(formattedSymptomsCollectorData)?.length > 0
+                      ? mergeData(
+                          validatedPrescriptionData,
+                          formattedSymptomsCollectorData
+                        )
+                      : validatedPrescriptionData;
+
+                  return {
+                    ...finalPrescriptionData,
+                    // Preserve medical history from previous data if it exists and new data doesn't have it
+                    medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
+                    dynamicFields: mergedDynamicFields,
+                  };
+                }
+              });
+            } else {
+              setPrescriptionData({
+                symptoms: [],
+                medications: [],
+                vitalsAndBodyComposition: {},
+                advice: [],
+                diagnosis: [],
+                examinations: [],
+                followUp: "",
+                labInvestigation: [],
+                medicalHistory: [],
+                vaccinations: [],
+                others: [],
+                dynamicFields: localModules.reduce((acc, moduleName) => {
+                  acc[moduleName] = [];
+                  return acc;
+                }, {}),
+              });
+            }
+
+            // Only update conversations this way if not in ambient mode (ambient mode uses queries array above)
+            if (!isAmbientMode && mode !== 'ambient' && window.TATVA_ACTIVE_VOICE_SERVICE !== S_AMBIENT_VOICE_RX) {
+            setConversations((prevConversations) => {
+              if (conversationData && conversationData.length > 0) {
+                if (!genRxDetails?._id || prevConversations.length === 0) {
+                  return conversationData;
+                } else {
+                  return conversationData;
+                }
+              } else if (genRxDetails?._id) {
+                const currentInput = {
+                  speaker: "doctor",
+                  text: transcribedText,
+                  timestamp: new Date().toISOString()
+                };
+                return [...prevConversations, currentInput];
+              } else {
+                const initialConversation = {
+                  speaker: "doctor",
+                  text: transcribedText || "Initial consultation",
+                  timestamp: new Date().toISOString()
+                };
+                return [initialConversation];
+              }
+            });
+          }
+          }
+
+          // Update genRxDetails - check both actualData and responseData
+          const sourceFromResponse = actualData?.source || responseData?.data?.source || responseData?.source;
+          const sourceDurationFromResponse = actualData?.source_duration || responseData?.data?.source_duration || responseData?.source_duration;
+          const timeRequiredFromResponse = actualData?.timeRequiredInMs || responseData?.data?.timeRequiredInMs || responseData?.timeRequiredInMs;
+          const idFromResponse = actualData?._id || responseData?.data?._id || responseData?._id;
+
+          setGenRxDetails({
+            source: sourceFromResponse || genRxDetails?.source || '',
+            source_duration: sourceDurationFromResponse || genRxDetails?.source_duration,
+            timeRequiredInMs: timeRequiredFromResponse || genRxDetails?.timeRequiredInMs,
+            type: "ambient",
+            _id: idFromResponse || genRxDetails?._id,
+          });
+          setInputText("");
+          setIsEditing(false);
+          setUseVoiceRx(true);
+          setShowPrescription(true);
+        } else {
+          if (response.success === false && response.data === null) {
+            throw new Error(response.error || "Server error - API returned failure with null data");
+          } else {
+            throw new Error(response.error || "Failed to process ambient prescription - check response structure");
+          }
+        }
       } else {
-        throw new Error(response.error || "Failed to process prescription");
+        const formData = new FormData();
+        if (audioBlobParam) {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const arrayBuffer = await audioBlobParam.arrayBuffer();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const duration = audioBuffer.duration;
+          formData.append("file", audioBlobParam);
+          formData.append("voice_prescription_filename", `${uuidv4()}.webm`);
+          formData.append("source_duration", duration);
+        } else {
+          formData.append("voice_prescription_text", transcribedText);
+        }
+        if (genRxDetails?._id) {
+          const data = preparePayloadForApi();
+          formData.append(
+            "voice_prescription_previous_context",
+            JSON.stringify(data)
+          );
+        }
+        formData.append("doctorId", doctorId);
+        formData.append("patientId", patient_data?.patient_unique_id);
+
+        response = genRxDetails?._id
+          ? await updateGenRx(formData, genRxDetails?._id)
+          : await generateRx(formData);
+
+        const responseData = response.data || response;
+        const isSuccess = response.success !== false && responseData && (
+          responseData.digitize || 
+          responseData.rx || 
+          responseData.symptoms || 
+          responseData.conversation ||
+          responseData.rxDigitizationHistory
+        );
+        
+        if (isSuccess) {
+          if (!responseData) {
+            console.error('❌ Response data is null or undefined');
+            throw new Error('No data received from API');
+          }
+          
+          // Initialize transcript variables outside the conditional block
+          let updatedTranscript = null;
+          let updatedQueries = queries;
+          
+          if (!isFromSC) {
+            let prescriptionData = null;
+            let conversationData = null;
+            
+            if (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition) {
+              prescriptionData = responseData;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].payload.response;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.response) {
+              prescriptionData = responseData.rxDigitizationHistory[0].response;
+            }
+            else if (responseData.digitize) {
+              prescriptionData = responseData.digitize;
+            }
+            
+            if (responseData.conversation) {
+              conversationData = responseData.conversation;
+            }
+            else if (responseData.rxDigitizationHistory?.[0]?.payload?.conversation) {
+              conversationData = responseData.rxDigitizationHistory[0].payload.conversation;
+            }
+            
+            if (prescriptionData) {
+              setPrescriptionData(prescriptionData);
+              
+              // Convert API medicalHistory format to CashManagerContext format and populate it
+              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
+            }
+            
+            if (conversationData) {
+              setConversations(conversationData);
+            }
+            
+                                    // Update transcript for dictate mode
+            // Check both responseData.data and responseData for transcription
+            const transcription = responseData?.data?.transcription || responseData?.transcription;
+            
+            if (transcription) {
+              // Determine if this is audio or text input
+              const isAudioInput = !!audioBlobParam;
+              // Get duration from response or calculate from audio blob
+              let queryDuration = null;
+              if (isAudioInput && audioBlobParam) {
+                                                                 // Use source_duration from response if available (check both levels)                                                                           
+                queryDuration = responseData?.data?.source_duration || responseData?.source_duration || null;
+                // If not available, try to calculate from blob
+                if (!queryDuration) {
+                  try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const arrayBuffer = await audioBlobParam.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    queryDuration = audioBuffer.duration;
+                  } catch (e) {
+                    console.warn('Could not calculate audio duration:', e);
+                  }
+                }
+              }
+              
+              // Create query object with metadata
+              const newQuery = {
+                text: transcription,
+                isAudio: isAudioInput,
+                duration: queryDuration
+              };
+              
+              // Add new transcription to queries
+              const newQueryIndex = isEditing ? queries.length - 1 : queries.length;
+              updatedQueries = isEditing
+                ? [
+                    ...queries.slice(0, queries.length - 1),
+                    newQuery,
+                  ]
+                : [...queries, newQuery];
+              
+                            setQueries(updatedQueries);
+              
+                            // Auto-collapse previous boxes and expand only the new one (but only if this is not the first transcript)
+              if (!isEditing && queries.length > 0) {
+                // Collapse the first transcript box (only if we're adding a second or subsequent transcript)
+                setIsTranscriptExpanded(false);
+                
+                const newCardIndex = newQueryIndex;
+                
+                // Collapse all previous transcript boxes and only expand the new one                                                                           
+                setExpandedTranscripts(new Set([newCardIndex]));
+              } else if (!isEditing && queries.length === 0) {
+                // This is the first transcript - keep it expanded
+                setIsTranscriptExpanded(true);
+                setExpandedTranscripts(new Set());
+              }
+              
+              // Update fullTranscript - append if updating, set if creating new
+              if (genRxDetails?._id) {
+                const existingTranscript = fullTranscript || genRxDetails?.source || '';
+                updatedTranscript = (existingTranscript + ' ' + responseData.transcription).trim();
+              } else {
+                updatedTranscript = responseData.transcription;
+              }
+              setFullTranscript(updatedTranscript);
+                                                   } else if ((responseData?.data?.history && Array.isArray(responseData.data.history) && responseData.data.history.length > 0) ||
+                         (responseData?.history && Array.isArray(responseData.history) && responseData.history.length > 0)) {
+                 // If history exists, use it to build the full transcript
+                 const history = responseData?.data?.history || responseData.history;
+              const validTranscriptions = history
+                .map(({ transcription, source_duration }) => ({
+                  text: transcription,
+                  isAudio: !!source_duration,
+                  duration: source_duration || null
+                }))
+                .filter((query) => query.text && query.text !== "null" && query.text);
+              
+              if (validTranscriptions.length > 0) {
+                updatedTranscript = validTranscriptions.map(q => q.text).join(' ');
+                updatedQueries = validTranscriptions;
+                setQueries(updatedQueries);
+                setFullTranscript(updatedTranscript);
+              }
+                                                                                                   } else if (responseData?.data?.source || responseData?.source) {
+                 // If source exists but no transcription, use source
+                 const source = responseData?.data?.source || responseData.source;
+              if (genRxDetails?._id) {
+                const existingTranscript = fullTranscript || genRxDetails?.source || '';                                                                        
+                updatedTranscript = (existingTranscript + ' ' + source).trim();                                                                    
+              } else {
+                updatedTranscript = source;
+              }
+              setFullTranscript(updatedTranscript);
+            }
+          }
+
+                    // Determine the correct type based on mode - for dictate mode, always keep as 'dictate'                                                              
+          const correctType = (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient')                                                                             
+            ? 'ambient' 
+            : 'dictate';
+
+          // Calculate the updated source transcript - use source from response if available, otherwise use updatedTranscript                                    
+          // For updates, append new transcription to existing source
+          // Check responseData.data first (for nested structure), then responseData directly
+          const sourceFromResponse = responseData?.data?.source || responseData?.source;
+          const transcriptionFromResponse = responseData?.data?.transcription || responseData?.transcription;
+          const sourceDurationFromResponse = responseData?.data?.source_duration || responseData?.source_duration;
+          const timeRequiredFromResponse = responseData?.data?.timeRequiredInMs || responseData?.timeRequiredInMs;
+          const idFromResponse = responseData?.data?._id || responseData?._id;
+          
+          let updatedSource = '';
+          
+          if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
+            // For ambient mode, use source from response or keep existing
+            if (sourceFromResponse) {
+              updatedSource = sourceFromResponse;
+            } else if (genRxDetails?._id && transcriptionFromResponse) {
+              // When updating, append the new transcription to existing source
+              const existingSource = genRxDetails?.source || fullTranscript || '';
+              updatedSource = (existingSource + ' ' + transcriptionFromResponse).trim();
+            } else {
+              updatedSource = genRxDetails?.source || fullTranscript || '';
+            }
+          } else {
+            // For dictate mode
+            if (genRxDetails?._id && transcriptionFromResponse) {
+              // When updating, append the new transcription to existing source
+              const existingSource = genRxDetails?.source || fullTranscript || '';
+              updatedSource = (existingSource + ' ' + transcriptionFromResponse).trim();                                                                         
+            } else {
+              // For new prescriptions or when source is provided directly
+              updatedSource = sourceFromResponse || updatedTranscript || fullTranscript || genRxDetails?.source || '';                                           
+            }
+          }
+
+          setGenRxDetails({
+            source: updatedSource || genRxDetails?.source || '',
+            source_duration: sourceDurationFromResponse || genRxDetails?.source_duration,                                                                     
+            timeRequiredInMs: timeRequiredFromResponse || genRxDetails?.timeRequiredInMs,                                                                  
+            type: correctType,
+            _id: idFromResponse || genRxDetails?._id,
+          });
+          setInputText("");
+          setIsEditing(false);
+          setUseVoiceRx(true);
+          setShowPrescription(true);
+        } else {
+          if (response.success === false && response.data === null) {
+            throw new Error(response.error || "Server error - API returned failure with null data");
+          } else {
+            throw new Error(response.error || "Failed to process prescription");
+          }
+        }
       }
     } catch (error) {
-      console.error("Error in voice digitization:", error);
-      message.error(error.message || "Failed to process prescription");
+      console.error("❌ Error in voice digitization:", error);
+      console.error("❌ Error details:", {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status
+      });
+      
+      // Handle specific error cases
+      if (error?.message?.includes("Cannot set properties of null")) {
+        message.error("Data processing error - please try again");
+      } else if (error?.response?.status === 401) {
+        message.error("Authorization error - please check your login");
+      } else if (error?.response?.status === 500) {
+        message.error("Server error - please try again later");
+      } else if (error?.message?.includes("Network Error") || error?.code === 'NETWORK_ERROR') {                                                                  
+        message.error("Network connection error - please check your internet connection");
+      } else if (error?.message?.includes("timeout") || error?.code === 'ECONNABORTED') {                                                                         
+        message.error("Request timeout - the server is taking too long to respond");
+      } else if (error?.response?.status === 404) {
+        message.error("Service not found - please contact support");
+      } else if (error?.response?.status === 403) {
+        message.error("Access denied - insufficient permissions");
+      } else if (error?.message?.includes("failed to load")) {
+        message.error("Failed to load prescription data - please refresh and try again");
+      } else {
+        message.error(error?.message || "Failed to process prescription");
+      }
     } finally {
       setIsProcessing(false);
       setIsRecording(false);
@@ -571,24 +2087,34 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
 
   const handleUpdateGenRX = async () => {
     try {
-      const response = await editGenRxDetails(
+      let response;
+      
+      if (isAmbientMode && genRxDetails?.type === "ambient") {
+        response = await editAmbientRxDetails(
         { editedData: prescriptionData },
         genRxDetails?._id
       );
-      if (response.status === 204) {
+      } else {
+        response = await editGenRxDetails(
+          { editedData: prescriptionData },
+          genRxDetails?._id
+        );
+      }
+      
+      if (response.status === 204 || response.success) {
         setGenRxDetails({
-          source: response.data.source,
-          source_duration: response.data.source_duration,
-          timeRequiredInMs: response.data.timeRequiredInMs,
-          type: response.data.type,
-          _id: response.data._id,
+          source: response.data?.source || genRxDetails.source,
+          source_duration: response.data?.source_duration || genRxDetails.source_duration,
+          timeRequiredInMs: response.data?.timeRequiredInMs || genRxDetails.timeRequiredInMs,
+          type: response.data?.type || genRxDetails.type,
+          _id: response.data?._id || genRxDetails._id,
         });
       } else {
         throw new Error(response.error || "Failed to update Rx");
       }
     } catch (error) {
       console.error("Error in voice digitization:", error);
-      message.error(error.message || "Failed to process prescription");
+      message.error(error?.message || "Failed to process prescription");
     }
   };
 
@@ -645,21 +2171,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     };
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-    setEditableQuery(queries[queries.length - 1]);
-  };
-
-  const handleEditCancel = () => {
-    setIsEditing(false);
-    setEditableQuery("");
-  };
-
-  const handleEditSave = () => {
-    setInputText(editableQuery);
-    handleSend();
-  };
-
   const handlePauseResume = () => {
     if (isPaused) {
       mediaRecorderRef.current?.resume();
@@ -711,8 +2222,10 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   const handleKeyDown = (e, type, index, isExisting) => {
     if (e.key === "Enter") {
       e.preventDefault(); // Prevent newline in the input field
-      
-      const trimmedText =  isExisting ? editableLineItem?.trim() : editableText.trim();
+
+      const trimmedText = isExisting
+        ? editableLineItem?.trim()
+        : editableText.trim();
       if (trimmedText) {
         setPrescriptionData((prevData) => {
           const updatedData = { ...prevData };
@@ -721,16 +2234,21 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
             if (!updatedData?.[type]) {
               updatedData[type] = [];
             }
-            if (['advice', 'others'].includes(type)) {
+            if (["advice", "others"].includes(type)) {
               updatedData[type][index] = trimmedText;
               updatedData[type].splice(index + 1, 0, "");
             } else {
               updatedData[type][index].lineItem = trimmedText;
-              updatedData[type].splice(index + 1, 0, { lineItem: " ", name: " " });
+              // mark item as user-edited when line item is changed via Enter
+              updatedData[type][index].edited = true;
+              updatedData[type].splice(index + 1, 0, {
+                lineItem: " ",
+                name: " ",
+              });
             }
             setEditableLineItem(" ");
             setEditableText("");
-          return updatedData;
+            return updatedData;
           }
           if (!updatedData.dynamicFields[type]) {
             updatedData.dynamicFields[type] = [];
@@ -747,7 +2265,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
         // Update active index and clear input
         setActiveIndex(index + 1);
         setIsRxEdited(true);
-        if (isExisting && !['advice', 'others'].includes(type)) {
+        if (isExisting && !["advice", "others"].includes(type)) {
           setActiveType(`${type}-lineItem`);
           setEditableLineItem("");
         } else {
@@ -759,8 +2277,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
         setTimeout(() => {
           const nextIndex = index + 1;
           if (isExisting) inputLineItemRefs.current[nextIndex]?.focus();
-          else
-          inputRefs.current[nextIndex]?.focus();
+          else inputRefs.current[nextIndex]?.focus();
         }, 0);
       }
     }
@@ -782,11 +2299,45 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
   };
 
   const handleInputBlur = (type, index, isCustom, isExisting) => {
-    if ((activeIndex !== null && activeType !== null) || (isCustom || isExisting)) {
+    if (
+      (activeIndex !== null && activeType !== null) ||
+      isCustom ||
+      isExisting
+    ) {
       setPrescriptionData((prevData) => {
         const updatedData = { ...prevData };
-        const trimmedText = isCustom ? editableText.trim() : isExisting ? editableLineItem?.trim() : "";
+        // Determine which text to use based on the active type
+        let trimmedText = "";
+        if (
+          activeType === "labResults" ||
+          (type === "labResults" && !isExisting)
+        ) {
+          trimmedText = editableText?.trim();
+        } else if (
+          activeType === "labResults-lineItem" ||
+          (type === "labResults" && isExisting)
+        ) {
+          trimmedText = editableLineItem?.trim();
+        } else if (isCustom) {
+          trimmedText = editableText?.trim();
+        } else if (isExisting) {
+          trimmedText = editableLineItem?.trim();
+        } else {
+          trimmedText = editableText?.trim() || "";
+        }
+
         if (!trimmedText) {
+          // For medications and labInvestigation, lineItem is optional.
+          // Do NOT delete the item when editing existing lineItem to empty.
+          if (
+            isExisting &&
+            (type === "medications" || type === "labInvestigation")
+          ) {
+            if (updatedData?.[type]?.[index]) {
+              updatedData[type][index].lineItem = "";
+            }
+            return updatedData;
+          }
           if (type === "vitalsAndBodyComposition") {
             updatedData.vitalsAndBodyComposition[index] = "";
           } else if (isCustom) {
@@ -794,11 +2345,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
               type
             ].filter((_, i) => i !== index);
           } else if (isExisting) {
-            updatedData[type] = updatedData[
-              type
-            ].filter((_, i) => i !== index);
-          }
-           else if (type === "followUp") {
+            updatedData[type] = updatedData[type].filter((_, i) => i !== index);
+          } else if (type === "followUp") {
             updatedData.followUp = "";
           } else {
             updatedData[type] = updatedData?.[type]?.filter(
@@ -816,8 +2364,27 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           type === "medicalHistory" ||
           type === "vaccinations"
         ) {
-          updatedData[type][index].name = trimmedText;
-          updatedData[type][index].lineItem = trimmedText;
+          // When editing existing structured items, only update lineItem here.
+          // Name field is handled separately via handleNameBlur
+          if (type === "medications" || type === "labInvestigation") {
+            // For medications and labInvestigation, only update if lineItem has changed
+            const originalLineItem = updatedData[type][index].lineItem || "";
+            if (trimmedText !== originalLineItem) {
+              updatedData[type][index].lineItem = trimmedText;
+              // mark item as user-edited when line item is changed on blur
+              updatedData[type][index].edited = true;
+            }
+          } else {
+            updatedData[type][index].name = trimmedText;
+            updatedData[type][index].lineItem = trimmedText;
+          }
+        } else if (type === "labResults" && activeType === "labResults") {
+          updatedData[type][index].testname = trimmedText;
+        } else if (
+          type === "labResults" &&
+          activeType === "labResults-lineItem"
+        ) {
+          updatedData[type][index].value = trimmedText;
         } else if (type === "advice" || type === "others") {
           updatedData[type][index] = trimmedText;
         } else if (type === "vitalsAndBodyComposition") {
@@ -831,9 +2398,47 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       });
       setIsRxEdited(true);
     }
+    // Clear all editing states
     setActiveIndex(null);
     setActiveType(null);
     setEditableText(""); // Clear editable text after blur
+    setEditableLineItem(""); // Clear editable lineItem after blur
+    setEditableName(""); // Clear editable name after blur
+  };
+
+  const handleNameChange = (e) => {
+    setEditableName(e.target.value);
+    setIsRxEdited(true);
+  };
+
+  const handleNameBlur = (type, index) => {
+    const trimmed = (editableName || "").trim();
+    const originalName = prescriptionData[type][index]?.name || "";
+
+    // Name is mandatory: if empty, do not update or clear the existing value
+    if (!trimmed) {
+      // Exit edit mode without changes
+      setActiveIndex(null);
+      setActiveType(null);
+      setEditableName("");
+      return;
+    }
+
+    // Only update if the value has actually changed
+    if (trimmed !== originalName) {
+      setPrescriptionData((prevData) => {
+        const updatedData = { ...prevData };
+        if (updatedData?.[type]?.[index]) {
+          updatedData[type][index].name = trimmed;
+        }
+        return updatedData;
+      });
+      setIsRxEdited(true);
+    }
+    // Exit edit mode for name explicitly
+    setActiveIndex(null);
+    setActiveType(null);
+    setEditableName("");
   };
 
   // Handle click on an item (to edit)
@@ -852,6 +2457,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       type === "vaccinations"
     ) {
       setEditableText(prescriptionData[type][index].name);
+    } else if (type === "labResults") {
+      setEditableText(prescriptionData[type][index].testname);
     } else if (type === "advice" || type === "others") {
       setEditableText(prescriptionData[type][index]);
     } else if (type === "vitalsAndBodyComposition") {
@@ -866,6 +2473,13 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setActiveType(type);
   };
 
+  // Handle click on name/details to edit
+  const handleNameClick = (type, index) => {
+    setEditableName(prescriptionData[type][index]?.name || "");
+    setActiveIndex(index);
+    setActiveType(`${type}-name`);
+  };
+
   // Handle click on a lineItem (to edit)
   const handleLineItemClick = (type, index) => {
     if (
@@ -878,10 +2492,108 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       type === "diagnosis"
     ) {
       setEditableLineItem(prescriptionData[type][index]?.lineItem);
+    } else if (type === "labResults") {
+      setEditableLineItem(prescriptionData[type][index]?.value);
     }
     setActiveIndex(index);
     setActiveType(`${type}-lineItem`);
   };
+
+  const handleSymptomsUpdate = useCallback((symptomsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      symptoms: symptomsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleExaminationsUpdate = useCallback((examinationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      examinations: examinationsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleDiagnosisUpdate = useCallback((diagnosisArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      diagnosis: diagnosisArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleInvestigationUpdate = useCallback((investigationArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      labInvestigation: investigationArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleAdviceUpdate = useCallback((adviceArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      advice: adviceArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleVitalsUpdate = useCallback((vitalsObject) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      vitalsAndBodyComposition: vitalsObject,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicalHistoryUpdate = useCallback((medicalHistoryArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      medicalHistory: medicalHistoryArray || [],
+    }));
+    setIsRxEdited(true);
+    
+    // Also update CashManagerContext format for the drawer
+    // Note: convertMedicalHistoryToContextFormat is defined later in the file, but it's a stable function
+    if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
+      // Use the function directly - it will be available at runtime
+      const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, medicalHistoryData);
+      setMedicalHistoryData(convertedData);
+    }
+  }, [setMedicalHistoryData, medicalHistoryData]);
+
+  const handleFollowUpUpdate = useCallback((followUpText) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      followUp: followUpText,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleLabResultsUpdate = useCallback((labResultsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      labResults: labResultsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleAdditionalNotesUpdate = useCallback((othersArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      others: othersArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicationsUpdate = useCallback((medicationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      medications: medicationsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
 
   async function onEndVisitClick() {
     if (
@@ -937,7 +2649,6 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       });
 
       const clinic_name = getClinicName(profile?.hospital_data);
-      const tokenData = getTokenData();
       const deviceSdkData = getDeviceSdkData();
       window.Moengage.track_event("TP_Voice_Submit", {
         doctor_name: profile?.um_name,
@@ -955,16 +2666,16 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       if (!isFreeVoiceRxUser && useVoiceRx) {
         let sendData = {
           b2c_id: profile?.b2c,
-          service_name: S_VOICE_RX
-        }
-        dispatch(updateCredits(sendData))
+          service_name: S_VOICE_RX,
+        };
+        dispatch(updateCredits(sendData));
       }
       if (useDDX) {
         let sendData = {
           b2c_id: profile?.b2c,
-          service_name: S_DDX
-        }
-        dispatch(updateCredits(sendData))
+          service_name: S_DDX,
+        };
+        dispatch(updateCredits(sendData));
       }
 
       if (isAutofillSelected) {
@@ -974,6 +2685,47 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
         });
         dispatch(setSelectAutofill(false));
       }
+
+      if (isGroundingAccessable && patient_data?.departmentId) {
+        let sendInvestigationAndMedicine = {
+          patient_unique_id:
+            patient_data !== undefined ? patient_data.patient_unique_id : 0,
+          tcm_id: action?.payload?.tcm_id,
+        };
+        const actionIM = await dispatch(
+          getInvestigationAndMedicine(sendInvestigationAndMedicine)
+        );
+        if (actionIM.meta.requestStatus === "fulfilled") {
+          const quantityActionMedicine = await ApiMedication.getQuantity({
+            medicines: prescriptionData?.medications,
+          });
+          let zydusSendData = {
+            action: tcmId == 0 ? "add" : "edit",
+            tcmId: action?.payload?.tcm_id,
+            siteId: siteId,
+            departmentId: patient_data?.departmentId,
+            visitId: patient_data?.visitId,
+            encounterId: patient_data?.encounterId,
+            mrno: patient_data?.mrno,
+            doctorCode: patient_data?.employeeId,
+            storeCode: storeCode,
+            duplicateCheck: 1,
+            investigationList:
+              prescriptionData?.labInvestigation?.map((item) => item.name) ||
+              [],
+            medicineList:
+              prescriptionData?.medications?.map(({ name, notes }, index) => ({
+                name: name,
+                quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
+                instruction: notes,
+              })) || [],
+            pillupSwitch: 0,
+          };
+          await dispatch(placeIctOrder(zydusSendData));
+        }
+      }
+
+      // Navigate to print view for both ambient and dictate modes
       navigate("/gen-rx-print", {
         replace: true,
         state: {
@@ -981,6 +2733,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
           patient_data: patient_data,
           page: "prescription",
           rxId: genRxDetails?._id,
+          isAmbientRx: isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX,
         },
       });
     } else {
@@ -1010,7 +2763,672 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     setEditableKey("");
   };
 
+  useEffect(() => {
+    const data = [];
+    medicationParentOptionsList?.map((e) => {
+      return data.push({
+        key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+        value: e.tmm_medicine_name,
+        label: (
+          <div>
+            <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
+            <span>{e.tmm_generic}</span>{" "}
+            {e?.tmm_hm_type === 1 && e?.um_id === 0 && (
+              <span
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+          </div>
+        ),
+      });
+    });
+
+    if (searchParentQuery.length == 0) {
+      data.unshift({
+        key: -1,
+        label: (
+          <>
+            <div>SUGGESTED</div>
+          </>
+        ),
+      });
+    } else {
+      searchParentQuery &&
+        data.push({
+          key: JSON.stringify({
+            unique_id: uuidv4(),
+            tmm_id: 0,
+            tmm_medicine_name: searchParentQuery,
+          }),
+          value: searchParentQuery,
+          label: (
+            <>
+              <div className="text-primary fontroboto fs-16">
+                {" "}
+                <i className="icon-Add mx-1 fs-6"></i> Add{" "}
+                <span className="fw-medium fontroboto text-primary">
+                  "{searchParentQuery}"
+                </span>{" "}
+                <a className="text-primary fontroboto">as a new medicine</a>
+              </div>
+            </>
+          ),
+        });
+    }
+    setParentSearchOptions(data);
+  }, [medicationParentOptionsList]);
+
+    useEffect(() => {
+      const data = [];
+      investigationParentOptionsList.map((e) => {
+        return data.push({
+          key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+          value: e.investigation_name,
+          label: (
+            <div>
+              {e.investigation_name}{" "}
+              {e?.hm_type === 1 && e?.um_id === 0 && (
+                <span
+                  className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                  style={{ width: 18, height: 18, background: "#c44ea2" }}
+                >
+                  Z
+                </span>
+              )}
+            </div>
+          ),
+        });
+      });
+      if (searchParentQuery.length === 0) {
+        data.unshift({
+          key: -1,
+          label: (
+            <>
+              <div>FREQUENTLY USED</div>
+            </>
+          ),
+        });
+      } else {
+        searchParentQuery &&
+          investigationParentOptionsList.findIndex(
+            (e) =>
+              e.investigation_name?.toLowerCase()?.trim() ==
+              searchParentQuery?.toLowerCase()?.trim()
+          ) === -1 &&
+          tokenData?.hospital_business_id != env.zydus_business_id &&
+          !isZydusUserAccessableFromGB &&
+          !isApolloHosBusinessIdAccessableFromGB &&
+          data.push({
+            key: JSON.stringify({
+              unique_id: uuidv4(),
+              change: 1,
+              investigation_name: searchParentQuery,
+            }),
+            value: searchParentQuery,
+            label: (
+              <>
+                <div>
+                  {searchParentQuery}
+                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
+                  <a className="fw-medium text-decoration-underline text-primary">
+                    {" "}
+                    Add Custom
+                  </a>
+                </div>
+              </>
+            ),
+          });
+      }
+      setParentSearchOptions(data);
+    }, [investigationParentOptionsList]);
+
+  const onSearchParent = useCallback(
+    (query) => {
+      setSearchParentQuery(removeBeforeWhiteSpace(query));
+    },
+    [searchParentQuery, editableName]
+  );
+
+  useEffect(() => {
+    if (isGroundingAccessable && editableName === "") {
+      setSearchParentQuery("");
+      setParentSearchOptions([]);
+    }
+  }, [editableName, activeType]);
+
+  useEffect(() => {
+    if (isGroundingAccessable && activeType) {
+      const timeOutId = setTimeout(() => {
+        if (activeType === "medications-name") {
+          if (editableName) {
+            dispatch(
+              searchMedication({
+                searchQuery: editableName,
+                type: "parent",
+              })
+            );
+          } else {
+            dispatch(getFrequentlySearchedMedication());
+          }
+        } else if (activeType === "labInvestigation-name") {
+          if (editableName) {
+            dispatch(
+              searchInvestigation({
+                searchQuery: editableName,
+                type: "parent",
+              })
+            );
+          } else {
+            dispatch(getFrequentlySearchedInvestigation());
+          }
+        }
+      }, 500);
+      return () => {
+        clearTimeout(timeOutId);
+      };
+    }
+  }, [editableName, activeType]);
+
+  const handleMedicineSelection = (data, item, type) => {
+    if (
+      item.key &&
+      JSON.parse(item.key).tmm_id === 0 &&
+      type === "medications"
+    ) {
+      setShowAddMedicinePopup(true);
+    } else {
+      // Check if medicine is not from Zydus Data Engine
+      const medicineData = item.key ? JSON.parse(item.key) : null;
+      const isZydusMedicine =
+        medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
+
+      if (
+        isGroundingAccessable &&
+        !isZydusMedicine &&
+        !dontShowZydusWarning &&
+        type === "medications"
+      ) {
+        setPendingSelection({
+          data,
+          item,
+          type,
+          activeIndex,
+          activeType,
+        });
+        setShowNonZydusWarning(true);
+      } else {
+        setEditableName(data);
+        // Update the prescriptionData with the selected medicine
+        if (activeIndex !== null && activeType === `${type}-name`) {
+          setPrescriptionData((prevData) => {
+            const updatedData = { ...prevData };
+            if (updatedData?.[type]?.[activeIndex]) {
+              updatedData[type][activeIndex].name = data;
+              // Add complete option data as metadata
+              if (item.key) {
+                const medicineData = JSON.parse(item.key);
+                updatedData[type][activeIndex].metadata = {
+                  ...medicineData,
+                  selectedValue: data,
+                };
+              }
+            }
+            return updatedData;
+          });
+          setIsRxEdited(true);
+          // Clear editing states after selection
+          setActiveIndex(null);
+          setActiveType(null);
+          setEditableName("");
+        }
+      }
+    }
+  };
+
+  
+  const handleAmbientItemClick = (type, index, item) => {
+    if (activeIndex !== null && activeType !== null) {
+      handleInputBlur(activeType, activeIndex);
+    }
+
+   
+    const formatItemDisplay = (item) => {
+      if (typeof item === 'string') {
+        return item;
+      }
+      
+      let displayText = item.name || item.testname || item;
+      if (item.duration) displayText += ` (duration: ${item.duration})`;
+      if (item.severity) displayText += ` (severity: ${item.severity})`;
+      if (item.notes) displayText += ` (note: ${item.notes})`;
+      if (item.type) displayText += ` (type: ${item.type})`;
+      if (item.relation) displayText += ` (relation: ${item.relation})`;
+      if (item.dosage) displayText += ` (dosage: ${item.dosage})`;
+      if (item.frequency) displayText += ` (frequency: ${item.frequency})`;
+      if (item.schedule) displayText += ` (schedule: ${item.schedule})`;
+      
+      return displayText;
+    };
+
+    if (type === "vitalsAndBodyComposition") {
+      setEditableText(prescriptionData.vitalsAndBodyComposition[index]);
+    } else if (type === "followUp") {
+      setEditableText(prescriptionData?.followUp);
+    } else {
+     
+      setEditableText(formatItemDisplay(item));
+    }
+
+    setActiveIndex(index);
+    setActiveType(type);
+  };
+
+  const handleAmbientInputBlur = (type, index) => {
+    if (activeIndex !== null && activeType !== null) {
+      setPrescriptionData((prevData) => {
+        const updatedData = { ...prevData };
+        const trimmedText = editableText?.trim() || "";
+
+        if (!trimmedText) {
+          
+          if (type === "vitalsAndBodyComposition") {
+            updatedData.vitalsAndBodyComposition[index] = "";
+          } else if (type === "followUp") {
+            updatedData.followUp = "";
+          } else {
+            updatedData[type] = updatedData?.[type]?.filter((_, i) => i !== index);
+          }
+          return updatedData;
+        }
+
+        if (type === "vitalsAndBodyComposition") {
+          updatedData.vitalsAndBodyComposition[index] = trimmedText;
+        } else if (type === "followUp") {
+          updatedData.followUp = trimmedText;
+        } else {
+         
+          const parseFormattedText = (text) => {
+           
+            const mainNameMatch = text.match(/^([^(]+?)(?:\s*\(|$)/);
+            const mainName = mainNameMatch ? mainNameMatch[1].trim() : text;
+
+          
+            const params = {};
+            const paramRegex = /\(([^:]+):\s*([^)]+)\)/g;
+            let match;
+            
+            while ((match = paramRegex.exec(text)) !== null) {
+              const paramName = match[1].trim().toLowerCase();
+              const paramValue = match[2].trim();
+              
+            
+              if (paramName === 'note' || paramName === 'notes') {
+                params.notes = paramValue;
+              } else if (paramName === 'type') {
+                params.type = paramValue;
+              } else if (paramName === 'duration') {
+                params.duration = paramValue;
+              } else if (paramName === 'severity') {
+                params.severity = paramValue;
+              } else if (paramName === 'relation') {
+                params.relation = paramValue;
+              } else if (paramName === 'dosage') {
+                params.dosage = paramValue;
+              } else if (paramName === 'frequency') {
+                params.frequency = paramValue;
+              } else if (paramName === 'schedule') {
+                params.schedule = paramValue;
+              }
+            }
+
+            return {
+              name: mainName,
+              ...params
+            };
+          };
+
+          const parsedData = parseFormattedText(trimmedText);
+        
+          if (updatedData[type] && updatedData[type][index]) {
+            updatedData[type][index] = {
+              ...updatedData[type][index],
+              ...parsedData
+            };
+          }
+        }
+
+        setIsRxEdited(true);
+        return updatedData;
+      });
+
+      setActiveIndex(null);
+      setActiveType(null);
+      setEditableText("");
+    }
+  };
+
+ 
+  const handleAmbientKeyDown = (e, type, index) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); 
+
+      const trimmedText = editableText.trim();
+      if (trimmedText) {
+        setPrescriptionData((prevData) => {
+          const updatedData = { ...prevData };
+          const parseFormattedText = (text) => {
+            const mainNameMatch = text.match(/^([^(]+?)(?:\s*\(|$)/);
+            const mainName = mainNameMatch ? mainNameMatch[1].trim() : text;
+
+           
+            const params = {};
+            const paramRegex = /\(([^:]+):\s*([^)]+)\)/g;
+            let match;
+            
+            while ((match = paramRegex.exec(text)) !== null) {
+              const paramName = match[1].trim().toLowerCase();
+              const paramValue = match[2].trim();
+              
+             
+              if (paramName === 'note' || paramName === 'notes') {
+                params.notes = paramValue;
+              } else if (paramName === 'type') {
+                params.type = paramValue;
+              } else if (paramName === 'duration') {
+                params.duration = paramValue;
+              } else if (paramName === 'severity') {
+                params.severity = paramValue;
+              } else if (paramName === 'relation') {
+                params.relation = paramValue;
+              } else if (paramName === 'dosage') {
+                params.dosage = paramValue;
+              } else if (paramName === 'frequency') {
+                params.frequency = paramValue;
+              } else if (paramName === 'schedule') {
+                params.schedule = paramValue;
+              }
+            }
+
+            return {
+              name: mainName,
+              ...params
+            };
+          };
+
+          const parsedData = parseFormattedText(trimmedText);
+          
+       
+          if (type === "vitalsAndBodyComposition") {
+            updatedData.vitalsAndBodyComposition[index] = trimmedText;
+          } else if (type === "followUp") {
+            updatedData.followUp = trimmedText;
+          } else {
+            
+            if (updatedData[type] && updatedData[type][index]) {
+              updatedData[type][index] = {
+                ...updatedData[type][index],
+                ...parsedData
+              };
+            }
+
+            if (!updatedData[type]) {
+              updatedData[type] = [];
+            }
+            
+            const newItem = {
+              name: "",
+              duration: "",
+              severity: "",
+              notes: "",
+              type: "",
+              relation: "",
+              dosage: "",
+              frequency: "",
+              schedule: ""
+            };
+            
+            updatedData[type].splice(index + 1, 0, newItem);
+          }
+
+          setIsRxEdited(true);
+          return updatedData;
+        });
+
+       
+        setActiveIndex(index + 1);
+        setActiveType(type);
+        setEditableText("");
+      }
+    }
+  };
+
+  
+  const renderAmbientItems = (type) => {
+    const onSelectParent = (data, item) => {
+      handleMedicineSelection(data, item, type);
+    };
+
+    if (type === "followUp") {
+    
+      let textWidth = 0;
+      if (activeType === "followUp") {
+        const tempSpan = document.createElement("span");
+        tempSpan.style.visibility = "hidden";
+        tempSpan.style.position = "absolute";
+        tempSpan.style.whiteSpace = "nowrap";
+        tempSpan.innerText = editableText || "";
+        document.body.appendChild(tempSpan);
+        textWidth = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+      }
+      return (
+        <div className="digitised-section">
+          <div className="medicine-item">
+            {activeType === "followUp" ? (
+              <input
+                type="text"
+                value={editableText}
+                className="editable-digitised-item"
+                onChange={handleInputChange}
+                onKeyDown={(e) => handleAmbientKeyDown(e, "followUp", 0)}
+                onBlur={() => handleAmbientInputBlur("followUp", 0)}
+                autoFocus
+                style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
+              />
+            ) : (
+              <span
+                onClick={() => handleAmbientItemClick("followUp", 0, prescriptionData?.followUp)}
+                className="digitised-item"
+              >
+                {prescriptionData?.followUp}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (type === "vitalsAndBodyComposition") {
+      return (
+        <div className="digitised-section">
+          <ul>
+            {Object.entries(prescriptionData.vitalsAndBodyComposition || {})
+              .filter(([key, value]) => value)
+              .map(([key, value]) => {
+                
+                let textWidth = 0;
+                if (
+                  activeIndex === key &&
+                  activeType === "vitalsAndBodyComposition"
+                ) {
+                  const tempSpan = document.createElement("span");
+                  tempSpan.style.visibility = "hidden";
+                  tempSpan.style.position = "absolute";
+                  tempSpan.style.whiteSpace = "nowrap";
+                  tempSpan.innerText = editableText || "";
+                  document.body.appendChild(tempSpan);
+                  textWidth = tempSpan.offsetWidth;
+                  document.body.removeChild(tempSpan);
+                }
+
+                return (
+                  <li key={key}>
+                    <div className="medicine-item">
+                      <span className="digitised-item">
+                        {/* Format the key to be human-readable */}
+                        {activeIndex === key &&
+                        activeType === "vitalsAndBodyComposition-key" ? (
+                          <input
+                            type="text"
+                            value={editableKey || key}
+                            className="editable-digitised-item"
+                            onChange={(e) => setEditableKey(e.target.value)}
+                            onBlur={() => handleKeyEditBlur(key)}
+                            autoFocus
+                            style={{
+                              width: `clamp(12px, ${
+                                (editableKey || key).length * 8 + 20
+                              }px, 100%)`,
+                            }}
+                          />
+                        ) : (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleKeyEditClick(key);
+                            }}
+                            className="digitised-item digitised-key-item"
+                            style={{ cursor: "pointer", fontWeight: 500 }}
+                          >
+                            {`${key}: `}
+                          </span>
+                        )}
+                      </span>
+                      {activeIndex === key &&
+                      activeType === "vitalsAndBodyComposition" ? (
+                        <input
+                          type="text"
+                          value={editableText}
+                          className="editable-digitised-item"
+                          onChange={(e) => setEditableText(e.target.value)}
+                          onKeyDown={(e) => handleAmbientKeyDown(e, type, key)}
+                          onBlur={() => handleAmbientInputBlur(type, key)}
+                          autoFocus
+                          style={{
+                            width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                          }}
+                        />
+                      ) : (
+                        <span
+                          onClick={() => handleItemClick(type, key)}
+                          className="digitised-item"
+                        >
+                          {value}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      );
+    }
+
+   
+    return (
+      <div className="digitised-section">
+        <ul>
+          {Array.isArray(prescriptionData[type]) &&
+            prescriptionData[type].length > 0 &&
+            prescriptionData[type].map((item, index) => {
+              
+              let textWidth = 0;
+              if (activeIndex === index && activeType === type) {
+                const tempSpan = document.createElement("span");
+                tempSpan.style.visibility = "hidden";
+                tempSpan.style.position = "absolute";
+                tempSpan.style.whiteSpace = "nowrap";
+                tempSpan.innerText = editableText || "";
+                document.body.appendChild(tempSpan);
+                textWidth = tempSpan.offsetWidth;
+                document.body.removeChild(tempSpan);
+              }
+
+      
+              const formatItemDisplay = (item) => {
+                if (typeof item === 'string') {
+                  return item;
+                }
+                
+                let displayText = item.name || item.testname || item || "";
+                
+               
+                if (!displayText && !item.duration && !item.severity && !item.notes && 
+                    !item.type && !item.relation && !item.dosage && !item.frequency && !item.schedule) {
+                  return "";
+                }
+                
+              
+                if (item.duration) displayText += ` (duration: ${item.duration})`;
+                if (item.severity) displayText += ` (severity: ${item.severity})`;
+                if (item.notes) displayText += ` (note: ${item.notes})`;
+                if (item.type) displayText += ` (type: ${item.type})`;
+                if (item.relation) displayText += ` (relation: ${item.relation})`;
+                if (item.dosage) displayText += ` (dosage: ${item.dosage})`;
+                if (item.frequency) displayText += ` (frequency: ${item.frequency})`;
+                if (item.schedule) displayText += ` (schedule: ${item.schedule})`;
+                
+                return displayText;
+              };
+
+              return (
+                <li key={index}>
+                  <div className="medicine-item">
+                    {activeIndex === index && activeType === type ? (
+                      <input
+                        type="text"
+                        value={editableText}
+                        className="editable-digitised-item"
+                        onChange={handleInputChange}
+                        onKeyDown={(e) => handleAmbientKeyDown(e, type, index)}
+                        onBlur={() => handleAmbientInputBlur(type, index)}
+                        autoFocus
+                        style={{
+                          width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        onClick={() => handleAmbientItemClick(type, index, item)}
+                        className="digitised-item"
+                        style={{ 
+                          minHeight: "20px",
+                          display: "inline-block",
+                          minWidth: "100px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {formatItemDisplay(item) || "Click to add..."}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+        </ul>
+      </div>
+    );
+  };
+
   const renderItems = (type) => {
+    const onSelectParent = (data, item) => {
+      handleMedicineSelection(data, item, type);
+    };
+
     if (type === "followUp") {
       // Dynamically calculate input width
       let textWidth = 0;
@@ -1088,7 +3506,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                       <div className="medicine-item">
                         <span className="digitised-item">
                           {/* Format the key to be human-readable */}
-                          {activeIndex === key && activeType === "vitalsAndBodyComposition-key" ? (
+                          {activeIndex === key &&
+                          activeType === "vitalsAndBodyComposition-key" ? (
                             <input
                               type="text"
                               value={editableKey || key}
@@ -1096,7 +3515,11 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                               onChange={(e) => setEditableKey(e.target.value)}
                               onBlur={() => handleKeyEditBlur(key)}
                               autoFocus
-                              style={{ width: `clamp(12px, ${(editableKey || key).length * 8 + 20}px, 100%)` }}
+                              style={{
+                                width: `clamp(12px, ${
+                                  (editableKey || key).length * 8 + 20
+                                }px, 100%)`,
+                              }}
                             />
                           ) : (
                             <span
@@ -1112,7 +3535,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                           )}
                         </span>
                         {activeIndex === key &&
-                          activeType === "vitalsAndBodyComposition" ? (
+                        activeType === "vitalsAndBodyComposition" ? (
                           <input
                             type="text"
                             value={editableText} // Pre-fill the input with the current value
@@ -1120,7 +3543,9 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                             onChange={(e) => setEditableText(e.target.value)}
                             onBlur={() => handleInputBlur(type, key)}
                             autoFocus
-                            style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }} // Add padding for better UX
+                            style={{
+                              width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                            }} // Add padding for better UX
                           />
                         ) : (
                           <span
@@ -1155,6 +3580,7 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                 // Measure the width of the editable text
                 let textWidth = 0;
                 let lineItemWidth = 0;
+                let nameWidth = 0;
 
                 // For name or other primary data (editableText)
                 if (activeIndex === index && activeType === type) {
@@ -1183,12 +3609,24 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                   document.body.removeChild(tempSpanLineItem);
                 }
 
+                // For name width when editing name
+                if (activeIndex === index && activeType === `${type}-name`) {
+                  const tempSpanName = document.createElement("span");
+                  tempSpanName.style.visibility = "hidden";
+                  tempSpanName.style.position = "absolute";
+                  tempSpanName.style.whiteSpace = "nowrap";
+                  tempSpanName.innerText = editableName || item?.name || "";
+                  document.body.appendChild(tempSpanName);
+                  nameWidth = tempSpanName.offsetWidth;
+                  document.body.removeChild(tempSpanName);
+                }
+
                 return (
                   <li key={index}>
                     <div className="medicine-item">
                       {activeIndex === index &&
-                        activeType === type &&
-                        ["advice", "others"].includes(type) ? (
+                      activeType === type &&
+                      ["advice", "others"].includes(type) ? (
                         <input
                           type="text"
                           value={editableText}
@@ -1197,7 +3635,9 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                           onBlur={() => handleInputBlur(type, index)}
                           onKeyDown={(e) => handleKeyDown(e, type, index, true)}
                           autoFocus
-                          style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
+                          style={{
+                            width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                          }}
                         />
                       ) : (
                         ["advice", "others"].includes(type) && (
@@ -1210,27 +3650,132 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                         )
                       )}
 
-                      {/* Editable input for lineItem */}
+                      {/* Special handling for medications and labInvestigation with dual inputs */}
                       {(type === "medications" ||
-                        type === "symptoms" ||
+                        type === "labInvestigation") &&
+                        (activeIndex === index &&
+                        (activeType === `${type}-lineItem` ||
+                          activeType === `${type}-name`) ? (
+                          <div className="d-flex gap-2 align-items-center">
+                            {activeType === `${type}-name` ? (
+                              <>
+                                <AutoComplete
+                                  value={editableName}
+                                  onSearch={onSearchParent}
+                                  options={parentSearchOptions}
+                                  className="autocomplete-custom grounding-select"
+                                  popupClassName="grounding-boxpopup grounding-select"
+                                  onSelect={onSelectParent}
+                                  getPopupContainer={(trigger) =>
+                                    trigger.parentNode
+                                  }
+                                  defaultActiveFirstOption={true}
+                                  autoFocus={true}
+                                  popupMatchSelectWidth={false}
+                                  dropdownStyle={{ width: 420 }}
+                                  open={
+                                    activeIndex === index &&
+                                    activeType === `${type}-name` &&
+                                    parentSearchOptions.length > 0
+                                  }
+                                >
+                                  <input
+                                    type="text"
+                                    value={editableName}
+                                    className="editable-digitised-item"
+                                    onChange={handleNameChange}
+                                    onBlur={() => handleNameBlur(type, index)}
+                                    onKeyDown={(e) =>
+                                      handleKeyDown(e, type, index, true)
+                                    }
+                                    autoFocus
+                                    style={{
+                                      width: `clamp(12px, ${
+                                        nameWidth + 10
+                                      }px, 100%)`,
+                                    }}
+                                  />
+                                </AutoComplete>
+                                <span className="digitised-item">
+                                  {item.lineItem}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="digitised-item">{`${item.name}`}</span>
+                                <input
+                                  type="text"
+                                  value={editableLineItem}
+                                  className="editable-digitised-item"
+                                  onChange={handleLineItemChange}
+                                  onBlur={() =>
+                                    handleInputBlur(type, index, false, true)
+                                  }
+                                  onKeyDown={(e) =>
+                                    handleKeyDown(e, type, index, true)
+                                  }
+                                  autoFocus
+                                  style={{
+                                    width: `clamp(12px, ${
+                                      lineItemWidth + 10
+                                    }px, 100%)`,
+                                  }}
+                                />
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <span
+                              onClick={() => handleNameClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {`${item.name}`}
+                            </span>
+                            <span
+                              onClick={() => handleLineItemClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {item.lineItem !== undefined
+                                ? item.lineItem
+                                : `(${item.dosage ?? ""} ${
+                                    item.duration ?? ""
+                                  } ${item.frequency ?? ""} ${
+                                    item.schedule ?? ""
+                                  } ${item.notes ?? ""})`}
+                            </span>
+                          </>
+                        ))}
+
+                      {/* Editable input for lineItem for other types */}
+                      {(type === "symptoms" ||
                         type === "vaccinations" ||
                         type === "medicalHistory" ||
-                        type === "labInvestigation" ||
                         type === "examinations" ||
                         type === "diagnosis") &&
                         item?.lineItem &&
                         (activeIndex === index &&
-                          activeType === `${type}-lineItem` ? (
+                        activeType === `${type}-lineItem` ? (
                           <input
                             type="text"
                             value={editableLineItem}
                             className="editable-digitised-item"
                             onChange={handleLineItemChange}
-                            onBlur={() => handleInputBlur(type, index, false, true)}
-                            onKeyDown={(e) => handleKeyDown(e, type, index, true)}
-                            ref={(el) => (inputLineItemRefs.current[index] = el)}
+                            onBlur={() =>
+                              handleInputBlur(type, index, false, true)
+                            }
+                            onKeyDown={(e) =>
+                              handleKeyDown(e, type, index, true)
+                            }
+                            ref={(el) =>
+                              (inputLineItemRefs.current[index] = el)
+                            }
                             autoFocus
-                            style={{ width: `clamp(12px, ${lineItemWidth + 10}px, 100%)` }}
+                            style={{
+                              width: `clamp(12px, ${
+                                lineItemWidth + 10
+                              }px, 100%)`,
+                            }}
                           />
                         ) : (
                           <span
@@ -1240,6 +3785,67 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                             {item.lineItem}
                           </span>
                         ))}
+
+                      {/* Editable input for labResults (testname and value) */}
+                      {type === "labResults" && item?.testname && (
+                        <>
+                          {activeIndex === index && activeType === type ? (
+                            <input
+                              type="text"
+                              value={editableText}
+                              className="editable-digitised-item"
+                              onChange={handleInputChange}
+                              onBlur={() => handleInputBlur(type, index)}
+                              onKeyDown={(e) =>
+                                handleKeyDown(e, type, index, true)
+                              }
+                              autoFocus
+                              style={{
+                                width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => handleItemClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {item.testname}
+                            </span>
+                          )}
+                          <span className="digitised-item mx-1">:</span>
+                          {activeIndex === index &&
+                          activeType === `${type}-lineItem` ? (
+                            <input
+                              type="text"
+                              value={editableLineItem}
+                              className="editable-digitised-item"
+                              onChange={handleLineItemChange}
+                              onBlur={() =>
+                                handleInputBlur(type, index, false, true)
+                              }
+                              onKeyDown={(e) =>
+                                handleKeyDown(e, type, index, true)
+                              }
+                              ref={(el) =>
+                                (inputLineItemRefs.current[index] = el)
+                              }
+                              autoFocus
+                              style={{
+                                width: `clamp(12px, ${
+                                  lineItemWidth + 10
+                                }px, 100%)`,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => handleLineItemClick(type, index)}
+                              className="digitised-item"
+                            >
+                              {item.value}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </li>
                 );
@@ -1328,8 +3934,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                     {localModules?.includes(module)
                       ? module
                       : module
-                        .replace(/([A-Z])/g, " $1")
-                        .replace(/^./, (str) => str.toUpperCase())}
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (str) => str.toUpperCase())}
                     {localModules?.includes(module) && (
                       <i
                         className={`icon-Edit fs-21 ms-2 cursor-pointer`}
@@ -1371,8 +3977,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                           {localModules?.includes(module)
                             ? module
                             : module
-                              .replace(/([A-Z])/g, " $1")
-                              .replace(/^./, (str) => str.toUpperCase())}{" "}
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}{" "}
                           Module
                         </Menu.Item>
                       </Menu>
@@ -1437,7 +4043,9 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                                 }
                                 autoFocus
                                 style={{
-                                  width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                                  width: `clamp(12px, ${
+                                    textWidth + 10
+                                  }px, 100%)`,
                                 }}
                                 onPaste={(e) => handlePaste(e, module)}
                                 onKeyDown={(e) =>
@@ -1550,20 +4158,129 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
     if (prescriptionData) {
       showHideBackModal();
     } else {
+      // If no prescription data, navigate directly based on mode
+      if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+        // Navigate to Voice Rx Consult page (mode selection) in ambient mode
+        navigate("/voice-rx-consult", {
+          replace: true,
+          state: {
+            patient_data,
+          },
+        });
+        onClose();
+    } else {
       onClose();
+      }
     }
   };
 
   const handleBack = () => {
+    // Check if we're in ambient mode
+    if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+      // Navigate to Voice Rx Consult page (mode selection)
+      navigate("/voice-rx-consult", {
+        replace: true,
+        state: {
+          patient_data,
+        },
+      });
+    } else {
+      // For non-ambient mode, just close the drawer
     onClose();
-    navigate(".", {
-      replace: true, // Prevents adding a new entry to history
+    navigate("/voice-rx-consult", {
+        replace: true,
       state: {
-        ...state,
-        caseManagerData: undefined, // Remove caseManagerData
+        patient_data,
       },
     });
+    }
   };
+
+  // Helper function to convert API medicalHistory format to CashManagerContext format
+  const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
+    if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
+      return existingContextData || [];
+    }
+
+    // Map API types to tmmhs_id: Lifestyle=1, Medical Condition=2, Family History=3, Allergies=4, Surgical History=5
+    const typeToIdMap = {
+      'Lifestyle': 1,
+      'Medical Condition': 2,
+      'Family History': 3,
+      'Allergies': 4,
+      'Surgical History': 5,
+      'lifestyle': 1,
+      'medical_condition': 2,
+      'family_history': 3,
+      'allergies': 4,
+      'surgical_history': 5
+    };
+
+    // Group by type
+    const groupedByType = {};
+    apiMedicalHistory.forEach(item => {
+      const type = item.type || 'Lifestyle';
+      const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
+      const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
+      const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
+                         type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
+                         type === 'Family History' || normalizedType === 'family_history' ? 'Family History' :
+                         type === 'Allergies' || normalizedType === 'allergies' ? 'Allergies' :
+                         type === 'Surgical History' || normalizedType === 'surgical_history' ? 'Surgical History' : 'Lifestyle';
+      
+      if (!groupedByType[mappedType]) {
+        groupedByType[mappedType] = {
+          tmmhs_id: mappedType,
+          section_name: sectionName,
+          tags: []
+        };
+      }
+      
+      // Create tag object
+      const tag = {
+        tmmhst_id: Date.now() + Math.random(), // Generate unique ID
+        title: item.name || '',
+        enable: 'Y',
+        note: item.notes || '',
+        since: item.duration || '',
+        status: 'Active',
+        relationship: item.relation || ''
+      };
+      
+      groupedByType[mappedType].tags.push(tag);
+    });
+
+    // Convert to array format
+    const medicalHistoryDataArray = Object.values(groupedByType);
+
+    // Merge with existing medicalHistoryData if available
+    if (existingContextData && existingContextData.length > 0) {
+      const merged = existingContextData.map(existingSection => {
+        const apiSection = groupedByType[existingSection.tmmhs_id];
+        if (apiSection) {
+          // Merge tags, avoiding duplicates
+          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
+          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
+          return {
+            ...existingSection,
+            tags: [...existingSection.tags, ...newTags]
+          };
+        }
+        return existingSection;
+      });
+
+      // Add sections that don't exist in existing data
+      Object.values(groupedByType).forEach(apiSection => {
+        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
+          merged.push(apiSection);
+        }
+      });
+
+      return merged;
+    } else {
+      return medicalHistoryDataArray;
+    }
+  }, []);
 
   return (
     <Drawer
@@ -1572,7 +4289,8 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
       open={visible}
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
-      width={showPrescription ? "100%" : "640px"}
+      width={showPrescription ? "100%" : "750px"}
+      mask={!genRxKnowMoreDrawer}
     >
       <Suspense
         fallback={
@@ -1590,20 +4308,172 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                   <i className="icon-right"></i>
                 </div>
               </div>
-              <div className="title-common">Voice Rx</div>
+                <ProfilePopover patient_data={patient_data} isPrescriptionPage />
+                {(mode || isAmbientMode !== undefined) && (
+                  <div className={styles.modeIndicator}>
+                    {isAmbientMode ? (
+                      <>
+                        <img src={ambientActiveIcon} alt="Ambient mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Ambient Mode</span>
+                      </>
+                    ) : (
+                      <>
+                        <img src={dictateActiveIcon} alt="Dictate mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Dictate Mode</span>
+                      </>
+                    )}
+                  </div>
+                )}
             </div>
             <div className="d-flex align-items-center gap-2">
+              {isGroundingAccessable && (
+                <button
+                  type="button"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 14px",
+                    borderRadius: 16,
+                    background: "#F7F1FF",
+                    border: "1px solid #E6D8FF",
+                    color: "#A461D8",
+                    height: "41px",
+                  }}
+                >
+                  <img
+                    src={zydusDataEngineIcon}
+                    alt="zydus-data-engine"
+                    width={28}
+                    height={28}
+                    style={{ marginRight: 8 }}
+                  />
+                  <div className="d-flex flex-column">
+                    <span
+                      className="grouding-color fs-10"
+                      style={{ lineHeight: "12px" }}
+                    >
+                      Powered by
+                    </span>
+                    <span
+                      className="grouding-color fs-16 semi-bold-text"
+                      style={{ lineHeight: "20px" }}
+                    >
+                      Zydus Data Engine
+                    </span>
+                  </div>
+                  <Tooltip
+                    placement="bottomRight"
+                    overlayClassName="groundingTooltip"
+                    title={
+                      <div style={{ padding: "12px" }}>
+                        <div>
+                          <span
+                            className="semi-bold-text fs-21"
+                            style={{ lineHeight: "18px" }}
+                          >
+                            Zydus Data Engine
+                          </span>
+                          <img
+                            className="img-fluid"
+                            width={39}
+                            height={16}
+                            style={{ marginLeft: 10, marginBottom: 5 }}
+                            src={tagNew}
+                            alt={"new-gif"}
+                          />
+                        </div>
+                        <Divider style={{ margin: "15px 0px" }} />
+                        <div>
+                          <span>What is Zydus Data Engine?</span>
+                          <span>
+                            With a curated list of{" "}
+                            <span className="semi-bold-text">medicines</span>{" "}
+                            and{" "}
+                            <span className="semi-bold-text">lab tests</span>
+                            from the{" "}
+                            <span className="semi-bold-text">
+                              Zydus Data Engine
+                            </span>
+                            , our AI adapts to your prescribing style, surfacing
+                            the most
+                            <span className="semi-bold-text">
+                              relevant suggestions
+                            </span>{" "}
+                            while you prescribe, and helps to
+                          </span>
+                          <div className="d-flex align-items-center gap-3 mt-3">
+                            <div
+                              className="d-flex align-items-center gap-1 p-2 rounded-20px fs-12"
+                              style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                            >
+                              <img src={healthIcon} alt="health-icon" />
+                              Boosting Patient Fulfilment
+                              <img src={growIcon} alt="grow-icon" />
+                            </div>
+                            <div
+                              className="d-flex align-items-center gap-1 p-2 rounded-20px fs-12"
+                              style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                            >
+                              <img src={accuracyIcon} alt="accuracy-icon" />
+                              Improve Rx Accuracy by{" "}
+                              <span className="semi-bold-text">80%</span>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              width: "503px",
+                              height: "239px",
+                              marginTop: "12px",
+                            }}
+                          >
+                            <div
+                              className="d-flex align-items-center justify-content-center"
+                              style={{
+                                background: `url(${videoLink.thumbnail})`,
+                                width: "503px",
+                                height: "239px",
+                                borderRadius: 24,
+                                cursor: "pointer",
+                                backgroundSize: "cover",
+                                backgroundRepeat: "no-repeat",
+                                backgroundPosition: "center",
+                              }}
+                              onClick={() => setShowVideo(true)}
+                            >
+                              <img
+                                width={55}
+                                height={55}
+                                src={playIcons}
+                                alt="play-icon"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <i className="icon-info fs-21" />
+                  </Tooltip>
+                </button>
+              )}
               <button
                 className="btn d-flex align-items-center btn-text me-10 tutorial"
-                onClick={handleGenRxKnowMore}
+                onClick={() => setGenRxKnowMoreDrawer(true)}
               >
                 <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
-                  <img height={42} src={tutorialIcon} />
+                  <img height={42} src={tutorialIcon} alt="Tutorial" />
                   Tutorial
                 </span>
               </button>
 
-              {!isFreeVoiceRxUser && <FreeTrialButton title={S_VOICE_RX} showHideSubModal={showHideSubModal} />}
+              {!isFreeVoiceRxUser && (
+                <FreeTrialButton
+                  title={S_VOICE_RX}
+                  showHideSubModal={showHideSubModal}
+                />
+              )}
 
               {showPrescription && (
                 <Button
@@ -1632,10 +4502,13 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                 <>
                   <div style={{ padding: 24 }}>
                     <h1 className={styles.title}>
-                      Start your consultation with the patient
+                      {isAmbientMode ? "Ambient Voice Rx" : "Voice Rx"}
                     </h1>
                     <div className={styles.subtitle}>
-                      Dictate the complete prescription effortlessly
+                      {isAmbientMode 
+                        ? "Record conversation between doctor and patient for prescription generation"
+                        : "Dictate the complete prescription effortlessly"
+                      }
                     </div>
                   </div>
                   {!isTyping && !isRecording && <GenRxTips />}
@@ -1747,120 +4620,251 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                   )}
                 </>
               ) : (
-                <div
-                  className={`${styles.splitView} w-100`}
-                  style={{ padding: 24 }}
-                >
-                  <div className={styles.inputSection}>
-                    <div>
-                      <img src={documentIcon} alt="Document" />
-                      <span className={styles.heading}>Your input</span>
-                    </div>
-                    <div className={styles.chatSection}>
-                      {isProcessing ? (
+                  <div
+                    className={`${styles.splitView} w-100`}
+                    ref={splitRef}
+                     style={{
+                       padding: "0 0 24px 0",
+                       "--divider-left": `${leftWidthPercent}%`,
+                     }}
+                  >
+                  <div
+                    className={styles.inputSection}
+                    style={{ width: `${leftWidthPercent}%` }}
+                  >
+                      <div className={styles.chatSection}>
+                        {/* Introductory Text */}
+                        <div className={styles.introTextContainer}>
+                          <img src={doctorAvatar} alt="Doctor Assistant" className={styles.doctorAvatarIcon} />
+                          <div className={styles.introText}>
+                            Hi Doctor! Start your consultation by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the patient.</strong>
+                            I'll <strong>transcribe</strong> & <strong>structure</strong> it into the <strong>Rx Pad</strong> automagically!
+                          </div>
+                        </div>
+                        
+                                                {/* Transcript Cards */}
+                        {/* First transcript card - show initial transcript */}
+                        {(fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (                                          
+                          <div className={styles.transcriptCard}>
+                            <div 
+                              className={styles.transcriptHeader}
+                              onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+                            >
+                              <div className={styles.transcriptTitle}>
+                                <div className={styles.transcriptTitleContent}>
+                                  <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
+                                  <div className={styles.transcriptRightGroup}>
+                                    {(() => {
+                                      // Show timer only for audio inputs
+                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
+                                      const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
+                                      const firstDuration = firstQuery && typeof firstQuery === 'object' ? firstQuery.duration : null;
+                                      
+                                      // For both ambient and dictate mode, use duration from firstQuery
+                                      if (isFirstAudio && firstDuration) {
+                                        return (
+                                  <div className={styles.transcriptDuration}>
+                                    <i className="icon-time"></i>
+                                            <span>{formatTime(Math.floor(firstDuration))}</span>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      return null;
+                                    })()}
+                                    <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
+                                <i className="icon-down"></i>
+                              </div>
+                            </div>
+                            {isTranscriptExpanded && (
+                              <div className={styles.transcriptContent}>
+                                  {isAmbientMode ? (
+                                  <div>
+                                    {/* Use conversations from queries[0] instead of global conversations state */}
+                                    {(() => {
+                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
+                                      const firstConversations = firstQuery && typeof firstQuery === 'object' && firstQuery.conversations 
+                                        ? firstQuery.conversations 
+                                        : (Array.isArray(conversations) && conversations.length > 0 ? conversations : []);
+                                      
+                                      return firstConversations.length > 0 ? (
+                                        firstConversations.map((conv, idx) => {
+                                        const text = conv?.message || conv?.text || conv?.content || '';
+                                        const speaker = (conv?.speaker || '').toLowerCase();
+                                        const isDoctor = speaker === 'doctor';
+                                        return (
+                                          <div key={idx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
+                                        <div className={styles.conversationBubble}>
+                                              <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
+                                              <div className={styles.messageText}>{text}</div>
+                                          </div>
+                                          </div>
+                                        );
+                                      })
+                                      ) : null;
+                                    })()}
+                                        </div>
+                                ) : (
+                                  <div className={styles.transcriptText}>
+                                    {(Array.isArray(queries) && queries.length > 0)
+                                       ? (typeof queries[0] === 'string' ? queries[0] : queries[0]?.text || '')
+                                       : (fullTranscript || genRxDetails?.source || '')}                                                                         
+                                </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                                                {/* Show "Your Rx is ready!" message after first transcript */}
+                        {!isProcessing && (isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source))) && (
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                              <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
+                              <div className={styles.prescriptionReadyMessage}>
+                                Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
+                                      </div>
+                                    </div>
+                                  )}
+
+                        {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
+                        {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
+                          const cardIndex = idx + 1;
+                          const isCardExpanded = expandedTranscripts.has(cardIndex);                                                                            
+                          return (
+                            <React.Fragment key={cardIndex}>
+                              <div className={styles.transcriptCard} style={{ marginTop: '16px' }}>                                                             
+                                <div 
+                                  className={styles.transcriptHeader}
+                                  onClick={() => {
+                                    const newExpanded = new Set(expandedTranscripts);                                                                           
+                                    if (isCardExpanded) {
+                                      newExpanded.delete(cardIndex);
+                                    } else {
+                                      newExpanded.add(cardIndex);
+                                    }
+                                    setExpandedTranscripts(newExpanded);
+                                  }}
+                                >
+                                  <div className={styles.transcriptTitle}>
+                                    <div className={styles.transcriptTitleContent}>                                                                             
+                                      <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
+                                      <div className={styles.transcriptRightGroup}>                                                                             
+                                        {(() => {
+                                          // Show timer only for audio inputs
+                                          const queryItem = Array.isArray(queries) && queries.length > cardIndex ? queries[cardIndex] : null;                   
+                                          const isAudio = queryItem && typeof queryItem === 'object' && queryItem.isAudio;                                      
+                                          const queryDuration = queryItem && typeof queryItem === 'object' ? queryItem.duration : null;                         
+                                          
+                                          if (isAudio && queryDuration) {
+                                            return (
+                                              <div className={styles.transcriptDuration}>                                                                       
+                                                <i className="icon-time"></i>
+                                                <span>{formatTime(Math.floor(queryDuration))}</span>                                                            
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                        <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />                                                    
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className={`${styles.transcriptToggle} ${isCardExpanded ? styles.transcriptToggleOpen : ''}`}>                           
+                                    <i className="icon-down"></i>
+                                  </div>
+                                </div>
+                                {isCardExpanded && (
+                                  <div className={styles.transcriptContent}>
+                                    {isAmbientMode && query?.conversations ? (
+                                      // Render conversations for ambient mode
+                                      <div>
+                                        {Array.isArray(query.conversations) && query.conversations.length > 0 ? (
+                                          query.conversations.map((conv, convIdx) => {
+                                            const text = conv?.message || conv?.text || conv?.content || '';
+                                            const speaker = (conv?.speaker || '').toLowerCase();
+                                            const isDoctor = speaker === 'doctor';
+                                            return (
+                                              <div key={convIdx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
+                                                <div className={styles.conversationBubble}>
+                                                  <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
+                                                  <div className={styles.messageText}>{text}</div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      // Render text for dictate mode
+                                      <div className={styles.transcriptText}>
+                                        {typeof query === 'string' ? query : (query?.text || '')}                                                                 
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Show "Your Rx is ready!" message after each additional transcript - only when not processing */}
+                              {!isProcessing && (
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                              <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
+                              <div className={styles.prescriptionReadyMessage}>
+                                Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
+                                      </div>
+                                    </div>
+                                  )}
+                            </React.Fragment>
+                          );
+                        })}
+
+                                            {isProcessing ? (
                         <BubbleSkeleton />
                       ) : (
                         <>
                           <div className={styles.inputContainer}>
                             <div className={styles.inputQueries}>
-                              {queries.map((query, index) => (
-                                <div key={index}>
-                                  <div
-                                    className="position-relative ms-auto"
-                                    style={{ maxWidth: "457px" }}
-                                  >
-                                    <div
-                                      key={index}
-                                      className={styles.textContainer}
-                                    >
-                                      <span className={styles.inputText}>
-                                        {query}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div
-                                    className="d-flex gap-3 me-auto mb-5"
-                                    style={{ width: "87%" }}
-                                  >
-                                    <img
-                                      src={tatvaAiStrip}
-                                      alt="TatvaAI"
-                                      style={{
-                                        backgroundColor: "#22003C",
-                                        borderRadius: "10px 10px 0px",
-                                      }}
-                                      width={32}
-                                      height={32}
-                                    />
-                                    <div
-                                      className={
-                                        styles.prescriptionReadyMessage
-                                      }
-                                    >
-                                      Your prescription is ready! You can also
-                                      add details like diagnosis, Examinations
-                                      and more simply by speaking or typing
-                                      below.
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                              {null}
                             </div>
                           </div>
                           {isRecording ? (
-                            <div className={styles.recordingContainer}>
-                              <div className="d-flex align-items-center justify-content-between">
-                                <span>{formatTime(recordingTime)}</span>
-                                <VoiceWaveVisualizer
-                                  isRecording={isRecording}
-                                  isPaused={isPaused}
-                                />
-                                <div className={styles.controlButtons}>
-                                  {isPaused ? (
-                                    <button
-                                      className={styles.micBtn}
-                                      onClick={handlePauseResume}
-                                    >
-                                      <img src={micIcon} alt="resume" />
-                                    </button>
-                                  ) : (
-                                    <div
-                                      onClick={handlePauseResume}
-                                      role="button"
-                                    >
-                                      <img src={pauseIcon} alt="pause" />
-                                    </div>
-                                  )}
-
-                                  <div
-                                    role="button"
-                                    onClick={handleSend}
-                                    style={{ width: 32 }}
-                                  >
-                                    <img src={genRxSendCta} alt="send" />
-                                  </div>
+                            <div className={styles.bottomCenterBar}>
+                              <div className={styles.recBar}>
+                                {/* Delete Button */}
+                                <button className={styles.deleteButton} onClick={handleStopRecording}>
+                                  <img src={stopIcon} alt="stop" className={styles.stopIcon} />
+                                </button>
+                                
+                                {/* Pause/Resume Button */}
+                                <button className={styles.pauseButton} onClick={handlePauseResume}>
+                                  <img src={muteIcon} alt={isPaused ? "resume" : "pause"} className={styles.muteIcon} />
+                                </button>
+                                
+                                {/* Duration */}
+                                <div className={styles.timeLabel}>{formatTime(recordingTime)}</div>
+                                
+                                {/* Wave Visualizer */}
+                                <div className={styles.waveArea}>
+                                  <VoiceWaveVisualizer isRecording={isRecording} isPaused={isPaused} />
                                 </div>
+                                
+                                {/* Submit Button */}
+                                <button className={styles.sendCta} onClick={handleSend}>
+                                  <img src={vitalsIcons} alt="Submit" className={styles.vitalsIcon} />
+                                </button>
                               </div>
-                              <div className={styles.controlButtons}>
-                                <div
-                                  role="button"
-                                  onClick={handleStopRecording}
-                                  className={styles.deleteButton}
-                                >
-                                  <img src={deleteIcon} alt="delete" />
-                                </div>
-                                <span className={styles.recordingStatus}>
-                                  {isPaused
-                                    ? "Tap on the mic to continue recording!"
-                                    : "Listening..."}
-                                </span>
+                              
+                              {/* Listening Indicator with Gradient Ellipse */}
+                              <div className={styles.listeningSection}>
+                                <img src={ellipse895} alt="Gradient" className={styles.gradientEllipse} />
+                                <div className={styles.listeningText}>I'm Listening...</div>
                               </div>
                             </div>
                           ) : (
-                            <div
-                              style={{ marginTop: "auto", paddingRight: 20 }}
-                            >
-                              <div className={styles.inputContainerChat}>
+                            <div className={styles.curvedInputContainer}>
+                              <div className={styles.curvedInputWrapper}>
                                 <TextArea
                                   ref={textAreaRef}
                                   value={inputText}
@@ -1868,26 +4872,16 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                                   onKeyDown={handleKeyPress}
                                   onClick={() => setIsTyping(true)}
                                   onBlur={() => setIsTyping(false)}
-                                  placeholder={"Start speaking or typing..."}
-                                  className={styles.textArea}
+                                  placeholder={"Start Typing Rx..."}
+                                  className={styles.curvedTextInput}
                                   autoSize={{ minRows: 1, maxRows: 6 }}
                                 />
-
-                                <div className={styles.controls}>
-                                  <div
-                                    role="button"
-                                    onClick={handleStartRecording}
-                                  >
-                                    <img src={genRxRecordIcon} alt="MIC" />
-                                  </div>
-                                  <div
-                                    role="button"
-                                    onClick={handleSend}
-                                    style={{ width: 32 }}
-                                  >
-                                    <img src={genRxSendCta} alt="send" />
-                                  </div>
-                                </div>
+                                <img 
+                                  src={voiceRxButton}
+                                  alt="Voice Rx"
+                                  onClick={handleStartRecording}
+                                  style={{ cursor: 'pointer', minWidth: '112px', maxWidth: '159.99989318847656px', height: '41px', flexShrink: 0 }}
+                                />
                               </div>
                             </div>
                           )}
@@ -1895,103 +4889,147 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                       )}
                     </div>
                   </div>
-                  <div className={styles.prescriptionSection}>
-                    {!isProcessing && <div>
-                      <img src={documentIcon} alt="Document" />
-                      <span className={styles.heading}>
-                        Generated Digitised Rx
-                      </span>
-                    </div>}
+                  <div
+                    className={styles.prescriptionSection}
+                    style={{ width: `${100 - leftWidthPercent}%` }}
+                  >
+                      <div className={styles.rxPadHeader}>
+                        <img src={require("../assets/images/document-normal.svg").default} alt="Rx Pad" className={styles.rxPadIcon} />
+                        <span className={styles.rxPadTitle}>Rx Pad</span>
+                      </div>
+                      
                     {isProcessing ? (
-                      <GenRXLoaders isProcessing={isProcessing} showAbsHeaderInsideLoader={true} />
+                      <GenRXLoaders
+                        isProcessing={isProcessing}
+                        showAbsHeaderInsideLoader={false}
+                      />
                     ) : (
                       <div
-                        className={`${styles.rightSection} ${isProcessing ? styles.gradientBorder : ""
-                          }`}
+                        className={`${styles.rightSection} ${
+                          isProcessing ? styles.gradientBorder : ""
+                        }`}
                         style={{
                           background: isProcessing ? `url(${genRxBg})` : "",
                         }}
                       >
+                        {showInstructionMessage && (
+                          <div className={styles.rxPadInstruction}>
+                            <div className={styles.instructionIcon}>
+                              <img src={require("../assets/images/danger.svg").default} alt="Warning" className={styles.dangerIcon} />
+                            </div>
+                            <div className={styles.instructionText}>
+                              Dictate the Rx or start a conversation with Ambient Rx — I'll auto-magically fill these below Rx details so you can stay focused on the patient.
+                            </div>
+                            <button 
+                              className={styles.closeButton}
+                              onClick={() => setShowInstructionMessage(false)}
+                              aria-label="Close instruction message"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        
                         {prescriptionData?.vitalsAndBodyComposition &&
-                          Object.values(
-                            prescriptionData.vitalsAndBodyComposition
-                          ).some((value) => value) && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Vitals
-                              </div>
-                              {renderItems("vitalsAndBodyComposition")}
-                            </>
+                          typeof prescriptionData.vitalsAndBodyComposition === 'object' && 
+                          prescriptionData.vitalsAndBodyComposition !== null && 
+                          Object.values(prescriptionData.vitalsAndBodyComposition).some(value => 
+                            value !== undefined && value !== null && value !== ''
+                          ) && (
+                            <VitalsRichTextEditor
+                              vitalsAndBodyComposition={prescriptionData.vitalsAndBodyComposition}
+                              onUpdate={handleVitalsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.medicalHistory &&
+                          Array.isArray(prescriptionData.medicalHistory) && 
                           prescriptionData.medicalHistory.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Medical History
-                              </div>
-                              {renderItems("medicalHistory")}
-                            </>
+                            <MedicalHistoryRichTextEditor
+                              medicalHistory={prescriptionData.medicalHistory}
+                              onUpdate={handleMedicalHistoryUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.symptoms &&
+                          Array.isArray(prescriptionData.symptoms) && 
                           prescriptionData.symptoms.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Symptoms
-                              </div>
-                              {renderItems("symptoms")}
-                            </>
+                            <SymptomsRichTextEditor
+                              symptoms={prescriptionData.symptoms}
+                              onUpdate={handleSymptomsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.examinations &&
+                          Array.isArray(prescriptionData.examinations) && 
                           prescriptionData.examinations.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Examinations
-                              </div>
-                              {renderItems("examinations")}
-                            </>
+                            <ExaminationRichTextEditor
+                              examinations={prescriptionData.examinations}
+                              onUpdate={handleExaminationsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.diagnosis &&
+                          Array.isArray(prescriptionData.diagnosis) && 
                           prescriptionData.diagnosis.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Diagnosis
-                              </div>
-                              {renderItems("diagnosis")}
-                            </>
+                            <DiagnosisRichTextEditor
+                              diagnosis={prescriptionData.diagnosis}
+                              onUpdate={handleDiagnosisUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.medications &&
+                          Array.isArray(prescriptionData.medications) && 
                           prescriptionData.medications.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Medicine
-                              </div>
-                              {renderItems("medications")}
-                            </>
+                            <MedicationsTable
+                              medications={prescriptionData.medications}
+                              onUpdate={handleMedicationsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.labInvestigation &&
+                          Array.isArray(prescriptionData.labInvestigation) && 
                           prescriptionData.labInvestigation.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Lab Investigation
-                              </div>
-                              {renderItems("labInvestigation")}
-                            </>
+                            <LabInvestigationTable
+                              labInvestigation={prescriptionData.labInvestigation}
+                              onUpdate={handleInvestigationUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {prescriptionData?.labResults &&
+                          Array.isArray(prescriptionData.labResults) && 
+                          prescriptionData.labResults.length > 0 && (
+                            <LabResultsRichTextEditor
+                              labResults={prescriptionData.labResults}
+                              onUpdate={handleLabResultsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.advice &&
-                          prescriptionData.advice.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Advices
-                              </div>
-                              {renderItems("advice")}
-                            </>
+                          ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) ||
+                           (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0)) && (
+                            <AdviceRichTextEditor
+                              advice={typeof prescriptionData.advice === 'string' 
+                                ? [{ lineItem: prescriptionData.advice }]
+                                : prescriptionData.advice.map(adv => 
+                                    typeof adv === 'string' 
+                                      ? { lineItem: adv }
+                                      : adv
+                                  )}
+                              onUpdate={handleAdviceUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
 
                         {prescriptionData?.vaccinations &&
@@ -2000,27 +5038,27 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                               <div className="title-digitise-section mb-2">
                                 Vaccination
                               </div>
-                              {renderItems("vaccinations")}
+                              {isAmbientMode ? renderAmbientItems("vaccinations") : renderItems("vaccinations")}
                             </>
                           )}
                         {prescriptionData?.others &&
+                          Array.isArray(prescriptionData.others) && 
                           prescriptionData.others.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Others
-                              </div>
-                              {renderItems("others")}
-                            </>
+                            <AdditionalNotesRichTextEditor
+                              others={prescriptionData.others}
+                              onUpdate={handleAdditionalNotesUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
-                        {renderCustomModules()}
-                        {prescriptionData?.followUp && (
-                          <>
-                            <div className="title-digitise-section mb-2">
-                              Follow Up
-                            </div>
-                            {renderItems("followUp")}
-                          </>
-                        )}
+                        {prescriptionData?.followUp &&
+                          typeof prescriptionData.followUp === 'string' && 
+                          prescriptionData.followUp.trim() && (
+                            <FollowUpRichTextEditor
+                              followUp={prescriptionData.followUp}
+                              onUpdate={handleFollowUpUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
                         {showInput && (
                           <>
                             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -2067,6 +5105,14 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                       </div>
                     )}
                   </div>
+                  <div
+                    className={styles.dividerHandle}
+                    onMouseDown={startResizing}
+                  >
+                    <div className={styles.dividerKnob}>
+                      <div className={styles.dividerDots} />
+                    </div>
+                  </div>
                 </div>
               )}
               {DELETE_MODULE_MODAL}
@@ -2089,7 +5135,22 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
                     <div className="mt-4">
                       <div className="d-flex align-items-center mt-2 justify-content-end">
                         <div
-                          onClick={handleBack}
+                          onClick={() => {
+                            // Check if we're in ambient mode
+                            if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+                              // Navigate to Voice Rx Consult page (mode selection) when leaving in ambient mode
+                              navigate("/voice-rx-consult", {
+                                replace: true,
+                                state: {
+                                  patient_data,
+                                },
+                              });
+                            } else {
+                              // For non-ambient mode, use the regular back handler
+                              handleBack();
+                            }
+                            showHideBackModal();
+                          }}
                           className="me-4 text-decoration-underline btn p-0 text-main"
                         >
                           Yes Leave
@@ -2114,13 +5175,169 @@ const ConsultationDrawer = ({ visible, onClose, handleGenRxKnowMore, labReportID
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{
-            mask: { marginLeft: showPrescription ? 0 : window.innerWidth - 640, marginTop: 60, background: 'rgba(0, 0, 0, 0.28)', backdropFilter: 'blur(2px)' },
-            wrapper: { marginLeft: showPrescription ? 0 : window.innerWidth - 640, marginTop: 60, background: 'rgba(0, 0, 0, 0.28)' },
+            mask: {
+              marginLeft: showPrescription ? 0 : window.innerWidth - 750,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+              backdropFilter: "blur(2px)",
+            },
+            wrapper: {
+              marginLeft: showPrescription ? 0 : window.innerWidth - 750,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+            },
           }}
           isSubModalOpen={isSubModalOpen}
-          showHideSubModal={showHideSubModal} />
+          showHideSubModal={showHideSubModal}
+        />
       )}
 
+      {shouldShowVideo && (
+        <VideoModal
+          videoLink={videoLink}
+          onCancel={() => setShowVideo(false)}
+        />
+      )}
+
+      {showAddMedicinePopup && (
+        <CustomMedicinePopup
+          isOpen={showAddMedicinePopup}
+          onCancel={() => setShowAddMedicinePopup(false)}
+          initialData={{ tmm_medicine_name: searchParentQuery }}
+        />
+      )}
+
+      <CommonModal
+        isModalOpen={showNonZydusWarning}
+        onCancel={() => {
+          setShowNonZydusWarning(false);
+          setPendingSelection(null);
+        }}
+        modalWidth={550}
+        title={"Not in Zydus Data Engine"}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-3">
+              <div className="d-flex align-items-start">
+                <i
+                  className="icon-Warning fs-24 me-3"
+                  style={{ color: "#F59E0B" }}
+                ></i>
+                <div>
+                  <span className="semi-bold-text">
+                    "{pendingSelection?.data}"
+                  </span>{" "}
+                  is <span className="semi-bold-text">not </span>in
+                  <span className="semi-bold-text"> Zydus Data Engine</span>.
+                  Prescribing it may impact{" "}
+                  <span className="semi-bold-text">patient fulfilment</span>.
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="d-flex align-items-center">
+                <input
+                  type="checkbox"
+                  id="dontShowAgain"
+                  checked={dontShowZydusWarning}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setDontShowZydusWarning(checked);
+                    localStorage.setItem(
+                      "dontShowZydusWarning",
+                      checked.toString()
+                    );
+                  }}
+                  style={{ marginRight: 8, width: 16, height: 16 }}
+                />
+                <label
+                  htmlFor="dontShowAgain"
+                  style={{ cursor: "pointer", marginBottom: 0 }}
+                >
+                  Don't show this again
+                </label>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  <span>Go Back</span>
+                </div>
+                <Button
+                  onClick={() => {
+                    if (pendingSelection) {
+                      // Set the active editing state from pending selection
+                      setActiveIndex(pendingSelection.activeIndex);
+                      setActiveType(pendingSelection.activeType);
+                      setEditableName(pendingSelection.data);
+
+                      // Update the prescriptionData with the selected medicine
+                      setPrescriptionData((prevData) => {
+                        const updatedData = { ...prevData };
+                        if (
+                          updatedData?.[pendingSelection.type]?.[
+                            pendingSelection.activeIndex
+                          ]
+                        ) {
+                          updatedData[pendingSelection.type][
+                            pendingSelection.activeIndex
+                          ].name = pendingSelection.data;
+                          // Add complete option data as metadata
+                          if (pendingSelection.item.key) {
+                            const medicineData = JSON.parse(
+                              pendingSelection.item.key
+                            );
+                            updatedData[pendingSelection.type][
+                              pendingSelection.activeIndex
+                            ].metadata = {
+                              ...medicineData,
+                              selectedValue: pendingSelection.data,
+                            };
+                          }
+                        }
+                        return updatedData;
+                      });
+                      setIsRxEdited(true);
+
+                      // Clear editing states after selection
+                      setActiveIndex(null);
+                      setActiveType(null);
+                      setEditableName("");
+                    }
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>Yes, Proceed</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+      
+      {/* Tutorial Drawer */}
+      <Drawer
+        placement="right"
+        width={window.innerWidth ? Math.min(window.innerWidth * 0.8, 1200) : 1200}
+        closeIcon={null}
+        destroyOnClose
+        maskClosable
+        open={genRxKnowMoreDrawer}
+        onClose={() => setGenRxKnowMoreDrawer(false)}
+        bodyStyle={{ padding: 0, height: '100%', overflow: 'hidden' }}
+      >
+        <div style={{ height: '100%', overflow: 'hidden' }}>
+          <GenRxKnowMore handleGenRxKnowMore={() => setGenRxKnowMoreDrawer(false)} />
+        </div>
+      </Drawer>
     </Drawer>
   );
 };

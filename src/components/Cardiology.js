@@ -35,6 +35,8 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   GB_SNAP_RX,
   GB_SNAP_RX_DIGITIZATION,
+  S_AMBIENT_VOICE_RX,
+  S_VOICE_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -53,6 +55,7 @@ import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
 import { getGenRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
+
 import {
   getSnapRxDigitization,
   getSnapRxFiles,
@@ -97,6 +100,8 @@ function Cardiology(props) {
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [ambientConversations, setAmbientConversations] = useState([]);
+  const [isAmbientRx, setIsAmbientRx] = useState(false);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -185,6 +190,7 @@ function Cardiology(props) {
     }
   }, [showDigitalRx, showDigitalSnapRx]);
 
+
   const fetchCustomModules = async () => {
     try {
       if (
@@ -249,11 +255,35 @@ function Cardiology(props) {
         viewCaseManagerData?.smart_prescription_filename
       );
 
-      if (response.success) {
-        setGenRxData(response.data?.editedData || response.data?.digitizeData);
-        setGenRxQueries(
-          response.data?.history?.map(({ transcription }) => transcription)
-        );
+        if (response.success) {
+          
+          const hasAmbientRx = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
+          setIsAmbientRx(hasAmbientRx);
+          
+          if (hasAmbientRx) {
+            let prescriptionData = null;
+            
+            if (response.data.editedData) {
+              prescriptionData = response.data.editedData;
+            } else {
+              const ambientEntry = response.data.rxDigitizationHistory.find(h => h.category === "ambient-rx");
+              prescriptionData = ambientEntry?.response || ambientEntry?.payload?.response || ambientEntry?.payload;
+            }
+            
+            setGenRxData(prescriptionData);
+            
+            
+            const allConversations = response.data.rxDigitizationHistory
+              ?.filter(h => h.category === "ambient-rx")
+              ?.flatMap(h => h.payload?.conversation || []) || [];
+            setAmbientConversations(allConversations);
+          } else {
+            
+            setGenRxData(response.data?.editedData || response.data?.digitizeData);
+            setGenRxQueries(
+              response.data?.history?.map(({ transcription }) => transcription)
+            );
+          }
       } else {
         throw new Error(response.error || "Failed to get Rx");
       }
@@ -517,7 +547,12 @@ function Cardiology(props) {
       await window.open(printUrl);
     } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
-      urlObj.searchParams.set("voiceRxDigitize", "true");
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
       const updatedUrl = urlObj.toString();
       await window.open(updatedUrl);
     } else {
@@ -534,7 +569,12 @@ function Cardiology(props) {
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
       const urlObj = new URL(viewCaseManagerData?.print_url);
-      urlObj.searchParams.set("voiceRxDigitize", "true");
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
       voiceRxUrl = urlObj.toString();
     }
     const printUrl =
@@ -572,10 +612,17 @@ function Cardiology(props) {
           caseManagerData: viewCaseManagerData,
           smartRxFilesData: smartRxFile,
         },
-      });
-    } else {
-      navigate("/prescription", {
-        state: {
+        });
+      } else {
+       
+        if (isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+        
+        navigate("/prescription", {
+          state: {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
@@ -777,6 +824,84 @@ function Cardiology(props) {
     );
   };
 
+  // Render medications in tabular format
+  const renderMedicationsTable = () => {
+    const medications = genRxData?.medications || [];
+    if (!medications || medications.length === 0) return null;
+
+    return (
+      <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
+        <table className="w-100" style={{ borderCollapse: 'collapse', border: 'none' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>MEDICINE NAME</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>UNIT PER DOSE</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>FREQUENCY</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>WHEN</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>DURATION</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NOTE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {medications.map((item, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 500, fontSize: '11px' }}>
+                  {item?.name || 'N/A'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.unitPerDose || item?.dosage || '-'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.frequency || '-'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.schedule || item?.when || '-'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.duration || '-'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.notes || item?.note || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Render lab investigation in tabular format
+  const renderLabInvestigationTable = () => {
+    const labInvestigation = genRxData?.labInvestigation || [];
+    if (!labInvestigation || labInvestigation.length === 0) return null;
+
+    return (
+      <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
+        <table className="w-100" style={{ borderCollapse: 'collapse', border: 'none' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NAME</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NOTE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {labInvestigation.map((item, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 500, fontSize: '11px' }}>
+                  {item?.name || 'N/A'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.notes || item?.note || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderGenRxItems = (type) => (
     <div className="digitised-data-section" style={{ marginLeft: 0 }}>
       <ol>
@@ -813,15 +938,50 @@ function Cardiology(props) {
               <div className="medicine-item">
                 {["advice", "others"].includes(type) && <span>{item}</span>}
 
-                {/* Optional rendering for lineItem */}
-                {(type === "medications" ||
-                  type === "vaccinations" ||
+                {type === "medications" && (
+                  <span>
+                    {item.name} {item.lineItem}
+                  
+                    {item.dosage && ` (dosage: ${item.dosage})`}
+                    {item.frequency && ` (frequency: ${item.frequency})`}
+                    {item.schedule && ` (schedule: ${item.schedule})`}
+                    {item.duration && ` (duration: ${item.duration})`}
+                    {item.notes && ` (note: ${item.notes})`}
+                  </span>
+                )}
+              
+                {(type === "vaccinations" ||
                   type === "medicalHistory" ||
                   type === "labInvestigation" ||
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") &&
-                  item.lineItem && <span>{item.lineItem}</span>}
+                  (item.lineItem ? <span>{item.lineItem}</span> : item.name ? (
+                    <span>
+                      {item.name}
+                    
+                      {item.duration && ` (duration: ${item.duration})`}
+                      {item.severity && ` (severity: ${item.severity})`}
+                      {item.notes && ` (note: ${item.notes})`}
+                      {item.type && ` (type: ${item.type})`}
+                      {item.relation && ` (relation: ${item.relation})`}
+                      {item.dosage && ` (dosage: ${item.dosage})`}
+                      {item.frequency && ` (frequency: ${item.frequency})`}
+                      {item.schedule && ` (schedule: ${item.schedule})`}
+                    </span>
+                  ) : <span>{item}</span>)}
+
+                {type === "labResults" && (
+                  <>
+                    <span>
+                      {/* Format the key to be human-readable */}
+                      {`${item.testname
+                        .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
+                        .replace(/^./, (str) => str.toUpperCase())}: `}
+                    </span>&nbsp;
+                    <span>{item.value}</span>
+                  </>
+                )}
               </div>
             </li>
           ))}
@@ -830,10 +990,16 @@ function Cardiology(props) {
   );
 
   const renderGenRxCustomModules = () =>
-    Object.entries(genRxData?.dynamicFields || {}).map(([module, data]) => {
+    Object.entries(genRxData?.dynamicFields || {})
+      .filter(([module, data]) => {
+        // Filter out empty arrays - only show if array has content
+        return Array.isArray(data) && 
+               data.length > 0 && 
+               data.every((item) => typeof item === "string") &&
+               data.some((item) => item && item.trim().length > 0);
+      })
+      .map(([module, data]) => {
       return (
-        Array.isArray(data) &&
-        data?.every((item) => typeof item === "string") && (
           <>
             <div className="d-flex align-items-start">
               <div className="title-digitise-section mb-1">
@@ -854,7 +1020,6 @@ function Cardiology(props) {
               </ol>
             </div>
           </>
-        )
       );
     });
 
@@ -883,7 +1048,7 @@ function Cardiology(props) {
       return fieldsToCheck.some((field) => item[field]?.trim?.().length > 0);
     });
   };
-
+  
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -893,9 +1058,8 @@ function Cardiology(props) {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
-                  <div className="subtitle">
+      
                     {viewCaseManagerData?.showConsultationDateTime}
-                  </div>
                 </div>
                 <div className="align-items-center d-flex">
                   <Button
@@ -962,7 +1126,7 @@ function Cardiology(props) {
                   >
                     <i className="icon-Print"></i>
                   </button>
-                  {!isSmartRxFile &&
+                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
                     ) && (
@@ -1244,7 +1408,7 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderGenRxItems("medications")}
+                          {renderMedicationsTable()}
                         </>
                       )}
 
@@ -1256,7 +1420,19 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderGenRxItems("labInvestigation")}
+                          {renderLabInvestigationTable()}
+                        </>
+                      )}
+
+                    {genRxData?.labResults &&
+                      genRxData?.labResults.length > 0 && (
+                        <>
+                          <div className="d-flex align-items-start">
+                            <div className="title-digitise-section mb-1">
+                              Lab Results
+                            </div>
+                          </div>
+                          {renderGenRxItems("labResults")}
                         </>
                       )}
 
@@ -1306,11 +1482,50 @@ function Cardiology(props) {
                   </div>
                 ) : (
                   <div className="m-4">
-                    {genRxQueries?.map((query, index) => (
-                      <div key={index} className="gen-rx-transcript">
-                        {query}
-                      </div>
-                    ))}
+                    {isAmbientRx ? (
+                     
+                      ambientConversations?.map((conv, index) => (
+                        <div 
+                          key={index} 
+                          style={{
+                            background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
+                            marginBottom: "20px",
+                            borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                            padding: "16px",
+                            maxWidth: "80%",
+                            marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                            marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                          }}
+                        >
+                          <div style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#5a6774",
+                            marginBottom: "4px",
+                            textTransform: "uppercase"
+                          }}>
+                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                          </div>
+                          <div style={{
+                            color: "#374151",
+                            wordWrap: "break-word",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            lineHeight: "18px",
+                            textAlign: "left"
+                          }}>
+                            {conv.text || conv.content}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                    
+                      genRxQueries?.map((query, index) => (
+                        <div key={index} className="gen-rx-transcript">
+                          {query}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

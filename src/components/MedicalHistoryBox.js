@@ -40,7 +40,7 @@ const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab } = props
     const { TabPane } = Tabs;
     const {
         searchList,
@@ -1015,6 +1015,12 @@ function MedicalHistoryBox(props) {
     };
 
     const handleSave = () => {
+        if (hideMenstrualHistoryTab) {
+            setMedicalHistoryData(cloneMedicalHistoryData);
+            if (onSave) {
+                onSave(cloneMedicalHistoryData);
+            }
+        } else {
         const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
             if (
                 key !== 'createdAt' && key !== 'createdBy' &&
@@ -1026,6 +1032,7 @@ function MedicalHistoryBox(props) {
             return acc;
         }, {});
         onSave(filteredGynecHistory);
+        }
         handleSaveClick()
     };
 
@@ -1204,6 +1211,19 @@ function MedicalHistoryBox(props) {
 
     return (
         <>
+            {hideMenstrualHistoryTab && (
+                <style>{`
+                    .hide-tabs-nav .ant-tabs-nav {
+                        display: none !important;
+                    }
+                    .hide-tabs-nav .ant-tabs-content-holder {
+                        margin-top: 16px;
+                    }
+                    .hide-tabs-nav .ant-tabs-content {
+                        padding-top: 0;
+                    }
+                `}</style>
+            )}
             <Card bordered={false} className="search-modalCard">
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'>
                     <div className='align-items-center d-flex h-100'>
@@ -1216,7 +1236,7 @@ function MedicalHistoryBox(props) {
                             </div>
                         </div>
                         <div className="title-common">
-                            {isGynaecHistoryAccessable ? `Gynec History` : `Medical History`}
+                            {(isGynaecHistoryAccessable && !hideMenstrualHistoryTab) ? `Gynec History` : `Medical History`}
                         </div>
                     </div>
                     <div className="d-flex align-items-center gap-2">
@@ -1241,8 +1261,12 @@ function MedicalHistoryBox(props) {
                         </Button>
                     </div>
                 </div>
-                <Tabs defaultActiveKey="gynec" onChange={onTabChange}>
-                    {isGynaecHistoryAccessable &&
+                <Tabs 
+                    defaultActiveKey={initialActiveKey || "gynec"} 
+                    onChange={onTabChange}
+                    className={hideMenstrualHistoryTab ? "hide-tabs-nav" : ""}
+                >
+                    {(isGynaecHistoryAccessable && !hideMenstrualHistoryTab) &&
                         <TabPane tab="Menstrual History" key="gynec">
                             <div style={{ marginTop: "-1rem" }}>
                                 <Row>
@@ -1666,7 +1690,7 @@ function MedicalHistoryBox(props) {
                                                     <div className="text-center">
                                                         <img className="my-4" style={{ width: 194 }} src={noRecordFound} alt="No Result Found" />
                                                         <div className="fontroboto text-main title-common"> No Records Found! </div>
-                                                        <div className="fontroboto text-main title fw-normal mt-2"> You haven’t added any gynec history. </div>
+                                                        <div className="fontroboto text-main title fw-normal mt-2"> You haven't added any gynec history. </div>
                                                     </div>
                                                 )
                                                 }
@@ -1678,7 +1702,7 @@ function MedicalHistoryBox(props) {
                         </TabPane>
                     }
                     <TabPane tab="Medical History" key="medical">
-                        <div style={{ marginTop: "-1rem" }}>
+                        <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
                             <Row>
                                 <Col lg={15}>
                                     <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>
@@ -2026,7 +2050,7 @@ function MedicalHistoryBox(props) {
                                                 <div className="text-center">
                                                     <img className="my-4" style={{ width: 194 }} src={noRecordFound} alt="No Result Found" />
                                                     <div className="fontroboto text-main title-common"> No Records Found! </div>
-                                                    <div className="fontroboto text-main title fw-normal mt-2"> You haven’t added any medical history. </div>
+                                                    <div className="fontroboto text-main title fw-normal mt-2"> You haven't added any medical history. </div>
                                                 </div>
                                             )
                                         )}

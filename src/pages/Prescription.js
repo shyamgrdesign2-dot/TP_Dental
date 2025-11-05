@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, DDX_KNOW_MORE_DATA, FAILED_VERIFICATION, FREE, GB_GYNEC_HISTORY, GB_ZYDUS_USER, GB_CARE_PLAN, GYNAECOLOGY, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals } from "../redux/vitalsSlice";
 import {
@@ -55,7 +55,6 @@ import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData } from "../utils/utils";
-import { deviceType, osName } from "react-device-detect";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -104,7 +103,6 @@ import { getCarePlanNames, getCarePlanAssignments } from "./smartSync/services/c
 
 import TatvaAiKnowMore from "../components/TatvaAiKnowMore";
 import GenRxBox from "../components/GenRxBox";
-import GenRxKnowMore from "../components/GenRxKnowMore";
 import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
@@ -113,10 +111,16 @@ import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
-import LabResultsTable from "../components/LabParams";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import carePlanIcon from "../assets/images/Care plan_Active.svg";
+import TatvaAiBanner from "../components/TatvaAiBanner";
+import ApexAIPopup from "../components/ApexAIPopup";
+import GenRxBanner from "../components/GenRxBanner";
+import Carousel from "react-multi-carousel";
+import GroundingBanner from "../components/GroundingBanner";
+import GroundingKnowMore from "../components/GroundingKnowMore";
+import GroundingBox from "../components/GroundingBox";
 
 function Prescription() {
   const {
@@ -164,7 +168,7 @@ function Prescription() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData } = state;
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -194,7 +198,10 @@ function Prescription() {
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [customModuleContents, setCustomModuleContents] = useState([]);
   const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
-    caseManagerData?.smart_prescription_filename || false
+    caseManagerData?.smart_prescription_filename || 
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    (fromVoiceRecording && audioBlob) ||
+    false
   );
   const [pillupSwitch, setPillupSwitch] = useState(true);
   const [showSCBanner, setShowSCBanner] = useState(false);
@@ -293,6 +300,7 @@ function Prescription() {
   const [shouldShowApexPopup, setShowApexPopup] = useState(true);
   const [shouldShowGenRxPopup, setShowGenRxPopup] = useState(true);
   const [shouldShowTatvaAiPopup, setShowTatvaAiPopup] = useState(true);
+  const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(true);
   const [ddxKnowMoreDrawer, setDDxKnowMoreDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
@@ -300,14 +308,17 @@ function Prescription() {
   const [ddxDrawer, setDDxDrawer] = useState(false);
   const [likeDislike, setLikeDislike] = useState([]);
   const [isDDxGenerated, setIsDDxGenerated] = useState(false);
-  const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
+  const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const [showShimmer, setShowShimmer] = useState(false);
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isGroundingAccessable =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   const {
     isVaccinationAccessable,
     isGrowthChartAccessable,
@@ -1039,11 +1050,16 @@ function Prescription() {
   }
 
   const handleGenRxKnowMore = () => {
-    setGenRxKnowMoreDrawer((prev) => !prev);
+    // Tutorial is now handled internally by ConsultationDrawer
+    // This function is kept for compatibility with other components
   };
 
   const handleTatvaAiKnowMore = () => {
     setTatvaAiKnowMoreDrawer((prev) => !prev);
+  };
+
+  const handleGroundingKnowMore = () => {
+    setGroundingKnowMoreDrawer((prev) => !prev);
   };
 
   const ShimmerLoader = () => {
@@ -1496,20 +1512,72 @@ function Prescription() {
     fetchZydusLabParamsForDisplay();
   }, [labReportID, patient_data?.patient_unique_id]);
 
+  // Auto-open ConsultationDrawer when coming from Voice Recording page
+  useEffect(() => {
+    if (fromVoiceRecording && audioBlob) {
+      setIsGenRxDrawerVisible(true);
+      const clinic_name = getClinicName(profile?.hospital_data);
+      trackEvent("TP_VoiceRx_Start", {
+        patient_contact: patient_data?.pm_contact_no || "",
+        patient_id: patient_data?.patient_unique_id || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name,
+      });
+    }
+  }, [fromVoiceRecording, audioBlob]);
+
+  // Auto-open ConsultationDrawer when coming from typed input (text Voice Rx)
+  useEffect(() => {
+    if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
+      setIsGenRxDrawerVisible(true);
+      const clinic_name = getClinicName(profile?.hospital_data);
+      trackEvent("TP_VoiceRx_Start", {
+        patient_contact: patient_data?.pm_contact_no || "",
+        patient_id: patient_data?.patient_unique_id || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name,
+      });
+    }
+  }, [inputText]);
+
+  // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
+  const showOnlyDrawer = isGenRxDrawerVisible && (
+    // Typed input from Voice Rx
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    // Audio recording from Voice Rx (dictation or ambient mode)
+    (fromVoiceRecording && audioBlob) ||
+    // Coming from edit prescription (print view)
+    caseManagerData?.smart_prescription_filename
+  );
+
   return (
     <CashManagerContext.Provider value={contextApi}>
       <>
-        <HeaderPrescription
-          isVaccinationEnabled={isVaccinationAccessable}
-          isGrowthChartEnabled={isGrowthChartAccessable}
-          gynecHistory={updatedGynecHistory}
-          labParamsData={labParamsData}
-          zydusSelectedLabParams={zydusSelectedLabParams}
-          handleGenRx={handleGenRx}
-          labReportID={labReportID}
-          selectedCarePlan={selectedCarePlan}
-        />
-        <div className="w-100 bg-body wrapper2 prescription-wrapper">
+        {isGenRxDrawerVisible && (
+          <ConsultationDrawer
+            visible={isGenRxDrawerVisible}
+            onClose={() => setIsGenRxDrawerVisible(false)}
+            labReportID={labReportID}
+            digitizedData={digitizedData}
+            typedInputText={inputText}
+            mode={mode}
+          />
+        )}
+        {!showOnlyDrawer && (
+          <>
+            <HeaderPrescription
+              isVaccinationEnabled={isVaccinationAccessable}
+              isGrowthChartEnabled={isGrowthChartAccessable}
+              gynecHistory={updatedGynecHistory}
+              labParamsData={labParamsData}
+              zydusSelectedLabParams={zydusSelectedLabParams}
+              handleGenRx={handleGenRx}
+              labReportID={labReportID}
+              selectedCarePlan={selectedCarePlan}
+            />
+            <div className="w-100 bg-body wrapper2 prescription-wrapper">
           <img src={hey} alt="vitals" className="me-3 hey" />
           <div className="row">
             <div className="col-lg-4 col-md-12 col-12">
@@ -1557,6 +1625,9 @@ function Prescription() {
                     }
                     key="apexAI"
                   >
+                    {isGroundingAccessable && <div className="prescription-box-sm">
+                      <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
+                    </div>}
                     {(isVoiceRxAccessable || tp_monetization_enable) && <div className="prescription-box-sm">
                       <GenRxBox setIsGenRxDrawerVisible={setIsGenRxDrawerVisible} handleGenRxKnowMore={handleGenRxKnowMore} />
                     </div>}
@@ -1586,7 +1657,7 @@ function Prescription() {
             </div>
             <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
-                {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup) && 
+                {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
                   <Carousel
                   responsive={responsive}
                   infinite={true}
@@ -1610,8 +1681,11 @@ function Prescription() {
                       handleDDxKnowMore={handleDDxKnowMore}
                     />
                   )}
+                  {shouldShowGroundingBanner && (
+                    <GroundingBanner key="grounding-banner" setShowGroundingPopup={setShowGroundingBanner} handleGroundingKnowMore={handleGroundingKnowMore} />
+                  )}
                   </Carousel>
-                } */}
+                }
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
@@ -1887,26 +1961,6 @@ function Prescription() {
             />
           </Drawer>
         )}
-        {genRxKnowMoreDrawer && (
-          <Drawer
-            closeIcon={false}
-            placement="right"
-            open={genRxKnowMoreDrawer}
-            onClose={handleGenRxKnowMore}
-            className=".modalWidth-800"
-            width={825}
-          >
-            <GenRxKnowMore handleGenRxKnowMore={handleGenRxKnowMore} />
-          </Drawer>
-        )}
-        {isGenRxDrawerVisible && (
-          <ConsultationDrawer
-            visible={isGenRxDrawerVisible}
-            onClose={() => setIsGenRxDrawerVisible(false)}
-            handleGenRxKnowMore={handleGenRxKnowMore}
-            labReportID={labReportID}
-          />
-        )}
         {tatvaAiKnowMoreDrawer && (
           <Drawer
             closeIcon={false}
@@ -1920,6 +1974,21 @@ function Prescription() {
               handleTatvaAiKnowMore={handleTatvaAiKnowMore}
               handleDDxKnowMore={handleDDxKnowMore}
               handleGenRxKnowMore={handleGenRxKnowMore}
+            />
+          </Drawer>
+        )}
+
+        {groundingKnowMoreDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            open={groundingKnowMoreDrawer}
+            onClose={handleGroundingKnowMore}
+            className=".modalWidth-800"
+            width={825}
+          >
+            <GroundingKnowMore
+              handleGroundingKnowMore={handleGroundingKnowMore}
             />
           </Drawer>
         )}
@@ -1958,6 +2027,8 @@ function Prescription() {
               patientGender={patient_data?.pm_gender}
             />
           </Drawer>
+        )}
+          </>
         )}
       </>
     </CashManagerContext.Provider>

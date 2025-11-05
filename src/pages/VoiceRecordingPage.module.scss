@@ -1,0 +1,1241 @@
+.voiceRxConsultPage,
+.voiceRecordingPage {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f7ff 0%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(circle at 20% 20%, rgba(154, 125, 218, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 80% 80%, rgba(47, 46, 164, 0.06) 0%, transparent 60%),
+      radial-gradient(circle at 50% 10%, rgba(154, 125, 218, 0.04) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      linear-gradient(45deg, transparent 40%, rgba(154, 125, 218, 0.02) 50%, transparent 60%),
+      linear-gradient(-45deg, transparent 40%, rgba(47, 46, 164, 0.02) 50%, transparent 60%);
+    pointer-events: none;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(154, 125, 218, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 10;
+
+  .leftSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .backButtonContainer {
+      width: 50px;
+      height: 64px;
+      border-right: 1px solid #e2e2ea;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      
+      .btn-headerback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #454551;
+        text-decoration: none;
+        border: none;
+        background: none;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(69, 69, 81, 0.05);
+        }
+
+        i {
+          font-size: 16px;
+          color: #454551;
+          font-weight: bold;
+          width: 12.8px;
+          height: 7px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform: rotate(90deg);
+        }
+      }
+      
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+
+    .modeIndicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(61, 188, 64, 0.1);
+      border-radius: 100px;
+      border: 1px solid rgba(61, 188, 64, 0.2);
+
+      .modeDot {
+        width: 10px;
+        height: 10px;
+        background: #3DBC40;
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .modeText {
+        font-size: 14px;
+        font-weight: 400;
+        color: #3D8C40 !important;
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: 0px;
+        line-height: 100%;
+      }
+
+      span {
+        color: #3D8C40 !important;
+      }
+    }
+
+    .modeIcon {
+      width: 19px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .rightSection {
+    .tutorialButton {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+      }
+
+      span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px 4px 6px;
+        background: white;
+        border-radius: 66px;
+        box-shadow: 0 0 6px rgba(44, 44, 44, 0.1);
+        transition: all 0.3s ease;
+        font-size: 14px;
+        font-weight: 400;
+        color: #171725;
+        font-family: 'Roboto', sans-serif;
+        height: 34px;
+
+        &:hover {
+          box-shadow: 0 0 8px rgba(44, 44, 44, 0.15);
+        }
+
+        img {
+          width: 26px;
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+.leftSideSection {
+  width: 480px;
+  height: 858px;
+  position: fixed;
+  top: 64px;
+  left: 0;
+  background: transparent;
+  z-index: 5;
+  overflow-y: auto;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 120px);
+  padding: 60px 20px 120px 20px;
+  position: relative;
+  z-index: 5;
+
+  .welcomeSection {
+    text-align: center;
+    margin-bottom: 40px;
+    max-width: 700px;
+
+    .greeting {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      line-height: 44px;
+      letter-spacing: 0px;
+      opacity: 0.8;
+      font-family: 'Poppins', sans-serif;
+
+      .greetingText {
+        background: linear-gradient(135deg, #943CD7 0%, #353CBB 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    }
+
+    .title {
+      font-size: 32px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #943CD7 0%, #353CBB 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 4px;
+      line-height: 44px;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .description {
+      font-size: 16px;
+      color: #3D4854;
+      line-height: 30px;
+      width: 570.14px;
+      min-height: 60px;
+      margin: 0 auto;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+      text-align: center;
+      opacity: 0.8;
+      display: block;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      box-sizing: border-box;
+
+      strong {
+        font-weight: 500;
+      }
+    }
+  }
+
+  .inputSection {
+    width: 100%;
+    max-width: 700px;
+    position: relative;
+    min-height: 82px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .curvedBackground {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #F5EBFF 0%, #E8D5FF 100%);
+      border-radius: 32px 32px 0 0;
+      box-shadow: 0 -4px 20px rgba(154, 125, 218, 0.15);
+      z-index: 1;
+    }
+
+    .inputContainer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border-radius: 0;
+      padding: 16px 20px;
+      box-shadow: none;
+      border: none;
+      overflow: visible;
+      height: auto;
+      width: 100%;
+      max-width: 480px;
+
+      .textInput {
+        flex: 1;
+        border: 1px solid rgba(154, 125, 218, 0.3);
+        outline: none;
+        padding: 12px 16px;
+        font-size: 16px;
+        color: #1f2937;
+        background: white;
+        border-radius: 12px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 400;
+        height: 48px;
+        box-shadow: 0 2px 8px rgba(154, 125, 218, 0.1);
+        transition: all 0.2s ease;
+
+        &::placeholder {
+          color: #a2a2a8;
+          opacity: 0.6;
+          font-weight: 400;
+          font-size: 16px;
+        }
+
+        &:focus {
+          background: white;
+          border-color: rgba(154, 125, 218, 0.5);
+          box-shadow: 0 4px 12px rgba(154, 125, 218, 0.2);
+        }
+      }
+
+      .voiceRxButton {
+        background: linear-gradient(135deg, #F24DB6 0%, #4D77F2 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 20px;
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+        min-width: 140px;
+        justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        position: relative;
+        overflow: hidden;
+        height: 48px;
+        flex-shrink: 0;
+
+        &:hover {
+          background: linear-gradient(135deg, #E03DA3 0%, #3D6BE8 100%);
+          transform: translateY(-1px);
+        }
+
+        .buttonIcon {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          width: 23.48px;
+          height: 20px;
+
+          i {
+            font-size: 16px;
+            color: white;
+            width: 12px;
+            height: 16px;
+          }
+
+          .soundBars {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+
+            .bar {
+              width: 2px;
+              height: 12px;
+              background: white;
+              border-radius: 1px;
+              animation: soundBar 1.2s ease-in-out infinite;
+
+              &:nth-child(1) { animation-delay: 0s; }
+              &:nth-child(2) { animation-delay: 0.2s; }
+              &:nth-child(3) { animation-delay: 0.4s; }
+              &:nth-child(4) { animation-delay: 0.6s; }
+            }
+          }
+        }
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+          transition: left 0.5s;
+        }
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(138, 43, 226, 0.35);
+          
+          &::before {
+            left: 100%;
+          }
+        }
+
+        &:active {
+          transform: translateY(-1px);
+        }
+
+        .button-icon {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          .sound-bars {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+
+            .bar {
+              width: 3px;
+              height: 12px;
+              background: white;
+              border-radius: 2px;
+              animation: soundBar 1.2s ease-in-out infinite;
+
+              &:nth-child(1) {
+                animation-delay: 0s;
+              }
+
+              &:nth-child(2) {
+                animation-delay: 0.2s;
+              }
+
+              &:nth-child(3) {
+                animation-delay: 0.4s;
+              }
+
+              &:nth-child(4) {
+                animation-delay: 0.6s;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Bottom-center fixed recorder area
+.bottomCenterBar {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  pointer-events: none; // allow clicks only on children
+}
+
+.recordingInterface {
+  pointer-events: auto;
+}
+
+.recordingContainer {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  border: 1px solid #EEF0FB;
+  padding: 12px 16px;
+  display: inline-block;
+}
+
+/* Tap to Speak */
+.tapToSpeak {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+}
+
+.animatedButton {
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border: none;
+  overflow: visible;
+  position: relative;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #E879C4 0%, #8B5CF6 50%, #6366F1 100%);
+  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.animatedButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 15px 40px rgba(139, 92, 246, 0.4);
+}
+
+.animatedButton:active {
+  transform: scale(0.98);
+}
+
+.tapText {
+  font-size: 16px;
+  color: #454551;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  font-family: 'Poppins', sans-serif;
+  margin-top: 0px;
+}
+
+// Recording bar
+.recBar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  max-width: 1200px;
+  background: transparent;
+  padding: 0;
+}
+
+.deleteButton {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.pauseButton {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  padding: 0;
+  
+  img {
+    width: 20px;
+    height: 20px;
+    display: block;
+  }
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(237, 138, 0, 0.2);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  // When muted, remove background so SVG's orange circle shows
+  &[data-muted="true"] {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+    
+    img {
+      width: 56px;
+      height: 56px;
+      display: block;
+      object-fit: contain;
+    }
+  }
+}
+
+.timeLabel {
+  min-width: 64px;
+  color: #374151;
+  font-weight: 600;
+  letter-spacing: .4px;
+  font-size: 16px;
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+}
+
+.waveArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 300px;
+  max-width: none;
+  height: 60px;
+  width: 100%;
+}
+
+.sendCta {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: auto;
+  height: auto;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: white;
+  }
+
+  span {
+    color: white !important;
+    font-size: 17px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+
+  // no hover/active transformations per spec
+}
+
+.listeningSection {
+  position: absolute;
+  bottom: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.gradientEllipse {
+  position: absolute;
+  width: 740px;
+  height: 163px;
+  background: url('../assets/images/ellipse-895.svg') no-repeat center;
+  background-size: contain;
+  z-index: 1;
+}
+
+.listeningText {
+  position: relative;
+  z-index: 2;
+  color: #FFFFFF !important;
+  font-size: 16px;
+  font-weight: 400;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.recStatus {
+  margin-top: 8px;
+  text-align: center;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .bottomCenterBar { bottom: 60px; }
+  .recBar { 
+    width: 92vw;
+    gap: 8px;
+  }
+  
+  .deleteButton,
+  .pauseButton {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    
+    svg,
+    img {
+      width: 18px;
+      height: 18px;
+    }
+  }
+  
+  .waveArea {
+    min-width: 150px;
+    height: 50px;
+  }
+  
+  .timeLabel {
+    min-width: 50px;
+    font-size: 14px;
+  }
+
+  .sendCta {
+    min-width: 110px;
+    height: 42px;
+    padding: 0 20px;
+    
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    span {
+      color: white !important;
+      font-size: 16px;
+    }
+  }
+  
+  .listeningSection {
+    bottom: -40px;
+  }
+  
+  .gradientEllipse {
+    width: 350px;
+    height: 80px;
+    filter: blur(20px);
+  }
+  
+  .listeningText {
+    font-size: 14px;
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .header {
+    padding: 16px 20px;
+
+    .leftSection {
+      gap: 10px;
+    }
+
+    .rightSection {
+      .tutorialButton {
+        span {
+          padding: 3px 10px 3px 5px;
+          font-size: 13px;
+          border-radius: 50px;
+          height: 30px;
+          gap: 5px;
+
+          img {
+            width: 24px;
+            height: 24px;
+          }
+        }
+      }
+    }
+  }
+
+  .mainContent {
+    padding: 40px 16px;
+
+    .welcomeSection {
+      margin-bottom: 60px;
+
+      .greeting {
+        font-size: 24px;
+        margin-bottom: 16px;
+      }
+
+      .title {
+        font-size: 32px;
+        margin-bottom: 20px;
+      }
+
+      .description {
+        font-size: 16px;
+        width: auto !important;
+        max-width: 100%;
+        height: auto !important;
+      }
+    }
+
+    .inputSection {
+      .inputContainer {
+        flex-direction: column;
+        gap: 8px;
+        padding: 0;
+        height: auto;
+        width: 100%;
+        max-width: 100%;
+        background: transparent;
+
+        .textInput {
+          padding: 8px 12px;
+          font-size: 14px;
+          width: 100%;
+          height: 40px;
+          border-radius: 12px;
+          box-shadow: 0 0 8px 1px rgba(242, 77, 182, 0.15);
+
+          &::placeholder {
+            font-size: 14px;
+          }
+        }
+
+        .voiceRxButton {
+          width: 100%;
+          padding: 10px 16px;
+          font-size: 14px;
+          min-width: auto;
+          height: 40px;
+          margin-top: 8px;
+          border-radius: 8px;
+          gap: 6px;
+          border: none;
+
+          .button-icon {
+            gap: 3px;
+
+            .sound-bars {
+              gap: 2px;
+
+              .bar {
+                width: 2px;
+                height: 10px;
+                border-radius: 1px;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Animation for recording state
+.voiceRxButton.recording {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(138, 43, 226, 0.4);
+  }
+  100% {
+    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
+  }
+}
+
+// Sound wave animations
+@keyframes soundBar {
+  0%, 100% {
+    height: 8px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+// Voice Rx Modal Styles
+.voiceRxModal {
+  .ant-modal-content {
+    border-radius: 24px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    width: 775px;
+    height: 444.7px;
+  }
+
+  .ant-modal-header {
+    border-bottom: 1px solid #E2E2EA;
+    padding: 18px 24px;
+    background: white;
+    border-radius: 24px 24px 0 0;
+    width: 775px;
+    height: 63px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+    height: calc(100% - 63px);
+  }
+
+  .closeIcon {
+    font-size: 14px;
+    color: white !important;
+    font-weight: 400;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 19.99px;
+    height: 20px;
+    border-radius: 4px;
+    background: #454551;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #374151;
+      color: white !important;
+    }
+  }
+}
+
+.modalContent {
+  padding: 0;
+}
+
+.modalTitle {
+  font-family: 'Poppins', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #454551;
+  text-align: left;
+  margin: 0;
+  padding: 24px 24px 0 24px;
+  line-height: 100%;
+  letter-spacing: 0.1px;
+  border-bottom: 1px solid #E2E2EA;
+  padding-bottom: 18px;
+}
+
+.modeCards {
+  display: flex;
+  gap: 12px;
+  padding: 20px 16px 16px 16px;
+}
+
+.modeCard {
+  width: 500px;
+  height: 400px;
+  background: rgba(245, 235, 255, 0.5);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #F3F4F6;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+}
+
+.cardIcon {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.iconBackground {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F5EBFF 0%, #E8D5FF 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(180, 114, 190, 0.2);
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #B472BE 0%, #313DB0 100%);
+    opacity: 0.1;
+    z-index: -1;
+  }
+
+  .micIcon, .usersIcon {
+    font-size: 28px;
+    width: 31.06px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #B472BE;
+    text-shadow: 0 0 0 #313DB0;
+  }
+}
+
+.cardTitle {
+  font-family: 'Roboto', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #454551;
+  line-height: 26px;
+  letter-spacing: 0px;
+  margin: 0 0 12px 0;
+}
+
+.cardDescription {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #454551;
+  line-height: 22px;
+  letter-spacing: 0px;
+  text-align: center;
+  margin: 0 0 10px 0;
+  flex-grow: 1;
+  border-bottom: 1px solid #E2E2EA;
+  padding-bottom: 20px;
+
+  strong {
+    color: #454551;
+    font-weight: 600;
+  }
+}
+
+.placeholderDiv {
+  height: 90px;
+  margin: 0 0 0 0;
+}
+
+.consentContainer {
+  background: rgba(245, 235, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 0 0 20px 0;
+  border: 1px solid rgba(154, 125, 218, 0.2);
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.consentCheckbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 0 0;
+  gap: 8px;
+  height: 22px;
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #4B4AD5;
+    background: #4B4AD5;
+    cursor: pointer;
+    position: relative;
+    appearance: none;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:checked {
+      background: #4B4AD5;
+      border-color: #4B4AD5;
+
+      &::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+      }
+    }
+
+    &:hover {
+      border-color: #4B4AD5;
+      background: #4B4AD5;
+    }
+  }
+
+  label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #6B7280;
+    cursor: pointer;
+    line-height: 1.4;
+
+    strong {
+      color: #454551;
+      font-weight: 600;
+    }
+  }
+}
+
+.modeButton {
+  background: linear-gradient(135deg, #B472BE 0%, #313DB0 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  color: white;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  width: 100%;
+  min-height: 48px;
+  box-shadow: 0 4px 12px rgba(180, 114, 190, 0.3);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #A066A8 0%, #2A3498 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(180, 114, 190, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .buttonIcon {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    i {
+      font-size: 16px;
+      color: white;
+    }
+
+    .soundBars {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+
+      .bar {
+        width: 2px;
+        height: 12px;
+        background: white;
+        border-radius: 1px;
+        animation: soundBar 1.2s ease-in-out infinite;
+
+        &:nth-child(1) { animation-delay: 0s; }
+        &:nth-child(2) { animation-delay: 0.2s; }
+        &:nth-child(3) { animation-delay: 0.4s; }
+        &:nth-child(4) { animation-delay: 0.6s; }
+      }
+    }
+  }
+}
+
+// Mobile responsive for modal
+@media (max-width: 768px) {
+  .modeCards {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 16px 16px 16px;
+  }
+
+  .modeCard {
+    min-height: auto;
+    padding: 20px;
+  }
+
+  .modalTitle {
+    font-size: 20px;
+    padding: 20px 16px 0 16px;
+  }
+
+  .iconBackground {
+    width: 60px;
+    height: 60px;
+
+    i {
+      font-size: 24px;
+    }
+  }
+
+  .cardTitle {
+    font-size: 18px;
+  }
+
+  .cardDescription {
+    font-size: 13px;
+  }
+
+  .modeButton {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}

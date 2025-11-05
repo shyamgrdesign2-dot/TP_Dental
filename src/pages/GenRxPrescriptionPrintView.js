@@ -20,7 +20,7 @@ import wtsp from "../assets/images/wtsp.svg";
 import loadingImg from "../assets/images/loading.png";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -172,6 +172,13 @@ function GenRxPrescriptionPrintView() {
       const action = await dispatch(viewCaseManager(sendData));
 
       if (action.meta.requestStatus === "fulfilled") {
+        // Set the active voice service before navigating
+        if (state?.isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+        
         navigate("/prescription", {
           state: {
             patient_data,
