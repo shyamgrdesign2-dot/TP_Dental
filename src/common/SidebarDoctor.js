@@ -208,9 +208,8 @@ function SidebarDoctor() {
         moduleName === "ipd" &&
         (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
       ) {
-        // navigate("/ipd/inPatients");
       const token = await getToken();
-        window.location.href = `https://pm-doctor-portal-ipd-prod.tatvacare.in/?redirectTo=ipd/inPatients&authToken=${JSON.parse(token)}`;
+        window.location.href = `https://pm-doctor-portal-ipd-prod.tatvacare.in/?redirectTo=ipd/inPatients&authToken=${token}`;
       } else if (moduleName === "opd_billing" && isOpdBillingAccessable) {
         navigate("/billing-dashboard");
       } else if (moduleName === "all_patients") {
