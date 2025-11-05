@@ -8,7 +8,7 @@ import axios from "axios";
 
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
-import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION } from "../utils/constants";
+import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
 import newGif from "../assets/images/new-gif.gif";
 import ipdIcon from "../assets/images/ipd.svg";
 import patientsIcon from "../assets/images/all-patients.svg";
@@ -39,6 +39,10 @@ import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore"
 import { EVENTS } from "../utils/events";
 
 function SidebarDoctor() {
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_NEW_IPD_HOS_BUSINESS_ID
+  );
   const dispatch = useDispatch();
   const { servicesList } = useSelector((state) => state.doctors);
   const ASK_TATVA_planDetails = servicesList?.find(e => e.service_name === S_ASK_TATVA)
@@ -132,6 +136,9 @@ function SidebarDoctor() {
   };
 
   const clickOldModule = async (moduleName) => {
+    if(moduleName === "ipd") {
+      return check_SSO(moduleName);
+    }
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
       if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
         setSubModalData({ service_name: moduleName })
@@ -197,7 +204,13 @@ function SidebarDoctor() {
 
   async function check_SSO(moduleName) {
     SSO_TO_PM().then(async (data) => {
-      if (moduleName === "opd_billing" && isOpdBillingAccessable) {
+      if (
+        moduleName === "ipd" &&
+        (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
+      ) {
+      const token = await getToken();
+        window.location.href = `https://pm-doctor-portal-ipd-prod.tatvacare.in/?redirectTo=ipd/inPatients&authToken=${token}`;
+      } else if (moduleName === "opd_billing" && isOpdBillingAccessable) {
         navigate("/billing-dashboard");
       } else if (moduleName === "all_patients") {
         navigate("/all_patients");
