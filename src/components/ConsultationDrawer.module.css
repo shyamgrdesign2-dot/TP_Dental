@@ -2183,7 +2183,7 @@
   text-align: center;
 }
 
-  /* Tablet responsive */
+/* Tablet responsive */
 @media (min-width: 768px) and (max-width: 1024px) {
   /* Sticky action column for tablet */
   .medications-table-container {

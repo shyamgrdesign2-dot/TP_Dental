@@ -22,6 +22,7 @@ const MedicalHistoryRichTextEditor = ({
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     medical_condition: true,
+    allergies: true,
     surgical_history: true,
     family_history: true,
     lifestyle: true,
@@ -39,6 +40,7 @@ const MedicalHistoryRichTextEditor = ({
   const groupedHistory = useMemo(() => {
     const groups = {
       medical_condition: [],
+      allergies: [],
       surgical_history: [],
       family_history: [],
       lifestyle: [],
@@ -143,7 +145,7 @@ const MedicalHistoryRichTextEditor = ({
 
   React.useEffect(() => {
     const newValues = {};
-    const types = ['medical_condition', 'surgical_history', 'family_history', 'lifestyle', 'others'];
+    const types = ['medical_condition', 'allergies', 'surgical_history', 'family_history', 'lifestyle', 'others'];
     types.forEach((type) => {
       if (isEditingRef.current[type]) {
         return;
@@ -312,6 +314,7 @@ const MedicalHistoryRichTextEditor = ({
 
   const typeConfig = {
     medical_condition: { title: 'MEDICAL CONDITIONS' },
+    allergies: { title: 'ALLERGIES' },
     surgical_history: { title: 'SURGICAL HISTORY' },
     family_history: { title: 'FAMILY HISTORY' },
     lifestyle: { title: 'LIFESTYLE' },
@@ -358,7 +361,7 @@ const MedicalHistoryRichTextEditor = ({
             const isExpanded = expandedSections[type];
             const hasLocalValue = localTextareaValues[type] !== undefined && localTextareaValues[type] !== '';
             const wasInitiallyPopulated = initiallyPopulatedTypes.includes(type);
-            if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated && medicalHistory.length === 0) {
+            if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated) {
               return null;
             }
             
@@ -451,7 +454,7 @@ const MedicalHistoryRichTextEditor = ({
               savedData.forEach(section => {
                 if (section.tags && section.tags.length > 0) {
                   section.tags.forEach(tag => {
-                    if (tag.enable === 'Y' && tag.title) {
+                    if (tag.enable === 'Y' && tag.title && tag.title.trim() !== '') {
                       const idToTypeMap = {
                         1: 'Lifestyle',
                         2: 'Medical Condition',
@@ -462,14 +465,14 @@ const MedicalHistoryRichTextEditor = ({
                       
                       const historyItem = {
                         type: idToTypeMap[section.tmmhs_id] || 'Lifestyle',
-                        name: tag.title,
+                        name: tag.title.trim(),
                         duration: tag.since || '',
                         relation: tag.relationship || '',
                         notes: tag.note || '',
                         status: tag.status || 'Active'
                       };
                       
-                      const lineParts = [tag.title];
+                      const lineParts = [tag.title.trim()];
                       if (tag.since) lineParts.push(tag.since);
                       if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
                       if (tag.note) lineParts.push(tag.note);
@@ -479,9 +482,21 @@ const MedicalHistoryRichTextEditor = ({
                     }
                   });
                 }
+    
               });
+        
+              const filteredHistory = convertedMedicalHistory.filter(item => {
+              
+                const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || '';
+                if (itemType === 'others') {
+                  return false;
+                }
+                
+                return item.name && item.name.trim() !== '';
+              });
+              
               if (onUpdate) {
-                onUpdate(convertedMedicalHistory);
+                onUpdate(filteredHistory);
               }
             }
             setMedicalHistoryDrawer(false);
