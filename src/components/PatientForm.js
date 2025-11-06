@@ -314,7 +314,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                     <div className="d-flex flex-column align-items-center justify-content-center g-4">
                                                         {isSmartSyncAccessableFromGB || isSnapRxAccessable && !isMobile ? (
                                                             <SmartDropdownButtons
-                                                                // profile={profile}
+                                                                profile={profile}
                                                                 patient_data={patientData}
                                                                 navigate={navigate}
                                                             />
@@ -355,7 +355,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     );
 }
 
-function SmartDropdownButtons({ patient_data, navigate }) {
+function SmartDropdownButtons({ patient_data, navigate, profile }) {
   
     const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
     const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
@@ -372,6 +372,21 @@ function SmartDropdownButtons({ patient_data, navigate }) {
     }
     const handleSnapRx = () => {
         navigate("/snap-rx", { state: { patient_data: patient_data } })
+    }
+    const handleVoiceRx = () => {
+        const clinic_name = getClinicName(profile?.hospital_data);
+        window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+            patient_contact: patient_data?.pm_contact_no || "",
+            patient_id: patient_data?.patient_unique_id || "",
+            doctor_speciality: profile?.dp_name,
+            doctor_unique_id: profile?.doctor_unique_id,
+            clinic_name,
+        });
+        navigate("/voice-rx-consult", {
+            state: { 
+                patient_data: patient_data,
+            },
+        });
     }
   
     React.useEffect(() => {
@@ -454,6 +469,17 @@ function SmartDropdownButtons({ patient_data, navigate }) {
                 </button>
               </div>
             }
+            <div>
+                <button
+                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
+                  onClick={() => {
+                    setOpen(false);
+                    handleVoiceRx();
+                  }}
+                >
+                  <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                </button>
+            </div>
             <div>
                 <button
                   className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}

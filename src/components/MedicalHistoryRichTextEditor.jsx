@@ -17,6 +17,7 @@ const MedicalHistoryRichTextEditor = ({
   onUpdate,
   isProcessing = false,
   className = '',
+  initiallyPopulatedTypes = [],
 }) => {
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -191,7 +192,7 @@ const MedicalHistoryRichTextEditor = ({
             item.status = part.substring(8);
           } else if (part.startsWith('Notes: ')) {
             item.notes = part.substring(7);
-          }
+      }
         });
         
         item.lineItem = cleanLine;
@@ -239,7 +240,7 @@ const MedicalHistoryRichTextEditor = ({
       
       isEditingRef.current[type] = true;
       
-
+      
       handleTextareaChange(type, newText);
       
       setTimeout(() => {
@@ -356,9 +357,8 @@ const MedicalHistoryRichTextEditor = ({
             );
             const isExpanded = expandedSections[type];
             const hasLocalValue = localTextareaValues[type] !== undefined && localTextareaValues[type] !== '';
-            
-            // Show section if it has content or if user has started typing
-            if (!hasContent && !hasTextContent && !hasLocalValue) {
+            const wasInitiallyPopulated = initiallyPopulatedTypes.includes(type);
+            if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated && medicalHistory.length === 0) {
               return null;
             }
             

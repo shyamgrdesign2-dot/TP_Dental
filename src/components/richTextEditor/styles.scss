@@ -6,7 +6,7 @@
   flex-direction: column;
   
   [data-slate-editor] {
-    min-height: 120px;
+    min-height: auto;
     max-height: 300px;
     outline: none;
     padding: 16px;
