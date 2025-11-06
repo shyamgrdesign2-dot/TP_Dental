@@ -73,6 +73,7 @@ import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
 import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
 import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
 import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
 import LabInvestigationTable from "./LabInvestigationTable";
@@ -2500,6 +2501,14 @@ const ConsultationDrawer = ({
     setPrescriptionData((prevData) => ({
       ...prevData,
       symptoms: symptomsArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
+  const handleVaccinationsUpdate = useCallback((vaccinationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      vaccinations: vaccinationsArray,
     }));
     setIsRxEdited(true);
   }, []);
@@ -5030,13 +5039,13 @@ const ConsultationDrawer = ({
                           )}
 
                         {prescriptionData?.vaccinations &&
+                          Array.isArray(prescriptionData.vaccinations) && 
                           prescriptionData.vaccinations.length > 0 && (
-                            <>
-                              <div className="title-digitise-section mb-2">
-                                Vaccination
-                              </div>
-                              {isAmbientMode ? renderAmbientItems("vaccinations") : renderItems("vaccinations")}
-                            </>
+                            <VaccinationsRichTextEditor
+                              vaccinations={prescriptionData.vaccinations}
+                              onUpdate={handleVaccinationsUpdate}
+                              isProcessing={isProcessing}
+                            />
                           )}
                         {prescriptionData?.others &&
                           Array.isArray(prescriptionData.others) && 
