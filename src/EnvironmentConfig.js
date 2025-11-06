@@ -296,7 +296,7 @@ const uat = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-uat.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-uat.tatvacare.in",
-  user_management_api_url: "https://user-management77913uat.azurewebsites.net",
+  user_management_api_url: "https://diginext-usermgmt-uat.tatvacare.in",
   razorpay_integration_url: "https://pm-razorpay-uat-integration.tatvacare.in",
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",

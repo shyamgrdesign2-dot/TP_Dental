@@ -110,6 +110,22 @@ function Welcome1(props) {
         navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
     };
 
+    const onVoiceRxClick = async (patient) => {
+        const clinic_name = getClinicName(profile?.hospital_data);
+        window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+            patient_contact: patient?.pm_contact_no || "",
+            patient_id: patient?.patient_unique_id || "",
+            doctor_speciality: profile?.dp_name,
+            doctor_unique_id: profile?.doctor_unique_id,
+            clinic_name,
+        });
+        navigate("/voice-rx-consult", {
+            state: { 
+                patient_data: patient,
+            },
+        });
+    };
+
     const handleClickDownArrow = () => {
         setClickedDownArrow(!clickedDownArrow);
     };
@@ -313,7 +329,14 @@ function Welcome1(props) {
                                                                 </button>
                                                             }
                                                             <button
-                                                                className={`btn-consult-patient-details ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                                                className={`btn-consult-patient-details ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
+                                                                onClick={() => onVoiceRxClick(patient_data)}
+                                                                style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                            >
+                                                                Voice Rx
+                                                            </button>
+                                                            <button
+                                                                className={`btn-consult-patient-details bottom-br`}
                                                                 onClick={() => onConsultClick(patient_data)}
                                                             >
                                                                 Consult
@@ -362,7 +385,14 @@ function Welcome1(props) {
                                                         {clickedDownArrow && (
                                                             <div className='ps-rx-btns-grp' ref={consultButtonRef}>
                                                                 <button
-                                                                    className={`btn-consult-patient-details ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                                                    className="btn-consult-patient-details top-br with-divider"
+                                                                    onClick={() => onVoiceRxClick(patient_data)}
+                                                                    style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                                >
+                                                                    Voice Rx
+                                                                </button>
+                                                                <button
+                                                                    className="btn-consult-patient-details bottom-br"
                                                                     onClick={() => onConsultClick(patient_data)}
                                                                 >
                                                                     Consult
@@ -434,12 +464,21 @@ function Welcome1(props) {
                                                     </span>
                                                 </button>
                                                 {clickedDownArrow && (
-                                                    <button
-                                                        className="btn-consult-patient-details"
-                                                        onClick={() => onConsultClick(patient_data)}
-                                                    >
-                                                        Consult
-                                                    </button>
+                                                    <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                                        <button
+                                                            className="btn-consult-patient-details top-br with-divider"
+                                                            onClick={() => onVoiceRxClick(patient_data)}
+                                                            style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                        >
+                                                            Voice Rx
+                                                        </button>
+                                                        <button
+                                                            className="btn-consult-patient-details bottom-br"
+                                                            onClick={() => onConsultClick(patient_data)}
+                                                        >
+                                                            Consult
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </>

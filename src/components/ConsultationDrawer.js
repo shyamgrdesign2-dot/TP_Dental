@@ -74,6 +74,7 @@ import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
 import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
 import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
+import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
 import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
 import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
 import LabInvestigationTable from "./LabInvestigationTable";
@@ -188,6 +189,10 @@ const ConsultationDrawer = ({
   const [queries, setQueries] = useState([]); // Array of { text, isAudio, duration }
   const [isRxEdited, setIsRxEdited] = useState(false);
   const [editingModule, setEditingModule] = useState("");
+  // Track which sections were initially populated from API - these should remain visible even if content is deleted
+  const initiallyPopulatedSectionsRef = useRef(new Set());
+  // Track which medical history types were initially populated
+  const initiallyPopulatedMedicalHistoryTypesRef = useRef(new Set());
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -245,6 +250,13 @@ const ConsultationDrawer = ({
       setIsAmbientMode(activeService === S_AMBIENT_VOICE_RX);
     }
   }, [visible, mode]);
+
+  useEffect(() => {
+    if (!visible) {
+      initiallyPopulatedSectionsRef.current.clear();
+      initiallyPopulatedMedicalHistoryTypesRef.current.clear();
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (audioBlob && audioBlob instanceof Blob) {
@@ -813,6 +825,50 @@ const ConsultationDrawer = ({
             prescriptionData.vitalsAndBodyComposition = cleanedVitals;
           }
           
+          if (prescriptionData) {
+            if (prescriptionData.symptoms && Array.isArray(prescriptionData.symptoms) && prescriptionData.symptoms.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('symptoms');
+            }
+            if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('vaccinations');
+            }
+            if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('medicalHistory');
+              prescriptionData.medicalHistory.forEach(item => {
+                const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+                initiallyPopulatedMedicalHistoryTypesRef.current.add(type);
+              });
+            }
+            if (prescriptionData.examinations && Array.isArray(prescriptionData.examinations) && prescriptionData.examinations.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('examinations');
+            }
+            if (prescriptionData.diagnosis && Array.isArray(prescriptionData.diagnosis) && prescriptionData.diagnosis.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('diagnosis');
+            }
+            if (prescriptionData.advice && ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) || (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0))) {
+              initiallyPopulatedSectionsRef.current.add('advice');
+            }
+            if (prescriptionData.others && Array.isArray(prescriptionData.others) && prescriptionData.others.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('others');
+            }
+            if (prescriptionData.followUp && prescriptionData.followUp.trim()) {
+              initiallyPopulatedSectionsRef.current.add('followUp');
+            }
+            if (prescriptionData.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0) {
+              initiallyPopulatedSectionsRef.current.add('vitalsAndBodyComposition');
+            }
+            if (prescriptionData.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('labResults');
+            }
+            if (prescriptionData.dynamicFields && typeof prescriptionData.dynamicFields === 'object') {
+              Object.entries(prescriptionData.dynamicFields).forEach(([moduleName, moduleData]) => {
+                if (Array.isArray(moduleData) && moduleData.length > 0) {
+                  initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
+                }
+              });
+            }
+          }
+          
           setPrescriptionData(prescriptionData);
           
           // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -915,6 +971,51 @@ const ConsultationDrawer = ({
           
           if (response.data) {
             const prescriptionDataFromResponse = response.data.editedData || response.data.digitizeData;
+            
+            if (prescriptionDataFromResponse) {
+              if (prescriptionDataFromResponse.symptoms && Array.isArray(prescriptionDataFromResponse.symptoms) && prescriptionDataFromResponse.symptoms.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('symptoms');
+              }
+              if (prescriptionDataFromResponse.vaccinations && Array.isArray(prescriptionDataFromResponse.vaccinations) && prescriptionDataFromResponse.vaccinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vaccinations');
+              }
+              if (prescriptionDataFromResponse.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medicalHistory');
+                prescriptionDataFromResponse.medicalHistory.forEach(item => {
+                  const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+                  initiallyPopulatedMedicalHistoryTypesRef.current.add(type);
+                });
+              }
+              if (prescriptionDataFromResponse.examinations && Array.isArray(prescriptionDataFromResponse.examinations) && prescriptionDataFromResponse.examinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('examinations');
+              }
+              if (prescriptionDataFromResponse.diagnosis && Array.isArray(prescriptionDataFromResponse.diagnosis) && prescriptionDataFromResponse.diagnosis.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('diagnosis');
+              }
+              if (prescriptionDataFromResponse.advice && ((typeof prescriptionDataFromResponse.advice === 'string' && prescriptionDataFromResponse.advice.trim()) || (Array.isArray(prescriptionDataFromResponse.advice) && prescriptionDataFromResponse.advice.length > 0))) {
+                initiallyPopulatedSectionsRef.current.add('advice');
+              }
+              if (prescriptionDataFromResponse.others && Array.isArray(prescriptionDataFromResponse.others) && prescriptionDataFromResponse.others.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('others');
+              }
+              if (prescriptionDataFromResponse.followUp && prescriptionDataFromResponse.followUp.trim()) {
+                initiallyPopulatedSectionsRef.current.add('followUp');
+              }
+              if (prescriptionDataFromResponse.vitalsAndBodyComposition && Object.keys(prescriptionDataFromResponse.vitalsAndBodyComposition).length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vitalsAndBodyComposition');
+              }
+              if (prescriptionDataFromResponse.labResults && Array.isArray(prescriptionDataFromResponse.labResults) && prescriptionDataFromResponse.labResults.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labResults');
+              }
+              if (prescriptionDataFromResponse.dynamicFields && typeof prescriptionDataFromResponse.dynamicFields === 'object') {
+                Object.entries(prescriptionDataFromResponse.dynamicFields).forEach(([moduleName, moduleData]) => {
+                  if (Array.isArray(moduleData) && moduleData.length > 0) {
+                    initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
+                  }
+                });
+              }
+            }
+            
             setPrescriptionData(prescriptionDataFromResponse);
             
             // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -1884,6 +1985,51 @@ const ConsultationDrawer = ({
             }
             
             if (prescriptionData) {
+              // Track which sections were initially populated from API BEFORE setting state
+              if (prescriptionData.symptoms && Array.isArray(prescriptionData.symptoms) && prescriptionData.symptoms.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('symptoms');
+              }
+              if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vaccinations');
+              }
+              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medicalHistory');
+                // Track which medical history types were initially populated
+                prescriptionData.medicalHistory.forEach(item => {
+                  const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+                  initiallyPopulatedMedicalHistoryTypesRef.current.add(type);
+                });
+              }
+              if (prescriptionData.examinations && Array.isArray(prescriptionData.examinations) && prescriptionData.examinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('examinations');
+              }
+              if (prescriptionData.diagnosis && Array.isArray(prescriptionData.diagnosis) && prescriptionData.diagnosis.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('diagnosis');
+              }
+              if (prescriptionData.advice && ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) || (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0))) {
+                initiallyPopulatedSectionsRef.current.add('advice');
+              }
+              if (prescriptionData.others && Array.isArray(prescriptionData.others) && prescriptionData.others.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('others');
+              }
+              if (prescriptionData.followUp && prescriptionData.followUp.trim()) {
+                initiallyPopulatedSectionsRef.current.add('followUp');
+              }
+              if (prescriptionData.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vitalsAndBodyComposition');
+              }
+              if (prescriptionData.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labResults');
+              }
+              // Track dynamicFields modules
+              if (prescriptionData.dynamicFields && typeof prescriptionData.dynamicFields === 'object') {
+                Object.entries(prescriptionData.dynamicFields).forEach(([moduleName, moduleData]) => {
+                  if (Array.isArray(moduleData) && moduleData.length > 0) {
+                    initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
+                  }
+                });
+              }
+              
               setPrescriptionData(prescriptionData);
               
               // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -2498,34 +2644,65 @@ const ConsultationDrawer = ({
   };
 
   const handleSymptomsUpdate = useCallback((symptomsArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      symptoms: symptomsArray,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('symptoms')) {
+        updatedData.symptoms = Array.isArray(symptomsArray) ? symptomsArray : [];
+      } else {
+        updatedData.symptoms = symptomsArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleVaccinationsUpdate = useCallback((vaccinationsArray) => {
-    setPrescriptionData((prevData) => ({
-      ...prevData,
-      vaccinations: vaccinationsArray,
-    }));
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('vaccinations')) {
+        updatedData.vaccinations = Array.isArray(vaccinationsArray) ? vaccinationsArray : [];
+      } else {
+        updatedData.vaccinations = vaccinationsArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleExaminationsUpdate = useCallback((examinationsArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      examinations: examinationsArray,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('examinations')) {
+        updatedData.examinations = Array.isArray(examinationsArray) ? examinationsArray : [];
+      } else {
+        updatedData.examinations = examinationsArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleDiagnosisUpdate = useCallback((diagnosisArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      diagnosis: diagnosisArray,
-    }));
+      };
+      if (initiallyPopulatedSectionsRef.current.has('diagnosis')) {
+        updatedData.diagnosis = Array.isArray(diagnosisArray) ? diagnosisArray : [];
+      } else {
+        updatedData.diagnosis = diagnosisArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
@@ -2538,26 +2715,50 @@ const ConsultationDrawer = ({
   }, []);
 
   const handleAdviceUpdate = useCallback((adviceArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      advice: adviceArray,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('advice')) {
+        updatedData.advice = Array.isArray(adviceArray) ? adviceArray : [];
+      } else {
+        updatedData.advice = adviceArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleVitalsUpdate = useCallback((vitalsObject) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      vitalsAndBodyComposition: vitalsObject,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('vitalsAndBodyComposition')) {
+        updatedData.vitalsAndBodyComposition = vitalsObject && typeof vitalsObject === 'object' ? vitalsObject : {};
+      } else {
+        updatedData.vitalsAndBodyComposition = vitalsObject || {};
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleMedicalHistoryUpdate = useCallback((medicalHistoryArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      medicalHistory: medicalHistoryArray || [],
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('medicalHistory')) {
+        updatedData.medicalHistory = Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [];
+      } else {
+        updatedData.medicalHistory = medicalHistoryArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
     
     // Also update CashManagerContext format for the drawer
@@ -2570,26 +2771,68 @@ const ConsultationDrawer = ({
   }, [setMedicalHistoryData, medicalHistoryData]);
 
   const handleFollowUpUpdate = useCallback((followUpText) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      followUp: followUpText,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('followUp')) {
+        updatedData.followUp = typeof followUpText === 'string' ? followUpText : '';
+      } else {
+        updatedData.followUp = followUpText || '';
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleLabResultsUpdate = useCallback((labResultsArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      labResults: labResultsArray,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('labResults')) {
+        updatedData.labResults = Array.isArray(labResultsArray) ? labResultsArray : [];
+      } else {
+        updatedData.labResults = labResultsArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
   const handleAdditionalNotesUpdate = useCallback((othersArray) => {
-    setPrescriptionData((prevData) => ({
+    setPrescriptionData((prevData) => {
+      const updatedData = {
       ...prevData,
-      others: othersArray,
-    }));
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('others')) {
+        updatedData.others = Array.isArray(othersArray) ? othersArray : [];
+      } else {
+        updatedData.others = othersArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleCustomModuleUpdate = useCallback((moduleName, moduleArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+      };
+      if (!updatedData.dynamicFields) {
+        updatedData.dynamicFields = {};
+      }
+      if (initiallyPopulatedSectionsRef.current.has(`dynamicFields.${moduleName}`)) {
+        updatedData.dynamicFields[moduleName] = Array.isArray(moduleArray) ? moduleArray : [];
+      } else {
+        updatedData.dynamicFields[moduleName] = moduleArray || [];
+      }
+      return updatedData;
+    });
     setIsRxEdited(true);
   }, []);
 
@@ -3867,6 +4110,29 @@ const ConsultationDrawer = ({
     setIsDeleteModuleModalOpen(!isDeleteModuleModalOpen);
   }, [isDeleteModuleModalOpen]);
 
+  const handleDeleteModule = useCallback(() => {
+    if (!moduleToDelete) return;
+    
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+        dynamicFields: { ...prevData.dynamicFields },
+      };
+
+      delete updatedData.dynamicFields[moduleToDelete];
+
+      return updatedData;
+    });
+    
+    // Remove from local modules and ref tracking
+    setLocalModules((prevModules) => prevModules.filter(mod => mod !== moduleToDelete));
+    initiallyPopulatedSectionsRef.current.delete(`dynamicFields.${moduleToDelete}`);
+    
+    setIsRxEdited(true);
+    toggleDeleteModuleModal();
+    setModuleToDelete(null);
+  }, [moduleToDelete, toggleDeleteModuleModal]);
+
   const DELETE_MODULE_MODAL = useMemo(() => {
     return (
       <CommonModal
@@ -3886,10 +4152,7 @@ const ConsultationDrawer = ({
             <div className="mt-4">
               <div className="d-flex align-items-center mt-2 justify-content-end">
                 <div
-                  onClick={() => {
-                    handleDeleteModule();
-                    toggleDeleteModuleModal();
-                  }}
+                  onClick={handleDeleteModule}
                   className="me-4 text-decoration-underline btn p-0 text-main"
                 >
                   Yes, Delete
@@ -3906,7 +4169,7 @@ const ConsultationDrawer = ({
         }
       />
     );
-  }, [isDeleteModuleModalOpen]);
+  }, [isDeleteModuleModalOpen, moduleToDelete, handleDeleteModule, toggleDeleteModuleModal]);
 
   const renderCustomModules = () => {
     return Object.entries(prescriptionData?.dynamicFields || {}).map(
@@ -4097,31 +4360,34 @@ const ConsultationDrawer = ({
 
   const handleAddModule = () => {
     if (!newModuleName?.trim()) return;
+    const moduleName = newModuleName.trim();
     setPrescriptionData((prevData) => {
       const updatedData = { ...prevData };
       if (!updatedData["dynamicFields"]) {
         updatedData["dynamicFields"] = {};
       }
       // Add the new module to dynamicFields
-      updatedData["dynamicFields"][newModuleName] = [];
+      updatedData["dynamicFields"][moduleName] = [];
 
       return updatedData;
     });
 
     // Track the new module name
-    setLocalModules((prevModules) => [...prevModules, newModuleName]);
+    setLocalModules((prevModules) => [...prevModules, moduleName]);
+    initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
     handleCancel();
   };
 
   const handleEditModule = (module) => {
     if (updatedModuleName?.trim() && updatedModuleName !== module) {
+      const newModuleName = updatedModuleName.trim();
       setPrescriptionData((prevData) => {
         const updatedData = {
           ...prevData,
           dynamicFields: { ...prevData.dynamicFields },
         };
 
-        updatedData.dynamicFields[updatedModuleName] =
+        updatedData.dynamicFields[newModuleName] =
           updatedData.dynamicFields[module];
 
         delete updatedData.dynamicFields[module];
@@ -4130,24 +4396,16 @@ const ConsultationDrawer = ({
       });
 
       setLocalModules((prevModules) =>
-        prevModules.map((mod) => (mod === module ? updatedModuleName : mod))
+        prevModules.map((mod) => (mod === module ? newModuleName : mod))
       );
+      
+      // Update the ref tracking
+      if (initiallyPopulatedSectionsRef.current.has(`dynamicFields.${module}`)) {
+        initiallyPopulatedSectionsRef.current.delete(`dynamicFields.${module}`);
+        initiallyPopulatedSectionsRef.current.add(`dynamicFields.${newModuleName}`);
+      }
     }
     handleCancelEdit();
-  };
-
-  const handleDeleteModule = () => {
-    setPrescriptionData((prevData) => {
-      const updatedData = {
-        ...prevData,
-        dynamicFields: { ...prevData.dynamicFields },
-      };
-
-      delete updatedData.dynamicFields[moduleToDelete];
-
-      return updatedData;
-    });
-    setIsRxEdited(true);
   };
 
   const handleCancelEdit = () => {
@@ -4939,54 +5197,60 @@ const ConsultationDrawer = ({
                           </div>
                         )}
                         
-                        {prescriptionData?.vitalsAndBodyComposition &&
+                        {(initiallyPopulatedSectionsRef.current.has('vitalsAndBodyComposition') ||
+                          (prescriptionData?.vitalsAndBodyComposition &&
                           typeof prescriptionData.vitalsAndBodyComposition === 'object' && 
                           prescriptionData.vitalsAndBodyComposition !== null && 
                           Object.values(prescriptionData.vitalsAndBodyComposition).some(value => 
                             value !== undefined && value !== null && value !== ''
-                          ) && (
+                            ))) && (
                             <VitalsRichTextEditor
-                              vitalsAndBodyComposition={prescriptionData.vitalsAndBodyComposition}
+                              vitalsAndBodyComposition={prescriptionData?.vitalsAndBodyComposition || {}}
                               onUpdate={handleVitalsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.medicalHistory &&
+                        {(initiallyPopulatedSectionsRef.current.has('medicalHistory') ||
+                          (prescriptionData?.medicalHistory &&
                           Array.isArray(prescriptionData.medicalHistory) && 
-                          prescriptionData.medicalHistory.length > 0 && (
+                            prescriptionData.medicalHistory.length > 0)) && (
                             <MedicalHistoryRichTextEditor
-                              medicalHistory={prescriptionData.medicalHistory}
+                              medicalHistory={prescriptionData?.medicalHistory || []}
                               onUpdate={handleMedicalHistoryUpdate}
                               isProcessing={isProcessing}
+                              initiallyPopulatedTypes={Array.from(initiallyPopulatedMedicalHistoryTypesRef.current)}
                             />
                           )}
 
-                        {prescriptionData?.symptoms &&
+                        {(initiallyPopulatedSectionsRef.current.has('symptoms') ||
+                          (prescriptionData?.symptoms &&
                           Array.isArray(prescriptionData.symptoms) && 
-                          prescriptionData.symptoms.length > 0 && (
+                            prescriptionData.symptoms.length > 0)) && (
                             <SymptomsRichTextEditor
-                              symptoms={prescriptionData.symptoms}
+                              symptoms={prescriptionData?.symptoms || []}
                               onUpdate={handleSymptomsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.examinations &&
+                        {(initiallyPopulatedSectionsRef.current.has('examinations') ||
+                          (prescriptionData?.examinations &&
                           Array.isArray(prescriptionData.examinations) && 
-                          prescriptionData.examinations.length > 0 && (
+                            prescriptionData.examinations.length > 0)) && (
                             <ExaminationRichTextEditor
-                              examinations={prescriptionData.examinations}
+                              examinations={prescriptionData?.examinations || []}
                               onUpdate={handleExaminationsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.diagnosis &&
+                        {(initiallyPopulatedSectionsRef.current.has('diagnosis') ||
+                          (prescriptionData?.diagnosis &&
                           Array.isArray(prescriptionData.diagnosis) && 
-                          prescriptionData.diagnosis.length > 0 && (
+                            prescriptionData.diagnosis.length > 0)) && (
                             <DiagnosisRichTextEditor
-                              diagnosis={prescriptionData.diagnosis}
+                              diagnosis={prescriptionData?.diagnosis || []}
                               onUpdate={handleDiagnosisUpdate}
                               isProcessing={isProcessing}
                             />
@@ -5012,59 +5276,104 @@ const ConsultationDrawer = ({
                             />
                           )}
 
-                        {prescriptionData?.labResults &&
+                        {(initiallyPopulatedSectionsRef.current.has('labResults') ||
+                          (prescriptionData?.labResults &&
                           Array.isArray(prescriptionData.labResults) && 
-                          prescriptionData.labResults.length > 0 && (
+                            prescriptionData.labResults.length > 0)) && (
                             <LabResultsRichTextEditor
-                              labResults={prescriptionData.labResults}
+                              labResults={prescriptionData?.labResults || []}
                               onUpdate={handleLabResultsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.advice &&
-                          ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) ||
-                           (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0)) && (
+                        {(initiallyPopulatedSectionsRef.current.has('advice') ||
+                          (prescriptionData?.advice &&
+                            ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) ||
+                              (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0)))) && (
                             <AdviceRichTextEditor
-                              advice={typeof prescriptionData.advice === 'string' 
-                                ? [{ lineItem: prescriptionData.advice }]
-                                : prescriptionData.advice.map(adv => 
-                                    typeof adv === 'string' 
-                                      ? { lineItem: adv }
-                                      : adv
-                                  )}
+                              advice={prescriptionData?.advice 
+                                ? (typeof prescriptionData.advice === 'string' 
+                                    ? [{ lineItem: prescriptionData.advice }]
+                                    : prescriptionData.advice.map(adv => 
+                                        typeof adv === 'string' 
+                                          ? { lineItem: adv }
+                                          : adv
+                                      ))
+                                : []}
                               onUpdate={handleAdviceUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.vaccinations &&
-                          Array.isArray(prescriptionData.vaccinations) && 
-                          prescriptionData.vaccinations.length > 0 && (
+                        {(initiallyPopulatedSectionsRef.current.has('vaccinations') ||
+                          (prescriptionData?.vaccinations &&
+                            Array.isArray(prescriptionData.vaccinations) && 
+                            prescriptionData.vaccinations.length > 0)) && (
                             <VaccinationsRichTextEditor
-                              vaccinations={prescriptionData.vaccinations}
+                              vaccinations={prescriptionData?.vaccinations || []}
                               onUpdate={handleVaccinationsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
-                        {prescriptionData?.others &&
+                        {(initiallyPopulatedSectionsRef.current.has('others') ||
+                          (prescriptionData?.others &&
                           Array.isArray(prescriptionData.others) && 
-                          prescriptionData.others.length > 0 && (
+                            prescriptionData.others.length > 0)) && (
                             <AdditionalNotesRichTextEditor
-                              others={prescriptionData.others}
+                              others={prescriptionData?.others || []}
                               onUpdate={handleAdditionalNotesUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
-                        {prescriptionData?.followUp &&
+                        {(initiallyPopulatedSectionsRef.current.has('followUp') ||
+                          (prescriptionData?.followUp &&
                           typeof prescriptionData.followUp === 'string' && 
-                          prescriptionData.followUp.trim() && (
+                            prescriptionData.followUp.trim())) && (
                             <FollowUpRichTextEditor
-                              followUp={prescriptionData.followUp}
+                              followUp={prescriptionData?.followUp || ''}
                               onUpdate={handleFollowUpUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
+                        
+                        {/* Render Custom Modules */}
+                        {prescriptionData?.dynamicFields && 
+                          Object.entries(prescriptionData.dynamicFields).map(([moduleName, moduleData]) => {
+                            const isInitiallyPopulated = initiallyPopulatedSectionsRef.current.has(`dynamicFields.${moduleName}`);
+                            const hasContent = Array.isArray(moduleData) && moduleData.length > 0;
+                            
+                            if (!isInitiallyPopulated && !hasContent) {
+                              return null;
+                            }
+                            
+                            const isLocalModule = localModules?.includes(moduleName);
+                            
+                            return (
+                              <CustomModuleRichTextEditor
+                                key={moduleName}
+                                moduleName={moduleName}
+                                moduleData={moduleData || []}
+                                onUpdate={(moduleArray) => handleCustomModuleUpdate(moduleName, moduleArray)}
+                                onDelete={(module) => {
+                                  setModuleToDelete(module);
+                                  toggleDeleteModuleModal();
+                                }}
+                                onEdit={(module) => {
+                                  setEditingModule(module);
+                                  setUpdatedModuleName(module);
+                                }}
+                                isProcessing={isProcessing}
+                                isLocalModule={isLocalModule}
+                                editingModule={editingModule}
+                                updatedModuleName={updatedModuleName}
+                                onEditNameChange={setUpdatedModuleName}
+                                onEditSave={() => handleEditModule(editingModule)}
+                                onEditCancel={handleCancelEdit}
+                              />
+                            );
+                          })}
+                        
                         {showInput && (
                           <>
                             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -5074,6 +5383,12 @@ const ConsultationDrawer = ({
                                 onChange={(e) =>
                                   setNewModuleName(e.target.value)
                                 }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddModule();
+                                  }
+                                }}
                                 className="custom-module-input"
                               />
                               <>
@@ -5087,7 +5402,6 @@ const ConsultationDrawer = ({
                                 />
                               </>
                             </div>
-                            <div className="genRxCustomModuleBox"></div>
                           </>
                         )}
                         <div

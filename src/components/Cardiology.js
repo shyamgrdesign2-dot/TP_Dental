@@ -26,6 +26,7 @@ import customModuleIcon from "../assets/images/custom-module.svg";
 import {
   getClinic,
   getTokenData,
+  getClinicName,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -1088,12 +1089,12 @@ function Cardiology(props) {
                     return item.lineItem && !hasIndividualFields ? (
                       <span>{item.lineItem}</span>
                     ) : item.name ? (
-                      <span>
-                        {item.name}
+                    <span>
+                      {item.name}
                         {details && (
                           <span> ({details})</span>
                         )}
-                      </span>
+                    </span>
                     ) : (
                       <span>{item}</span>
                     );
@@ -2606,7 +2607,7 @@ function SmartDropdownButtons({ profile, patient_data, navigate }) {
           {isSnapRxAccessableFromGB &&
             <div>
               <button
-                className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   window.Moengage.track_event("start_new_SnapRx_click", {
@@ -2625,6 +2626,29 @@ function SmartDropdownButtons({ profile, patient_data, navigate }) {
               </button>
             </div>
           } 
+          <div>
+            <button
+              className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+              onClick={() => {
+                setOpen(false);
+                const clinic_name = getClinicName(profile?.hospital_data);
+                window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+                  patient_contact: patient_data?.pm_contact_no || "",
+                  patient_id: patient_data?.patient_unique_id || "",
+                  doctor_speciality: profile?.dp_name,
+                  doctor_unique_id: profile?.doctor_unique_id,
+                  clinic_name,
+                });
+                navigate("/voice-rx-consult", {
+                  state: { 
+                    patient_data: patient_data,
+                  },
+                });
+              }}
+            >
+              <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+            </button>
+          </div>
         </div>
       }
     </div>
