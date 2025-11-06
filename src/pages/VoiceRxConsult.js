@@ -136,11 +136,10 @@ const VoiceRxConsult = () => {
         width={775}
         centered
         className={styles.voiceRxModal}
-        closeIcon={<img src={closeIcon} alt="Close" />}
+        title={<span className={styles.modalTitleText}>Choose the Voice Rx mode</span>}
+        closeIcon={<img src={closeIcon} alt="Close" className={styles.closeIconImg} />}
       >
         <div className={styles.modalContent}>
-          <h2 className={styles.modalTitle}>Choose the Voice Rx mode</h2>
-          
           <div className={styles.modeCards}>
             {/* Dictation Mode Card */}
             <div className={styles.modeCard}>
@@ -181,11 +180,11 @@ const VoiceRxConsult = () => {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setConsentChecked(!consentChecked); }}
                   >
                     {consentChecked && (
-                      <img src={checkIcon} alt="Checked" width={20} height={20} />
+                      <img src={checkIcon} alt="Checked" width={18} height={18} />
                     )}
                   </span>
                   <span className={styles.consentText} onClick={() => setConsentChecked(!consentChecked)}>
-                    I confirm that I've taken the <strong>patient's consent</strong> before recording.
+                    <span className={styles.confirmText}>I confirm</span> that I've taken the <strong>patient's consent</strong> before recording.
                   </span>
                 </div>
               </div>

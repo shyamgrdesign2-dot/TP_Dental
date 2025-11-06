@@ -4485,6 +4485,9 @@ const ConsultationDrawer = ({
     apiMedicalHistory.forEach(item => {
       const type = item.type || 'Lifestyle';
       const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
+      if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
+        return; 
+      }
       const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
       const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
                          type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
