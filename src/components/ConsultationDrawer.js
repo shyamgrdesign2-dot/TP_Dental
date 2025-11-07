@@ -25,6 +25,7 @@ import deleteIcon from "../assets/images/delete-gen-rx.svg";
 import micIcon from "../assets/images/mic-gen-rx.svg";
 import pauseIcon from "../assets/images/pause.svg";
 import voiceRxButton from "../assets/images/voice-rx-button.svg";
+import voiceRxSendButton from "../assets/images/voice-rx-send-button.svg";
 import vitalsIcons from "../assets/images/vitals-icons.svg";
 import stopIcon from "../assets/images/stop-icon.svg";
 import muteIcon from "../assets/images/mute-icon.svg";
@@ -169,6 +170,7 @@ const ConsultationDrawer = ({
     caseManagerData?.smart_prescription_filename || false
   );
   const [inputText, setInputText] = useState("");
+  const hasTypedInput = inputText.trim().length > 0;
   const [isEditing, setIsEditing] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
   const [expandedTranscripts, setExpandedTranscripts] = useState(new Set([0])); // Track which transcript cards are expanded
@@ -5146,11 +5148,11 @@ const ConsultationDrawer = ({
                                   className={styles.curvedTextInput}
                                   autoSize={{ minRows: 1, maxRows: 6 }}
                                 />
-                                <img 
-                                  src={voiceRxButton}
-                                  alt="Voice Rx"
-                                  onClick={handleStartRecording}
-                                  style={{ cursor: 'pointer', minWidth: '112px', maxWidth: '159.99989318847656px', height: '41px', flexShrink: 0 }}
+                                <img
+                                  src={hasTypedInput ? voiceRxSendButton : voiceRxButton}
+                                  alt={hasTypedInput ? "Send Rx" : "Voice Rx"}
+                                  onClick={hasTypedInput ? handleSend : handleStartRecording}
+                                  className={hasTypedInput ? styles.curvedSendButton : styles.curvedVoiceButton}
                                 />
                               </div>
                             </div>

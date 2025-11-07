@@ -1975,7 +1975,7 @@
 /* Curved Input Container Styles */
 .curvedInputContainer {
   margin-top: auto;
-  padding: 20px;
+  padding: 0;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -2029,20 +2029,65 @@
 }
 
 .curvedVoiceButton {
-  background: none;
-  border: none;
-  padding: 0;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 112px;
-  max-width: 159.99989318847656px;
-  height: 41px;
+  width: clamp(120px, 20vw, 160px);
+  max-width: 100%;
+  height: clamp(48px, 7vw, 56px);
+  flex: 0 0 auto;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .curvedVoiceButton:hover {
-  opacity: 0.8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25);
+}
+
+.curvedSendButton {
+  cursor: pointer;
+  width: clamp(48px, 12vw, 56px);
+  height: clamp(48px, 12vw, 56px);
+  flex: 0 0 auto;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.curvedSendButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+}
+
+@media (max-width: 900px) {
+  .curvedInputWrapper {
+    justify-content: space-between;
+  }
+
+  .curvedVoiceButton {
+    width: clamp(110px, 26vw, 150px);
+    height: clamp(46px, 8vw, 56px);
+  }
+
+  .curvedSendButton {
+    width: clamp(44px, 16vw, 56px);
+    height: clamp(44px, 16vw, 56px);
+  }
+}
+
+@media (max-width: 640px) {
+  .curvedInputWrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .curvedTextInput {
+    width: 100%;
+  }
+
+  .curvedVoiceButton,
+  .curvedSendButton {
+    align-self: center;
+    width: clamp(72px, 34vw, 140px);
+    height: clamp(48px, 18vw, 56px);
+  }
 }
 
 .textBoxIcon {
@@ -2366,30 +2411,37 @@
   }
   
   .curvedTextInput {
-    width: 220px !important;
-    height: 42px !important;
+    flex: 1 1 180px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
     border-radius: 12px !important;
     font-size: 14px !important;
-    padding: 12px 12px !important;
+    padding: 12px 14px !important;
   }
   
   .curvedTextInput::placeholder {
-    font-size: 11px !important;
+    font-size: 12px !important;
   }
   
   .curvedVoiceButton {
-    width: 60px !important;
-    height: 42px !important;
+    width: clamp(110px, 22vw, 150px) !important;
+    height: clamp(46px, 6vw, 52px) !important;
+  }
+
+  .curvedSendButton {
+    width: clamp(44px, 14vw, 52px) !important;
+    height: clamp(44px, 14vw, 52px) !important;
   }
   
   .curvedInputContainer {
-    padding: 8px !important;
+    padding: 12px !important;
   }
   
   .curvedInputWrapper {
     max-width: 100% !important;
-    padding: 4px !important;
-    gap: 4px !important;
+    padding: 10px !important;
+    gap: 8px !important;
   }
   
   .chatSection {
@@ -2587,23 +2639,30 @@
   }
   
   .curvedTextInput {
-    width: 300px !important;
-    height: 42px !important;
+    flex: 1 1 200px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: clamp(44px, 6vw, 48px) !important;
   }
   
   .curvedVoiceButton {
-    width: 60px !important;
-    height: 42px !important;
+    width: clamp(110px, 24vw, 150px) !important;
+    height: clamp(46px, 7vw, 52px) !important;
+  }
+
+  .curvedSendButton {
+    width: clamp(44px, 16vw, 52px) !important;
+    height: clamp(44px, 16vw, 52px) !important;
   }
   
   .curvedInputContainer {
-    padding: 8px !important;
+    padding: 12px !important;
   }
   
   .curvedInputWrapper {
     max-width: 100% !important;
-    padding: 4px !important;
-    gap: 4px !important;
+    padding: 10px !important;
+    gap: 8px !important;
   }
   
   .chatSection {
