@@ -183,24 +183,6 @@ const MedicationsTable = ({
     }
   }, [medications, onUpdate]);
 
-  // Clear editing state when the medication name matches what we selected
-  useEffect(() => {
-    if (editingCell?.field === 'name' && editValue && editingCell.itemId) {
-      const currentItem = medications.find(m => m.id === editingCell.itemId);
-      // If the item name matches the editValue and has metadata, it means selection completed
-      // Clear the editing state after a short delay to ensure UI is updated
-      if (currentItem && currentItem.name === editValue && currentItem.metadata) {
-        const timer = setTimeout(() => {
-          if (editingCell?.itemId === currentItem.id && editingCell?.field === 'name') {
-            setEditingCell(null);
-            setEditValue('');
-          }
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [medications, editingCell, editValue]);
-
   const onSearchParent = useCallback(
     (query) => {
       setSearchQuery(removeBeforeWhiteSpace(query));
@@ -329,10 +311,20 @@ const MedicationsTable = ({
           name: medicineName,
         }));
       } else {
-        // For web mode: keep editValue set to show selected name
-        // Don't clear editing state immediately - let it persist until parent updates
-        // The editing state will be cleared when the component re-renders with updated props
+        // For web mode: update editValue and clear editing state after autocomplete selection
         setEditValue(medicineName);
+        // Clear editing state after a short delay to allow UI to update
+        const currentItemId = itemId;
+        setTimeout(() => {
+          setEditingCell((current) => {
+            // Only clear if we're still editing the same cell
+            if (current?.itemId === currentItemId && current?.field === 'name') {
+              setEditValue('');
+              return null;
+            }
+            return current;
+          });
+        }, 100);
       }
       setSearchQuery('');
     } catch (e) {
@@ -353,6 +345,17 @@ const MedicationsTable = ({
       onUpdate(updatedMedications);
       if (!isTabletMode) {
         setEditValue(value);
+        // Clear editing state after a short delay for fallback case
+        const currentItemId = itemId;
+        setTimeout(() => {
+          setEditingCell((current) => {
+            if (current?.itemId === currentItemId && current?.field === 'name') {
+              setEditValue('');
+              return null;
+            }
+            return current;
+          });
+        }, 100);
       }
       setSearchQuery('');
     }
@@ -557,6 +560,7 @@ const MedicationsTable = ({
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
                       getPopupContainer={(trigger) => trigger.parentNode}
+                      dropdownStyle={{ width: 420 }}
                     >
                       <Input
                         value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
