@@ -100,6 +100,7 @@ function Cardiology(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
+  const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
   const [ambientConversations, setAmbientConversations] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
@@ -116,6 +117,7 @@ function Cardiology(props) {
   const baseUrlRxDigitise = env.rx_digitization;
 
   useEffect(() => {
+    setIsGenRxTableView(false);
     setSmartRxFile([]);
     setShowDigitalRx(false);
     if (viewCaseManagerData?.tcm_id) {
@@ -252,11 +254,16 @@ function Cardiology(props) {
 
   const getGenRxDetails = async () => {
     try {
+      setIsGenRxTableView(false);
       const response = await getGenRx(
         viewCaseManagerData?.smart_prescription_filename
       );
 
         if (response.success) {
+          const hasTabularView =
+            typeof response.data?.version === "string" &&
+            response.data.version.trim().toLowerCase() === "v2";
+          setIsGenRxTableView(hasTabularView);
           
           const hasAmbientRx = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
           setIsAmbientRx(hasAmbientRx);
@@ -931,7 +938,7 @@ function Cardiology(props) {
     }
   
     const groupedByType = medicalHistoryData.reduce((acc, item) => {
-      const type = item?.type || item?.subtype || 'other';
+      const type = isGenRxTableView ? (item?.type || item?.subtype || 'other') : 'other';
       if (!acc[type]) {
         acc[type] = [];
       }
@@ -1047,15 +1054,67 @@ function Cardiology(props) {
                 {["advice", "others"].includes(type) && <span>{item}</span>}
 
                 {type === "medications" && (
-                  <span>
-                    {item.name} {item.lineItem}
-                  
-                    {item.dosage && ` (dosage: ${item.dosage})`}
-                    {item.frequency && ` (frequency: ${item.frequency})`}
-                    {item.schedule && ` (schedule: ${item.schedule})`}
-                    {item.duration && ` (duration: ${item.duration})`}
-                    {item.notes && ` (note: ${item.notes})`}
+          (() => {
+            const normalizedLineItem = (item.lineItem || "").trim();
+            const detailParts = [];
+
+            if (normalizedLineItem) {
+              detailParts.push(normalizedLineItem);
+            } else {
+              if (item.dosage) {
+                detailParts.push(item.dosage);
+              }
+              if (item.unitPerDose) {
+                detailParts.push(item.unitPerDose);
+              }
+              if (item.frequency) {
+                detailParts.push(item.frequency);
+              }
+              if (item.schedule) {
+                detailParts.push(item.schedule);
+              }
+              if (item.duration) {
+                detailParts.push(item.duration);
+              }
+            }
+
+            const noteText = (item.notes || item.note || "").trim();
+            const assembledDetails = detailParts.filter(Boolean).join(", ");
+
+            const trimmedLineItem = normalizedLineItem;
+            const detailText = trimmedLineItem || assembledDetails;
+
+            const startsWithParenthesis = detailText?.trim().startsWith("(");
+            const startsWithName =
+              detailText &&
+              item.name &&
+              detailText.trim().toLowerCase().startsWith(item.name.trim().toLowerCase());
+
+            const baseName = item.name || "N/A";
+
+            let formattedMain = baseName;
+            if (detailText) {
+              if (startsWithName) {
+                formattedMain = detailText.trim();
+              } else if (startsWithParenthesis) {
+                formattedMain = `${baseName} ${detailText.trim()}`;
+              } else {
+                formattedMain = `${baseName} (${detailText})`;
+              }
+            }
+
+            const noteAlreadyPresent =
+              noteText &&
+              detailText &&
+              detailText.toLowerCase().includes(noteText.toLowerCase());
+
+            return (
+              <span>
+                {formattedMain}
+                {noteText && !noteAlreadyPresent && ` (Note: ${noteText})`}
                   </span>
+            );
+          })()
                 )}
               
                 {(type === "vaccinations" ||
@@ -1538,7 +1597,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderMedicationsTable()}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderGenRxItems("medications")}
                         </>
                       )}
 
@@ -1550,7 +1611,9 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderLabInvestigationTable()}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderGenRxItems("labInvestigation")}
                         </>
                       )}
 
