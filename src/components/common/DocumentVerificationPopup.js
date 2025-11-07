@@ -44,7 +44,7 @@ const DocumentVerificationPopup = () => {
     try {
       setLoading(true);
 
-      // Get user phone number from token
+      // Get JWT token from localStorage
       const rawToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
       if (!rawToken) return;
 
@@ -56,24 +56,14 @@ const DocumentVerificationPopup = () => {
         return;
       }
 
-      let phoneNumber = "";
-      try {
-        const decodedToken = JSON.parse(atob(token.split(".")[1]));
-        phoneNumber = decodedToken?.result?.mobile_no || "";
-      } catch (e) {
-        console.error("Error decoding token:", e);
-        return;
-      }
-
-      if (!phoneNumber) return;
+      const cleanedToken = token?.replace(/['"]+/g, '');
 
       const response = await axios.get(
-        `${config.user_management_api_url}/user/tatva/documents?mbl_no=${phoneNumber}`,
+        `${config.user_management_api_url}/user/tatva/documents/v2`,
         {
           headers: {
-            api_key: config.lite_api_key,
-            api_secret_key: config.lite_secret_key,
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${cleanedToken}`,
           },
         }
       );
