@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Drawer, message } from 'antd';
 import ProfilePopover from '../common/ProfilePopover';
@@ -14,6 +14,8 @@ import ambientActiveIcon from '../assets/images/ambient-mode-active.svg';
 import styles from './VoiceRecordingPage.module.scss';
 import { getSupportedMimeType } from '../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../utils/constants';
+import CommonModal from '../common/CommonModal';
+import alertIcon from '../assets/images/alertIcon.svg';
 
 const VoiceRecordingPage = () => {
   const location = useLocation();
@@ -23,6 +25,7 @@ const VoiceRecordingPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [showQuitRecordingModal, setShowQuitRecordingModal] = useState(false);
 
   const patient_data = location.state?.patient_data || {};
   const mode = location.state?.mode || '';
@@ -32,6 +35,27 @@ const VoiceRecordingPage = () => {
   const audioStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const hasAutoStartedRef = useRef(false);
+
+  const cleanupRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (err) {
+        console.error('Error stopping recorder:', err);
+      }
+    }
+
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+    }
+
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setIsPaused(false);
+    setRecordingTime(0);
+  }, []);
 
   useEffect(() => {
     if (mode) {
@@ -87,7 +111,8 @@ const VoiceRecordingPage = () => {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const mimeType = mediaRecorderRef.current.mimeType || "audio/webm";
+        const recorder = mediaRecorderRef.current;
+        const mimeType = recorder?.mimeType || 'audio/webm';
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         console.log("Recording blob:", blob);
       };
@@ -100,30 +125,24 @@ const VoiceRecordingPage = () => {
     }
   };
 
-  const handleStopRecording = async () => {
-    // Stop current recording
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== "inactive"
-    ) {
-      mediaRecorderRef.current.stop();
-    }
-    if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    
-    // Reset state
-    setIsRecording(false);
-    setIsPaused(false);
-    setRecordingTime(0);
-    
-    // Clear audio chunks
-    audioChunksRef.current = [];
-    
-    // Restart recording from 0
+  const handleCancelRecordingClick = () => {
+    cleanupRecording();
+    setShowQuitRecordingModal(true);
+  };
+
+  const handleQuitRecording = () => {
+    setShowQuitRecordingModal(false);
+    navigate('/voice-rx-consult', {
+      state: { patient_data },
+    });
+  };
+
+  const handleStayRecording = () => {
+    setShowQuitRecordingModal(false);
     setTimeout(() => {
+      hasAutoStartedRef.current = true;
       handleStartRecording();
-    }, 100);
+    }, 200);
   };
 
   const handlePauseResume = () => {
@@ -280,7 +299,7 @@ const VoiceRecordingPage = () => {
       <div className={styles.bottomCenterBar}>
         <div className={styles.recBar}>
           {/* Delete Button */}
-          <button className={styles.deleteButton} onClick={handleStopRecording}>
+          <button className={styles.deleteButton} onClick={handleCancelRecordingClick}>
             <img src={stopIcon} alt="stop" className={styles.stopIcon} />
           </button>
           
@@ -336,8 +355,42 @@ const VoiceRecordingPage = () => {
           <GenRxKnowMore handleGenRxKnowMore={showHideVideoListPopover} />
         </div>
       </Drawer>
+
+      <CommonModal
+        isModalOpen={showQuitRecordingModal}
+        onCancel={handleStayRecording}
+        modalWidth={480}
+        title={'Are you sure you want to quit?'}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-3 d-flex align-items-center mb-4">
+              <img src={alertIcon} alt="Warning" className="me-3" />
+              <span>
+                If you quit, all progress in this session will be lost and you'll need to start over.
+              </span>
+            </div>
+            <div className="d-flex justify-content-end align-items-center">
+              <button
+                type="button"
+                className={`btn btn-link text-decoration-underline ms-4 ${styles.quitButton}`}
+                onClick={handleQuitRecording}
+              >
+                Yes, Quit
+              </button>
+              <button
+                type="button"
+                className={`btn btn-primary3 btn-41 px-4 ${styles.stayButton}`}
+                onClick={handleStayRecording}
+              >
+                No, Stay
+              </button>
+            </div>
+          </>
+        }
+      />
     </div>
   );
 };
 
 export default VoiceRecordingPage;
+

@@ -703,6 +703,26 @@
   text-align: center;
 }
 
+.quitButton {
+  color: #FC5A5A !important;
+
+  &:hover,
+  &:focus,
+  &:active {
+    color: #FC5A5A !important;
+  }
+}
+
+.stayButton {
+  color: #FFFFFF !important;
+
+  &:hover,
+  &:focus,
+  &:active {
+    color: #FFFFFF !important;
+  }
+}
+
 .recStatus {
   margin-top: 8px;
   text-align: center;
