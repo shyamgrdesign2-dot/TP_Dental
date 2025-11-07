@@ -264,7 +264,8 @@ function Cardiology(props) {
             typeof response.data?.version === "string" &&
             response.data.version.trim().toLowerCase() === "v2";
           setIsGenRxTableView(hasTabularView);
-          
+          setSnapRxDigitisedData([]);
+          setRxDigitisedData([]);
           const hasAmbientRx = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
           setIsAmbientRx(hasAmbientRx);
           
@@ -654,6 +655,11 @@ function Cardiology(props) {
         }
       );
       if (response?.data?.data) {
+        if (response?.data?.data?.version?.trim().toLowerCase() === "v2") {
+          setIsGenRxTableView(true);
+          setGenRxData([]);
+          setSnapRxDigitisedData([]);
+        }
         setRxDigitisedData(response?.data?.data);
         if (response?.data?.data?.isDigitize) {
           setIsRxdigitised(true);
@@ -679,6 +685,11 @@ function Cardiology(props) {
       );
 
       if (response?.digitization) {
+        if (response?.digitization?.version?.trim().toLowerCase() === "v2") {
+          setIsGenRxTableView(true);
+          setGenRxData([]);
+          setRxDigitisedData([]);
+        }
         setSnapRxDigitisedData(
           response?.digitization?.editedData ||
             response?.digitization?.refinedData
@@ -854,7 +865,7 @@ function Cardiology(props) {
 
   // Render medications in tabular format
   const renderMedicationsTable = () => {
-    const medications = genRxData?.medications || [];
+    const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
     if (!medications || medications.length === 0) return null;
 
     return (
@@ -901,7 +912,7 @@ function Cardiology(props) {
 
   // Render lab investigation in tabular format
   const renderLabInvestigationTable = () => {
-    const labInvestigation = genRxData?.labInvestigation || [];
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.tests || [];
     if (!labInvestigation || labInvestigation.length === 0) return null;
 
     return (
@@ -1841,7 +1852,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderItems("medications")}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderGenRxItems("medications")}
                         </>
                       )}
 
@@ -1858,7 +1871,9 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderItems("tests")}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderGenRxItems("tests")}
                         </>
                       )}
 
@@ -2112,7 +2127,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderItems("medications")}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderGenRxItems("medications")}
                         </>
                       )}
 
@@ -2129,7 +2146,9 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderItems("tests")}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderGenRxItems("labInvestigation")}
                         </>
                       )}
 
