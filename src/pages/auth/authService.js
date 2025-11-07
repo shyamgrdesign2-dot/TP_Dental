@@ -1,5 +1,6 @@
 import axios from 'axios';
 import config from '../../config';
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../../utils/constants';
 
 const baseUrl = config.central_auth_api_url;
 const userMgmtUrl = config.user_management_api_url;
@@ -92,11 +93,12 @@ export const onboardUser = async (body) => {
 
 export const setupClinic = async (body) => {
   try {
-    const response = await axios.post(`${userMgmtUrl}/user/tatva/clinic-setup`, JSON.stringify(body), {
+    const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+    const cleanedToken = token?.replace(/['"]+/g, '');
+    const response = await axios.post(`${userMgmtUrl}/user/tatva/clinic-setup/v2`, JSON.stringify(body), {
       headers: {
         'Content-Type': 'application/json',
-        'api_key': config.lite_api_key,
-        'api_secret_key': config.lite_secret_key,
+        'Authorization': `Bearer ${cleanedToken}`,
       }
     });
     return response;
