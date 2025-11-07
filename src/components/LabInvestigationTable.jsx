@@ -1,14 +1,16 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { v4 as uuidv4 } from 'uuid';
 import styles from './ConsultationDrawer.module.css';
 import investigationIcon from '../assets/images/Lab.svg';
 import {
   getFrequentlySearchedInvestigation,
   searchInvestigation
 } from "../redux/investigationSlice";
+import { removeBeforeWhiteSpace } from '../utils/utils';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -42,31 +44,97 @@ const LabInvestigationTable = ({
 
   useEffect(() => {
     const data = [];
-    if (parentOptionsList) {
-      if (parentOptionsList.length === 0 && searchQuery.length > 0) {
-        data.push({
-          key: -2,
-          label: <div>{'No Data Found'}</div>,
-        });
-      } else {
-        parentOptionsList.map((investigation) => {
-          return data.push({
-            key: JSON.stringify(investigation),
+    if (parentOptionsList && Array.isArray(parentOptionsList)) {
+      parentOptionsList.forEach((investigation) => {
+        if (investigation && investigation.investigation_name) {
+          data.push({
+            key: JSON.stringify({ ...investigation, unique_id: uuidv4() }),
             value: investigation.investigation_name,
             label: (
-              <div className="d-flex align-items-center">
-                <span>{investigation.investigation_name}</span>
+              <div>
+                {investigation.investigation_name}{' '}
+                {investigation?.hm_type === 1 && investigation?.um_id === 0 && (
+                  <span
+                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                    style={{ width: 18, height: 18, background: '#c44ea2' }}
+                  >
+                    Z
+                  </span>
+                )}
               </div>
             ),
           });
+        }
+      });
+    }
+
+    if (searchQuery.length === 0) {
+      data.unshift({
+        key: -1,
+        label: (
+          <>
+            <div>FREQUENTLY USED</div>
+          </>
+        ),
+      });
+    } else {
+      searchQuery &&
+        parentOptionsList &&
+        parentOptionsList.findIndex(
+          (e) =>
+            e.investigation_name?.toLowerCase()?.trim() ===
+            searchQuery?.toLowerCase()?.trim()
+        ) === -1 &&
+        data.push({
+          key: JSON.stringify({
+            unique_id: uuidv4(),
+            change: 1,
+            investigation_name: searchQuery,
+          }),
+          value: searchQuery,
+          label: (
+            <>
+              <div>
+                {searchQuery}
+                <i className="icon-Add mx-1 text-primary fs-6"></i>{' '}
+                <span className="fw-medium text-decoration-underline text-primary">
+                  {' '}
+                  Add Custom
+                </span>
+              </div>
+            </>
+          ),
         });
-      }
     }
     setParentSearchOptions(data);
   }, [parentOptionsList, searchQuery]);
 
   useEffect(() => {
-    if (searchQuery) {
+    if (editingCell?.field === 'name') {
+      // Sync searchQuery with editValue when editing name
+      if (editValue !== searchQuery) {
+        setSearchQuery(editValue);
+      }
+      const timeOutId = setTimeout(() => {
+        if (editValue && editValue.trim().length > 0) {
+          dispatch(
+            searchInvestigation({
+              searchQuery: editValue,
+              type: 'parent',
+            })
+          );
+        } else {
+          dispatch(getFrequentlySearchedInvestigation());
+        }
+      }, 500);
+      return () => {
+        clearTimeout(timeOutId);
+      };
+    }
+  }, [editValue, editingCell, dispatch, searchQuery]);
+
+  useEffect(() => {
+    if (searchQuery && searchQuery.trim().length > 0) {
       const timeOutId = setTimeout(() => {
         dispatch(
           searchInvestigation({ searchQuery: searchQuery, type: "parent" })
@@ -93,7 +161,8 @@ const LabInvestigationTable = ({
 
   const onSearchParent = useCallback(
     (query) => {
-      setSearchQuery(query);
+      const cleanedQuery = removeBeforeWhiteSpace(query);
+      setSearchQuery(cleanedQuery);
     },
     []
   );
@@ -114,13 +183,6 @@ const LabInvestigationTable = ({
     [labInvestigation, onUpdate]
   );
 
-  // Filter investigations based on search query
-  const filteredInvestigations = useMemo(() => {
-    if (!searchQuery.trim()) return labInvestigation;
-    return labInvestigation.filter(investigation => 
-      (investigation.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [labInvestigation, searchQuery]);
 
   const handleCellClick = (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
@@ -144,6 +206,132 @@ const LabInvestigationTable = ({
     setEditingCell(null);
     setEditValue('');
   };
+
+  // Handle selecting an investigation from autocomplete within the name cell
+  const handleNameSelect = useCallback((itemId, value, option, isTabletMode) => {
+    try {
+      let investigationData = null;
+      let investigationName = value;
+      
+      // Parse the option data
+      if (option?.key && typeof option.key === 'string') {
+        try {
+          investigationData = JSON.parse(option.key);
+          // Check if it's a custom investigation (change === 1)
+          if (investigationData.change === 1) {
+            investigationName = investigationData.investigation_name || value;
+          } else {
+            investigationName = investigationData.investigation_name || value;
+          }
+        } catch (parseError) {
+          console.error('Error parsing investigation data:', parseError);
+          investigationName = value;
+        }
+      }
+      
+      // Update investigations with new name and metadata
+      const updatedInvestigations = labInvestigation.map((item) => {
+        if (item.id === itemId) {
+          const updated = {
+            ...item, // Preserve all existing properties
+            name: investigationName,
+          };
+          
+          // Add metadata if available
+          if (investigationData) {
+            updated.metadata = {
+              ...investigationData,
+              selectedValue: investigationName,
+            };
+          }
+          
+          // Recalculate lineItem
+          updated.lineItem = updated.name + (updated.notes ? ` (${updated.notes})` : '');
+          return updated;
+        }
+        return item;
+      });
+      
+      // Update the parent state with the new name and metadata
+      onUpdate(updatedInvestigations);
+      
+      if (isTabletMode) {
+        // For tablet mode, update rowEditValues
+        setRowEditValues(prev => ({
+          ...prev,
+          name: investigationName,
+        }));
+      } else {
+        // For web mode: update editValue to show selected name immediately
+        setEditValue(investigationName);
+        // Clear editing state after React processes the update
+        // Use requestAnimationFrame to wait for next render cycle
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            setEditingCell(null);
+            setEditValue('');
+          }, 100);
+        });
+      }
+      setSearchQuery('');
+    } catch (e) {
+      console.error('Error selecting investigation:', e);
+      // Fallback: update with just the value
+      const updatedInvestigations = labInvestigation.map((item) => {
+        if (item.id === itemId) {
+          const updated = {
+            ...item,
+            name: value,
+          };
+          updated.lineItem = updated.name + (updated.notes ? ` (${updated.notes})` : '');
+          return updated;
+        }
+        return item;
+      });
+      onUpdate(updatedInvestigations);
+      if (!isTabletMode) {
+        setEditValue(value);
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            setEditingCell(null);
+            setEditValue('');
+          }, 100);
+        });
+      }
+      setSearchQuery('');
+    }
+  }, [labInvestigation, onUpdate]);
+
+  const handleInvestigationSelection = useCallback((itemId, value, option, isTabletMode) => {
+    // Don't select header items or invalid options
+    if (option?.key === -1 || option?.key === -2 || !option?.key) {
+      return;
+    }
+    
+    // Extract investigation name immediately
+    let investigationName = value;
+    try {
+      if (option?.key && typeof option.key === 'string') {
+        const parsed = JSON.parse(option.key);
+        investigationName = parsed?.investigation_name || value;
+      }
+    } catch (e) {
+      investigationName = value;
+    }
+    
+    // Set the value in state immediately so AutoComplete reflects it
+    if (isTabletMode) {
+      setRowEditValues(prev => ({
+        ...prev,
+        name: investigationName,
+      }));
+    } else {
+      setEditValue(investigationName);
+    }
+    
+    // Then update the investigation data
+    handleNameSelect(itemId, value, option, isTabletMode);
+  }, [handleNameSelect]);
 
   const handleRowEdit = (itemId) => {
     const item = labInvestigation.find(inv => inv.id === itemId);
@@ -222,18 +410,10 @@ const LabInvestigationTable = ({
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
-    const sourceItem = filteredInvestigations[result.source.index];
-    const destItem = filteredInvestigations[result.destination.index];
-    
-    const sourceIndex = labInvestigation.findIndex(item => item.id === sourceItem.id);
-    const destIndex = labInvestigation.findIndex(item => item.id === destItem.id);
-    
-    if (sourceIndex === -1 || destIndex === -1) return;
-    
     const reorderedInvestigations = reorder(
       labInvestigation,
-      sourceIndex,
-      destIndex
+      result.source.index,
+      result.destination.index
     );
     onUpdate(reorderedInvestigations);
   };
@@ -279,7 +459,7 @@ const LabInvestigationTable = ({
             <Droppable droppableId="investigation-table" direction="vertical">
               {(provided) => (
                 <tbody {...provided.droppableProps} ref={provided.innerRef}>
-            {filteredInvestigations.map((item, index) => (
+            {labInvestigation.map((item, index) => (
                     <Draggable key={item.id || `inv-${index}`} draggableId={`inv-${item.id || index}`} index={index}>
                       {(provided, snapshot) => (
                         <tr 
@@ -304,16 +484,25 @@ const LabInvestigationTable = ({
                   style={{ cursor: !isTablet ? 'pointer' : 'default' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') || (isTablet && editingRow === item.id) ? (
-                    <input
-                      type="text"
+                    <AutoComplete
                       value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
-                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
-                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
-                      className={styles['edit-input']}
-                      placeholder="Enter investigation name"
-                      autoFocus={!isTablet}
-                    />
+                      onSearch={onSearchParent}
+                      options={parentSearchOptions}
+                      onSelect={(val, option) => handleInvestigationSelection(item.id, val, option, isTablet && editingRow === item.id)}
+                      defaultActiveFirstOption
+                      popupMatchSelectWidth={false}
+                      getPopupContainer={(trigger) => trigger.parentNode}
+                    >
+                      <Input
+                        value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
+                        onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
+                        onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                        onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
+                        className={styles['edit-input']}
+                        placeholder="Enter investigation name"
+                        autoFocus
+                      />
+                    </AutoComplete>
                   ) : (
                     <span className={styles['medicine-text']}>
                       {item.name || '-'}
@@ -382,7 +571,7 @@ const LabInvestigationTable = ({
             </Droppable>
         </table>
         
-        {filteredInvestigations.length === 0 && (
+        {labInvestigation.length === 0 && (
           <div className={styles['empty-state']}>
             <p>No investigations found</p>
           </div>

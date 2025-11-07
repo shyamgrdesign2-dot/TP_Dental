@@ -2229,18 +2229,26 @@ const ConsultationDrawer = ({
     }
   };
 
-  const handleUpdateGenRX = async () => {
+  const handleUpdateGenRX = async (quantityActionMedicine) => {
     try {
       let response;
+      const updatedPrescriptionData = {
+        ...prescriptionData,
+        medicineList:
+          prescriptionData?.medications?.map((item, index) => ({
+            ...prescriptionData?.medications[index],
+            quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
+          })) || [],
+      };
       
       if (isAmbientMode && genRxDetails?.type === "ambient") {
         response = await editAmbientRxDetails(
-        { editedData: prescriptionData },
+        { editedData: updatedPrescriptionData },
         genRxDetails?._id
       );
       } else {
         response = await editGenRxDetails(
-          { editedData: prescriptionData },
+          { editedData: updatedPrescriptionData },
           genRxDetails?._id
         );
       }
@@ -2845,12 +2853,10 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
-    if (
-      isRxEdited ||
-      localModules?.length ||
-      (symptomsCollectorData && Object.keys(symptomsCollectorData)?.length > 0)
-    )
-      handleUpdateGenRX();
+    const quantityActionMedicine = await ApiMedication.getQuantity({
+      medicines: prescriptionData?.medications,
+    });
+    handleUpdateGenRX(quantityActionMedicine);
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -2945,9 +2951,6 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
-          const quantityActionMedicine = await ApiMedication.getQuantity({
-            medicines: prescriptionData?.medications,
-          });
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
