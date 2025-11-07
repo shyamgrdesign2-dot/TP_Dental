@@ -20,6 +20,7 @@ import { GB_ZYDUS_USER, GB_APOLLO_DISABLE_FEATURE } from '../utils/constants';
 import { getInvestigationAndMedicine } from '../redux/caseManagerSlice';
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import ApiMedication from '../api/services/ApiMedication';
+import CustomMedicinePopup from './CustomMedicinePopup';
 
 const MedicationsTable = ({
   medications = [],
@@ -182,6 +183,24 @@ const MedicationsTable = ({
     }
   }, [medications, onUpdate]);
 
+  // Clear editing state when the medication name matches what we selected
+  useEffect(() => {
+    if (editingCell?.field === 'name' && editValue && editingCell.itemId) {
+      const currentItem = medications.find(m => m.id === editingCell.itemId);
+      // If the item name matches the editValue and has metadata, it means selection completed
+      // Clear the editing state after a short delay to ensure UI is updated
+      if (currentItem && currentItem.name === editValue && currentItem.metadata) {
+        const timer = setTimeout(() => {
+          if (editingCell?.itemId === currentItem.id && editingCell?.field === 'name') {
+            setEditingCell(null);
+            setEditValue('');
+          }
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [medications, editingCell, editValue]);
+
   const onSearchParent = useCallback(
     (query) => {
       setSearchQuery(removeBeforeWhiteSpace(query));
@@ -192,6 +211,13 @@ const MedicationsTable = ({
   const onSelectParent = useCallback(
     (value, option) => {
       try {
+        if (option?.key && typeof option.key === 'string') {
+          const medication = JSON.parse(option.key);
+          if (medication && medication.tmm_id === 0) {
+            setShowAddMedicinePopup(true);
+            return;
+          }
+        }
         const medication = JSON.parse(option.key);
         const medicineName = medication.tmm_medicine_name || medication.medicine_name || value;
         const newMedication = {
@@ -204,6 +230,7 @@ const MedicationsTable = ({
           duration: '',
           notes: '',
           lineItem: medicineName,
+          edited: false,
         };
         const updatedMedications = [...medications, newMedication];
         onUpdate(updatedMedications);
@@ -218,6 +245,7 @@ const MedicationsTable = ({
           duration: '',
           notes: '',
           lineItem: value,
+          edited: false,
         };
         const updatedMedications = [...medications, newMedication];
         onUpdate(updatedMedications);
@@ -238,7 +266,7 @@ const MedicationsTable = ({
     const { itemId, field } = editingCell;
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
-        const updated = { ...item, [field]: editValue };
+        const updated = { ...item, [field]: editValue, edited: true };
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
           }
@@ -266,12 +294,14 @@ const MedicationsTable = ({
       const generic = medicineData?.tmm_generic || medicineData?.generic_name || '';
       
       // Update medications with new name and metadata
+      // When selecting from autocomplete, set edited: false (similar to ConsultationDrawer.js)
       const updatedMedications = medications.map((item) => {
         if (item.id === itemId) {
           const updated = {
             ...item, // Preserve all existing properties
             name: medicineName,
             corrected_name: generic || item.corrected_name || '',
+            edited: false, // Set to false for autocomplete selections
           };
           
           // Add metadata if available
@@ -299,16 +329,10 @@ const MedicationsTable = ({
           name: medicineName,
         }));
       } else {
-        // For web mode: update editValue to show selected name immediately
+        // For web mode: keep editValue set to show selected name
+        // Don't clear editing state immediately - let it persist until parent updates
+        // The editing state will be cleared when the component re-renders with updated props
         setEditValue(medicineName);
-        // Clear editing state after React processes the update
-        // Use requestAnimationFrame to wait for next render cycle
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setEditingCell(null);
-            setEditValue('');
-          }, 100);
-        });
       }
       setSearchQuery('');
     } catch (e) {
@@ -319,6 +343,7 @@ const MedicationsTable = ({
           const updated = {
             ...item,
             name: value,
+            edited: false, // Set to false for autocomplete selections
           };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
@@ -328,12 +353,6 @@ const MedicationsTable = ({
       onUpdate(updatedMedications);
       if (!isTabletMode) {
         setEditValue(value);
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setEditingCell(null);
-            setEditValue('');
-          }, 100);
-        });
       }
       setSearchQuery('');
     }
@@ -390,7 +409,7 @@ const MedicationsTable = ({
   const handleRowSave = (itemId) => {
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
-        const updated = { ...item, ...rowEditValues };
+        const updated = { ...item, ...rowEditValues, edited: true };
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
           }
@@ -819,6 +838,14 @@ const MedicationsTable = ({
           </>
         }
       />
+
+       {showAddMedicinePopup && (
+        <CustomMedicinePopup
+          isOpen={showAddMedicinePopup}
+          onCancel={() => setShowAddMedicinePopup(false)}
+          initialData={{ tmm_medicine_name: searchQuery }}
+        />
+      )}
     </div>
   );
 };

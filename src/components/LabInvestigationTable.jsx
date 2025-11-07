@@ -11,6 +11,10 @@ import {
   searchInvestigation
 } from "../redux/investigationSlice";
 import { removeBeforeWhiteSpace } from '../utils/utils';
+import { env } from '../EnvironmentConfig';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from '../utils/constants';
+import { getDecodedToken } from '../utils/localStorage';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -27,6 +31,14 @@ const LabInvestigationTable = ({
   const [editingRow, setEditingRow] = useState(null); // itemId when entire row is being edited (tablet view)
   const [rowEditValues, setRowEditValues] = useState({}); // Store edit values for all fields in a row
   const [isTablet, setIsTablet] = useState(false);
+
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const decodedToken = getDecodedToken();
+  const tokenData = decodedToken?.result;
+
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_APOLLO_DISABLE_FEATURE
+  );
   
   // Detect tablet view
   useEffect(() => {
@@ -84,7 +96,7 @@ const LabInvestigationTable = ({
           (e) =>
             e.investigation_name?.toLowerCase()?.trim() ===
             searchQuery?.toLowerCase()?.trim()
-        ) === -1 &&
+        ) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
         data.push({
           key: JSON.stringify({
             unique_id: uuidv4(),
@@ -158,6 +170,24 @@ const LabInvestigationTable = ({
       onUpdate(updatedInvestigations);
     }
   }, [labInvestigation, onUpdate]);
+
+  // Clear editing state when the investigation name matches what we selected
+  useEffect(() => {
+    if (editingCell?.field === 'name' && editValue && editingCell.itemId) {
+      const currentItem = labInvestigation.find(inv => inv.id === editingCell.itemId);
+      // If the item name matches the editValue, it means the parent has updated
+      // Clear the editing state after a short delay to ensure UI is updated
+      if (currentItem && currentItem.name === editValue) {
+        const timer = setTimeout(() => {
+          if (editingCell?.itemId === currentItem.id && editingCell?.field === 'name') {
+            setEditingCell(null);
+            setEditValue('');
+          }
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [labInvestigation, editingCell, editValue]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -262,16 +292,9 @@ const LabInvestigationTable = ({
           name: investigationName,
         }));
       } else {
-        // For web mode: update editValue to show selected name immediately
+        // For web mode: keep editValue set to show selected name
+        // Don't clear editing state immediately - let it persist until parent updates
         setEditValue(investigationName);
-        // Clear editing state after React processes the update
-        // Use requestAnimationFrame to wait for next render cycle
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setEditingCell(null);
-            setEditValue('');
-          }, 100);
-        });
       }
       setSearchQuery('');
     } catch (e) {
@@ -291,12 +314,6 @@ const LabInvestigationTable = ({
       onUpdate(updatedInvestigations);
       if (!isTabletMode) {
         setEditValue(value);
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            setEditingCell(null);
-            setEditValue('');
-          }, 100);
-        });
       }
       setSearchQuery('');
     }
