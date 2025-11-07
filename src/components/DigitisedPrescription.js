@@ -18,6 +18,8 @@ import { getTokenData } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
+import MedicationsTable from "./MedicationsTable";
+import LabInvestigationTable from "./LabInvestigationTable";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -1421,6 +1423,20 @@ const DigitisedPrescription = ({
     });
   };
 
+  const handleMedicationsUpdate = useCallback((medicationsArray) => {
+    setData((prevData) => ({
+      ...prevData,
+      medications: medicationsArray,
+    }));
+  }, []);
+
+  const handleInvestigationUpdate = useCallback((investigationArray) => {
+    setData((prevData) => ({
+      ...prevData,
+      tests: investigationArray,
+    }));
+  }, []);
+
   return (
     <div
       className={
@@ -1475,21 +1491,26 @@ const DigitisedPrescription = ({
             </div>
           )}
 
-          {data?.medications && hasValidContent("medications") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Medicine</div>
-              {renderArraySection("medications")}
-            </div>
-          )}
+          {data?.medications &&
+            hasValidContent("medications") &&
+            Array.isArray(data?.medications) &&
+            data?.medications.length > 0 && (
+              <MedicationsTable
+                medications={data?.medications}
+                onUpdate={handleMedicationsUpdate}
+                isProcessing={false}
+              />
+            )}
 
-          {data?.tests && hasValidContent("tests") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">
-                Lab Investigation
-              </div>
-              {renderArraySection("tests")}
-            </div>
-          )}
+          {data?.tests &&
+            Array.isArray(data?.tests) &&
+            data?.tests.length > 0 && (
+              <LabInvestigationTable
+                labInvestigation={data?.tests}
+                onUpdate={handleInvestigationUpdate}
+                isProcessing={false}
+              />
+            )}
 
           {data?.advice && hasValidContent("advice") && (
             <div className="title-digitise-section-wrapper">
