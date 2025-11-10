@@ -189,15 +189,23 @@ function App() {
   useEffect(() => {
     const isUserLocked = async () => {
       try {
-        const decoded = jwtDecode(authToken);
-        const phoneNumber = decoded?.result?.mobile_no;
-        // Check document status
+        const rawToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        if (!rawToken) return;
+        let token;
+        try {
+          token = JSON.parse(rawToken);
+        } catch (e) {
+          console.error("Error parsing token:", e);
+          return;
+        }
+        const cleanedToken = token?.replace(/['"]+/g, '');
+        // Check account status
         const docResponse = await axios.get(
-          `${config.user_management_api_url}/user/pm/info/status?mblNo=${phoneNumber}`,
+          `${config.user_management_api_url}/user/pm/info/status/v2`,
           {
             headers: {
-              api_key: config.api_key,
-              api_secret_key: config.api_secret_key,
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${cleanedToken}`,
             },
           }
         );
