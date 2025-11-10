@@ -1,28 +1,17 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../api/services/axiosService";
 import config from "../config";
-import { getDecodedToken } from "../utils/localStorage";
 import moment from "moment";
 
 // Async thunk action to fetch subscription details from the API
 export const fetchSubscriptionDetails = createAsyncThunk(
   "subscription/fetchSubscriptionDetails",
-  async (data) => {
-    const token = getDecodedToken();
+  async () => {
     const response = await api.post(
-      `/user/pm/info/plan`,
-      {
-        mbl_no: token?.result?.mobile_no,
-        page: data?.current || 0,
-        size: data?.pageSize || 5,
-        clinic_id: token?.result?.clinic_id,
-      },
+      `/user/pm/info/plan/v2`,
+      {},
       {
         customBaseUrl: config.user_management_api_url,
-        headers: {
-          api_key: config.api_key,
-          api_secret_key: config.api_secret_key,
-        },
       }
     );
     if (response.status === 200) {
