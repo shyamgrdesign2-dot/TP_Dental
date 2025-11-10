@@ -94,7 +94,7 @@ ApiMonetization.receiptGenerate = function (receipt_id) {
 };
 
 ApiMonetization.discountCode = function (data) {
-    return api.post(`/user/tatva/discount/add`, data, baseUserManagementUrl);
+    return api.post(`/user/tatva/discount/add/v2`, data, baseUserManagementUrlV2);
 };
 
 ApiMonetization.discountCodeValidate = function (data) {
