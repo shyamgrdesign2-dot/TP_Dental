@@ -201,7 +201,11 @@ export const discountCodeValidate = createAsyncThunk(
             const result = await ApiMonetization.discountCodeValidate(data);
             return result;
         } catch (error) {
-            return rejectWithValue({ visible: false, message: error.response.data.message });
+            const errorMessage = error?.response?.data?.errorMessage || 
+                                 error?.response?.data?.message || 
+                                 error?.message || 
+                                 "Something went wrong";
+            return rejectWithValue({ visible: false, message: errorMessage });
         }
     }
 );
