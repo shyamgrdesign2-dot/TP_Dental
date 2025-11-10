@@ -1718,7 +1718,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onPrintRxUrlClick = async (record) => {
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
-    const encodedData = btoa(patientDefaultLanguage?.toString());
+    const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
     if (record.print_rx_url) {
       const printUrl = await updateRxDigitizeInUrl(record);
       if (!isChrome && !isSafari) {

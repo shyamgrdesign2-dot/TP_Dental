@@ -195,9 +195,9 @@ function Cardiology(props) {
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
-    if (res?.settings?.defaultLanguage) {
+    if (res?.settings?.defaultLanguage && res.settings.defaultLanguage !== "English") {
       setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
-    } else {
+    } else if (defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English") {
       setSelectedLang(btoa(defaultPrintSettings?.default_language?.toString()));
     }
   };
