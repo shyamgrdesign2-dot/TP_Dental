@@ -98,7 +98,7 @@ ApiMonetization.discountCode = function (data) {
 };
 
 ApiMonetization.discountCodeValidate = function (data) {
-    return api.get(`/user/tatva/discount/validate?code=${data?.code}&id=${data?.id}`, baseUserManagementUrl);
+    return api.get(`/user/tatva/discount/validate/v2?code=${data?.code}&id=${data?.id}`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.extendCredits = function (data) {
