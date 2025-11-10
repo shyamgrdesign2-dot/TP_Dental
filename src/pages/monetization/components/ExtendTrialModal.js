@@ -49,7 +49,7 @@ function ExtendTrialModal() {
     }
 
     const onExtendFreeTrialClick = async () => {
-        const action = await dispatch(extendFreeTrial(clinic_b2c));
+        const action = await dispatch(extendFreeTrial());
         if (action.meta.requestStatus === "fulfilled") {
             setIsExpiredModalOpen(false)
             errorMessage('Trial plan has been extended successfully')

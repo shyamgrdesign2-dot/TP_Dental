@@ -123,9 +123,9 @@ export const updateCredits = createAsyncThunk(
 
 export const extendFreeTrial = createAsyncThunk(
     "monetization/extendFreeTrial",
-    async (b2c_id, { dispatch, rejectWithValue }) => {
+    async (_, { dispatch, rejectWithValue }) => {
         try {
-            const result = await ApiMonetization.extendFreeTrial(b2c_id);
+            const result = await ApiMonetization.extendFreeTrial();
             dispatch(fetchSubscriptionDetails())
             return result;
         } catch (error) {

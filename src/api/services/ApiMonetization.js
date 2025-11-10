@@ -73,8 +73,8 @@ ApiMonetization.updateCredits = function (data) {
     return api.put(`/api/v1/monetization/credits?service_name=${data?.service_name}`, { action: "DECREASE" }, baseUrl);
 };
 
-ApiMonetization.extendFreeTrial = function (b2c_id) {
-    return api.get(`/user/pm/info/extend?b2c_id=${b2c_id}`, cloneBaseUserManagementUrl);
+ApiMonetization.extendFreeTrial = function () {
+    return api.get(`/user/pm/info/extend/v2`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.billingHistory = function (b2c_id) {
