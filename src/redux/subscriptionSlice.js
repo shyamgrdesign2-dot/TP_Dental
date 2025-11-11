@@ -8,7 +8,7 @@ export const fetchSubscriptionDetails = createAsyncThunk(
   "subscription/fetchSubscriptionDetails",
   async () => {
     const response = await api.post(
-      `/user/pm/info/plan/v2`,
+      `user/v2/pm/info/plan`,
       {},
       {
         customBaseUrl: config.user_management_api_url,
