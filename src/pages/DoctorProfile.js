@@ -158,7 +158,7 @@ function DoctorProfile() {
       const cleanedToken = token?.replace(/['"]+/g, '');
 
       const response = await axios.get(
-        `${config.user_management_api_url}/user/tatva/documents/v2`,
+        `${config.user_management_api_url}/user/tatva/v2/documents`,
         {
           headers: {
             "Content-Type": "application/json",

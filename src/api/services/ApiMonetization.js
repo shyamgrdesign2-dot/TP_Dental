@@ -74,7 +74,7 @@ ApiMonetization.updateCredits = function (data) {
 };
 
 ApiMonetization.extendFreeTrial = function () {
-    return api.get(`/user/pm/info/extend/v2`, baseUserManagementUrlV2);
+    return api.get(`user/v2/pm/info/extend`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.billingHistory = function (b2c_id) {
@@ -82,15 +82,15 @@ ApiMonetization.billingHistory = function (b2c_id) {
 };
 
 ApiMonetization.interest = function (data) {
-    return api.post(`/user/tatva/interest/v2`, data, baseUserManagementUrlV2);
+    return api.post(`/user/tatva/v2/interest`, data, baseUserManagementUrlV2);
 };
 
 ApiMonetization.invoiceGenerate = function (invoice_id) {
-    return api.get(`/user/tatva/invoice/${invoice_id}/v2`, baseUserManagementUrlV2);
+    return api.get(`/user/tatva/v2/invoice/${invoice_id}`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.receiptGenerate = function (receipt_id) {
-    return api.get(`/user/tatva/receipt/${receipt_id}/v2`, baseUserManagementUrlV2);
+    return api.get(`/user/tatva/v2/receipt/${receipt_id}`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.discountCode = function (data) {

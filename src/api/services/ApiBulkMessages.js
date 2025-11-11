@@ -76,7 +76,7 @@ ApiBulkMessages.paymentHistory = function (data) {
 };
 
 ApiBulkMessages.states = function () {
-    return api.post(`/user/pm/info/states/v2`, {}, baseUserManagementUrlV2);
+    return api.post(`/user/v2/pm/info/states`, {}, baseUserManagementUrlV2);
 };
 
 export default ApiBulkMessages;

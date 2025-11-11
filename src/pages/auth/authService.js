@@ -95,7 +95,7 @@ export const setupClinic = async (body) => {
   try {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
     const cleanedToken = token?.replace(/['"]+/g, '');
-    const response = await axios.post(`${userMgmtUrl}/user/tatva/clinic-setup/v2`, JSON.stringify(body), {
+    const response = await axios.post(`${userMgmtUrl}/user/tatva/v2/clinic-setup`, JSON.stringify(body), {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${cleanedToken}`,

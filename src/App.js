@@ -201,7 +201,7 @@ function App() {
         const cleanedToken = token?.replace(/['"]+/g, '');
         // Check account status
         const docResponse = await axios.get(
-          `${config.user_management_api_url}/user/pm/info/status/v2`,
+          `${config.user_management_api_url}/user/v2/pm/info/status`,
           {
             headers: {
               "Content-Type": "application/json",
