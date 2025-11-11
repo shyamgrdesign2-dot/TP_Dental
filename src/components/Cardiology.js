@@ -1854,7 +1854,7 @@ function Cardiology(props) {
                           </div>
                           {isGenRxTableView
                             ? renderMedicationsTable()
-                            : renderGenRxItems("medications")}
+                            : renderItems("medications")}
                         </>
                       )}
 
@@ -1873,7 +1873,7 @@ function Cardiology(props) {
                           </div>
                           {isGenRxTableView
                             ? renderLabInvestigationTable()
-                            : renderGenRxItems("tests")}
+                            : renderItems("tests")}
                         </>
                       )}
 

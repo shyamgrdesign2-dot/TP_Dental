@@ -28,7 +28,7 @@ function SnapRxDigitise() {
   // Minimal resizable split state
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
-  const [leftWidthPercent, setLeftWidthPercent] = useState(50);
+  const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
   const { loading } = useSelector((state) => state.caseManager);
   const { siteId, storeCode } = useSelector((state) => state.doctors);

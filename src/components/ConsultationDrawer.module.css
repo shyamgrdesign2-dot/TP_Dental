@@ -1523,7 +1523,7 @@
 
 .medications-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 1000px;
   border-collapse: collapse;
   background: white;
   table-layout: fixed;
@@ -1584,6 +1584,12 @@
   font-size: 12px;
 }
 
+.medications-table .quantity-column {
+  width: 100px;
+  min-width: 100px;
+  font-size: 12px;
+}
+
 .medications-table .when-column,
 .medications-table .duration-column,
 .medications-table .note-column {
@@ -1605,6 +1611,7 @@
 .medications-table .medicine-cell,
 .medications-table .unit-dose-cell,
 .medications-table .frequency-cell,
+.medications-table .quantity-cell,
 .medications-table .when-cell,
 .medications-table .duration-cell,
 .medications-table .note-cell {
@@ -1632,6 +1639,7 @@
 
 .medications-table .unit-dose-text,
 .medications-table .frequency-text,
+.medications-table .quantity-text,
 .medications-table .when-text,
 .medications-table .duration-text,
 .medications-table .note-text {

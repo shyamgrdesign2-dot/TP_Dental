@@ -210,6 +210,7 @@ const MedicationsTable = ({
           frequency: '',
           schedule: '',
           duration: '',
+          quantity: '',
           notes: '',
           lineItem: medicineName,
           edited: false,
@@ -225,6 +226,7 @@ const MedicationsTable = ({
           frequency: '',
           schedule: '',
           duration: '',
+          quantity: '',
           notes: '',
           lineItem: value,
           edited: false,
@@ -248,8 +250,12 @@ const MedicationsTable = ({
     const { itemId, field } = editingCell;
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
-        const updated = { ...item, [field]: editValue, edited: true };
-        updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        const updated = {
+          ...item,
+          [field]: editValue,
+          edited: field === 'quantity' ? true : (item.edited ?? false),
+        };
+        updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
           }
       return item;
@@ -295,7 +301,7 @@ const MedicationsTable = ({
           }
           
           // Recalculate lineItem
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
         return item;
@@ -337,7 +343,7 @@ const MedicationsTable = ({
             name: value,
             edited: false, // Set to false for autocomplete selections
           };
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
         return item;
@@ -400,6 +406,7 @@ const MedicationsTable = ({
       setRowEditValues({
       name: item.name || '',
       dosage: item.dosage || '',
+      quantity: item.quantity || '',
       frequency: item.frequency || '',
       schedule: item.schedule || '',
       duration: item.duration || '',
@@ -412,8 +419,8 @@ const MedicationsTable = ({
   const handleRowSave = (itemId) => {
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
-        const updated = { ...item, ...rowEditValues, edited: true };
-        updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        const updated = { ...item, ...rowEditValues };
+        updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
           }
       return item;
@@ -432,7 +439,8 @@ const MedicationsTable = ({
   const handleRowFieldChange = (field, value) => {
     setRowEditValues(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
+      edited: true
     }));
   };
 
@@ -520,6 +528,7 @@ const MedicationsTable = ({
               <th className={styles['frequency-column']}>FREQUENCY</th>
               <th className={styles['when-column']}>WHEN</th>
               <th className={styles['duration-column']}>DURATION</th>
+              <th className={styles['quantity-column']}>QTY</th>
               <th className={styles['note-column']}>NOTE</th>
                 <th className={styles['action-column']}></th>
             </tr>
@@ -666,6 +675,28 @@ const MedicationsTable = ({
                   ) : (
                     <span className={styles['duration-text']}>
                       {item.duration || '-'}
+                    </span>
+                  )}
+                </td>
+                <td 
+                  className={styles['quantity-cell']}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'quantity', item.quantity) : undefined}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                >
+                  {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'quantity') || (isTablet && editingRow === item.id) ? (
+                    <input
+                      type="text"
+                      value={isTablet && editingRow === item.id ? rowEditValues.quantity : editValue}
+                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('quantity', e.target.value) : setEditValue(e.target.value)}
+                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
+                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
+                      className={styles['edit-input']}
+                      placeholder="e.g., 10"
+                      autoFocus={!isTablet}
+                    />
+                  ) : (
+                    <span className={styles['quantity-text']}>
+                      {item.quantity || '-'}
                     </span>
                   )}
                 </td>

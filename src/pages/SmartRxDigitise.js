@@ -28,7 +28,7 @@ function SmartRxDigitise() {
   const divRef = useRef(null);
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
-  const [leftWidthPercent, setLeftWidthPercent] = useState(50);
+  const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
   const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
   const { loading } = useSelector((state) => state.caseManager);
