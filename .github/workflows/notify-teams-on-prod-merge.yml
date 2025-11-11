@@ -1,0 +1,111 @@
+name: Notify Teams on PR merge to prod
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'prod'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure secret exists
+        run: |
+          [ -n "${{ secrets.TEAMS_WEBHOOK_URL }}" ] || { echo "TEAMS_WEBHOOK_URL not set"; exit 1; }
+
+      - name: Build Adaptive Card payload
+        run: |
+          REPO="${{ github.repository }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          MERGED_BY="${{ github.event.pull_request.merged_by.login }}"
+          SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          NOW="$(date -u +"%Y-%m-%d %H:%M:%SZ")"
+          
+          cat > card.json <<'JSON'
+          {
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "size": "Large",
+                      "weight": "Bolder",
+                      "text": "✅ PR merged to prod"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "**${REPO}**",
+                      "wrap": true
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "**#${PR_NUMBER}** — ${PR_TITLE}",
+                      "wrap": true
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        {
+                          "title": "Author",
+                          "value": "${PR_AUTHOR}"
+                        },
+                        {
+                          "title": "Merged by",
+                          "value": "${MERGED_BY}"
+                        },
+                        {
+                          "title": "Merge SHA",
+                          "value": "${SHA}"
+                        },
+                        {
+                          "title": "Merged at (UTC)",
+                          "value": "${NOW}"
+                        }
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "View Pull Request",
+                      "url": "${PR_URL}"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+          JSON
+          
+          esc_title=$(printf '%s' "$PR_TITLE" | sed 's/"/\\"/g')
+          sed -i \
+            -e "s|\${REPO}|$REPO|g" \
+            -e "s|\${PR_NUMBER}|$PR_NUMBER|g" \
+            -e "s|\${PR_TITLE}|$esc_title|g" \
+            -e "s|\${PR_AUTHOR}|$PR_AUTHOR|g" \
+            -e "s|\${MERGED_BY}|$MERGED_BY|g" \
+            -e "s|\${SHA}|$SHA|g" \
+            -e "s|\${NOW}|$NOW|g" \
+            -e "s|\${PR_URL}|$PR_URL|g" \
+            card.json
+
+      - name: Post to Microsoft Teams
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data @card.json "$TEAMS_WEBHOOK_URL"
