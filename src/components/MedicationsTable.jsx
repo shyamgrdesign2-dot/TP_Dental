@@ -210,7 +210,7 @@ const MedicationsTable = ({
           frequency: '',
           schedule: '',
           duration: '',
-          quantity: '',
+          quantity: 0,
           notes: '',
           lineItem: medicineName,
           edited: false,
@@ -226,7 +226,7 @@ const MedicationsTable = ({
           frequency: '',
           schedule: '',
           duration: '',
-          quantity: '',
+          quantity: 0,
           notes: '',
           lineItem: value,
           edited: false,
@@ -242,6 +242,21 @@ const MedicationsTable = ({
   const handleCellClick = (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
     setEditValue(currentValue || '');
+    // If clicking on name field, trigger search immediately to show options
+    if (field === 'name') {
+      const searchValue = currentValue || '';
+      setSearchQuery(searchValue);
+      if (searchValue && searchValue.trim().length > 0) {
+        dispatch(
+          searchMedication({
+            searchQuery: searchValue,
+            type: 'parent',
+          })
+        );
+      } else {
+        dispatch(getFrequentlySearchedMedication());
+      }
+    }
   };
 
   const handleCellSave = () => {
@@ -406,7 +421,7 @@ const MedicationsTable = ({
       setRowEditValues({
       name: item.name || '',
       dosage: item.dosage || '',
-      quantity: item.quantity || '',
+      quantity: item.quantity || 0,
       frequency: item.frequency || '',
       schedule: item.schedule || '',
       duration: item.duration || '',
@@ -570,12 +585,33 @@ const MedicationsTable = ({
                       popupMatchSelectWidth={false}
                       getPopupContainer={(trigger) => trigger.parentNode}
                       dropdownStyle={{ width: 420 }}
+                      open={
+                        (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
+                        (isTablet && editingRow === item.id)
+                      }
+                      autoFocus={true}
                     >
                       <Input
                         value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
                         onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
+                        onFocus={() => {
+                          // Ensure options are loaded when input is focused
+                          if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
+                            const currentValue = editValue || '';
+                            if (currentValue.trim().length > 0) {
+                              dispatch(
+                                searchMedication({
+                                  searchQuery: currentValue,
+                                  type: 'parent',
+                                })
+                              );
+                            } else {
+                              dispatch(getFrequentlySearchedMedication());
+                            }
+                          }
+                        }}
                         className={styles['edit-input']}
                         placeholder="Enter medicine name"
                         autoFocus
@@ -780,6 +816,7 @@ const MedicationsTable = ({
             onSelect={onSelectParent}
             defaultActiveFirstOption={true}
             popupClassName={!searchQuery && "boxpopup"}
+            dropdownStyle={{ width: 420 }}
           >
             <Input
               placeholder="Search by Medication Name"

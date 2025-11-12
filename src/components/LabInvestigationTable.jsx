@@ -123,15 +123,16 @@ const LabInvestigationTable = ({
 
   useEffect(() => {
     if (editingCell?.field === 'name') {
-      // Sync searchQuery with editValue when editing name
-      if (editValue !== searchQuery) {
-        setSearchQuery(editValue);
+      // Sync searchQuery with editValue when editing name (only if different to avoid loops)
+      const cleanedEditValue = editValue?.trim() || '';
+      if (cleanedEditValue !== searchQuery) {
+        setSearchQuery(cleanedEditValue);
       }
       const timeOutId = setTimeout(() => {
-        if (editValue && editValue.trim().length > 0) {
+        if (cleanedEditValue && cleanedEditValue.length > 0) {
           dispatch(
             searchInvestigation({
-              searchQuery: editValue,
+              searchQuery: cleanedEditValue,
               type: 'parent',
             })
           );
@@ -143,7 +144,7 @@ const LabInvestigationTable = ({
         clearTimeout(timeOutId);
       };
     }
-  }, [editValue, editingCell, dispatch, searchQuery]);
+  }, [editValue, editingCell, dispatch]);
 
   useEffect(() => {
     if (searchQuery && searchQuery.trim().length > 0) {
@@ -171,23 +172,6 @@ const LabInvestigationTable = ({
     }
   }, [labInvestigation, onUpdate]);
 
-  // Clear editing state when the investigation name matches what we selected
-  useEffect(() => {
-    if (editingCell?.field === 'name' && editValue && editingCell.itemId) {
-      const currentItem = labInvestigation.find(inv => inv.id === editingCell.itemId);
-      // If the item name matches the editValue, it means the parent has updated
-      // Clear the editing state after a short delay to ensure UI is updated
-      if (currentItem && currentItem.name === editValue) {
-        const timer = setTimeout(() => {
-          if (editingCell?.itemId === currentItem.id && editingCell?.field === 'name') {
-            setEditingCell(null);
-            setEditValue('');
-          }
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [labInvestigation, editingCell, editValue]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -217,6 +201,21 @@ const LabInvestigationTable = ({
   const handleCellClick = (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
     setEditValue(currentValue || '');
+    // If clicking on name field, trigger search immediately to show options
+    if (field === 'name') {
+      const searchValue = currentValue || '';
+      setSearchQuery(searchValue);
+      if (searchValue && searchValue.trim().length > 0) {
+        dispatch(
+          searchInvestigation({
+            searchQuery: searchValue,
+            type: 'parent',
+          })
+        );
+      } else {
+        dispatch(getFrequentlySearchedInvestigation());
+      }
+    }
   };
 
   const handleCellSave = () => {
@@ -292,9 +291,20 @@ const LabInvestigationTable = ({
           name: investigationName,
         }));
       } else {
-        // For web mode: keep editValue set to show selected name
-        // Don't clear editing state immediately - let it persist until parent updates
+        // For web mode: update editValue and clear editing state after autocomplete selection
         setEditValue(investigationName);
+        // Clear editing state after a short delay to allow UI to update
+        const currentItemId = itemId;
+        setTimeout(() => {
+          setEditingCell((current) => {
+            // Only clear if we're still editing the same cell
+            if (current?.itemId === currentItemId && current?.field === 'name') {
+              setEditValue('');
+              return null;
+            }
+            return current;
+          });
+        }, 100);
       }
       setSearchQuery('');
     } catch (e) {
@@ -314,6 +324,17 @@ const LabInvestigationTable = ({
       onUpdate(updatedInvestigations);
       if (!isTabletMode) {
         setEditValue(value);
+        // Clear editing state after a short delay for fallback case
+        const currentItemId = itemId;
+        setTimeout(() => {
+          setEditingCell((current) => {
+            if (current?.itemId === currentItemId && current?.field === 'name') {
+              setEditValue('');
+              return null;
+            }
+            return current;
+          });
+        }, 100);
       }
       setSearchQuery('');
     }
@@ -509,12 +530,34 @@ const LabInvestigationTable = ({
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
                       getPopupContainer={(trigger) => trigger.parentNode}
+                      open={
+                        (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
+                        (isTablet && editingRow === item.id)
+                      }
+                      autoFocus={true}
+                      dropdownStyle={{ width: 420 }}
                     >
                       <Input
                         value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
                         onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
+                        onFocus={() => {
+                          // Ensure options are loaded when input is focused
+                          if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
+                            const currentValue = editValue || '';
+                            if (currentValue.trim().length > 0) {
+                              dispatch(
+                                searchInvestigation({
+                                  searchQuery: currentValue,
+                                  type: 'parent',
+                                })
+                              );
+                            } else {
+                              dispatch(getFrequentlySearchedInvestigation());
+                            }
+                          }
+                        }}
                         className={styles['edit-input']}
                         placeholder="Enter investigation name"
                         autoFocus
@@ -606,6 +649,7 @@ const LabInvestigationTable = ({
             onSelect={onSelectParent}
             defaultActiveFirstOption={true}
             popupClassName={!searchQuery && "boxpopup"}
+            dropdownStyle={{ width: 420 }}
           >
             <Input
               placeholder="Search by Investigation Name"
