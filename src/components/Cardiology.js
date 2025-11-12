@@ -2028,7 +2028,7 @@ function Cardiology(props) {
                     {viewCaseManagerData?.moduleContents?.length > 0 &&
                       viewCaseManagerData?.moduleContents?.map(
                         (item) =>
-                          item.module_name && (
+                          item.module_name && item?.content?.some((item) => item.title || item.notes) && (
                             <div className="d-flex align-items-start mb-4">
                               <img
                                 className="me-2"
