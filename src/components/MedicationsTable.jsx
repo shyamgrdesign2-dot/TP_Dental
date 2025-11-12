@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { AutoComplete, Input, Button } from 'antd';
+import { AutoComplete, Input, Button, Select } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,11 +12,11 @@ import {
   getFrequentlySearchedMedication,
   searchMedication
 } from "../redux/medicationSlice";
-import { capitalize, removeBeforeWhiteSpace, getTokenData } from '../utils/utils';
+import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
-import { GB_ZYDUS_USER, GB_APOLLO_DISABLE_FEATURE } from '../utils/constants';
+import { GB_ZYDUS_USER, GB_APOLLO_DISABLE_FEATURE, EXTRA_OPTIONS } from '../utils/constants';
 import { getInvestigationAndMedicine } from '../redux/caseManagerSlice';
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import ApiMedication from '../api/services/ApiMedication';
@@ -32,7 +32,7 @@ const MedicationsTable = ({
   const { state } = useLocation();
   const { patient_data } = state || {};
   const { tcmId } = useContext(CashManagerContext);
-  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode, frequencyList, timingList } = useSelector((state) => state.doctors);
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
@@ -51,6 +51,20 @@ const MedicationsTable = ({
   const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
     return localStorage.getItem('dontShowZydusWarning') === 'true';
   });
+  
+  // Frequency, When, Duration dropdown states
+  const [frequencyOptions, setFrequencyOptions] = useState([]);
+  const [sinceOptions, setSinceOptions] = useState(EXTRA_OPTIONS);
+  const [frequencyQuery, setFrequencyQuery] = useState('');
+  
+  const SINCE_OPTIONS = [
+    { value: "Day(s)", label: "Days" },
+    { value: "Week(s)", label: "Weeks" },
+    { value: "Month(s)", label: "Months" },
+    { value: "Year(s)", label: "Years" },
+  ];
+  
+  const filteredTitles = frequencyList ? frequencyList.filter((item) => item.tmf_block !== 0) : [];
   
   // Detect tablet view
   useEffect(() => {
@@ -488,6 +502,186 @@ const MedicationsTable = ({
     onUpdate(updatedMedications);
   };
 
+  // Frequency handlers
+  const onBlurFrequencyChild = useCallback(
+    async (itemId) => {
+      const item = medications.find(med => med.id === itemId);
+      if (!item) return;
+
+      const currentFrequency = item.frequency || frequencyQuery;
+      if (!currentFrequency) return;
+
+      // Check if it's a numeric format (like "1-0-1")
+      const isNumericFormat = /^\d+(-\d+)*$/.test(currentFrequency);
+      
+      if (isNumericFormat) {
+        // Keep the numeric format as is
+        const updatedMedications = medications.map(med => {
+          if (med.id === itemId) {
+            const updated = { ...med, frequency: currentFrequency, edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return med;
+        });
+        onUpdate(updatedMedications);
+      } else if (filteredTitles && filteredTitles.findIndex((x) => x.tmf_title == currentFrequency) == -1) {
+        // If it's not in the filtered titles, clear it
+        const updatedMedications = medications.map(med => {
+          if (med.id === itemId) {
+            const updated = { ...med, frequency: "", edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return med;
+        });
+        onUpdate(updatedMedications);
+      }
+    },
+    [medications, frequencyQuery, filteredTitles, onUpdate]
+  );
+
+  const onSearchFrequencyChild = useCallback(
+    async (query, itemId) => {
+      setFrequencyQuery(query);
+      if (query) {
+        const data = [];
+        const updateQuery = frequencyFormat(query);
+
+        if (updateQuery) {
+          const combinationList = await frequencyCombination(query);
+          combinationList.map((option) => {
+            return data.push({
+              value: JSON.stringify({ tmf_id: 0, tmf_title: option, tmf_block: 0, tmf_block_val: "", unique_id: uuidv4() }),
+              label: <>{option}</>,
+            });
+          });
+        }
+
+        if (filteredTitles && filteredTitles.length > 0) {
+          filteredTitles.map((option) => {
+            return data.push({
+              value: JSON.stringify({ ...option, unique_id: uuidv4() }),
+              label: <>{option.tmf_title}</>,
+            });
+          });
+        }
+
+        setFrequencyOptions(data);
+      }
+    },
+    [filteredTitles]
+  );
+
+  const onSelectFrequencyChild = useCallback(
+    (data, itemId) => {
+      if (data) {
+        const objParse = JSON.parse(data);
+        setFrequencyQuery(objParse.tmf_title);
+        const updatedMedications = medications.map(item => {
+          if (item.id === itemId) {
+            const updated = { ...item, frequency: objParse.tmf_title, edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return item;
+        });
+        onUpdate(updatedMedications);
+      } else {
+        setFrequencyQuery("");
+        const updatedMedications = medications.map(item => {
+          if (item.id === itemId) {
+            const updated = { ...item, frequency: "", edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return item;
+        });
+        onUpdate(updatedMedications);
+      }
+    },
+    [medications, onUpdate]
+  );
+
+  // When (Timing) handlers
+  const onSelectTimingChild = useCallback(
+    (data, itemId) => {
+      if (data) {
+        const objParse = JSON.parse(data);
+        const updatedMedications = medications.map(item => {
+          if (item.id === itemId) {
+            const updated = { ...item, schedule: objParse.tmt_title, edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return item;
+        });
+        onUpdate(updatedMedications);
+      } else {
+        const updatedMedications = medications.map(item => {
+          if (item.id === itemId) {
+            const updated = { ...item, schedule: "", edited: true };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return item;
+        });
+        onUpdate(updatedMedications);
+      }
+    },
+    [medications, onUpdate]
+  );
+
+  // Duration handlers
+  const onSearchSinceChild = useCallback(
+    (query, itemId) => {
+      const updateQuery = onlyNumberFormat(query);
+      
+      // Update the medication's duration value
+      const updatedMedications = medications.map(item => {
+        if (item.id === itemId) {
+          const updated = { ...item, duration: updateQuery, edited: true };
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          return updated;
+        }
+        return item;
+      });
+      onUpdate(updatedMedications);
+      
+      // Update options based on query
+      if (updateQuery) {
+        const options = SINCE_OPTIONS.map((option) => {
+          return {
+            key: JSON.stringify({ ...option, tmm_days: parseInt(updateQuery), unique_id: uuidv4() }),
+            value: `${updateQuery} ${option.value}`,
+            label: <>{`${updateQuery} ${option.label}`}</>,
+          };
+        });
+        setSinceOptions(options);
+      } else {
+        setSinceOptions(EXTRA_OPTIONS);
+      }
+    },
+    [medications, onUpdate]
+  );
+
+  const onSelectSinceChild = useCallback(
+    (data, e, itemId) => {
+      setSinceOptions(EXTRA_OPTIONS);
+      const objParse = JSON.parse(e.key);
+      const updatedMedications = medications.map(item => {
+        if (item.id === itemId) {
+          const updated = { ...item, duration: data, edited: true };
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          return updated;
+        }
+        return item;
+      });
+      onUpdate(updatedMedications);
+    },
+    [medications, onUpdate]
+  );
+
   const reorder = (list, startIndex, endIndex) => {
     const result = Array.from(list);
     const [removed] = result.splice(startIndex, 1);
@@ -650,66 +844,151 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['frequency-cell']}
-                  onClick={!isTablet ? () => handleCellClick(item.id, 'frequency', item.frequency) : undefined}
-                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                  style={{ cursor: 'default' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'frequency') || (isTablet && editingRow === item.id) ? (
-                    <input
-                      type="text"
-                      value={isTablet && editingRow === item.id ? rowEditValues.frequency : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('frequency', e.target.value) : setEditValue(e.target.value)}
-                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
-                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
-                      className={styles['edit-input']}
-                      placeholder="e.g., Twice daily"
-                      autoFocus={!isTablet}
+                    <Select
+                      showSearch
+                      className="autocomplete-custom w-100 h-100 inputborder"
+                      placeholder="e.g 1-0-1"
+                      defaultValue={isTablet && editingRow === item.id ? (rowEditValues.frequency != "" ? rowEditValues.frequency : null) : (item.frequency != "" ? item.frequency : null)}
+                      value={isTablet && editingRow === item.id ? (rowEditValues.frequency != "" ? rowEditValues.frequency : null) : (item.frequency != "" ? item.frequency : null)}
+                      onSearch={(query) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('frequency', query);
+                        } else {
+                          onSearchFrequencyChild(query, item.id);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (!isTablet) {
+                          onSearchFrequencyChild(item.frequency || '', item.id);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!isTablet) {
+                          onBlurFrequencyChild(item.id);
+                        }
+                      }}
+                      onSelect={(data) => {
+                        if (isTablet && editingRow === item.id) {
+                          try {
+                            const objParse = JSON.parse(data);
+                            handleRowFieldChange('frequency', objParse.tmf_title);
+                          } catch (e) {
+                            handleRowFieldChange('frequency', data);
+                          }
+                        } else {
+                          onSelectFrequencyChild(data, item.id);
+                        }
+                      }}
+                      options={frequencyOptions}
+                      onClear={() => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('frequency', '');
+                        } else {
+                          onSelectFrequencyChild("", item.id);
+                        }
+                      }}
+                      allowClear
                     />
                   ) : (
-                    <span className={styles['frequency-text']}>
+                    <span 
+                      className={styles['frequency-text']}
+                      onClick={!isTablet ? () => handleCellClick(item.id, 'frequency', item.frequency) : undefined}
+                      style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                    >
                       {item.frequency || '-'}
                     </span>
                   )}
                 </td>
                 <td 
                   className={styles['when-cell']}
-                  onClick={!isTablet ? () => handleCellClick(item.id, 'schedule', item.schedule) : undefined}
-                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                  style={{ cursor: 'default' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'schedule') || (isTablet && editingRow === item.id) ? (
-                    <input
-                      type="text"
-                      value={isTablet && editingRow === item.id ? rowEditValues.schedule : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('schedule', e.target.value) : setEditValue(e.target.value)}
-                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
-                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
-                      className={styles['edit-input']}
-                      placeholder="e.g., Before breakfast"
-                      autoFocus={!isTablet}
+                    <Select
+                      className="autocomplete-custom w-100 h-100 inputborder"
+                      placeholder="e.g Before Food"
+                      defaultValue={isTablet && editingRow === item.id ? (rowEditValues.schedule != "" && rowEditValues.schedule !== "None" ? rowEditValues.schedule : null) : (item.schedule != "" && item.schedule !== "None" ? item.schedule : null)}
+                      value={isTablet && editingRow === item.id ? (rowEditValues.schedule != "" && rowEditValues.schedule !== "None" ? rowEditValues.schedule : null) : (item.schedule != "" && item.schedule !== "None" ? item.schedule : null)}
+                      onSelect={(data) => {
+                        if (isTablet && editingRow === item.id) {
+                          const objParse = JSON.parse(data);
+                          handleRowFieldChange('schedule', objParse.tmt_title);
+                        } else {
+                          onSelectTimingChild(data, item.id);
+                        }
+                      }}
+                      options={timingList ? timingList.map((e) => {
+                        return {
+                          value: JSON.stringify({ ...e, unique_id: uuidv4() }),
+                          label: e.tmt_title,
+                        };
+                      }) : []}
+                      onClear={() => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('schedule', '');
+                        } else {
+                          onSelectTimingChild("", item.id);
+                        }
+                      }}
+                      allowClear
                     />
                   ) : (
-                    <span className={styles['when-text']}>
+                    <span 
+                      className={styles['when-text']}
+                      onClick={!isTablet ? () => handleCellClick(item.id, 'schedule', item.schedule) : undefined}
+                      style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                    >
                       {item.schedule || '-'}
                     </span>
                   )}
                 </td>
                 <td 
                   className={styles['duration-cell']}
-                  onClick={!isTablet ? () => handleCellClick(item.id, 'duration', item.duration) : undefined}
-                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                  style={{ cursor: 'default' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'duration') || (isTablet && editingRow === item.id) ? (
-                    <input
-                      type="text"
-                      value={isTablet && editingRow === item.id ? rowEditValues.duration : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('duration', e.target.value) : setEditValue(e.target.value)}
-                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
-                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
-                      className={styles['edit-input']}
-                      placeholder="e.g., 5 days"
-                      autoFocus={!isTablet}
+                    <AutoComplete
+                      defaultValue={isTablet && editingRow === item.id ? rowEditValues.duration : item.duration}
+                      value={isTablet && editingRow === item.id ? (rowEditValues.duration ? (hasNumber(rowEditValues.duration) ? rowEditValues.duration : capitalize(rowEditValues.duration, true)) : "") : (item.duration ? (hasNumber(item.duration) ? item.duration : capitalize(item.duration, true)) : "")}
+                      placeholder="e.g 1 Day"
+                      bordered={false}
+                      defaultOpen={false}
+                      onSearch={(query) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('duration', query);
+                        } else {
+                          onSearchSinceChild(query, item.id);
+                        }
+                      }}
+                      options={sinceOptions}
+                      className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
+                      popupClassName="option-truncate"
+                      defaultActiveFirstOption={true}
+                      onSelect={(data, e) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('duration', data);
+                        } else {
+                          onSelectSinceChild(data, e, item.id);
+                        }
+                      }}
+                      onClear={() => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('duration', '');
+                        } else {
+                          onSearchSinceChild("", item.id);
+                        }
+                      }}
+                      allowClear
                     />
                   ) : (
-                    <span className={styles['duration-text']}>
+                    <span 
+                      className={styles['duration-text']}
+                      onClick={!isTablet ? () => handleCellClick(item.id, 'duration', item.duration) : undefined}
+                      style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                    >
                       {item.duration || '-'}
                     </span>
                   )}

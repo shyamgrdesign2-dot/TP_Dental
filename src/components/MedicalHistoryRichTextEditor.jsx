@@ -21,12 +21,12 @@ const MedicalHistoryRichTextEditor = ({
 }) => {
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    medical_condition: true,
-    allergies: true,
-    surgical_history: true,
-    family_history: true,
-    lifestyle: true,
-    others: true
+    medical_condition: false,
+    allergies: false,
+    surgical_history: false,
+    family_history: false,
+    lifestyle: false,
+    others: false
   });
   const [newHistoryItem, setNewHistoryItem] = useState({
     type: 'medical_condition',

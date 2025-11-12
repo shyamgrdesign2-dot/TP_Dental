@@ -29,7 +29,7 @@ import voiceRxSendButton from "../assets/images/voice-rx-send-button.svg";
 import vitalsIcons from "../assets/images/vitals-icons.svg";
 import stopIcon from "../assets/images/stop-icon.svg";
 import muteIcon from "../assets/images/microphone-2.svg";
-import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon.svg";
+import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon-new.svg";
 import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
@@ -4917,81 +4917,104 @@ const ConsultationDrawer = ({
                         
                                                 {/* Transcript Cards */}
                         {/* First transcript card - show initial transcript */}
-                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (                                          
-                          <div className={styles.transcriptCard}>
-                            <div 
-                              className={styles.transcriptHeader}
-                              onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
-                            >
-                              <div className={styles.transcriptTitle}>
-                                <div className={styles.transcriptTitleContent}>
-                                  <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
-                                  <div className={styles.transcriptRightGroup}>
-                                    {(() => {
-                                      // Show timer only for audio inputs
-                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
-                                      const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
-                                      const firstDuration = firstQuery && typeof firstQuery === 'object' ? firstQuery.duration : null;
-                                      
-                                      // For both ambient and dictate mode, use duration from firstQuery
-                                      if (isFirstAudio && firstDuration) {
-                                        return (
-                                  <div className={styles.transcriptDuration}>
-                                    <i className="icon-time"></i>
-                                            <span>{formatTime(Math.floor(firstDuration))}</span>
-                                          </div>
-                                        );
-                                      }
-                                      
-                                      return null;
-                                    })()}
-                                    <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
+                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
+                          const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
+                          const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
+                          // Check if it's text-only: not audio, and either a string or object without audio/conversations
+                          const isTextOnly = !isFirstAudio && (
+                            typeof firstQuery === 'string' || 
+                            (firstQuery && typeof firstQuery === 'object' && !firstQuery.isAudio && !firstQuery.conversations) ||
+                            (!firstQuery && (fullTranscript || genRxDetails?.source))
+                          );
+                          const firstText = isTextOnly 
+                            ? (typeof firstQuery === 'string' ? firstQuery : (firstQuery?.text || fullTranscript || genRxDetails?.source || ''))
+                            : null;
+                          
+                          // For text-only input, render simple curved box without header
+                          if (isTextOnly && firstText && firstText.trim()) {
+                            return (
+                              <div className={styles.textOnlyBox}>
+                                <div className={styles.textOnlyBoxContent}>
+                                  {firstText}
+                                </div>
+                              </div>
+                            );
+                          }
+                          
+                          // For audio input, render the full transcript card with header
+                          return (
+                            <div className={styles.transcriptCard}>
+                              <div 
+                                className={styles.transcriptHeader}
+                                onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
+                              >
+                                <div className={styles.transcriptTitle}>
+                                  <div className={styles.transcriptTitleContent}>
+                                    <span>{isAmbientMode ? "Ambient Rx Transcript" : "Dictate Rx Transcript"}</span>
+                                    <div className={styles.transcriptRightGroup}>
+                                      {(() => {
+                                        // Show timer only for audio inputs
+                                        const firstDuration = firstQuery && typeof firstQuery === 'object' ? firstQuery.duration : null;
+                                        
+                                        // For both ambient and dictate mode, use duration from firstQuery
+                                        if (isFirstAudio && firstDuration) {
+                                          return (
+                                    <div className={styles.transcriptDuration}>
+                                      <i className="icon-time"></i>
+                                              <span>{formatTime(Math.floor(firstDuration))}</span>
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        return null;
+                                      })()}
+                                      <img src={arrowBoxDown} alt="Expand" className={styles.arrowIcon} />
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
-                                <i className="icon-down"></i>
-                              </div>
-                            </div>
-                            {isTranscriptExpanded && (
-                              <div className={styles.transcriptContent}>
-                                  {isAmbientMode ? (
-                                  <div>
-                                    {/* Use conversations from queries[0] instead of global conversations state */}
-                                    {(() => {
-                                      const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
-                                      const firstConversations = firstQuery && typeof firstQuery === 'object' && firstQuery.conversations 
-                                        ? firstQuery.conversations 
-                                        : (Array.isArray(conversations) && conversations.length > 0 ? conversations : []);
-                                      
-                                      return firstConversations.length > 0 ? (
-                                        firstConversations.map((conv, idx) => {
-                                        const text = conv?.message || conv?.text || conv?.content || '';
-                                        const speaker = (conv?.speaker || '').toLowerCase();
-                                        const isDoctor = speaker === 'doctor';
-                                        return (
-                                          <div key={idx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
-                                        <div className={styles.conversationBubble}>
-                                              <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
-                                              <div className={styles.messageText}>{text}</div>
-                                          </div>
-                                          </div>
-                                        );
-                                      })
-                                      ) : null;
-                                    })()}
-                                        </div>
-                                ) : (
-                                  <div className={styles.transcriptText}>
-                                    {(Array.isArray(queries) && queries.length > 0)
-                                       ? (typeof queries[0] === 'string' ? queries[0] : queries[0]?.text || '')
-                                       : (fullTranscript || genRxDetails?.source || '')}                                                                         
+                                <div className={`${styles.transcriptToggle} ${isTranscriptExpanded ? styles.transcriptToggleOpen : ''}`}>
+                                  <i className="icon-down"></i>
                                 </div>
-                                )}
                               </div>
-                            )}
-                          </div>
-                        )}
+                              {isTranscriptExpanded && (
+                                <div className={styles.transcriptContent}>
+                                    {isAmbientMode ? (
+                                    <div>
+                                      {/* Use conversations from queries[0] instead of global conversations state */}
+                                      {(() => {
+                                        const firstConversations = firstQuery && typeof firstQuery === 'object' && firstQuery.conversations 
+                                          ? firstQuery.conversations 
+                                          : (Array.isArray(conversations) && conversations.length > 0 ? conversations : []);
+                                        
+                                        return firstConversations.length > 0 ? (
+                                          firstConversations.map((conv, idx) => {
+                                          const text = conv?.message || conv?.text || conv?.content || '';
+                                          const speaker = (conv?.speaker || '').toLowerCase();
+                                          const isDoctor = speaker === 'doctor';
+                                          return (
+                                            <div key={idx} className={`${styles.conversationBubbleWrapper} ${isDoctor ? styles.doctorMessage : styles.patientMessage}`}>
+                                          <div className={styles.conversationBubble}>
+                                                <span className={styles.speakerLabel}>{isDoctor ? 'Doctor' : 'Patient'}:</span>
+                                                <div className={styles.messageText}>{text}</div>
+                                            </div>
+                                            </div>
+                                          );
+                                        })
+                                        ) : null;
+                                      })()}
+                                          </div>
+                                  ) : (
+                                    <div className={styles.transcriptText}>
+                                      {(Array.isArray(queries) && queries.length > 0)
+                                         ? (typeof queries[0] === 'string' ? queries[0] : queries[0]?.text || '')
+                                         : (fullTranscript || genRxDetails?.source || '')}                                                                         
+                                  </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
                         {!isProcessing && (isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source))) && (
@@ -5006,7 +5029,36 @@ const ConsultationDrawer = ({
                         {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
                         {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
                           const cardIndex = idx + 1;
-                          const isCardExpanded = expandedTranscripts.has(cardIndex);                                                                            
+                          const isCardExpanded = expandedTranscripts.has(cardIndex);
+                          const isAudio = query && typeof query === 'object' && query.isAudio;
+                          const isTextOnly = !isAudio && (typeof query === 'string' || (query && typeof query === 'object' && !query.isAudio && !query.conversations));
+                          const queryText = isTextOnly 
+                            ? (typeof query === 'string' ? query : (query?.text || ''))
+                            : null;
+                          
+                          // For text-only input, render simple curved box without header
+                          if (isTextOnly && queryText) {
+                            return (
+                              <React.Fragment key={cardIndex}>
+                                <div className={styles.textOnlyBox} style={{ marginTop: '16px' }}>
+                                  <div className={styles.textOnlyBoxContent}>
+                                    {queryText}
+                                  </div>
+                                </div>
+                                {/* Show "Your Rx is ready!" message after each additional transcript - only when not processing */}
+                                {!isProcessing && (
+                                  <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                                    <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
+                                    <div className={styles.prescriptionReadyMessage}>
+                                      Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
+                                    </div>
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            );
+                          }
+                          
+                          // For audio input, render the full transcript card with header
                           return (
                             <React.Fragment key={cardIndex}>
                               <div className={styles.transcriptCard} style={{ marginTop: '16px' }}>                                                             
@@ -5028,9 +5080,7 @@ const ConsultationDrawer = ({
                                       <div className={styles.transcriptRightGroup}>                                                                             
                                         {(() => {
                                           // Show timer only for audio inputs
-                                          const queryItem = Array.isArray(queries) && queries.length > cardIndex ? queries[cardIndex] : null;                   
-                                          const isAudio = queryItem && typeof queryItem === 'object' && queryItem.isAudio;                                      
-                                          const queryDuration = queryItem && typeof queryItem === 'object' ? queryItem.duration : null;                         
+                                          const queryDuration = query && typeof query === 'object' ? query.duration : null;                         
                                           
                                           if (isAudio && queryDuration) {
                                             return (
@@ -5111,16 +5161,16 @@ const ConsultationDrawer = ({
                                 </button>
                                 
                                 {/* Pause/Resume Button */}
-                                <button
-                                  className={styles.pauseButton}
+                                <button 
+                                  className={styles.pauseButton} 
                                   onClick={handlePauseResume}
                                   data-muted={isPaused}
                                 >
-                                    <img
-                                     src={isPaused ? mutedMicrophoneIcon : muteIcon}
-                                     alt={isPaused ? "resume" : "pause"}
-                                      className={styles.muteIcon}
-                                    />
+                                  {isPaused ? (
+                                    <img src={mutedMicrophoneIcon} alt="muted" className={styles.muteIcon} />
+                                  ) : (
+                                    <img src={muteIcon} alt="unmuted" className={styles.muteIcon} />
+                                  )}
                                 </button>
                                 
                                 {/* Duration */}
@@ -5140,12 +5190,14 @@ const ConsultationDrawer = ({
                               {/* Listening Indicator with Gradient Ellipse */}
                               <div className={styles.listeningSection}>
                                 <img src={ellipse895} alt="Gradient" className={styles.gradientEllipse} />
-                                 <div className={styles.listeningText}>I'm Listening...</div>
+                                <div className={styles.listeningText}>
+                                  {isPaused ? "Unmute to Continue Recording" : "I'm Listening..."}
+                                </div>
                               </div>
                             </div>
                           ) : (
                             <div className={styles.curvedInputContainer}>
-                              <div className={styles.curvedInputWrapper}>
+                              <div className={`${styles.curvedInputWrapper} ${hasTypedInput ? styles.hasTextInput : ''}`}>
                                 <TextArea
                                   ref={textAreaRef}
                                   value={inputText}
@@ -5154,7 +5206,7 @@ const ConsultationDrawer = ({
                                   onClick={() => setIsTyping(true)}
                                   onBlur={() => setIsTyping(false)}
                                   placeholder={"Start Typing Rx..."}
-                                  className={styles.curvedTextInput}
+                                  className={`${styles.curvedTextInput} ${hasTypedInput ? styles.hasText : ''}`}
                                   autoSize={{ minRows: 1, maxRows: 6 }}
                                 />
                                 <img
@@ -5180,10 +5232,12 @@ const ConsultationDrawer = ({
                       </div>
                       
                     {isProcessing ? (
-                      <GenRXLoaders
-                        isProcessing={isProcessing}
-                        showAbsHeaderInsideLoader={false}
-                      />
+                      <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
+                        <GenRXLoaders
+                          isProcessing={isProcessing}
+                          showAbsHeaderInsideLoader={false}
+                        />
+                      </div>
                     ) : (
                       <div
                         className={`${styles.rightSection} ${
@@ -5199,7 +5253,7 @@ const ConsultationDrawer = ({
                               <img src={require("../assets/images/danger.svg").default} alt="Warning" className={styles.dangerIcon} />
                             </div>
                             <div className={styles.instructionText}>
-                              Dictate the Rx or start a conversation with Ambient Rx — I'll auto-magically fill these below Rx details so you can stay focused on the patient.
+                              Dictate the Rx or start a conversation with Ambient Rx I'll automagically fill these below Rx details so you can stay focused on the patient.
                             </div>
                             <button 
                               className={styles.closeButton}

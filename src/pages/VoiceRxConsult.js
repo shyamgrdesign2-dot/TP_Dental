@@ -150,7 +150,7 @@ const VoiceRxConsult = () => {
               </div>
               <h3 className={styles.cardTitle}>Dictation Mode</h3>
               <p className={styles.cardDescription}>
-                <strong> Dictate your prescription</strong> or Clinical notes directly here. I'll <strong>transcribe & structure</strong> it into the <strong>Rx Pad</strong> automagically!
+                Dictate your prescription or Clinical notes directly here. I'll transcribe & structur it into the Rx Pad automatically!
               </p>
               <button className={styles.modeButton} onClick={handleDictationMode}>
                   <i className="icon-mic"></i>

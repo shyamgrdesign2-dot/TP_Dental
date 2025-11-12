@@ -46,11 +46,11 @@ const MedicalHistoryDisplay = ({
   }, [medicalHistory]);
 
   const [expandedSections, setExpandedSections] = useState({
-    medicalConditions: true,
-    allergy: true,
-    familyHistory: true,
-    lifestyle: true,
-    additionalNotes: true,
+    medicalConditions: false,
+    allergy: false,
+    familyHistory: false,
+    lifestyle: false,
+    additionalNotes: false,
   });
 
   const toggleSection = (section) => {

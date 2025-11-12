@@ -335,6 +335,7 @@
   background: #F8F7FF;
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
+  position: relative;
 }
 
 .inputSection::-webkit-scrollbar {
@@ -470,6 +471,7 @@
   flex-shrink: 0;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
+  position: relative;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -2028,6 +2030,11 @@
   width: 100%;
   max-width: 480px;
   border: 1px solid rgba(154, 125, 218, 0.2);
+  position: relative;
+}
+
+.curvedInputWrapper.hasTextInput {
+  padding-right: 70px;
 }
 
 .curvedTextInput {
@@ -2049,8 +2056,14 @@
   box-shadow: 0 2px 8px rgba(154, 125, 218, 0.1);
   line-height: 1.5;
   box-sizing: border-box;
-  flex: 1 1 auto;
+  transition: width 0.2s ease, height 0.2s ease;
+}
+
+.curvedTextInput.hasText {
+  flex: 1;
   min-width: 0;
+  width: auto;
+  height: auto;
 }
 
 .curvedTextInput::placeholder {
@@ -2086,6 +2099,9 @@
   height: clamp(48px, 12vw, 56px);
   flex: 0 0 auto;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
 }
 
 .curvedSendButton:hover {
@@ -2098,6 +2114,10 @@
     justify-content: space-between;
   }
 
+  .curvedInputWrapper.hasTextInput {
+    padding-right: 70px;
+  }
+
   .curvedVoiceButton {
     width: clamp(110px, 26vw, 150px);
     height: clamp(46px, 8vw, 56px);
@@ -2106,6 +2126,9 @@
   .curvedSendButton {
     width: clamp(44px, 16vw, 56px);
     height: clamp(44px, 16vw, 56px);
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
   }
 }
 
@@ -2116,15 +2139,33 @@
     gap: 10px;
   }
 
+  .curvedInputWrapper.hasTextInput {
+    padding-right: 8px;
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
   .curvedTextInput {
     width: 100%;
   }
 
-  .curvedVoiceButton,
-  .curvedSendButton {
+  .curvedTextInput.hasText {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .curvedVoiceButton {
     align-self: center;
     width: clamp(72px, 34vw, 140px);
     height: clamp(48px, 18vw, 56px);
+  }
+
+  .curvedSendButton {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: clamp(48px, 16vw, 56px);
+    height: clamp(48px, 16vw, 56px);
   }
 }
 
@@ -2135,25 +2176,27 @@
 
 /* New Recorder UI Styles */
 .bottomCenterBar {
-  position: fixed;
-  right: 20px;
+  position: sticky;
   bottom: 0px;
   z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: auto;
+  width: 100%;
   pointer-events: none;
+  margin-top: auto;
+  padding: 10px 0;
 }
 
 .recBar {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  max-width: 380px;
+  gap: 4px;
+  width: auto;
+  min-width: 480px;
+  height: 124px;
   background: transparent;
   padding: 10px 12px;
   position: relative;
@@ -2169,30 +2212,67 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
-  width: 34px;
-  flex: 0 0 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .pauseButton {
-  background: none;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  max-width: 46px;
+  border-radius: 50%;
   border: none;
-  padding: 0;
-  cursor: pointer;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
-  width: 34px;
-  flex: 0 0 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pauseButton img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  object-fit: contain;
+}
+
+.pauseButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(237, 138, 0, 0.2);
+}
+
+.pauseButton:active {
+  transform: scale(0.95);
+}
+
+/* When muted, remove background so SVG's orange circle shows */
+.pauseButton[data-muted="true"] {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  overflow: hidden;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  max-width: 46px;
+}
+
+.pauseButton[data-muted="true"] img {
+  width: 46px;
+  height: 46px;
+  max-width: 46px;
+  max-height: 46px;
+  display: block;
+  object-fit: contain;
 }
 
 .timeLabel {
@@ -2310,7 +2390,104 @@
     z-index: 10 !important;
     box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1) !important;
   }
-  
+
+  /* Recorder responsive styles for tablet */
+  .recBar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: auto !important;
+    height: 80px !important;
+    gap: 6px !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .deleteButton,
+  .pauseButton {
+    height: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+  }
+
+  .pauseButton img {
+    width: 18px !important;
+    height: 18px !important;
+    pointer-events: none !important;
+  }
+
+  .pauseButton[data-muted="true"] img {
+    width: 38px !important;
+    height: 38px !important;
+    pointer-events: none !important;
+  }
+
+  .waveArea {
+    min-width: 60px !important;
+    max-width: 120px !important;
+    height: 50px !important;
+  }
+
+  .timeLabel {
+    min-width: 50px !important;
+    font-size: 16px !important;
+  }
+
+  .sendCta {
+    min-width: 100px !important;
+    height: 38px !important;
+  }
+
+  /* Curved input responsive styles for tablet */
+  .curvedInputContainer {
+    width: 100% !important;
+    padding: 0 8px !important;
+  }
+
+  .curvedInputWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .curvedInputWrapper.hasTextInput {
+    padding-right: 60px !important;
+  }
+
+  .curvedTextInput {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 14px !important;
+    padding: 10px 14px !important;
+  }
+
+  .curvedTextInput.hasText {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .curvedVoiceButton {
+    width: clamp(100px, 18vw, 140px) !important;
+    height: clamp(38px, 6vw, 48px) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .curvedSendButton {
+    width: clamp(40px, 14vw, 50px) !important;
+    height: clamp(40px, 14vw, 50px) !important;
+    position: absolute !important;
+    right: 6px !important;
+    bottom: 6px !important;
+  }
+
   .medications-table .action-buttons,
   .investigation-table .action-buttons {
     display: flex !important;
@@ -2768,6 +2945,103 @@
   .chatSection {
     padding: 12px !important;
   }
+
+  /* Recorder responsive styles for tablet landscape */
+  .recBar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: auto !important;
+    height: 75px !important;
+    gap: 5px !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .deleteButton,
+  .pauseButton {
+    height: 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+  }
+
+  .pauseButton img {
+    width: 16px !important;
+    height: 16px !important;
+    pointer-events: none !important;
+  }
+
+  .pauseButton[data-muted="true"] img {
+    width: 36px !important;
+    height: 36px !important;
+    pointer-events: none !important;
+  }
+
+  .waveArea {
+    min-width: 50px !important;
+    max-width: 100px !important;
+    height: 45px !important;
+  }
+
+  .timeLabel {
+    min-width: 45px !important;
+    font-size: 15px !important;
+  }
+
+  .sendCta {
+    min-width: 90px !important;
+    height: 36px !important;
+  }
+
+  /* Curved input responsive styles for tablet landscape */
+  .curvedInputContainer {
+    width: 100% !important;
+    padding: 0 6px !important;
+  }
+
+  .curvedInputWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 5px !important;
+    gap: 5px !important;
+  }
+
+  .curvedInputWrapper.hasTextInput {
+    padding-right: 55px !important;
+  }
+
+  .curvedTextInput {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 13px !important;
+    padding: 9px 12px !important;
+  }
+
+  .curvedTextInput.hasText {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .curvedVoiceButton {
+    width: clamp(90px, 16vw, 130px) !important;
+    height: clamp(36px, 5.5vw, 46px) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .curvedSendButton {
+    width: clamp(38px, 13vw, 48px) !important;
+    height: clamp(38px, 13vw, 48px) !important;
+    position: absolute !important;
+    right: 5px !important;
+    bottom: 5px !important;
+  }
 }
 
 /* Tablet portrait (768px-1024px width with portrait orientation) */
@@ -2860,6 +3134,103 @@
   
   .medications-table {
     min-width: 650px !important;
+  }
+
+  /* Recorder responsive styles for tablet portrait */
+  .recBar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: auto !important;
+    height: 70px !important;
+    gap: 4px !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .deleteButton,
+  .pauseButton {
+    height: 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
+  }
+
+  .pauseButton img {
+    width: 15px !important;
+    height: 15px !important;
+    pointer-events: none !important;
+  }
+
+  .pauseButton[data-muted="true"] img {
+    width: 34px !important;
+    height: 34px !important;
+    pointer-events: none !important;
+  }
+
+  .waveArea {
+    min-width: 40px !important;
+    max-width: 80px !important;
+    height: 40px !important;
+  }
+
+  .timeLabel {
+    min-width: 40px !important;
+    font-size: 14px !important;
+  }
+
+  .sendCta {
+    min-width: 80px !important;
+    height: 34px !important;
+  }
+
+  /* Curved input responsive styles for tablet portrait */
+  .curvedInputContainer {
+    width: 100% !important;
+    padding: 0 4px !important;
+  }
+
+  .curvedInputWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px !important;
+    gap: 4px !important;
+  }
+
+  .curvedInputWrapper.hasTextInput {
+    padding-right: 50px !important;
+  }
+
+  .curvedTextInput {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+
+  .curvedTextInput.hasText {
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .curvedVoiceButton {
+    width: clamp(80px, 14vw, 120px) !important;
+    height: clamp(34px, 5vw, 44px) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .curvedSendButton {
+    width: clamp(36px, 12vw, 46px) !important;
+    height: clamp(36px, 12vw, 46px) !important;
+    position: absolute !important;
+    right: 4px !important;
+    bottom: 4px !important;
   }
 }
 
@@ -3335,6 +3706,37 @@
   text-align: left;
 }
 
+.textOnlyBox {
+  width: 100%;
+  min-width: 400px;
+  max-width: 100%;
+  min-height: 60px;
+  max-height: 400px;
+  border-radius: 18px;
+  padding: 14px;
+  background: #ffffff;
+  box-shadow: 0 0 12px 2px rgba(162, 56, 255, 0.05);
+  border: 1px solid rgba(162, 56, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  margin-left: auto;
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
+.textOnlyBoxContent {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #374151;
+  text-align: left;
+  flex: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 .arrowIcon {
   width: 14px;
   height: 14px;
@@ -3464,11 +3866,11 @@
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   max-width: 420px;
   background: transparent;
-  padding: 12px 14px;
+  padding: 0;
   position: relative;
   box-sizing: border-box;
   flex-wrap: nowrap;
@@ -3482,30 +3884,67 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
-  width: 38px;
-  flex: 0 0 38px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
+  height: 46px;
+  width: 46px;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .pauseButton {
-  background: none;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  max-width: 46px;
+  border-radius: 50%;
   border: none;
-  padding: 0;
-  cursor: pointer;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
-  width: 34px;
-  flex: 0 0 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pauseButton img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  object-fit: contain;
+}
+
+.pauseButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(237, 138, 0, 0.2);
+}
+
+.pauseButton:active {
+  transform: scale(0.95);
+}
+
+/* When muted, remove background so SVG's orange circle shows */
+.pauseButton[data-muted="true"] {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  overflow: hidden;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  max-width: 46px;
+}
+
+.pauseButton[data-muted="true"] img {
+  width: 46px;
+  height: 46px;
+  max-width: 46px;
+  max-height: 46px;
+  display: block;
+  object-fit: contain;
 }
 
 .timeLabel {

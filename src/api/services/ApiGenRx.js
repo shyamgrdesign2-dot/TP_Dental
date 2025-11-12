@@ -107,10 +107,11 @@ export const generateAmbientRx = async function (payload, patientId, admissionId
   let retryCount = 0;
   const maxRetries = parseInt(process.env.REACT_APP_AMBIENT_RX_MAX_RETRIES) || 2;
   const ambientEndpoints = {
-    create: '/api/v1/ambient-voice-rx/create-ambient-voice-rx',
-    update: '/api/v1/ambient-voice-rx/update-ambient-voice',
-    get: '/api/v1/ambient-voice-rx/get-ambient-voice',
-    edit: '/api/v1/ambient-voice-rx/edit-ambient-voice'
+    create: '/api/v1/ambient-voice-rx/',
+    update: '/api/v1/ambient-voice-rx/',
+    get: '/api/v1/ambient-voice-rx/',
+    edit: '/api/v1/ambient-voice-rx/',
+    fhir: '/api/v1/ambient-voice-rx/fhir'
   };
 
   while (retryCount <= maxRetries) {
@@ -239,10 +240,11 @@ export const updateAmbientRx = async function (payload, id, patientId, admission
   let retryCount = 0;
   const maxRetries = parseInt(process.env.REACT_APP_AMBIENT_RX_MAX_RETRIES) || 2;
   const ambientEndpoints = {
-    create: '/api/v1/ambient-voice-rx/create-ambient-voice-rx',
-    update: '/api/v1/ambient-voice-rx/update-ambient-voice',
-    get: '/api/v1/ambient-voice-rx/get-ambient-voice',
-    edit: '/api/v1/ambient-voice-rx/edit-ambient-voice'
+    create: '/api/v1/ambient-voice-rx/',
+    update: '/api/v1/ambient-voice-rx/',
+    get: '/api/v1/ambient-voice-rx/',
+    edit: '/api/v1/ambient-voice-rx/',
+    fhir: '/api/v1/ambient-voice-rx/fhir'
   };
 
   while (retryCount <= maxRetries) {
@@ -319,14 +321,14 @@ export const updateAmbientRx = async function (payload, id, patientId, admission
 
         
       console.log('🔵 Ambient Voice Rx - Updating:', {
-        endpoint: `${ambientEndpoints.update}/${id}`,
+        endpoint: `${ambientEndpoints.update}${id}`,
         baseUrl: ambientRxBaseUrl.customBaseUrl,
         id: id,
         hasAudio: requestPayload instanceof FormData && Array.from(requestPayload.entries()).some(([key, value]) => value instanceof File),
         hasText: requestPayload instanceof FormData ? Array.from(requestPayload.entries()).some(([key, value]) => typeof value === 'string' && key === 'voice_prescription_text') : typeof requestPayload === 'object' && requestPayload.voice_prescription_text
       });
       
-      const apiResponse = await api.put(`${ambientEndpoints.update}/${id}`, requestPayload, config);                                                               
+      const apiResponse = await api.put(`${ambientEndpoints.update}${id}`, requestPayload, config);                                                               
       
       console.log('✅ Ambient Voice Rx - Update response received:', {
         status: apiResponse?.status,
@@ -348,7 +350,7 @@ export const updateAmbientRx = async function (payload, id, patientId, admission
         statusText: e.response?.statusText,
         data: e.response?.data,
         code: e.code,
-        endpoint: `${ambientEndpoints.update}/${id}`
+        endpoint: `${ambientEndpoints.update}${id}`
       });
       
       if (e.response?.status === 504 || e.code === 'ECONNABORTED' || e.message?.includes('timeout') || e.message?.includes('Network Error')) {
@@ -369,13 +371,14 @@ export const updateAmbientRx = async function (payload, id, patientId, admission
 export const editAmbientRxDetails = async function (payload, id) {
   let res = {};
   const ambientEndpoints = {
-    create: '/api/v1/ambient-voice-rx/create-ambient-voice-rx',
-    update: '/api/v1/ambient-voice-rx/update-ambient-voice',
-    get: '/api/v1/ambient-voice-rx/get-ambient-voice',
-    edit: '/api/v1/ambient-voice-rx/edit-ambient-voice'
+    create: '/api/v1/ambient-voice-rx/',
+    update: '/api/v1/ambient-voice-rx/',
+    get: '/api/v1/ambient-voice-rx/',
+    edit: '/api/v1/ambient-voice-rx/',
+    fhir: '/api/v1/ambient-voice-rx/fhir'
   };
   try {
-    res = await api.patch(`${ambientEndpoints.edit}/${id}`, payload, ambientRxBaseUrl);
+    res = await api.patch(`${ambientEndpoints.edit}${id}`, payload, ambientRxBaseUrl);
   } catch (e) {
     console.error("Error while editing ambient rx: ", e);
   }
@@ -385,19 +388,20 @@ export const editAmbientRxDetails = async function (payload, id) {
 export const getAmbientRx = async function (id) {
   let res = {};
   const ambientEndpoints = {
-    create: '/api/v1/ambient-voice-rx/create-ambient-voice-rx',
-    update: '/api/v1/ambient-voice-rx/update-ambient-voice',
-    get: '/api/v1/ambient-voice-rx/get-ambient-voice',
-    edit: '/api/v1/ambient-voice-rx/edit-ambient-voice'
+    create: '/api/v1/ambient-voice-rx/',
+    update: '/api/v1/ambient-voice-rx/',
+    get: '/api/v1/ambient-voice-rx/',
+    edit: '/api/v1/ambient-voice-rx/',
+    fhir: '/api/v1/ambient-voice-rx/fhir'
   };
   try {
     console.log('🔵 Ambient Voice Rx - Fetching:', {
-      endpoint: `${ambientEndpoints.get}/${id}`,
+      endpoint: `${ambientEndpoints.get}${id}`,
       baseUrl: ambientRxBaseUrl.customBaseUrl,
       id: id
     });
     
-    res = await api.get(`${ambientEndpoints.get}/${id}`, ambientRxBaseUrl);
+    res = await api.get(`${ambientEndpoints.get}${id}`, ambientRxBaseUrl);
     
     console.log('✅ Ambient Voice Rx - Fetch response received:', {
       status: res?.status,
@@ -411,7 +415,7 @@ export const getAmbientRx = async function (id) {
       statusText: e.response?.statusText,
       data: e.response?.data,
       code: e.code,
-      endpoint: `${ambientEndpoints.get}/${id}`
+      endpoint: `${ambientEndpoints.get}${id}`
     });
   }
   return res;
@@ -420,15 +424,46 @@ export const getAmbientRx = async function (id) {
 export const editAmbientRx = async function (payload, id) {
   let res = {};
   const ambientEndpoints = {
-    create: '/api/v1/ambient-voice-rx/create-ambient-voice-rx',
-    update: '/api/v1/ambient-voice-rx/update-ambient-voice',
-    get: '/api/v1/ambient-voice-rx/get-ambient-voice',
-    edit: '/api/v1/ambient-voice-rx/edit-ambient-voice'
+    create: '/api/v1/ambient-voice-rx/',
+    update: '/api/v1/ambient-voice-rx/',
+    get: '/api/v1/ambient-voice-rx/',
+    edit: '/api/v1/ambient-voice-rx/',
+    fhir: '/api/v1/ambient-voice-rx/fhir'
   };
   try {
-    res = await api.patch(`${ambientEndpoints.edit}/${id}`, payload, ambientRxBaseUrl);
+    res = await api.patch(`${ambientEndpoints.edit}${id}`, payload, ambientRxBaseUrl);
   } catch (e) {
     console.error("Error while editing ambient rx: ", e);
+  }
+  return res;
+};
+
+export const fhirBundleAmbientRx = async function (payload) {
+  let res = {};
+  const ambientEndpoints = {
+    fhir: '/api/v1/ambient-voice-rx/fhir'
+  };
+  try {
+    console.log('🔵 Ambient Voice Rx - FHIR Bundle:', {
+      endpoint: ambientEndpoints.fhir,
+      baseUrl: ambientRxBaseUrl.customBaseUrl
+    });
+    
+    res = await api.post(ambientEndpoints.fhir, payload, ambientRxBaseUrl);
+    
+    console.log('✅ Ambient Voice Rx - FHIR Bundle response received:', {
+      status: res?.status,
+      hasData: !!res?.data
+    });
+  } catch (e) {
+    console.error("❌ Error while calling fhir bundle for ambient rx: ", {
+      message: e.message,
+      status: e.response?.status,
+      statusText: e.response?.statusText,
+      data: e.response?.data,
+      code: e.code,
+      endpoint: ambientEndpoints.fhir
+    });
   }
   return res;
 };
