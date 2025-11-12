@@ -8,8 +8,8 @@ import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { useLocation } from 'react-router-dom';
 import styles from './ConsultationDrawer.module.css';
 import medicationsIcon from '../assets/images/Medication.svg';
+import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
 import {
-  getFrequentlySearchedMedication,
   searchMedication
 } from "../redux/medicationSlice";
 import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination } from '../utils/utils';
@@ -77,39 +77,44 @@ const MedicationsTable = ({
   }, []);
 
   useEffect(() => {
-    dispatch(getFrequentlySearchedMedication());
-  }, [dispatch]);
-
-  useEffect(() => {
     const data = [];
     if (parentOptionsList && Array.isArray(parentOptionsList)) {
       parentOptionsList.forEach((medication) => {
         if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
           const medicineName = medication.tmm_medicine_name || medication.medicine_name;
           const genericName = medication.tmm_generic || medication.generic_name || '';
-          data.push({
-            key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-            value: medicineName,
-            label: (
-              <div>
-                <span className="fw-medium">{medicineName}</span>,{' '}
-                <span>{genericName}</span>{' '}
-                {medication?.tmm_hm_type === 1 && medication?.um_id === 0 && (
-                  <span
-                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                    style={{ width: 18, height: 18, background: '#c44ea2' }}
-                  >
-                    Z
-                  </span>
-                )}
-              </div>
-            ),
-          });
+          if (searchQuery !== medication?.tmm_medicine_name) {
+            data.push({
+              key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
+              value: medicineName,
+              label: (
+                <div>
+                  <span className="fw-medium">{medicineName}</span>,{' '}
+                  <span>{genericName}</span>{' '}
+                  {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                    <span
+                      className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                      style={{ 
+                        width: 18, 
+                        height: 18, 
+                        backgroundImage: `url(${groundingIndicatorBg})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      Z
+                    </span>
+                  )}
+                </div>
+              ),
+            });
+          }
         }
       });
     }
 
-    if (searchQuery.length === 0) {
+    if (searchQuery.length === 0 || searchQuery === '') {
       data.unshift({
         key: -1,
         label: (
@@ -152,26 +157,6 @@ const MedicationsTable = ({
   }, [editValue, editingCell]);
 
   useEffect(() => {
-    if (editingCell?.field === 'name') {
-      const timeOutId = setTimeout(() => {
-        if (editValue) {
-          dispatch(
-            searchMedication({
-              searchQuery: editValue,
-              type: 'parent',
-            })
-          );
-        } else {
-          dispatch(getFrequentlySearchedMedication());
-        }
-      }, 500);
-      return () => {
-        clearTimeout(timeOutId);
-      };
-    }
-  }, [editValue, editingCell, dispatch]);
-
-  useEffect(() => {
     if (searchQuery && searchQuery.trim().length > 0) {
       const timeOutId = setTimeout(() => {
         dispatch(
@@ -181,8 +166,6 @@ const MedicationsTable = ({
       return () => {
         clearTimeout(timeOutId);
       };
-    } else {
-      dispatch(getFrequentlySearchedMedication());
     }
   }, [searchQuery, dispatch]);
 
@@ -232,6 +215,7 @@ const MedicationsTable = ({
         const updatedMedications = [...medications, newMedication];
         onUpdate(updatedMedications);
         setSearchQuery('');
+        setParentSearchOptions([]);
       } catch (error) {
         const newMedication = {
           id: Date.now().toString(),
@@ -248,6 +232,7 @@ const MedicationsTable = ({
         const updatedMedications = [...medications, newMedication];
         onUpdate(updatedMedications);
         setSearchQuery('');
+        setParentSearchOptions([]);
       }
     },
     [medications, onUpdate]
@@ -256,21 +241,6 @@ const MedicationsTable = ({
   const handleCellClick = (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
     setEditValue(currentValue || '');
-    // If clicking on name field, trigger search immediately to show options
-    if (field === 'name') {
-      const searchValue = currentValue || '';
-      setSearchQuery(searchValue);
-      if (searchValue && searchValue.trim().length > 0) {
-        dispatch(
-          searchMedication({
-            searchQuery: searchValue,
-            type: 'parent',
-          })
-        );
-      } else {
-        dispatch(getFrequentlySearchedMedication());
-      }
-    }
   };
 
   const handleCellSave = () => {
@@ -362,6 +332,7 @@ const MedicationsTable = ({
         }, 100);
       }
       setSearchQuery('');
+      setParentSearchOptions([]);
     } catch (e) {
       console.error('Error selecting medicine:', e);
       // Fallback: update with just the value
@@ -393,20 +364,18 @@ const MedicationsTable = ({
         }, 100);
       }
       setSearchQuery('');
+      setParentSearchOptions([]);
     }
   }, [medications, onUpdate]);
 
   const handleMedicineSelection = useCallback((itemId, value, option, isTabletMode) => {
     try {
-      const med = option?.key ? JSON.parse(option.key) : null;
-      if (med && med.tmm_id === 0) {
+      const medicineData = option?.key ? JSON.parse(option.key) : null;
+      if (medicineData && medicineData.tmm_id === 0) {
         setShowAddMedicinePopup(true);
         return;
       }
-
-      const medicineData = option?.key ? JSON.parse(option.key) : null;
-      const isZydusMedicine = medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
-
+      const isZydusMedicine = ((medicineData?.metadata?.tmm_hm_type == 1 && medicineData?.metadata?.um_id === 0) || (medicineData?.tmm_hm_type == 1 && medicineData?.um_id === 0));
       if (
         isGroundingAccessable &&
         !isZydusMedicine &&
@@ -791,18 +760,11 @@ const MedicationsTable = ({
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                         onFocus={() => {
-                          // Ensure options are loaded when input is focused
+                          // Sync searchQuery with editValue if needed (useEffect will handle the search)
                           if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
                             const currentValue = editValue || '';
-                            if (currentValue.trim().length > 0) {
-                              dispatch(
-                                searchMedication({
-                                  searchQuery: currentValue,
-                                  type: 'parent',
-                                })
-                              );
-                            } else {
-                              dispatch(getFrequentlySearchedMedication());
+                            if (currentValue.trim().length > 0 && currentValue !== searchQuery) {
+                              setSearchQuery(currentValue);
                             }
                           }
                         }}
@@ -813,7 +775,24 @@ const MedicationsTable = ({
                     </AutoComplete>
                 ) : (
                     <div className={styles['medicine-content']}>
-                      <div className={styles['medicine-name']}>{capitalize(item.name || '-', true)}</div>                                                       
+                      <div className={styles['medicine-name']}>
+                        {capitalize(item.name || '-', true)}
+                        {((item?.metadata?.tmm_hm_type == 1 && item?.metadata?.um_id === 0)) && (
+                          <span
+                            className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
+                            style={{ 
+                              width: 18, 
+                              height: 18, 
+                              backgroundImage: `url(${groundingIndicatorBg})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          >
+                            Z
+                          </span>
+                        )}
+                      </div>                                                       
                       {item.corrected_name && (
                         <div className={styles['medicine-subtitle']}>{item.corrected_name}</div>
                       )}

@@ -202,12 +202,7 @@ const ConsultationDrawer = ({
   });
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
-  const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
-  const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
-  const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
-    return localStorage.getItem("dontShowZydusWarning") === "true";
-  });
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
@@ -3140,108 +3135,6 @@ const ConsultationDrawer = ({
       setParentSearchOptions(data);
     }, [investigationParentOptionsList]);
 
-  const onSearchParent = useCallback(
-    (query) => {
-      setSearchParentQuery(removeBeforeWhiteSpace(query));
-    },
-    [searchParentQuery, editableName]
-  );
-
-  useEffect(() => {
-    if (isGroundingAccessable && editableName === "") {
-      setSearchParentQuery("");
-      setParentSearchOptions([]);
-    }
-  }, [editableName, activeType]);
-
-  useEffect(() => {
-    if (isGroundingAccessable && activeType) {
-      const timeOutId = setTimeout(() => {
-        if (activeType === "medications-name") {
-          if (editableName) {
-            dispatch(
-              searchMedication({
-                searchQuery: editableName,
-                type: "parent",
-              })
-            );
-          } else {
-            dispatch(getFrequentlySearchedMedication());
-          }
-        } else if (activeType === "labInvestigation-name") {
-          if (editableName) {
-            dispatch(
-              searchInvestigation({
-                searchQuery: editableName,
-                type: "parent",
-              })
-            );
-          } else {
-            dispatch(getFrequentlySearchedInvestigation());
-          }
-        }
-      }, 500);
-      return () => {
-        clearTimeout(timeOutId);
-      };
-    }
-  }, [editableName, activeType]);
-
-  const handleMedicineSelection = (data, item, type) => {
-    if (
-      item.key &&
-      JSON.parse(item.key).tmm_id === 0 &&
-      type === "medications"
-    ) {
-      setShowAddMedicinePopup(true);
-    } else {
-      // Check if medicine is not from Zydus Data Engine
-      const medicineData = item.key ? JSON.parse(item.key) : null;
-      const isZydusMedicine =
-        medicineData?.tmm_hm_type === 1 && medicineData?.um_id === 0;
-
-      if (
-        isGroundingAccessable &&
-        !isZydusMedicine &&
-        !dontShowZydusWarning &&
-        type === "medications"
-      ) {
-        setPendingSelection({
-          data,
-          item,
-          type,
-          activeIndex,
-          activeType,
-        });
-        setShowNonZydusWarning(true);
-      } else {
-        setEditableName(data);
-        // Update the prescriptionData with the selected medicine
-        if (activeIndex !== null && activeType === `${type}-name`) {
-          setPrescriptionData((prevData) => {
-            const updatedData = { ...prevData };
-            if (updatedData?.[type]?.[activeIndex]) {
-              updatedData[type][activeIndex].name = data;
-              // Add complete option data as metadata
-              if (item.key) {
-                const medicineData = JSON.parse(item.key);
-                updatedData[type][activeIndex].metadata = {
-                  ...medicineData,
-                  selectedValue: data,
-                };
-              }
-            }
-            return updatedData;
-          });
-          setIsRxEdited(true);
-          // Clear editing states after selection
-          setActiveIndex(null);
-          setActiveType(null);
-          setEditableName("");
-        }
-      }
-    }
-  };
 
   
   const handleAmbientItemClick = (type, index, item) => {
@@ -3462,9 +3355,6 @@ const ConsultationDrawer = ({
 
   
   const renderAmbientItems = (type) => {
-    const onSelectParent = (data, item) => {
-      handleMedicineSelection(data, item, type);
-    };
 
     if (type === "followUp") {
     
@@ -3680,9 +3570,6 @@ const ConsultationDrawer = ({
   };
 
   const renderItems = (type) => {
-    const onSelectParent = (data, item) => {
-      handleMedicineSelection(data, item, type);
-    };
 
     if (type === "followUp") {
       // Dynamically calculate input width
@@ -3906,7 +3793,7 @@ const ConsultationDrawer = ({
                       )}
 
                       {/* Special handling for medications and labInvestigation with dual inputs */}
-                      {(type === "medications" ||
+                      {/* {(type === "medications" ||
                         type === "labInvestigation") &&
                         (activeIndex === index &&
                         (activeType === `${type}-lineItem` ||
@@ -4000,7 +3887,7 @@ const ConsultationDrawer = ({
                                   } ${item.notes ?? ""})`}
                             </span>
                           </>
-                        ))}
+                        ))} */}
 
                       {/* Editable input for lineItem for other types */}
                       {(type === "symptoms" ||
@@ -5590,129 +5477,13 @@ const ConsultationDrawer = ({
         />
       )}
 
-      {showAddMedicinePopup && (
+      {/* {showAddMedicinePopup && (
         <CustomMedicinePopup
           isOpen={showAddMedicinePopup}
           onCancel={() => setShowAddMedicinePopup(false)}
           initialData={{ tmm_medicine_name: searchParentQuery }}
         />
-      )}
-
-      <CommonModal
-        isModalOpen={showNonZydusWarning}
-        onCancel={() => {
-          setShowNonZydusWarning(false);
-          setPendingSelection(null);
-        }}
-        modalWidth={550}
-        title={"Not in Zydus Data Engine"}
-        modalBody={
-          <>
-            <div className="alert-warning rounded-10px p-3">
-              <div className="d-flex align-items-start">
-                <i
-                  className="icon-Warning fs-24 me-3"
-                  style={{ color: "#F59E0B" }}
-                ></i>
-                <div>
-                  <span className="semi-bold-text">
-                    "{pendingSelection?.data}"
-                  </span>{" "}
-                  is <span className="semi-bold-text">not </span>in
-                  <span className="semi-bold-text"> Zydus Data Engine</span>.
-                  Prescribing it may impact{" "}
-                  <span className="semi-bold-text">patient fulfilment</span>.
-                </div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="d-flex align-items-center">
-                <input
-                  type="checkbox"
-                  id="dontShowAgain"
-                  checked={dontShowZydusWarning}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setDontShowZydusWarning(checked);
-                    localStorage.setItem(
-                      "dontShowZydusWarning",
-                      checked.toString()
-                    );
-                  }}
-                  style={{ marginRight: 8, width: 16, height: 16 }}
-                />
-                <label
-                  htmlFor="dontShowAgain"
-                  style={{ cursor: "pointer", marginBottom: 0 }}
-                >
-                  Don't show this again
-                </label>
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="d-flex align-items-center mt-2 justify-content-end">
-                <div
-                  onClick={() => {
-                    setShowNonZydusWarning(false);
-                    setPendingSelection(null);
-                  }}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
-                >
-                  <span>Go Back</span>
-                </div>
-                <Button
-                  onClick={() => {
-                    if (pendingSelection) {
-                      // Set the active editing state from pending selection
-                      setActiveIndex(pendingSelection.activeIndex);
-                      setActiveType(pendingSelection.activeType);
-                      setEditableName(pendingSelection.data);
-
-                      // Update the prescriptionData with the selected medicine
-                      setPrescriptionData((prevData) => {
-                        const updatedData = { ...prevData };
-                        if (
-                          updatedData?.[pendingSelection.type]?.[
-                            pendingSelection.activeIndex
-                          ]
-                        ) {
-                          updatedData[pendingSelection.type][
-                            pendingSelection.activeIndex
-                          ].name = pendingSelection.data;
-                          // Add complete option data as metadata
-                          if (pendingSelection.item.key) {
-                            const medicineData = JSON.parse(
-                              pendingSelection.item.key
-                            );
-                            updatedData[pendingSelection.type][
-                              pendingSelection.activeIndex
-                            ].metadata = {
-                              ...medicineData,
-                              selectedValue: pendingSelection.data,
-                            };
-                          }
-                        }
-                        return updatedData;
-                      });
-                      setIsRxEdited(true);
-
-                      // Clear editing states after selection
-                      setActiveIndex(null);
-                      setActiveType(null);
-                      setEditableName("");
-                    }
-                    setShowNonZydusWarning(false);
-                    setPendingSelection(null);
-                  }}
-                  className="lh-lg btn btn-primary3 btn-41 px-4"
-                >
-                  <span>Yes, Proceed</span>
-                </Button>
-              </div>
-            </div>
-          </>
-        }
-      />
+      )} */}
       
       {/* Tutorial Drawer */}
       <Drawer

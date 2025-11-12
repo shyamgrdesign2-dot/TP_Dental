@@ -6,8 +6,8 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ConsultationDrawer.module.css';
 import investigationIcon from '../assets/images/Lab.svg';
+import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
 import {
-  getFrequentlySearchedInvestigation,
   searchInvestigation
 } from "../redux/investigationSlice";
 import { removeBeforeWhiteSpace } from '../utils/utils';
@@ -51,10 +51,6 @@ const LabInvestigationTable = ({
   }, []);
 
   useEffect(() => {
-    dispatch(getFrequentlySearchedInvestigation());
-  }, [dispatch]);
-
-  useEffect(() => {
     const data = [];
     if (parentOptionsList && Array.isArray(parentOptionsList)) {
       parentOptionsList.forEach((investigation) => {
@@ -68,7 +64,14 @@ const LabInvestigationTable = ({
                 {investigation?.hm_type === 1 && investigation?.um_id === 0 && (
                   <span
                     className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                    style={{ width: 18, height: 18, background: '#c44ea2' }}
+                    style={{ 
+                      width: 18, 
+                      height: 18, 
+                      backgroundImage: `url(${groundingIndicatorBg})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
                   >
                     Z
                   </span>
@@ -122,31 +125,6 @@ const LabInvestigationTable = ({
   }, [parentOptionsList, searchQuery]);
 
   useEffect(() => {
-    if (editingCell?.field === 'name') {
-      // Sync searchQuery with editValue when editing name (only if different to avoid loops)
-      const cleanedEditValue = editValue?.trim() || '';
-      if (cleanedEditValue !== searchQuery) {
-        setSearchQuery(cleanedEditValue);
-      }
-      const timeOutId = setTimeout(() => {
-        if (cleanedEditValue && cleanedEditValue.length > 0) {
-          dispatch(
-            searchInvestigation({
-              searchQuery: cleanedEditValue,
-              type: 'parent',
-            })
-          );
-        } else {
-          dispatch(getFrequentlySearchedInvestigation());
-        }
-      }, 500);
-      return () => {
-        clearTimeout(timeOutId);
-      };
-    }
-  }, [editValue, editingCell, dispatch]);
-
-  useEffect(() => {
     if (searchQuery && searchQuery.trim().length > 0) {
       const timeOutId = setTimeout(() => {
         dispatch(
@@ -156,8 +134,6 @@ const LabInvestigationTable = ({
       return () => {
         clearTimeout(timeOutId);
       };
-    } else {
-      dispatch(getFrequentlySearchedInvestigation());
     }
   }, [searchQuery, dispatch]);
 
@@ -189,6 +165,11 @@ const LabInvestigationTable = ({
         name: investigation.investigation_name,
         notes: '',
         lineItem: investigation.investigation_name,
+        // Store investigation data in metadata for Z indicator check
+        metadata: {
+          ...investigation,
+          selectedValue: investigation.investigation_name,
+        },
       };
       const updatedInvestigations = [...labInvestigation, newInvestigation];
       onUpdate(updatedInvestigations);
@@ -201,20 +182,9 @@ const LabInvestigationTable = ({
   const handleCellClick = (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
     setEditValue(currentValue || '');
-    // If clicking on name field, trigger search immediately to show options
     if (field === 'name') {
       const searchValue = currentValue || '';
       setSearchQuery(searchValue);
-      if (searchValue && searchValue.trim().length > 0) {
-        dispatch(
-          searchInvestigation({
-            searchQuery: searchValue,
-            type: 'parent',
-          })
-        );
-      } else {
-        dispatch(getFrequentlySearchedInvestigation());
-      }
     }
   };
 
@@ -543,18 +513,11 @@ const LabInvestigationTable = ({
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                         onFocus={() => {
-                          // Ensure options are loaded when input is focused
+                          // Sync searchQuery with editValue if needed (useEffect will handle the search)
                           if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
                             const currentValue = editValue || '';
-                            if (currentValue.trim().length > 0) {
-                              dispatch(
-                                searchInvestigation({
-                                  searchQuery: currentValue,
-                                  type: 'parent',
-                                })
-                              );
-                            } else {
-                              dispatch(getFrequentlySearchedInvestigation());
+                            if (currentValue.trim().length > 0 && currentValue !== searchQuery) {
+                              setSearchQuery(currentValue);
                             }
                           }
                         }}
@@ -566,6 +529,22 @@ const LabInvestigationTable = ({
                   ) : (
                     <span className={styles['medicine-text']}>
                       {item.name || '-'}
+                      {((item?.metadata?.hm_type === 1 && item?.metadata?.um_id === 0) ||
+                        (item?.hm_type === 1 && item?.um_id === 0)) && (
+                        <span
+                          className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
+                          style={{ 
+                            width: 18, 
+                            height: 18, 
+                            backgroundImage: `url(${groundingIndicatorBg})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          Z
+                        </span>
+                      )}
                     </span>
                   )}
                 </td>
