@@ -76,8 +76,6 @@ function Cardiology(props) {
     prevPress,
   } = props;
 
-  const [customModulesRxData, setCustomModulesRxData] = useState([]);
-
   const [filteredInfo, setFilteredInfo] = useState({});
   const [setSortedInfo] = useState({});
   const [smartRxFile, setSmartRxFile] = useState([]);
@@ -115,7 +113,6 @@ function Cardiology(props) {
     setSmartRxFile([]);
     setShowDigitalRx(false);
     if (viewCaseManagerData?.tcm_id) {
-      fetchCustomModules();
       fetchData();
     }
     if (
@@ -199,38 +196,6 @@ function Cardiology(props) {
       setSelectedLang(btoa(res.settings.defaultLanguage.toString()));
     } else if (defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English") {
       setSelectedLang(btoa(defaultPrintSettings?.default_language?.toString()));
-    }
-  };
-
-  const fetchCustomModules = async () => {
-    try {
-      if (
-        !viewCaseManagerData?.doctor_data?.um_id ||
-        !viewCaseManagerData?.moduleContents?.length
-      ) {
-        setCustomModulesRxData([]);
-        return;
-      }
-
-      const response = await ApiCustomModule.getModules(
-        viewCaseManagerData.doctor_data.um_id
-      );
-
-      const customModulesMap = new Map(
-        response?.modules?.map((module) => [module.module_id, module.name])
-      );
-
-      const processedModules = viewCaseManagerData.moduleContents
-        .filter((module) => module.content && module.content.length > 0)
-        .map((content) => ({
-          ...content,
-          module_name: customModulesMap.get(content.module_id),
-        }));
-
-      setCustomModulesRxData(processedModules);
-    } catch (error) {
-      console.error("Error fetching custom modules:", error);
-      setCustomModulesRxData([]);
     }
   };
 
@@ -2060,8 +2025,8 @@ function Cardiology(props) {
                         </div>
                       </div>
                     )}
-                    {customModulesRxData.length > 0 &&
-                      customModulesRxData?.map(
+                    {viewCaseManagerData?.moduleContents?.length > 0 &&
+                      viewCaseManagerData?.moduleContents?.map(
                         (item) =>
                           item.module_name && (
                             <div className="d-flex align-items-start mb-4">
