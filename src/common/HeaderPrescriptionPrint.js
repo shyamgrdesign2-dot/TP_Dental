@@ -47,11 +47,16 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
                 tcm_id: tcm_id,
               });
               if (state?.page === "digitise") {
+                const urlObj = new URL(printUrl);
+                const isRxdigitised = urlObj.searchParams.get("rxDigitize");
+                if (isRxdigitised !== "true") {
+                    urlObj.searchParams.set("rxDigitize", "true");
+                }
                 syncDigitizationStatus({
                   appointment_id: pam_id,
                   tcm_id: tcm_id,
                   is_digitized: true,
-                  digitized_prescription_url: printUrl,
+                  digitized_prescription_url: urlObj?.toString(),
                 });
               }
             }
