@@ -34,6 +34,16 @@ const VitalsRichTextEditor = ({
     return arrayToSlateBulletList(vitalPairs);
   }, [vitalsAndBodyComposition]);
 
+  const vitalKeysSignature = useMemo(() => {
+    if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') {
+      return 'empty';
+    }
+    const keys = Object.entries(vitalsAndBodyComposition)
+      .filter(([, value]) => value && value.toString().trim() !== '')
+      .map(([key]) => key);
+    return keys.length ? keys.sort().join('|') : 'empty';
+  }, [vitalsAndBodyComposition]);
+
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
     
@@ -110,6 +120,7 @@ const VitalsRichTextEditor = ({
         </div>
         <div className={styles['vitals-editor-container']}>
         <RichTextEditor
+          key={`vitals-${vitalKeysSignature}`}
           initialValue={initialSlateValue}
           onChange={handleChange}
           placeholder="Add vitals (e.g., Pulse: 78T | BP: 130/80 | Temperature: 98.6Frh)..."

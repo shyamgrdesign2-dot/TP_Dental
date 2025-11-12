@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
@@ -14,6 +14,38 @@ const LabResultsRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousCountRef = useRef(null);
+  const keyVersionRef = useRef(0);
+
+  const nonEmptyCount = useMemo(() => {
+    if (!Array.isArray(labResults) || labResults.length === 0) {
+      return 0;
+    }
+
+    return labResults.filter((result = {}) => {
+      const testname = result.testname || result.name || '';
+      const value = result.value || '';
+      return (
+        (testname && testname.trim() !== '') ||
+        (value && value.trim() !== '')
+      );
+    }).length;
+  }, [labResults]);
+
+  const editorKey = useMemo(() => {
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nonEmptyCount;
+      return 'labresults-0';
+    }
+
+    if (nonEmptyCount < previousCountRef.current) {
+      keyVersionRef.current += 1;
+    }
+
+    previousCountRef.current = nonEmptyCount;
+    return `labresults-${keyVersionRef.current}`;
+  }, [nonEmptyCount]);
+
   const initialSlateValue = useMemo(() => {
     if (!labResults || labResults.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -88,6 +120,7 @@ const LabResultsRichTextEditor = ({
       </div>
       <div className="editor-container">
         <RichTextEditor
+          key={editorKey}
           initialValue={initialSlateValue}
           onChange={handleChange}
           placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."

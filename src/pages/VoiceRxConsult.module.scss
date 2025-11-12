@@ -848,7 +848,7 @@
   align-items: flex-start;
   justify-content: flex-start;
   margin: 0;
-  gap: 1px;
+  gap: 0px;
   height: auto;
   width: 100%;
   flex-wrap: nowrap;
@@ -863,7 +863,7 @@
     margin: 0;
     white-space: normal;
     flex: 1;
-    padding-top: 2px;
+    padding-top: 1px;
 
     .confirmText {
       margin-left: 0;

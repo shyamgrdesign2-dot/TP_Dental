@@ -8,7 +8,7 @@ import VoiceWaveVisualizer from '../components/WaveVisualizer';
 import vitalsIcons from '../assets/images/vitals-icons.svg';
 import stopIcon from '../assets/images/stop-icon.svg';
 import muteIcon from '../assets/images/microphone-2.svg';
-import mutedMicrophoneIcon from '../assets/images/muted-microphone-icon-new.svg';
+import mutedMicrophoneIcon from '../assets/images/muted-microphone-icon.svg';
 import dictateActiveIcon from '../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../assets/images/ambient-mode-active.svg';
 import styles from './VoiceRecordingPage.module.scss';

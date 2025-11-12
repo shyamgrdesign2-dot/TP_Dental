@@ -364,6 +364,7 @@ const MedicalHistoryRichTextEditor = ({
             if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated) {
               return null;
             }
+            const isEditableType = type === 'others';
             
             return (
               <div key={type} className={styles['medical-history-type-section']}>
@@ -386,32 +387,51 @@ const MedicalHistoryRichTextEditor = ({
                           textareaRefs.current[type] = el;
                         }
                       }}
-                      className={styles['medical-history-textarea']}
+                      className={`${styles['medical-history-textarea']} ${!isEditableType ? styles['medical-history-textarea-readonly'] : ''}`}
                       value={localTextareaValues[type] !== undefined 
                         ? localTextareaValues[type] 
                         : (groupedHistory[type] && groupedHistory[type].length > 0
                           ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
                           : '')}
-                      onChange={(e) => {
+                      readOnly={!isEditableType}
+                      onChange={
+                        isEditableType
+                          ? (e) => {
                         isEditingRef.current[type] = true;
                         handleTextareaChange(type, e.target.value);
-                      }}
-                      onFocus={() => {
+                            }
+                          : undefined
+                      }
+                      onFocus={
+                        isEditableType
+                          ? () => {
                         isEditingRef.current[type] = true;
-                      }}
-                      onBlur={() => {
-                        // Clear editing flag after blur with delay to allow for state updates
+                            }
+                          : undefined
+                      }
+                      onBlur={
+                        isEditableType
+                          ? () => {
                         setTimeout(() => {
                           isEditingRef.current[type] = false;
                         }, 200);
-                      }}
-                      onKeyDown={(e) => handleKeyDown(e, type)}
-                      placeholder={`• Add ${config.title.toLowerCase()}...`}
+                            }
+                          : undefined
+                      }
+                      onKeyDown={
+                        isEditableType ? (e) => handleKeyDown(e, type) : undefined
+                      }
+                      placeholder={
+                        isEditableType
+                          ? `• Add ${config.title.toLowerCase()}...`
+                          : ''
+                      }
                       rows={Math.max(3, Math.min(10, (groupedHistory[type]?.length || 0) + 2))}
                       style={{ 
                         minHeight: '60px',
                         resize: 'vertical',
-                        overflow: 'auto'
+                        overflow: 'auto',
+                        cursor: isEditableType ? 'text' : 'default'
                       }}
                     />
                   </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
@@ -10,6 +10,34 @@ const VaccinationsRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousCountRef = useRef(null);
+  const keyVersionRef = useRef(0);
+
+  const nonEmptyCount = useMemo(() => {
+    if (!Array.isArray(vaccinations) || vaccinations.length === 0) {
+      return 0;
+    }
+
+    return vaccinations.filter((vaccination = {}) => {
+      const baseText = vaccination.name || vaccination.lineItem || '';
+      return baseText && baseText.trim() !== '';
+    }).length;
+  }, [vaccinations]);
+
+  const editorKey = useMemo(() => {
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nonEmptyCount;
+      return 'vaccinations-0';
+    }
+
+    if (nonEmptyCount < previousCountRef.current) {
+      keyVersionRef.current += 1;
+    }
+
+    previousCountRef.current = nonEmptyCount;
+    return `vaccinations-${keyVersionRef.current}`;
+  }, [nonEmptyCount]);
+
   const initialSlateValue = useMemo(() => {
     if (!vaccinations || vaccinations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -78,6 +106,7 @@ const VaccinationsRichTextEditor = ({
         </div>
         <div className={styles['symptoms-editor-container']}>
           <RichTextEditor
+            key={editorKey}
             initialValue={initialSlateValue}
             onChange={handleChange}
             placeholder="Add vaccinations..."

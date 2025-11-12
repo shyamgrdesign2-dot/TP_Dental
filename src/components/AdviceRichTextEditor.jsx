@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './AdviceRichTextEditor.scss';
@@ -14,6 +14,34 @@ const AdviceRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousCountRef = useRef(null);
+  const keyVersionRef = useRef(0);
+
+  const nonEmptyCount = useMemo(() => {
+    if (!Array.isArray(advice) || advice.length === 0) {
+      return 0;
+    }
+
+    return advice.filter((adv = {}) => {
+      const baseText = adv.name || adv.lineItem || '';
+      return baseText && baseText.trim() !== '';
+    }).length;
+  }, [advice]);
+
+  const editorKey = useMemo(() => {
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nonEmptyCount;
+      return 'advice-0';
+    }
+
+    if (nonEmptyCount < previousCountRef.current) {
+      keyVersionRef.current += 1;
+    }
+
+    previousCountRef.current = nonEmptyCount;
+    return `advice-${keyVersionRef.current}`;
+  }, [nonEmptyCount]);
+
   const initialSlateValue = useMemo(() => {
     if (!advice || advice.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -74,6 +102,7 @@ const AdviceRichTextEditor = ({
       </div>
       <div className="editor-container">
         <RichTextEditor
+          key={editorKey}
           initialValue={initialSlateValue}
           onChange={handleChange}
           placeholder="Add advice..."

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './DiagnosisRichTextEditor.scss';
@@ -14,6 +14,34 @@ const DiagnosisRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousCountRef = useRef(null);
+  const keyVersionRef = useRef(0);
+
+  const nonEmptyCount = useMemo(() => {
+    if (!Array.isArray(diagnosis) || diagnosis.length === 0) {
+      return 0;
+    }
+
+    return diagnosis.filter((diag = {}) => {
+      const baseText = diag.name || diag.lineItem || '';
+      return baseText && baseText.trim() !== '';
+    }).length;
+  }, [diagnosis]);
+
+  const editorKey = useMemo(() => {
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nonEmptyCount;
+      return 'diagnosis-0';
+    }
+
+    if (nonEmptyCount < previousCountRef.current) {
+      keyVersionRef.current += 1;
+    }
+
+    previousCountRef.current = nonEmptyCount;
+    return `diagnosis-${keyVersionRef.current}`;
+  }, [nonEmptyCount]);
+
   const initialSlateValue = useMemo(() => {
     if (!diagnosis || diagnosis.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -78,6 +106,7 @@ const DiagnosisRichTextEditor = ({
       </div>
       <div className="editor-container">
         <RichTextEditor
+          key={editorKey}
           initialValue={initialSlateValue}
           onChange={handleChange}
           placeholder="Add diagnosis..."

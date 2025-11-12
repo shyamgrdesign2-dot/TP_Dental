@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './ExaminationRichTextEditor.scss';
@@ -14,6 +14,34 @@ const ExaminationRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousCountRef = useRef(null);
+  const keyVersionRef = useRef(0);
+
+  const nonEmptyCount = useMemo(() => {
+    if (!Array.isArray(examinations) || examinations.length === 0) {
+      return 0;
+    }
+
+    return examinations.filter((examination = {}) => {
+      const baseText = examination.name || examination.lineItem || '';
+      return baseText && baseText.trim() !== '';
+    }).length;
+  }, [examinations]);
+
+  const editorKey = useMemo(() => {
+    if (previousCountRef.current === null) {
+      previousCountRef.current = nonEmptyCount;
+      return 'examinations-0';
+    }
+
+    if (nonEmptyCount < previousCountRef.current) {
+      keyVersionRef.current += 1;
+    }
+
+    previousCountRef.current = nonEmptyCount;
+    return `examinations-${keyVersionRef.current}`;
+  }, [nonEmptyCount]);
+
   const initialSlateValue = useMemo(() => {
     if (!examinations || examinations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -76,6 +104,7 @@ const ExaminationRichTextEditor = ({
       </div>
       <div className="editor-container">
         <RichTextEditor
+          key={editorKey}
           initialValue={initialSlateValue}
           onChange={handleChange}
           placeholder="Add examination findings..."

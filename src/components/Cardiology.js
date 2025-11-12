@@ -775,22 +775,17 @@ function Cardiology(props) {
           )}
           {/* Handle vitals type separately */}
           {type === "vitals" &&
-            Object.entries(data?.vitals || {})
-              .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
-              .map(([key, value]) => (
-                <li key={key}>
-                  <div className="medicine-item">
-                    <span>
-                      {/* Format the key to be human-readable */}
-                      {`${key
-                        .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
-                        .replace(/^./, (str) => str.toUpperCase())}`}
-                    </span>
-                    <span className="separator">:</span>
-                    <span>{value}</span>
-                  </div>
-                </li>
-              ))}
+             Object.entries(data?.vitals || {})
+               .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
+               .map(([key, value]) => (
+                 <li key={key}>
+                   <div className="medicine-item">
+                     <span>{key}</span>
+                     <span className="separator">:</span>
+                     <span>{value}</span>
+                   </div>
+                 </li>
+               ))}
 
           {/* Handle other types (assume they are arrays) */}
           {type !== "vitals" &&
@@ -807,22 +802,32 @@ function Cardiology(props) {
                       : type === "medications" || type === "tests"
                       ? item?.refinedName
                       : type === "labResults"
-                      ? item?.testname
+                      ? (() => {
+                          const lineItem =
+                            typeof item?.lineItem === "string"
+                              ? item.lineItem.trim()
+                              : "";
+                          if (lineItem) return lineItem;
+                          const testname =
+                            typeof item?.testname === "string"
+                              ? item.testname.trim()
+                              : "";
+                          const value =
+                            typeof item?.value === "string"
+                              ? item.value.trim()
+                              : "";
+                          return testname && value
+                            ? `${testname} (${value})`
+                            : testname || value || "";
+                        })()
                       : type === "dynamicFields"
-                      ? item?.title
+                      ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
                       ? item
                       : item?.name}
                   </span>
 
                   {/* Lab Results specific rendering */}
-                  {type === "labResults" && (
-                    <>
-                      <span className="separator">:</span>
-                      <span>{item.value}</span>
-                      {/* {item.notes && <span>{` (${item.notes})`}</span>} */}
-                    </>
-                  )}
 
                   {(type === "vaccinations" ||
                     type === "medicalHistory" ||
@@ -1045,12 +1050,8 @@ function Cardiology(props) {
             .map(([key, value]) => (
               <li key={key}>
                 <div className="medicine-item">
-                  <span>
-                    {/* Format the key to be human-readable */}
-                    {`${key
-                      .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
-                      .replace(/^./, (str) => str.toUpperCase())}: `}
-                  </span>
+                  <span>{key}</span>
+                  <span className="separator">:</span>
                   <span>{value}</span>
                 </div>
               </li>
@@ -1170,17 +1171,36 @@ function Cardiology(props) {
                     );
                   })()}
 
-                {type === "labResults" && (
-                  <>
-                    <span>
-                      {/* Format the key to be human-readable */}
-                      {`${item.testname
-                        .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
-                        .replace(/^./, (str) => str.toUpperCase())}: `}
-                    </span>&nbsp;
-                    <span>{item.value}</span>
-                  </>
-                )}
+                {type === "labResults" &&
+                  (() => {
+                    const lineItem =
+                      typeof item?.lineItem === "string"
+                        ? item.lineItem.trim()
+                        : "";
+                    if (lineItem) {
+                      return <span>{lineItem}</span>;
+                    }
+
+                    const testname =
+                      typeof item?.testname === "string"
+                        ? item.testname.trim()
+                        : "";
+                    const value =
+                      typeof item?.value === "string"
+                        ? item.value.trim()
+                        : "";
+
+                    if (!testname && !value) {
+                      return null;
+                    }
+
+                    return (
+                      <span>
+                        {testname}
+                        {testname && value ? ` (${value})` : value}
+                      </span>
+                    );
+                  })()}
               </div>
             </li>
           ))}
@@ -1192,11 +1212,17 @@ function Cardiology(props) {
   const renderGenRxCustomModules = () =>
     Object.entries(genRxData?.dynamicFields || {})
       .filter(([module, data]) => {
-        // Filter out empty arrays - only show if array has content
-        return Array.isArray(data) && 
+        return (
+          Array.isArray(data) &&
                data.length > 0 && 
-               data.every((item) => typeof item === "string") &&
-               data.some((item) => item && item.trim().length > 0);
+          data.some((item) => {
+            const value =
+              typeof item === "string"
+                ? item
+                : item?.lineItem || item?.title || item?.name || item?.notes;
+            return typeof value === "string" && value.trim().length > 0;
+          })
+        );
       })
       .map(([module, data]) => {
       return (
@@ -1210,13 +1236,19 @@ function Cardiology(props) {
             </div>
             <div className="digitised-data-section" style={{ marginLeft: 0 }}>
               <ol>
-                {data.map((value, index) => (
+                {data.map((value, index) => {
+                  const displayValue =
+                    typeof value === "string"
+                      ? value
+                      : value?.lineItem || value?.title || value?.name || value?.notes || "";
+                  return (
                   <li key={index}>
                     <div className="medicine-item">
-                      <span>{value}</span>
+                        <span>{displayValue}</span>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             </div>
           </>

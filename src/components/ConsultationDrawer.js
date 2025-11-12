@@ -28,7 +28,8 @@ import voiceRxButton from "../assets/images/voice-rx-button.svg";
 import voiceRxSendButton from "../assets/images/voice-rx-send-button.svg";
 import vitalsIcons from "../assets/images/vitals-icons.svg";
 import stopIcon from "../assets/images/stop-icon.svg";
-import muteIcon from "../assets/images/mute-icon.svg";
+import muteIcon from "../assets/images/microphone-2.svg";
+import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon.svg";
 import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
@@ -5103,15 +5104,23 @@ const ConsultationDrawer = ({
                           </div>
                           {isRecording ? (
                             <div className={styles.bottomCenterBar}>
-                              <div className={styles.recBar}>
+                              <div className={`${styles.recBar} ${isPaused ? styles.recBarMuted : ""}`}>
                                 {/* Delete Button */}
                                 <button className={styles.deleteButton} onClick={handleStopRecording}>
                                   <img src={stopIcon} alt="stop" className={styles.stopIcon} />
                                 </button>
                                 
                                 {/* Pause/Resume Button */}
-                                <button className={styles.pauseButton} onClick={handlePauseResume}>
-                                  <img src={muteIcon} alt={isPaused ? "resume" : "pause"} className={styles.muteIcon} />
+                                <button
+                                  className={styles.pauseButton}
+                                  onClick={handlePauseResume}
+                                  data-muted={isPaused}
+                                >
+                                    <img
+                                     src={isPaused ? mutedMicrophoneIcon : muteIcon}
+                                     alt={isPaused ? "resume" : "pause"}
+                                      className={styles.muteIcon}
+                                    />
                                 </button>
                                 
                                 {/* Duration */}
@@ -5131,7 +5140,7 @@ const ConsultationDrawer = ({
                               {/* Listening Indicator with Gradient Ellipse */}
                               <div className={styles.listeningSection}>
                                 <img src={ellipse895} alt="Gradient" className={styles.gradientEllipse} />
-                                <div className={styles.listeningText}>I'm Listening...</div>
+                                 <div className={styles.listeningText}>I'm Listening...</div>
                               </div>
                             </div>
                           ) : (
