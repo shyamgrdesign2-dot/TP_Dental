@@ -28,18 +28,30 @@ export const validateUser = async (phoneNumber) => {
   }
 };
 
-export const verifyAccessToken = async (phoneNumber, accessToken) => {
+export const verifyAccessToken = async (phoneNumber, accessToken, password = null) => {
   try {
-    const response = await axios.post(`${baseUrl}/api/v1/auth/verify-access-token`, {
+    const requestBody = {
       phone_number: phoneNumber,
       access_token: accessToken,
-    });
+    };
+    
+    // Include password if provided
+    if (password) {
+      requestBody.password = password;
+    }
+    
+    const response = await axios.post(`${baseUrl}/api/v1/auth/verify-access-token`, requestBody);
     return response.data;
   } catch (error) {
     throw error.response ? error.response.data : error;
   }
 };
 
+/**
+ * @deprecated This API endpoint is being removed. 
+ * Password should now be sent in verify-access-token API instead.
+ * This function is kept temporarily for backward compatibility with SetPassword component.
+ */
 export const setPassword = async (uniqueId, password) => {
   try {
     const response = await axios.put(`${baseUrl}/api/v1/auth/set-password`, {
