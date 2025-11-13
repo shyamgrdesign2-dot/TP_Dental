@@ -157,7 +157,6 @@ import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
-import { useGrowthBook } from "@growthbook/growthbook-react";
 import AbhaDrawer from "./abha/AbhaDrawer";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 
@@ -217,15 +216,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     useFeatureIsOn("appointment-agent");
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
 
-  useEffect(() => {
-    try {
-      if (!appointmentsData) return;
-      const count = Array.isArray(appointmentsData) ? appointmentsData.length : 0;
-      const first = Array.isArray(appointmentsData) && count > 0 ? appointmentsData[0] : null;
-        const check = first ? (isVideoConsultAccessibleFromGB && first?.pam_status_type_appointment === 1) : null;
-    } catch (e) {
-    }
-  }, [appointmentsData, isVideoConsultAccessibleFromGB]);
   const [zydusSearchQuery, setZydusSearchQuery] = useState("");
   const [matchedAppointment, setMatchedAppointment] = useState([]);
 
