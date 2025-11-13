@@ -126,16 +126,47 @@ function SmartRxDigitise() {
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
+      const sanitizedMedications =
+        data?.medications?.map((item) => {
+          const quantityValue = item?.quantity;
+          let quantity = 0;
+
+          if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+            quantity = quantityValue;
+          } else if (quantityValue !== undefined && quantityValue !== null) {
+            const parsedQuantity = Number(quantityValue);
+            quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+          }
+
+          return {
+            ...item,
+            quantity,
+          };
+        }) || [];
+
       const quantityActionMedicine = await ApiMedication.getQuantity({
-        medicines: data?.medications,
+        medicines: sanitizedMedications,
       });
       const updatedPrescriptionData = {
         ...data,
         medicineList:
-          data?.medications?.map((item, index) => ({
-            ...data?.medications[index],
-            quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
-          })) || [],
+          sanitizedMedications.map((item, index) => {
+            const quantityValue =
+              quantityActionMedicine?.medicines?.[index]?.quantity;
+            let quantity = 0;
+
+            if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+              quantity = quantityValue;
+            } else if (quantityValue !== undefined && quantityValue !== null) {
+              const parsedQuantity = Number(quantityValue);
+              quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+            }
+
+            return {
+              ...item,
+              quantity,
+            };
+          }),
       };
       const payload = {
         isDigitize: true,
@@ -184,12 +215,27 @@ function SmartRxDigitise() {
                   (item) => item.investigation_name
                 ) || [],
               medicineList:
-                (data?.medications || []).map(({ name, notes }, index) => ({
-                  name: name,
-                  quantity:
-                    quantityActionMedicine?.medicines?.[index]?.quantity,
-                  instruction: notes,
-                })) || [],
+                sanitizedMedications.map(({ name, notes }, index) => {
+                  const quantityValue =
+                    quantityActionMedicine?.medicines?.[index]?.quantity;
+                  let quantity = 0;
+
+                  if (
+                    typeof quantityValue === "number" &&
+                    Number.isFinite(quantityValue)
+                  ) {
+                    quantity = quantityValue;
+                  } else if (quantityValue !== undefined && quantityValue !== null) {
+                    const parsedQuantity = Number(quantityValue);
+                    quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+                  }
+
+                  return {
+                    name,
+                    quantity,
+                    instruction: notes,
+                  };
+                }),
               pillupSwitch: 0,
             };
             await dispatch(placeIctOrder(zydusSendData));

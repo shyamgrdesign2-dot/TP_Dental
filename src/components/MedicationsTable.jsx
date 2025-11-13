@@ -405,14 +405,25 @@ const MedicationsTable = ({
     const { itemId, field } = editingCell;
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
+        const updatedValue = editValue;
+        const prevQuantity = item.quantity ?? "";
+
         const updated = {
           ...item,
-          [field]: editValue,
-          edited: field === 'quantity' ? true : (item.edited ?? false),
+          [field]: updatedValue,
         };
+
+        if (field === "quantity") {
+          const isQuantityChanged =
+            String(updatedValue ?? "").trim() !== String(prevQuantity ?? "").trim();
+          updated.edited = isQuantityChanged;
+        } else {
+          updated.edited = false;
+        }
+
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
-          }
+      }
       return item;
     });
     
@@ -577,6 +588,13 @@ const MedicationsTable = ({
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
         const updated = { ...item, ...rowEditValues };
+        const prevQuantity = item.quantity ?? "";
+        const newQuantity = rowEditValues.quantity ?? item.quantity;
+
+        const isQuantityChanged =
+          String(newQuantity ?? "").trim() !== String(prevQuantity ?? "").trim();
+        updated.edited = isQuantityChanged;
+
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
           }
@@ -597,7 +615,7 @@ const MedicationsTable = ({
     setRowEditValues(prev => ({
       ...prev,
       [field]: value,
-      edited: true
+      edited: true,
     }));
   };
 
@@ -649,7 +667,7 @@ const MedicationsTable = ({
         // Keep the numeric format as is
         const updatedMedications = medications.map(med => {
           if (med.id === itemId) {
-            const updated = { ...med, frequency: currentFrequency, edited: true };
+            const updated = { ...med, frequency: currentFrequency };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -660,7 +678,7 @@ const MedicationsTable = ({
         // If it's not in the filtered titles, clear it
         const updatedMedications = medications.map(med => {
           if (med.id === itemId) {
-            const updated = { ...med, frequency: "", edited: true };
+            const updated = { ...med, frequency: "" };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -711,7 +729,7 @@ const MedicationsTable = ({
         setFrequencyQuery(objParse.tmf_title);
         const updatedMedications = medications.map(item => {
           if (item.id === itemId) {
-            const updated = { ...item, frequency: objParse.tmf_title, edited: true };
+            const updated = { ...item, frequency: objParse.tmf_title };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -722,7 +740,7 @@ const MedicationsTable = ({
         setFrequencyQuery("");
         const updatedMedications = medications.map(item => {
           if (item.id === itemId) {
-            const updated = { ...item, frequency: "", edited: true };
+            const updated = { ...item, frequency: "" };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -741,7 +759,7 @@ const MedicationsTable = ({
         const objParse = JSON.parse(data);
         const updatedMedications = medications.map(item => {
           if (item.id === itemId) {
-            const updated = { ...item, schedule: objParse.tmt_title, edited: true };
+            const updated = { ...item, schedule: objParse.tmt_title };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -751,7 +769,7 @@ const MedicationsTable = ({
       } else {
         const updatedMedications = medications.map(item => {
           if (item.id === itemId) {
-            const updated = { ...item, schedule: "", edited: true };
+            const updated = { ...item, schedule: "" };
             updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
             return updated;
           }
@@ -771,7 +789,7 @@ const MedicationsTable = ({
       // Update the medication's duration value
       const updatedMedications = medications.map(item => {
         if (item.id === itemId) {
-          const updated = { ...item, duration: updateQuery, edited: true };
+          const updated = { ...item, duration: updateQuery };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
@@ -802,7 +820,7 @@ const MedicationsTable = ({
       const objParse = JSON.parse(e.key);
       const updatedMedications = medications.map(item => {
         if (item.id === itemId) {
-          const updated = { ...item, duration: data, edited: true };
+          const updated = { ...item, duration: data };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }

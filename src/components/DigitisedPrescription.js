@@ -132,7 +132,7 @@ const DigitisedPrescription = ({
         const updatedData = { ...prevData };
         const arr = [...(updatedData[itemType] || [])];
         if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields") {
-          arr[index] = { ...arr[index], notes: editableLineItem, edited: true };
+          arr[index] = { ...arr[index], notes: editableLineItem };
         } else {
           arr[index] = { ...arr[index], lineItem: editableLineItem };
         }
@@ -489,7 +489,6 @@ const DigitisedPrescription = ({
             // Add metadata for fuzzy search corrected name with full data
             metadata: {
               ...m.metadata,
-              edited: false,
               fuzzyCorrectedName: correctedResults[idx].correctedName,
               originalName: m.name,
               isFuzzyCorrected: true,

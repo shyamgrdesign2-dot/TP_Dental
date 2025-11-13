@@ -2227,16 +2227,34 @@ const ConsultationDrawer = ({
     }
   };
 
-  const handleUpdateGenRX = async (quantityActionMedicine) => {
+  const handleUpdateGenRX = async (
+    quantityActionMedicine,
+    sanitizedMedications
+  ) => {
     try {
       let response;
       const updatedPrescriptionData = {
         ...prescriptionData,
-        medicineList:
-          prescriptionData?.medications?.map((item, index) => ({
-            ...prescriptionData?.medications[index],
-            quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
-          })) || [],
+        medicineList: sanitizedMedications.map((item, index) => {
+          const quantityValue =
+            quantityActionMedicine?.medicines?.[index]?.quantity;
+          let quantity = 0;
+
+          if (
+            typeof quantityValue === "number" &&
+            Number.isFinite(quantityValue)
+          ) {
+            quantity = quantityValue;
+          } else if (quantityValue !== undefined && quantityValue !== null) {
+            const parsedQuantity = Number(quantityValue);
+            quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+          }
+
+          return {
+            ...item,
+            quantity,
+          };
+        }),
       };
       
       if (isAmbientMode && genRxDetails?.type === "ambient") {
@@ -2851,10 +2869,28 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    const sanitizedMedications =
+      prescriptionData?.medications?.map((item) => {
+        const quantityValue = item?.quantity;
+        let quantity = 0;
+
+        if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+          quantity = quantityValue;
+        } else if (quantityValue !== undefined && quantityValue !== null) {
+          const parsedQuantity = Number(quantityValue);
+          quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+        }
+
+        return {
+          ...item,
+          quantity,
+        };
+      }) || [];
+
     const quantityActionMedicine = await ApiMedication.getQuantity({
-      medicines: prescriptionData?.medications,
+      medicines: sanitizedMedications,
     });
-    handleUpdateGenRX(quantityActionMedicine);
+    handleUpdateGenRX(quantityActionMedicine, sanitizedMedications);
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -2964,11 +3000,24 @@ const ConsultationDrawer = ({
               prescriptionData?.labInvestigation?.map((item) => item.name) ||
               [],
             medicineList:
-              prescriptionData?.medications?.map(({ name, notes }, index) => ({
-                name: name,
-                quantity: quantityActionMedicine?.medicines?.[index]?.quantity,
-                instruction: notes,
-              })) || [],
+              sanitizedMedications.map(({ name, notes }, index) => {
+                const quantityValue =
+                  quantityActionMedicine?.medicines?.[index]?.quantity;
+                let quantity = 0;
+
+                if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+                  quantity = quantityValue;
+                } else if (quantityValue !== undefined && quantityValue !== null) {
+                  const parsedQuantity = Number(quantityValue);
+                  quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+                }
+
+                return {
+                  name,
+                  quantity,
+                  instruction: notes,
+                };
+              }) || [],
             pillupSwitch: 0,
           };
           await dispatch(placeIctOrder(zydusSendData));

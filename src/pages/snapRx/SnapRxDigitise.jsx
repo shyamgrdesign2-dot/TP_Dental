@@ -62,7 +62,7 @@ function SnapRxDigitise() {
     const meds = Array.isArray(src.medications) ? src.medications : [];
     return {
       ...src,
-      medications: meds.map((m) => ({ ...m, edited: m?.edited ?? false })),
+      medications: meds.map((m) => ({ ...m, edited: false })),
     };
   }, []);
 
@@ -121,17 +121,47 @@ function SnapRxDigitise() {
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
+      const sanitizedMedications =
+        data?.medications?.map((item) => {
+          const quantityValue = item?.quantity;
+          let quantity = 0;
+
+          if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+            quantity = quantityValue;
+          } else if (quantityValue !== undefined && quantityValue !== null) {
+            const parsedQuantity = Number(quantityValue);
+            quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+          }
+
+          return {
+            ...item,
+            quantity,
+          };
+        }) || [];
+
       const quantityActionMedicine = await ApiMedication.getQuantity({
-        medicines: data?.medications,
+        medicines: sanitizedMedications,
       });
       const updatedPrescriptionData = {
         ...data,
         medicineList:
-          data?.medications?.map((item, index) => ({
-            ...data?.medications[index],
-            quantity:
-              quantityActionMedicine?.medicines?.[index]?.quantity,
-          })) || [],
+          sanitizedMedications.map((item, index) => {
+            const quantityValue =
+              quantityActionMedicine?.medicines?.[index]?.quantity;
+            let quantity = 0;
+
+            if (typeof quantityValue === "number" && Number.isFinite(quantityValue)) {
+              quantity = quantityValue;
+            } else if (quantityValue !== undefined && quantityValue !== null) {
+              const parsedQuantity = Number(quantityValue);
+              quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
+            }
+
+            return {
+              ...item,
+              quantity,
+            };
+          }),
       };
       const payload = {
         tcm_id: tcm_id,
