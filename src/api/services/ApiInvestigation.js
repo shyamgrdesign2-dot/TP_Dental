@@ -19,9 +19,9 @@ ApiInvestigation.deleteTemplate = function (templateId) {
   return api.get(`/api/v1/investigation/deleteTemplate/${templateId}`, baseUrl);
 };
 
-ApiInvestigation.getFuzzySearch = function (query) {
+ApiInvestigation.getFuzzySearch = function (query, max_results = 1) {
   return api.get(
-    `/api/v1/investigation/fuzzySearch?search=${query}&max_results=1`,
+    `/api/v1/investigation/fuzzySearch?search=${query}&max_results=${max_results}`,
     fuzzySearchBaseUrl
   );
 };

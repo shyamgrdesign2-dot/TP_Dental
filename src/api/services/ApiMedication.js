@@ -50,9 +50,9 @@ ApiMedication.searchMedication = function (query) {
   }, baseUrl);
 };
 
-ApiMedication.getFuzzySearch = function (query) {
+ApiMedication.getFuzzySearch = function (query, max_results = 1) {
   return api.get(
-    `/api/v1/medicines/fuzzySearch?search=${query}&max_results=1`,
+    `/api/v1/medicines/fuzzySearch?search=${query}&max_results=${max_results}`,
     fuzzySearchBaseUrl
   );
 };

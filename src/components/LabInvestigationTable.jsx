@@ -8,9 +8,11 @@ import styles from './ConsultationDrawer.module.css';
 import investigationIcon from '../assets/images/Lab.svg';
 import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
 import {
-  searchInvestigation
+  searchInvestigation,
+  getFrequentlySearchedInvestigation
 } from "../redux/investigationSlice";
 import { removeBeforeWhiteSpace } from '../utils/utils';
+import ApiInvestigation from '../api/services/ApiInvestigation';
 import { env } from '../EnvironmentConfig';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from '../utils/constants';
@@ -28,6 +30,8 @@ const LabInvestigationTable = ({
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [editingCell, setEditingCell] = useState(null); // { itemId: '...', field: 'name' }                                                                     
   const [editValue, setEditValue] = useState('');
+  const [originalEditValue, setOriginalEditValue] = useState(''); // Track original value to detect if user edited
+  const [fuzzySearchResults, setFuzzySearchResults] = useState([]); // Store fuzzy search results
   const [editingRow, setEditingRow] = useState(null); // itemId when entire row is being edited (tablet view)
   const [rowEditValues, setRowEditValues] = useState({}); // Store edit values for all fields in a row
   const [isTablet, setIsTablet] = useState(false);
@@ -52,6 +56,52 @@ const LabInvestigationTable = ({
 
   useEffect(() => {
     const data = [];
+    
+    // Check if we should show fuzzy search results (user clicked but didn't edit)
+    // Make the condition more explicit and defensive
+    const hasFuzzyResults = fuzzySearchResults && Array.isArray(fuzzySearchResults) && fuzzySearchResults.length > 0;
+    const hasOriginalValue = originalEditValue && originalEditValue.trim().length > 0;
+    const queryMatchesOriginal = searchQuery.trim() === originalEditValue.trim();
+    const showFuzzyResults = hasFuzzyResults && hasOriginalValue && queryMatchesOriginal;
+    
+    if (showFuzzyResults) {
+      // ONLY show fuzzy search results - don't include parentOptionsList or any other options
+      // Clear data array to ensure no stale data
+      const fuzzyData = [];
+      fuzzySearchResults.forEach((investigation) => {
+        if (investigation && investigation.investigation_name) {
+          fuzzyData.push({
+            key: JSON.stringify({ ...investigation, unique_id: uuidv4() }),
+            value: investigation.investigation_name,
+            label: (
+              <div>
+                {investigation.investigation_name}{' '}
+                {investigation?.hm_type === 1 && investigation?.um_id === 0 && (
+                  <span
+                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                    style={{ 
+                      width: 18, 
+                      height: 18, 
+                      backgroundImage: `url(${groundingIndicatorBg})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  >
+                    Z
+                  </span>
+                )}
+              </div>
+            ),
+          });
+        }
+      });
+      // Set ONLY fuzzy results - return immediately to prevent any other data from being added
+      setParentSearchOptions(fuzzyData);
+      return;
+    }
+    
+    // If not showing fuzzy results, show regular search results from parentOptionsList
     if (parentOptionsList && Array.isArray(parentOptionsList)) {
       parentOptionsList.forEach((investigation) => {
         if (investigation && investigation.investigation_name) {
@@ -83,59 +133,76 @@ const LabInvestigationTable = ({
       });
     }
 
-    if (searchQuery.length === 0) {
-      data.unshift({
-        key: -1,
-        label: (
-          <>
-            <div>FREQUENTLY USED</div>
-          </>
-        ),
-      });
-    } else {
-      searchQuery &&
-        parentOptionsList &&
-        parentOptionsList.findIndex(
-          (e) =>
-            e.investigation_name?.toLowerCase()?.trim() ===
-            searchQuery?.toLowerCase()?.trim()
-        ) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
-        data.push({
-          key: JSON.stringify({
-            unique_id: uuidv4(),
-            change: 1,
-            investigation_name: searchQuery,
-          }),
-          value: searchQuery,
+    // Only show "FREQUENTLY USED" or "Add Custom" when not showing fuzzy results
+    if (!showFuzzyResults) {
+      if (searchQuery.length === 0) {
+        data.unshift({
+          key: -1,
           label: (
             <>
-              <div>
-                {searchQuery}
-                <i className="icon-Add mx-1 text-primary fs-6"></i>{' '}
-                <span className="fw-medium text-decoration-underline text-primary">
-                  {' '}
-                  Add Custom
-                </span>
-              </div>
+              <div>FREQUENTLY USED</div>
             </>
           ),
         });
+      } else {
+        searchQuery &&
+          parentOptionsList &&
+          parentOptionsList.findIndex(
+            (e) =>
+              e.investigation_name?.toLowerCase()?.trim() ===
+              searchQuery?.toLowerCase()?.trim()
+          ) === -1 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB &&
+          data.push({
+            key: JSON.stringify({
+              unique_id: uuidv4(),
+              change: 1,
+              investigation_name: searchQuery,
+            }),
+            value: searchQuery,
+            label: (
+              <>
+                <div>
+                  {searchQuery}
+                  <i className="icon-Add mx-1 text-primary fs-6"></i>{' '}
+                  <span className="fw-medium text-decoration-underline text-primary">
+                    {' '}
+                    Add Custom
+                  </span>
+                </div>
+              </>
+            ),
+          });
+      }
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList, searchQuery]);
+  }, [parentOptionsList, searchQuery, fuzzySearchResults, originalEditValue]);
 
   useEffect(() => {
-    if (searchQuery && searchQuery.trim().length > 0) {
-      const timeOutId = setTimeout(() => {
-        dispatch(
-          searchInvestigation({ searchQuery: searchQuery, type: "parent" })
-        );
-      }, 500);
-      return () => {
-        clearTimeout(timeOutId);
-      };
+    // If searchQuery is empty, call getFrequentlySearchedInvestigation
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      setFuzzySearchResults([]);
+      dispatch(getFrequentlySearchedInvestigation());
+      return;
     }
-  }, [searchQuery, dispatch]);
+
+    // If searchQuery matches originalEditValue, user clicked but didn't edit
+    // Fuzzy search already called in handleCellClick, don't call searchInvestigation
+    if (originalEditValue && searchQuery.trim() === originalEditValue.trim()) {
+      // User clicked on complete investigation name but didn't edit - fuzzy search already called
+      return;
+    }
+
+    // User is editing (typing/changing) - call searchInvestigation
+    setFuzzySearchResults([]);
+    const timeOutId = setTimeout(() => {
+      dispatch(
+        searchInvestigation({ searchQuery: searchQuery, type: "parent" })
+      );
+    }, 500);
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [searchQuery, originalEditValue, dispatch]);
 
   useEffect(() => {
     const needsIdUpdate = labInvestigation.some(item => !item.id);
@@ -179,12 +246,59 @@ const LabInvestigationTable = ({
   );
 
 
-  const handleCellClick = (itemId, field, currentValue) => {
+  const handleCellClick = async (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
-    setEditValue(currentValue || '');
+    const value = currentValue || '';
+    setEditValue(value);
+    // Set originalEditValue first to prevent useEffect from calling searchInvestigation
+    setOriginalEditValue(value); // Store original value to track if user edits
+    
     if (field === 'name') {
-      const searchValue = currentValue || '';
-      setSearchQuery(searchValue);
+      const isGroundingAccessable =
+        tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB;
+
+      if (!isGroundingAccessable) {
+        setFuzzySearchResults([]);
+        if (value && value.trim().length > 0) {
+          setSearchQuery(value);
+        } else {
+          setSearchQuery('');
+          setOriginalEditValue('');
+          dispatch(getFrequentlySearchedInvestigation());
+        }
+        return;
+      }
+
+      // If clicking on name field with existing value, call fuzzy search
+      if (value && value.trim().length > 0) {
+        setFuzzySearchResults([]); // Clear previous fuzzy results
+        // Set searchQuery after setting originalEditValue to prevent triggering searchInvestigation
+        setSearchQuery(value);
+        try {
+          const result = await ApiInvestigation.getFuzzySearch(value, 10);
+          // Handle different possible response structures
+          const fuzzyData = result || [];
+          if (Array.isArray(fuzzyData) && fuzzyData.length > 0) {
+            setFuzzySearchResults(fuzzyData);
+          } else if (fuzzyData && !Array.isArray(fuzzyData)) {
+            // If it's a single object, wrap it in an array
+            setFuzzySearchResults([fuzzyData]);
+          } else {
+            setFuzzySearchResults([]);
+          }
+        } catch (error) {
+          console.error('Error in fuzzy search:', error);
+          setFuzzySearchResults([]);
+          // Fallback to frequently searched investigations
+          dispatch(getFrequentlySearchedInvestigation());
+        }
+      } else {
+        // Empty name field - load frequently searched investigations
+        setSearchQuery('');
+        setFuzzySearchResults([]);
+        setOriginalEditValue('');
+        dispatch(getFrequentlySearchedInvestigation());
+      }
     }
   };
 
@@ -204,6 +318,8 @@ const LabInvestigationTable = ({
     onUpdate(updatedInvestigations);
     setEditingCell(null);
     setEditValue('');
+    setOriginalEditValue('');
+    setFuzzySearchResults([]);
   };
 
   // Handle selecting an investigation from autocomplete within the name cell
@@ -389,6 +505,8 @@ const LabInvestigationTable = ({
   const handleCellCancel = () => {
     setEditingCell(null);
     setEditValue('');
+    setOriginalEditValue('');
+    setFuzzySearchResults([]);
   };
 
   const handleCellKeyDown = (e) => {
@@ -499,25 +617,42 @@ const LabInvestigationTable = ({
                       onSelect={(val, option) => handleInvestigationSelection(item.id, val, option, isTablet && editingRow === item.id)}
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
-                      getPopupContainer={(trigger) => trigger.parentNode}
+                      getPopupContainer={() => document.body}
+                      dropdownStyle={{ width: 420 }}
+                      style={{ width: '100%' }}
                       open={
                         (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
                         (isTablet && editingRow === item.id)
                       }
                       autoFocus={true}
-                      dropdownStyle={{ width: 420 }}
                     >
                       <Input
                         value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
-                        onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          if (isTablet && editingRow === item.id) {
+                            handleRowFieldChange('name', newValue);
+                          } else {
+                            setEditValue(newValue);
+                            // Sync searchQuery when user types (for name field)
+                            if (editingCell?.itemId === item.id && editingCell?.field === 'name') {
+                              setSearchQuery(newValue);
+                            }
+                          }
+                        }}
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                         onFocus={() => {
                           // Sync searchQuery with editValue if needed (useEffect will handle the search)
                           if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
                             const currentValue = editValue || '';
+                            // Only sync if there's a value and it's different from searchQuery
+                            // Don't trigger API calls on focus - let useEffect handle it
                             if (currentValue.trim().length > 0 && currentValue !== searchQuery) {
                               setSearchQuery(currentValue);
+                            } else if (!currentValue || currentValue.trim().length === 0) {
+                              // Only set empty searchQuery, don't call API here
+                              setSearchQuery('');
                             }
                           }
                         }}

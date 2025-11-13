@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button, Select } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
@@ -10,7 +10,8 @@ import styles from './ConsultationDrawer.module.css';
 import medicationsIcon from '../assets/images/Medication.svg';
 import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
 import {
-  searchMedication
+  searchMedication,
+  getFrequentlySearchedMedication
 } from "../redux/medicationSlice";
 import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
@@ -42,6 +43,9 @@ const MedicationsTable = ({
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
   const [editingCell, setEditingCell] = useState(null); // { itemId: '...', field: 'name' }
   const [editValue, setEditValue] = useState('');
+  const [originalEditValue, setOriginalEditValue] = useState(''); // Track original value to detect if user edited
+  const isFuzzySearchInProgress = useRef(false); // Track when fuzzy search is in progress
+  const hasFuzzyResults = useRef(false); // Track if we have fuzzy results to avoid checking state in useEffect
   const [editingRow, setEditingRow] = useState(null);
   const [rowEditValues, setRowEditValues] = useState({});
   const [isTablet, setIsTablet] = useState(false);
@@ -77,39 +81,47 @@ const MedicationsTable = ({
   }, []);
 
   useEffect(() => {
+    // Skip if fuzzy search is in progress or we're showing fuzzy results
+    if (isFuzzySearchInProgress.current) {
+      return; // Don't override fuzzy results while fuzzy search is in progress
+    }
+    if (hasFuzzyResults.current && originalEditValue && searchQuery.trim() === originalEditValue.trim()) {
+      return; // Don't override fuzzy results
+    }
+
     const data = [];
+    
+    // Show regular search results from parentOptionsList
     if (parentOptionsList && Array.isArray(parentOptionsList)) {
       parentOptionsList.forEach((medication) => {
         if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
           const medicineName = medication.tmm_medicine_name || medication.medicine_name;
           const genericName = medication.tmm_generic || medication.generic_name || '';
-          if (searchQuery !== medication?.tmm_medicine_name) {
-            data.push({
-              key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-              value: medicineName,
-              label: (
-                <div>
-                  <span className="fw-medium">{medicineName}</span>,{' '}
-                  <span>{genericName}</span>{' '}
-                  {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
-                    <span
-                      className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
-                      style={{ 
-                        width: 18, 
-                        height: 18, 
-                        backgroundImage: `url(${groundingIndicatorBg})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat'
-                      }}
-                    >
-                      Z
-                    </span>
-                  )}
-                </div>
-              ),
-            });
-          }
+          data.push({
+            key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
+            value: medicineName,
+            label: (
+              <div>
+                <span className="fw-medium">{medicineName}</span>,{' '}
+                <span>{genericName}</span>{' '}
+                {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                  <span
+                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                    style={{ 
+                      width: 18, 
+                      height: 18, 
+                      backgroundImage: `url(${groundingIndicatorBg})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  >
+                    Z
+                  </span>
+                )}
+              </div>
+            ),
+          });
         }
       });
     }
@@ -147,7 +159,7 @@ const MedicationsTable = ({
         });
     }
     setParentSearchOptions(data);
-  }, [parentOptionsList, searchQuery]);
+  }, [parentOptionsList, searchQuery, originalEditValue]);
 
   useEffect(() => {
     if (editValue === '') {
@@ -157,17 +169,39 @@ const MedicationsTable = ({
   }, [editValue, editingCell]);
 
   useEffect(() => {
-    if (searchQuery && searchQuery.trim().length > 0) {
-      const timeOutId = setTimeout(() => {
-        dispatch(
-          searchMedication({ searchQuery: searchQuery, type: "parent" })
-        );
-      }, 500);
-      return () => {
-        clearTimeout(timeOutId);
-      };
+    // Skip if fuzzy search is in progress - don't interfere with fuzzy search results
+    if (isFuzzySearchInProgress.current) {
+      return;
     }
-  }, [searchQuery, dispatch]);
+
+    // If searchQuery is empty, call getFrequentlySearchedMedication
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      hasFuzzyResults.current = false; // Clear fuzzy results flag
+      dispatch(getFrequentlySearchedMedication());
+      return;
+    }
+
+    // If searchQuery matches originalEditValue, user clicked but didn't edit
+    // Fuzzy search already called in handleCellClick, don't call searchMedication
+    if (originalEditValue && searchQuery.trim() === originalEditValue.trim()) {
+      // User clicked on complete medicine name but didn't edit - fuzzy search already called
+      // Also check if we have fuzzy results - if so, don't call any other APIs
+      if (hasFuzzyResults.current) {
+        return;
+      }
+    }
+
+    // User is editing (typing/changing) - call searchMedication
+    hasFuzzyResults.current = false; // Clear fuzzy results flag when user edits
+    const timeOutId = setTimeout(() => {
+      dispatch(
+        searchMedication({ searchQuery: searchQuery, type: "parent" })
+      );
+    }, 500);
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  }, [searchQuery, originalEditValue, dispatch]);
 
   useEffect(() => {
     const needsIdUpdate = medications.some(item => !item.id);
@@ -238,9 +272,131 @@ const MedicationsTable = ({
     [medications, onUpdate]
   );
 
-  const handleCellClick = (itemId, field, currentValue) => {
+  const handleCellClick = async (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });
-    setEditValue(currentValue || '');
+    const value = currentValue || '';
+    setEditValue(value);
+    setOriginalEditValue(value); // Store original value to track if user edits
+    
+    if (field === 'name') {
+      // Allow fuzzy search only when grounding is accessible
+      if (!isGroundingAccessable) {
+        isFuzzySearchInProgress.current = false;
+        hasFuzzyResults.current = false;
+        if (value && value.trim().length > 0) {
+          setSearchQuery(value);
+        } else {
+          setSearchQuery('');
+          setOriginalEditValue('');
+        }
+        return;
+      }
+
+      if (value && value.trim().length > 0) {
+        isFuzzySearchInProgress.current = true; // Mark fuzzy search as in progress
+        hasFuzzyResults.current = false; // Reset fuzzy results flag
+        setSearchQuery(value);
+        try {
+          const result = await ApiMedication.getFuzzySearch(value, 10);
+          const fuzzyData = result || [];
+          let formattedFuzzyData = [];
+          
+          if (Array.isArray(fuzzyData) && fuzzyData.length > 0) {
+            formattedFuzzyData = fuzzyData.map((medication) => {
+              if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
+                const medicineName = medication.tmm_medicine_name || medication.medicine_name;
+                const genericName = medication.tmm_generic || medication.generic_name || '';
+                return {
+                  key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
+                  value: medicineName,
+                  label: (
+                    <div>
+                      <span className="fw-medium">{medicineName}</span>,{' '}
+                      <span>{genericName}</span>{' '}
+                      {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                        <span
+                          className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                          style={{ 
+                            width: 18, 
+                            height: 18, 
+                            backgroundImage: `url(${groundingIndicatorBg})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          Z
+                        </span>
+                      )}
+                    </div>
+                  ),
+                };
+              }
+              return null;
+            }).filter(Boolean);
+            
+            if (formattedFuzzyData.length > 0) {
+              hasFuzzyResults.current = true; // Mark that we have fuzzy results BEFORE setting options
+              setParentSearchOptions(formattedFuzzyData);
+            } else {
+              hasFuzzyResults.current = false;
+            }
+          } else if (fuzzyData && !Array.isArray(fuzzyData)) {
+            // Single result
+            const medication = fuzzyData;
+            if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
+              const medicineName = medication.tmm_medicine_name || medication.medicine_name;
+              const genericName = medication.tmm_generic || medication.generic_name || '';
+              formattedFuzzyData = [{
+                key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
+                value: medicineName,
+                label: (
+                  <div>
+                    <span className="fw-medium">{medicineName}</span>,{' '}
+                    <span>{genericName}</span>{' '}
+                    {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                      <span
+                        className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                        style={{ 
+                          width: 18, 
+                          height: 18, 
+                          backgroundImage: `url(${groundingIndicatorBg})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat'
+                        }}
+                      >
+                        Z
+                      </span>
+                    )}
+                  </div>
+                ),
+              }];
+              hasFuzzyResults.current = true; // Mark that we have fuzzy results BEFORE setting options
+              setParentSearchOptions(formattedFuzzyData);
+              
+            } else {
+              hasFuzzyResults.current = false;
+            }
+          } else {
+            hasFuzzyResults.current = false;
+          }
+        } catch (error) {
+          console.error('Error in fuzzy search:', error);
+          hasFuzzyResults.current = false;
+          // Fallback to frequently searched medications
+        } finally {
+          isFuzzySearchInProgress.current = false; // Mark fuzzy search as complete
+        }
+      } else {
+        // Empty name field - load frequently searched medications
+        isFuzzySearchInProgress.current = false;
+        hasFuzzyResults.current = false;
+        setSearchQuery('');
+        setOriginalEditValue('');
+      }
+      return;
+    }
   };
 
   const handleCellSave = () => {
@@ -263,6 +419,9 @@ const MedicationsTable = ({
     onUpdate(updatedMedications);
     setEditingCell(null);
     setEditValue('');
+    setOriginalEditValue('');
+    isFuzzySearchInProgress.current = false; // Clear fuzzy search flag
+    hasFuzzyResults.current = false; // Clear fuzzy results flag
   };
 
   // Handle selecting a medicine from autocomplete within the name cell
@@ -452,6 +611,9 @@ const MedicationsTable = ({
   const handleCellCancel = () => {
     setEditingCell(null);
     setEditValue('');
+    setOriginalEditValue('');
+    isFuzzySearchInProgress.current = false; // Clear fuzzy search flag
+    hasFuzzyResults.current = false; // Clear fuzzy results flag
   };
 
   const handleCellKeyDown = (e) => {
@@ -746,8 +908,9 @@ const MedicationsTable = ({
                       onSelect={(val, option) => handleMedicineSelection(item.id, val, option, isTablet && editingRow === item.id)}
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
-                      getPopupContainer={(trigger) => trigger.parentNode}
+                      getPopupContainer={() => document.body}
                       dropdownStyle={{ width: 420 }}
+                      style={{ width: '100%' }}
                       open={
                         (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
                         (isTablet && editingRow === item.id)
@@ -756,7 +919,23 @@ const MedicationsTable = ({
                     >
                       <Input
                         value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
-                        onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('name', e.target.value) : setEditValue(e.target.value)}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          if (isTablet && editingRow === item.id) {
+                            handleRowFieldChange('name', newValue);
+                          } else {
+                            setEditValue(newValue);
+                            // Sync searchQuery when user types (for name field)
+                            if (editingCell?.itemId === item.id && editingCell?.field === 'name') {
+                              // If user is editing (value changed from original), clear fuzzy search flags
+                              if (newValue.trim() !== originalEditValue.trim()) {
+                                isFuzzySearchInProgress.current = false;
+                                hasFuzzyResults.current = false;
+                              }
+                              setSearchQuery(newValue);
+                            }
+                          }
+                        }}
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                         onFocus={() => {
@@ -765,6 +944,8 @@ const MedicationsTable = ({
                             const currentValue = editValue || '';
                             if (currentValue.trim().length > 0 && currentValue !== searchQuery) {
                               setSearchQuery(currentValue);
+                            } else if (!currentValue || currentValue.trim().length === 0) {
+                              setSearchQuery('');
                             }
                           }
                         }}
