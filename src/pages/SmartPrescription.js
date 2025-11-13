@@ -239,6 +239,7 @@ function SmartPrescription() {
   // Add state for page addition dropdown
   const [showPageDropdown, setShowPageDropdown] = useState({});
   const [pageDropdownPosition, setPageDropdownPosition] = useState({});
+  const [buildNumber, setBuildNumber] = useState(null); //state for iscribe build version number
   
   // Add state for disclaimer visibility
   const [showDisclaimer, setShowDisclaimer] = useState(false);
