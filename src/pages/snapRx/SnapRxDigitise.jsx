@@ -144,7 +144,7 @@ function SnapRxDigitise() {
       });
       const updatedPrescriptionData = {
         ...data,
-        medicineList:
+        medications:
           sanitizedMedications.map((item, index) => {
             const quantityValue =
               quantityActionMedicine?.medicines?.[index]?.quantity;

@@ -2235,7 +2235,7 @@ const ConsultationDrawer = ({
       let response;
       const updatedPrescriptionData = {
         ...prescriptionData,
-        medicineList: sanitizedMedications.map((item, index) => {
+        medications: sanitizedMedications.map((item, index) => {
           const quantityValue =
             quantityActionMedicine?.medicines?.[index]?.quantity;
           let quantity = 0;
