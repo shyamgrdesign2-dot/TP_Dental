@@ -265,12 +265,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
 
-  const gb = useGrowthBook();
-  useEffect(() => {
-    if (!gb) return;
-  }, [gb, isVideoConsultAccessibleFromGB]);
-
-
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
   };
