@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './AdditionalNotesRichTextEditor.scss';
@@ -14,29 +14,45 @@ const AdditionalNotesRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const editorItemsRef = useRef([]);
+
   const initialSlateValue = useMemo(() => {
-    if (!others || others.length === 0) {
+    const currentItems = others || [];
+    let editorItems = editorItemsRef.current || [];
+    
+    if (editorItems.length === 0 && currentItems.length > 0) {
+      editorItems = currentItems.map(note => {
+        if (typeof note === 'string') return note;
+        return note?.value || '';
+      });
+      editorItemsRef.current = editorItems;
+    }
+    
+    const allItems = editorItems.length > 0 ? editorItems : currentItems;
+    
+    if (allItems.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const noteTexts = others.map(note => {
+    const noteTexts = allItems.map((note) => {
       if (typeof note === 'string') {
         return note;
       } else if (note && note.value) {
         return note.value;
       }
       return '';
-    }).filter(text => text.trim() !== '');
+    });
     
     if (noteTexts.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
     return arrayToSlateBulletList(noteTexts);
-  }, []);
+  }, [others]);
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
+    editorItemsRef.current = items;
     const othersArray = items.map(text => ({ value: text }));
     
     if (onUpdate) {

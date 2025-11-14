@@ -789,16 +789,39 @@ const ConsultationDrawer = ({
 
   const getGenRxDetails = async () => {
     try {
-      let response;
-      if (isAmbientMode || mode === 'ambient') {
-        response = await getAmbientRx(caseManagerData?.smart_prescription_filename);
-      } else {
-        response = await getGenRx(caseManagerData?.smart_prescription_filename);
-      }
+      // First, call getGenRx to check the conversation field
+      const initialResponse = await getGenRx(caseManagerData?.smart_prescription_filename);
+
+      if (initialResponse.success && initialResponse.data) {
+        // Check if conversation exists and has data in the history
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+        
+        // Set ambient mode based on conversation field
+        if (hasConversation) {
+          setIsAmbientMode(true);
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          setIsAmbientMode(false);
+          if (window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+            window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+          }
+        }
+        
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(caseManagerData?.smart_prescription_filename);
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // If conversation is null or empty, use the dictate mode response (initialResponse)
 
         if (response.success && response.data) {
        
-        const hasAmbientType = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
+        const hasAmbientType = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx") || hasConversation;
         
         if (hasAmbientType) {
           let prescriptionData = null;
@@ -861,6 +884,12 @@ const ConsultationDrawer = ({
             if (prescriptionData.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
               initiallyPopulatedSectionsRef.current.add('labResults');
             }
+            if (prescriptionData.medications && Array.isArray(prescriptionData.medications) && prescriptionData.medications.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('medications');
+            }
+            if (prescriptionData.labInvestigation && Array.isArray(prescriptionData.labInvestigation) && prescriptionData.labInvestigation.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('labInvestigation');
+            }
             if (prescriptionData.dynamicFields && typeof prescriptionData.dynamicFields === 'object') {
               Object.entries(prescriptionData.dynamicFields).forEach(([moduleName, moduleData]) => {
                 if (Array.isArray(moduleData) && moduleData.length > 0) {
@@ -878,23 +907,51 @@ const ConsultationDrawer = ({
             setMedicalHistoryData(convertedData);
           }
           
-          const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
-          const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
+          // For ambient mode, use conversations from history if available (when coming from patient detail)
+          // Otherwise use rxDigitizationHistory
+          const historyWithConversations = response.data?.history?.filter(h => 
+            h.conversation && Array.isArray(h.conversation) && h.conversation.length > 0
+          ) || [];
           
-          // Initialize queries array from all ambient entries for separate transcript boxes
-          // Each entry should only contain its own conversations, not cumulative
-          if (ambientEntries.length > 0) {
+          const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
+          const latestAmbientEntry = ambientEntries.length > 0 ? ambientEntries[ambientEntries.length - 1] : null;
+          
+          // Initialize queries array from history conversations (for patient detail) or ambient entries
+          if (historyWithConversations.length > 0) {
+            // Coming from patient detail - use conversations from history
+            const ambientQueries = historyWithConversations.map((historyItem, idx) => {
+              const entryConversations = historyItem.conversation || [];
+              const transcription = historyItem.transcription || '';
+              const sourceDuration = historyItem.sourceDurationInSeconds || historyItem.source_duration || null;
+              
+              return {
+                conversations: entryConversations,
+                isAudio: true,
+                duration: sourceDuration,
+                text: transcription
+              };
+            }).filter(query => query.conversations.length > 0 || query.text);
+            
+            if (ambientQueries.length > 0) {
+              setQueries(ambientQueries);
+              // Set first conversation for backward compatibility
+              const allConversations = historyWithConversations.flatMap(h => h.conversation || []);
+              setConversations(allConversations);
+              // Expand first transcript box
+              setIsTranscriptExpanded(true);
+              setExpandedTranscripts(new Set());
+            }
+          } else if (ambientEntries.length > 0) {
+            // Use rxDigitizationHistory if history doesn't have conversations
             let previousConversations = [];
             const ambientQueries = ambientEntries.map((entry, idx) => {
               const entryConversations = entry?.payload?.conversation || [];
               
               // Extract only conversations that are NEW for this specific entry
-              // Compare with previous entries to identify new conversations
               const newConversations = entryConversations.filter(conv => {
                 const convText = conv?.message || conv?.text || conv?.content || '';
                 const convSpeaker = (conv?.speaker || '').toLowerCase();
                 
-                // Check if this conversation already exists in previous entries
                 return !previousConversations.some(prevConv => {
                   const prevText = prevConv?.message || prevConv?.text || prevConv?.content || '';
                   const prevSpeaker = (prevConv?.speaker || '').toLowerCase();
@@ -902,10 +959,8 @@ const ConsultationDrawer = ({
                 });
               });
               
-              // Update previous conversations for next iteration
               previousConversations = [...previousConversations, ...entryConversations];
               
-              // If no new conversations found, use transcription text as fallback
               const transcription = entry?.payload?.transcription || entry?.transcription || '';
               const conversationsToStore = newConversations.length > 0 ? newConversations : (
                 transcription ? [{
@@ -918,7 +973,7 @@ const ConsultationDrawer = ({
               
               return {
                 conversations: conversationsToStore,
-                isAudio: true, // Ambient entries are typically from audio
+                isAudio: true,
                 duration: entry?.payload?.source_duration || entry?.source_duration || null,
                 text: transcription
               };
@@ -926,18 +981,16 @@ const ConsultationDrawer = ({
             
             if (ambientQueries.length > 0) {
               setQueries(ambientQueries);
-              // Set first conversation for backward compatibility (use cumulative from latest entry)
-          if (latestAmbientEntry?.payload?.conversation) {
+              if (latestAmbientEntry?.payload?.conversation) {
                 setConversations(latestAmbientEntry.payload.conversation);
               } else {
                 setConversations(ambientQueries[0].conversations);
               }
-              // Expand first transcript box
               setIsTranscriptExpanded(true);
               setExpandedTranscripts(new Set());
             } else if (latestAmbientEntry?.payload?.conversation) {
-            setConversations(latestAmbientEntry.payload.conversation);
-          } else if (response.data.source) {
+              setConversations(latestAmbientEntry.payload.conversation);
+            } else if (response.data.source) {
               const initialConversation = {
                 speaker: "doctor",
                 text: response.data.source,
@@ -945,8 +998,16 @@ const ConsultationDrawer = ({
               };
               setConversations([initialConversation]);
             }
-          } else if (latestAmbientEntry?.payload?.conversation) {
-            setConversations(latestAmbientEntry.payload.conversation);
+          } else if (response.data?.history?.[0]?.conversation && Array.isArray(response.data.history[0].conversation) && response.data.history[0].conversation.length > 0) {
+            // Fallback: use first history item's conversation
+            setConversations(response.data.history[0].conversation);
+            setQueries([{
+              conversations: response.data.history[0].conversation,
+              isAudio: true,
+              duration: response.data.history[0].sourceDurationInSeconds || null,
+              text: response.data.history[0].transcription || ''
+            }]);
+            setIsTranscriptExpanded(true);
           } else if (response.data.source) {
             const initialConversation = {
               speaker: "doctor",
@@ -964,7 +1025,6 @@ const ConsultationDrawer = ({
             _id: response.data._id,
           });
           
-         
           if (response.data.source) {
             setFullTranscript(response.data.source);
           }
@@ -1008,6 +1068,12 @@ const ConsultationDrawer = ({
               if (prescriptionDataFromResponse.labResults && Array.isArray(prescriptionDataFromResponse.labResults) && prescriptionDataFromResponse.labResults.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('labResults');
               }
+              if (prescriptionDataFromResponse.medications && Array.isArray(prescriptionDataFromResponse.medications) && prescriptionDataFromResponse.medications.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medications');
+              }
+              if (prescriptionDataFromResponse.labInvestigation && Array.isArray(prescriptionDataFromResponse.labInvestigation) && prescriptionDataFromResponse.labInvestigation.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labInvestigation');
+              }
               if (prescriptionDataFromResponse.dynamicFields && typeof prescriptionDataFromResponse.dynamicFields === 'object') {
                 Object.entries(prescriptionDataFromResponse.dynamicFields).forEach(([moduleName, moduleData]) => {
                   if (Array.isArray(moduleData) && moduleData.length > 0) {
@@ -1044,27 +1110,32 @@ const ConsultationDrawer = ({
               _id: response.data._id,
             });
 
+            // For dictate mode, populate queries from history transcriptions
+            if (response.data?.history?.length > 0) {
+              const validTranscriptions = response.data.history
+                .map(({ transcription, sourceDurationInSeconds, source_duration }) => ({
+                  text: transcription,
+                  isAudio: !!(sourceDurationInSeconds || source_duration),
+                  duration: sourceDurationInSeconds || source_duration || null
+                }))
+                .filter((query) => query.text && query.text !== "null" && query.text);
+              
+              if (validTranscriptions.length > 0) {
+                setQueries(validTranscriptions);
+                // Expand first transcript box
+                setIsTranscriptExpanded(true);
+                setExpandedTranscripts(new Set());
+              }
+            }
+            
             if (transcriptSource && !caseManagerData?.smart_prescription_filename) {
               setFullTranscript(transcriptSource);
-          
-              if (!response.data.source && response.data?.history?.length > 0) {
-            const validTranscriptions = response.data.history
-              .map(({ transcription, source_duration }) => ({
-                text: transcription,
-                isAudio: !!source_duration,
-                duration: source_duration || null
-              }))
-              .filter((query) => query.text && query.text !== "null" && query.text);
-            if (validTranscriptions.length > 0) {
-              setQueries(validTranscriptions);
             }
           }
-            }
-          }
-          
+        }
         }
       } else {
-        throw new Error(response.error || "Failed to get Rx");
+        throw new Error(initialResponse.error || "Failed to get Rx");
       }
     } catch (error) {
       console.error("Error getting Rx details:", error);
@@ -1756,6 +1827,55 @@ const ConsultationDrawer = ({
             if (prescriptionData) {
               const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
               
+              // Track which sections were initially populated from API BEFORE setting state
+              if (validatedPrescriptionData.symptoms && Array.isArray(validatedPrescriptionData.symptoms) && validatedPrescriptionData.symptoms.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('symptoms');
+              }
+              if (validatedPrescriptionData.vaccinations && Array.isArray(validatedPrescriptionData.vaccinations) && validatedPrescriptionData.vaccinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vaccinations');
+              }
+              if (validatedPrescriptionData.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medicalHistory');
+                validatedPrescriptionData.medicalHistory.forEach(item => {
+                  const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+                  initiallyPopulatedMedicalHistoryTypesRef.current.add(type);
+                });
+              }
+              if (validatedPrescriptionData.examinations && Array.isArray(validatedPrescriptionData.examinations) && validatedPrescriptionData.examinations.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('examinations');
+              }
+              if (validatedPrescriptionData.diagnosis && Array.isArray(validatedPrescriptionData.diagnosis) && validatedPrescriptionData.diagnosis.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('diagnosis');
+              }
+              if (validatedPrescriptionData.advice && ((typeof validatedPrescriptionData.advice === 'string' && validatedPrescriptionData.advice.trim()) || (Array.isArray(validatedPrescriptionData.advice) && validatedPrescriptionData.advice.length > 0))) {
+                initiallyPopulatedSectionsRef.current.add('advice');
+              }
+              if (validatedPrescriptionData.others && Array.isArray(validatedPrescriptionData.others) && validatedPrescriptionData.others.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('others');
+              }
+              if (validatedPrescriptionData.followUp && validatedPrescriptionData.followUp.trim()) {
+                initiallyPopulatedSectionsRef.current.add('followUp');
+              }
+              if (validatedPrescriptionData.vitalsAndBodyComposition && Object.keys(validatedPrescriptionData.vitalsAndBodyComposition).length > 0) {
+                initiallyPopulatedSectionsRef.current.add('vitalsAndBodyComposition');
+              }
+              if (validatedPrescriptionData.labResults && Array.isArray(validatedPrescriptionData.labResults) && validatedPrescriptionData.labResults.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labResults');
+              }
+              if (validatedPrescriptionData.medications && Array.isArray(validatedPrescriptionData.medications) && validatedPrescriptionData.medications.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medications');
+              }
+              if (validatedPrescriptionData.labInvestigation && Array.isArray(validatedPrescriptionData.labInvestigation) && validatedPrescriptionData.labInvestigation.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labInvestigation');
+              }
+              if (validatedPrescriptionData.dynamicFields && typeof validatedPrescriptionData.dynamicFields === 'object') {
+                Object.entries(validatedPrescriptionData.dynamicFields).forEach(([moduleName, moduleData]) => {
+                  if (Array.isArray(moduleData) && moduleData.length > 0) {
+                    initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
+                  }
+                });
+              }
+              
               // Process medications to ensure dosage/unitPerDose is properly mapped
               if (validatedPrescriptionData?.medications && Array.isArray(validatedPrescriptionData.medications)) {
                 validatedPrescriptionData.medications = validatedPrescriptionData.medications.map(med => {
@@ -2021,6 +2141,12 @@ const ConsultationDrawer = ({
               }
               if (prescriptionData.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('labResults');
+              }
+              if (prescriptionData.medications && Array.isArray(prescriptionData.medications) && prescriptionData.medications.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('medications');
+              }
+              if (prescriptionData.labInvestigation && Array.isArray(prescriptionData.labInvestigation) && prescriptionData.labInvestigation.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('labInvestigation');
               }
               // Track dynamicFields modules
               if (prescriptionData.dynamicFields && typeof prescriptionData.dynamicFields === 'object') {
@@ -2343,12 +2469,23 @@ const ConsultationDrawer = ({
   };
 
   const handlePauseResume = () => {
-    if (isPaused) {
-      mediaRecorderRef.current?.resume();
-    } else {
-      mediaRecorderRef.current?.pause();
+    if (!mediaRecorderRef.current) return;
+    
+    try {
+      if (isPaused) {
+        if (mediaRecorderRef.current.state === 'paused') {
+          mediaRecorderRef.current.resume();
+        }
+        setIsPaused(false);
+      } else {
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.pause();
+        }
+        setIsPaused(true);
+      }
+    } catch (error) {
+      console.error('Error pausing/resuming recording:', error);
     }
-    setIsPaused(!isPaused);
   };
 
   const handleInputChange = (e) => {
@@ -4860,9 +4997,19 @@ const ConsultationDrawer = ({
                           const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
                           const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations
+                          // For ambient mode, text inputs may have conversations array with single doctor message matching text
                           const isTextOnly = !isFirstAudio && (
                             typeof firstQuery === 'string' || 
-                            (firstQuery && typeof firstQuery === 'object' && !firstQuery.isAudio && !firstQuery.conversations) ||
+                            (firstQuery && typeof firstQuery === 'object' && !firstQuery.isAudio && (
+                              !firstQuery.conversations ||
+                              // Ambient mode text input: single doctor conversation matching text
+                              (firstQuery.conversations && firstQuery.conversations.length === 1 && 
+                               firstQuery.text &&
+                               (firstQuery.conversations[0]?.speaker?.toLowerCase() === 'doctor' || firstQuery.conversations[0]?.speaker?.toLowerCase() === 'dr') &&
+                               (firstQuery.conversations[0]?.text === firstQuery.text || 
+                                firstQuery.conversations[0]?.message === firstQuery.text ||
+                                firstQuery.conversations[0]?.content === firstQuery.text))
+                            )) ||
                             (!firstQuery && (fullTranscript || genRxDetails?.source))
                           );
                           const firstText = isTextOnly 
@@ -4956,21 +5103,35 @@ const ConsultationDrawer = ({
                         })()}
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
-                        {!isProcessing && (isAmbientMode || (!isAmbientMode && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source))) && (
+                        {!isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
                             <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
                                 Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
-                                      </div>
-                                    </div>
-                                  )}
+                              </div>
+                            </div>
+                          )}
 
                         {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
                         {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
                           const cardIndex = idx + 1;
                           const isCardExpanded = expandedTranscripts.has(cardIndex);
                           const isAudio = query && typeof query === 'object' && query.isAudio;
-                          const isTextOnly = !isAudio && (typeof query === 'string' || (query && typeof query === 'object' && !query.isAudio && !query.conversations));
+                          // Check if it's text-only: not audio, and either a string or object without audio/conversations
+                          // For ambient mode, text inputs may have conversations array with single doctor message matching text
+                          const isTextOnly = !isAudio && (
+                            typeof query === 'string' || 
+                            (query && typeof query === 'object' && !query.isAudio && (
+                              !query.conversations ||
+                              // Ambient mode text input: single doctor conversation matching text
+                              (query.conversations && query.conversations.length === 1 && 
+                               query.text &&
+                               (query.conversations[0]?.speaker?.toLowerCase() === 'doctor' || query.conversations[0]?.speaker?.toLowerCase() === 'dr') &&
+                               (query.conversations[0]?.text === query.text || 
+                                query.conversations[0]?.message === query.text ||
+                                query.conversations[0]?.content === query.text))
+                            ))
+                          );
                           const queryText = isTextOnly 
                             ? (typeof query === 'string' ? query : (query?.text || ''))
                             : null;
@@ -5266,21 +5427,23 @@ const ConsultationDrawer = ({
                             />
                           )}
 
-                        {prescriptionData?.medications &&
+                        {(initiallyPopulatedSectionsRef.current.has('medications') ||
+                          (prescriptionData?.medications &&
                           Array.isArray(prescriptionData.medications) && 
-                          prescriptionData.medications.length > 0 && (
+                          prescriptionData.medications.length > 0)) && (
                             <MedicationsTable
-                              medications={prescriptionData.medications}
+                              medications={prescriptionData?.medications || []}
                               onUpdate={handleMedicationsUpdate}
                               isProcessing={isProcessing}
                             />
                           )}
 
-                        {prescriptionData?.labInvestigation &&
+                        {(initiallyPopulatedSectionsRef.current.has('labInvestigation') ||
+                          (prescriptionData?.labInvestigation &&
                           Array.isArray(prescriptionData.labInvestigation) && 
-                          prescriptionData.labInvestigation.length > 0 && (
+                          prescriptionData.labInvestigation.length > 0)) && (
                             <LabInvestigationTable
-                              labInvestigation={prescriptionData.labInvestigation}
+                              labInvestigation={prescriptionData?.labInvestigation || []}
                               onUpdate={handleInvestigationUpdate}
                               isProcessing={isProcessing}
                             />

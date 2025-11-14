@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import './FollowUpRichTextEditor.scss';
 import followUpIcon from '../assets/images/followup.svg';
@@ -13,16 +13,20 @@ const FollowUpRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
-  const initialSlateValue = useMemo(() => {
-    if (!followUp || followUp.trim() === '') {
-      return [{ type: 'paragraph', children: [{ text: '' }] }];
-    }
+  const editorTextRef = useRef('');
 
-    return [{ type: 'paragraph', children: [{ text: followUp }] }];
-  }, []);
+  const initialSlateValue = useMemo(() => {
+    const currentText = followUp || '';
+    const editorText = editorTextRef.current || '';
+    
+    const displayText = currentText || editorText;
+    
+    return [{ type: 'paragraph', children: [{ text: displayText }] }];
+  }, [followUp]);
 
   const handleChange = useCallback((value) => {
     const text = value.map(n => n.children.map(c => c.text).join('')).join('\n');
+    editorTextRef.current = text;
     
     if (onUpdate) {
       onUpdate(text);

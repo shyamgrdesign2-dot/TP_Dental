@@ -1,9 +1,36 @@
 .voiceRxConsultPage {
   min-height: 100vh;
-  background: #ffffff;
+  background: linear-gradient(135deg, #f8f7ff 0%, #ffffff 100%);
   position: relative;
   overflow: hidden;
   width: 100%;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(circle at 20% 20%, rgba(154, 125, 218, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 80% 80%, rgba(47, 46, 164, 0.06) 0%, transparent 60%),
+      radial-gradient(circle at 50% 10%, rgba(154, 125, 218, 0.04) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      linear-gradient(45deg, transparent 40%, rgba(154, 125, 218, 0.02) 50%, transparent 60%),
+      linear-gradient(-45deg, transparent 40%, rgba(47, 46, 164, 0.02) 50%, transparent 60%);
+    pointer-events: none;
+  }
 }
 
 .header {

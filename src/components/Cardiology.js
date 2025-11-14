@@ -54,7 +54,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
 import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
-import { getGenRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 
 import {
@@ -247,7 +247,8 @@ function Cardiology(props) {
   const fetchSnapRxFile = async () => {
     const response = await getSnapRxFiles(
       patient_data.patient_unique_id,
-      viewCaseManagerData?.tcm_id
+      viewCaseManagerData?.tcm_id,
+      null
     );
     setSnapRxFile(response?.uploaded_files || []);
   };
@@ -255,9 +256,27 @@ function Cardiology(props) {
   const getGenRxDetails = async () => {
     try {
       setIsGenRxTableView(false);
-      const response = await getGenRx(
+      const initialResponse = await getGenRx(
         viewCaseManagerData?.smart_prescription_filename
       );
+
+      if (initialResponse.success) {
+        // Check if conversation exists and has data in the history
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+        
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(
+            viewCaseManagerData?.smart_prescription_filename
+          );
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // If conversation is null or empty, use the dictate mode response (initialResponse)
 
         if (response.success) {
           const hasTabularView =
@@ -266,35 +285,43 @@ function Cardiology(props) {
           setIsGenRxTableView(hasTabularView);
           setSnapRxDigitisedData([]);
           setRxDigitisedData([]);
-          const hasAmbientRx = response.data?.rxDigitizationHistory?.some(h => h.category === "ambient-rx");
-          setIsAmbientRx(hasAmbientRx);
           
-          if (hasAmbientRx) {
+          // Check if this is ambient mode (has conversation data)
+          const isAmbientMode = hasConversation;
+          setIsAmbientRx(isAmbientMode);
+          
+          if (isAmbientMode) {
             let prescriptionData = null;
             
             if (response.data.editedData) {
               prescriptionData = response.data.editedData;
+            } else if (response.data.digitizeData) {
+              prescriptionData = response.data.digitizeData;
             } else {
-              const ambientEntry = response.data.rxDigitizationHistory.find(h => h.category === "ambient-rx");
-              prescriptionData = ambientEntry?.response || ambientEntry?.payload?.response || ambientEntry?.payload;
+              // Fallback to history digitize data
+              const latestHistory = response.data?.history?.[response.data.history.length - 1];
+              prescriptionData = latestHistory?.digitize || null;
             }
             
             setGenRxData(prescriptionData);
             
-            
-            const allConversations = response.data.rxDigitizationHistory
-              ?.filter(h => h.category === "ambient-rx")
-              ?.flatMap(h => h.payload?.conversation || []) || [];
+            // Extract conversations from history
+            const allConversations = response.data?.history
+              ?.filter(h => h.conversation && Array.isArray(h.conversation) && h.conversation.length > 0)
+              ?.flatMap(h => h.conversation) || [];
             setAmbientConversations(allConversations);
           } else {
-            
+            // Dictate mode - conversation is null or empty
             setGenRxData(response.data?.editedData || response.data?.digitizeData);
             setGenRxQueries(
               response.data?.history?.map(({ transcription }) => transcription)
             );
           }
+        } else {
+          throw new Error(response.error || "Failed to get Rx");
+        }
       } else {
-        throw new Error(response.error || "Failed to get Rx");
+        throw new Error(initialResponse.error || "Failed to get Rx");
       }
     } catch (error) {
       console.error("Error getting Rx details:", error);
@@ -681,7 +708,8 @@ function Cardiology(props) {
     try {
       const response = await getSnapRxDigitization(
         patient_data.patient_unique_id,
-        tcmId
+        tcmId,
+        null
       );
 
       if (response?.digitization) {

@@ -16,6 +16,7 @@ const AdviceRichTextEditor = ({
 }) => {
   const previousCountRef = useRef(null);
   const keyVersionRef = useRef(0);
+  const editorItemsRef = useRef([]);
 
   const nonEmptyCount = useMemo(() => {
     if (!Array.isArray(advice) || advice.length === 0) {
@@ -43,11 +44,28 @@ const AdviceRichTextEditor = ({
   }, [nonEmptyCount]);
 
   const initialSlateValue = useMemo(() => {
-    if (!advice || advice.length === 0) {
+    const currentItems = advice || [];
+    let editorItems = editorItemsRef.current || [];
+    
+    if (editorItems.length === 0 && currentItems.length > 0) {
+      editorItems = currentItems.map(adv => {
+        const name = adv.name || adv.lineItem || '';
+        const notes = adv.notes || '';
+        return notes ? `${name} (${notes})` : name;
+      });
+      editorItemsRef.current = editorItems;
+    }
+    
+    const allItems = editorItems.length > 0 ? editorItems : currentItems;
+    
+    if (allItems.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const formattedAdvice = advice.map(adv => {
+    const formattedAdvice = allItems.map((adv) => {
+      if (typeof adv === 'string') {
+        return adv;
+      }
       const name = adv.name || adv.lineItem || '';
       const notes = adv.notes || '';
       
@@ -56,7 +74,7 @@ const AdviceRichTextEditor = ({
       }
       
       return name;
-    }).filter(text => text.trim() !== '');
+    });
     
     if (formattedAdvice.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -67,6 +85,7 @@ const AdviceRichTextEditor = ({
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
+    editorItemsRef.current = items;
     const adviceArray = items.map(text => ({ lineItem: text }));
     
     if (onUpdate) {

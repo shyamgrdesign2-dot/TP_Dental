@@ -16,6 +16,7 @@ const DiagnosisRichTextEditor = ({
 }) => {
   const previousCountRef = useRef(null);
   const keyVersionRef = useRef(0);
+  const editorItemsRef = useRef([]);
 
   const nonEmptyCount = useMemo(() => {
     if (!Array.isArray(diagnosis) || diagnosis.length === 0) {
@@ -43,11 +44,24 @@ const DiagnosisRichTextEditor = ({
   }, [nonEmptyCount]);
 
   const initialSlateValue = useMemo(() => {
-    if (!diagnosis || diagnosis.length === 0) {
+    const currentItems = diagnosis || [];
+    let editorItems = editorItemsRef.current || [];
+    
+    if (editorItems.length === 0 && currentItems.length > 0) {
+      editorItems = currentItems.map(diag => diag.name || diag.lineItem || '');
+      editorItemsRef.current = editorItems;
+    }
+    
+    const allItems = editorItems.length > 0 ? editorItems : currentItems;
+    
+    if (allItems.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const formattedDiagnosis = diagnosis.map(diag => {
+    const formattedDiagnosis = allItems.map((diag) => {
+      if (typeof diag === 'string') {
+        return diag;
+      }
       const name = diag.name || '';
       const parts = [];
       
@@ -60,7 +74,7 @@ const DiagnosisRichTextEditor = ({
       }
       
       return name || diag.lineItem || '';
-    }).filter(text => text.trim() !== '');
+    });
     
     if (formattedDiagnosis.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -71,6 +85,7 @@ const DiagnosisRichTextEditor = ({
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
+    editorItemsRef.current = items;
     const diagnosisArray = items.map(text => ({ lineItem: text }));
     
     if (onUpdate) {

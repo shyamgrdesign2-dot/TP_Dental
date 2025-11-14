@@ -21,12 +21,12 @@ const MedicalHistoryRichTextEditor = ({
 }) => {
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    medical_condition: false,
-    allergies: false,
-    surgical_history: false,
-    family_history: false,
-    lifestyle: false,
-    others: false
+    medical_condition: true,
+    allergies: true,
+    surgical_history: true,
+    family_history: true,
+    lifestyle: true,
+    others: true
   });
   const [newHistoryItem, setNewHistoryItem] = useState({
     type: 'medical_condition',
@@ -365,6 +365,13 @@ const MedicalHistoryRichTextEditor = ({
               return null;
             }
             const isEditableType = type === 'others';
+            const textareaValue = localTextareaValues[type] !== undefined 
+              ? localTextareaValues[type] 
+              : (groupedHistory[type] && groupedHistory[type].length > 0
+                ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
+                : '');
+            const lineCount = textareaValue ? textareaValue.split('\n').length : 1;
+            const calculatedRows = Math.max(1, Math.min(10, lineCount));
             
             return (
               <div key={type} className={styles['medical-history-type-section']}>
@@ -388,11 +395,7 @@ const MedicalHistoryRichTextEditor = ({
                         }
                       }}
                       className={`${styles['medical-history-textarea']} ${!isEditableType ? styles['medical-history-textarea-readonly'] : ''}`}
-                      value={localTextareaValues[type] !== undefined 
-                        ? localTextareaValues[type] 
-                        : (groupedHistory[type] && groupedHistory[type].length > 0
-                          ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
-                          : '')}
+                      value={textareaValue}
                       readOnly={!isEditableType}
                       onChange={
                         isEditableType
@@ -426,9 +429,9 @@ const MedicalHistoryRichTextEditor = ({
                           ? `• Add ${config.title.toLowerCase()}...`
                           : ''
                       }
-                      rows={Math.max(3, Math.min(10, (groupedHistory[type]?.length || 0) + 2))}
+                      rows={calculatedRows}
                       style={{ 
-                        minHeight: '60px',
+                        minHeight: '30px',
                         resize: 'vertical',
                         overflow: 'auto',
                         cursor: isEditableType ? 'text' : 'default'

@@ -12,6 +12,7 @@ const VaccinationsRichTextEditor = ({
 }) => {
   const previousCountRef = useRef(null);
   const keyVersionRef = useRef(0);
+  const editorItemsRef = useRef([]);
 
   const nonEmptyCount = useMemo(() => {
     if (!Array.isArray(vaccinations) || vaccinations.length === 0) {
@@ -39,11 +40,24 @@ const VaccinationsRichTextEditor = ({
   }, [nonEmptyCount]);
 
   const initialSlateValue = useMemo(() => {
-    if (!vaccinations || vaccinations.length === 0) {
+    const currentItems = vaccinations || [];
+    let editorItems = editorItemsRef.current || [];
+    
+    if (editorItems.length === 0 && currentItems.length > 0) {
+      editorItems = currentItems.map(vacc => vacc.name || vacc.lineItem || '');
+      editorItemsRef.current = editorItems;
+    }
+    
+    const allItems = editorItems.length > 0 ? editorItems : currentItems;
+    
+    if (allItems.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const formattedVaccinations = vaccinations.map(vaccination => {
+    const formattedVaccinations = allItems.map((vaccination) => {
+      if (typeof vaccination === 'string') {
+        return vaccination;
+      }
       const name = vaccination.name || '';
       const parts = [];
       
@@ -57,7 +71,7 @@ const VaccinationsRichTextEditor = ({
       }
       
       return name || vaccination.lineItem || '';
-    }).filter(text => text.trim() !== '');
+    });
     
     if (formattedVaccinations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -68,6 +82,7 @@ const VaccinationsRichTextEditor = ({
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
+    editorItemsRef.current = items;
     const vaccinationsArray = items.map(text => ({ lineItem: text }));
     
     if (onUpdate) {

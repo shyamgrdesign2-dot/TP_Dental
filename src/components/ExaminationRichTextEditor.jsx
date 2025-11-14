@@ -16,6 +16,7 @@ const ExaminationRichTextEditor = ({
 }) => {
   const previousCountRef = useRef(null);
   const keyVersionRef = useRef(0);
+  const editorItemsRef = useRef([]);
 
   const nonEmptyCount = useMemo(() => {
     if (!Array.isArray(examinations) || examinations.length === 0) {
@@ -43,11 +44,24 @@ const ExaminationRichTextEditor = ({
   }, [nonEmptyCount]);
 
   const initialSlateValue = useMemo(() => {
-    if (!examinations || examinations.length === 0) {
+    const currentItems = examinations || [];
+    let editorItems = editorItemsRef.current || [];
+    
+    if (editorItems.length === 0 && currentItems.length > 0) {
+      editorItems = currentItems.map(exam => exam.name || exam.lineItem || '');
+      editorItemsRef.current = editorItems;
+    }
+    
+    const allItems = editorItems.length > 0 ? editorItems : currentItems;
+    
+    if (allItems.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const formattedExaminations = examinations.map(examination => {
+    const formattedExaminations = allItems.map((examination) => {
+      if (typeof examination === 'string') {
+        return examination;
+      }
       const name = examination.name || '';
       const parts = [];
       
@@ -58,7 +72,7 @@ const ExaminationRichTextEditor = ({
       }
       
       return name || examination.lineItem || '';
-    }).filter(text => text.trim() !== '');
+    });
     
     if (formattedExaminations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -69,6 +83,7 @@ const ExaminationRichTextEditor = ({
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
+    editorItemsRef.current = items;
     const examinationsArray = items.map(text => ({ lineItem: text }));
     
     if (onUpdate) {

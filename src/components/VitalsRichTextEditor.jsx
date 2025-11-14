@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
@@ -10,27 +10,41 @@ const VitalsRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
+  const previousVitalsRef = useRef(vitalsAndBodyComposition);
+  const editorKeysRef = useRef(new Set());
+
   const initialSlateValue = useMemo(() => {
-    if (!vitalsAndBodyComposition || Object.keys(vitalsAndBodyComposition).length === 0) {
+    const currentVitals = vitalsAndBodyComposition || {};
+    
+    if (Object.keys(currentVitals).length === 0 && editorKeysRef.current.size === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const vitalPairs = Object.entries(vitalsAndBodyComposition)
-      .filter(([key, value]) => value && value.toString().trim() !== '')
-      .map(([key, value]) => {
+    const allKeys = new Set([...Object.keys(currentVitals), ...Array.from(editorKeysRef.current)]);
+    const vitalPairs = Array.from(allKeys)
+      .map((key) => {
+        const value = currentVitals[key];
         const formattedKey = key
           .replace(/([A-Z])/g, ' $1')
           .replace(/^./, (str) => str.toUpperCase())
           .replace(/\b(bp|rr|spo2|rbs)\b/gi, (match) => match.toUpperCase())
           .trim();
         
-        return `${formattedKey}: ${value}`;
+        const valueStr = value ? value.toString() : '';
+        return `${formattedKey}: ${valueStr}`;
+      })
+      .filter(pair => {
+        const colonIndex = pair.indexOf(':');
+        if (colonIndex === -1) return false;
+        const keyPart = pair.substring(0, colonIndex).trim();
+        return keyPart.length > 0;
       });
 
     if (vitalPairs.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
+    previousVitalsRef.current = currentVitals;
     return arrayToSlateBulletList(vitalPairs);
   }, [vitalsAndBodyComposition]);
 
@@ -48,6 +62,8 @@ const VitalsRichTextEditor = ({
     const items = slateBulletListToArray(value);
     
     const vitalsObject = {};
+    const currentKeys = new Set();
+    
     items.forEach(item => {
       const colonIndex = item.indexOf(':');
       if (colonIndex > -1) {
@@ -71,12 +87,16 @@ const VitalsRichTextEditor = ({
             return keyMap[match] || match;
           });
         
-        if (value) {
-          vitalsObject[normalizedKey] = value;
+        if (normalizedKey) {
+          vitalsObject[normalizedKey] = value || '';
+          currentKeys.add(normalizedKey);
         }
       }
     });
 
+    editorKeysRef.current = currentKeys;
+    previousVitalsRef.current = vitalsObject;
+    
     if (onUpdate) {
       onUpdate(vitalsObject);
     }
