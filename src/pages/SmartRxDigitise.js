@@ -65,16 +65,6 @@ function SmartRxDigitise() {
 
   const baseUrlRxDigitise = env.rx_digitization;
 
-  // Ensure medications default edited flag is present
-  const normalizeEditedFlag = useCallback((src) => {
-    if (!src || typeof src !== "object") return src;
-    const meds = Array.isArray(src.medications) ? src.medications : [];
-    return {
-      ...src,
-      medications: meds.map((m) => ({ ...m, edited: m?.edited ?? false })),
-    };
-  }, []);
-
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
@@ -328,11 +318,7 @@ function SmartRxDigitise() {
 
       // Update the digitized data
       if (response?.data?.data) {
-        setData(
-          isGroundingAccessable
-            ? normalizeEditedFlag(response.data.data.refinedData)
-            : response.data.data.refinedData
-        );
+        setData(response.data.data.refinedData);
         setIsLoading(false);
       }
     } catch (error) {

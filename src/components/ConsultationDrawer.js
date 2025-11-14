@@ -57,7 +57,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -125,6 +125,7 @@ import {
   getFrequentlySearchedInvestigation,
   searchInvestigation,
 } from "../redux/investigationSlice";
+import config from "../config";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -227,6 +228,8 @@ const ConsultationDrawer = ({
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
   const isGroundingAccessable =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
@@ -362,7 +365,7 @@ const ConsultationDrawer = ({
   }, [prescriptionData]);
 
   useEffect(() => {
-    if (!isGroundingAccessable) return;
+    if (!isGroundingAccessable && !isApollo) return;
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
@@ -384,7 +387,7 @@ const ConsultationDrawer = ({
 
   // Fuzzy-correct lab investigations (tests) names with guards
   useEffect(() => {
-    if (!isGroundingAccessable) return;
+    if (!isGroundingAccessable && !isApollo) return;
     const tests = prescriptionData?.labInvestigation || [];
     if (!tests.length) return;
     if (isFuzzyUpdatingTestsRef.current) return;
@@ -3072,12 +3075,12 @@ const ConsultationDrawer = ({
           <div>
             <span className="fw-medium">{e.tmm_medicine_name}</span>,{" "}
             <span>{e.tmm_generic}</span>{" "}
-            {e?.tmm_hm_type === 1 && e?.um_id === 0 && (
+            {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
               <span
                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
                 style={{ width: 18, height: 18, background: "#c44ea2" }}
               >
-                Z
+                {getHmTypeIndicator(e)}
               </span>
             )}
           </div>
@@ -3129,12 +3132,12 @@ const ConsultationDrawer = ({
           label: (
             <div>
               {e.investigation_name}{" "}
-              {e?.hm_type === 1 && e?.um_id === 0 && (
+              {(e?.hm_type === 1 || e?.hm_type === 2) && e?.um_id === 0 && (
                 <span
                   className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
                   style={{ width: 18, height: 18, background: "#c44ea2" }}
                 >
-                  Z
+                  {getHmTypeIndicator(e)}
                 </span>
               )}
             </div>

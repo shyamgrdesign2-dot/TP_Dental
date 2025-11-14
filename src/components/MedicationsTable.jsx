@@ -13,7 +13,7 @@ import {
   searchMedication,
   getFrequentlySearchedMedication
 } from "../redux/medicationSlice";
-import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination } from '../utils/utils';
+import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
@@ -22,6 +22,7 @@ import { getInvestigationAndMedicine } from '../redux/caseManagerSlice';
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import ApiMedication from '../api/services/ApiMedication';
 import CustomMedicinePopup from './CustomMedicinePopup';
+import config from '../config';
 
 const MedicationsTable = ({
   medications = [],
@@ -34,10 +35,11 @@ const MedicationsTable = ({
   const { patient_data } = state || {};
   const { tcmId } = useContext(CashManagerContext);
   const { profile, siteId, storeCode, frequencyList, timingList } = useSelector((state) => state.doctors);
-  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
-  const isGroundingAccessable = tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB;
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
+  const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
@@ -104,9 +106,9 @@ const MedicationsTable = ({
               <div>
                 <span className="fw-medium">{medicineName}</span>,{' '}
                 <span>{genericName}</span>{' '}
-                {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
-                  <span
-                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
+                  <div
+                    className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
                     style={{ 
                       width: 18, 
                       height: 18, 
@@ -116,8 +118,8 @@ const MedicationsTable = ({
                       backgroundRepeat: 'no-repeat'
                     }}
                   >
-                    Z
-                  </span>
+                    {getHmTypeIndicator(medication)}
+                  </div>
                 )}
               </div>
             ),
@@ -221,6 +223,60 @@ const MedicationsTable = ({
     []
   );
 
+  // Helper function to add a new medication
+  const addNewMedication = useCallback((value, option) => {
+    try {
+      let medication = null;
+      if (option?.key && typeof option.key === 'string') {
+        medication = JSON.parse(option.key);
+      }
+      const medicineName = medication?.tmm_medicine_name || medication?.medicine_name || value;
+      const newMedication = {
+        id: Date.now().toString(),
+        name: medicineName,
+        corrected_name: medication?.tmm_generic || medication?.generic_name || '',
+        dosage: '',
+        frequency: '',
+        schedule: '',
+        duration: '',
+        quantity: 0,
+        notes: '',
+        lineItem: medicineName,
+        edited: false,
+      };
+      
+      // Add metadata if available
+      if (medication) {
+        newMedication.metadata = {
+          ...medication,
+          selectedValue: medicineName,
+        };
+      }
+      
+      const updatedMedications = [...medications, newMedication];
+      onUpdate(updatedMedications);
+      setSearchQuery('');
+      setParentSearchOptions([]);
+    } catch (error) {
+      const newMedication = {
+        id: Date.now().toString(),
+        name: value,
+        dosage: '',
+        frequency: '',
+        schedule: '',
+        duration: '',
+        quantity: 0,
+        notes: '',
+        lineItem: value,
+        edited: false,
+      };
+      const updatedMedications = [...medications, newMedication];
+      onUpdate(updatedMedications);
+      setSearchQuery('');
+      setParentSearchOptions([]);
+    }
+  }, [medications, onUpdate]);
+
   const onSelectParent = useCallback(
     (value, option) => {
       try {
@@ -232,44 +288,26 @@ const MedicationsTable = ({
           }
         }
         const medication = JSON.parse(option.key);
-        const medicineName = medication.tmm_medicine_name || medication.medicine_name || value;
-        const newMedication = {
-          id: Date.now().toString(),
-          name: medicineName,
-          corrected_name: medication.tmm_generic || medication.generic_name || '',
-          dosage: '',
-          frequency: '',
-          schedule: '',
-          duration: '',
-          quantity: 0,
-          notes: '',
-          lineItem: medicineName,
-          edited: false,
-        };
-        const updatedMedications = [...medications, newMedication];
-        onUpdate(updatedMedications);
-        setSearchQuery('');
-        setParentSearchOptions([]);
+        const isZydusMedicine = ((medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0);
+        
+        if (
+          isGroundingAccessable &&
+          !isZydusMedicine &&
+          !dontShowZydusWarning
+        ) {
+          setPendingSelection({
+            value,
+            option,
+            isNewMedication: true, // Flag to indicate this is for adding new medication
+          });
+          setShowNonZydusWarning(true);
+        }
       } catch (error) {
-        const newMedication = {
-          id: Date.now().toString(),
-          name: value,
-          dosage: '',
-          frequency: '',
-          schedule: '',
-          duration: '',
-          quantity: 0,
-          notes: '',
-          lineItem: value,
-          edited: false,
-        };
-        const updatedMedications = [...medications, newMedication];
-        onUpdate(updatedMedications);
-        setSearchQuery('');
-        setParentSearchOptions([]);
+        // If parsing fails, just add the medication without warning
+        addNewMedication(value, option);
       }
     },
-    [medications, onUpdate]
+    [isGroundingAccessable, dontShowZydusWarning, addNewMedication]
   );
 
   const handleCellClick = async (itemId, field, currentValue) => {
@@ -313,9 +351,9 @@ const MedicationsTable = ({
                     <div>
                       <span className="fw-medium">{medicineName}</span>,{' '}
                       <span>{genericName}</span>{' '}
-                      {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                      {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
                         <span
-                          className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                          className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
                           style={{ 
                             width: 18, 
                             height: 18, 
@@ -325,7 +363,7 @@ const MedicationsTable = ({
                             backgroundRepeat: 'no-repeat'
                           }}
                         >
-                          Z
+                          {getHmTypeIndicator(medication)}
                         </span>
                       )}
                     </div>
@@ -354,9 +392,9 @@ const MedicationsTable = ({
                   <div>
                     <span className="fw-medium">{medicineName}</span>,{' '}
                     <span>{genericName}</span>{' '}
-                    {medication?.tmm_hm_type == 1 && medication?.um_id === 0 && (
+                    {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
                       <span
-                        className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                        className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
                         style={{ 
                           width: 18, 
                           height: 18, 
@@ -366,7 +404,7 @@ const MedicationsTable = ({
                           backgroundRepeat: 'no-repeat'
                         }}
                       >
-                        Z
+                        {getHmTypeIndicator(medication)}
                       </span>
                     )}
                   </div>
@@ -545,7 +583,7 @@ const MedicationsTable = ({
         setShowAddMedicinePopup(true);
         return;
       }
-      const isZydusMedicine = ((medicineData?.metadata?.tmm_hm_type == 1 && medicineData?.metadata?.um_id === 0) || (medicineData?.tmm_hm_type == 1 && medicineData?.um_id === 0));
+      const isZydusMedicine = ((medicineData?.metadata?.tmm_hm_type == 1 || medicineData?.metadata?.tmm_hm_type == 2) && medicineData?.metadata?.um_id === 0) || ((medicineData?.tmm_hm_type == 1 || medicineData?.tmm_hm_type == 2) && medicineData?.um_id === 0);
       if (
         isGroundingAccessable &&
         !isZydusMedicine &&
@@ -974,9 +1012,9 @@ const MedicationsTable = ({
                     </AutoComplete>
                 ) : (
                     <div className={styles['medicine-content']}>
-                      <div className={styles['medicine-name']}>
+                      <div className={styles['medicine-name']} style={{ display: 'flex', alignItems: 'center' }}>
                         {capitalize(item.name || '-', true)}
-                        {((item?.metadata?.tmm_hm_type == 1 && item?.metadata?.um_id === 0)) && (
+                        {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2) && item?.metadata?.um_id === 0) && (
                           <span
                             className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
                             style={{ 
@@ -988,7 +1026,9 @@ const MedicationsTable = ({
                               backgroundRepeat: 'no-repeat'
                             }}
                           >
-                            Z
+                            <div className="sc-tour-button">
+                              {getHmTypeIndicator(item?.metadata || item)}
+                            </div>
                           </span>
                         )}
                       </div>                                                       
@@ -1348,12 +1388,18 @@ const MedicationsTable = ({
                 <Button
                   onClick={() => {
                     if (pendingSelection) {
-                      handleNameSelect(
-                        pendingSelection.itemId,
-                        pendingSelection.value,
-                        pendingSelection.option,
-                        pendingSelection.isTabletMode
-                      );
+                      if (pendingSelection.isNewMedication) {
+                        // Adding new medication from search input
+                        addNewMedication(pendingSelection.value, pendingSelection.option);
+                      } else {
+                        // Editing existing medication
+                        handleNameSelect(
+                          pendingSelection.itemId,
+                          pendingSelection.value,
+                          pendingSelection.option,
+                          pendingSelection.isTabletMode
+                        );
+                      }
                     }
                     setShowNonZydusWarning(false);
                     setPendingSelection(null);

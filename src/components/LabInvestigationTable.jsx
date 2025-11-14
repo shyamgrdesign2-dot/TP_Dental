@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { AutoComplete, Input } from 'antd';
+import { AutoComplete, Input, Button } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,12 +11,14 @@ import {
   searchInvestigation,
   getFrequentlySearchedInvestigation
 } from "../redux/investigationSlice";
-import { removeBeforeWhiteSpace } from '../utils/utils';
+import { removeBeforeWhiteSpace, getHmTypeIndicator } from '../utils/utils';
 import ApiInvestigation from '../api/services/ApiInvestigation';
 import { env } from '../EnvironmentConfig';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from '../utils/constants';
 import { getDecodedToken } from '../utils/localStorage';
+import CommonModal from '../common/CommonModal';
+import config from '../config';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -35,6 +37,11 @@ const LabInvestigationTable = ({
   const [editingRow, setEditingRow] = useState(null); // itemId when entire row is being edited (tablet view)
   const [rowEditValues, setRowEditValues] = useState({}); // Store edit values for all fields in a row
   const [isTablet, setIsTablet] = useState(false);
+  const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState(null);
+  const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
+    return localStorage.getItem('dontShowZydusWarning') === 'true';
+  });
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
@@ -43,6 +50,9 @@ const LabInvestigationTable = ({
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
   );
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
+  const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
   
   // Detect tablet view
   useEffect(() => {
@@ -76,7 +86,7 @@ const LabInvestigationTable = ({
             label: (
               <div>
                 {investigation.investigation_name}{' '}
-                {investigation?.hm_type === 1 && investigation?.um_id === 0 && (
+                {(investigation?.hm_type === 1 || investigation?.hm_type === 2) && investigation?.um_id === 0 && (
                   <span
                     className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
                     style={{ 
@@ -88,7 +98,7 @@ const LabInvestigationTable = ({
                       backgroundRepeat: 'no-repeat'
                     }}
                   >
-                    Z
+                    {getHmTypeIndicator(investigation)}
                   </span>
                 )}
               </div>
@@ -111,7 +121,7 @@ const LabInvestigationTable = ({
             label: (
               <div>
                 {investigation.investigation_name}{' '}
-                {investigation?.hm_type === 1 && investigation?.um_id === 0 && (
+                {(investigation?.hm_type === 1 || investigation?.hm_type === 2) && investigation?.um_id === 0 && (
                   <span
                     className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
                     style={{ 
@@ -123,7 +133,7 @@ const LabInvestigationTable = ({
                       backgroundRepeat: 'no-repeat'
                     }}
                   >
-                    Z
+                    {getHmTypeIndicator(investigation)}
                   </span>
                 )}
               </div>
@@ -224,25 +234,81 @@ const LabInvestigationTable = ({
     []
   );
 
-  const onSelectParent = useCallback(
-    (value, option) => {
-      const investigation = JSON.parse(option.key);
+  // Helper function to add a new investigation
+  const addNewInvestigation = useCallback((value, option) => {
+    try {
+      let investigation = null;
+      if (option?.key && typeof option.key === 'string') {
+        investigation = JSON.parse(option.key);
+      }
+      const investigationName = investigation?.investigation_name || value;
       const newInvestigation = {
         id: Date.now().toString(),
-        name: investigation.investigation_name,
+        name: investigationName,
         notes: '',
-        lineItem: investigation.investigation_name,
-        // Store investigation data in metadata for Z indicator check
-        metadata: {
+        lineItem: investigationName,
+      };
+      
+      // Add metadata if available
+      if (investigation) {
+        newInvestigation.metadata = {
           ...investigation,
-          selectedValue: investigation.investigation_name,
-        },
+          selectedValue: investigationName,
+        };
+      }
+      
+      const updatedInvestigations = [...labInvestigation, newInvestigation];
+      onUpdate(updatedInvestigations);
+      setSearchQuery('');
+    } catch (error) {
+      const newInvestigation = {
+        id: Date.now().toString(),
+        name: value,
+        notes: '',
+        lineItem: value,
       };
       const updatedInvestigations = [...labInvestigation, newInvestigation];
       onUpdate(updatedInvestigations);
       setSearchQuery('');
+    }
+  }, [labInvestigation, onUpdate]);
+
+  const onSelectParent = useCallback(
+    (value, option) => {
+      try {
+        if (!option?.key || option.key === -1 || option.key === -2) {
+          return;
+        }
+        const investigation = JSON.parse(option.key);
+        
+        // Check if it's a custom investigation (change === 1)
+        if (investigation.change === 1) {
+          addNewInvestigation(value, option);
+          return;
+        }
+        
+        const isZydusInvestigation = ((investigation?.hm_type == 1 || investigation?.hm_type == 2) && investigation?.um_id === 0);
+        
+        if (
+          isGroundingAccessable &&
+          !isZydusInvestigation &&
+          !dontShowZydusWarning
+        ) {
+          setPendingSelection({
+            value,
+            option,
+            isNewInvestigation: true, // Flag to indicate this is for adding new investigation
+          });
+          setShowNonZydusWarning(true);
+        } else {
+          addNewInvestigation(value, option);
+        }
+      } catch (error) {
+        // If parsing fails, just add the investigation without warning
+        addNewInvestigation(value, option);
+      }
     },
-    [labInvestigation, onUpdate]
+    [isGroundingAccessable, dontShowZydusWarning, addNewInvestigation]
   );
 
 
@@ -254,9 +320,6 @@ const LabInvestigationTable = ({
     setOriginalEditValue(value); // Store original value to track if user edits
     
     if (field === 'name') {
-      const isGroundingAccessable =
-        tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB;
-
       if (!isGroundingAccessable) {
         setFuzzySearchResults([]);
         if (value && value.trim().length > 0) {
@@ -432,30 +495,57 @@ const LabInvestigationTable = ({
       return;
     }
     
-    // Extract investigation name immediately
-    let investigationName = value;
     try {
+      let investigationData = null;
       if (option?.key && typeof option.key === 'string') {
-        const parsed = JSON.parse(option.key);
-        investigationName = parsed?.investigation_name || value;
+        investigationData = JSON.parse(option.key);
+      }
+      
+      // Check if it's a custom investigation (change === 1)
+      if (investigationData && investigationData.change === 1) {
+        handleNameSelect(itemId, value, option, isTabletMode);
+        return;
+      }
+      
+      const isZydusInvestigation = ((investigationData?.hm_type == 1 || investigationData?.hm_type == 2) && investigationData?.um_id === 0);
+      
+      if (
+        isGroundingAccessable &&
+        !isZydusInvestigation &&
+        !dontShowZydusWarning
+      ) {
+        setPendingSelection({
+          itemId,
+          value,
+          option,
+          isTabletMode,
+        });
+        setShowNonZydusWarning(true);
+      } else {
+        // Extract investigation name immediately
+        let investigationName = value;
+        if (investigationData) {
+          investigationName = investigationData?.investigation_name || value;
+        }
+        
+        // Set the value in state immediately so AutoComplete reflects it
+        if (isTabletMode) {
+          setRowEditValues(prev => ({
+            ...prev,
+            name: investigationName,
+          }));
+        } else {
+          setEditValue(investigationName);
+        }
+        
+        // Then update the investigation data
+        handleNameSelect(itemId, value, option, isTabletMode);
       }
     } catch (e) {
-      investigationName = value;
+      // Fallback: just update the investigation
+      handleNameSelect(itemId, value, option, isTabletMode);
     }
-    
-    // Set the value in state immediately so AutoComplete reflects it
-    if (isTabletMode) {
-      setRowEditValues(prev => ({
-        ...prev,
-        name: investigationName,
-      }));
-    } else {
-      setEditValue(investigationName);
-    }
-    
-    // Then update the investigation data
-    handleNameSelect(itemId, value, option, isTabletMode);
-  }, [handleNameSelect]);
+  }, [isGroundingAccessable, dontShowZydusWarning, handleNameSelect]);
 
   const handleRowEdit = (itemId) => {
     const item = labInvestigation.find(inv => inv.id === itemId);
@@ -664,8 +754,8 @@ const LabInvestigationTable = ({
                   ) : (
                     <span className={styles['medicine-text']}>
                       {item.name || '-'}
-                      {((item?.metadata?.hm_type === 1 && item?.metadata?.um_id === 0) ||
-                        (item?.hm_type === 1 && item?.um_id === 0)) && (
+                      {(((item?.metadata?.hm_type === 1 || item?.metadata?.hm_type === 2) && item?.metadata?.um_id === 0) ||
+                        ((item?.hm_type === 1 || item?.hm_type === 2) && item?.um_id === 0)) && (
                         <span
                           className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
                           style={{ 
@@ -677,7 +767,9 @@ const LabInvestigationTable = ({
                             backgroundRepeat: 'no-repeat'
                           }}
                         >
-                          Z
+                          <div className="sc-tour-button">
+                              {getHmTypeIndicator(item?.metadata || item)}
+                            </div>
                         </span>
                       )}
                     </span>
@@ -773,6 +865,97 @@ const LabInvestigationTable = ({
           </AutoComplete>
         </div>
       </div>
+      
+      <CommonModal
+        isModalOpen={showNonZydusWarning}
+        onCancel={() => {
+          setShowNonZydusWarning(false);
+          setPendingSelection(null);
+        }}
+        modalWidth={550}
+        title={'Not in Zydus Data Engine'}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-3">
+              <div className="d-flex align-items-start">
+                <i
+                  className="icon-Warning fs-24 me-3"
+                  style={{ color: '#F59E0B' }}
+                ></i>
+                <div>
+                  <span className="semi-bold-text">
+                    "{pendingSelection?.value}"
+                  </span>{' '}
+                  is <span className="semi-bold-text">not </span>in
+                  <span className="semi-bold-text"> Zydus Data Engine</span>.
+                  Prescribing it may impact{' '}
+                  <span className="semi-bold-text">patient fulfilment</span>.
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="d-flex align-items-center">
+                <input
+                  type="checkbox"
+                  id="dontShowAgain"
+                  checked={dontShowZydusWarning}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setDontShowZydusWarning(checked);
+                    localStorage.setItem(
+                      'dontShowZydusWarning',
+                      checked.toString()
+                    );
+                  }}
+                  style={{ marginRight: 8, width: 16, height: 16 }}
+                />
+                <label
+                  htmlFor="dontShowAgain"
+                  style={{ cursor: 'pointer', marginBottom: 0 }}
+                >
+                  Don't show this again
+                </label>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  <span>Go Back</span>
+                </div>
+                <Button
+                  onClick={() => {
+                    if (pendingSelection) {
+                      if (pendingSelection.isNewInvestigation) {
+                        // Adding new investigation from search input
+                        addNewInvestigation(pendingSelection.value, pendingSelection.option);
+                      } else {
+                        // Editing existing investigation
+                        handleNameSelect(
+                          pendingSelection.itemId,
+                          pendingSelection.value,
+                          pendingSelection.option,
+                          pendingSelection.isTabletMode
+                        );
+                      }
+                    }
+                    setShowNonZydusWarning(false);
+                    setPendingSelection(null);
+                  }}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>Yes, Proceed</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
     </div>
   );
 };

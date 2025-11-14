@@ -14,12 +14,13 @@ import { searchInvestigation } from "../redux/investigationSlice";
 import CustomMedicinePopup from "./CustomMedicinePopup";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
-import { getTokenData } from "../utils/utils";
+import { getTokenData, getHmTypeIndicator } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
+import config from "../config";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -119,11 +120,12 @@ const DigitisedPrescription = ({
     GB_APOLLO_DISABLE_FEATURE
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isApolloConsultationsEnabled = useFeatureIsOn("apollo-consultations");
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
   const isGroundingAccessable =
     (tokenData?.hospital_business_id == env.zydus_business_id &&
       isZydusUserAccessableFromGB) ||
-    isApolloConsultationsEnabled;
+    isApollo;
 
   const handleLineItemBlur = useCallback(
     (type, index) => {
@@ -376,12 +378,12 @@ const DigitisedPrescription = ({
         <div>
           <span className="fw-medium">{e.tmm_medicine_name}</span>,
           <span className="ms-1">{e.tmm_generic}</span>
-          {e?.tmm_hm_type === 1 && e?.um_id === 0 && (
+          {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
             <span
               className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
               style={{ width: 18, height: 18, background: "#c44ea2" }}
             >
-              Z
+              {getHmTypeIndicator(e)}
             </span>
           )}
         </div>
