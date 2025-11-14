@@ -2133,8 +2133,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 </div>
               )
             ) : (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) &&
-              shouldShowVoiceRx() &&
-              selectedTab != TAB_ZYDUS_ENCOUNTER ? (
+              shouldShowVoiceRx() ? (
               isDigitisationTab ? (
                 <>
                   <button
@@ -2156,7 +2155,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           : "btn-smart-rx"
                       }`}
                       onClick={() =>
-                        selectedTab === TAB_QUEUE
+                        (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER)
                           ? (isSmartSyncAccessableFromGB ? onSmartRxClick(record) : 
                              isSnapRxAccessable ? handleSnapRxClick(record) : 
                              (isVoiceRxAccessable || isFreeVoiceRxUser) ? onVoiceRxClick(record) : 
@@ -2174,7 +2173,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }                    
                     </button>
                   )}
-                  {selectedTab === TAB_QUEUE && (
+                  {(selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (
                     <button
                       className="btn btn-outline-primary btn-down-arrow"
                       onClick={() =>
@@ -2716,7 +2715,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       doctor_mobile_number: profile?.um_contact,
       hm_id: clinic?.hm_id,
       clinic_name: clinic?.hm_name,
-      source: "Appt Landing",
+      source: selectedTab === TAB_ZYDUS_ENCOUNTER ? "Encounter" : "Appt Landing",
     });
     
     // Navigate to Voice Rx Doctor Consult Page
