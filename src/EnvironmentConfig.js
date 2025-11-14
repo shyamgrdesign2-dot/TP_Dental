@@ -324,7 +324,7 @@ const uat = {
   GOOGLE_MAPS_API_KEY: "AIzaSyAqhrcrUh31u4FhmgsUDaV-hju14_74Bug",
   snap_rx_api_url: "https://pm-digitization-uat.tatvacare.in",
   ZYDUS_BUSINESS_ID: 754811713438773,
-  APOLLO_BUSINESS_IDS: [234659817, 657381720513497, 396741719906700],
+  APOLLO_BUSINESS_IDS: [234659817, 657381720513497, 396741719906700, 912841712741834],
   digitization_api_url: "https://pm-digitization-uat.tatvacare.in",
   monetization_url: "https://pm-tp-monetization-uat.tatvacare.in",
   tp_monetization_disabled_hospital: [

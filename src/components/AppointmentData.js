@@ -1364,8 +1364,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     const action = await dispatch(syncZydusPatientAndAppointment(sendData));
     if (action.meta.requestStatus === "fulfilled") {
-      if (flag === 1) {
-        goToConsut(record, action, sendData.business_id);
+      if (flag === 1 || flag === 3 || flag === 4 || flag === 5) {
+        goToConsut(record, action, sendData.business_id, flag);
       } else {
         let cashManagerSendData = {
           patient_unique_id:
@@ -1404,7 +1404,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             errorMessage("Something went wrong! Please try again later");
           }
         } else {
-          goToConsut(record, action, sendData.business_id);
+          goToConsut(record, action, sendData.business_id, flag);
         }
       }
     } else {
@@ -1412,7 +1412,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
-  const goToConsut = async (record, action, business_id) => {
+  const goToConsut = async (record, action, business_id, flag) => {
     const actionViewPatient = await dispatch(
       viewPatient({
         patient_unique_id: action?.payload?.patient_unique_id,
@@ -1420,20 +1420,30 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       })
     );
     if (actionViewPatient.meta.requestStatus === "fulfilled") {
-      navigate("/prescription", {
-        state: {
-          patient_data: {
-            ...actionViewPatient?.payload,
-            pam_id: action?.payload?.pam_id,
-            mrno: record.mrno,
-            departmentId: record.departmentId,
-            visitId: record.visitId,
-            encounterId: record.encounterId,
-            employeeId: empNo[empNo.length - 1],
-            hospital_business_id: business_id,
+      const patient_data = {
+        ...actionViewPatient?.payload,
+        pam_id: action?.payload?.pam_id,
+        mrno: record.mrno,
+        departmentId: record.departmentId,
+        visitId: record.visitId,
+        encounterId: record.encounterId,
+        employeeId: empNo[empNo.length - 1],
+        hospital_business_id: business_id,
+      };
+
+      if (flag === 3) {
+        handleSnapRxClick(patient_data);
+      } else if (flag === 4) {
+        onVoiceRxClick(patient_data);
+      } else if (flag === 5) {
+        onSmartRxClick(patient_data);
+      } else {
+        navigate("/prescription", {
+          state: {
+            patient_data: patient_data,
           },
-        },
-      });
+        });
+      }
     } else {
       errorMessage("Something went wrong! Please try again later");
     }
@@ -2109,6 +2119,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           // ref={snapRxButtonRef}
                           className="btn-consult top-br with-divider"
                           onClick={() => {
+                            selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 3) :
                             handleSnapRxClick(record)}
                           }
                         >
@@ -2117,7 +2128,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }
                       <button
                         className={`btn-consult ${(isSmartSyncAccessableFromGB && isSnapRxAccessable) ? "middle-br" : (isSnapRxAccessable || isSmartSyncAccessableFromGB) ? "top-br with-divider" : "top-br with-divider"}`}
-                        onClick={() => onVoiceRxClick(record)}
+                        onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
                       >
                         Voice Rx
                       </button>
@@ -2156,7 +2167,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }`}
                       onClick={() =>
                         (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER)
-                          ? (isSmartSyncAccessableFromGB ? onSmartRxClick(record) : 
+                          ? (isSmartSyncAccessableFromGB ? selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 5) : onSmartRxClick(record) : 
                              isSnapRxAccessable ? handleSnapRxClick(record) : 
                              (isVoiceRxAccessable || isFreeVoiceRxUser) ? onVoiceRxClick(record) : 
                              onPrintRxUrlClick(record))
@@ -2201,7 +2212,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                         <button
                           className="btn-consult top-br with-divider"
                           onClick={() => {
-                            handleSnapRxClick(record)}
+                            selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 3) : handleSnapRxClick(record)}
                           }
                         >
                           SnapRx
@@ -2210,7 +2221,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       {(isVoiceRxAccessable || isFreeVoiceRxUser) && 
                         <button
                           className={`btn-consult ${(isSnapRxAccessable) ? "middle-br" : "top-br with-divider"}`}
-                          onClick={() => onVoiceRxClick(record)}
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
                         >
                           Voice Rx
                         </button>
