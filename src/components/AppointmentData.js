@@ -2217,7 +2217,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }
                       <button
                         className={`btn-consult ${(isSnapRxAccessable) || (isVoiceRxAccessable || isFreeVoiceRxUser) ?  "bottom-br" : "border-radius-all"}`}
-                        onClick={() => onConsultClick(record)}
+                        onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 1) : onConsultClick(record)}
                       >
                         Consult
                       </button>
