@@ -297,6 +297,7 @@ const LabInvestigationTable = ({
         
         if (
           isGroundingAccessable &&
+          !isApollo &&
           !isZydusInvestigation &&
           !dontShowZydusWarning
         ) {
@@ -517,6 +518,7 @@ const LabInvestigationTable = ({
       
       if (
         isGroundingAccessable &&
+        !isApollo &&
         !isZydusInvestigation &&
         !dontShowZydusWarning
       ) {
@@ -733,8 +735,9 @@ const LabInvestigationTable = ({
                       dropdownStyle={{ width: 420 }}
                       style={{ width: '100%' }}
                       open={
-                        (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
-                        (isTablet && editingRow === item.id)
+                        !isTablet
+                          ? editingCell?.itemId === item.id && editingCell?.field === 'name'
+                          : undefined
                       }
                       autoFocus={true}
                     >

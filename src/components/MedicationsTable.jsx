@@ -69,6 +69,92 @@ const MedicationsTable = ({
   ];
   
   const filteredTitles = frequencyList ? frequencyList.filter((item) => item.tmf_block !== 0) : [];
+
+  const buildFuzzyOption = useCallback((medication) => {
+    if (!medication || !(medication.tmm_medicine_name || medication.medicine_name)) {
+      return null;
+    }
+    const medicineName = medication.tmm_medicine_name || medication.medicine_name;
+    const genericName = medication.tmm_generic || medication.generic_name || '';
+    return {
+      key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
+      value: medicineName,
+      label: (
+        <div>
+          <span className="fw-medium">{medicineName}</span>,{' '}
+          <span>{genericName}</span>{' '}
+          {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
+            <div
+              className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
+              style={{
+                width: 18,
+                height: 18,
+                backgroundImage: `url(${groundingIndicatorBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
+              {getHmTypeIndicator(medication)}
+            </div>
+          )}
+        </div>
+      ),
+    };
+  }, []);
+
+  const performFuzzySearch = useCallback(
+    async (value) => {
+      const trimmedValue = (value || '').trim();
+
+      if (!trimmedValue) {
+        isFuzzySearchInProgress.current = false;
+        hasFuzzyResults.current = false;
+        setParentSearchOptions([]);
+        setSearchQuery('');
+        setOriginalEditValue('');
+        return;
+      }
+
+      if (!isGroundingAccessable) {
+        isFuzzySearchInProgress.current = false;
+        hasFuzzyResults.current = false;
+        setSearchQuery(value);
+        return;
+      }
+
+      isFuzzySearchInProgress.current = true;
+      hasFuzzyResults.current = false;
+      setSearchQuery(value);
+
+      try {
+        const result = await ApiMedication.getFuzzySearch(value, 10);
+        let formattedFuzzyData = [];
+
+        if (Array.isArray(result) && result.length > 0) {
+          formattedFuzzyData = result.map(buildFuzzyOption).filter(Boolean);
+        } else if (result && !Array.isArray(result)) {
+          const option = buildFuzzyOption(result);
+          if (option) {
+            formattedFuzzyData = [option];
+          }
+        }
+
+        if (formattedFuzzyData.length > 0) {
+          hasFuzzyResults.current = true;
+          setParentSearchOptions(formattedFuzzyData);
+        } else {
+          hasFuzzyResults.current = false;
+        }
+      } catch (error) {
+        console.error('Error in fuzzy search:', error);
+        hasFuzzyResults.current = false;
+      } finally {
+        isFuzzySearchInProgress.current = false;
+      }
+    },
+    [isGroundingAccessable, buildFuzzyOption]
+  );
   
   // Detect tablet view
   useEffect(() => {
@@ -288,6 +374,7 @@ const MedicationsTable = ({
         
         if (
           isGroundingAccessable &&
+          !isApollo &&
           !isZydusMedicine &&
           !dontShowZydusWarning
         ) {
@@ -315,122 +402,8 @@ const MedicationsTable = ({
     setOriginalEditValue(value); // Store original value to track if user edits
     
     if (field === 'name') {
-      // Allow fuzzy search only when grounding is accessible
-      if (!isGroundingAccessable) {
-        isFuzzySearchInProgress.current = false;
-        hasFuzzyResults.current = false;
-        if (value && value.trim().length > 0) {
-          setSearchQuery(value);
-        } else {
-          setSearchQuery('');
-          setOriginalEditValue('');
-        }
-        return;
-      }
-
-      if (value && value.trim().length > 0) {
-        isFuzzySearchInProgress.current = true; // Mark fuzzy search as in progress
-        hasFuzzyResults.current = false; // Reset fuzzy results flag
-        setSearchQuery(value);
-        try {
-          const result = await ApiMedication.getFuzzySearch(value, 10);
-          const fuzzyData = result || [];
-          let formattedFuzzyData = [];
-          
-          if (Array.isArray(fuzzyData) && fuzzyData.length > 0) {
-            formattedFuzzyData = fuzzyData.map((medication) => {
-              if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
-                const medicineName = medication.tmm_medicine_name || medication.medicine_name;
-                const genericName = medication.tmm_generic || medication.generic_name || '';
-                return {
-                  key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-                  value: medicineName,
-                  label: (
-                    <div>
-                      <span className="fw-medium">{medicineName}</span>,{' '}
-                      <span>{genericName}</span>{' '}
-                      {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
-                        <span
-                          className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
-                          style={{ 
-                            width: 18, 
-                            height: 18, 
-                            backgroundImage: `url(${groundingIndicatorBg})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            backgroundRepeat: 'no-repeat'
-                          }}
-                        >
-                          {getHmTypeIndicator(medication)}
-                        </span>
-                      )}
-                    </div>
-                  ),
-                };
-              }
-              return null;
-            }).filter(Boolean);
-            
-            if (formattedFuzzyData.length > 0) {
-              hasFuzzyResults.current = true; // Mark that we have fuzzy results BEFORE setting options
-              setParentSearchOptions(formattedFuzzyData);
-            } else {
-              hasFuzzyResults.current = false;
-            }
-          } else if (fuzzyData && !Array.isArray(fuzzyData)) {
-            // Single result
-            const medication = fuzzyData;
-            if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
-              const medicineName = medication.tmm_medicine_name || medication.medicine_name;
-              const genericName = medication.tmm_generic || medication.generic_name || '';
-              formattedFuzzyData = [{
-                key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-                value: medicineName,
-                label: (
-                  <div>
-                    <span className="fw-medium">{medicineName}</span>,{' '}
-                    <span>{genericName}</span>{' '}
-                    {(medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0 && (
-                      <span
-                        className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle sc-tour-button"
-                        style={{ 
-                          width: 18, 
-                          height: 18, 
-                          backgroundImage: `url(${groundingIndicatorBg})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          backgroundRepeat: 'no-repeat'
-                        }}
-                      >
-                        {getHmTypeIndicator(medication)}
-                      </span>
-                    )}
-                  </div>
-                ),
-              }];
-              hasFuzzyResults.current = true; // Mark that we have fuzzy results BEFORE setting options
-              setParentSearchOptions(formattedFuzzyData);
-              
-            } else {
-              hasFuzzyResults.current = false;
-            }
-          } else {
-            hasFuzzyResults.current = false;
-          }
-        } catch (error) {
-          console.error('Error in fuzzy search:', error);
-          hasFuzzyResults.current = false;
-          // Fallback to frequently searched medications
-        } finally {
-          isFuzzySearchInProgress.current = false; // Mark fuzzy search as complete
-        }
-      } else {
-        // Empty name field - load frequently searched medications
-        isFuzzySearchInProgress.current = false;
-        hasFuzzyResults.current = false;
-        setSearchQuery('');
-        setOriginalEditValue('');
-      }
+      setOriginalEditValue(value);
+      await performFuzzySearch(value);
       return;
     }
   };
@@ -584,6 +557,7 @@ const MedicationsTable = ({
       const isZydusMedicine = ((medicineData?.metadata?.tmm_hm_type == 1 || medicineData?.metadata?.tmm_hm_type == 2) && medicineData?.metadata?.um_id === 0) || ((medicineData?.tmm_hm_type == 1 || medicineData?.tmm_hm_type == 2) && medicineData?.um_id === 0);
       if (
         isGroundingAccessable &&
+        !isApollo &&
         !isZydusMedicine &&
         !dontShowZydusWarning
       ) {
@@ -982,8 +956,9 @@ const MedicationsTable = ({
                       dropdownStyle={{ width: 420 }}
                       style={{ width: '100%' }}
                       open={
-                        (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') ||
-                        (isTablet && editingRow === item.id)
+                        !isTablet
+                          ? editingCell?.itemId === item.id && editingCell?.field === 'name'
+                          : undefined
                       }
                       autoFocus={true}
                     >
@@ -993,12 +968,17 @@ const MedicationsTable = ({
                           const newValue = e.target.value;
                           if (isTablet && editingRow === item.id) {
                             handleRowFieldChange('name', newValue);
+                            if (newValue.trim() !== (originalEditValue || '').trim()) {
+                              isFuzzySearchInProgress.current = false;
+                              hasFuzzyResults.current = false;
+                            }
+                            setSearchQuery(newValue);
                           } else {
                             setEditValue(newValue);
                             // Sync searchQuery when user types (for name field)
                             if (editingCell?.itemId === item.id && editingCell?.field === 'name') {
                               // If user is editing (value changed from original), clear fuzzy search flags
-                              if (newValue.trim() !== originalEditValue.trim()) {
+                              if (newValue.trim() !== (originalEditValue || '').trim()) {
                                 isFuzzySearchInProgress.current = false;
                                 hasFuzzyResults.current = false;
                               }
@@ -1009,8 +989,11 @@ const MedicationsTable = ({
                         onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                         onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                         onFocus={() => {
-                          // Sync searchQuery with editValue if needed (useEffect will handle the search)
-                          if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
+                          if (isTablet && editingRow === item.id) {
+                            const currentValue = rowEditValues.name ?? item.name ?? '';
+                            setOriginalEditValue(currentValue);
+                            performFuzzySearch(currentValue);
+                          } else if (!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') {
                             const currentValue = editValue || '';
                             if (currentValue.trim().length > 0 && currentValue !== searchQuery) {
                               setSearchQuery(currentValue);
