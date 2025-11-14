@@ -13,13 +13,11 @@ import {
   searchMedication,
   getFrequentlySearchedMedication
 } from "../redux/medicationSlice";
-import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator } from '../utils/utils';
+import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator, getClinic } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
-import { GB_ZYDUS_USER, GB_APOLLO_DISABLE_FEATURE, EXTRA_OPTIONS } from '../utils/constants';
-import { getInvestigationAndMedicine } from '../redux/caseManagerSlice';
-import { placeIctOrder } from '../redux/appointmentsSlice';
+import { GB_ZYDUS_USER, EXTRA_OPTIONS } from '../utils/constants';
 import ApiMedication from '../api/services/ApiMedication';
 import CustomMedicinePopup from './CustomMedicinePopup';
 import config from '../config';
@@ -256,7 +254,6 @@ const MedicationsTable = ({
       const updatedMedications = [...medications, newMedication];
       onUpdate(updatedMedications);
       setSearchQuery('');
-      setParentSearchOptions([]);
     } catch (error) {
       const newMedication = {
         id: Date.now().toString(),
@@ -273,7 +270,6 @@ const MedicationsTable = ({
       const updatedMedications = [...medications, newMedication];
       onUpdate(updatedMedications);
       setSearchQuery('');
-      setParentSearchOptions([]);
     }
   }, [medications, onUpdate]);
 
@@ -301,6 +297,8 @@ const MedicationsTable = ({
             isNewMedication: true, // Flag to indicate this is for adding new medication
           });
           setShowNonZydusWarning(true);
+        } else {
+          addNewMedication(value, option);
         }
       } catch (error) {
         // If parsing fails, just add the medication without warning
@@ -598,6 +596,22 @@ const MedicationsTable = ({
         setShowNonZydusWarning(true);
       } else {
         handleNameSelect(itemId, value, option, isTabletMode);
+      }
+      if (isGroundingAccessable) {
+        const clinic = getClinic(profile?.hospital_data);
+        const userType = getHmTypeIndicator(medicineData);
+        window.Moengage.track_event("TP_GD_Editted", {
+          patient_id: patient_data?.patient_unique_id || "",
+          patient_name: patient_data?.pm_fullname || "",
+          doctor_id: profile?.doctor_unique_id,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+          medicine_name: value,
+          grounding_element: "Medications",
+          user: userType === "Z" ? "Zydus" : "Apollo",
+        });
       }
     } catch (e) {
       handleNameSelect(itemId, value, option, isTabletMode);

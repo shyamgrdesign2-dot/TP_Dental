@@ -8,9 +8,17 @@ import {
   editMedicine,
   updateFrequentlyMedication,
 } from "../redux/medicationSlice";
+import { useLocation } from "react-router-dom";
+import { getClinic } from "../utils/utils";
 
 // Self-contained popup: fetches data from store and handles add/edit internally
 const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null }) => {
+
+  const { state } = useLocation();
+  const { patient_data } = state || {};
+  const { profile } = useSelector(
+    (state) => state.doctors
+  );
   const dispatch = useDispatch();
   const { medicineTypeList, genericList, loading } = useSelector((state) => ({
     medicineTypeList: state.doctors.medicineTypeList,
@@ -78,6 +86,18 @@ const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null }) => {
       ? await dispatch(editMedicine(payload))
       : await dispatch(addMedicine(payload));
     if (action.meta.requestStatus === "fulfilled") {
+      const clinic = getClinic(profile?.hospital_data);
+      window.Moengage.track_event("TP_GD_AddMedoutofAI", {
+        patient_id: patient_data?.patient_unique_id || "",
+        patient_name: patient_data?.pm_fullname || "",
+        doctor_id: profile?.doctor_unique_id,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+        medicine_name: form?.tmm_medicine_name,
+        grounding_element: "Medications",
+      });
       if (form?.tmm_id) {
         await dispatch(updateFrequentlyMedication(action.payload[0]));
       }

@@ -11,7 +11,7 @@ import {
   searchInvestigation,
   getFrequentlySearchedInvestigation
 } from "../redux/investigationSlice";
-import { removeBeforeWhiteSpace, getHmTypeIndicator } from '../utils/utils';
+import { removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from '../utils/utils';
 import ApiInvestigation from '../api/services/ApiInvestigation';
 import { env } from '../EnvironmentConfig';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
@@ -19,6 +19,7 @@ import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from '../utils/constants';
 import { getDecodedToken } from '../utils/localStorage';
 import CommonModal from '../common/CommonModal';
 import config from '../config';
+import { useLocation } from 'react-router-dom';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -26,6 +27,11 @@ const LabInvestigationTable = ({
   isProcessing = false,
 }) => {
   const dispatch = useDispatch();
+  const { profile } = useSelector(
+    (state) => state.doctors
+  );
+  const { state } = useLocation();
+  const { patient_data } = state || {};
   const { parentOptionsList, loading } = useSelector((state) => state.investigation);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -540,6 +546,22 @@ const LabInvestigationTable = ({
         
         // Then update the investigation data
         handleNameSelect(itemId, value, option, isTabletMode);
+      }
+      if (isGroundingAccessable) {
+        const clinic = getClinic(profile?.hospital_data);
+        const userType = getHmTypeIndicator(investigationData);
+        window.Moengage.track_event("TP_GD_Editted", {
+          patient_id: patient_data?.patient_unique_id || "",
+          patient_name: patient_data?.pm_fullname || "",
+          doctor_id: profile?.doctor_unique_id,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+          medicine_name: value,
+          grounding_element: "Lab Investigations",
+          user: userType === "Z" ? "Zydus" : "Apollo",
+        });
       }
     } catch (e) {
       // Fallback: just update the investigation
