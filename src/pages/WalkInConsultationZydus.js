@@ -14,7 +14,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
 import { clearSearch, searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic } from "../utils/utils";
+import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic, isVoiceRxFree } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
@@ -44,6 +44,8 @@ function WalkInConsultationZydus() {
         GB_ISCRIBE
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
+    const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+    const isFreeVoiceRxUser = isVoiceRxFree();
 
     const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -249,7 +251,7 @@ function WalkInConsultationZydus() {
                         >
                             Patient Details
                         </Button>
-                        {(isSnapRxAccessable || isSmartSyncAccessableFromGB) && !isMobile ? (
+                        {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                             <div className="d-flex btn btn-smart-rx-walkin">
                                 { isSmartSyncAccessableFromGB ?
                                   (
@@ -270,6 +272,15 @@ function WalkInConsultationZydus() {
                                         SnapRx
                                       </button>
                                     </div>
+                                  ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                                    <Button
+                                      type="text"
+                                      className="btn btn-primary3 align-items-center d-flex"
+                                      icon={<i className="icon-Consult"></i>}
+                                      onClick={() => onVoiceRxClick(patient)}
+                                    >
+                                      Voice Rx
+                                    </Button>
                                   ) : (
                                     <Button
                                       type="text"
@@ -309,40 +320,53 @@ function WalkInConsultationZydus() {
                                 </div>
                               </div>
                         ) :
-                        isSmartSyncAccessableFromGB && !isMobile ? (
+                        (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                           <div className="d-flex btn btn-smart-rx-walkin">
-                            <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
-                              <img src={smartPad} alt="vitals" />
-                              <button
-                                className="btn btn-smartRx-text"
-                              >
-                                SmartRx
-                              </button>
-                            </div>
-                            <div>
-                              <Dropdown
-                                className="btn"
-                                menu={{
-                                  items: getMenuItems(patient),
-                                }}
-                                trigger={["click"]}
-                              >
-                                <a
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                  }}
+                            {isSmartSyncAccessableFromGB ? (
+                              <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
+                                <img src={smartPad} alt="vitals" />
+                                <button
+                                  className="btn btn-smartRx-text"
                                 >
-                                  <i
-                                    className="icon-right"
-                                    style={{
-                                      display: "block",
-                                      transform: `rotate(270deg)`,
-                                      color: "white",
+                                  SmartRx
+                                </button>
+                              </div>
+                            ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                              <Button
+                                type="text"
+                                className="btn btn-primary3 align-items-center d-flex"
+                                icon={<i className="icon-Consult"></i>}
+                                onClick={() => onVoiceRxClick(patient)}
+                              >
+                                Voice Rx
+                              </Button>
+                            ) : null}
+                            {(isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (
+                              <div>
+                                <Dropdown
+                                  className="btn"
+                                  menu={{
+                                    items: getMenuItems(patient),
+                                  }}
+                                  trigger={["click"]}
+                                >
+                                  <a
+                                    onClick={(e) => {
+                                      e.preventDefault();
                                     }}
-                                  />
-                                </a>
-                              </Dropdown>
-                            </div>
+                                  >
+                                    <i
+                                      className="icon-right"
+                                      style={{
+                                        display: "block",
+                                        transform: `rotate(270deg)`,
+                                        color: "white",
+                                      }}
+                                    />
+                                  </a>
+                                </Dropdown>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <Button
@@ -464,7 +488,7 @@ function WalkInConsultationZydus() {
                                         <i className="icon-right iconrotate180 ms-auto" />
                                     </Button>
                                 </div>
-                                {(isSmartSyncAccessableFromGB || isSnapRxAccessable) && !isMobile ? (
+                                {(isSmartSyncAccessableFromGB || isSnapRxAccessable || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                                     isSmartSyncAccessableFromGB ? (
                                         <div
                                             style={{
@@ -583,6 +607,55 @@ function WalkInConsultationZydus() {
                                                 </div>
                                             )}
                                         </div> 
+                                    ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                                        <div
+                                            className="d-flex w-50 justify-content-between"
+                                            style={{
+                                                background: "#4B4AD5",
+                                                borderRadius: "10px",
+                                                color: "white",
+                                                marginLeft: "1rem",
+                                                position: "relative",
+                                            }}
+                                        >
+                                            <button
+                                                className="btn btn-outline-primary btn-smart-rx"
+                                                onClick={() => onVoiceRxClick(clickedPatient)}
+                                                style={{ padding: "9px 2rem 9px 10px" }}
+                                            >
+                                                <span className="btn-span-smartRx">Voice Rx</span>
+                                            </button>
+                                            <button
+                                                className="btn btn-outline-primary btn-down-arrow"
+                                                onClick={handleClickDownArrow}
+                                                style={{ padding: "9.5px 5px" }}
+                                            >
+                                                <span
+                                                    role="img"
+                                                    aria-label="down"
+                                                    className="anticon anticon-down ant-select-suffix"
+                                                >
+                                                    <i
+                                                        className="icon-right"
+                                                        style={{
+                                                            display: "block",
+                                                            transform: `rotate(270deg)`,
+                                                            color: "white",
+                                                        }}
+                                                    />
+                                                </span>
+                                            </button>
+                                            {clickedDownArrow && (
+                                                <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                                    <button
+                                                        className="btn-consult-patient-details bottom-br"
+                                                        onClick={() => onConsultClick(clickedPatient)}
+                                                    >
+                                                        Consult
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
                                         <Button variant="primary"
                                             className='btn-41 px-4'

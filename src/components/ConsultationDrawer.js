@@ -145,7 +145,7 @@ const ConsultationDrawer = ({
   const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation } = state || {};
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -651,9 +651,9 @@ const ConsultationDrawer = ({
       if (!splitRef.current) return;
       const totalWidth = splitRef.current.getBoundingClientRect().width || window.innerWidth;
       const isTablet = window.innerWidth >= 769 && window.innerWidth <= 1024;
-      const desiredLeftPx = isTablet ? 350 : 480;
+      const desiredLeftPx = isTablet ? 250 : 480;
       const minLeftPx = desiredLeftPx;
-      const minRightPx = isTablet ? 674 : 960;
+      const minRightPx = isTablet ? 724 : 960;
       const minLeftPercent = (minLeftPx / totalWidth) * 100;
       const maxLeftPercent = ((totalWidth - minRightPx) / totalWidth) * 100;
       let pct = (desiredLeftPx / totalWidth) * 100;
@@ -1459,14 +1459,7 @@ const ConsultationDrawer = ({
         // Append transcript text with proper key for API
         formData.append("voice_prescription_text", transcribedText);
         }
-
-        if (genRxDetails?._id) {
-          const data = preparePayloadForApi();
-          formData.append(
-            "voice_prescription_previous_context",
-            JSON.stringify(data)
-          );
-        }
+        
         const patientId = patient_data?.patient_unique_id || "";
         const admissionId = caseManagerData?.admission_id || null;
         
@@ -1474,6 +1467,10 @@ const ConsultationDrawer = ({
         formData.append("patientId", patientId);
         formData.append("schemaKey", "default");
         formData.append("getConversation", "true");
+        
+        if (consent && typeof consent === 'object') {
+          formData.append("consent", JSON.stringify(consent));
+        }
         
         if (genRxDetails?._id) {
           const updatedTranscript = fullTranscript + " " + transcribedText;
@@ -1484,10 +1481,17 @@ const ConsultationDrawer = ({
             newFormData.append("voice_prescription_text", updatedTranscript);
             
             Array.from(formData.entries()).forEach(([key, value]) => {
-              if (key !== '' || typeof value !== 'string') {
+              if (key !== '' && key !== 'voice_prescription_text' && key !== 'voice_prescription_previous_context') {
                 newFormData.append(key, value);
               }
             });
+            
+            // Ensure voice_prescription_previous_context is included with latest data
+            const data = preparePayloadForApi();
+            newFormData.append(
+              "voice_prescription_previous_context",
+              JSON.stringify(data)
+            );
             
             // Ensure all required fields are in FormData
             if (!newFormData.has("doctorId")) {
@@ -1503,6 +1507,10 @@ const ConsultationDrawer = ({
               newFormData.append("getConversation", "true");
             }
             
+            if (consent && typeof consent === 'object' && !newFormData.has("consent")) {
+              newFormData.append("consent", JSON.stringify(consent));
+            }
+            
             response = await updateAmbientRx(
               newFormData,
               genRxDetails?._id,
@@ -1510,6 +1518,13 @@ const ConsultationDrawer = ({
               admissionId
             );
           } else {
+            // Ensure voice_prescription_previous_context is included with latest data
+            const data = preparePayloadForApi();
+            formData.append(
+              "voice_prescription_previous_context",
+              JSON.stringify(data)
+            );
+            
             // Ensure all required fields are in FormData
             if (!formData.has("doctorId")) {
               formData.append("doctorId", doctorId);
@@ -1522,6 +1537,10 @@ const ConsultationDrawer = ({
             }
             if (!formData.has("getConversation")) {
               formData.append("getConversation", "true");
+            }
+            
+            if (consent && typeof consent === 'object' && !formData.has("consent")) {
+              formData.append("consent", JSON.stringify(consent));
             }
             
             response = await updateAmbientRx(
@@ -1544,6 +1563,10 @@ const ConsultationDrawer = ({
           }
           if (!formData.has("getConversation")) {
             formData.append("getConversation", "true");
+          }
+          
+          if (consent && typeof consent === 'object' && !formData.has("consent")) {
+            formData.append("consent", JSON.stringify(consent));
           }
           
           response = await generateAmbientRx(
@@ -5012,7 +5035,7 @@ const ConsultationDrawer = ({
                           <img src={doctorAvatar} alt="Doctor Assistant" className={styles.doctorAvatarIcon} />
                           <div className={styles.introText}>
                             Hi Doctor! Start your consultation by <strong>dictating the Rx</strong> or by <strong>capturing your conversation with the patient.</strong>
-                            I'll <strong>transcribe</strong> & <strong>structure</strong> it into the <strong>Rx Pad</strong> automagically!
+                            I'll <strong>transcribe</strong> & <strong>structure</strong> it into the <strong>Rx Pad</strong> automatically!
                           </div>
                         </div>
                         

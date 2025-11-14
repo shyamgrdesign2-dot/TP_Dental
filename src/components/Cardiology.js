@@ -27,6 +27,7 @@ import {
   getClinic,
   getTokenData,
   getClinicName,
+  isVoiceRxFree,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -112,6 +113,8 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
+  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isFreeVoiceRxUser = isVoiceRxFree();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -2604,7 +2607,7 @@ function Cardiology(props) {
                   No visit found for this patient yet
                 </p>
                 <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                  {isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB && !isMobile ? (
+                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <SmartDropdownButtons
                       profile={profile}
                       patient_data={patient_data}
@@ -2647,6 +2650,8 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
+  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isFreeVoiceRxUser = isVoiceRxFree();
   
   const [open, setOpen] = React.useState(false);
   const arrowRef = React.useRef(null);
@@ -2768,36 +2773,32 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
                 <span style={{ padding: "0 3.4rem" }}>Start New SnapRx</span>
               </button>
             </div>
-          } 
-          <div>
-            <button
-              className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
-              onClick={() => {
-                setOpen(false);
-                const clinic = getClinic(profile?.hospital_data);
-                window.Moengage.track_event("TP_AV_Entry", {
-                  patient_id: patient_data?.patient_unique_id || "",
-                  patient_name: patient_data?.pm_fullname || "",
-                  patient_mobile_number: patient_data?.pm_contact_no || "",
-                  doctor_id: profile?.doctor_unique_id,
-                  user_id: userId,
-                  doctor_name: profile?.um_name,
-                  doctor_specialty: profile?.dp_name,
-                  doctor_mobile_number: profile?.um_contact,
-                  hm_id: clinic?.hm_id,
-                  clinic_name: clinic?.hm_name,
-                  source: "Patient Details 0",
-                });
-                navigate("/voice-rx-consult", {
-                  state: { 
-                    patient_data: patient_data,
-                  },
-                });
-              }}
-            >
-              <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
-            </button>
-          </div>
+          }
+          {(isVoiceRxAccessable || isFreeVoiceRxUser) &&
+            <div>
+              <button
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isVoiceRxAccessable || isFreeVoiceRxUser) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isVoiceRxAccessable || isFreeVoiceRxUser) ? "bottom-br" : ""}`}
+                onClick={() => {
+                  setOpen(false);
+                  const clinic_name = getClinicName(profile?.hospital_data);
+                  window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+                    patient_contact: patient_data?.pm_contact_no || "",
+                    patient_id: patient_data?.patient_unique_id || "",
+                    doctor_speciality: profile?.dp_name,
+                    doctor_unique_id: profile?.doctor_unique_id,
+                    clinic_name,
+                  });
+                  navigate("/voice-rx-consult", {
+                    state: { 
+                      patient_data: patient_data,
+                    },
+                  });
+                }}
+              >
+                <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+              </button>
+            </div>
+          }
         </div>
       }
     </div>

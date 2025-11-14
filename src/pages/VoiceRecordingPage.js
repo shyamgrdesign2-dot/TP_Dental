@@ -35,6 +35,7 @@ const VoiceRecordingPage = () => {
   const patient_data = location.state?.patient_data || {};
   const mode = location.state?.mode || '';
   const isFromTabView = location.state?.isFromTabView || false;
+  const consent = location.state?.consent || null;
 
   const mediaRecorderRef = useRef(null);
   const audioStreamRef = useRef(null);
@@ -226,6 +227,7 @@ const VoiceRecordingPage = () => {
             fromVoiceRecording: true,
             audioBlob: blob,
             audioBlobUrl: audioUrl,
+            consent: consent,
             audioBlobArrayBuffer: arrayBuffer,
             mode: activeMode
           }

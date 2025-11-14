@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX } from "../utils/constants";
-import { errorMessage, getClinic, getClinicName } from "../utils/utils";
+import { errorMessage, getClinic, getClinicName, isVoiceRxFree } from "../utils/utils";
 
 import TabHeader from "../components/tab_design/TabHeader";
 import PersonalDetails from "../components/PersonalDetails";
@@ -360,6 +360,8 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
   
     const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
     const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
+    const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+    const isFreeVoiceRxUser = isVoiceRxFree();
     
     const [open, setOpen] = React.useState(false);
     const arrowRef = React.useRef(null);
@@ -476,20 +478,22 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                 </button>
               </div>
             }
+            {(isVoiceRxAccessable || isFreeVoiceRxUser) &&
+              <div>
+                  <button
+                    className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
+                    onClick={() => {
+                      setOpen(false);
+                      handleVoiceRx();
+                    }}
+                  >
+                    <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                  </button>
+              </div>
+            }
             <div>
                 <button
-                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
-                  onClick={() => {
-                    setOpen(false);
-                    handleVoiceRx();
-                  }}
-                >
-                  <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
-                </button>
-            </div>
-            <div>
-                <button
-                  className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) || (isVoiceRxAccessable || isFreeVoiceRxUser) ? "bottom-br" : "border-radius-all"}`}
                   onClick={() => {
                     setOpen(false);
                     handleConsult();

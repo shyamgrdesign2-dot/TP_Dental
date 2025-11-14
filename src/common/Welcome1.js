@@ -12,7 +12,7 @@ import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ISCRIBE, GB_SNAP_RX } from '../utils/constants';
-import { getClinicName, trackEvent } from '../utils/utils';
+import { getClinicName, trackEvent, isVoiceRxFree } from '../utils/utils';
 import { isAndroid, isBrowser } from 'react-device-detect';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
 import { EVENTS } from '../utils/events';
@@ -35,6 +35,8 @@ function Welcome1(props) {
     const isSnapRxAccessableFromGB = useFeatureIsOn(
         GB_SNAP_RX
     );
+    const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+    const isFreeVoiceRxUser = isVoiceRxFree();
 
     const navigate = useNavigate();
     const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
@@ -282,7 +284,7 @@ function Welcome1(props) {
                                             navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') } } })
                                         }}> <i className={'icon-reload me-2'}></i>Repeat {modifyFormat && modifyFormat.first}<sup>{modifyFormat && modifyFormat.second}</sup>&nbsp;{modifyFormat && modifyFormat.third} Rx</Button>
                                     }
-                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB)  && !isMobile ? (
+                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                                         <>
                                             {isSmartSyncAccessableFromGB  ? (
                                                 <div
@@ -430,7 +432,7 @@ function Welcome1(props) {
                                             )} */}
                                         </>
                                     ) :
-                                    isSmartSyncAccessableFromGB && !isMobile ? (
+                                    (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                                         <>
                                             <div
                                                 style={{

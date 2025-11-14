@@ -2562,9 +2562,9 @@
   }
   
   .inputSection {
-    min-width: 300px !important;
-    width: 300px !important;
-    max-width: 300px !important;
+    min-width: 250px !important;
+    width: 250px !important;
+    max-width: 250px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;
@@ -2910,9 +2910,9 @@
 /* Tablet landscape (768px-1024px width with landscape orientation) */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
   .inputSection {
-    min-width: 340px !important;
-    width: 340px !important;
-    max-width: 340px !important;
+    min-width: 280px !important;
+    width: 280px !important;
+    max-width: 280px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;

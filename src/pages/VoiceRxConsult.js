@@ -67,7 +67,7 @@ const VoiceRxConsult = () => {
     setShowWelcome(false);
   };
 
-  const handleAmbientMode = () => {
+  const handleAmbientMode = async () => {
     if (!consentChecked) {
       alert("Please confirm patient consent before proceeding");
       return;
@@ -85,11 +85,28 @@ const VoiceRxConsult = () => {
       clinic_name: clinic?.hm_name,
     });
     // Navigate to voice recording page with ambient mode
+    
+    let userIp = '';
+    try {
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      userIp = ipData.ip || '';
+    } catch (error) {
+      console.error('Error fetching IP address:', error);
+    }
+    
+    const consentData = {
+      timestamp: Date.now(),
+      ip: userIp,
+      given: true
+    };
+    
     navigate('/voice-recording', {
       state: {
         patient_data,
         mode: 'ambient',
-        isFromTabView: isFromTabView || false
+        isFromTabView: isFromTabView || false,
+        consent: consentData
       }
     });
     setIsVoiceRxModalOpen(false);
@@ -196,7 +213,7 @@ const VoiceRxConsult = () => {
               </div>
               <h3 className={styles.cardTitle}>Ambient Mode</h3>
               <p className={styles.cardDescription}>
-                Capture your <strong>live conversation</strong> with the patient. I'll listen in the background and <strong>transcribe & structure</strong> it into the <strong>Rx Pad</strong> automagically!
+                Capture your <strong>live conversation</strong> with the patient. I'll listen in the background and <strong>transcribe & structure</strong> it into the <strong>Rx Pad</strong> automatically!
               </p>
               <div className={styles.consentContainer}>
                 <div className={styles.consentCheckbox}>
