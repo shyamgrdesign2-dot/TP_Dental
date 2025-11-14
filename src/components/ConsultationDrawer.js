@@ -57,7 +57,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -209,7 +209,8 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
-  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
+  const clinic = getClinic(profile?.hospital_data);
   const { parentOptionsList: medicationParentOptionsList } = useSelector(
     (state) => state.medication
   );
@@ -1207,6 +1208,18 @@ const ConsultationDrawer = ({
   };
 
   const handleSend = async () => {
+    window.Moengage.track_event("TP_AV_TypeTranscript", {
+      patient_id: patient_data?.patient_unique_id || "",
+      patient_name: patient_data?.pm_fullname || "",
+      patient_mobile_number: patient_data?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+    });
     if (
       !isFreeVoiceRxUser &&
       VOICE_RX_planDetails?.plan_tier === FREE &&
@@ -3009,6 +3022,18 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    window.Moengage.track_event("TP_AV_SaveRx", {
+      patient_id: patient_data?.patient_unique_id || "",
+      patient_name: patient_data?.pm_fullname || "",
+      patient_mobile_number: patient_data?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+    });
     const sanitizedMedications =
       prescriptionData?.medications?.map((item) => {
         const quantityValue = item?.quantity;

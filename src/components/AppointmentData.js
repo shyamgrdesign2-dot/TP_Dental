@@ -2704,13 +2704,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onVoiceRxClick = async (record) => {
-    const clinic_name = getClinicName(profile?.hospital_data);
-    trackEvent("TP_VoiceRx_EntryPoint_Click", {
-      patient_contact: record?.pm_contact_no || "",
+    const clinic = getClinic(profile?.hospital_data);
+    window.Moengage.track_event("TP_AV_Entry", {
       patient_id: record?.patient_unique_id || "",
-      doctor_speciality: profile?.dp_name,
-      doctor_unique_id: profile?.doctor_unique_id,
-      clinic_name,
+      patient_name: record?.pm_fullname || "",
+      patient_mobile_number: record?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+      source: "Appt Landing",
     });
     
     // Navigate to Voice Rx Doctor Consult Page

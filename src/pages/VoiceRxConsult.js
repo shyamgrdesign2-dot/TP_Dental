@@ -10,10 +10,13 @@ import voiceModeDictation from "../assets/images/voice-mode-dictation.svg";
 import voiceMode2 from "../assets/images/voice-mode-2.svg";
 import styles from "./VoiceRxConsult.module.scss";
 import startConsultImg from "../assets/images/text-box.svg";
+import { getClinic } from "../utils/utils";
+import { useSelector } from "react-redux";
 
 const VoiceRxConsult = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { profile, userId } = useSelector((state) => state.doctors);
   
   const { patient_data, isFromTabView } = location.state || {};
   
@@ -22,6 +25,7 @@ const VoiceRxConsult = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [consentChecked, setConsentChecked] = useState(true);
 
+  const clinic = getClinic(profile?.hospital_data);
   //Tutorial PopOver function
   const showHideVideoListPopover = () => {
     setPopOverVideo(!popOverVideo);
@@ -38,6 +42,19 @@ const VoiceRxConsult = () => {
   };
 
   const handleDictationMode = () => {
+    
+    window.Moengage.track_event("TP_AV_StartDictate", {
+      patient_id: patient_data?.patient_unique_id || "",
+      patient_name: patient_data?.pm_fullname || "",
+      patient_mobile_number: patient_data?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+    });
     // Navigate to voice recording page with dictation mode
     navigate('/voice-recording', {
       state: {
@@ -55,6 +72,18 @@ const VoiceRxConsult = () => {
       alert("Please confirm patient consent before proceeding");
       return;
     }
+    window.Moengage.track_event("TP_AV_StartConversation", {
+      patient_id: patient_data?.patient_unique_id || "",
+      patient_name: patient_data?.pm_fullname || "",
+      patient_mobile_number: patient_data?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+    });
     // Navigate to voice recording page with ambient mode
     navigate('/voice-recording', {
       state: {
@@ -173,7 +202,23 @@ const VoiceRxConsult = () => {
                 <div className={styles.consentCheckbox}>
                   <span
                     className={`${styles.checkBox} ${consentChecked ? styles.checked : ''}`}
-                    onClick={() => setConsentChecked(!consentChecked)}
+                    onClick={() => {
+                      setConsentChecked(!consentChecked);
+                       window.Moengage.track_event("TP_AV_StartDictate", {
+                         patient_id: patient_data?.patient_unique_id || "",
+                         patient_name: patient_data?.pm_fullname || "",
+                         patient_mobile_number:
+                           patient_data?.pm_contact_no || "",
+                         doctor_id: profile?.doctor_unique_id,
+                         user_id: userId,
+                         doctor_name: profile?.um_name,
+                         doctor_specialty: profile?.dp_name,
+                         doctor_mobile_number: profile?.um_contact,
+                         hm_id: clinic?.hm_id,
+                         clinic_name: clinic?.hm_name,
+                         status: consentChecked ? "enabled" : "disabled",
+                       });
+                    }}
                     role="checkbox"
                     aria-checked={consentChecked}
                     tabIndex={0}

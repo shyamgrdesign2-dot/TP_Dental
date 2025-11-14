@@ -37,7 +37,7 @@ function Welcome1(props) {
     );
 
     const navigate = useNavigate();
-    const { profile, videoList, patientCertificateList } = useSelector((state) => state.doctors);
+    const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
     const { allUploadedDocs } = useSelector(
         (state) => state.uploadDoc
     );
@@ -111,13 +111,19 @@ function Welcome1(props) {
     };
 
     const onVoiceRxClick = async (patient) => {
-        const clinic_name = getClinicName(profile?.hospital_data);
-        window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
-            patient_contact: patient?.pm_contact_no || "",
-            patient_id: patient?.patient_unique_id || "",
-            doctor_speciality: profile?.dp_name,
-            doctor_unique_id: profile?.doctor_unique_id,
-            clinic_name,
+        const clinic = getClinic(profile?.hospital_data);
+        window.Moengage.track_event("TP_AV_Entry", {
+          patient_id: patient_data?.patient_unique_id || "",
+          patient_name: patient_data?.pm_fullname || "",
+          patient_mobile_number: patient_data?.pm_contact_no || "",
+          doctor_id: profile?.doctor_unique_id,
+          user_id: userId,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          doctor_mobile_number: profile?.um_contact,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+          source: "Patient Details Rx",
         });
         navigate("/voice-rx-consult", {
             state: { 

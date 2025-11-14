@@ -12,14 +12,19 @@ import mutedMicrophoneIcon from '../assets/images/muted-microphone-icon.svg';
 import dictateActiveIcon from '../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../assets/images/ambient-mode-active.svg';
 import styles from './VoiceRecordingPage.module.scss';
-import { getSupportedMimeType } from '../utils/utils';
+import { getClinic, getSupportedMimeType } from '../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../utils/constants';
 import CommonModal from '../common/CommonModal';
 import alertIcon from '../assets/images/alertIcon.svg';
+import { useSelector } from 'react-redux';
 
 const VoiceRecordingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { profile, userId } = useSelector(
+    (state) => state.doctors
+  );
+
   const [popOverVideo, setPopOverVideo] = useState(false);
   const [selectedMode, setSelectedMode] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -157,6 +162,20 @@ const VoiceRecordingPage = () => {
 
   const handleSend = async () => {
     try {
+      const clinic = getClinic(profile?.hospital_data);
+      window.Moengage.track_event("TP_AV_Submit", {
+        patient_id: patient_data?.patient_unique_id || "",
+        patient_name: patient_data?.pm_fullname || "",
+        patient_mobile_number: patient_data?.pm_contact_no || "",
+        doctor_id: profile?.doctor_unique_id,
+        user_id: userId,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        doctor_mobile_number: profile?.um_contact,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+        mode: selectedMode || mode,
+      });
       // Stop recording and ensure chunks are finalized
       let blob;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {

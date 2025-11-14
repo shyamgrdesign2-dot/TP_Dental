@@ -14,7 +14,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
 import { clearSearch, searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace } from "../utils/utils";
+import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
@@ -28,7 +28,7 @@ import { resetDDxState } from "../redux/ddxSlice";
 function WalkInConsultationZydus() {
     const navigate = useNavigate();
 
-    const { profile } = useSelector((state) => state.doctors);
+    const { profile, userId } = useSelector((state) => state.doctors);
     const { patients, error } = useSelector((state) => state.records);
 
     const dispatch = useDispatch();
@@ -672,6 +672,20 @@ function WalkInConsultationZydus() {
     };
 
     const onVoiceRxClick = async (record) => {
+        const clinic = getClinic(profile?.hospital_data);
+        window.Moengage.track_event("TP_AV_Entry", {
+          patient_id: record?.patient_unique_id || "",
+          patient_name: record?.pm_fullname || "",
+          patient_mobile_number: record?.pm_contact_no || "",
+          doctor_id: profile?.doctor_unique_id,
+          user_id: userId,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          doctor_mobile_number: profile?.um_contact,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+          source: "Patient Selected",
+        });
         const action = await dispatch(synczyduspatient(record));
         if (action.meta.requestStatus === "fulfilled") {
             const result = action.payload;

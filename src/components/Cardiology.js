@@ -2609,6 +2609,7 @@ function Cardiology(props) {
                       profile={profile}
                       patient_data={patient_data}
                       navigate={navigate}
+                      userId={userId}
                     />
                   ) : (
                     <Button
@@ -2642,7 +2643,7 @@ function Cardiology(props) {
   );
 }
 
-function SmartDropdownButtons({ profile, patient_data, navigate }) {
+function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
@@ -2773,13 +2774,19 @@ function SmartDropdownButtons({ profile, patient_data, navigate }) {
               className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
               onClick={() => {
                 setOpen(false);
-                const clinic_name = getClinicName(profile?.hospital_data);
-                window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
-                  patient_contact: patient_data?.pm_contact_no || "",
+                const clinic = getClinic(profile?.hospital_data);
+                window.Moengage.track_event("TP_AV_Entry", {
                   patient_id: patient_data?.patient_unique_id || "",
-                  doctor_speciality: profile?.dp_name,
-                  doctor_unique_id: profile?.doctor_unique_id,
-                  clinic_name,
+                  patient_name: patient_data?.pm_fullname || "",
+                  patient_mobile_number: patient_data?.pm_contact_no || "",
+                  doctor_id: profile?.doctor_unique_id,
+                  user_id: userId,
+                  doctor_name: profile?.um_name,
+                  doctor_specialty: profile?.dp_name,
+                  doctor_mobile_number: profile?.um_contact,
+                  hm_id: clinic?.hm_id,
+                  clinic_name: clinic?.hm_name,
+                  source: "Patient Details 0",
                 });
                 navigate("/voice-rx-consult", {
                   state: { 
