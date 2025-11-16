@@ -409,17 +409,60 @@ function Welcome1(props) {
                                                         )}
                                                     </div> 
                                                 ) : (
-                                                    <Button variant="primary"
-                                                        className='btn-41 px-4'
-                                                        onClick={() => {
-                                                            window.Moengage.track_event("start_new_visit_click", {
-                                                                "doctor_id": profile?.doctor_unique_id,
-                                                                "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
-                                                            });
-                                                            navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
-                                                        }}>
-                                                        {'Start New Visit'}
-                                                    </Button>
+                                                    <div
+                                                        style={{
+                                                            background: "#4B4AD5",
+                                                            borderRadius: "10px",
+                                                            color: "white",
+                                                            marginLeft: "1rem",
+                                                            position: "relative",
+                                                        }}
+                                                    >
+                                                        <button
+                                                            className="btn btn-outline-primary btn-smart-rx"
+                                                            onClick={() => onConsultClick(patient_data)}
+                                                            style={{ padding: "9px 2rem 9px 10px" }}
+                                                        >
+                                                            <span className="btn-span-smartRx">Start New Visit</span>
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-outline-primary btn-down-arrow"
+                                                            onClick={handleClickDownArrow}
+                                                            style={{ padding: "9.5px 5px" }}
+                                                        >
+                                                            <span
+                                                                role="img"
+                                                                aria-label="down"
+                                                                className="anticon anticon-down ant-select-suffix"
+                                                            >
+                                                                <i
+                                                                    className="icon-right"
+                                                                    style={{
+                                                                        display: "block",
+                                                                        transform: `rotate(270deg)`,
+                                                                        color: "white",
+                                                                    }}
+                                                                />
+                                                            </span>
+                                                        </button>
+                                                        {clickedDownArrow && (
+                                                            <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                                                <button
+                                                                    className="btn-consult-patient-details top-br with-divider"
+                                                                    onClick={() => onVoiceRxClick(patient_data)}
+                                                                    style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                                >
+                                                                    Voice Rx
+                                                                </button>
+                                                                <button
+                                                                    className="btn-consult-patient-details bottom-br"
+                                                                    onClick={() => onConsultClick(patient_data)}
+                                                                >
+                                                                    Consult
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )
                                             }
                                             {/* {clickedDownArrow && (isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB) && (
@@ -490,19 +533,7 @@ function Welcome1(props) {
                                                 )}
                                             </div>
                                         </>
-                                    ) : (
-                                        <Button variant="primary"
-                                            className='btn-41 px-4'
-                                            onClick={() => {
-                                                window.Moengage.track_event("start_new_visit_click", {
-                                                    "doctor_id": profile?.doctor_unique_id,
-                                                    "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
-                                                });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
-                                            }}>
-                                            {'Start New Visit'}
-                                        </Button>
-                                    )}
+                                    ) : null}
                                 </div>
                             )}
                         </div>
