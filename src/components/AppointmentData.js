@@ -2074,10 +2074,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           : "btn-smart-rx"
                       }`}
                       onClick={() =>
-                        (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB) ? 
-                          onSmartRxClick (record) : (selectedTab === TAB_QUEUE  && isSnapRxAccessable) ? handleSnapRxClick(record)
-                          : (selectedTab === TAB_QUEUE && (isVoiceRxAccessable || isFreeVoiceRxUser)) ? onVoiceRxClick(record)
-                          : onPrintRxUrlClick(record)
+                        (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB)
+                          ? onSmartRxClick(record)
+                          : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
+                            ? handleSnapRxClick(record)
+                            : (selectedTab === TAB_QUEUE && ((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER))
+                              ? onVoiceRxClick(record)
+                              : onPrintRxUrlClick(record)
                       }
                     >
                       {
@@ -2085,7 +2088,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           ? "PrintRx"
                           : (isSmartSyncAccessableFromGB && "SmartRx") ||
                             (isSnapRxAccessable && "SnapRx") ||
-                            ((isVoiceRxAccessable || isFreeVoiceRxUser) && "Voice Rx") ||
+                            (((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) && "Voice Rx") ||
                             ""
                       }
                     </button>
@@ -2113,7 +2116,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     </button>
                   )}
                   {openRowIndex === index && 
-                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || (isVoiceRxAccessable || isFreeVoiceRxUser) ? "65%" : "52%")}} ref={consultButtonRef}>
+                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || ((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) ? "65%" : "52%")}} ref={consultButtonRef}>
                       {(isSmartSyncAccessableFromGB && isSnapRxAccessable) && 
                         <button
                           // ref={snapRxButtonRef}
@@ -2143,7 +2146,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   }
                 </div>
               )
-            ) : (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) &&
+            ) : (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) &&
               shouldShowVoiceRx() ? (
               isDigitisationTab ? (
                 <>
@@ -2168,10 +2171,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }`}
                       onClick={() =>
                         (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER)
-                          ? (isSmartSyncAccessableFromGB ? selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 5) : onSmartRxClick(record) : 
-                             isSnapRxAccessable ? handleSnapRxClick(record) : 
-                             (isVoiceRxAccessable || isFreeVoiceRxUser) ? onVoiceRxClick(record) : 
-                             onPrintRxUrlClick(record))
+                          ? (isSmartSyncAccessableFromGB
+                              ? (selectedTab === TAB_ZYDUS_ENCOUNTER
+                                  ? onZydus_Consult_PatientDetails_Click(record, 5)
+                                  : onSmartRxClick(record))
+                              : isSnapRxAccessable
+                                ? handleSnapRxClick(record)
+                                : ((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER)
+                                  ? onVoiceRxClick(record)
+                                  : onPrintRxUrlClick(record))
                           : onPrintRxUrlClick(record)
                       }
                     >
@@ -2180,7 +2188,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           ? "PrintRx"
                           : (isSmartSyncAccessableFromGB && "SmartRx") ||
                             (isSnapRxAccessable && "SnapRx") ||
-                            ((isVoiceRxAccessable || isFreeVoiceRxUser) && "Voice Rx") ||
+                            (((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) && "Voice Rx") ||
                             ""
                       }                    
                     </button>
@@ -2209,7 +2217,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     </button>
                   )}
                   {openRowIndex === index && 
-                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || (isVoiceRxAccessable || isFreeVoiceRxUser) ? "65%" : "52%")}} ref={consultButtonRef}>
+                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || ((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) ? "65%" : "52%")}} ref={consultButtonRef}>
                       {(isSnapRxAccessable) && 
                         <button
                           className="btn-consult top-br with-divider"

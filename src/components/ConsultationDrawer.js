@@ -1308,17 +1308,72 @@ const ConsultationDrawer = ({
   const preparePayloadForApi = () => {
     const cleanedData = removeScItems(prescriptionData);
     const { dynamicFields = {} } = cleanedData;
-
-    // Exclude local modules based on localModules state
-    const filteredDynamicFields = Object.keys(dynamicFields).reduce(
-      (acc, key) => {
-        if (!localModules.includes(key)) {
-          acc[key] = dynamicFields[key]; // Include only non-local modules
-        }
-        return acc;
-      },
-      {}
-    );
+    // Merge any in-progress edits from the UI (input focused but not blurred yet)
+    let dynamicFieldsWithPending = dynamicFields;
+    if (
+      activeType &&
+      activeIndex !== null &&
+      typeof activeType === "string" &&
+      // Only treat as dynamic module if it exists in dynamicFields or was created locally
+      (Object.prototype.hasOwnProperty.call(dynamicFields, activeType) ||
+        (Array.isArray(localModules) && localModules.includes(activeType)))
+    ) {
+      const currentModuleArray = Array.isArray(dynamicFields[activeType])
+        ? [...dynamicFields[activeType]]
+        : [];
+      const pendingText = typeof editableText === "string" ? editableText.trim() : "";
+      if (pendingText) {
+        const nextArray = [...currentModuleArray];
+        nextArray[activeIndex] = pendingText;
+        dynamicFieldsWithPending = {
+          ...dynamicFields,
+          [activeType]: nextArray,
+        };
+      }
+    }
+    // Also capture pending edit when editing an existing item (module-lineItem)
+    if (
+      activeType &&
+      activeIndex !== null &&
+      typeof activeType === "string" &&
+      activeType.endsWith("-lineItem")
+    ) {
+      const moduleName = activeType.replace(/-lineItem$/, "");
+      // Only merge for true dynamic modules
+      if (
+        Object.prototype.hasOwnProperty.call(dynamicFields, moduleName) ||
+        (Array.isArray(localModules) && localModules.includes(moduleName))
+      ) {
+      const currentModuleArray = Array.isArray(dynamicFields[moduleName])
+        ? [...dynamicFields[moduleName]]
+        : [];
+      const pendingLineItem = typeof editableLineItem === "string" ? editableLineItem.trim() : "";
+      if (pendingLineItem) {
+        const nextArray = [...currentModuleArray];
+        nextArray[activeIndex] = pendingLineItem;
+        dynamicFieldsWithPending = {
+          ...dynamicFieldsWithPending,
+          [moduleName]: nextArray,
+        };
+      }
+      }
+    }
+    // Include ALL dynamic fields (including local modules) so custom module edits are preserved.
+    // Optionally prune strictly empty arrays to keep payload lean.
+    const filteredDynamicFields = Object.entries(dynamicFieldsWithPending).reduce((acc, [key, value]) => {
+      if (Array.isArray(value)) {
+        // Remove purely empty/whitespace items
+        const trimmed = value
+          .map((v) => (typeof v === "string" ? v.trim() : v))
+          .filter((v) => (typeof v === "string" ? v.length > 0 : v !== null && v !== undefined));
+        acc[key] = trimmed;
+      } else if (value && typeof value === 'object') {
+        acc[key] = value;
+      } else {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
 
     return {
       ...cleanedData,
@@ -1473,12 +1528,13 @@ const ConsultationDrawer = ({
         }
         
         if (genRxDetails?._id) {
-          const updatedTranscript = fullTranscript + " " + transcribedText;
-      setFullTranscript(updatedTranscript);
+          // Keep local running transcript for UI if needed, but send only the newly added text to API
+          const updatedTranscript = [fullTranscript, transcribedText].filter(Boolean).join(" ");
+          setFullTranscript(updatedTranscript);
           
           if (transcribedText) {
             const newFormData = new FormData();
-            newFormData.append("voice_prescription_text", updatedTranscript);
+            newFormData.append("voice_prescription_text", (transcribedText || "").trim());
             
             Array.from(formData.entries()).forEach(([key, value]) => {
               if (key !== '' && key !== 'voice_prescription_text' && key !== 'voice_prescription_previous_context') {
@@ -4472,6 +4528,10 @@ const ConsultationDrawer = ({
                     type="text"
                     className="editable-digitised-item w-100"
                     onChange={handleInputChange}
+                    onFocus={() => {
+                      setActiveType(module);
+                      setActiveIndex(0);
+                    }}
                     onBlur={() => handleInputBlur(module, 0, true)}
                     style={{ border: "none" }}
                     rows={3}
@@ -5401,7 +5461,7 @@ const ConsultationDrawer = ({
                               <img src={require("../assets/images/danger.svg").default} alt="Warning" className={styles.dangerIcon} />
                             </div>
                             <div className={styles.instructionText}>
-                              Dictate the Rx or start a conversation with Ambient Rx I'll automagically fill these below Rx details so you can stay focused on the patient.
+                              Dictate the Rx or start a conversation with Ambient Rx I'll automatically fill these below Rx details so you can stay focused on the patient.
                             </div>
                             <button 
                               className={styles.closeButton}
