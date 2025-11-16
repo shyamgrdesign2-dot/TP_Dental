@@ -119,13 +119,11 @@ const MedicationsTable = ({
       if (!isGroundingAccessable) {
         isFuzzySearchInProgress.current = false;
         hasFuzzyResults.current = false;
-        setSearchQuery(value);
         return;
       }
 
       isFuzzySearchInProgress.current = true;
       hasFuzzyResults.current = false;
-      setSearchQuery(value);
 
       try {
         const result = await ApiMedication.getFuzzySearch(value, 10);

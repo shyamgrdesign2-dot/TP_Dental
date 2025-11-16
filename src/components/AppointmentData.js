@@ -2157,7 +2157,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                 </>
               ) : (
                 <div className="d-flex">
-                  {selectedTab !== TAB_CANCELLED && (
+                  {(selectedTab !== TAB_CANCELLED && !finishedData.some(
+                    (x) => x.pam_ref_id == record.encounterId)) && (
                     <button
                       // className="btn btn-outline-primary btn-smart-rx"
                       className={`btn btn-outline-primary ${
@@ -2184,7 +2185,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       }                    
                     </button>
                   )}
-                  {(selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (
+                  {(selectedTab === TAB_QUEUE || (selectedTab === TAB_ZYDUS_ENCOUNTER && !finishedData.some(
+                    (x) => x.pam_ref_id == record.encounterId))) && (
                     <button
                       className="btn btn-outline-primary btn-down-arrow"
                       onClick={() =>
