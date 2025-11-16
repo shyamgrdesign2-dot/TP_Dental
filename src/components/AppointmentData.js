@@ -2177,8 +2177,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                                   : onSmartRxClick(record))
                               : isSnapRxAccessable
                                 ? handleSnapRxClick(record)
-                                : ((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER)
-                                  ? onVoiceRxClick(record)
+                                : (isVoiceRxAccessable || isFreeVoiceRxUser)
+                                  ? selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)
                                   : onPrintRxUrlClick(record))
                           : onPrintRxUrlClick(record)
                       }
