@@ -257,7 +257,7 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const gynecHistoryData = caseManagerData?.gynecHistoryData
     const labParamsData = caseManagerData?.labParamsData
@@ -566,11 +566,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const labParamsPatchData = labParamsData ? groupByReportNameForAll(labParamsData) : null;
     const labParamsPatchTableData = labParamsPatchData ? syncLabResultsData(labParamsPatchData) : null;
 
-    const getCustomModuleName = (id) => {
-        const customModule = customModules.find((module) => module.module_id === id);
-        return customModule ? customModule?.printConfig?.nameOverride !== undefined ? customModule?.printConfig?.nameOverride : customModule?.name : '';
-    }
-
     const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {
         const marginType =
             letterheadFormat === 0 ? "custom_letterhead_margin" :
@@ -719,9 +714,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
             // Check if custom module data exists
             let customModule = caseManagerData?.moduleContents?.find(e => e?.module_id === option?.id);
-            if(customModule) {
-                customModule = {...customModule, name: getCustomModuleName(option?.id)};
-            }
             
             if ((option?.showDefault || (option?.is_custom_module === true)) && customModule?.content?.length > 0) {
                 return true;
@@ -1127,9 +1119,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         };
                         return printSettings?.prescription?.case_option?.map((option, index) => {
                             let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                            if(customModule) {
-                                customModule = { ...customModule, name: getCustomModuleName(option?.id) };
-                            }
+                            
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
                                 if (isLastPageBreak) {
@@ -5696,10 +5686,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )
                                         )}
                                     </>
-                                ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.length > 0 ? (
+                                ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.some((item) => item?.title || item?.notes) ? (
                                     option?.format === 'inline' ? (
                                         <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
+                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.module_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.module_name}:&nbsp;</Text>
                                             {customModule?.content?.map((item, i) => {
                                                 return (
                                                     <Text key={i}>
@@ -5718,7 +5708,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         </Text>
                                     ) : option?.format === 'listview' ? (
                                         <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
+                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.module_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.module_name}:&nbsp;</Text>
                                             {customModule?.content.map((item, i) => {
                                                 return (
                                                     <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
@@ -5735,9 +5725,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 )
                                             })}
                                         </View>
-                                    ) : (customModule?.content?.some((item) => item.title || item.notes) &&
+                                    ) : (
                                         <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.name}:&nbsp;</Text>
+                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.module_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.module_name}:&nbsp;</Text>
                                             <View style={styles.table}>
                                                 <View style={styles.headerRowFixed} fixed/>
                                                 {customModule?.content.map((item, i) => (
