@@ -2146,7 +2146,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   }
                 </div>
               )
-            ) : (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) &&
+            ) : (((isSmartSyncAccessableFromGB || isVoiceRxAccessable || isFreeVoiceRxUser) && selectedTab === TAB_ZYDUS_ENCOUNTER) || 
+            (isSmartSyncAccessableFromGB || isVoiceRxAccessable || isFreeVoiceRxUser)) &&
               shouldShowVoiceRx() ? (
               isDigitisationTab ? (
                 <>
@@ -2188,7 +2189,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           ? "PrintRx"
                           : (isSmartSyncAccessableFromGB && "SmartRx") ||
                             (isSnapRxAccessable && "SnapRx") ||
-                            (((isVoiceRxAccessable || isFreeVoiceRxUser) || selectedTab === TAB_ZYDUS_ENCOUNTER) && "Voice Rx") ||
+                            ((isVoiceRxAccessable || isFreeVoiceRxUser) && "Voice Rx") ||
                             ""
                       }                    
                     </button>
