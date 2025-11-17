@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navbar } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
@@ -11,13 +11,14 @@ import {
 import { resetVaccineState } from '../redux/vaccineSlice';
 import { resetGrowthChartState } from '../redux/growthChartSlice';
 import { resetObstetricState } from '../redux/obstetricSlice';
-import { updateVisitStatus } from '../api/services/VisitService';
+import { syncDigitizationStatus, updateVisitStatus } from '../api/services/VisitService';
 import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
 
 function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang }) {
     const navigate = useNavigate();
+    const { state } = useLocation();
     const { profile } = useSelector((state) => state.doctors);
     const {
         loadingEndVisit,
@@ -38,12 +39,27 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               lg: selectedLang !== undefined && selectedLang !== "English" ? btoa(selectedLang.toString()) : '',
             };
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
-            if (pam_id) {
-              updateVisitStatus(pam_id, {
+            if (pam_id || tcm_id) {
+              updateVisitStatus({
                 status: 3,
-                prescriptionUrl: printUrl,
                 isSnapRx,
+                appointment_id: pam_id,
+                prescriptionUrl: printUrl,
+                tcm_id: tcm_id,
               });
+              if (state?.page === "digitise") {
+                const urlObj = new URL(printUrl);
+                const isRxdigitised = urlObj.searchParams.get("rxDigitize");
+                if (isRxdigitised !== "true") {
+                    urlObj.searchParams.set("rxDigitize", "true");
+                }
+                syncDigitizationStatus({
+                  appointment_id: pam_id,
+                  tcm_id: tcm_id,
+                  is_digitized: true,
+                  digitized_prescription_url: urlObj?.toString(),
+                });
+              }
             }
             if (action.meta.requestStatus === "fulfilled") {
               dispatch(resetVaccineState());
