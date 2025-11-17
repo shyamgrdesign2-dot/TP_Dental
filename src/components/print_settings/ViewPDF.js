@@ -76,11 +76,11 @@ Font.register({
 
 // Bengali
 Font.register({
-    family: 'NotoSansBengali',
+    family: 'AnekBangla',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansBengali-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansBengali-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansBengali-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: require('../../assets/fonts/print-fonts/AnekBangla-Regular.ttf'), fontWeight: 400 }, // Regular
+        { src: require('../../assets/fonts/print-fonts/AnekBangla-Medium.ttf'), fontWeight: 500 }, // Medium
+        { src: require('../../assets/fonts/print-fonts/AnekBangla-Bold.ttf'), fontWeight: 700 }, // Bold
     ],
 });
 
@@ -126,11 +126,11 @@ Font.register({
 
 // Gujarati
 Font.register({
-    family: 'NotoSansGujarati',
+    family: 'AnekGujarati',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/NotoSansGujarati-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/NotoSansGujarati-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/NotoSansGujarati-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Regular.ttf'), fontWeight: 400 }, // Regular
+        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Medium.ttf'), fontWeight: 500 }, // Medium
+        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Bold.ttf'), fontWeight: 700 }, // Bold
     ],
 });
 
@@ -394,7 +394,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const getFont = () => {
         var value = printSettings?.page_format?.font_family;
         if (selectedLang == 2) {
-        value = "NotoSansGujarati";
+        value = "AnekGujarati";
         } else if (selectedLang == 3 || selectedLang == 4) {
         value = "AnekDevanagari";
         } else if (selectedLang == 5) {
@@ -406,7 +406,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         } else if (selectedLang == 10) {
         value = "NotoSansTamil";
         } else if (selectedLang == 11 || selectedLang == 12) {
-        value = "NotoSansBengali";
+        value = "AnekBangla";
         } else if (selectedLang == 13) {
         value = "NotoSansOriya";
         } else {
@@ -5985,7 +5985,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         <View
                             style={{
                               position: 'absolute',
-                              backgroundColor: 'yellow',
                               bottom: getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "bottom", 0.5),
                               left: mode !== NORMAL ? PX_TO_PT * 30 : getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "left", 0.5),
                               right: mode !== NORMAL ? PX_TO_PT * 30 : getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "right", 0.5),
