@@ -883,7 +883,7 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
 
   // Bengali/Assamese
   if (/[\u0980-\u09FF]/.test(text)) {
-    return "NotoSansBengali";
+    return "AnekBangla";
   }
 
   // Tamil
@@ -908,7 +908,7 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
 
   // Gujarati
   if (/[\u0A80-\u0AFF]/.test(text)) {
-    return "NotoSansGujarati";
+    return "AnekGujarati";
   }
 
   // Punjabi/Gurmukhi
