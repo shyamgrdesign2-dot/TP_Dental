@@ -94,7 +94,7 @@ import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData } from "../../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
 import TabCustomModule from "../../components/tab_design/TabCustomModule";
@@ -129,7 +129,7 @@ function TabPrescription() {
   const { planDetails } = useSelector((state) => state.subscription);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
@@ -1055,7 +1055,7 @@ function TabPrescription() {
 
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
-    openCollapsed(isGroundingAccessable ? 12 : (isVoiceRxAccessable || tp_monetization_enable) ? 10 : 9);
+    openCollapsed(isGroundingAccessable ? 12 : (isFreeVoiceRxUser || tp_monetization_enable) ? 10 : 9);
     window.Moengage.track_event("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
@@ -1157,7 +1157,7 @@ function TabPrescription() {
                       <label className="text-white mt-1">AI Formu..</label>
                     </div>  
                   </button>}
-                  {(isVoiceRxAccessable || tp_monetization_enable) && <button
+                  {(tp_monetization_enable || isFreeVoiceRxUser) && <button
                     type="button"
                     className="mb-3 text-center btn btn-action"
                     onClick={() => openCollapsed(10)}
@@ -1204,7 +1204,7 @@ function TabPrescription() {
                 </>
               ) : (
                 <>
-                  {((isApexAIAccessable || isVoiceRxAccessable || isGroundingAccessable) || tp_monetization_enable) && (
+                  {((isApexAIAccessable || isGroundingAccessable) || tp_monetization_enable || isFreeVoiceRxUser) && (
                     <button
                       type="button"
                       className="mb-3 text-center btn btn-action"
@@ -1589,7 +1589,7 @@ function TabPrescription() {
                     getGenerateDDx={getGenerateDDx}
                     isDDxGenerated={isDDxGenerated}
                   />
-                ) : collapsedFlag === 10 && (isVoiceRxAccessable || tp_monetization_enable) ? (
+                ) : collapsedFlag === 10 && (tp_monetization_enable || isFreeVoiceRxUser) ? (
                     <TabVoiceRx
                       handleGenRxKnowMore={handleGenRxKnowMore}
                       setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}

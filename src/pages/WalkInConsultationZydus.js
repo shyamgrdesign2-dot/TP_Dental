@@ -14,7 +14,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
 import { clearSearch, searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
-import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic, isVoiceRxFree } from "../utils/utils";
+import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
@@ -44,8 +44,8 @@ function WalkInConsultationZydus() {
         GB_ISCRIBE
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
-    const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
     const isFreeVoiceRxUser = isVoiceRxFree();
+    const tp_monetization_enable = !shouldMonetizationDisabled();
 
     const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -251,7 +251,7 @@ function WalkInConsultationZydus() {
                         >
                             Patient Details
                         </Button>
-                        {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                        {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                             <div className="d-flex btn btn-smart-rx-walkin">
                                 { isSmartSyncAccessableFromGB ?
                                   (
@@ -272,7 +272,7 @@ function WalkInConsultationZydus() {
                                         SnapRx
                                       </button>
                                     </div>
-                                  ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                                  ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                                     <Button
                                       type="text"
                                       className="btn btn-primary3 align-items-center d-flex"
@@ -320,7 +320,7 @@ function WalkInConsultationZydus() {
                                 </div>
                               </div>
                         ) :
-                        (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                        (isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                           <div className="d-flex btn btn-smart-rx-walkin">
                             {isSmartSyncAccessableFromGB ? (
                               <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
@@ -331,7 +331,7 @@ function WalkInConsultationZydus() {
                                   SmartRx
                                 </button>
                               </div>
-                            ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                            ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                               <Button
                                 type="text"
                                 className="btn btn-primary3 align-items-center d-flex"
@@ -341,7 +341,7 @@ function WalkInConsultationZydus() {
                                 Voice Rx
                               </Button>
                             ) : null}
-                            {(isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (
+                            {(isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (
                               <div>
                                 <Dropdown
                                   className="btn"
@@ -488,7 +488,7 @@ function WalkInConsultationZydus() {
                                         <i className="icon-right iconrotate180 ms-auto" />
                                     </Button>
                                 </div>
-                                {(isSmartSyncAccessableFromGB || isSnapRxAccessable || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                                {(isSmartSyncAccessableFromGB || isSnapRxAccessable || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                                     isSmartSyncAccessableFromGB ? (
                                         <div
                                             style={{
@@ -607,7 +607,7 @@ function WalkInConsultationZydus() {
                                                 </div>
                                             )}
                                         </div> 
-                                    ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                                    ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                                         <div
                                             className="d-flex w-50 justify-content-between"
                                             style={{

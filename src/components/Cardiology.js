@@ -28,6 +28,7 @@ import {
   getTokenData,
   getClinicName,
   isVoiceRxFree,
+  shouldMonetizationDisabled,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -113,8 +114,8 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -2607,7 +2608,7 @@ function Cardiology(props) {
                   No visit found for this patient yet
                 </p>
                 <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <SmartDropdownButtons
                       profile={profile}
                       patient_data={patient_data}
@@ -2650,9 +2651,8 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isFreeVoiceRxUser = isVoiceRxFree();
-  
+  const tp_monetization_enable = !shouldMonetizationDisabled();
   const [open, setOpen] = React.useState(false);
   const arrowRef = React.useRef(null);
   const containerRef = React.useRef(null);
@@ -2774,10 +2774,10 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
               </button>
             </div>
           }
-          {(isVoiceRxAccessable || isFreeVoiceRxUser) &&
+          {(isFreeVoiceRxUser || tp_monetization_enable) &&
             <div>
               <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isVoiceRxAccessable || isFreeVoiceRxUser) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isVoiceRxAccessable || isFreeVoiceRxUser) ? "bottom-br" : ""}`}
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   const clinic_name = getClinicName(profile?.hospital_data);

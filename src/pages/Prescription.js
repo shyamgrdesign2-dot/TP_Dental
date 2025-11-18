@@ -54,7 +54,7 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -314,7 +314,7 @@ function Prescription() {
   const [showShimmer, setShowShimmer] = useState(false);
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isFreeVoiceRxUser = isVoiceRxFree();
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isGroundingAccessable =
     tokenData?.hospital_business_id == env.zydus_business_id &&
@@ -1581,7 +1581,7 @@ function Prescription() {
           <img src={hey} alt="vitals" className="me-3 hey" />
           <div className="row">
             <div className="col-lg-4 col-md-12 col-12">
-              {((isApexAIAccessable || isVoiceRxAccessable) || tp_monetization_enable) ? (
+              {(isApexAIAccessable || tp_monetization_enable || isFreeVoiceRxUser) ? (
                 <Tabs
                   className="obstetricTab"
                   activeKey={activeTab}
@@ -1628,7 +1628,7 @@ function Prescription() {
                     {isGroundingAccessable && <div className="prescription-box-sm">
                       <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
                     </div>}
-                    {(isVoiceRxAccessable || tp_monetization_enable) && <div className="prescription-box-sm">
+                    {(tp_monetization_enable || isFreeVoiceRxUser) && <div className="prescription-box-sm">
                       <GenRxBox setIsGenRxDrawerVisible={setIsGenRxDrawerVisible} handleGenRxKnowMore={handleGenRxKnowMore} />
                     </div>}
                     {(isApexAIAccessable || tp_monetization_enable) && <div className="prescription-box-sm">

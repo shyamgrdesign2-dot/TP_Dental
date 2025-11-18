@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX } from "../utils/constants";
-import { errorMessage, getClinic, getClinicName, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 
 import TabHeader from "../components/tab_design/TabHeader";
 import PersonalDetails from "../components/PersonalDetails";
@@ -360,7 +360,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
   
     const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
     const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
-    const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+    const tp_monetization_enable = !shouldMonetizationDisabled();
     const isFreeVoiceRxUser = isVoiceRxFree();
     
     const [open, setOpen] = React.useState(false);
@@ -478,7 +478,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                 </button>
               </div>
             }
-            {(isVoiceRxAccessable || isFreeVoiceRxUser) &&
+            {(isFreeVoiceRxUser || tp_monetization_enable) &&
               <div>
                   <button
                     className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
@@ -493,7 +493,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
             }
             <div>
                 <button
-                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) || (isVoiceRxAccessable || isFreeVoiceRxUser) ? "bottom-br" : "border-radius-all"}`}
+                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) || (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : "border-radius-all"}`}
                   onClick={() => {
                     setOpen(false);
                     handleConsult();
