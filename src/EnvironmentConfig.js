@@ -78,6 +78,7 @@ const dev = {
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://pm-uat-doctor-portal.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
+  ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
 };
 
 const qa_tp = {
@@ -167,6 +168,7 @@ const qa_tp = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
+  ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
 };
 
 const qa = {
@@ -340,6 +342,7 @@ const uat = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
+  ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
 };
 
 const prod = {
@@ -436,6 +439,7 @@ const prod = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475, 12476, 12477],
+  ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
 };
 
 const getEnv = () => {
