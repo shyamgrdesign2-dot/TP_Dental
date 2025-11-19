@@ -568,7 +568,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const getCustomModuleName = (id) => {
         const customModule = customModules.find((module) => module.module_id === id);
-        return customModule ? customModule?.printConfig?.nameOverride !== undefined ? customModule?.printConfig?.nameOverride : customModule?.name : '';
+        return customModule?.name ? customModule?.printConfig?.nameOverride !== undefined ? customModule?.printConfig?.nameOverride : customModule?.name : caseManagerData?.moduleContents?.find((module) => module.module_id === id)?.module_name;
     }
 
     const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {
@@ -686,6 +686,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const paddingStyles = calculatePadding();
+
+    if (caseManagerData?.moduleContents?.length && printSettings?.prescription?.case_option) {
+        const existingModuleIds = new Set(
+            printSettings?.prescription?.case_option?.map(option => option?.id)
+        );
+        
+        caseManagerData?.moduleContents
+            ?.filter(module => !existingModuleIds.has(module?.module_id))
+            ?.forEach(module => {
+                printSettings?.prescription?.case_option?.push({
+                    id: module?.module_id,
+                    format: 'inline',
+                    showDefault: true,
+                    enable: 'Y',
+                    custom_status: 'Y'
+                });
+            });
+    }
 
     const PageNumberFooter = () => (
         <Text 

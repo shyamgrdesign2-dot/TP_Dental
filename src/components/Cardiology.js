@@ -224,7 +224,7 @@ function Cardiology(props) {
         .filter((module) => module.content && module.content.length > 0)
         .map((content) => ({
           ...content,
-          module_name: customModulesMap.get(content.module_id),
+          module_name: customModulesMap.get(content.module_id) || content?.module_name,
         }));
 
       setCustomModulesRxData(processedModules);
