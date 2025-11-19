@@ -2562,9 +2562,9 @@
   }
   
   .inputSection {
-    min-width: 250px !important;
-    width: 250px !important;
-    max-width: 250px !important;
+    min-width: 280px !important;
+    width: 280px !important;
+    max-width: 320px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;
@@ -2575,15 +2575,25 @@
   }
   
   .prescriptionSection {
-    min-width: 464px !important;
-    max-width: 464px !important;
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
     box-sizing: border-box !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     margin-left: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+  }
+  .gradientBorder {
+    width: 100% !important;
+    height: auto !important;
+    margin: 16px auto !important;
+  }
+  
+  .dividerHandle {
+    display: none !important;
   }
   
   .transcriptCard {
@@ -2912,7 +2922,7 @@
   .inputSection {
     min-width: 280px !important;
     width: 280px !important;
-    max-width: 280px !important;
+    max-width: 320px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;
@@ -2923,15 +2933,26 @@
   }
   
   .prescriptionSection {
-    min-width: 660px !important;
-    max-width: 660px !important;
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
     box-sizing: border-box !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     margin-left: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+  }
+  
+  .gradientBorder {
+    width: 100% !important;
+    height: auto !important;
+    margin: 16px auto !important;
+  }
+  
+  .dividerHandle {
+    display: none !important;
   }
   
   .rxPadInstruction {
@@ -3071,6 +3092,41 @@
 
 /* Tablet portrait (768px-1024px width with portrait orientation) */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  .inputSection {
+    min-width: 260px !important;
+    width: 260px !important;
+    max-width: 300px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .prescriptionSection {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+  }
+  
+  .gradientBorder {
+    width: 100% !important;
+    height: auto !important;
+    margin: 16px auto !important;
+  }
+  
+  .dividerHandle {
+    display: none !important;
+  }
   .rxPadInstruction {
     width: 100% !important;
     max-width: 100% !important;

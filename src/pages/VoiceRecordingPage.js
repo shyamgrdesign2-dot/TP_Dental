@@ -12,18 +12,27 @@ import mutedMicrophoneIcon from '../assets/images/muted-microphone-icon.svg';
 import dictateActiveIcon from '../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../assets/images/ambient-mode-active.svg';
 import styles from './VoiceRecordingPage.module.scss';
-import { getClinic, getSupportedMimeType } from '../utils/utils';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../utils/constants';
+import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '../utils/utils';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION } from '../utils/constants';
 import CommonModal from '../common/CommonModal';
 import alertIcon from '../assets/images/alertIcon.svg';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { checkCredits } from '../redux/monetizationSlice';
+import { services } from '../redux/doctorsSlice';
+import ExpiredSubModal from './monetization/components/ExpiredSubModal';
 
 const VoiceRecordingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, userId } = useSelector(
+  const dispatch = useDispatch();
+  const { profile, userId, servicesList } = useSelector(
     (state) => state.doctors
   );
+
+  const VOICE_RX_planDetails = servicesList?.find(
+    (e) => e.service_name === S_VOICE_RX
+  );
+  const isFreeVoiceRxUser = isVoiceRxFree();
 
   const [popOverVideo, setPopOverVideo] = useState(false);
   const [selectedMode, setSelectedMode] = useState('');
@@ -31,6 +40,7 @@ const VoiceRecordingPage = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showQuitRecordingModal, setShowQuitRecordingModal] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
   const patient_data = location.state?.patient_data || {};
   const mode = location.state?.mode || '';
@@ -41,6 +51,8 @@ const VoiceRecordingPage = () => {
   const audioStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const hasAutoStartedRef = useRef(false);
+  const savedChunksRef = useRef([]);
+  const savedRecordingTimeRef = useRef(0);
 
   const cleanupRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -82,6 +94,10 @@ const VoiceRecordingPage = () => {
     setPopOverVideo(!popOverVideo);
   };
 
+  const showHideSubModal = useCallback(() => {
+    setIsSubModalOpen(!isSubModalOpen);
+  }, [isSubModalOpen]);
+
   const handleBack = () => {
     console.log('Back button clicked - navigating to Voice Rx Consult page');
     console.log('Patient data:', patient_data);
@@ -100,7 +116,13 @@ const VoiceRecordingPage = () => {
   };
 
   const handleStartRecording = async () => {
+    const shouldResetTime = audioChunksRef.current.length === 0;
+    if (shouldResetTime) {
     setRecordingTime(0);
+    } else {
+      setRecordingTime(savedRecordingTimeRef.current);
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
@@ -108,7 +130,10 @@ const VoiceRecordingPage = () => {
       mediaRecorderRef.current = mimeType
         ? new MediaRecorder(stream, { mimeType })
         : new MediaRecorder(stream);
+      
+      if (audioChunksRef.current.length === 0) {
       audioChunksRef.current = [];
+      }
 
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -123,45 +148,178 @@ const VoiceRecordingPage = () => {
         console.log("Recording blob:", blob);
       };
 
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
+      mediaRecorderRef.current.onerror = (event) => {
+        console.error("MediaRecorder error:", event.error);
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        message.error("Recording error occurred. Please try again.");
+      };
+
+      // Only set isRecording to true if start() succeeds
+      try {
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+      } catch (startError) {
+        console.error("Error starting MediaRecorder:", startError);
+        // Cleanup on failure
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+        message.error("Unable to start recording. Please try again.");
+      }
     } catch (error) {
       console.error("Error accessing microphone:", error);
       message.error("Unable to access microphone");
+      // Ensure state is reset on error
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingTime(0);
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
     }
   };
 
   const handleCancelRecordingClick = () => {
-    cleanupRecording();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+    }
+    savedChunksRef.current = [...audioChunksRef.current];
+    savedRecordingTimeRef.current = recordingTime;
+    setIsPaused(true);
     setShowQuitRecordingModal(true);
   };
 
   const handleQuitRecording = () => {
     setShowQuitRecordingModal(false);
+    cleanupRecording();
     navigate('/voice-rx-consult', {
       state: { patient_data },
     });
   };
 
-  const handleStayRecording = () => {
+  const handleStayRecording = async () => {
     setShowQuitRecordingModal(false);
-    setTimeout(() => {
-      hasAutoStartedRef.current = true;
-      handleStartRecording();
-    }, 200);
+    audioChunksRef.current = [...savedChunksRef.current];
+    setRecordingTime(savedRecordingTimeRef.current);
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      try {
+        mediaRecorderRef.current.resume();
+        setIsPaused(false);
+      } catch (error) {
+        console.error('Error resuming recording:', error);
+        await handleStartRecording();
+      }
+    } else if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
+      await handleStartRecording();
+    }
   };
 
   const handlePauseResume = () => {
-    if (isPaused) {
-      mediaRecorderRef.current?.resume();
+    if (!mediaRecorderRef.current) {
+      // If MediaRecorder is null but isRecording is true, reset state
+      if (isRecording) {
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+      }
+      return;
+    }
+    
+    try {
+      const currentState = mediaRecorderRef.current.state;
+      
+      // If MediaRecorder is in an unexpected state, reset
+      if (currentState === 'inactive' && isRecording) {
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+        return;
+      }
+      
+      if (isPaused) {
+        if (currentState === 'paused') {
+          mediaRecorderRef.current.resume();
+          setIsPaused(false);
+        } else if (currentState === 'inactive') {
+          // MediaRecorder stopped unexpectedly
+          setIsRecording(false);
+          setIsPaused(false);
+          setRecordingTime(0);
+        }
+      } else {
+        if (currentState === 'recording') {
+          mediaRecorderRef.current.pause();
+          setIsPaused(true);
+        } else if (currentState === 'inactive') {
+          // MediaRecorder stopped unexpectedly
+          setIsRecording(false);
+          setIsPaused(false);
+          setRecordingTime(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error pausing/resuming recording:', error);
+      // Reset state on error
+      setIsRecording(false);
       setIsPaused(false);
-    } else {
-      mediaRecorderRef.current?.pause();
-      setIsPaused(true);
+      setRecordingTime(0);
     }
   };
 
   const handleSend = async () => {
+    if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0) {
+      showHideSubModal();
+      return;
+    }
+    if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
+      showHideSubModal();
+      return;
+    }
+
+    let sendData = {
+      b2c_id: profile?.b2c,
+      service_name: S_VOICE_RX,
+    };
+    const action = await dispatch(checkCredits(sendData));
+    if (action.meta.requestStatus === "fulfilled") {
+      if (action?.payload?.hasOwnProperty("service_name")) {
+        if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0) {
+          if (action?.payload?.credit_balance !== VOICE_RX_planDetails?.credit_balance) {
+            await dispatch(services(sendData?.b2c_id));
+          }
+          showHideSubModal();
+          return;
+        }
+        if (!isFreeVoiceRxUser && action?.payload?.plan_tier === FAILED_VERIFICATION) {
+          showHideSubModal();
+          return;
+        }
+      } else {
+        typeof action?.payload?.data?.error === "object"
+          ? errorMessage(action?.payload?.data?.error?.description)
+          : errorMessage(action?.payload?.data?.message);
+        return;
+      }
+    } else {
+      errorMessage(action?.payload?.message || action?.error || "An error occurred");
+      return;
+    }
+
     try {
       const clinic = getClinic(profile?.hospital_data);
       window.Moengage.track_event("TP_AV_Submit", {
@@ -409,6 +567,20 @@ const VoiceRecordingPage = () => {
           </>
         }
       />
+
+      {!isFreeVoiceRxUser && (
+        <ExpiredSubModal
+          title={S_VOICE_RX}
+          styles={{
+            mask: {
+              background: "rgba(0, 0, 0, 0.28)",
+              backdropFilter: "blur(2px)",
+            },
+          }}
+          isSubModalOpen={isSubModalOpen}
+          showHideSubModal={showHideSubModal}
+        />
+      )}
     </div>
   );
 };

@@ -829,8 +829,12 @@ const ConsultationDrawer = ({
           
           if (response.data.editedData) {
             prescriptionData = response.data.editedData;
+          } else if (response.data.digitizeData) {
+            prescriptionData = response.data.digitizeData;
+          } else if (response.data.digitize) {
+            prescriptionData = response.data.digitize;
           } else {
-            const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+            const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
             const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
             prescriptionData = latestAmbientEntry?.response || latestAmbientEntry?.payload?.response || latestAmbientEntry?.payload;
           }
@@ -900,12 +904,15 @@ const ConsultationDrawer = ({
             }
           }
           
-          setPrescriptionData(prescriptionData);
-          
-          // Convert API medicalHistory format to CashManagerContext format and populate it
-          if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
-            const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
-            setMedicalHistoryData(convertedData);
+          const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
+          if (validatedPrescriptionData) {
+            setPrescriptionData(validatedPrescriptionData);
+            
+            // Convert API medicalHistory format to CashManagerContext format and populate it
+            if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+              const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+              setMedicalHistoryData(convertedData);
+            }
           }
           
           // For ambient mode, use conversations from history if available (when coming from patient detail)
@@ -1084,12 +1091,15 @@ const ConsultationDrawer = ({
               }
             }
             
-            setPrescriptionData(prescriptionDataFromResponse);
-            
-            // Convert API medicalHistory format to CashManagerContext format and populate it
-            if (prescriptionDataFromResponse?.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
-              const convertedData = convertMedicalHistoryToContextFormat(prescriptionDataFromResponse.medicalHistory, medicalHistoryData);
-              setMedicalHistoryData(convertedData);
+            const validatedPrescriptionDataFromResponse = validatePrescriptionData(prescriptionDataFromResponse);
+            if (validatedPrescriptionDataFromResponse) {
+              setPrescriptionData(validatedPrescriptionDataFromResponse);
+              
+              // Convert API medicalHistory format to CashManagerContext format and populate it
+              if (validatedPrescriptionDataFromResponse?.medicalHistory && Array.isArray(validatedPrescriptionDataFromResponse.medicalHistory) && validatedPrescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataFromResponse.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
             }
 
             let transcriptSource = response.data.source;
@@ -1461,6 +1471,17 @@ const ConsultationDrawer = ({
     // Clean the data first
     const cleanedData = deepClean(data);
     
+    // Map instruction to notes for labInvestigation items
+    const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
+      ? cleanedData.labInvestigation.map(item => {
+          const { instruction, ...restItem } = item;
+          return {
+            ...restItem,
+            notes: item.notes || item.instruction || ''
+          };
+        })
+      : [];
+    
     // Ensure all required fields exist with proper defaults
     const validatedData = {
       symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
@@ -1470,13 +1491,15 @@ const ConsultationDrawer = ({
       diagnosis: Array.isArray(cleanedData.diagnosis) ? cleanedData.diagnosis : [],
       examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
       followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
-      labInvestigation: Array.isArray(cleanedData.labInvestigation) ? cleanedData.labInvestigation : [],
+      labInvestigation: mappedLabInvestigation,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
       vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
       others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
-      dynamicFields: cleanedData.dynamicFields || {},
-      ...cleanedData // Preserve any additional fields (now cleaned)
+      ...cleanedData
     };
+    
+    validatedData.labInvestigation = mappedLabInvestigation;
+    validatedData.dynamicFields = cleanedData.dynamicFields || {};
     
     return validatedData;
   };
@@ -1677,17 +1700,17 @@ const ConsultationDrawer = ({
             // Handle ambient API response structure
             if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
               // Priority 1: Check for editedData (contains user edits including dosage)
-              if (finalResponseData.editedData || responseData?.editedData) {
-                prescriptionData = finalResponseData.editedData || responseData.editedData;
+              if (finalResponseData.editedData || actualData?.editedData || responseData?.editedData) {
+                prescriptionData = finalResponseData.editedData || actualData?.editedData || responseData.editedData;
               }
               // Priority 2: Check for digitizeData (aggregated data)
-              else if (finalResponseData.digitizeData || responseData?.digitizeData) {
-                prescriptionData = finalResponseData.digitizeData || responseData.digitizeData;
+              else if (finalResponseData.digitizeData || actualData?.digitizeData || responseData?.digitizeData) {
+                prescriptionData = finalResponseData.digitizeData || actualData?.digitizeData || responseData.digitizeData;
               }
               // Priority 3: Check for digitize object (single digitization)
-              else if (finalResponseData.digitize || responseData?.digitize) {
+              else if (finalResponseData.digitize || actualData?.digitize || responseData?.digitize) {
                 // Extract prescription data from digitize object
-                prescriptionData = finalResponseData.digitize || responseData.digitize;
+                prescriptionData = finalResponseData.digitize || actualData?.digitize || responseData.digitize;
               } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
                 // Find the latest ambient entry (for get/edit operations)
                 const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
@@ -1995,13 +2018,17 @@ const ConsultationDrawer = ({
               }
               
               setPrescriptionData((prevData) => {
+                const apiDynamicFields = validatedPrescriptionData?.dynamicFields || {};
+                const prevDynamicFields = prevData?.dynamicFields || {};
                 const mergedDynamicFields = {
-                  ...(validatedPrescriptionData?.dynamicFields),
-                  ...localModules.reduce((acc, moduleName) => {
-                    acc[moduleName] = [];
-                    return acc;
-                  }, {}),
+                  ...prevDynamicFields,
+                  ...apiDynamicFields,
                 };
+                localModules.forEach(moduleName => {
+                  if (!mergedDynamicFields[moduleName]) {
+                    mergedDynamicFields[moduleName] = [];
+                  }
+                });
 
                 if (genRxDetails?._id) {
                   const hasMeaningfulData = validatedPrescriptionData.symptoms?.length > 0 || 
@@ -2032,6 +2059,7 @@ const ConsultationDrawer = ({
                     return {
                       ...(prevData || {}),
                       medicalHistory: prevData?.medicalHistory || validatedPrescriptionData?.medicalHistory || [],
+                      dynamicFields: mergedDynamicFields,
                     };
                   }
                 } else {
@@ -2249,12 +2277,15 @@ const ConsultationDrawer = ({
                 });
               }
               
-              setPrescriptionData(prescriptionData);
-              
-              // Convert API medicalHistory format to CashManagerContext format and populate it
-              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
-                const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
-                setMedicalHistoryData(convertedData);
+              const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
+              if (validatedPrescriptionDataForDictate) {
+                setPrescriptionData(validatedPrescriptionDataForDictate);
+                
+                // Convert API medicalHistory format to CashManagerContext format and populate it
+                if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
+                  const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataForDictate.medicalHistory, medicalHistoryData);
+                  setMedicalHistoryData(convertedData);
+                }
               }
             }
             
@@ -2557,6 +2588,7 @@ const ConsultationDrawer = ({
       ...data2,
       symptoms: mergedSymptoms,
       medicalHistory: mergedMedicalHistory,
+      dynamicFields: data1?.dynamicFields || data2?.dynamicFields || {},
     };
   };
 

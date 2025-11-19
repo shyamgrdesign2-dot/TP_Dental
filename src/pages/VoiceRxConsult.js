@@ -21,8 +21,8 @@ const VoiceRxConsult = () => {
   const { patient_data, isFromTabView } = location.state || {};
   
   const [popOverVideo, setPopOverVideo] = useState(false);
-  const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(true);
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const [consentChecked, setConsentChecked] = useState(true);
 
   const clinic = getClinic(profile?.hospital_data);
