@@ -5686,7 +5686,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )
                                         )}
                                     </>
-                                ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.some((item) => item?.title || item?.notes) ? (
+                                ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.length > 0 ? (
                                     option?.format === 'inline' ? (
                                         <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                             <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.module_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.module_name}:&nbsp;</Text>
@@ -5725,7 +5725,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 )
                                             })}
                                         </View>
-                                    ) : (
+                                    ) : (customModule?.content?.some((item) => item.title || item.notes) &&
                                         <View style={{ marginTop: PX_TO_PT * 15 }}>
                                             <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.module_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.module_name}:&nbsp;</Text>
                                             <View style={styles.table}>
