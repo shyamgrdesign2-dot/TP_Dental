@@ -157,24 +157,26 @@ function WalkInConsultationZydus() {
             },
         ];
     
-        // Add Voice Rx option
-        items.unshift({
-            label: (
-                <span
-                    style={{
-                        display: "inline-block",
-                        cursor: "pointer",
-                    }}
-                    onClick={() => {
-                        setAutoCompleteFlag(false);
-                        onVoiceRxClick(record);
-                    }}
-                >
-                    Voice Rx
-                </span>
-            ),
-            key: "voicerx",
-        });
+        if ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) {
+            // Add Voice Rx option
+            items.unshift({
+                label: (
+                    <span
+                        style={{
+                            display: "inline-block",
+                            cursor: "pointer",
+                        }}
+                        onClick={() => {
+                            setAutoCompleteFlag(false);
+                            onVoiceRxClick(record);
+                        }}
+                    >
+                        Voice Rx
+                    </span>
+                ),
+                key: "voicerx",
+            });
+        }
     
         if (isSmartSyncAccessableFromGB && isSnapRxAccessable) {
             items.unshift({
@@ -646,7 +648,7 @@ function WalkInConsultationZydus() {
                                                 </span>
                                             </button>
                                             {clickedDownArrow && (
-                                                <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                                <div className='ps-rx-btns-grp' style={{ width: "100%" }} ref={consultButtonRef}>
                                                     <button
                                                         className="btn-consult-patient-details bottom-br"
                                                         onClick={() => onConsultClick(clickedPatient)}
