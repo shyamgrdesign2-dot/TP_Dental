@@ -152,10 +152,7 @@ function GenRxPrescriptionPrintView() {
       patient_unique_id: state?.patient_data?.patient_unique_id,
       hospital_business_id: tokenData?.hospital_business_id,
       um_id: tokenData?.user_id,
-      ...(isAmbientMode 
-        ? { isAmbientVoiceRxDigitize: true } 
-        : { isVoiceRxDigitize: true }
-      ),
+      isVoiceRxDigitize: true,
     };
 
     setIsLoading(true);
