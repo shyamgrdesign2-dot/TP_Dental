@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Modal, Drawer } from "antd";
 import GenRxKnowMore from "../components/GenRxKnowMore";
@@ -10,13 +10,16 @@ import voiceModeDictation from "../assets/images/voice-mode-dictation.svg";
 import voiceMode2 from "../assets/images/voice-mode-2.svg";
 import styles from "./VoiceRxConsult.module.scss";
 import startConsultImg from "../assets/images/text-box.svg";
-import { getClinic } from "../utils/utils";
+import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../utils/utils";
 import { useSelector } from "react-redux";
+import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from "../utils/constants";
+import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
+import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 
 const VoiceRxConsult = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
   
   const { patient_data, isFromTabView } = location.state || {};
   
@@ -24,8 +27,49 @@ const VoiceRxConsult = () => {
   const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [consentChecked, setConsentChecked] = useState(true);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
+  const VOICE_RX_planDetails = servicesList?.find(
+    (service) => service.service_name === S_VOICE_RX
+  );
+  const isFreeVoiceRxUser = isVoiceRxFree();
+  const tokenData = getTokenData();
   const clinic = getClinic(profile?.hospital_data);
+
+  const isVoiceRxCreditExpired =
+    !isFreeVoiceRxUser &&
+    (VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
+      (VOICE_RX_planDetails?.plan_tier === FREE &&
+        VOICE_RX_planDetails?.credit_balance <= 0));
+
+  useEffect(() => {
+    if (
+      VOICE_RX_planDetails !== undefined &&
+      (VOICE_RX_planDetails?.plan_tier === FREE ||
+        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
+    ) {
+      const timer = setTimeout(() => {
+        setIsSubModalOpen(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [VOICE_RX_planDetails]);
+
+  const showHideSubModal = useCallback(() => {
+    setIsSubModalOpen((prev) => !prev);
+    const clinic_name = getClinicName(profile?.hospital_data);
+    const deviceSdkData = getDeviceSdkData();
+    window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
+      doctor_name: profile?.um_name,
+      doctor_number: profile?.um_contact,
+      doctor_unique_id: profile?.doctor_unique_id,
+      doctor_specialty: profile?.dp_name,
+      clinic_id: tokenData?.clinic_id,
+      um_id: tokenData?.user_id,
+      clinic_Name: clinic_name,
+      ...deviceSdkData,
+    });
+  }, [profile, tokenData]);
   //Tutorial PopOver function
   const showHideVideoListPopover = () => {
     setPopOverVideo(!popOverVideo);
@@ -34,6 +78,14 @@ const VoiceRxConsult = () => {
   const handleBack = () => {
     // Go back to appointments list explicitly
     navigate('/', { replace: true });
+  };
+
+  const handleStartConsultation = () => {
+    if (isVoiceRxCreditExpired) {
+      showHideSubModal();
+      return;
+    }
+    setIsVoiceRxModalOpen(true);
   };
 
   const handleModalClose = () => {
@@ -136,6 +188,12 @@ const VoiceRxConsult = () => {
         </div>
         
         <div className={styles.rightSection}>
+          {!isFreeVoiceRxUser && (
+            <FreeTrialButton
+              title={S_VOICE_RX}
+              showHideSubModal={showHideSubModal}
+            />
+          )}
           <button className={styles.tutorialButton} onClick={showHideVideoListPopover}>
               <span className={styles.tutorialButtonContent}>
                 <img height={42} src={tutorial} alt="Tutorial" />
@@ -165,8 +223,11 @@ const VoiceRxConsult = () => {
                 <img
                   src={startConsultImg}
                   alt="Start Consultation"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setIsVoiceRxModalOpen(true)}
+                  style={{
+                    cursor: isVoiceRxCreditExpired ? 'not-allowed' : 'pointer',
+                    opacity: isVoiceRxCreditExpired ? 0.6 : 1
+                  }}
+                  onClick={handleStartConsultation}
                 />
               </div>
             </div>
@@ -262,6 +323,27 @@ const VoiceRxConsult = () => {
           </div>
         </div>
       </Modal>
+
+      {!isFreeVoiceRxUser && (
+        <ExpiredSubModal
+          title={S_VOICE_RX}
+          styles={{
+            mask: {
+              marginLeft: 0,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+              backdropFilter: "blur(2px)",
+            },
+            wrapper: {
+              marginLeft: 0,
+              marginTop: 60,
+              background: "rgba(0, 0, 0, 0.28)",
+            },
+          }}
+          isSubModalOpen={isSubModalOpen}
+          showHideSubModal={showHideSubModal}
+        />
+      )}
 
       {/* Tutorial Drawer on right side */}
       <Drawer

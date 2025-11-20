@@ -515,18 +515,6 @@ const ConsultationDrawer = ({
     }
   };
 
-  useEffect(() => {
-    if (
-      VOICE_RX_planDetails !== undefined &&
-      (VOICE_RX_planDetails?.plan_tier === FREE ||
-        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
-    ) {
-      setTimeout(() => {
-        setIsSubModalOpen(true);
-      }, 500);
-    }
-  }, [VOICE_RX_planDetails]);
-
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen(!isSubModalOpen);
 
