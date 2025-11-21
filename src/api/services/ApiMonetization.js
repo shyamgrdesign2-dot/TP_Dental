@@ -66,7 +66,7 @@ ApiMonetization.checkCredits = function (data) {
 };
 
 ApiMonetization.updateCredits = function (data) {
-    return api.put(`/api/v1/monetization/credits?b2c_id=${data?.b2c_id}&service_name=${data?.service_name}`, { action: "DECREASE" }, baseUrl);
+    return api.put(`/api/v1/monetization/credits?service_name=${data?.service_name}`, { action: "DECREASE" }, baseUrl);
 };
 
 ApiMonetization.extendFreeTrial = function (b2c_id) {
