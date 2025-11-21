@@ -2218,7 +2218,7 @@
 
   .curvedTextInput {
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 140px !important;
     max-width: 100% !important;
     flex: 1 1 auto !important;
     height: 40px !important;
@@ -2237,10 +2237,13 @@
 
   .curvedTextInput::placeholder {
     font-size: 14px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .curvedVoiceButton {
-    width: clamp(100px, 18vw, 140px) !important;
+    width: clamp(70px, 14vw, 100px) !important;
     height: clamp(40px, 6vw, 48px) !important;
     flex-shrink: 0 !important;
   }
@@ -2263,57 +2266,57 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: auto !important;
-    height: 60px !important;
-    gap: 4px !important;
-    padding: 8px 10px !important;
+    height: 75px !important;
+    gap: 6px !important;
+    padding: 10px 12px !important;
     box-sizing: border-box !important;
     overflow: visible !important;
   }
 
   .deleteButton,
   .pauseButton {
-    height: 30px !important;
-    width: 30px !important;
-    min-width: 30px !important;
-    max-width: 30px !important;
-    flex: 0 0 30px !important;
+    height: 38px !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    flex: 0 0 38px !important;
   }
 
   .pauseButton img {
-    width: 15px !important;
-    height: 15px !important;
+    width: 19px !important;
+    height: 19px !important;
   }
 
   .pauseButton[data-muted="true"] img {
-    width: 30px !important;
-    height: 30px !important;
+    width: 38px !important;
+    height: 38px !important;
   }
 
   .deleteButton img {
-    width: 30px !important;
-    height: 30px !important;
+    width: 38px !important;
+    height: 38px !important;
   }
 
   .timeLabel {
-    min-width: 38px !important;
-    font-size: 11px !important;
+    min-width: 45px !important;
+    font-size: 13px !important;
     flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
 
   .waveArea {
-    flex: 0 0 clamp(15px, 3vw, 25px) !important;
-    min-width: 15px !important;
-    max-width: 25px !important;
-    height: 32px !important;
+    flex: 0 0 clamp(20px, 4vw, 32px) !important;
+    min-width: 20px !important;
+    max-width: 32px !important;
+    height: 40px !important;
     flex-shrink: 1 !important;
   }
 
   .sendCta {
-    height: 28px !important;
-    width: 60px !important;
-    flex: 0 0 60px !important;
-    margin-left: 8px !important;
+    height: 36px !important;
+    width: 75px !important;
+    flex: 0 0 75px !important;
+    margin-left: 10px !important;
     flex-shrink: 0 !important;
   }
 
@@ -2327,19 +2330,23 @@
     width: 100% !important;
     max-width: 260px !important;
     height: 80px !important;
-    bottom: 0 !important;
+    top: 0 !important;
     left: 50% !important;
-    transform: translateX(-50%) translateY(100%) !important;
+    transform: translateX(-50%) !important;
+    position: relative !important;
   }
 
   .listeningText {
     font-size: 10px !important;
     white-space: nowrap !important;
+    margin-top: 8px !important;
+    position: relative !important;
+    z-index: 1 !important;
   }
 
   .listeningSection {
     position: absolute !important;
-    bottom: -25px !important;
+    top: 75px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;
@@ -2370,7 +2377,7 @@
 
   .curvedTextInput {
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 150px !important;
     max-width: 100% !important;
     flex: 1 1 auto !important;
     height: 44px !important;
@@ -2389,10 +2396,13 @@
 
   .curvedTextInput::placeholder {
     font-size: 15px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .curvedVoiceButton {
-    width: clamp(110px, 20vw, 150px) !important;
+    width: clamp(80px, 16vw, 110px) !important;
     height: clamp(44px, 6.5vw, 52px) !important;
     flex-shrink: 0 !important;
   }
@@ -2415,57 +2425,57 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: auto !important;
-    height: 65px !important;
-    gap: 4px !important;
-    padding: 9px 11px !important;
+    height: 80px !important;
+    gap: 6px !important;
+    padding: 11px 13px !important;
     box-sizing: border-box !important;
     overflow: visible !important;
   }
 
   .deleteButton,
   .pauseButton {
-    height: 32px !important;
-    width: 32px !important;
-    min-width: 32px !important;
-    max-width: 32px !important;
-    flex: 0 0 32px !important;
+    height: 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    flex: 0 0 40px !important;
   }
 
   .pauseButton img {
-    width: 16px !important;
-    height: 16px !important;
+    width: 20px !important;
+    height: 20px !important;
   }
 
   .pauseButton[data-muted="true"] img {
-    width: 32px !important;
-    height: 32px !important;
+    width: 40px !important;
+    height: 40px !important;
   }
 
   .deleteButton img {
-    width: 32px !important;
-    height: 32px !important;
+    width: 40px !important;
+    height: 40px !important;
   }
 
   .timeLabel {
-    min-width: 40px !important;
-    font-size: 12px !important;
+    min-width: 48px !important;
+    font-size: 14px !important;
     flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
 
   .waveArea {
-    flex: 0 0 clamp(18px, 3.5vw, 30px) !important;
-    min-width: 18px !important;
-    max-width: 30px !important;
-    height: 34px !important;
+    flex: 0 0 clamp(22px, 4.5vw, 35px) !important;
+    min-width: 22px !important;
+    max-width: 35px !important;
+    height: 42px !important;
     flex-shrink: 1 !important;
   }
 
   .sendCta {
-    height: 30px !important;
-    width: 70px !important;
-    flex: 0 0 70px !important;
-    margin-left: 10px !important;
+    height: 38px !important;
+    width: 85px !important;
+    flex: 0 0 85px !important;
+    margin-left: 12px !important;
     flex-shrink: 0 !important;
   }
 
@@ -2479,19 +2489,23 @@
     width: 100% !important;
     max-width: 280px !important;
     height: 85px !important;
-    bottom: 0 !important;
+    top: 0 !important;
     left: 50% !important;
-    transform: translateX(-50%) translateY(100%) !important;
+    transform: translateX(-50%) !important;
+    position: relative !important;
   }
 
   .listeningText {
     font-size: 11px !important;
     white-space: nowrap !important;
+    margin-top: 10px !important;
+    position: relative !important;
+    z-index: 1 !important;
   }
 
   .listeningSection {
     position: absolute !important;
-    bottom: -28px !important;
+    top: 80px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;
@@ -2522,7 +2536,7 @@
 
   .curvedTextInput {
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 160px !important;
     max-width: 100% !important;
     flex: 1 1 auto !important;
     height: 46px !important;
@@ -2541,10 +2555,13 @@
 
   .curvedTextInput::placeholder {
     font-size: 16px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .curvedVoiceButton {
-    width: clamp(120px, 22vw, 160px) !important;
+    width: clamp(85px, 18vw, 115px) !important;
     height: clamp(46px, 7vw, 56px) !important;
     flex-shrink: 0 !important;
   }
@@ -2567,57 +2584,57 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: auto !important;
-    height: 70px !important;
-    gap: 5px !important;
-    padding: 10px 12px !important;
+    height: 85px !important;
+    gap: 6px !important;
+    padding: 12px 14px !important;
     box-sizing: border-box !important;
     overflow: visible !important;
   }
 
   .deleteButton,
   .pauseButton {
-    height: 34px !important;
-    width: 34px !important;
-    min-width: 34px !important;
-    max-width: 34px !important;
-    flex: 0 0 34px !important;
+    height: 42px !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    max-width: 42px !important;
+    flex: 0 0 42px !important;
   }
 
   .pauseButton img {
-    width: 17px !important;
-    height: 17px !important;
+    width: 21px !important;
+    height: 21px !important;
   }
 
   .pauseButton[data-muted="true"] img {
-    width: 34px !important;
-    height: 34px !important;
+    width: 42px !important;
+    height: 42px !important;
   }
 
   .deleteButton img {
-    width: 34px !important;
-    height: 34px !important;
+    width: 42px !important;
+    height: 42px !important;
   }
 
   .timeLabel {
-    min-width: 42px !important;
-    font-size: 13px !important;
+    min-width: 50px !important;
+    font-size: 15px !important;
     flex: 0 0 auto !important;
     white-space: nowrap !important;
   }
 
   .waveArea {
-    flex: 0 0 clamp(20px, 4vw, 32px) !important;
-    min-width: 20px !important;
-    max-width: 32px !important;
-    height: 36px !important;
+    flex: 0 0 clamp(24px, 5vw, 38px) !important;
+    min-width: 24px !important;
+    max-width: 38px !important;
+    height: 44px !important;
     flex-shrink: 1 !important;
   }
 
   .sendCta {
-    height: 34px !important;
-    width: 80px !important;
-    flex: 0 0 80px !important;
-    margin-left: 12px !important;
+    height: 40px !important;
+    width: 90px !important;
+    flex: 0 0 90px !important;
+    margin-left: 14px !important;
     flex-shrink: 0 !important;
   }
 
@@ -2631,19 +2648,23 @@
     width: 100% !important;
     max-width: 300px !important;
     height: 90px !important;
-    bottom: 0 !important;
+    top: 0 !important;
     left: 50% !important;
-    transform: translateX(-50%) translateY(100%) !important;
+    transform: translateX(-50%) !important;
+    position: relative !important;
   }
 
   .listeningText {
     font-size: 12px !important;
     white-space: nowrap !important;
+    margin-top: 12px !important;
+    position: relative !important;
+    z-index: 1 !important;
   }
 
   .listeningSection {
     position: absolute !important;
-    bottom: -30px !important;
+    top: 85px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;
@@ -2676,7 +2697,7 @@
 
   .curvedVoiceButton {
     align-self: center;
-    width: clamp(72px, 34vw, 140px);
+    width: clamp(60px, 28vw, 100px);
     height: clamp(48px, 18vw, 56px);
   }
 
@@ -2998,9 +3019,9 @@
   /* iPad mini specific */
   @media (min-width: 768px) and (max-width: 1024px) {
   .inputSection {
-    min-width: 280px !important;
-    width: 280px !important;
-    max-width: 320px !important;
+    min-width: 320px !important;
+    width: 320px !important;
+    max-width: 380px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;
@@ -3027,9 +3048,9 @@
   /* iPad Air specific */
   @media (min-width: 1025px) and (max-width: 1180px) {
     .inputSection {
-      min-width: 320px !important;
-      width: 320px !important;
-      max-width: 380px !important;
+      min-width: 380px !important;
+      width: 380px !important;
+      max-width: 440px !important;
       flex-shrink: 0 !important;
       flex-grow: 0 !important;
       box-sizing: border-box !important;
@@ -3081,9 +3102,9 @@
   /* iPad Pro specific */
   @media (min-width: 1181px) and (max-width: 1366px) {
     .inputSection {
-      min-width: 360px !important;
-      width: 360px !important;
-      max-width: 420px !important;
+      min-width: 420px !important;
+      width: 420px !important;
+      max-width: 480px !important;
       flex-shrink: 0 !important;
       flex-grow: 0 !important;
       box-sizing: border-box !important;
@@ -3410,9 +3431,9 @@
 /* Tablet landscape (768px-1024px width with landscape orientation) */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
   .inputSection {
-    min-width: 280px !important;
-    width: 280px !important;
-    max-width: 320px !important;
+    min-width: 320px !important;
+    width: 320px !important;
+    max-width: 380px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;
@@ -3454,12 +3475,18 @@
   .curvedTextInput {
     flex: 1 1 200px !important;
     width: 100% !important;
-    min-width: 0 !important;
+    min-width: 140px !important;
     height: clamp(44px, 6vw, 48px) !important;
   }
   
+  .curvedTextInput::placeholder {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
   .curvedVoiceButton {
-    width: clamp(110px, 24vw, 150px) !important;
+    width: clamp(80px, 18vw, 110px) !important;
     height: clamp(46px, 7vw, 52px) !important;
   }
 
@@ -3492,56 +3519,56 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: auto !important;
-    height: 58px !important;
-    gap: 3px !important;
-    padding: 6px 8px !important;
+    height: 72px !important;
+    gap: 5px !important;
+    padding: 9px 11px !important;
     box-sizing: border-box !important;
     overflow: visible !important;
   }
 
   .deleteButton,
   .pauseButton {
-    height: 28px !important;
-    width: 28px !important;
-    min-width: 28px !important;
-    max-width: 28px !important;
-    flex: 0 0 28px !important;
+    height: 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    flex: 0 0 36px !important;
   }
 
   .pauseButton img {
-    width: 14px !important;
-    height: 14px !important;
+    width: 18px !important;
+    height: 18px !important;
   }
 
   .pauseButton[data-muted="true"] img {
-    width: 28px !important;
-    height: 28px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .deleteButton img {
-    width: 28px !important;
-    height: 28px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .timeLabel {
-    min-width: 36px !important;
-    font-size: 10px !important;
+    min-width: 42px !important;
+    font-size: 12px !important;
     flex: 0 0 auto !important;
   }
 
   .waveArea {
-    flex: 0 0 clamp(12px, 2.5vw, 22px) !important;
-    min-width: 12px !important;
-    max-width: 22px !important;
-    height: 30px !important;
+    flex: 0 0 clamp(18px, 3.5vw, 28px) !important;
+    min-width: 18px !important;
+    max-width: 28px !important;
+    height: 38px !important;
     flex-shrink: 1 !important;
   }
 
   .sendCta {
-    height: 26px !important;
-    width: 55px !important;
-    flex: 0 0 55px !important;
-    margin-left: 6px !important;
+    height: 34px !important;
+    width: 70px !important;
+    flex: 0 0 70px !important;
+    margin-left: 8px !important;
     flex-shrink: 0 !important;
   }
 
@@ -3555,19 +3582,23 @@
     width: 100% !important;
     max-width: 240px !important;
     height: 70px !important;
-    bottom: 0 !important;
+    top: 0 !important;
     left: 50% !important;
-    transform: translateX(-50%) translateY(100%) !important;
+    transform: translateX(-50%) !important;
+    position: relative !important;
   }
 
   .listeningText {
     font-size: 9px !important;
     white-space: nowrap !important;
+    margin-top: 8px !important;
+    position: relative !important;
+    z-index: 1 !important;
   }
 
   .listeningSection {
     position: absolute !important;
-    bottom: -22px !important;
+    top: 72px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;
@@ -3585,9 +3616,9 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: auto !important;
-    height: 58px !important;
-    gap: 3px !important;
-    padding: 6px 8px !important;
+    height: 72px !important;
+    gap: 5px !important;
+    padding: 9px 11px !important;
     box-sizing: border-box !important;
     overflow: visible !important;
     pointer-events: auto !important;
@@ -3595,53 +3626,53 @@
   
   .deleteButton,
   .pauseButton {
-    height: 28px !important;
-    width: 28px !important;
-    min-width: 28px !important;
-    max-width: 28px !important;
-    flex: 0 0 28px !important;
+    height: 36px !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
+    flex: 0 0 36px !important;
     cursor: pointer !important;
     pointer-events: auto !important;
     z-index: 10 !important;
   }
   
   .pauseButton img {
-    width: 14px !important;
-    height: 14px !important;
+    width: 18px !important;
+    height: 18px !important;
     pointer-events: none !important;
   }
   
   .pauseButton[data-muted="true"] img {
-    width: 28px !important;
-    height: 28px !important;
+    width: 36px !important;
+    height: 36px !important;
     pointer-events: none !important;
   }
 
   .deleteButton img {
-    width: 28px !important;
-    height: 28px !important;
+    width: 36px !important;
+    height: 36px !important;
     pointer-events: none !important;
   }
 
   .timeLabel {
-    min-width: 36px !important;
-    font-size: 10px !important;
+    min-width: 42px !important;
+    font-size: 12px !important;
     flex: 0 0 auto !important;
   }
   
   .waveArea {
-    flex: 0 0 clamp(12px, 2.5vw, 22px) !important;
-    min-width: 12px !important;
-    max-width: 22px !important;
-    height: 30px !important;
+    flex: 0 0 clamp(18px, 3.5vw, 28px) !important;
+    min-width: 18px !important;
+    max-width: 28px !important;
+    height: 38px !important;
     flex-shrink: 1 !important;
   }
   
   .sendCta {
-    height: 26px !important;
-    width: 55px !important;
-    flex: 0 0 55px !important;
-    margin-left: 6px !important;
+    height: 34px !important;
+    width: 70px !important;
+    flex: 0 0 70px !important;
+    margin-left: 8px !important;
     flex-shrink: 0 !important;
   }
 
@@ -3655,19 +3686,23 @@
     width: 100% !important;
     max-width: 240px !important;
     height: 70px !important;
-    bottom: 0 !important;
+    top: 0 !important;
     left: 50% !important;
-    transform: translateX(-50%) translateY(100%) !important;
+    transform: translateX(-50%) !important;
+    position: relative !important;
   }
 
   .listeningText {
     font-size: 9px !important;
     white-space: nowrap !important;
+    margin-top: 8px !important;
+    position: relative !important;
+    z-index: 1 !important;
   }
   
   .listeningSection {
     position: absolute !important;
-    bottom: -22px !important;
+    top: 72px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: 100% !important;
@@ -3680,9 +3715,9 @@
 /* Tablet portrait (768px-1024px width with portrait orientation) */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
   .inputSection {
-    min-width: 260px !important;
-    width: 260px !important;
-    max-width: 300px !important;
+    min-width: 300px !important;
+    width: 300px !important;
+    max-width: 360px !important;
     flex-shrink: 0 !important;
     flex-grow: 0 !important;
     box-sizing: border-box !important;

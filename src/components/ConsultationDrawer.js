@@ -146,7 +146,7 @@ const ConsultationDrawer = ({
   const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent } = state || {};
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent, noStayClickCount, crossButtonClickCount, mutePauseButtonClickCount } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -198,6 +198,13 @@ const ConsultationDrawer = ({
   const initiallyPopulatedSectionsRef = useRef(new Set());
   // Track which medical history types were initially populated
   const initiallyPopulatedMedicalHistoryTypesRef = useRef(new Set());
+
+  const submitCountRef = useRef(fromVoiceRecording ? 1 : 0);
+  const initialMedicationsRef = useRef(null);
+  const typedMessagesCountRef = useRef(0);
+  const crossButtonClickCountRef = useRef(crossButtonClickCount || 0);
+  const mutePauseButtonClickCountRef = useRef(mutePauseButtonClickCount || 0);
+  const digitizationPadEditCountRef = useRef(0);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -342,6 +349,8 @@ const ConsultationDrawer = ({
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
+    // Increment typed messages count for auto-submit
+    typedMessagesCountRef.current += 1;
 
     const run = async () => {
       try {
@@ -964,6 +973,10 @@ const ConsultationDrawer = ({
           const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
           if (validatedPrescriptionData) {
             setPrescriptionData(validatedPrescriptionData);
+      
+            if (validatedPrescriptionData?.medications && Array.isArray(validatedPrescriptionData.medications) && initialMedicationsRef.current === null) {
+              initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionData.medications));
+            }
             
             // Convert API medicalHistory format to CashManagerContext format and populate it
             if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -1152,6 +1165,11 @@ const ConsultationDrawer = ({
             if (validatedPrescriptionDataFromResponse) {
               setPrescriptionData(validatedPrescriptionDataFromResponse);
               
+              // Store initial medications to detect edits later
+              if (validatedPrescriptionDataFromResponse?.medications && Array.isArray(validatedPrescriptionDataFromResponse.medications) && initialMedicationsRef.current === null) {
+                initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionDataFromResponse.medications));
+              }
+              
               // Convert API medicalHistory format to CashManagerContext format and populate it
               if (validatedPrescriptionDataFromResponse?.medicalHistory && Array.isArray(validatedPrescriptionDataFromResponse.medicalHistory) && validatedPrescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
                 const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataFromResponse.medicalHistory, medicalHistoryData);
@@ -1251,6 +1269,9 @@ const ConsultationDrawer = ({
   };
 
   const handleStopRecording = () => {
+    if (isRecording || isPaused) {
+      crossButtonClickCountRef.current += 1;
+    }
     const clinic_name = getClinicName(profile?.hospital_data);
     trackEvent("TP_VoiceRx_Paused", {
       patient_contact: patient_data?.pm_contact_no || "",
@@ -1325,6 +1346,14 @@ const ConsultationDrawer = ({
             showHideSubModal();
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
+            submitCountRef.current += 1;
+            // Increment typed messages count if it's a typed message (not recording)
+            if (!isRecording && (inputText || editableQuery)) {
+              typedMessagesCountRef.current += 1;
+            }
+            if (isEditing && editableQuery) {
+              digitizationPadEditCountRef.current += 1;
+            }
             if (genRxDetails?._id) {
               const clinic_name = getClinicName(profile?.hospital_data);
               trackEvent("TP_VoiceRx_editRx", {
@@ -2337,6 +2366,9 @@ const ConsultationDrawer = ({
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
                 setPrescriptionData(validatedPrescriptionDataForDictate);
+                if (validatedPrescriptionDataForDictate?.medications && Array.isArray(validatedPrescriptionDataForDictate.medications) && initialMedicationsRef.current === null) {
+                  initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionDataForDictate.medications));
+                }
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
                 if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -2650,6 +2682,11 @@ const ConsultationDrawer = ({
   };
 
   const handlePauseResume = () => {
+
+    if (isRecording || isPaused) {
+      mutePauseButtonClickCountRef.current += 1;
+    }
+    
     if (!mediaRecorderRef.current) return;
     
     try {
@@ -3189,7 +3226,58 @@ const ConsultationDrawer = ({
     setIsRxEdited(true);
   }, []);
 
+  const wereMedicationsEdited = () => {
+    const currentMedications = prescriptionData?.medications || [];
+    const initialMedications = initialMedicationsRef.current || [];
+    if (initialMedications === null || initialMedications.length === 0) {
+      return currentMedications.length > 0;
+    }
+    if (currentMedications.length === 0) {
+      return initialMedications.length > 0;
+    }
+    if (currentMedications.length !== initialMedications.length) {
+      return true;
+    }
+    const normalizeMed = (med) => {
+      return JSON.stringify({
+        name: med.name || med.tmm_medicine_name || '',
+        generic: med.generic || med.tmm_generic || '',
+        dosage: med.dosage || med.tmm_dosage || '',
+        frequency: med.frequency || med.tmm_freq_type || '',
+        duration: med.duration || med.tmm_days || '',
+        notes: med.notes || med.tmm_remarks || '',
+        unit: med.unit || med.tmm_unit || '',
+      });
+    };
+    
+    const currentNormalized = currentMedications.map(normalizeMed).sort();
+    const initialNormalized = initialMedications.map(normalizeMed).sort();
+ 
+    if (currentNormalized.length !== initialNormalized.length) {
+      return true;
+    }
+    
+    for (let i = 0; i < currentNormalized.length; i++) {
+      if (currentNormalized[i] !== initialNormalized[i]) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   async function onEndVisitClick() {
+    const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    const rxType = isAmbientRx ? "ambient" : "voice_rx";
+    const medicineEdit = wereMedicationsEdited() ? "Yes" : "No";
+    
+    const totalAudioDuration = queries
+      .filter(query => query.isAudio && query.duration)
+      .reduce((total, query) => {
+        const duration = typeof query.duration === 'number' ? query.duration : parseFloat(query.duration) || 0;
+        return total + duration;
+      }, 0);
+    
     window.Moengage.track_event("TP_AV_SaveRx", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
@@ -3201,6 +3289,15 @@ const ConsultationDrawer = ({
       doctor_mobile_number: profile?.um_contact,
       hm_id: clinic?.hm_id,
       clinic_name: clinic?.hm_name,
+      rx_type: rxType,
+      no_of_submits_count: submitCountRef.current,
+      medicine_edit: medicineEdit,
+      no_of_typed_messages: typedMessagesCountRef.current,
+      no_of_times_user_clicked_no_stay: noStayClickCount || 0,
+      no_of_times_user_clicked_cross_button: crossButtonClickCountRef.current,
+      no_of_times_user_clicked_mute_pause_button: mutePauseButtonClickCountRef.current,
+      total_audio_duration_seconds: totalAudioDuration || 0,
+      no_of_edits_in_digitization_pad: digitizationPadEditCountRef.current,
     });
     const sanitizedMedications =
       prescriptionData?.medications?.map((item) => {
@@ -4698,6 +4795,10 @@ const ConsultationDrawer = ({
   };
 
   const checkDataFillOrNot = () => {
+    // Track cross button click while recording (back button)
+    if (isRecording || isPaused) {
+      crossButtonClickCountRef.current += 1;
+    }
     if (prescriptionData) {
       showHideBackModal();
     } else {

@@ -53,6 +53,9 @@ const VoiceRecordingPage = () => {
   const hasAutoStartedRef = useRef(false);
   const savedChunksRef = useRef([]);
   const savedRecordingTimeRef = useRef(0);
+  const noStayClickCountRef = useRef(0);
+  const crossButtonClickCountRef = useRef(0);
+  const mutePauseButtonClickCountRef = useRef(0);
 
   const cleanupRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -194,6 +197,9 @@ const VoiceRecordingPage = () => {
   };
 
   const handleCancelRecordingClick = () => {
+    if (isRecording || isPaused) {
+      crossButtonClickCountRef.current += 1;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
     }
@@ -212,6 +218,7 @@ const VoiceRecordingPage = () => {
   };
 
   const handleStayRecording = async () => {
+    noStayClickCountRef.current += 1;
     setShowQuitRecordingModal(false);
     audioChunksRef.current = [...savedChunksRef.current];
     setRecordingTime(savedRecordingTimeRef.current);
@@ -230,6 +237,10 @@ const VoiceRecordingPage = () => {
   };
 
   const handlePauseResume = () => {
+    if (isRecording || isPaused) {
+      mutePauseButtonClickCountRef.current += 1;
+    }
+    
     if (!mediaRecorderRef.current) {
       // If MediaRecorder is null but isRecording is true, reset state
       if (isRecording) {
@@ -387,7 +398,10 @@ const VoiceRecordingPage = () => {
             audioBlobUrl: audioUrl,
             consent: consent,
             audioBlobArrayBuffer: arrayBuffer,
-            mode: activeMode
+            mode: activeMode,
+            noStayClickCount: noStayClickCountRef.current,
+            crossButtonClickCount: crossButtonClickCountRef.current,
+            mutePauseButtonClickCount: mutePauseButtonClickCountRef.current
           }
         });
     } catch (err) {
