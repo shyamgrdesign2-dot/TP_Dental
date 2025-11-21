@@ -412,7 +412,7 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/smart-rx-preview" } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" } })
         } else {
             errorMessage(action.error)
         }
