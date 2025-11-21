@@ -9,7 +9,7 @@ import PrintSettingsContext from '../../context/PrintSettingsContext';
 
 import CommonModal from '../../common/CommonModal';
 import { WHATSAPP } from "../../utils/constants";
-import { errorMessage, dataUrlToFileUsingFetch } from "../../utils/utils";
+import { errorMessage, dataUrlToFileUsingFetch, updateFooterImageHeight } from "../../utils/utils";
 
 import wtsp from '../../assets/images/wtsp.svg';
 
@@ -66,9 +66,14 @@ function WhatsappConfigure(props) {
         const copyData = JSON.parse(JSON.stringify(printSettings));
         copyData?.logo_enable == 'Y' && copyData.logo_image && setFileLogoCopy({ imageShow: true, showFile: copyData.logo_image });
         copyData?.header_image && setFileHeaderCopy({ imageShow: true, showFile: copyData.header_image });
-        copyData?.footer_image && setFileFooterCopy({ imageShow: true, showFile: copyData.footer_image });
+        copyData?.footer_image && updateFooterImageHeight({ imageShow: true, showFile: copyData?.footer_image}, setFileFooterCopy, true);
         setPrintSettingsCopy(copyData);
     }, [printSettings]);
+
+    useEffect(() => {
+        if (!fileFooterCopy?.showFile) return;
+        updateFooterImageHeight(fileFooterCopy, setFileFooterCopy);
+    }, [printSettingsCopy, fileFooterCopy?.showFile])
 
     //TAB_HEADER_FOOTER
     const onWhatsappLetterheadFormatChange = useCallback(
