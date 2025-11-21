@@ -4887,7 +4887,8 @@ const ConsultationDrawer = ({
                     height: "41px",
                   }}
                 >
-                  <img
+                  {!isMobile &&
+                  <> <img
                     src={zydusDataEngineIcon}
                     alt="zydus-data-engine"
                     width={28}
@@ -4907,7 +4908,7 @@ const ConsultationDrawer = ({
                     >
                       Zydus Data Engine
                     </span>
-                  </div>
+                  </div></>}
                   <Tooltip
                     placement="bottomRight"
                     overlayClassName="groundingTooltip"
@@ -4933,7 +4934,7 @@ const ConsultationDrawer = ({
                         <div>
                           <span>What is Zydus Data Engine?</span>
                           <span>
-                            With a curated list of{" "}
+                            {" "}With a curated list of{" "}
                             <span className="semi-bold-text">medicines</span>{" "}
                             and{" "}
                             <span className="semi-bold-text">lab tests</span>
@@ -4967,7 +4968,7 @@ const ConsultationDrawer = ({
                             </div>
                           </div>
 
-                          <div
+                          {/* <div
                             style={{
                               width: "503px",
                               height: "239px",
@@ -4995,12 +4996,18 @@ const ConsultationDrawer = ({
                                 alt="play-icon"
                               />
                             </div>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                     }
                   >
-                    <i className="icon-info fs-21" />
+                    {isMobile ? <img
+                    src={zydusDataEngineIcon}
+                    alt="zydus-data-engine"
+                    width={28}
+                    height={28}
+                    style={{ marginRight: 8 }}
+                  /> : <i className="icon-info fs-21" />}
                   </Tooltip>
                 </button>
               )}

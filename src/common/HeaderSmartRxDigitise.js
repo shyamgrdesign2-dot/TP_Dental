@@ -304,7 +304,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
                           <div>
                             <span>What is Zydus Data Engine?</span>
                             <span>
-                              With a curated list of{" "}
+                              {" "}With a curated list of{" "}
                               <span className="semi-bold-text">medicines</span>{" "}
                               and{" "}
                               <span className="semi-bold-text">lab tests</span>
@@ -342,7 +342,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
                               </div>
                             </div>
 
-                            <div
+                            {/* <div
                               style={{
                                 width: "503px",
                                 height: "239px",
@@ -370,7 +370,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
                                   alt="play-icon"
                                 />
                               </div>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       }

@@ -121,6 +121,7 @@ import Carousel from "react-multi-carousel";
 import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
+import GenRxKnowMore from "../components/GenRxKnowMore";
 
 function Prescription() {
   const {
@@ -308,6 +309,7 @@ function Prescription() {
   const [ddxDrawer, setDDxDrawer] = useState(false);
   const [likeDislike, setLikeDislike] = useState([]);
   const [isDDxGenerated, setIsDDxGenerated] = useState(false);
+  const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -1050,8 +1052,7 @@ function Prescription() {
   }
 
   const handleGenRxKnowMore = () => {
-    // Tutorial is now handled internally by ConsultationDrawer
-    // This function is kept for compatibility with other components
+    setGenRxKnowMoreDrawer((prev) => !prev);
   };
 
   const handleTatvaAiKnowMore = () => {
@@ -1961,6 +1962,20 @@ function Prescription() {
             />
           </Drawer>
         )}
+
+        {genRxKnowMoreDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            open={genRxKnowMoreDrawer}
+            onClose={handleGenRxKnowMore}
+            className=".modalWidth-800"
+            width={825}
+          >
+            <GenRxKnowMore handleGenRxKnowMore={handleGenRxKnowMore} />
+          </Drawer>
+        )}
+
         {tatvaAiKnowMoreDrawer && (
           <Drawer
             closeIcon={false}
