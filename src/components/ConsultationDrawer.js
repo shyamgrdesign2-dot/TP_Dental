@@ -126,6 +126,7 @@ import {
   searchInvestigation,
 } from "../redux/investigationSlice";
 import config from "../config";
+import { isMobile } from "react-device-detect";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -555,8 +556,17 @@ const ConsultationDrawer = ({
   const getInitialWidthPercent = () => {
     if (typeof window === 'undefined') return 33;
     const screenWidth = window.innerWidth;
-    if (screenWidth >= 769 && screenWidth <= 1024) {
-      return 35;
+    // iPad mini (1024x768)
+    if (screenWidth >= 768 && screenWidth <= 1024) {
+      return 30;
+    }
+    // iPad Air (1180x820)
+    if (screenWidth > 1024 && screenWidth <= 1180) {
+      return 32;
+    }
+    // iPad Pro (1366x1024)
+    if (screenWidth > 1180 && screenWidth <= 1366) {
+      return 33;
     }
     if (screenWidth >= 1920) return 25;
     if (screenWidth >= 1440) return 33;
@@ -570,9 +580,28 @@ const ConsultationDrawer = ({
     const rect = splitRef.current.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     const totalWidth = rect.width;
+    const screenWidth = window.innerWidth;
     
-    const minLeftWidthPx = 480;
-    const minRxPadWidthPx = 960;
+    // Device-aware min/max widths
+    let minLeftWidthPx, minRxPadWidthPx;
+    if (screenWidth >= 768 && screenWidth <= 1024) {
+      // iPad mini
+      minLeftWidthPx = 280;
+      minRxPadWidthPx = 600;
+    } else if (screenWidth > 1024 && screenWidth <= 1180) {
+      // iPad Air
+      minLeftWidthPx = 320;
+      minRxPadWidthPx = 700;
+    } else if (screenWidth > 1180 && screenWidth <= 1366) {
+      // iPad Pro
+      minLeftWidthPx = 360;
+      minRxPadWidthPx = 800;
+    } else {
+      // Desktop
+      minLeftWidthPx = 480;
+      minRxPadWidthPx = 960;
+    }
+    
     const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
     const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
     
@@ -605,9 +634,27 @@ const ConsultationDrawer = ({
       if (!splitRef.current) return;
       const rect = splitRef.current.getBoundingClientRect();
       const totalWidth = rect.width;
+      const screenWidth = window.innerWidth;
       
-      const minLeftWidthPx = 480;
-      const minRxPadWidthPx = 960;
+      // Device-aware min/max widths
+      let minLeftWidthPx, minRxPadWidthPx;
+      if (screenWidth >= 768 && screenWidth <= 1024) {
+        // iPad mini
+        minLeftWidthPx = 280;
+        minRxPadWidthPx = 600;
+      } else if (screenWidth > 1024 && screenWidth <= 1180) {
+        // iPad Air
+        minLeftWidthPx = 320;
+        minRxPadWidthPx = 700;
+      } else if (screenWidth > 1180 && screenWidth <= 1366) {
+        // iPad Pro
+        minLeftWidthPx = 360;
+        minRxPadWidthPx = 800;
+      } else {
+        // Desktop
+        minLeftWidthPx = 480;
+        minRxPadWidthPx = 960;
+      }
       
       if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
         const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
@@ -638,10 +685,32 @@ const ConsultationDrawer = ({
     const timer = setTimeout(() => {
       if (!splitRef.current) return;
       const totalWidth = splitRef.current.getBoundingClientRect().width || window.innerWidth;
-      const isTablet = window.innerWidth >= 769 && window.innerWidth <= 1024;
-      const desiredLeftPx = isTablet ? 250 : 480;
-      const minLeftPx = desiredLeftPx;
-      const minRightPx = isTablet ? 724 : 960;
+      const screenWidth = window.innerWidth;
+      
+      // Device-aware sizing
+      let desiredLeftPx, minLeftPx, minRightPx;
+      if (screenWidth >= 768 && screenWidth <= 1024) {
+        // iPad mini
+        desiredLeftPx = 300;
+        minLeftPx = 280;
+        minRightPx = 600;
+      } else if (screenWidth > 1024 && screenWidth <= 1180) {
+        // iPad Air
+        desiredLeftPx = 360;
+        minLeftPx = 320;
+        minRightPx = 700;
+      } else if (screenWidth > 1180 && screenWidth <= 1366) {
+        // iPad Pro
+        desiredLeftPx = 400;
+        minLeftPx = 360;
+        minRightPx = 800;
+      } else {
+        // Desktop
+        desiredLeftPx = 480;
+        minLeftPx = 480;
+        minRightPx = 960;
+      }
+      
       const minLeftPercent = (minLeftPx / totalWidth) * 100;
       const maxLeftPercent = ((totalWidth - minRightPx) / totalWidth) * 100;
       let pct = (desiredLeftPx / totalWidth) * 100;
@@ -4766,7 +4835,7 @@ const ConsultationDrawer = ({
       open={visible}
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
-      width={showPrescription ? "100%" : "750px"}
+      width={showPrescription ? "100%" : (isMobile ? "100%" : "750px")}
       mask={!genRxKnowMoreDrawer}
     >
       <Suspense

@@ -60,10 +60,10 @@ const LabInvestigationTable = ({
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
   const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
   
-  // Detect tablet view
+  // Detect tablet view (iPad mini: 768-1024px, iPad Air: 1025-1180px, iPad Pro: 1181-1366px)
   useEffect(() => {
     const checkTablet = () => {
-      setIsTablet(window.innerWidth >= 768 && window.innerWidth <= 1024);
+      setIsTablet(window.innerWidth >= 768 && window.innerWidth <= 1366);
     };
     checkTablet();
     window.addEventListener('resize', checkTablet);
