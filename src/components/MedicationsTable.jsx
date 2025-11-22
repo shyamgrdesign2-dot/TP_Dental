@@ -1454,6 +1454,35 @@ const MedicationsTable = ({
           isOpen={showAddMedicinePopup}
           onCancel={() => setShowAddMedicinePopup(false)}
           initialData={{ tmm_medicine_name: searchQuery }}
+          onSuccess={(addedMedicine) => {
+            // Add the newly created medicine to the medications list
+            const medicineName = addedMedicine?.tmm_medicine_name || addedMedicine?.medicine_name || '';
+            const newMedication = {
+              id: Date.now().toString(),
+              name: medicineName,
+              corrected_name: addedMedicine?.tmm_generic || addedMedicine?.generic_name || '',
+              dosage: '',
+              frequency: '',
+              schedule: '',
+              duration: '',
+              quantity: 0,
+              notes: '',
+              lineItem: medicineName,
+              edited: false,
+            };
+            
+            // Add metadata if available
+            if (addedMedicine) {
+              newMedication.metadata = {
+                ...addedMedicine,
+                selectedValue: medicineName,
+              };
+            }
+            
+            const updatedMedications = [...medications, newMedication];
+            onUpdate(updatedMedications);
+            setSearchQuery('');
+          }}
         />
       )}
     </div>
