@@ -19,3 +19,18 @@
     width: 136px;
   }
 }
+
+
+.groundingTooltip {
+  &.ant-tooltip .ant-tooltip-inner {
+    background-color: #ffffff;
+    width: 551px;
+    height: 250px;
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  &.ant-tooltip .ant-tooltip-arrow {
+    --antd-arrow-background-color: #ffffff;
+  }
+}

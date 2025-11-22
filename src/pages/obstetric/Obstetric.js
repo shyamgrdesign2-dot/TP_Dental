@@ -212,7 +212,7 @@ const Obstetric = ({
         <div className="title-sami fs-16">
           ANC Scheduler & Immunisation History
         </div>
-        <img className="img-fluid" width={52} height={20} src={tagNew} />
+        <img className="img-fluid" width={52} height={20} src={tagNew} alt={"new-gif"} />
       </div>
       <div className="py-3">
         Track and manage your patients' antenatal care (ANC) journey

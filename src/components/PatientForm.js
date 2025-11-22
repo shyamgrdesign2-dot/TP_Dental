@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX } from "../utils/constants";
-import { errorMessage, getClinicName } from "../utils/utils";
+import { errorMessage, getClinic, getClinicName } from "../utils/utils";
 
 import TabHeader from "../components/tab_design/TabHeader";
 import PersonalDetails from "../components/PersonalDetails";
@@ -24,7 +24,6 @@ import { viewPatient, addPatient, editPatient } from "../redux/appointmentsSlice
 import CommonModal from "../common/CommonModal";
 import saveIcon from '../assets/images/save.svg';
 import smartPad from '../assets/images/smartPad.svg';
-import startConsultIcon from '../assets/images/startConsult.svg';
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 
@@ -37,7 +36,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     const { loading } = useSelector(
         (state) => state.records
     );
-    const { profile } = useSelector((state) => state.doctors);
+    const { profile, userId } = useSelector((state) => state.doctors);
 
     const [form] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,15 +64,6 @@ function PatientForm({ mode = ADD, patient_data }) {
         setIsModalOpen(!isModalOpen);
     }, [isModalOpen]);
 
-    const handleConsult = () => {
-        navigate("/prescription", { state: { patient_data: patientData } });
-    }
-    const handleSmartRx = () => {
-        navigate("/smart-prescription", { state: { patient_data: patientData } })
-    }
-    const handleSnapRx = () => {
-        navigate("/snap-rx", { state: { patient_data: patientData } })
-    }
 
     const onFinish = () => {
         const decodedToken = getDecodedToken();
@@ -277,72 +267,37 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                 Choose Action
                                             </div>
 
-                                            { !(isSmartSyncAccessableFromGB && isSnapRxAccessable ) ?
-                                                ( 
-                                                    <div>
-                                                        { isSmartSyncAccessableFromGB && !isMobile ? (
-                                                                <div className="d-flex align-items-center mt-2" style={{ gap: "3.4rem" }}>
-                                                                    <Button onClick={handleSmartRx} className="lh-lg btn btn-secondary3 btn-41 px-4 me-4">
-                                                                        <img className='me-3' src={smartPad} alt="SmartRx" />
-                                                                        <span>Start Smart Rx</span>
-                                                                    </Button>
-                                                                    <Button onClick={handleConsult} className="lh-lg btn btn-secondary2 btn-41 px-4 me-4">
-                                                                        <img className='me-3' src={startConsultIcon} alt="Consult" />
-                                                                        <span>Start Consult</span>
-                                                                    </Button>
-                                                                </div>
-                                                            ) : isSnapRxAccessable &&  !isMobile ? (
-                                                                <div className="d-flex align-items-center mt-2" style={{ gap: "3.4rem" }}>
-                                                                    <Button onClick={handleSnapRx} className="lh-lg btn btn-secondary3 btn-41 px-4 me-4">
-                                                                        <img className='me-3' src={smartPad} alt="SmartRx" />
-                                                                        <span>Start Snap Rx</span>
-                                                                    </Button>
-                                                                    <Button onClick={handleConsult} className="lh-lg btn btn-secondary2 btn-41 px-4 me-4">
-                                                                        <img className='me-3' src={startConsultIcon} alt="Consult" />
-                                                                        <span>Start Consult</span>
-                                                                    </Button>
-                                                                </div>
-                                                            ) : (
-                                                                <Button onClick={handleConsult} className="lh-lg btn btn-secondary2 btn-41 px-4 me-4">
-                                                                    <img className='me-3' src={startConsultIcon} alt="Consult" />
-                                                                    <span>Start Consult</span>
-                                                                </Button>
-                                                            ) 
-                                                        }
-                                                    </div>
+                                            <div className="d-flex flex-column align-items-center justify-content-center g-4">
+                                                {!isMobile ? (
+                                                    <SmartDropdownButtons
+                                                        profile={profile}
+                                                        patient_data={patientData}
+                                                        navigate={navigate}
+                                                        userId={userId}
+                                                    />
                                                 ) : (
-                                                    <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                                                        {isSmartSyncAccessableFromGB || isSnapRxAccessable && !isMobile ? (
-                                                            <SmartDropdownButtons
-                                                                // profile={profile}
-                                                                patient_data={patientData}
-                                                                navigate={navigate}
-                                                            />
-                                                        ) : (
-                                                            <Button
-                                                                className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
-                                                                onClick={() => {
-                                                                    window.Moengage.track_event("start_new_visit_click", {
-                                                                    doctor_id: profile?.doctor_unique_id,
-                                                                    patient_id:
-                                                                        patient_data !== undefined
-                                                                        ? patient_data.patient_unique_id
-                                                                        : 0,
-                                                                    });
-                                                                    navigate("/prescription", {
-                                                                    state: {
-                                                                        patient_data: patient_data,
-                                                                        send_path: "patient_details",
-                                                                    },
-                                                                    });
-                                                                }}
-                                                            >
-                                                                {"Start New Consult"}
-                                                            </Button>
-                                                        )}
-                                                    </div> 
-                                                )
-                                            }
+                                                    <Button
+                                                        className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
+                                                        onClick={() => {
+                                                            window.Moengage.track_event("start_new_visit_click", {
+                                                            doctor_id: profile?.doctor_unique_id,
+                                                            patient_id:
+                                                                patientData !== undefined
+                                                                ? patientData.patient_unique_id
+                                                                : 0,
+                                                            });
+                                                            navigate("/prescription", {
+                                                            state: {
+                                                                patient_data: patientData,
+                                                                send_path: "patient_details",
+                                                            },
+                                                            });
+                                                        }}
+                                                    >
+                                                        {"Start New Consult"}
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     </>
                                 }
@@ -355,7 +310,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     );
 }
 
-function SmartDropdownButtons({ patient_data, navigate }) {
+function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
   
     const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
     const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
@@ -372,6 +327,27 @@ function SmartDropdownButtons({ patient_data, navigate }) {
     }
     const handleSnapRx = () => {
         navigate("/snap-rx", { state: { patient_data: patient_data } })
+    }
+    const handleVoiceRx = () => {
+        const clinic = getClinic(profile?.hospital_data);
+        window.Moengage.track_event("TP_AV_Entry", {
+          patient_id: patient_data?.patient_unique_id || "",
+          patient_name: patient_data?.pm_fullname || "",
+          patient_mobile_number: patient_data?.pm_contact_no || "",
+          doctor_id: profile?.doctor_unique_id,
+          user_id: userId,
+          doctor_name: profile?.um_name,
+          doctor_specialty: profile?.dp_name,
+          doctor_mobile_number: profile?.um_contact,
+          hm_id: clinic?.hm_id,
+          clinic_name: clinic?.hm_name,
+          source: "Add New Patient",
+        });
+        navigate("/voice-rx-consult", {
+            state: { 
+                patient_data: patient_data,
+            },
+        });
     }
   
     React.useEffect(() => {
@@ -456,7 +432,18 @@ function SmartDropdownButtons({ patient_data, navigate }) {
             }
             <div>
                 <button
-                  className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
+                  onClick={() => {
+                    setOpen(false);
+                    handleVoiceRx();
+                  }}
+                >
+                  <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                </button>
+            </div>
+            <div>
+                <button
+                  className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-br" : "border-radius-all"}`}
                   onClick={() => {
                     setOpen(false);
                     handleConsult();

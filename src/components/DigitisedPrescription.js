@@ -6,7 +6,21 @@ import React, {
   useMemo,
 } from "react";
 import GenRXLoaders from "./GenRxLoaders";
-
+import { AutoComplete } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { v4 as uuidv4 } from "uuid";
+import { searchMedication } from "../redux/medicationSlice";
+import { searchInvestigation } from "../redux/investigationSlice";
+import CustomMedicinePopup from "./CustomMedicinePopup";
+import ApiMedication from "../api/services/ApiMedication";
+import ApiInvestigation from "../api/services/ApiInvestigation";
+import { getTokenData, getHmTypeIndicator } from "../utils/utils";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
+import MedicationsTable from "./MedicationsTable";
+import LabInvestigationTable from "./LabInvestigationTable";
+import config from "../config";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -26,7 +40,7 @@ export const ARRAY_SECTIONS = [
 export const normalizeNewItem = (type, text = "") => {
   const t = (text ?? "").trim();
 
-  if (type === "advice") return t; 
+  if (type === "advice") return t;
 
   if (type === "medications" || type === "tests") {
     return {
@@ -71,7 +85,12 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
-const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoader = false }) => {
+const DigitisedPrescription = ({
+  data,
+  setData,
+  loading,
+  showAbsHeaderInsideLoader = false,
+}) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableText, setEditableText] = useState("");
@@ -80,18 +99,65 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
   const [editableValue, setEditableValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [ioAutoFocusEnabled, setIoAutoFocusEnabled] = useState(true);
+  const [searchParentQuery, setSearchParentQuery] = useState("");
+  const [parentSearchOptions, setParentSearchOptions] = useState([]);
+  const [searchTestQuery, setSearchTestQuery] = useState("");
+  const [testSearchOptions, setTestSearchOptions] = useState([]);
+  const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
   const editingRef = useRef(false);
   const suggestionRef = useRef(null);
   const inputRef = useRef(null);
-  
+  const dispatch = useDispatch();
+  const { parentOptionsList } = useSelector((state) => state.medication);
+  const { parentOptionsList: testOptionsList } = useSelector(
+    (state) => state.investigation
+  );
+  // Fuzzy search run-once guards for meds and tests
+  const hasFuzzyRunMedsRef = useRef(false);
+  const hasFuzzyRunTestsRef = useRef(false);
+  const tokenData = getTokenData();
+  const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_APOLLO_DISABLE_FEATURE
+  );
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
+  const isGroundingAccessable =
+    (tokenData?.hospital_business_id == env.zydus_business_id &&
+      isZydusUserAccessableFromGB) ||
+    isApollo;
+
+  const handleLineItemBlur = useCallback(
+    (type, index) => {
+      const itemType = type?.split("-")?.[0];
+      setData((prevData) => {
+        const updatedData = { ...prevData };
+        const arr = [...(updatedData[itemType] || [])];
+        if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields") {
+          arr[index] = { ...arr[index], notes: editableLineItem };
+        } else {
+          arr[index] = { ...arr[index], lineItem: editableLineItem };
+        }
+        updatedData[itemType] = arr;
+        return updatedData;
+      });
+      setEditableLineItem("");
+      setActiveIndex(null);
+      setActiveType(null);
+    },
+    [editableLineItem, setData]
+  );
+
   const containerRef = useRef(null);
-  const sectionRefs = useRef({}); 
+  const sectionRefs = useRef({});
   const [visibleSection, setVisibleSection] = useState(null);
 
-  
   const renderedSections = useMemo(() => {
     const order = [];
-    if (data?.vitals && Object.values(data.vitals || {}).some((v) => v?.trim?.()?.length)) {
+    if (
+      data?.vitals &&
+      Object.values(data.vitals || {}).some((v) => v?.trim?.()?.length)
+    ) {
       order.push("vitals");
     }
     ARRAY_SECTIONS.forEach((s) => {
@@ -110,7 +176,9 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
         if (editingRef.current) return;
         const firstVisible = entries
           .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          .sort(
+            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
+          )[0];
         if (firstVisible) {
           const sec = firstVisible.target.dataset.section;
           setVisibleSection(sec);
@@ -118,7 +186,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
       },
       {
         root,
-        threshold: 0.2, 
+        threshold: 0.2,
       }
     );
 
@@ -130,7 +198,6 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     return () => observer.disconnect();
   }, [renderedSections]);
 
-  
   useEffect(() => {
     if (activeType !== null) return;
     if (!visibleSection) return;
@@ -152,37 +219,6 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     setIoAutoFocusEnabled(false);
   }, [visibleSection, data, activeType, ioAutoFocusEnabled]);
 
-  const nextVitalsKey = (vitals = {}) => {
-    const nums = Object.keys(vitals)
-      .map((k) => parseInt(k, 10))
-      .filter((n) => Number.isFinite(n));
-    return String((nums.length ? Math.max(...nums) : 0) + 1);
-  };
-
-  const handleEnterInVitals = (key) => {
-      handleInputBlur("vitals", key);
-      setVisibleSection("vitals");
-      editingRef.current = true;
-    
-      let newKey = "";
-      setData((prev) => {
-        const vitals = { ...(prev.vitals || {}) };
-        newKey = nextVitalsKey(vitals);
-        vitals[newKey] = "";
-        return { ...prev, vitals };
-      });
-
-      setTimeout(() => {
-        setActiveType("vitals");
-        setActiveIndex(newKey);
-        setEditableText("");
-        sectionRefs.current["vitals"]
-          ?.querySelector(`input[data-vitals-key="${newKey}"]`)
-          ?.focus?.();
-      }, 0);
-    };
-  
-  
   const handleInputBlur = useCallback(
     (type, index) => {
       if (activeIndex === null || activeType === null) return;
@@ -191,9 +227,10 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
         const updatedData = { ...prevData };
 
         if (type === "vitals-key") {
-          const newKey = (editableKey || "").trim()
-            .replace(/\s+/g, '')
-            .replace(/^(.)/, c => c.toLowerCase());
+          const newKey = (editableKey || "")
+            .trim()
+            .replace(/\s+/g, "")
+            .replace(/^(.)/, (c) => c.toLowerCase());
           if (newKey && newKey !== index) {
             const v = { ...(updatedData.vitals || {}) };
             const value = v[index];
@@ -203,7 +240,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
           }
           return updatedData;
         }
-        
+
         if (type === "vitals") {
           const val = (editableText || "").trim();
           const v = { ...(updatedData.vitals || {}) };
@@ -235,28 +272,28 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
               arr[index] = {
                 ...item,
                 name: item?.name || val,
-                refinedName: val,
+                refinedName: item?.name || val,
               };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else if (type === "dynamicFields") {
             if (val) {
               arr[index] = { ...item, title: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else if (type === "labResults") {
             if (val) {
               arr[index] = { ...item, testname: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           } else {
             if (val) {
               arr[index] = { ...item, name: val };
             } else {
-              arr[index] = "";
+              arr[index] = item;
             }
           }
           if (type === "advice" || type === "others") {
@@ -289,10 +326,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
           } else {
             arr = arr.filter(
               (v) =>
-                v &&
-                typeof v === "object" &&
-                v.name &&
-                v.name.trim() !== ""
+                v && typeof v === "object" && v.name && v.name.trim() !== ""
             );
           }
           updatedData[type] = arr;
@@ -301,7 +335,6 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
         return updatedData;
       });
 
-      setShowSuggestions(false);
       setActiveIndex(null);
       setActiveType(null);
       setEditableText("");
@@ -310,7 +343,357 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     [activeIndex, activeType, editableText, editableKey, setData]
   );
 
-  
+  // Debounced search for medication name (mirror ConsultationDrawer)
+  useEffect(() => {
+    if (activeType !== "medications") return;
+    if (!editableText) return;
+    const timeoutId = setTimeout(() => {
+      dispatch(searchMedication({ searchQuery: editableText, type: "parent" }));
+    }, 500);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableText, activeType]);
+
+  // Debounced search for test name
+  useEffect(() => {
+    if (activeType !== "tests") return;
+    if (!editableText) return;
+    const timeoutId = setTimeout(() => {
+      dispatch(
+        searchInvestigation({ searchQuery: editableText, type: "parent" })
+      );
+    }, 500);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableText, activeType]);
+
+  // Build options from store list for medications
+  useEffect(() => {
+    if (activeType !== "medications") return;
+    const list = parentOptionsList || [];
+    const opts = list.map((e) => ({
+      key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+      value: e.tmm_medicine_name,
+      label: (
+        <div>
+          <span className="fw-medium">{e.tmm_medicine_name}</span>,
+          <span className="ms-1">{e.tmm_generic}</span>
+          {(e?.tmm_hm_type == 1 || e?.tmm_hm_type == 2) && e?.um_id === 0 && (
+            <span
+              className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
+              style={{ width: 18, height: 18, background: "#c44ea2" }}
+            >
+              {getHmTypeIndicator(e)}
+            </span>
+          )}
+        </div>
+      ),
+    }));
+
+    if (searchParentQuery?.length > 0) {
+      opts.push({
+        key: JSON.stringify({
+          unique_id: uuidv4(),
+          tmm_id: 0,
+          tmm_medicine_name: searchParentQuery,
+        }),
+        value: searchParentQuery,
+        label: (
+          <div>
+            {searchParentQuery}
+            <i className="icon-Add mx-1 text-primary fs-6"></i>
+            <button className="fw-medium text-decoration-underline text-primary ms-1 border-0 bg-transparent p-0">
+              Add Custom
+            </button>
+          </div>
+        ),
+      });
+    }
+    setParentSearchOptions(opts);
+  }, [parentOptionsList, searchParentQuery, activeType]);
+
+  // Build options from store list for tests
+  useEffect(() => {
+    if (activeType !== "tests") return;
+    const list = testOptionsList || [];
+    const opts = list.map((e) => ({
+      key: JSON.stringify({ ...e, unique_id: uuidv4() }),
+      value: e.investigation_name,
+      label: (
+        <div>
+          <span className="fw-medium">{e.investigation_name}</span>
+          {e?.investigation_category && (
+            <span className="ms-1 text-muted">
+              ({e.investigation_category})
+            </span>
+          )}
+        </div>
+      ),
+    }));
+
+    if (searchTestQuery?.length > 0 && tokenData?.hospital_business_id != env.zydus_business_id && !isZydusUserAccessableFromGB && !isApolloHosBusinessIdAccessableFromGB) {
+      opts.push({
+        key: JSON.stringify({
+          unique_id: uuidv4(),
+          investigation_id: 0,
+          investigation_name: searchTestQuery,
+        }),
+        value: searchTestQuery,
+        label: (
+          <div>
+            {searchTestQuery}
+            <i className="icon-Add mx-1 text-primary fs-6"></i>
+            <button className="fw-medium text-decoration-underline text-primary ms-1 border-0 bg-transparent p-0">
+              Add Custom
+            </button>
+          </div>
+        ),
+      });
+    }
+    setTestSearchOptions(opts);
+  }, [testOptionsList, searchTestQuery, activeType]);
+
+  const getFuzzySearchMedicine = useCallback(
+    async (medsSnapshot) => {
+      try {
+        const meds = medsSnapshot || data?.medications || [];
+        if (!meds.length) return;
+
+        const correctedResults = await Promise.all(
+          meds.map(async (med) => {
+            const currentName = (med?.name || "").trim();
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
+            try {
+              const result = await ApiMedication.getFuzzySearch(currentName);
+              const corrected = result?.[0]?.tmm_medicine_name?.trim();
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
+            } catch {
+              return { correctedName: currentName, fullData: null };
+            }
+          })
+        );
+
+        const anyChanged = meds.some(
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        );
+        if (!anyChanged) return;
+
+        setData((prev) => ({
+          ...prev,
+          medications: (prev?.medications || []).map((m, idx) => ({
+            ...m,
+            name: correctedResults[idx].correctedName,
+            refinedName: correctedResults[idx].correctedName,
+            // Add metadata for fuzzy search corrected name with full data
+            metadata: {
+              ...m.metadata,
+              fuzzyCorrectedName: correctedResults[idx].correctedName,
+              originalName: m.name,
+              isFuzzyCorrected: true,
+              ...(correctedResults[idx].fullData || {}),
+            },
+          })),
+        }));
+      } finally {
+        // nothing
+      }
+    },
+    [data?.medications, setData]
+  );
+
+  const getFuzzySearchLabs = useCallback(
+    async (testsSnapshot) => {
+      try {
+        const tests = testsSnapshot || data?.tests || [];
+        if (!tests.length) return;
+        const correctedResults = await Promise.all(
+          tests.map(async (it) => {
+            const currentName = (it?.name || "").trim();
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
+            try {
+              const result = await ApiInvestigation.getFuzzySearch(currentName);
+              const corrected = result?.[0]?.investigation_name?.trim();
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
+            } catch {
+              return { correctedName: currentName, fullData: null };
+            }
+          })
+        );
+
+        const anyChanged = tests.some(
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        );
+        if (!anyChanged) return;
+
+        setData((prev) => ({
+          ...prev,
+          tests: (prev?.tests || []).map((m, idx) => ({
+            ...m,
+            name: correctedResults[idx].correctedName,
+            refinedName: correctedResults[idx].correctedName,
+            edited: false,
+            // Add metadata for fuzzy search corrected name with full data
+            metadata: {
+              ...m.metadata,
+              fuzzyCorrectedName: correctedResults[idx].correctedName,
+              originalName: m.name,
+              isFuzzyCorrected: true,
+              ...(correctedResults[idx].fullData || {}),
+            },
+          })),
+        }));
+      } finally {
+      }
+    },
+    [data?.tests, setData]
+  );
+
+  // Fuzzy-correct medication names ONCE when medications first become available
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    if (hasFuzzyRunMedsRef.current) return;
+    const meds = data?.medications || [];
+    if (!meds.length) return;
+    hasFuzzyRunMedsRef.current = true;
+    getFuzzySearchMedicine(meds);
+  }, [data?.medications]);
+
+  // Fuzzy-correct tests (lab investigations) ONCE when tests first become available
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    if (hasFuzzyRunTestsRef.current) return;
+    const tests = data?.tests || [];
+    if (!tests.length) return;
+    hasFuzzyRunTestsRef.current = true;
+    getFuzzySearchLabs(tests);
+  }, [data?.tests]);
+
+  const onSearchParent = (query) => {
+    setSearchParentQuery((query || "").trimStart());
+  };
+
+  const onSearchTest = (query) => {
+    setSearchTestQuery((query || "").trimStart());
+  };
+
+  const onSelectParent = (value, option) => {
+    // Open Add Custom popup if needed (tmm_id === 0)
+    try {
+      const meta = option?.key ? JSON.parse(option.key) : null;
+      if (meta && meta.tmm_id === 0) {
+        setShowAddMedicinePopup(true);
+        return;
+      }
+    } catch {}
+
+    setEditableText(value);
+    if (activeType === "medications" || activeType === "tests") {
+      setData((prev) => {
+        const updated = { ...prev };
+        const arr = Array.isArray(updated[activeType])
+          ? [...updated[activeType]]
+          : [];
+        if (arr[activeIndex]) {
+          arr[activeIndex] = {
+            ...arr[activeIndex],
+            name: value,
+            refinedName: value,
+            // Add metadata for selected option
+            metadata: {
+              ...arr[activeIndex].metadata,
+              ...(option?.key ? JSON.parse(option.key) : {}),
+              selectedValue: value,
+            },
+          };
+          updated[activeType] = arr;
+        }
+        return updated;
+      });
+      // Persist and exit edit mode so selection reflects immediately in UI
+      editingRef.current = false;
+      setTimeout(() => {
+        handleInputBlur(activeType, activeIndex);
+      }, 0);
+    }
+  };
+
+  const onSelectTest = (value, option) => {
+    // Open Add Custom popup if needed (investigation_id === 0)
+    try {
+      const meta = option?.key ? JSON.parse(option.key) : null;
+      if (meta && meta.investigation_id === 0) {
+        // For now, just add the custom test directly since we don't have a custom test popup
+        setEditableText(value);
+        if (activeType === "tests") {
+          setData((prev) => {
+            const updated = { ...prev };
+            const arr = Array.isArray(updated[activeType])
+              ? [...updated[activeType]]
+              : [];
+            if (arr[activeIndex]) {
+              arr[activeIndex] = {
+                ...arr[activeIndex],
+                name: value,
+                refinedName: value,
+                // Add metadata for selected option
+                metadata: {
+                  ...arr[activeIndex].metadata,
+                  ...(option?.key ? JSON.parse(option.key) : {}),
+                  selectedValue: value,
+                },
+              };
+              updated[activeType] = arr;
+            }
+            return updated;
+          });
+          editingRef.current = false;
+          setTimeout(() => {
+            handleInputBlur(activeType, activeIndex);
+          }, 0);
+        }
+        return;
+      }
+    } catch {}
+
+    setEditableText(value);
+    if (activeType === "tests") {
+      setData((prev) => {
+        const updated = { ...prev };
+        const arr = Array.isArray(updated[activeType])
+          ? [...updated[activeType]]
+          : [];
+        if (arr[activeIndex]) {
+          arr[activeIndex] = {
+            ...arr[activeIndex],
+            name: value,
+            refinedName: value,
+            // Add metadata for selected option
+            metadata: {
+              ...arr[activeIndex].metadata,
+              ...(option?.key ? JSON.parse(option.key) : {}),
+              selectedValue: value,
+            },
+          };
+          updated[activeType] = arr;
+        }
+        return updated;
+      });
+      // Persist and exit edit mode so selection reflects immediately in UI
+      editingRef.current = false;
+      setTimeout(() => {
+        handleInputBlur(activeType, activeIndex);
+      }, 0);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -327,22 +710,20 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
           } else {
             handleLineItemBlur(activeType, activeIndex);
           }
-        };
+        }
       }
       const target = event.target;
       const inActiveInput =
         inputRef.current && inputRef.current.contains(target);
       const inSuggestions =
         suggestionRef.current && suggestionRef.current.contains(target);
-      
+
       const sectionEl =
         visibleSection && sectionRefs.current[visibleSection]
           ? sectionRefs.current[visibleSection]
           : null;
-      const clickedInsideHighlighted =
-        sectionEl && sectionEl.contains(target);
+      const clickedInsideHighlighted = sectionEl && sectionEl.contains(target);
       if (!inActiveInput && !inSuggestions) {
-        
         if (activeType !== null) {
           if (activeType.includes('-value')) {
             handleValueBlur(activeType, activeIndex);
@@ -351,8 +732,8 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
           } else {
             handleLineItemBlur(activeType, activeIndex);
           }
-        };
-        
+        }
+
         if (!clickedInsideHighlighted) {
           setVisibleSection(null);
           setActiveType(null);
@@ -360,7 +741,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
           setEditableText("");
           setEditableValue("");
           editingRef.current = false;
-          
+
           setIoAutoFocusEnabled(false);
         }
       }
@@ -370,45 +751,28 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeIndex, activeType, handleInputBlur, visibleSection, editableLineItem, editableText, editableValue]);
 
-  
-  const handleSuggestionClick = (type, index, suggestion) => {
-    setData((prevData) => {
-      const updatedData = { ...prevData };
-      if (type === "medications" || type === "tests") {
-        updatedData[type][index].name = suggestion;
-      } else if (type === "symptoms" || type === "examination" || type === "diagnosis") {
-        updatedData[type][index].name = suggestion;
-      } else if (type === "advice") {
-        updatedData[type][index] = suggestion;
-      }
-      return updatedData;
-    });
-    setShowSuggestions(false);
-    setEditableText(suggestion);
-    setActiveIndex(null);
-    setActiveType(null);
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setEditableText(value);
+    // Live update name for medications/tests at current index
+    if (activeType === "medications" || activeType === "tests") {
+      setData((prev) => {
+        const updated = { ...prev };
+        const arr = Array.isArray(updated[activeType])
+          ? [...updated[activeType]]
+          : [];
+        if (arr[activeIndex]) {
+          arr[activeIndex] = {
+            ...arr[activeIndex],
+            name: value,
+            refinedName: value,
+          };
+          updated[activeType] = arr;
+        }
+        return updated;
+      });
+    }
   };
-
-  
-  const handleLineItemBlur = (type, index) => {
-    const itemType = type?.split('-')?.[0];
-    setData((prevData) => {
-      const updatedData = { ...prevData };
-      const arr = [...(updatedData[itemType] || [])];
-      if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields") {
-        arr[index] = { ...arr[index], notes: editableLineItem };
-      } else {
-        arr[index] = { ...arr[index], lineItem: editableLineItem };
-      }
-      updatedData[itemType] = arr;
-      return updatedData;
-    });
-    setEditableLineItem("")
-    setActiveIndex(null);
-    setActiveType(null);
-  };
-
-  const handleInputChange = (e) => setEditableText(e.target.value);
   const handleLineItemChange = (e) => setEditableLineItem(e.target.value);
   const handleValueChange = (e) => setEditableValue(e.target.value);
 
@@ -431,7 +795,6 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     setEditableKey("");
   };
 
-  
   const handleItemClick = (type, index) => {
     if (activeIndex !== null && activeType !== null) {
       if (activeType.includes('-value')) {
@@ -445,7 +808,9 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
       const isNumberKey = /^\d+$/.test(index);
       const label = isNumberKey
         ? index
-        : index.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+        : index
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (s) => s.toUpperCase());
       setEditableKey(label);
     } else if (type === "vitals") {
       setEditableText(data.vitals[index] || "");
@@ -453,14 +818,15 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
       setEditableText(data?.followUp);
     } else if (ARRAY_SECTIONS.includes(type)) {
       const item = data[type][index];
-      setEditableText(type === "advice" ? data[type][index] : getPrimaryText(type, item));
+      setEditableText(
+        type === "advice" ? data[type][index] : getPrimaryText(type, item)
+      );
     }
 
     setActiveIndex(index);
     setActiveType(type);
   };
 
-  
   const handleLineItemClick = (type, index) => {
     const src = data[type][index];
     setEditableLineItem(type === "diagnosis" || type === "examination" || type === "dynamicFields" ? src?.notes : src?.lineItem);
@@ -509,8 +875,12 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
         const value = activeType === `${type}-value` ? editableValue || cur?.value || prev[type]?.value : cur?.value;
         arr[index] = { ...cur, testname, notes, value };
       } else {
-        const name = isLineItem ? cur?.name || prev[type]?.name : currentText || cur?.name;
-        const lineItem = isLineItem ? currentText || cur?.lineItem || prev[type]?.lineItem : cur?.lineItem;
+        const name = isLineItem
+          ? cur?.name || prev[type]?.name
+          : currentText || cur?.name;
+        const lineItem = isLineItem
+          ? currentText || cur?.lineItem || prev[type]?.lineItem
+          : cur?.lineItem;
         arr[index] = { ...cur, name, lineItem, notes: lineItem };
       }
       arr.splice(index + 1, 0, normalizeNewItem(type, ""));
@@ -518,27 +888,27 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
       return updated;
     });
 
-    
     setTimeout(() => {
       setActiveType(type);
       setActiveIndex(index + 1);
       setEditableText("");
       setEditableLineItem("");
       const sec = sectionRefs.current[type];
-      const inputs = sec?.querySelectorAll("input");
-      inputs?.[index + 1]?.focus?.();
+      // Focus the input within the next list item to avoid picking up hidden inputs from AutoComplete
+      const nextLi = sec?.querySelectorAll("li")[index + 1];
+      const nextInput = nextLi?.querySelector("input");
+      nextInput?.focus?.();
     }, 0);
   };
 
-  
-
-  
   const renderVitals = () => (
-     <div
-       data-section="vitals"
-       ref={(el) => (sectionRefs.current["vitals"] = el)}
-       className={`digitised-section-rx ${visibleSection === "vitals" ? "highlight-blue" : ""}`}
-     >
+    <div
+      data-section="vitals"
+      ref={(el) => (sectionRefs.current["vitals"] = el)}
+      className={`digitised-section-rx ${
+        visibleSection === "vitals" ? "highlight-blue" : ""
+      }`}
+    >
       {loading ? (
         <div className="shimmer-container">
           <div className="shimmer-header">
@@ -551,106 +921,112 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
       ) : (
         <ul>
           {Object.entries(data.vitals || {}).map(([key, value]) => {
-              
-              let textWidth = 0;
-              let keyWidth = 0;
-              if (activeIndex === key && activeType === "vitals") {
-                const temp = document.createElement("span");
-                temp.style.visibility = "hidden";
-                temp.style.position = "absolute";
-                temp.style.whiteSpace = "nowrap";
-                temp.innerText = editableText || "";
-                document.body.appendChild(temp);
-                textWidth = temp.offsetWidth;
-                document.body.removeChild(temp);
-              }
-              if (activeIndex === key && activeType === "vitals-key") {
-                const temp = document.createElement("span");
-                temp.style.visibility = "hidden";
-                temp.style.position = "absolute";
-                temp.style.whiteSpace = "nowrap";
-                temp.innerText = editableKey || "";
-                document.body.appendChild(temp);
-                keyWidth = temp.offsetWidth;
-                document.body.removeChild(temp);
-              }
+            let textWidth = 0;
+            let keyWidth = 0;
+            if (activeIndex === key && activeType === "vitals") {
+              const temp = document.createElement("span");
+              temp.style.visibility = "hidden";
+              temp.style.position = "absolute";
+              temp.style.whiteSpace = "nowrap";
+              temp.innerText = editableText || "";
+              document.body.appendChild(temp);
+              textWidth = temp.offsetWidth;
+              document.body.removeChild(temp);
+            }
+            if (activeIndex === key && activeType === "vitals-key") {
+              const temp = document.createElement("span");
+              temp.style.visibility = "hidden";
+              temp.style.position = "absolute";
+              temp.style.whiteSpace = "nowrap";
+              temp.innerText = editableKey || "";
+              document.body.appendChild(temp);
+              keyWidth = temp.offsetWidth;
+              document.body.removeChild(temp);
+            }
 
-              const isNumberKey = /^\d+$/.test(key);
-              const label = isNumberKey
-                ? `${key}: `
-                : `${key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}: `;
+            const isNumberKey = /^\d+$/.test(key);
+            const label = isNumberKey
+              ? `${key}: `
+              : `${key
+                  .replace(/([A-Z])/g, " $1")
+                  .replace(/^./, (s) => s.toUpperCase())}: `;
 
-
-              return (
-                <li key={key}>
-                  <div className="medicine-item">
-                    {activeIndex === key && activeType === "vitals-key" ? (
-                      <input
-                        ref={inputRef}
-                        data-vitals-key={key}
-                        type="text"
-                        value={editableKey}
-                        className="editable-digitised-item"
-                        onChange={(e) => setEditableKey(e.target.value)}
-                        onBlur={() => {
-                          editingRef.current = false;
+            return (
+              <li key={key}>
+                <div className="medicine-item">
+                  {activeIndex === key && activeType === "vitals-key" ? (
+                    <input
+                      ref={inputRef}
+                      data-vitals-key={key}
+                      type="text"
+                      value={editableKey}
+                      className="editable-digitised-item"
+                      onChange={(e) => setEditableKey(e.target.value)}
+                      onBlur={() => {
+                        editingRef.current = false;
+                        handleInputBlur("vitals-key", key);
+                      }}
+                      onFocus={() => {
+                        editingRef.current = true;
+                        setVisibleSection("vitals");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
                           handleInputBlur("vitals-key", key);
-                        }}
-                        onFocus={() => { editingRef.current = true; setVisibleSection("vitals"); }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleInputBlur("vitals-key", key);
-                          }
-                        }}
-                        autoFocus
-                        style={{ width: `clamp(12px, ${keyWidth + 10}px, 100%)` }}
-                      />
-                    ) : (
-                      <span
-                        onClick={() => handleItemClick("vitals-key", key)}
-                        className="digitised-item"
-                      >
-                        {label}
-                      </span>
-                    )}
-                    {activeIndex === key && activeType === "vitals" ? (
-                      <input
-                        ref={inputRef}
-                        data-vitals-key={key}
-                        type="text"
-                        value={editableText}
-                        className="editable-digitised-item"
-                        onChange={(e) => setEditableText(e.target.value)}
-                        onBlur={() => {
-                          editingRef.current = false;
-                          handleInputBlur("vitals", key);
-                        }}
-                        onFocus={() => { editingRef.current = true; setVisibleSection("vitals"); }}
-                        autoFocus
-                        style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
-                      />
-                    ) : (
-                      <span
-                        onClick={() => handleItemClick("vitals", key)}
-                        className="digitised-item"
-                      >
-                        {value || "_"}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+                        }
+                      }}
+                      autoFocus
+                      style={{ width: `clamp(12px, ${keyWidth + 10}px, 100%)` }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => handleItemClick("vitals-key", key)}
+                      className="digitised-item"
+                    >
+                      {label}
+                    </span>
+                  )}
+                  {activeIndex === key && activeType === "vitals" ? (
+                    <input
+                      ref={inputRef}
+                      data-vitals-key={key}
+                      type="text"
+                      value={editableText}
+                      className="editable-digitised-item"
+                      onChange={(e) => setEditableText(e.target.value)}
+                      onBlur={() => {
+                        editingRef.current = false;
+                        handleInputBlur("vitals", key);
+                      }}
+                      onFocus={() => {
+                        editingRef.current = true;
+                        setVisibleSection("vitals");
+                      }}
+                      autoFocus
+                      style={{
+                        width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                      }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => handleItemClick("vitals", key)}
+                      className="digitised-item"
+                    >
+                      {value || "_"}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 
-  
   const renderFollowUp = () => {
     let textWidth = 0;
-    let lineItemWidth = 0;
     if (activeType === "followUp") {
       const temp = document.createElement("span");
       temp.style.visibility = "hidden";
@@ -693,7 +1069,13 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
   };
   const renderArraySection = (type) => {
     return (
-      <div data-section={type} ref={(el) => (sectionRefs.current[type] = el)} className={`digitised-section-rx ${visibleSection === type ? "highlight-blue" : ""}`}>
+      <div
+        data-section={type}
+        ref={(el) => (sectionRefs.current[type] = el)}
+        className={`digitised-section-rx ${
+          visibleSection === type ? "highlight-blue" : ""
+        }`}
+      >
         {loading ? (
           <div className="shimmer-container">
             <div className="shimmer-header">
@@ -721,8 +1103,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                 textWidth = temp.offsetWidth;
                 document.body.removeChild(temp);
               }
-  
-              
+
               if (activeIndex === index && activeType === `${type}-lineItem`) {
                 const temp2 = document.createElement("span");
                 temp2.style.visibility = "hidden";
@@ -730,7 +1111,6 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                 temp2.style.whiteSpace = "nowrap";
                 temp2.innerText = editableLineItem || "";
                 document.body.appendChild(temp2);
-                lineItemWidth = temp2.offsetWidth;
                 document.body.removeChild(temp2);
               }
 
@@ -747,34 +1127,132 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
               }
   
               const primaryDisplay = getPrimaryText(type, item);
-  
+
               return (
                 <li key={index}>
                   <div className="medicine-item">
                     {activeIndex === index && activeType === type ? (
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={editableText}
-                        className="editable-digitised-item"
-                        onChange={handleInputChange}
-                        onBlur={() => {
-                          editingRef.current = false;
-                          handleInputBlur(type, index);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleEnterToInsert(type, index);
-                          }
-                        }}
-                        autoFocus
-                        onFocus={() => {
-                          editingRef.current = true;
-                          setVisibleSection(type);
-                        }}
-                        style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
-                      />
+                      type === "medications" ? (
+                        <div ref={suggestionRef}>
+                          <AutoComplete
+                            value={editableText}
+                            onSearch={onSearchParent}
+                            options={parentSearchOptions}
+                            className="autocomplete-custom grounding-select"
+                            popupClassName="grounding-boxpopup grounding-select"
+                            onSelect={onSelectParent}
+                            defaultActiveFirstOption={true}
+                            autoFocus={true}
+                            popupMatchSelectWidth={false}
+                            dropdownStyle={{ width: 420 }}
+                            getPopupContainer={() => suggestionRef.current}
+                            open={
+                              activeIndex === index &&
+                              activeType === type &&
+                              parentSearchOptions.length > 0
+                            }
+                            style={{ minWidth: 260 }}
+                          >
+                            <input
+                              ref={inputRef}
+                              type="text"
+                              value={editableText}
+                              className="editable-digitised-item"
+                              onChange={handleInputChange}
+                              onBlur={() => {
+                                editingRef.current = false;
+                                handleInputBlur(type, index);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleEnterToInsert(type, index);
+                                }
+                              }}
+                              onFocus={() => {
+                                editingRef.current = true;
+                                setVisibleSection(type);
+                              }}
+                              style={{
+                                width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                              }}
+                            />
+                          </AutoComplete>
+                        </div>
+                      ) : type === "tests" ? (
+                        <div ref={suggestionRef}>
+                          <AutoComplete
+                            value={editableText}
+                            onSearch={onSearchTest}
+                            options={testSearchOptions}
+                            className="autocomplete-custom grounding-select"
+                            popupClassName="grounding-boxpopup grounding-select"
+                            onSelect={onSelectTest}
+                            defaultActiveFirstOption={true}
+                            autoFocus={true}
+                            popupMatchSelectWidth={false}
+                            dropdownStyle={{ width: 420 }}
+                            getPopupContainer={() => suggestionRef.current}
+                            open={
+                              activeIndex === index &&
+                              activeType === type &&
+                              testSearchOptions.length > 0
+                            }
+                            style={{ minWidth: 260 }}
+                          >
+                            <input
+                              ref={inputRef}
+                              type="text"
+                              value={editableText}
+                              className="editable-digitised-item"
+                              onChange={handleInputChange}
+                              onBlur={() => {
+                                editingRef.current = false;
+                                handleInputBlur(type, index);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleEnterToInsert(type, index);
+                                }
+                              }}
+                              onFocus={() => {
+                                editingRef.current = true;
+                                setVisibleSection(type);
+                              }}
+                              style={{
+                                width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                              }}
+                            />
+                          </AutoComplete>
+                        </div>
+                      ) : (
+                        <input
+                          ref={inputRef}
+                          type="text"
+                          value={editableText}
+                          className="editable-digitised-item"
+                          onChange={handleInputChange}
+                          onBlur={() => {
+                            editingRef.current = false;
+                            handleInputBlur(type, index);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleEnterToInsert(type, index);
+                            }
+                          }}
+                          autoFocus
+                          onFocus={() => {
+                            editingRef.current = true;
+                            setVisibleSection(type);
+                          }}
+                          style={{
+                            width: `clamp(12px, ${textWidth + 10}px, 100%)`,
+                          }}
+                        />
+                      )
                     ) : (
                       <span
                         onClick={() => handleItemClick(type, index)}
@@ -783,7 +1261,7 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                         {primaryDisplay}
                       </span>
                     )}
-  
+
                     {/* Editable input for lineItem (not for advice/userAdded) */}
                     {(type === "medications" ||
                       type === "symptoms" ||
@@ -791,7 +1269,8 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                       type === "medicalHistory" ||
                       type === "tests") &&
                       item?.lineItem &&
-                      (activeIndex === index && activeType === `${type}-lineItem` ? (
+                      (activeIndex === index &&
+                      activeType === `${type}-lineItem` ? (
                         <input
                           type="text"
                           value={editableLineItem}
@@ -802,7 +1281,10 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                             setVisibleSection(type);
                             handleLineItemBlur(type, index);
                           }}
-                          onFocus={() => { editingRef.current = true; setVisibleSection(type); }}
+                          onFocus={() => {
+                            editingRef.current = true;
+                            setVisibleSection(type);
+                          }}
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
@@ -810,7 +1292,11 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                               handleEnterToInsert(type, index, true);
                             }
                           }}
-                          style={{ width: `clamp(12px, ${lineItemWidth + 10}px, 100%)` }}
+                          style={{
+                            width: `clamp(12px, ${
+                              (editableLineItem || "").length * 8 + 10
+                            }px, 100%)`,
+                          }}
                         />
                       ) : (
                         <span
@@ -866,7 +1352,8 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                     {/* Editable input for notes (examination/diagnosis/dynamicFields) */}
                     {(type === "examination" || type === "diagnosis" || type === "dynamicFields") &&
                       item?.notes &&
-                      (activeIndex === index && activeType === `${type}-lineItem` ? (
+                      (activeIndex === index &&
+                      activeType === `${type}-lineItem` ? (
                         <input
                           type="text"
                           value={editableLineItem}
@@ -887,7 +1374,11 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
                             }
                           }}
                           autoFocus
-                          style={{ width: `clamp(12px, ${lineItemWidth + 10}px, 100%)` }}
+                          style={{
+                            width: `clamp(12px, ${
+                              (editableLineItem || "").length * 8 + 10
+                            }px, 100%)`,
+                          }}
                         />
                       ) : (
                         <span
@@ -903,13 +1394,11 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
             })}
           </ul>
         ) : (
-          <>
-          {type === "followUp" && renderFollowUp()}
-          </>
+          <>{type === "followUp" && renderFollowUp()}</>
         )}
       </div>
     );
-  } 
+  };
 
   const hasValidContent = (type) => {
     if (!data[type] || !Array.isArray(data[type])) return false;
@@ -931,7 +1420,20 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
     });
   };
 
-  
+  const handleMedicationsUpdate = useCallback((medicationsArray) => {
+    setData((prevData) => ({
+      ...prevData,
+      medications: medicationsArray,
+    }));
+  }, []);
+
+  const handleInvestigationUpdate = useCallback((investigationArray) => {
+    setData((prevData) => ({
+      ...prevData,
+      tests: investigationArray,
+    }));
+  }, []);
+
   return (
     <div
       className={
@@ -986,21 +1488,26 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
             </div>
           )}
 
-          {data?.medications && hasValidContent("medications") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Medicine</div>
-              {renderArraySection("medications")}
-            </div>
-          )}
+          {data?.medications &&
+            hasValidContent("medications") &&
+            Array.isArray(data?.medications) &&
+            data?.medications.length > 0 && (
+              <MedicationsTable
+                medications={data?.medications}
+                onUpdate={handleMedicationsUpdate}
+                isProcessing={false}
+              />
+            )}
 
-          {data?.tests && hasValidContent("tests") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">
-                Lab Investigation
-              </div>
-              {renderArraySection("tests")}
-            </div>
-          )}
+          {data?.tests &&
+            Array.isArray(data?.tests) &&
+            data?.tests.length > 0 && (
+              <LabInvestigationTable
+                labInvestigation={data?.tests}
+                onUpdate={handleInvestigationUpdate}
+                isProcessing={false}
+              />
+            )}
 
           {data?.advice && hasValidContent("advice") && (
             <div className="title-digitise-section-wrapper">
@@ -1044,6 +1551,13 @@ const DigitisedPrescription = ({ data, setData, loading, showAbsHeaderInsideLoad
             </div>
           )}
         </>
+      )}
+      {showAddMedicinePopup && (
+        <CustomMedicinePopup
+          isOpen={showAddMedicinePopup}
+          onCancel={() => setShowAddMedicinePopup(false)}
+          initialData={{ tmm_medicine_name: searchParentQuery }}
+        />
       )}
     </div>
   );

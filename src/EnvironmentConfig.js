@@ -298,7 +298,7 @@ const uat = {
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-uat.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-uat.tatvacare.in",
-  user_management_api_url: "https://user-management77913uat.azurewebsites.net",
+  user_management_api_url: "https://diginext-usermgmt-uat.tatvacare.in",
   razorpay_integration_url: "https://pm-razorpay-uat-integration.tatvacare.in",
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
@@ -326,14 +326,14 @@ const uat = {
   GOOGLE_MAPS_API_KEY: "AIzaSyAqhrcrUh31u4FhmgsUDaV-hju14_74Bug",
   snap_rx_api_url: "https://pm-digitization-uat.tatvacare.in",
   ZYDUS_BUSINESS_ID: 754811713438773,
-  APOLLO_BUSINESS_IDS: [234659817, 657381720513497],
+  APOLLO_BUSINESS_IDS: [234659817, 657381720513497, 396741719906700, 912841712741834],
   digitization_api_url: "https://pm-digitization-uat.tatvacare.in",
   monetization_url: "https://pm-tp-monetization-uat.tatvacare.in",
   tp_monetization_disabled_hospital: [
-    4851751290017377, 754811713438773, 912841712741834, 7591750931025038,
+    4851751290017377, 912841712741834, 7591750931025038, 396741719906700
   ],
   tp_agent_disabled_hospital: [
-    4851751290017377, 754811713438773, 912841712741834, 7591750931025038,
+    4851751290017377, 754811713438773, 912841712741834, 7591750931025038, 396741719906700
   ],
   munshi_hospital_business_ids: [749611704175237],
   medeco_webview_url: "https://pm-doctor-tatva-pwa-qa.tatvacare.in",

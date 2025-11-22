@@ -2,12 +2,12 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { Tooltip, Input, Button, message } from "antd";
 import {
   PlusOutlined,
-  InfoCircleOutlined,
   CheckOutlined,
   CloseOutlined,
 } from "@ant-design/icons";
 import "../CustomModule.scss";
 import CustomModuleIcon from "../../assets/images/custom-module.svg";
+import infoCircleIcon from "../../assets/images/info-circle.svg";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addModule,
@@ -272,18 +272,18 @@ const TabAddCustomModule = () => {
           type="link"
           icon={<PlusOutlined />}
           className="add-custom-module-link"
-          disabled={customModules.length >= 10}
+          disabled={(customModules?.length || 0) >= 10}
         >
           Add Custom Module
         </Button>
         <div className="module-info">
-          <span className="module-count">{`${customModules.length}/10 modules added`}</span>
+          <span className="module-count">{`${customModules?.length || 0}/10 modules added`}</span>
           <Tooltip
-            title="You can create up to 10 custom modules. If you’ve reached the limit, delete an existing custom module to add a new one."
+            title="You can create up to 10 custom modules. If you've reached the limit, delete an existing custom module to add a new one."
             placement="top"
             className="info-tooltip"
           >
-            <InfoCircleOutlined className="info-icon" />
+            <img src={infoCircleIcon} alt="Info" className="info-icon" />
           </Tooltip>
         </div>
       </div>

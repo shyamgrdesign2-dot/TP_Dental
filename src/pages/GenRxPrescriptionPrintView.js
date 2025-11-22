@@ -20,7 +20,7 @@ import wtsp from "../assets/images/wtsp.svg";
 import loadingImg from "../assets/images/loading.png";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -33,6 +33,20 @@ import { EVENTS } from "../utils/events";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
+const buildUrlWithParams = (baseUrl, isAmbient) => {
+  if (!baseUrl) return null;
+  const url = new URL(baseUrl);
+  url.searchParams.delete('voiceRxDigitize');
+  url.searchParams.delete('ambientVoiceRxDigitize');
+  if (isAmbient) {
+    url.searchParams.set('ambientVoiceRxDigitize', 'true');
+    url.searchParams.set('rxDigitize', 'false');
+  } else {
+    url.searchParams.set('voiceRxDigitize', 'true');
+  }
+  return url.toString();
+};
+
 function GenRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -44,12 +58,13 @@ function GenRxPrescriptionPrintView() {
   const navigate = useNavigate();
 
   const { state } = useLocation();
-  const { patient_data, rxId, pam_id } = state;
+  const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
-  const [printUrl, setPrintUrl] = useState(
-    state !== undefined ? `${state.print_url}&voiceRxDigitize=true` : null
-  );
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
+
+  const initialUrl = state?.print_url ? buildUrlWithParams(state.print_url, isAmbientMode) : null;
+  const [printUrl, setPrintUrl] = useState(initialUrl);
+  const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
@@ -111,16 +126,14 @@ function GenRxPrescriptionPrintView() {
     setPrintBlob(blob);
   }
 
-  // Effect to update printUrl when showDigitalRx changes
+  // Effect to update URLs when mode changes or on initial load
   useEffect(() => {
-    if (printUrl) {
-      const urlObj = new URL(printUrl);
-      urlObj.searchParams.set("voiceRxDigitize", "true");
-      const updatedUrl = urlObj.toString();
+    if (state?.print_url) {
+      const updatedUrl = buildUrlWithParams(state.print_url, isAmbientMode);
       setPreviewUrl(updatedUrl);
       setPrintUrl(updatedUrl);
     }
-  }, [printUrl]);
+  }, [isAmbientMode, state?.print_url]);
 
   const handleSendToWhatsapp = async () => {
     const clinic_name = getClinicName(profile?.hospital_data);
@@ -172,6 +185,13 @@ function GenRxPrescriptionPrintView() {
       const action = await dispatch(viewCaseManager(sendData));
 
       if (action.meta.requestStatus === "fulfilled") {
+        // Set the active voice service before navigating
+        if (state?.isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+        
         navigate("/prescription", {
           state: {
             patient_data,

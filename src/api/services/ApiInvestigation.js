@@ -3,6 +3,7 @@ import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.investigation_api_url }
 const baseSearchEngineUrl = { customBaseUrl: config.searchengine_url };
+const fuzzySearchBaseUrl = { customBaseUrl: config.searchengine_url };
 
 const ApiInvestigation = {};
 
@@ -16,6 +17,13 @@ ApiInvestigation.updateTemplate = function (template) {
 
 ApiInvestigation.deleteTemplate = function (templateId) {
   return api.get(`/api/v1/investigation/deleteTemplate/${templateId}`, baseUrl);
+};
+
+ApiInvestigation.getFuzzySearch = function (query, max_results = 1) {
+  return api.get(
+    `/api/v1/investigation/fuzzySearch?search=${query}&max_results=${max_results}`,
+    fuzzySearchBaseUrl
+  );
 };
 
 ApiInvestigation.getInvestigationTemplates = function (query) {

@@ -14,7 +14,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
 import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
-import { isNumeric, isAlphabet, getClinicName } from "../utils/utils";
+import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
@@ -30,7 +30,7 @@ import {
 function WalkInConsultation() {
   const navigate = useNavigate();
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, userId } = useSelector((state) => state.doctors);
   const { patients, error } = useSelector((state) => state.records);
 
   const dispatch = useDispatch();
@@ -49,6 +49,8 @@ function WalkInConsultation() {
   const isSnapRxAccessable = useFeatureIsOn(
     GB_SNAP_RX
   );
+  const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -171,6 +173,25 @@ function WalkInConsultation() {
       },
     ];
   
+    // Add Voice Rx option
+    items.unshift({
+      label: (
+        <span
+          style={{
+            display: "inline-block",
+            cursor: "pointer",
+          }}
+          onClick={() => {
+            setAutoCompleteFlag(false);
+            onVoiceRxClick(record);
+          }}
+        >
+          Voice Rx
+        </span>
+      ),
+      key: "voicerx",
+    });
+
     if (isSmartSyncAccessableFromGB && isSnapRxAccessable) {
       items.unshift({
         label: (
@@ -254,7 +275,7 @@ function WalkInConsultation() {
             >
               Patient Details
             </Button>
-            {(isSnapRxAccessable || isSmartSyncAccessableFromGB) && !isMobile ? (
+            {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
               <div className="d-flex btn btn-smart-rx-walkin">
                 { isSmartSyncAccessableFromGB ?
                   (
@@ -276,6 +297,15 @@ function WalkInConsultation() {
                         SnapRx
                       </button>
                     </div>
+                  ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
+                    <Button
+                      type="text"
+                      className="btn btn-primary3 align-items-center d-flex"
+                      icon={<i className="icon-Consult"></i>}
+                      onClick={() => onVoiceRxClick(patient)}
+                    >
+                      Voice Rx
+                    </Button>
                   ) : (
                     <Button
                       type="text"
@@ -324,43 +354,56 @@ function WalkInConsultation() {
                 </div>
               </div>
             ) :
-            isSmartSyncAccessableFromGB && !isMobile ? (
+            (isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
               <div className="d-flex btn btn-smart-rx-walkin">
-                <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
-                  <img src={smartPad} alt="vitals" />
-                  <button
-                    // className="btn btn-outline-primary btn-smart-rx"
-                    className="btn btn-smartRx-text"
-                  >
-                    SmartRx
-                  </button>
-                </div>
-                <div>
-                  <Dropdown
-                    className="btn"
-                    menu={{
-                      items: getMenuItems(patient),
-                    }}
-                    trigger={["click"]}
-                  >
-                    <a
-                      onClick={(e) => {
-                        e.preventDefault();
-                      }}
-                      // style={{ padding: "5px" }}
+                {isSmartSyncAccessableFromGB ? (
+                  <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
+                    <img src={smartPad} alt="vitals" />
+                    <button
+                      // className="btn btn-outline-primary btn-smart-rx"
+                      className="btn btn-smartRx-text"
                     >
-                      <i
-                        className="icon-right"
-                        style={{
-                          display: "block",
-                          transform: `rotate(270deg)`,
-                          color: "white",
-                          // padding: "5px"
+                      SmartRx
+                    </button>
+                  </div>
+                ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
+                  <Button
+                    type="text"
+                    className="btn btn-primary3 align-items-center d-flex"
+                    icon={<i className="icon-Consult"></i>}
+                    onClick={() => onVoiceRxClick(patient)}
+                  >
+                    Voice Rx
+                  </Button>
+                ) : null}
+                {(isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (
+                  <div>
+                    <Dropdown
+                      className="btn"
+                      menu={{
+                        items: getMenuItems(patient),
+                      }}
+                      trigger={["click"]}
+                    >
+                      <a
+                        onClick={(e) => {
+                          e.preventDefault();
                         }}
-                      />
-                    </a>
-                  </Dropdown>
-                </div>
+                        // style={{ padding: "5px" }}
+                      >
+                        <i
+                          className="icon-right"
+                          style={{
+                            display: "block",
+                            transform: `rotate(270deg)`,
+                            color: "white",
+                            // padding: "5px"
+                          }}
+                        />
+                      </a>
+                    </Dropdown>
+                  </div>
+                )}
               </div>
             ) : (
               <Button
@@ -521,7 +564,7 @@ function WalkInConsultation() {
                   </Button>
                   {/* </Link> */}
                 </div>
-                {(isSnapRxAccessable || isSmartSyncAccessableFromGB)  && !isMobile ? (
+                {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <>
                         {isSmartSyncAccessableFromGB  ? (
                             <div
@@ -576,7 +619,13 @@ function WalkInConsultation() {
                                             </button>
                                         }
                                         <button
-                                            className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                            className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
+                                            onClick={() => onVoiceRxClick(clickedPatient)}
+                                        >
+                                            Voice Rx
+                                        </button>
+                                        <button
+                                            className={`btn-consult-patient-details bottom-br`}
                                             onClick={() => onConsultClick(clickedPatient)}
                                         >
                                             Consult
@@ -626,7 +675,13 @@ function WalkInConsultation() {
                                     {clickedDownArrow && (
                                         <div className='ps-rx-btns-grp' ref={consultButtonRef}>
                                             <button
-                                                className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                                                className="btn-consult-patient-details top-br with-divider"
+                                                onClick={() => onVoiceRxClick(clickedPatient)}
+                                            >
+                                                Voice Rx
+                                            </button>
+                                            <button
+                                                className="btn-consult-patient-details bottom-br"
                                                 onClick={() => onConsultClick(clickedPatient)}
                                             >
                                                 Consult
@@ -634,6 +689,55 @@ function WalkInConsultation() {
                                         </div>
                                     )}
                                 </div> 
+                            ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
+                                <div
+                                    className="d-flex w-50 justify-content-between"
+                                    style={{
+                                        background: "#4B4AD5",
+                                        borderRadius: "10px",
+                                        color: "white",
+                                        marginLeft: "1rem",
+                                        position: "relative",
+                                    }}
+                                >
+                                    <button
+                                        className="btn btn-outline-primary btn-smart-rx"
+                                        onClick={() => onVoiceRxClick(clickedPatient)}
+                                        style={{ padding: "9px 2rem 9px 10px" }}
+                                    >
+                                        <span className="btn-span-smartRx">Voice Rx</span>
+                                    </button>
+                                    <button
+                                        className="btn btn-outline-primary btn-down-arrow"
+                                        onClick={handleClickDownArrow}
+                                        style={{ padding: "9.5px 5px" }}
+                                    >
+                                        <span
+                                            role="img"
+                                            aria-label="down"
+                                            className="anticon anticon-down ant-select-suffix"
+                                        >
+                                            <i
+                                                className="icon-right"
+                                                style={{
+                                                    display: "block",
+                                                    transform: `rotate(270deg)`,
+                                                    color: "white",
+                                                }}
+                                            />
+                                        </span>
+                                    </button>
+                                    {clickedDownArrow && (
+                                        <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                            <button
+                                                className="btn-consult-patient-details bottom-br"
+                                                onClick={() => onConsultClick(clickedPatient)}
+                                            >
+                                                Consult
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <Button variant="primary"
                                     className='btn-41 px-4'
@@ -715,6 +819,31 @@ function WalkInConsultation() {
 
   const onSnapRxClick = async (patient) => {
     navigate("/snap-rx", { state: { patient_data: patient } });
+  };
+
+  const onVoiceRxClick = async (patient) => {
+    const clinic = getClinic(profile?.hospital_data);
+    window.Moengage.track_event("TP_AV_Entry", {
+      patient_id: patient?.patient_unique_id || "",
+      patient_name: patient?.pm_fullname || "",
+      patient_mobile_number: patient?.pm_contact_no || "",
+      doctor_id: profile?.doctor_unique_id,
+      user_id: userId,
+      doctor_name: profile?.um_name,
+      doctor_specialty: profile?.dp_name,
+      doctor_mobile_number: profile?.um_contact,
+      hm_id: clinic?.hm_id,
+      clinic_name: clinic?.hm_name,
+      source: "Patient Selected",
+    });
+    
+    // Navigate to Voice Rx Doctor Consult Page
+    navigate("/voice-rx-consult", {
+      state: { 
+        patient_data: patient,
+        isFromTabView: isMobile
+      },
+    });
   };
 
   return (

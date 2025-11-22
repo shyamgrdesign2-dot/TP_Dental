@@ -115,8 +115,14 @@ body {
     .fs-21 {
         font-size: 21px !important;
     }
+    .fs-24 {
+        font-size: 24px !important;
+    }
     .small, small {
         font-size: .800em;
+    }
+    .semi-bold-text {
+        font-weight: 600;
     }
     .text-greycolor {
         color: $grayColor !important;
@@ -1087,6 +1093,10 @@ body {
 
 .main-color {
     color: #4B4AD5 !important;
+}
+
+.grouding-color {
+    color: #A461D8 !important;
 }
 
 .text-price {

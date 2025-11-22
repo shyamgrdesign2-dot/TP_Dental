@@ -26,6 +26,9 @@ import customModuleIcon from "../assets/images/custom-module.svg";
 import {
   getClinic,
   getTokenData,
+  getClinicName,
+  isVoiceRxFree,
+  shouldMonetizationDisabled,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -35,6 +38,8 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   GB_SNAP_RX,
   GB_SNAP_RX_DIGITIZATION,
+  S_AMBIENT_VOICE_RX,
+  S_VOICE_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -51,8 +56,9 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
 import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
-import { getGenRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
+
 import {
   getSnapRxDigitization,
   getSnapRxFiles,
@@ -97,7 +103,10 @@ function Cardiology(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
+  const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [ambientConversations, setAmbientConversations] = useState([]);
+  const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
@@ -107,11 +116,14 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
+  const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
 
   useEffect(() => {
+    setIsGenRxTableView(false);
     setSmartRxFile([]);
     setShowDigitalRx(false);
     if (viewCaseManagerData?.tcm_id) {
@@ -255,24 +267,81 @@ function Cardiology(props) {
   const fetchSnapRxFile = async () => {
     const response = await getSnapRxFiles(
       patient_data.patient_unique_id,
-      viewCaseManagerData?.tcm_id
+      viewCaseManagerData?.tcm_id,
+      null
     );
     setSnapRxFile(response?.uploaded_files || []);
   };
 
   const getGenRxDetails = async () => {
     try {
-      const response = await getGenRx(
+      setIsGenRxTableView(false);
+      const initialResponse = await getGenRx(
         viewCaseManagerData?.smart_prescription_filename
       );
 
-      if (response.success) {
-        setGenRxData(response.data?.editedData || response.data?.digitizeData);
-        setGenRxQueries(
-          response.data?.history?.map(({ transcription }) => transcription)
-        );
+      if (initialResponse.success) {
+        // Check if conversation exists and has data in the history
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+        
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(
+            viewCaseManagerData?.smart_prescription_filename
+          );
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // If conversation is null or empty, use the dictate mode response (initialResponse)
+
+        if (response.success) {
+          const hasTabularView =
+            typeof response.data?.version === "string" &&
+            response.data.version.trim().toLowerCase() === "v2";
+          setIsGenRxTableView(hasTabularView);
+          setSnapRxDigitisedData([]);
+          setRxDigitisedData([]);
+          
+          // Check if this is ambient mode (has conversation data)
+          const isAmbientMode = hasConversation;
+          setIsAmbientRx(isAmbientMode);
+          
+          if (isAmbientMode) {
+            let prescriptionData = null;
+            
+            if (response.data.editedData) {
+              prescriptionData = response.data.editedData;
+            } else if (response.data.digitizeData) {
+              prescriptionData = response.data.digitizeData;
+            } else {
+              // Fallback to history digitize data
+              const latestHistory = response.data?.history?.[response.data.history.length - 1];
+              prescriptionData = latestHistory?.digitize || null;
+            }
+            
+            setGenRxData(prescriptionData);
+            
+            // Extract conversations from history
+            const allConversations = response.data?.history
+              ?.filter(h => h.conversation && Array.isArray(h.conversation) && h.conversation.length > 0)
+              ?.flatMap(h => h.conversation) || [];
+            setAmbientConversations(allConversations);
+          } else {
+            // Dictate mode - conversation is null or empty
+            setGenRxData(response.data?.editedData || response.data?.digitizeData);
+            setGenRxQueries(
+              response.data?.history?.map(({ transcription }) => transcription)
+            );
+          }
+        } else {
+          throw new Error(response.error || "Failed to get Rx");
+        }
       } else {
-        throw new Error(response.error || "Failed to get Rx");
+        throw new Error(initialResponse.error || "Failed to get Rx");
       }
     } catch (error) {
       console.error("Error getting Rx details:", error);
@@ -534,7 +603,12 @@ function Cardiology(props) {
       await window.open(`${printUrl}&lg=${selectedLang}`);
     } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
-      urlObj.searchParams.set("voiceRxDigitize", "true");
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
       const updatedUrl = urlObj.toString();
       await window.open(`${updatedUrl}&lg=${selectedLang}`);
     } else {
@@ -551,7 +625,12 @@ function Cardiology(props) {
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
       const urlObj = new URL(viewCaseManagerData?.print_url);
-      urlObj.searchParams.set("voiceRxDigitize", "true");
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
       voiceRxUrl = urlObj.toString();
     }
     const printUrl =
@@ -589,10 +668,17 @@ function Cardiology(props) {
           caseManagerData: viewCaseManagerData,
           smartRxFilesData: smartRxFile,
         },
-      });
-    } else {
-      navigate("/prescription", {
-        state: {
+        });
+      } else {
+       
+        if (isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+        
+        navigate("/prescription", {
+          state: {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
@@ -616,6 +702,11 @@ function Cardiology(props) {
         }
       );
       if (response?.data?.data) {
+        if (response?.data?.data?.version?.trim().toLowerCase() === "v2") {
+          setIsGenRxTableView(true);
+          setGenRxData([]);
+          setSnapRxDigitisedData([]);
+        }
         setRxDigitisedData(response?.data?.data);
         if (response?.data?.data?.isDigitize) {
           setIsRxdigitised(true);
@@ -637,10 +728,16 @@ function Cardiology(props) {
     try {
       const response = await getSnapRxDigitization(
         patient_data.patient_unique_id,
-        tcmId
+        tcmId,
+        null
       );
 
       if (response?.digitization) {
+        if (response?.digitization?.version?.trim().toLowerCase() === "v2") {
+          setIsGenRxTableView(true);
+          setGenRxData([]);
+          setRxDigitisedData([]);
+        }
         setSnapRxDigitisedData(
           response?.digitization?.editedData ||
             response?.digitization?.refinedData
@@ -726,22 +823,17 @@ function Cardiology(props) {
           )}
           {/* Handle vitals type separately */}
           {type === "vitals" &&
-            Object.entries(data?.vitals || {})
-              .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
-              .map(([key, value]) => (
-                <li key={key}>
-                  <div className="medicine-item">
-                    <span>
-                      {/* Format the key to be human-readable */}
-                      {`${key
-                        .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
-                        .replace(/^./, (str) => str.toUpperCase())}`}
-                    </span>
-                    <span className="separator">:</span>
-                    <span>{value}</span>
-                  </div>
-                </li>
-              ))}
+             Object.entries(data?.vitals || {})
+               .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
+               .map(([key, value]) => (
+                 <li key={key}>
+                   <div className="medicine-item">
+                     <span>{key}</span>
+                     <span className="separator">:</span>
+                     <span>{value}</span>
+                   </div>
+                 </li>
+               ))}
 
           {/* Handle other types (assume they are arrays) */}
           {type !== "vitals" &&
@@ -758,33 +850,63 @@ function Cardiology(props) {
                       : type === "medications" || type === "tests"
                       ? item?.refinedName
                       : type === "labResults"
-                      ? item?.testname
+                      ? (() => {
+                          const lineItem =
+                            typeof item?.lineItem === "string"
+                              ? item.lineItem.trim()
+                              : "";
+                          if (lineItem) return lineItem;
+                          const testname =
+                            typeof item?.testname === "string"
+                              ? item.testname.trim()
+                              : "";
+                          const value =
+                            typeof item?.value === "string"
+                              ? item.value.trim()
+                              : "";
+                          return testname && value
+                            ? `${testname} (${value})`
+                            : testname || value || "";
+                        })()
                       : type === "dynamicFields"
-                      ? item?.title
+                      ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
                       ? item
                       : item?.name}
                   </span>
 
                   {/* Lab Results specific rendering */}
-                  {type === "labResults" && (
-                    <>
-                      <span className="separator">:</span>
-                      <span>{item.value}</span>
-                      {/* {item.notes && <span>{` (${item.notes})`}</span>} */}
-                    </>
-                  )}
 
-                  {/* Optional rendering for lineItem */}
-                  {(type === "medications" ||
-                    type === "vaccinations" ||
+                  {(type === "vaccinations" ||
                     type === "medicalHistory" ||
                     type === "tests" ||
-                    type === "symptoms") &&
+                    type === "symptoms" ||
+                    type === "examinations" ||
+                    type === "diagnosis") && (() => {
+                    const hasIndividualFields = (item?.severity && item?.severity !== '') || 
+                                               (item?.duration && item?.duration !== '') || 
+                                               (item?.notes && item?.notes !== '') ||
+                                               (item?.type && item?.type !== '') ||
+                                               (item?.relation && item?.relation !== '');
+                    
+                    const details = hasIndividualFields
+                      ? [
+                          item?.severity && item?.severity !== '' ? item?.severity : null,
+                          item?.duration && item?.duration !== '' ? item?.duration : null,
+                          item?.notes && item?.notes !== '' ? item?.notes : null,
+                          item?.type && item?.type !== '' ? item?.type : null,
+                          item?.relation && item?.relation !== '' ? item?.relation : null,
+                        ].filter(Boolean).join(', ')
+                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                    
+                    return details && (
+                      <span> ({details})</span>
+                    );
+                  })()}
+                  {type === "medications" &&
                     item.lineItem && <span>{` (${item.lineItem})`}</span>}
 
-                  {/* Optional rendering for notes */}
-                  {(type === "examination" || type === "diagnosis" || type === "dynamicFields") &&
+                  {type === "dynamicFields" &&
                     item.notes && <span>{` (${item.notes})`}</span>}
                 </div>
               </li>
@@ -794,7 +916,209 @@ function Cardiology(props) {
     );
   };
 
-  const renderGenRxItems = (type) => (
+  // Render medications in tabular format
+  const renderMedicationsTable = () => {
+    const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
+    if (!medications || medications.length === 0) return null;
+
+    const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || !isSmartRxFile);
+    
+    const getColumnStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontSize: isTabletView && isVoiceRxView ? '10px' : '11px', 
+        wordBreak: 'break-word' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      
+      const widths = {
+        name: { width: '22%' },
+        unit: { width: '13%' },
+        frequency: { width: '15%' },
+        when: { width: '12%' },
+        duration: { width: '13%' },
+        note: { width: '25%' }
+      };
+      
+      return { ...baseStyle, ...widths[column] };
+    };
+
+    const headerStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontWeight: 700, 
+        fontSize: isTabletView && isVoiceRxView ? '11px' : '12px' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      return { ...baseStyle, ...getColumnStyle(column) };
+    };
+
+    return (
+      <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
+        <table className="w-100" style={{ width: '100%', tableLayout: isTabletView && isVoiceRxView ? 'fixed' : 'auto', borderCollapse: 'collapse', border: 'none' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
+              <th style={headerStyle('name')}>MEDICINE NAME</th>
+              <th style={headerStyle('unit')}>UNIT PER DOSE</th>
+              <th style={headerStyle('frequency')}>FREQUENCY</th>
+              <th style={headerStyle('when')}>WHEN</th>
+              <th style={headerStyle('duration')}>DURATION</th>
+              <th style={headerStyle('note')}>NOTE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {medications.map((item, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
+                <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
+                  {item?.name || 'N/A'}
+                </td>
+                <td style={getColumnStyle('unit')}>
+                  {item?.unitPerDose || item?.dosage || '-'}
+                </td>
+                <td style={getColumnStyle('frequency')}>
+                  {item?.frequency || '-'}
+                </td>
+                <td style={getColumnStyle('when')}>
+                  {item?.schedule || item?.when || '-'}
+                </td>
+                <td style={getColumnStyle('duration')}>
+                  {item?.duration || '-'}
+                </td>
+                <td style={getColumnStyle('note')}>
+                  {item?.notes || item?.note || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Render lab investigation in tabular format
+  const renderLabInvestigationTable = () => {
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.tests || [];
+    if (!labInvestigation || labInvestigation.length === 0) return null;
+
+    return (
+      <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
+        <table className="w-100" style={{ borderCollapse: 'collapse', border: 'none' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NAME</th>
+              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NOTE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {labInvestigation.map((item, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 500, fontSize: '11px' }}>
+                  {item?.name || 'N/A'}
+                </td>
+                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                  {item?.notes || item?.note || '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderMedicalHistoryGrouped = () => {
+    const medicalHistoryData = genRxData?.medicalHistory;
+    
+    if (!medicalHistoryData || !Array.isArray(medicalHistoryData) || medicalHistoryData.length === 0) {
+      return null;
+    }
+  
+    const groupedByType = medicalHistoryData.reduce((acc, item) => {
+      const type = isGenRxTableView ? (item?.type || item?.subtype || 'other') : 'other';
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(item);
+      return acc;
+    }, {});
+    
+    const typeDisplayNames = {
+      'medical_condition': 'Medical Conditions',
+      'allergy': 'Allergies',
+      'family_history': 'Family History',
+      'lifestyle': 'Lifestyle',
+      'other': 'others'
+    };
+    
+    return (
+      <div className="medical-history-grouped" style={{ marginTop: '8px' }}>
+        {Object.entries(groupedByType).map(([type, items]) => (
+          <div key={type} style={{ marginBottom: '8px' }}>
+            <div style={{ marginBottom: '4px', marginLeft: '16px' }}>
+              <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
+                • {typeDisplayNames[type] || type}:
+              </span>
+            </div>
+            
+            {items.map((item, itemIndex) => {
+              const itemName = item?.name || item?.condition || 'N/A';
+              const details = [];
+              
+              if (item?.duration && item.duration !== '') {
+                details.push(`Since: ${item.duration}`);
+              }
+              if (item?.relation && item.relation !== '') {
+                details.push(`Relation: ${item.relation}`);
+              }
+              if (item?.notes && item.notes !== '') {
+                details.push(`Note: ${item.notes}`);
+              }
+              if (item?.severity && item.severity !== '') {
+                details.push(`Severity: ${item.severity}`);
+              }
+              
+              return (
+                <div key={itemIndex} style={{ marginBottom: '2px', marginLeft: '32px' }}>
+                  <span style={{ fontWeight: 500, fontSize: 'inherit' }}>
+                    • {itemName}
+                  </span>
+                  {details.length > 0 && (
+                    <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
+                      {' ('}
+                      {details.map((detail, detailIndex) => {
+                        const [label, ...valueParts] = detail.split(':');
+                        const value = valueParts.join(':');
+                        return (
+                          <span key={detailIndex}>
+                            {detailIndex > 0 ? ' | ' : ''}
+                            <span style={{ fontWeight: 400 }}>{label}:</span>
+                            {value}
+                          </span>
+                        );
+                      })}
+                      {')'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderGenRxItems = (type) => {
+    if (type === "medicalHistory") {
+      return renderMedicalHistoryGrouped();
+    }
+    
+    return (
     <div className="digitised-data-section" style={{ marginLeft: 0 }}>
       <ol>
         {type === "followUp" && genRxData?.followUp && (
@@ -811,12 +1135,8 @@ function Cardiology(props) {
             .map(([key, value]) => (
               <li key={key}>
                 <div className="medicine-item">
-                  <span>
-                    {/* Format the key to be human-readable */}
-                    {`${key
-                      .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
-                      .replace(/^./, (str) => str.toUpperCase())}: `}
-                  </span>
+                  <span>{key}</span>
+                  <span className="separator">:</span>
                   <span>{value}</span>
                 </div>
               </li>
@@ -830,27 +1150,167 @@ function Cardiology(props) {
               <div className="medicine-item">
                 {["advice", "others"].includes(type) && <span>{item}</span>}
 
-                {/* Optional rendering for lineItem */}
-                {(type === "medications" ||
-                  type === "vaccinations" ||
+                {type === "medications" && (
+          (() => {
+            const normalizedLineItem = (item.lineItem || "").trim();
+            const detailParts = [];
+
+            if (normalizedLineItem) {
+              detailParts.push(normalizedLineItem);
+            } else {
+              if (item.dosage) {
+                detailParts.push(item.dosage);
+              }
+              if (item.unitPerDose) {
+                detailParts.push(item.unitPerDose);
+              }
+              if (item.frequency) {
+                detailParts.push(item.frequency);
+              }
+              if (item.schedule) {
+                detailParts.push(item.schedule);
+              }
+              if (item.duration) {
+                detailParts.push(item.duration);
+              }
+            }
+
+            const noteText = (item.notes || item.note || "").trim();
+            const assembledDetails = detailParts.filter(Boolean).join(", ");
+
+            const trimmedLineItem = normalizedLineItem;
+            const detailText = trimmedLineItem || assembledDetails;
+
+            const startsWithParenthesis = detailText?.trim().startsWith("(");
+            const startsWithName =
+              detailText &&
+              item.name &&
+              detailText.trim().toLowerCase().startsWith(item.name.trim().toLowerCase());
+
+            const baseName = item.name || "N/A";
+
+            let formattedMain = baseName;
+            if (detailText) {
+              if (startsWithName) {
+                formattedMain = detailText.trim();
+              } else if (startsWithParenthesis) {
+                formattedMain = `${baseName} ${detailText.trim()}`;
+              } else {
+                formattedMain = `${baseName} (${detailText})`;
+              }
+            }
+
+            const noteAlreadyPresent =
+              noteText &&
+              detailText &&
+              detailText.toLowerCase().includes(noteText.toLowerCase());
+
+            return (
+              <span>
+                {formattedMain}
+                {noteText && !noteAlreadyPresent && ` (Note: ${noteText})`}
+                  </span>
+            );
+          })()
+                )}
+              
+                {(type === "vaccinations" ||
                   type === "medicalHistory" ||
                   type === "labInvestigation" ||
                   type === "symptoms" ||
                   type === "examinations" ||
-                  type === "diagnosis") &&
-                  item.lineItem && <span>{item.lineItem}</span>}
+                  type === "diagnosis") && (() => {
+                    const hasIndividualFields = (item?.severity && item?.severity !== '') || 
+                                               (item?.duration && item?.duration !== '') || 
+                                               (item?.notes && item?.notes !== '') ||
+                                               (item?.type && item?.type !== '') ||
+                                               (item?.relation && item?.relation !== '') ||
+                                               (item?.dosage && item?.dosage !== '') ||
+                                               (item?.frequency && item?.frequency !== '') ||
+                                               (item?.schedule && item?.schedule !== '');
+                    
+                    const details = hasIndividualFields
+                      ? [
+                          item?.severity && item?.severity !== '' ? item?.severity : null,
+                          item?.duration && item?.duration !== '' ? item?.duration : null,
+                          item?.notes && item?.notes !== '' ? item?.notes : null,
+                          item?.type && item?.type !== '' ? item?.type : null,
+                          item?.relation && item?.relation !== '' ? item?.relation : null,
+                          item?.dosage && item?.dosage !== '' ? item?.dosage : null,
+                          item?.frequency && item?.frequency !== '' ? item?.frequency : null,
+                          item?.schedule && item?.schedule !== '' ? item?.schedule : null,
+                        ].filter(Boolean).join(', ')
+                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                    
+                    return item.lineItem && !hasIndividualFields ? (
+                      <span>{item.lineItem}</span>
+                    ) : item.name ? (
+                    <span>
+                      {item.name}
+                        {details && (
+                          <span> ({details})</span>
+                        )}
+                    </span>
+                    ) : (
+                      <span>{item}</span>
+                    );
+                  })()}
+
+                {type === "labResults" &&
+                  (() => {
+                    const lineItem =
+                      typeof item?.lineItem === "string"
+                        ? item.lineItem.trim()
+                        : "";
+                    if (lineItem) {
+                      return <span>{lineItem}</span>;
+                    }
+
+                    const testname =
+                      typeof item?.testname === "string"
+                        ? item.testname.trim()
+                        : "";
+                    const value =
+                      typeof item?.value === "string"
+                        ? item.value.trim()
+                        : "";
+
+                    if (!testname && !value) {
+                      return null;
+                    }
+
+                    return (
+                      <span>
+                        {testname}
+                        {testname && value ? ` (${value})` : value}
+                      </span>
+                    );
+                  })()}
               </div>
             </li>
           ))}
       </ol>
     </div>
   );
+  };
 
   const renderGenRxCustomModules = () =>
-    Object.entries(genRxData?.dynamicFields || {}).map(([module, data]) => {
+    Object.entries(genRxData?.dynamicFields || {})
+      .filter(([module, data]) => {
+        return (
+          Array.isArray(data) &&
+               data.length > 0 && 
+          data.some((item) => {
+            const value =
+              typeof item === "string"
+                ? item
+                : item?.lineItem || item?.title || item?.name || item?.notes;
+            return typeof value === "string" && value.trim().length > 0;
+          })
+        );
+      })
+      .map(([module, data]) => {
       return (
-        Array.isArray(data) &&
-        data?.every((item) => typeof item === "string") && (
           <>
             <div className="d-flex align-items-start">
               <div className="title-digitise-section mb-1">
@@ -861,17 +1321,22 @@ function Cardiology(props) {
             </div>
             <div className="digitised-data-section" style={{ marginLeft: 0 }}>
               <ol>
-                {data.map((value, index) => (
+                {data.map((value, index) => {
+                  const displayValue =
+                    typeof value === "string"
+                      ? value
+                      : value?.lineItem || value?.title || value?.name || value?.notes || "";
+                  return (
                   <li key={index}>
                     <div className="medicine-item">
-                      <span>{value}</span>
+                        <span>{displayValue}</span>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             </div>
           </>
-        )
       );
     });
 
@@ -900,7 +1365,7 @@ function Cardiology(props) {
       return fieldsToCheck.some((field) => item[field]?.trim?.().length > 0);
     });
   };
-
+  
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -910,9 +1375,8 @@ function Cardiology(props) {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
-                  <div className="subtitle">
+      
                     {viewCaseManagerData?.showConsultationDateTime}
-                  </div>
                 </div>
                 <div className="align-items-center d-flex">
                   <Button
@@ -979,7 +1443,7 @@ function Cardiology(props) {
                   >
                     <i className="icon-Print"></i>
                   </button>
-                  {!isSmartRxFile &&
+                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
                     ) && (
@@ -1210,8 +1674,8 @@ function Cardiology(props) {
                       genRxData?.medicalHistory.length > 0 && (
                         <>
                           <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Medical History
+                            <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
+                              Medical History:
                             </div>
                           </div>
                           {renderGenRxItems("medicalHistory")}
@@ -1261,7 +1725,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderGenRxItems("medications")}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderGenRxItems("medications")}
                         </>
                       )}
 
@@ -1273,7 +1739,21 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderGenRxItems("labInvestigation")}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderGenRxItems("labInvestigation")}
+                        </>
+                      )}
+
+                    {genRxData?.labResults &&
+                      genRxData?.labResults.length > 0 && (
+                        <>
+                          <div className="d-flex align-items-start">
+                            <div className="title-digitise-section mb-1">
+                              Lab Results
+                            </div>
+                          </div>
+                          {renderGenRxItems("labResults")}
                         </>
                       )}
 
@@ -1323,11 +1803,50 @@ function Cardiology(props) {
                   </div>
                 ) : (
                   <div className="m-4">
-                    {genRxQueries?.map((query, index) => (
-                      <div key={index} className="gen-rx-transcript">
-                        {query}
-                      </div>
-                    ))}
+                    {isAmbientRx ? (
+                     
+                      ambientConversations?.map((conv, index) => (
+                        <div 
+                          key={index} 
+                          style={{
+                            background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
+                            marginBottom: "20px",
+                            borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                            padding: "16px",
+                            maxWidth: "80%",
+                            marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                            marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                          }}
+                        >
+                          <div style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#5a6774",
+                            marginBottom: "4px",
+                            textTransform: "uppercase"
+                          }}>
+                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                          </div>
+                          <div style={{
+                            color: "#374151",
+                            wordWrap: "break-word",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            lineHeight: "18px",
+                            textAlign: "left"
+                          }}>
+                            {conv.text || conv.content}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                    
+                      genRxQueries?.map((query, index) => (
+                        <div key={index} className="gen-rx-transcript">
+                          {query}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -1450,7 +1969,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderItems("medications")}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderItems("medications")}
                         </>
                       )}
 
@@ -1467,7 +1988,9 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderItems("tests")}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderItems("tests")}
                         </>
                       )}
 
@@ -1721,7 +2244,9 @@ function Cardiology(props) {
                               Medication
                             </div>
                           </div>
-                          {renderItems("medications")}
+                          {isGenRxTableView
+                            ? renderMedicationsTable()
+                            : renderItems("medications")}
                         </>
                       )}
 
@@ -1738,7 +2263,9 @@ function Cardiology(props) {
                               Lab Investigation
                             </div>
                           </div>
-                          {renderItems("tests")}
+                          {isGenRxTableView
+                            ? renderLabInvestigationTable()
+                            : renderItems("tests")}
                         </>
                       )}
 
@@ -2134,11 +2661,12 @@ function Cardiology(props) {
                   No visit found for this patient yet
                 </p>
                 <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                  {isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB && !isMobile ? (
+                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <SmartDropdownButtons
                       profile={profile}
                       patient_data={patient_data}
                       navigate={navigate}
+                      userId={userId}
                     />
                   ) : (
                     <Button
@@ -2172,11 +2700,12 @@ function Cardiology(props) {
   );
 }
 
-function SmartDropdownButtons({ profile, patient_data, navigate }) {
+function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
-  
+  const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
   const [open, setOpen] = React.useState(false);
   const arrowRef = React.useRef(null);
   const containerRef = React.useRef(null);
@@ -2279,7 +2808,7 @@ function SmartDropdownButtons({ profile, patient_data, navigate }) {
           {isSnapRxAccessableFromGB &&
             <div>
               <button
-                className={`smart-rx-buttons ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "bottom-br" : "border-radius-all"}`}
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   window.Moengage.track_event("start_new_SnapRx_click", {
@@ -2297,7 +2826,32 @@ function SmartDropdownButtons({ profile, patient_data, navigate }) {
                 <span style={{ padding: "0 3.4rem" }}>Start New SnapRx</span>
               </button>
             </div>
-          } 
+          }
+          {(isFreeVoiceRxUser || tp_monetization_enable) &&
+            <div>
+              <button
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
+                onClick={() => {
+                  setOpen(false);
+                  const clinic_name = getClinicName(profile?.hospital_data);
+                  window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+                    patient_contact: patient_data?.pm_contact_no || "",
+                    patient_id: patient_data?.patient_unique_id || "",
+                    doctor_speciality: profile?.dp_name,
+                    doctor_unique_id: profile?.doctor_unique_id,
+                    clinic_name,
+                  });
+                  navigate("/voice-rx-consult", {
+                    state: { 
+                      patient_data: patient_data,
+                    },
+                  });
+                }}
+              >
+                <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+              </button>
+            </div>
+          }
         </div>
       }
     </div>

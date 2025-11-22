@@ -773,6 +773,15 @@ export const chunkArray = (array, size) => {
   return chunkedArr;
 };
 
+// Helper function to get indicator letter based on hm_type
+export const getHmTypeIndicator = (item) => {
+  if (!item) return '';
+  const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
+  if (hmType == 1) return 'Z';
+  if (hmType == 2) return 'A';
+  return '';
+};
+
 export const getClinicName = (hospitalData) => {
   const decodedToken = getDecodedToken();
   const clinicId = decodedToken?.result?.clinic_id;
