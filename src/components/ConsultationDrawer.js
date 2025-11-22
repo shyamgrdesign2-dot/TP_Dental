@@ -974,9 +974,6 @@ const ConsultationDrawer = ({
           if (validatedPrescriptionData) {
             setPrescriptionData(validatedPrescriptionData);
       
-            if (validatedPrescriptionData?.medications && Array.isArray(validatedPrescriptionData.medications) && initialMedicationsRef.current === null) {
-              initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionData.medications));
-            }
             
             // Convert API medicalHistory format to CashManagerContext format and populate it
             if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -1164,11 +1161,6 @@ const ConsultationDrawer = ({
             const validatedPrescriptionDataFromResponse = validatePrescriptionData(prescriptionDataFromResponse);
             if (validatedPrescriptionDataFromResponse) {
               setPrescriptionData(validatedPrescriptionDataFromResponse);
-              
-              // Store initial medications to detect edits later
-              if (validatedPrescriptionDataFromResponse?.medications && Array.isArray(validatedPrescriptionDataFromResponse.medications) && initialMedicationsRef.current === null) {
-                initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionDataFromResponse.medications));
-              }
               
               // Convert API medicalHistory format to CashManagerContext format and populate it
               if (validatedPrescriptionDataFromResponse?.medicalHistory && Array.isArray(validatedPrescriptionDataFromResponse.medicalHistory) && validatedPrescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -2365,10 +2357,7 @@ const ConsultationDrawer = ({
               
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
-                setPrescriptionData(validatedPrescriptionDataForDictate);
-                if (validatedPrescriptionDataForDictate?.medications && Array.isArray(validatedPrescriptionDataForDictate.medications) && initialMedicationsRef.current === null) {
-                  initialMedicationsRef.current = JSON.parse(JSON.stringify(validatedPrescriptionDataForDictate.medications));
-                }
+                setPrescriptionData(validatedPrescriptionDataForDictate);   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
                 if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -3226,51 +3215,9 @@ const ConsultationDrawer = ({
     setIsRxEdited(true);
   }, []);
 
-  const wereMedicationsEdited = () => {
-    const currentMedications = prescriptionData?.medications || [];
-    const initialMedications = initialMedicationsRef.current || [];
-    if (initialMedications === null || initialMedications.length === 0) {
-      return currentMedications.length > 0;
-    }
-    if (currentMedications.length === 0) {
-      return initialMedications.length > 0;
-    }
-    if (currentMedications.length !== initialMedications.length) {
-      return true;
-    }
-    const normalizeMed = (med) => {
-      return JSON.stringify({
-        name: med.name || med.tmm_medicine_name || '',
-        generic: med.generic || med.tmm_generic || '',
-        dosage: med.dosage || med.tmm_dosage || '',
-        frequency: med.frequency || med.tmm_freq_type || '',
-        duration: med.duration || med.tmm_days || '',
-        notes: med.notes || med.tmm_remarks || '',
-        unit: med.unit || med.tmm_unit || '',
-      });
-    };
-    
-    const currentNormalized = currentMedications.map(normalizeMed).sort();
-    const initialNormalized = initialMedications.map(normalizeMed).sort();
- 
-    if (currentNormalized.length !== initialNormalized.length) {
-      return true;
-    }
-    
-    for (let i = 0; i < currentNormalized.length; i++) {
-      if (currentNormalized[i] !== initialNormalized[i]) {
-        return true;
-      }
-    }
-    
-    return false;
-  };
-
   async function onEndVisitClick() {
     const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
-    const rxType = isAmbientRx ? "ambient" : "voice_rx";
-    const medicineEdit = wereMedicationsEdited() ? "Yes" : "No";
-    
+    const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries
       .filter(query => query.isAudio && query.duration)
       .reduce((total, query) => {
@@ -3291,7 +3238,6 @@ const ConsultationDrawer = ({
       clinic_name: clinic?.hm_name,
       rx_type: rxType,
       no_of_submits_count: submitCountRef.current,
-      medicine_edit: medicineEdit,
       no_of_typed_messages: typedMessagesCountRef.current,
       no_of_times_user_clicked_no_stay: noStayClickCount || 0,
       no_of_times_user_clicked_cross_button: crossButtonClickCountRef.current,
