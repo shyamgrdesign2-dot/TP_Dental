@@ -126,6 +126,7 @@ import {
   searchInvestigation,
 } from "../redux/investigationSlice";
 import config from "../config";
+import { isMobile } from "react-device-detect";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -145,7 +146,7 @@ const ConsultationDrawer = ({
   const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
-  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent } = state || {};
+  const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent, noStayClickCount, crossButtonClickCount, mutePauseButtonClickCount } = state || {};
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -197,6 +198,13 @@ const ConsultationDrawer = ({
   const initiallyPopulatedSectionsRef = useRef(new Set());
   // Track which medical history types were initially populated
   const initiallyPopulatedMedicalHistoryTypesRef = useRef(new Set());
+
+  const submitCountRef = useRef(fromVoiceRecording ? 1 : 0);
+  const initialMedicationsRef = useRef(null);
+  const typedMessagesCountRef = useRef(0);
+  const crossButtonClickCountRef = useRef(crossButtonClickCount || 0);
+  const mutePauseButtonClickCountRef = useRef(mutePauseButtonClickCount || 0);
+  const digitizationPadEditCountRef = useRef(0);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -341,6 +349,8 @@ const ConsultationDrawer = ({
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
+    // Increment typed messages count for auto-submit
+    typedMessagesCountRef.current += 1;
 
     const run = async () => {
       try {
@@ -515,18 +525,6 @@ const ConsultationDrawer = ({
     }
   };
 
-  useEffect(() => {
-    if (
-      VOICE_RX_planDetails !== undefined &&
-      (VOICE_RX_planDetails?.plan_tier === FREE ||
-        VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION)
-    ) {
-      setTimeout(() => {
-        setIsSubModalOpen(true);
-      }, 500);
-    }
-  }, [VOICE_RX_planDetails]);
-
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen(!isSubModalOpen);
 
@@ -567,8 +565,17 @@ const ConsultationDrawer = ({
   const getInitialWidthPercent = () => {
     if (typeof window === 'undefined') return 33;
     const screenWidth = window.innerWidth;
-    if (screenWidth >= 769 && screenWidth <= 1024) {
-      return 35;
+    // iPad mini (1024x768)
+    if (screenWidth >= 768 && screenWidth <= 1024) {
+      return 30;
+    }
+    // iPad Air (1180x820)
+    if (screenWidth > 1024 && screenWidth <= 1180) {
+      return 32;
+    }
+    // iPad Pro (1366x1024)
+    if (screenWidth > 1180 && screenWidth <= 1366) {
+      return 33;
     }
     if (screenWidth >= 1920) return 25;
     if (screenWidth >= 1440) return 33;
@@ -582,9 +589,28 @@ const ConsultationDrawer = ({
     const rect = splitRef.current.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     const totalWidth = rect.width;
+    const screenWidth = window.innerWidth;
     
-    const minLeftWidthPx = 480;
-    const minRxPadWidthPx = 960;
+    // Device-aware min/max widths
+    let minLeftWidthPx, minRxPadWidthPx;
+    if (screenWidth >= 768 && screenWidth <= 1024) {
+      // iPad mini
+      minLeftWidthPx = 280;
+      minRxPadWidthPx = 600;
+    } else if (screenWidth > 1024 && screenWidth <= 1180) {
+      // iPad Air
+      minLeftWidthPx = 320;
+      minRxPadWidthPx = 700;
+    } else if (screenWidth > 1180 && screenWidth <= 1366) {
+      // iPad Pro
+      minLeftWidthPx = 360;
+      minRxPadWidthPx = 800;
+    } else {
+      // Desktop
+      minLeftWidthPx = 480;
+      minRxPadWidthPx = 960;
+    }
+    
     const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
     const maxLeftPercent = ((totalWidth - minRxPadWidthPx) / totalWidth) * 100;
     
@@ -617,9 +643,27 @@ const ConsultationDrawer = ({
       if (!splitRef.current) return;
       const rect = splitRef.current.getBoundingClientRect();
       const totalWidth = rect.width;
+      const screenWidth = window.innerWidth;
       
-      const minLeftWidthPx = 480;
-      const minRxPadWidthPx = 960;
+      // Device-aware min/max widths
+      let minLeftWidthPx, minRxPadWidthPx;
+      if (screenWidth >= 768 && screenWidth <= 1024) {
+        // iPad mini
+        minLeftWidthPx = 280;
+        minRxPadWidthPx = 600;
+      } else if (screenWidth > 1024 && screenWidth <= 1180) {
+        // iPad Air
+        minLeftWidthPx = 320;
+        minRxPadWidthPx = 700;
+      } else if (screenWidth > 1180 && screenWidth <= 1366) {
+        // iPad Pro
+        minLeftWidthPx = 360;
+        minRxPadWidthPx = 800;
+      } else {
+        // Desktop
+        minLeftWidthPx = 480;
+        minRxPadWidthPx = 960;
+      }
       
       if (totalWidth >= minLeftWidthPx + minRxPadWidthPx) {
         const minLeftPercent = (minLeftWidthPx / totalWidth) * 100;
@@ -650,10 +694,32 @@ const ConsultationDrawer = ({
     const timer = setTimeout(() => {
       if (!splitRef.current) return;
       const totalWidth = splitRef.current.getBoundingClientRect().width || window.innerWidth;
-      const isTablet = window.innerWidth >= 769 && window.innerWidth <= 1024;
-      const desiredLeftPx = isTablet ? 250 : 480;
-      const minLeftPx = desiredLeftPx;
-      const minRightPx = isTablet ? 724 : 960;
+      const screenWidth = window.innerWidth;
+      
+      // Device-aware sizing
+      let desiredLeftPx, minLeftPx, minRightPx;
+      if (screenWidth >= 768 && screenWidth <= 1024) {
+        // iPad mini
+        desiredLeftPx = 300;
+        minLeftPx = 280;
+        minRightPx = 600;
+      } else if (screenWidth > 1024 && screenWidth <= 1180) {
+        // iPad Air
+        desiredLeftPx = 360;
+        minLeftPx = 320;
+        minRightPx = 700;
+      } else if (screenWidth > 1180 && screenWidth <= 1366) {
+        // iPad Pro
+        desiredLeftPx = 400;
+        minLeftPx = 360;
+        minRightPx = 800;
+      } else {
+        // Desktop
+        desiredLeftPx = 480;
+        minLeftPx = 480;
+        minRightPx = 960;
+      }
+      
       const minLeftPercent = (minLeftPx / totalWidth) * 100;
       const maxLeftPercent = ((totalWidth - minRightPx) / totalWidth) * 100;
       let pct = (desiredLeftPx / totalWidth) * 100;
@@ -829,8 +895,12 @@ const ConsultationDrawer = ({
           
           if (response.data.editedData) {
             prescriptionData = response.data.editedData;
+          } else if (response.data.digitizeData) {
+            prescriptionData = response.data.digitizeData;
+          } else if (response.data.digitize) {
+            prescriptionData = response.data.digitize;
           } else {
-            const ambientEntries = response.data.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
+            const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
             const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
             prescriptionData = latestAmbientEntry?.response || latestAmbientEntry?.payload?.response || latestAmbientEntry?.payload;
           }
@@ -900,12 +970,16 @@ const ConsultationDrawer = ({
             }
           }
           
-          setPrescriptionData(prescriptionData);
-          
-          // Convert API medicalHistory format to CashManagerContext format and populate it
-          if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
-            const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
-            setMedicalHistoryData(convertedData);
+          const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
+          if (validatedPrescriptionData) {
+            setPrescriptionData(validatedPrescriptionData);
+      
+            
+            // Convert API medicalHistory format to CashManagerContext format and populate it
+            if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+              const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+              setMedicalHistoryData(convertedData);
+            }
           }
           
           // For ambient mode, use conversations from history if available (when coming from patient detail)
@@ -1084,12 +1158,15 @@ const ConsultationDrawer = ({
               }
             }
             
-            setPrescriptionData(prescriptionDataFromResponse);
-            
-            // Convert API medicalHistory format to CashManagerContext format and populate it
-            if (prescriptionDataFromResponse?.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
-              const convertedData = convertMedicalHistoryToContextFormat(prescriptionDataFromResponse.medicalHistory, medicalHistoryData);
-              setMedicalHistoryData(convertedData);
+            const validatedPrescriptionDataFromResponse = validatePrescriptionData(prescriptionDataFromResponse);
+            if (validatedPrescriptionDataFromResponse) {
+              setPrescriptionData(validatedPrescriptionDataFromResponse);
+              
+              // Convert API medicalHistory format to CashManagerContext format and populate it
+              if (validatedPrescriptionDataFromResponse?.medicalHistory && Array.isArray(validatedPrescriptionDataFromResponse.medicalHistory) && validatedPrescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataFromResponse.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
             }
 
             let transcriptSource = response.data.source;
@@ -1184,6 +1261,9 @@ const ConsultationDrawer = ({
   };
 
   const handleStopRecording = () => {
+    if (isRecording || isPaused) {
+      crossButtonClickCountRef.current += 1;
+    }
     const clinic_name = getClinicName(profile?.hospital_data);
     trackEvent("TP_VoiceRx_Paused", {
       patient_contact: patient_data?.pm_contact_no || "",
@@ -1258,6 +1338,14 @@ const ConsultationDrawer = ({
             showHideSubModal();
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
+            submitCountRef.current += 1;
+            // Increment typed messages count if it's a typed message (not recording)
+            if (!isRecording && (inputText || editableQuery)) {
+              typedMessagesCountRef.current += 1;
+            }
+            if (isEditing && editableQuery) {
+              digitizationPadEditCountRef.current += 1;
+            }
             if (genRxDetails?._id) {
               const clinic_name = getClinicName(profile?.hospital_data);
               trackEvent("TP_VoiceRx_editRx", {
@@ -1461,6 +1549,17 @@ const ConsultationDrawer = ({
     // Clean the data first
     const cleanedData = deepClean(data);
     
+    // Map instruction to notes for labInvestigation items
+    const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
+      ? cleanedData.labInvestigation.map(item => {
+          const { instruction, ...restItem } = item;
+          return {
+            ...restItem,
+            notes: item.notes || item.instruction || ''
+          };
+        })
+      : [];
+    
     // Ensure all required fields exist with proper defaults
     const validatedData = {
       symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
@@ -1470,13 +1569,15 @@ const ConsultationDrawer = ({
       diagnosis: Array.isArray(cleanedData.diagnosis) ? cleanedData.diagnosis : [],
       examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
       followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
-      labInvestigation: Array.isArray(cleanedData.labInvestigation) ? cleanedData.labInvestigation : [],
+      labInvestigation: mappedLabInvestigation,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
       vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
       others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
-      dynamicFields: cleanedData.dynamicFields || {},
-      ...cleanedData // Preserve any additional fields (now cleaned)
+      ...cleanedData
     };
+    
+    validatedData.labInvestigation = mappedLabInvestigation;
+    validatedData.dynamicFields = cleanedData.dynamicFields || {};
     
     return validatedData;
   };
@@ -1677,17 +1778,17 @@ const ConsultationDrawer = ({
             // Handle ambient API response structure
             if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
               // Priority 1: Check for editedData (contains user edits including dosage)
-              if (finalResponseData.editedData || responseData?.editedData) {
-                prescriptionData = finalResponseData.editedData || responseData.editedData;
+              if (finalResponseData.editedData || actualData?.editedData || responseData?.editedData) {
+                prescriptionData = finalResponseData.editedData || actualData?.editedData || responseData.editedData;
               }
               // Priority 2: Check for digitizeData (aggregated data)
-              else if (finalResponseData.digitizeData || responseData?.digitizeData) {
-                prescriptionData = finalResponseData.digitizeData || responseData.digitizeData;
+              else if (finalResponseData.digitizeData || actualData?.digitizeData || responseData?.digitizeData) {
+                prescriptionData = finalResponseData.digitizeData || actualData?.digitizeData || responseData.digitizeData;
               }
               // Priority 3: Check for digitize object (single digitization)
-              else if (finalResponseData.digitize || responseData?.digitize) {
+              else if (finalResponseData.digitize || actualData?.digitize || responseData?.digitize) {
                 // Extract prescription data from digitize object
-                prescriptionData = finalResponseData.digitize || responseData.digitize;
+                prescriptionData = finalResponseData.digitize || actualData?.digitize || responseData.digitize;
               } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
                 // Find the latest ambient entry (for get/edit operations)
                 const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
@@ -1995,13 +2096,17 @@ const ConsultationDrawer = ({
               }
               
               setPrescriptionData((prevData) => {
+                const apiDynamicFields = validatedPrescriptionData?.dynamicFields || {};
+                const prevDynamicFields = prevData?.dynamicFields || {};
                 const mergedDynamicFields = {
-                  ...(validatedPrescriptionData?.dynamicFields),
-                  ...localModules.reduce((acc, moduleName) => {
-                    acc[moduleName] = [];
-                    return acc;
-                  }, {}),
+                  ...prevDynamicFields,
+                  ...apiDynamicFields,
                 };
+                localModules.forEach(moduleName => {
+                  if (!mergedDynamicFields[moduleName]) {
+                    mergedDynamicFields[moduleName] = [];
+                  }
+                });
 
                 if (genRxDetails?._id) {
                   const hasMeaningfulData = validatedPrescriptionData.symptoms?.length > 0 || 
@@ -2032,6 +2137,7 @@ const ConsultationDrawer = ({
                     return {
                       ...(prevData || {}),
                       medicalHistory: prevData?.medicalHistory || validatedPrescriptionData?.medicalHistory || [],
+                      dynamicFields: mergedDynamicFields,
                     };
                   }
                 } else {
@@ -2249,12 +2355,15 @@ const ConsultationDrawer = ({
                 });
               }
               
-              setPrescriptionData(prescriptionData);
-              
-              // Convert API medicalHistory format to CashManagerContext format and populate it
-              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
-                const convertedData = convertMedicalHistoryToContextFormat(prescriptionData.medicalHistory, medicalHistoryData);
-                setMedicalHistoryData(convertedData);
+              const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
+              if (validatedPrescriptionDataForDictate) {
+                setPrescriptionData(validatedPrescriptionDataForDictate);   
+                
+                // Convert API medicalHistory format to CashManagerContext format and populate it
+                if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
+                  const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataForDictate.medicalHistory, medicalHistoryData);
+                  setMedicalHistoryData(convertedData);
+                }
               }
             }
             
@@ -2557,10 +2666,16 @@ const ConsultationDrawer = ({
       ...data2,
       symptoms: mergedSymptoms,
       medicalHistory: mergedMedicalHistory,
+      dynamicFields: data1?.dynamicFields || data2?.dynamicFields || {},
     };
   };
 
   const handlePauseResume = () => {
+
+    if (isRecording || isPaused) {
+      mutePauseButtonClickCountRef.current += 1;
+    }
+    
     if (!mediaRecorderRef.current) return;
     
     try {
@@ -3101,6 +3216,15 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    const rxType = isAmbientRx ? "ambient" : "voice_rx";  
+    const totalAudioDuration = queries
+      .filter(query => query.isAudio && query.duration)
+      .reduce((total, query) => {
+        const duration = typeof query.duration === 'number' ? query.duration : parseFloat(query.duration) || 0;
+        return total + duration;
+      }, 0);
+    
     window.Moengage.track_event("TP_AV_SaveRx", {
       patient_id: patient_data?.patient_unique_id || "",
       patient_name: patient_data?.pm_fullname || "",
@@ -3112,6 +3236,14 @@ const ConsultationDrawer = ({
       doctor_mobile_number: profile?.um_contact,
       hm_id: clinic?.hm_id,
       clinic_name: clinic?.hm_name,
+      rx_type: rxType,
+      no_of_submits_count: submitCountRef.current,
+      no_of_typed_messages: typedMessagesCountRef.current,
+      no_of_times_user_clicked_no_stay: noStayClickCount || 0,
+      no_of_times_user_clicked_cross_button: crossButtonClickCountRef.current,
+      no_of_times_user_clicked_mute_pause_button: mutePauseButtonClickCountRef.current,
+      total_audio_duration_seconds: totalAudioDuration || 0,
+      no_of_edits_in_digitization_pad: digitizationPadEditCountRef.current,
     });
     const sanitizedMedications =
       prescriptionData?.medications?.map((item) => {
@@ -4609,6 +4741,10 @@ const ConsultationDrawer = ({
   };
 
   const checkDataFillOrNot = () => {
+    // Track cross button click while recording (back button)
+    if (isRecording || isPaused) {
+      crossButtonClickCountRef.current += 1;
+    }
     if (prescriptionData) {
       showHideBackModal();
     } else {
@@ -4746,7 +4882,7 @@ const ConsultationDrawer = ({
       open={visible}
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
-      width={showPrescription ? "100%" : "750px"}
+      width={showPrescription ? "100%" : (isMobile ? "100%" : "750px")}
       mask={!genRxKnowMoreDrawer}
     >
       <Suspense
@@ -4798,7 +4934,8 @@ const ConsultationDrawer = ({
                     height: "41px",
                   }}
                 >
-                  <img
+                  {!isMobile &&
+                  <> <img
                     src={zydusDataEngineIcon}
                     alt="zydus-data-engine"
                     width={28}
@@ -4818,7 +4955,7 @@ const ConsultationDrawer = ({
                     >
                       Zydus Data Engine
                     </span>
-                  </div>
+                  </div></>}
                   <Tooltip
                     placement="bottomRight"
                     overlayClassName="groundingTooltip"
@@ -4844,7 +4981,7 @@ const ConsultationDrawer = ({
                         <div>
                           <span>What is Zydus Data Engine?</span>
                           <span>
-                            With a curated list of{" "}
+                            {" "}With a curated list of{" "}
                             <span className="semi-bold-text">medicines</span>{" "}
                             and{" "}
                             <span className="semi-bold-text">lab tests</span>
@@ -4878,7 +5015,7 @@ const ConsultationDrawer = ({
                             </div>
                           </div>
 
-                          <div
+                          {/* <div
                             style={{
                               width: "503px",
                               height: "239px",
@@ -4906,12 +5043,18 @@ const ConsultationDrawer = ({
                                 alt="play-icon"
                               />
                             </div>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                     }
                   >
-                    <i className="icon-info fs-21" />
+                    {isMobile ? <img
+                    src={zydusDataEngineIcon}
+                    alt="zydus-data-engine"
+                    width={28}
+                    height={28}
+                    style={{ marginRight: 8 }}
+                  /> : <i className="icon-info fs-21" />}
                   </Tooltip>
                 </button>
               )}

@@ -28,6 +28,7 @@ import {
   getTokenData,
   getClinicName,
   isVoiceRxFree,
+  shouldMonetizationDisabled,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -115,8 +116,8 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -920,38 +921,75 @@ function Cardiology(props) {
     const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
     if (!medications || medications.length === 0) return null;
 
+    const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || !isSmartRxFile);
+    
+    const getColumnStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontSize: isTabletView && isVoiceRxView ? '10px' : '11px', 
+        wordBreak: 'break-word' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      
+      const widths = {
+        name: { width: '22%' },
+        unit: { width: '13%' },
+        frequency: { width: '15%' },
+        when: { width: '12%' },
+        duration: { width: '13%' },
+        note: { width: '25%' }
+      };
+      
+      return { ...baseStyle, ...widths[column] };
+    };
+
+    const headerStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontWeight: 700, 
+        fontSize: isTabletView && isVoiceRxView ? '11px' : '12px' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      return { ...baseStyle, ...getColumnStyle(column) };
+    };
+
     return (
       <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
-        <table className="w-100" style={{ borderCollapse: 'collapse', border: 'none' }}>
+        <table className="w-100" style={{ width: '100%', tableLayout: isTabletView && isVoiceRxView ? 'fixed' : 'auto', borderCollapse: 'collapse', border: 'none' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>MEDICINE NAME</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>UNIT PER DOSE</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>FREQUENCY</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>WHEN</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>DURATION</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NOTE</th>
+              <th style={headerStyle('name')}>MEDICINE NAME</th>
+              <th style={headerStyle('unit')}>UNIT PER DOSE</th>
+              <th style={headerStyle('frequency')}>FREQUENCY</th>
+              <th style={headerStyle('when')}>WHEN</th>
+              <th style={headerStyle('duration')}>DURATION</th>
+              <th style={headerStyle('note')}>NOTE</th>
             </tr>
           </thead>
           <tbody>
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 500, fontSize: '11px' }}>
+                <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
                   {item?.name || 'N/A'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('frequency')}>
                   {item?.frequency || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('when')}>
                   {item?.schedule || item?.when || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('duration')}>
                   {item?.duration || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('note')}>
                   {item?.notes || item?.note || '-'}
                 </td>
               </tr>
@@ -2623,7 +2661,7 @@ function Cardiology(props) {
                   No visit found for this patient yet
                 </p>
                 <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <SmartDropdownButtons
                       profile={profile}
                       patient_data={patient_data}
@@ -2666,9 +2704,8 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isFreeVoiceRxUser = isVoiceRxFree();
-  
+  const tp_monetization_enable = !shouldMonetizationDisabled();
   const [open, setOpen] = React.useState(false);
   const arrowRef = React.useRef(null);
   const containerRef = React.useRef(null);
@@ -2790,10 +2827,10 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
               </button>
             </div>
           }
-          {(isVoiceRxAccessable || isFreeVoiceRxUser) &&
+          {(isFreeVoiceRxUser || tp_monetization_enable) &&
             <div>
               <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isVoiceRxAccessable || isFreeVoiceRxUser) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isVoiceRxAccessable || isFreeVoiceRxUser) ? "bottom-br" : ""}`}
+                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
                 onClick={() => {
                   setOpen(false);
                   const clinic_name = getClinicName(profile?.hospital_data);

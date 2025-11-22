@@ -28,6 +28,7 @@ import { updatePatientDefaultLanguage } from '../api/services/DefaultLanguageSer
 function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();
     const { state } = useLocation();
+    const previousPage = state?.from;
 
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const decodedToken = getDecodedToken();
@@ -147,7 +148,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             const action = await dispatch(savePrintsettings(sendData));
 
             if (action.meta.requestStatus === "fulfilled") {
-                navigate("/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
             } else {
                 errorMessage(action.error)
             }
@@ -164,7 +165,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
         let update_json = { ...printSettings }
         delete update_json['qrcode']
         if (JSON.stringify(defaultPrintSettings) == JSON.stringify(update_json)) {
-            navigate("/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
         } else {
             setFlag(1)
             showHideBackModal()
@@ -177,9 +178,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
 
     const onYesLeaveClick = async() => {
         if (flag === 1) {
-            navigate("/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
         } else if (flag === 3) {
-            navigate("/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));
             if(action.meta.requestStatus === "fulfilled") {

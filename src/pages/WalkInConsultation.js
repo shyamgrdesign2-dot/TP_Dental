@@ -14,7 +14,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
 import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
-import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree } from "../utils/utils";
+import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
@@ -49,8 +49,8 @@ function WalkInConsultation() {
   const isSnapRxAccessable = useFeatureIsOn(
     GB_SNAP_RX
   );
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -275,7 +275,7 @@ function WalkInConsultation() {
             >
               Patient Details
             </Button>
-            {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+            {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
               <div className="d-flex btn btn-smart-rx-walkin">
                 { isSmartSyncAccessableFromGB ?
                   (
@@ -297,7 +297,7 @@ function WalkInConsultation() {
                         SnapRx
                       </button>
                     </div>
-                  ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                  ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                     <Button
                       type="text"
                       className="btn btn-primary3 align-items-center d-flex"
@@ -354,7 +354,7 @@ function WalkInConsultation() {
                 </div>
               </div>
             ) :
-            (isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+            (isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
               <div className="d-flex btn btn-smart-rx-walkin">
                 {isSmartSyncAccessableFromGB ? (
                   <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
@@ -366,7 +366,7 @@ function WalkInConsultation() {
                       SmartRx
                     </button>
                   </div>
-                ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                   <Button
                     type="text"
                     className="btn btn-primary3 align-items-center d-flex"
@@ -376,7 +376,7 @@ function WalkInConsultation() {
                     Voice Rx
                   </Button>
                 ) : null}
-                {(isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (
+                {(isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (
                   <div>
                     <Dropdown
                       className="btn"
@@ -564,7 +564,7 @@ function WalkInConsultation() {
                   </Button>
                   {/* </Link> */}
                 </div>
-                {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isVoiceRxAccessable || isFreeVoiceRxUser)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <>
                         {isSmartSyncAccessableFromGB  ? (
                             <div
@@ -689,7 +689,7 @@ function WalkInConsultation() {
                                         </div>
                                     )}
                                 </div> 
-                            ) : (isVoiceRxAccessable || isFreeVoiceRxUser) ? (
+                            ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
                                 <div
                                     className="d-flex w-50 justify-content-between"
                                     style={{

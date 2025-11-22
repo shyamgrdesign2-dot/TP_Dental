@@ -20,7 +20,7 @@ import {
   setSelectedSymptomsCollector,
 } from "../redux/ddxSlice";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { getClinicName, getTokenData, trackEvent } from "../utils/utils";
+import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
 
@@ -168,7 +168,8 @@ const formatMedicalHistoryForDisplay = (data) => {
 
 const SCPopup = ({ handlePopup, handleGenRx }) => {
   const dispatch = useDispatch();
-  const isVoiceRxAccessable = useFeatureIsOn("voice-rx");
+  const isFreeVoiceRxUser = isVoiceRxFree();
+  const tp_monetization_enable = !shouldMonetizationDisabled();
   const isSmartPrescription =
     window.location.href.includes("smart-prescription");
   const { symptomCollector, selectedSymptomsCollector } = useSelector(
@@ -733,10 +734,10 @@ const SCPopup = ({ handlePopup, handleGenRx }) => {
           gap: 32,
         }}
       >
-        {!isVoiceRxAccessable || isSmartPrescription ? (
+        {!(tp_monetization_enable || isFreeVoiceRxUser) || isSmartPrescription ? (
           <Button
             className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
-            style={{ gap: "8px", width: isVoiceRxAccessable ? "80%" : "100%" }}
+            style={{ gap: "8px", width: (tp_monetization_enable || isFreeVoiceRxUser) ? "80%" : "100%" }}
             onClick={handleAutofill}
           >
             <img src={autoFill} alt="auto-fill" />
@@ -763,16 +764,16 @@ const SCPopup = ({ handlePopup, handleGenRx }) => {
               className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
               style={{
                 gap: "8px",
-                width: isVoiceRxAccessable ? "50%" : "100%",
+                width: (tp_monetization_enable || isFreeVoiceRxUser) ? "50%" : "100%",
               }}
               onClick={handleAutofill}
             >
               <img
-                src={isVoiceRxAccessable ? autoFillRx : autoFill}
+                src={(tp_monetization_enable || isFreeVoiceRxUser) ? autoFillRx : autoFill}
                 alt="auto-fill"
               />
               <span>
-                {isVoiceRxAccessable
+                {(tp_monetization_enable || isFreeVoiceRxUser)
                   ? "Autofill to Rx Pad"
                   : "Autofill details"}
               </span>

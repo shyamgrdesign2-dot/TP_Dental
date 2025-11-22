@@ -290,7 +290,6 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: '300px',
         flex: 1,
       }}
     >
