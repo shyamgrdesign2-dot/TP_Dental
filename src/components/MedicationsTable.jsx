@@ -61,6 +61,16 @@ const MedicationsTable = ({
   const [sinceOptions, setSinceOptions] = useState(EXTRA_OPTIONS);
   const [frequencyQuery, setFrequencyQuery] = useState('');
   
+  // Helper function to extract medicine name from value (which may include unique ID)
+  const extractMedicineName = useCallback((value) => {
+    if (!value) return '';
+    // If value contains the separator, extract just the name part
+    if (value.includes('|||')) {
+      return value.split('|||')[0];
+    }
+    return value;
+  }, []);
+  
   const SINCE_OPTIONS = [
     { value: "Day(s)", label: "Days" },
     { value: "Week(s)", label: "Weeks" },
@@ -76,9 +86,11 @@ const MedicationsTable = ({
     }
     const medicineName = medication.tmm_medicine_name || medication.medicine_name;
     const genericName = medication.tmm_generic || medication.generic_name || '';
+    // Make value unique by including medication ID to prevent wrong selection when multiple medications have same name
+    const uniqueId = medication.tmm_id || medication.unique_id || uuidv4();
     return {
       key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-      value: medicineName,
+      value: `${medicineName}|||${uniqueId}`, // Unique value with separator
       label: (
         <div>
           <span className="fw-medium">{medicineName}</span>,{' '}
@@ -181,9 +193,11 @@ const MedicationsTable = ({
         if (medication && (medication.tmm_medicine_name || medication.medicine_name)) {
           const medicineName = medication.tmm_medicine_name || medication.medicine_name;
           const genericName = medication.tmm_generic || medication.generic_name || '';
+          // Make value unique by including medication ID to prevent wrong selection when multiple medications have same name
+          const uniqueId = medication.tmm_id || medication.unique_id || uuidv4();
           data.push({
             key: JSON.stringify({ ...medication, unique_id: uuidv4() }),
-            value: medicineName,
+            value: `${medicineName}|||${uniqueId}`, // Unique value with separator
             label: (
               <div>
                 <span className="fw-medium">{medicineName}</span>,{' '}
@@ -312,7 +326,9 @@ const MedicationsTable = ({
       if (option?.key && typeof option.key === 'string') {
         medication = JSON.parse(option.key);
       }
-      const medicineName = medication?.tmm_medicine_name || medication?.medicine_name || value;
+      // Extract medicine name from value (in case it includes unique ID) or from medication data
+      const extractedValue = extractMedicineName(value);
+      const medicineName = medication?.tmm_medicine_name || medication?.medicine_name || extractedValue;
       const newMedication = {
         id: Date.now().toString(),
         name: medicineName,
@@ -339,23 +355,25 @@ const MedicationsTable = ({
       onUpdate(updatedMedications);
       setSearchQuery('');
     } catch (error) {
+      // Extract medicine name from value (in case it includes unique ID)
+      const extractedName = extractMedicineName(value);
       const newMedication = {
         id: Date.now().toString(),
-        name: value,
+        name: extractedName,
         dosage: '',
         frequency: '',
         schedule: '',
         duration: '',
         quantity: 0,
         notes: '',
-        lineItem: value,
+        lineItem: extractedName,
         edited: false,
       };
       const updatedMedications = [...medications, newMedication];
       onUpdate(updatedMedications);
       setSearchQuery('');
     }
-  }, [medications, onUpdate]);
+  }, [medications, onUpdate, extractMedicineName]);
 
   const onSelectParent = useCallback(
     (value, option) => {
@@ -454,7 +472,9 @@ const MedicationsTable = ({
         }
       }
       
-      const medicineName = medicineData?.tmm_medicine_name || medicineData?.medicine_name || value;
+      // Extract medicine name from value (in case it includes unique ID) or from medicineData
+      const extractedValue = extractMedicineName(value);
+      const medicineName = medicineData?.tmm_medicine_name || medicineData?.medicine_name || extractedValue;
       const generic = medicineData?.tmm_generic || medicineData?.generic_name || '';
       
       // Update medications with new name and metadata
@@ -512,12 +532,13 @@ const MedicationsTable = ({
       setParentSearchOptions([]);
     } catch (e) {
       console.error('Error selecting medicine:', e);
-      // Fallback: update with just the value
+      // Fallback: update with just the value (extract name if it includes unique ID)
+      const extractedName = extractMedicineName(value);
       const updatedMedications = medications.map((item) => {
         if (item.id === itemId) {
           const updated = {
             ...item,
-            name: value,
+            name: extractedName,
             edited: false, // Set to false for autocomplete selections
           };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
@@ -527,7 +548,7 @@ const MedicationsTable = ({
       });
       onUpdate(updatedMedications);
       if (!isTabletMode) {
-        setEditValue(value);
+        setEditValue(extractedName);
         // Clear editing state after a short delay for fallback case
         const currentItemId = itemId;
         setTimeout(() => {
@@ -543,7 +564,7 @@ const MedicationsTable = ({
       setSearchQuery('');
       setParentSearchOptions([]);
     }
-  }, [medications, onUpdate]);
+  }, [medications, onUpdate, extractMedicineName]);
 
   const handleMedicineSelection = useCallback((itemId, value, option, isTabletMode) => {
     try {
@@ -948,6 +969,12 @@ const MedicationsTable = ({
                       onSearch={onSearchParent}
                       options={parentSearchOptions}
                       onSelect={(val, option) => handleMedicineSelection(item.id, val, option, isTablet && editingRow === item.id)}
+                      filterOption={(inputValue, option) => {
+                        // Extract medicine name from option value (before ||| separator) for matching
+                        const optionValue = option?.value || '';
+                        const medicineName = optionValue.includes('|||') ? optionValue.split('|||')[0] : optionValue;
+                        return medicineName.toLowerCase().includes(inputValue.toLowerCase());
+                      }}
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
                       getPopupContainer={() => document.body}
@@ -1215,7 +1242,14 @@ const MedicationsTable = ({
                     <input
                       type="text"
                       value={isTablet && editingRow === item.id ? rowEditValues.quantity : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('quantity', e.target.value) : setEditValue(e.target.value)}
+                      onChange={(e) => {
+                        const numericValue = onlyNumberFormat(e.target.value);
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('quantity', numericValue);
+                        } else {
+                          setEditValue(numericValue);
+                        }
+                      }}
                       onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
                       onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
                       className={styles['edit-input']}
@@ -1306,6 +1340,12 @@ const MedicationsTable = ({
             options={parentSearchOptions}
             className={styles['search-autocomplete']}
             onSelect={onSelectParent}
+            filterOption={(inputValue, option) => {
+              // Extract medicine name from option value (before ||| separator) for matching
+              const optionValue = option?.value || '';
+              const medicineName = optionValue.includes('|||') ? optionValue.split('|||')[0] : optionValue;
+              return medicineName.toLowerCase().includes(inputValue.toLowerCase());
+            }}
             defaultActiveFirstOption={true}
             popupClassName={!searchQuery && "boxpopup"}
             dropdownStyle={{ width: 420 }}

@@ -539,12 +539,12 @@ function WalkInConsultationZydus() {
                                                             Snap Rx
                                                         </button>
                                                     }
-                                                    <button
+                                                    {(isFreeVoiceRxUser || tp_monetization_enable) && <button
                                                         className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
                                                         onClick={() => onVoiceRxClick(clickedPatient)}
                                                     >
                                                         Voice Rx
-                                                    </button>
+                                                    </button>}
                                                     <button
                                                         className="btn-consult-patient-details bottom-br"
                                                         onClick={() => onConsultClick(clickedPatient)}
@@ -594,12 +594,12 @@ function WalkInConsultationZydus() {
                                             </button>
                                             {clickedDownArrow && (
                                                 <div className='ps-rx-btns-grp' ref={consultButtonRef}>
-                                                    <button
+                                                    {(isFreeVoiceRxUser || tp_monetization_enable) && <button
                                                         className="btn-consult-patient-details top-br with-divider"
                                                         onClick={() => onVoiceRxClick(clickedPatient)}
                                                     >
                                                         Voice Rx
-                                                    </button>
+                                                    </button>}
                                                     <button
                                                         className="btn-consult-patient-details bottom-br"
                                                         onClick={() => onConsultClick(clickedPatient)}

@@ -742,7 +742,9 @@ function Cardiology(props) {
           response?.digitization?.editedData ||
             response?.digitization?.refinedData
         );
-        setIsSnapRxdigitised(response?.digitization?.isDigitize);
+        if (response?.digitization?.isDigitize && response?.digitization?.isVerified) {
+          setIsSnapRxdigitised(response?.digitization?.isDigitize);
+        }
       } else {
         setSnapRxDigitisedData(null);
         setIsSnapRxdigitised(false);
