@@ -12,7 +12,7 @@ import { useLocation } from "react-router-dom";
 import { getClinic } from "../utils/utils";
 
 // Self-contained popup: fetches data from store and handles add/edit internally
-const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null }) => {
+const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null, onSuccess = null }) => {
 
   const { state } = useLocation();
   const { patient_data } = state || {};
@@ -101,6 +101,13 @@ const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null }) => {
       if (form?.tmm_id) {
         await dispatch(updateFrequentlyMedication(action.payload[0]));
       }
+      
+      // Call onSuccess callback with the added medicine data if provided
+      if (onSuccess && action.payload && action.payload.length > 0) {
+        const addedMedicine = action.payload[0];
+        onSuccess(addedMedicine);
+      }
+      
       onCancel?.();
       setForm(
         initialData || {
@@ -113,7 +120,7 @@ const CustomMedicinePopup = ({ isOpen, onCancel, initialData = null }) => {
       );
       setGenericQuery("");
     }
-  }, [form]);
+  }, [form, onSuccess, onCancel, initialData, dispatch, profile, patient_data]);
 
   return (
     <CommonModal
