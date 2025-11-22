@@ -742,7 +742,9 @@ function Cardiology(props) {
           response?.digitization?.editedData ||
             response?.digitization?.refinedData
         );
-        setIsSnapRxdigitised(response?.digitization?.isDigitize);
+        if (response?.digitization?.isDigitize && response?.digitization?.isVerified) {
+          setIsSnapRxdigitised(response?.digitization?.isDigitize);
+        }
       } else {
         setSnapRxDigitisedData(null);
         setIsSnapRxdigitised(false);
@@ -935,12 +937,13 @@ function Cardiology(props) {
       if (!isTabletView || !isVoiceRxView) return baseStyle;
       
       const widths = {
-        name: { width: '22%' },
-        unit: { width: '13%' },
-        frequency: { width: '15%' },
-        when: { width: '12%' },
-        duration: { width: '13%' },
-        note: { width: '25%' }
+        name: { width: '20%' },
+        unit: { width: '12%' },
+        frequency: { width: '13%' },
+        when: { width: '10%' },
+        duration: { width: '12%' },
+        quantity: { width: '10%' },
+        note: { width: '23%' }
       };
       
       return { ...baseStyle, ...widths[column] };
@@ -968,6 +971,7 @@ function Cardiology(props) {
               <th style={headerStyle('frequency')}>FREQUENCY</th>
               <th style={headerStyle('when')}>WHEN</th>
               <th style={headerStyle('duration')}>DURATION</th>
+              <th style={headerStyle('quantity')}>QUANTITY</th>
               <th style={headerStyle('note')}>NOTE</th>
             </tr>
           </thead>
@@ -988,6 +992,9 @@ function Cardiology(props) {
                 </td>
                 <td style={getColumnStyle('duration')}>
                   {item?.duration || '-'}
+                </td>
+                <td style={getColumnStyle('quantity')}>
+                  {item?.quantity || item?.qty || '-'}
                 </td>
                 <td style={getColumnStyle('note')}>
                   {item?.notes || item?.note || '-'}
