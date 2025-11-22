@@ -905,38 +905,75 @@ function Cardiology(props) {
     const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
     if (!medications || medications.length === 0) return null;
 
+    const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || !isSmartRxFile);
+    
+    const getColumnStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontSize: isTabletView && isVoiceRxView ? '10px' : '11px', 
+        wordBreak: 'break-word' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      
+      const widths = {
+        name: { width: '22%' },
+        unit: { width: '13%' },
+        frequency: { width: '15%' },
+        when: { width: '12%' },
+        duration: { width: '13%' },
+        note: { width: '25%' }
+      };
+      
+      return { ...baseStyle, ...widths[column] };
+    };
+
+    const headerStyle = (column) => {
+      const baseStyle = { 
+        padding: isTabletView && isVoiceRxView ? '6px' : '8px', 
+        border: '1px solid #171725', 
+        textAlign: 'left', 
+        fontWeight: 700, 
+        fontSize: isTabletView && isVoiceRxView ? '11px' : '12px' 
+      };
+      if (!isTabletView || !isVoiceRxView) return baseStyle;
+      return { ...baseStyle, ...getColumnStyle(column) };
+    };
+
     return (
       <div className="digitised-data-section" style={{ marginLeft: 0, marginTop: 10, border: '1px solid black', borderRadius: '10px', overflow: 'hidden' }}>
-        <table className="w-100" style={{ borderCollapse: 'collapse', border: 'none' }}>
+        <table className="w-100" style={{ width: '100%', tableLayout: isTabletView && isVoiceRxView ? 'fixed' : 'auto', borderCollapse: 'collapse', border: 'none' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #171725', backgroundColor: '#f8f9fa' }}>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>MEDICINE NAME</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>UNIT PER DOSE</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>FREQUENCY</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>WHEN</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>DURATION</th>
-              <th style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 700, fontSize: '12px' }}>NOTE</th>
+              <th style={headerStyle('name')}>MEDICINE NAME</th>
+              <th style={headerStyle('unit')}>UNIT PER DOSE</th>
+              <th style={headerStyle('frequency')}>FREQUENCY</th>
+              <th style={headerStyle('when')}>WHEN</th>
+              <th style={headerStyle('duration')}>DURATION</th>
+              <th style={headerStyle('note')}>NOTE</th>
             </tr>
           </thead>
           <tbody>
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontWeight: 500, fontSize: '11px' }}>
+                <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
                   {item?.name || 'N/A'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('frequency')}>
                   {item?.frequency || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('when')}>
                   {item?.schedule || item?.when || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('duration')}>
                   {item?.duration || '-'}
                 </td>
-                <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
+                <td style={getColumnStyle('note')}>
                   {item?.notes || item?.note || '-'}
                 </td>
               </tr>
