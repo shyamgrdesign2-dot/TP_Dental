@@ -892,7 +892,7 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
 
   // Bengali/Assamese
   if (/[\u0980-\u09FF]/.test(text)) {
-    return "NotoSansBengali";
+    return "AnekBangla";
   }
 
   // Tamil
@@ -917,7 +917,7 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
 
   // Gujarati
   if (/[\u0A80-\u0AFF]/.test(text)) {
-    return "NotoSansGujarati";
+    return "AnekGujarati";
   }
 
   // Punjabi/Gurmukhi
@@ -1530,4 +1530,60 @@ export const getPlatformName = () => {
 // Helper function to get the platform name for welcome messages
 export const getWelcomePlatformName = () => {
   return shouldUseTatvaCare() ? "Tatva Care Platform" : "TatvaPractice";
+};
+
+export const getImageDimensions = (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = url;
+
+    img.onload = () => {
+      resolve({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    };
+
+    img.onerror = (err) => reject(err);
+  });
+};
+
+export const updateFooterImageHeight = (
+  footerFile,
+  setFileFooter,
+  initialUpdate
+) => {
+  getImageDimensions(footerFile?.showFile)
+    .then(({ height, width }) => {
+      const widthOfA4PageInPts = 595;
+      const PX_TO_PT = 0.75;
+      const pageXPadding = PX_TO_PT * 60;
+      const footerImgDimensions = {
+        footerHeight: height || 0,
+        footerWidth: width || 0,
+        renderedFooterImageHeight:
+          (height / width) * (widthOfA4PageInPts - pageXPadding) || 0,
+      };
+      if (initialUpdate) {
+        setFileFooter({
+          imageShow: true,
+          showFile: footerFile?.showFile,
+          ...footerImgDimensions,
+        });
+      } else {
+        setFileFooter((prev) => ({ ...prev, ...footerImgDimensions }));
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      if (initialUpdate) {
+        setFileFooter({
+          imageShow: true,
+          showFile: footerFile?.showFile,
+          footerHeight: 0,
+          footerWidth: 0,
+          renderedFooterImageHeight: 0,
+        });
+      }
+    });
 };

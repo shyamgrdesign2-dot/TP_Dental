@@ -209,7 +209,7 @@ function SidebarDoctor() {
         (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
       ) {
       const token = await getToken();
-        window.location.href = `https://pm-doctor-portal-ipd-prod.tatvacare.in/?redirectTo=ipd/inPatients&authToken=${token}`;
+        window.location.href = `${config.ipd_portal_url}/?redirectTo=ipd/inPatients&authToken=${token}`;
       } else if (moduleName === "opd_billing" && isOpdBillingAccessable) {
         navigate("/billing-dashboard");
       } else if (moduleName === "all_patients") {
