@@ -149,6 +149,7 @@ import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
+import AbhaDrawer from "./abha/AbhaDrawer";
 
 const { TextArea } = Input;
 
@@ -651,6 +652,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [patientWalletBalance, setPatientWalletBalance] = useState(0);
   const [isSymptomsCollectorTour, setIsSymptomsCollectorTour] = useState(false);
   const [firstSymptomIndex, setFirstSymptomIndex] = useState(null);
+  const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
+
   // Add this useEffect to find the first record with symptoms
   useEffect(() => {
     if (
@@ -1159,6 +1162,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           </span>
         ),
         key: "cancelappt",
+      },
+      {
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleCreateAbhaDrawer();
+            }}
+          >
+            Create/Link ABHA
+          </span>
+        ),
+        key: "createabha",
       },
       {
         label: (
@@ -2395,6 +2411,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setAddAdvanceDrawer(!addAdvanceDrawer);
   }, [addAdvanceDrawer]);
 
+  const handleCreateAbhaDrawer = useCallback(() => {
+    setCreateAbhaDrawer(!createAbhaDrawer);
+  }, [createAbhaDrawer]);
+
   const handleRecentBillDrawer = useCallback(() => {
     setRecentBillDrawer(!recentBillDrawer);
   }, [recentBillDrawer]);
@@ -3270,6 +3290,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             patientData={appointmentSelectedFromMenu}
           />
         </Drawer>
+      )}
+
+      {createAbhaDrawer && (
+        <AbhaDrawer
+          onClose={handleCreateAbhaDrawer}
+          open={createAbhaDrawer}
+          patientUniqueId={appointmentSelectedFromMenu?.patient_unique_id}
+        />
       )}
 
       <ExpiredSubModal

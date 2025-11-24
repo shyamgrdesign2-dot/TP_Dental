@@ -65,6 +65,7 @@ import { resetGrowthChartState } from "../../redux/growthChartSlice";
 import { resetObstetricState } from "../../redux/obstetricSlice";
 import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
+import AbhaDrawer from "../../components/abha/AbhaDrawer";
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -109,6 +110,7 @@ const AllPatients = () => {
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [pageNo, setPageNo] = useState(1);
   const [showCertificate, setShowCertificate] = useState(false);
+  const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -304,6 +306,10 @@ const AllPatients = () => {
     setShowCertificate((prev) => !prev);
   };
 
+  const handleCreateAbhaDrawer = useCallback(() => {
+    setCreateAbhaDrawer(!createAbhaDrawer);
+  }, [createAbhaDrawer]);
+
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
     if (files) {
@@ -435,6 +441,19 @@ const AllPatients = () => {
             }}
           >
             Create Certificate
+          </span>
+        ),
+        key: "createCertificate",
+      },
+      {
+        label: (
+          <span
+            onClick={() => {
+              setPatientData(record);
+              handleCreateAbhaDrawer();
+            }}
+          >
+            Create/Link ABHA
           </span>
         ),
         key: "createCertificate",
@@ -1206,6 +1225,13 @@ const AllPatients = () => {
             replace={false}
           />
         </Drawer>
+      )}
+      {createAbhaDrawer && (
+        <AbhaDrawer
+          onClose={handleCreateAbhaDrawer}
+          open={createAbhaDrawer}
+          patientUniqueId={patientData?.patient_unique_id}
+        />
       )}
     </>
   );
