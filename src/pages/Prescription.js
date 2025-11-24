@@ -301,7 +301,6 @@ function Prescription() {
   const [shouldShowApexPopup, setShowApexPopup] = useState(true);
   const [shouldShowGenRxPopup, setShowGenRxPopup] = useState(true);
   const [shouldShowTatvaAiPopup, setShowTatvaAiPopup] = useState(true);
-  const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(true);
   const [ddxKnowMoreDrawer, setDDxKnowMoreDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
@@ -329,6 +328,7 @@ function Prescription() {
   const { isDDxReadyToGenerate, showSCPopup, isAutofillSelected } = useSelector(
     (state) => state.ddx
   );
+  const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(false);
 
   const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const baseUrl = env.lab_params_api_url;
