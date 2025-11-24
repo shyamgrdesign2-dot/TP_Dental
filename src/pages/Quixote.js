@@ -26,76 +26,104 @@ function Quixote({ mode = NORMAL, ...props }) {
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
     const {isGynaecHistoryAccessable} = useAccess();
+    const { isPediatricAccessable } = useAccess();
     const dispatch = useDispatch();
 
-    const initialRows = [
-        {
-            key: '1',
-            name: `Temp (F)`,
-        },
-        {
-            key: '2',
-            name: `Pulse (/min)`,
-        },
-        {
-            key: '3',
-            name: `Resp. Rate (/min)`,
-        },
-        {
-            key: '4',
-            name: `Blood Pressure (mmHg)`,
-        },
-        // {
-        //     key: '4',
-        //     name: `Systolic (mmHg)`,
-        // },
-        // {
-        //     key: '5',
-        //     name: `Diastolic (mmHg)`,
-        // },
-        {
-            key: '5',
-            name: `SPO2 (%)`,
-        },
-        {
-            key: '6',
-            name: `General RBS (mg/dl)`,
-        },
-         {
-            key: '7',
-            name: `FIB4 `,
-        },
-        {
-            key: '8',
-            name: `Waist Circumference (cms)`,
-        },
-        {
-            key: '9',
-            name: `OFC (cms)`,
-        },
-        {
-            key: '10',
-            name: `Height (cms)`,
-        },
-        {
-            key: '11',
-            name: `Weight (kgs)`,
-        },
-        {
-            key: '12',
-            name: `BMI (kg/m²)`,
-        },
-        {
-            key: '13',
-            name: `BMR (kcals)`,
-        },
-        {
-            key: '14',
-            name: `BSA (m²)`,
-        },
-       
+    const initialRows = (() => {
+        const rows = [
+            {
+                key: '1',
+                name: `Temp (F)`,
+            },
+            {
+                key: '2',
+                name: `Pulse (/min)`,
+            },
+            {
+                key: '3',
+                name: `Resp. Rate (/min)`,
+            },
+            {
+                key: '4',
+                name: `Blood Pressure (mmHg)`,
+            },
+            // {
+            //     key: '4',
+            //     name: `Systolic (mmHg)`,
+            // },
+            // {
+            //     key: '5',
+            //     name: `Diastolic (mmHg)`,
+            // },
+            {
+                key: '5',
+                name: `SPO2 (%)`,
+            },
+            {
+                key: '6',
+                name: `General RBS (mg/dl)`,
+            },
+             {
+                key: '7',
+                name: `FIB4 `,
+            },
+            {
+                key: '8',
+                name: `Waist Circumference (cms)`,
+            },
+            {
+                key: '9',
+                name: `OFC (cms)`,
+            },
+            {
+                key: '10',
+                name: `Height (cms)`,
+            },
+            {
+                key: '11',
+                name: `Weight (kgs)`,
+            },
+            {
+                key: '12',
+                name: `BMI (kg/m²)`,
+            },
+            {
+                key: '13',
+                name: `BMR (kcals)`,
+            },
+            {
+                key: '14',
+                name: `BSA (m²)`,
+            },
+        ];
 
-    ];
+        if (!isPediatricAccessable) return rows;
+
+        const priorityNames = ['Height (cms)', 'Weight (kgs)', 'OFC (cms)'];
+        const priorityRows = [];
+        const otherRows = [];
+
+        rows.forEach((row) => {
+            if (priorityNames.includes(row.name)) {
+                priorityRows.push(row);
+            } else {
+                otherRows.push(row);
+            }
+        });
+
+        const orderedPriority = priorityNames
+            .map((name) => priorityRows.find((row) => row.name === name))
+            .filter(Boolean);
+
+        return [...orderedPriority, ...otherRows];
+    })();
+
+    const setRowValue = (rowName, columnIndex, value) => {
+        const targetRow = initialRows.find((row) => row.name === rowName);
+        if (targetRow) {
+            targetRow[columnIndex] = value ?? '-';
+        }
+    };
 
     const initialColumns = [
         {
@@ -113,24 +141,29 @@ function Quixote({ mode = NORMAL, ...props }) {
 
     const columns = [...initialColumns, ...dateColumns];
 
-    caseManagerData && caseManagerData.vitals.length > 0 && caseManagerData.vitals.slice(0, 3).map((item, index) => {
-        initialRows[0][index] = item.temp ? item.temp : '-'
-        initialRows[1][index] = item.pres ? item.pres : '-'
-        initialRows[2][index] = item.resp_rate ? item.resp_rate : '-'
-        initialRows[3][index] = item.blood_press ? item.blood_press.endsWith("/") ? item.blood_press.substring(0, item.blood_press.length - 1) : item.blood_press : '-'
-        // initialRows[3][index] = item.blood_press ? item.blood_press.split('/')[0] ? item.blood_press.split('/')[0] : '-' : '-'
-        // initialRows[4][index] = item.blood_press ? item.blood_press.split('/')[1] ? item.blood_press.split('/')[1] : '-' : '-'
-        initialRows[4][index] = item.spo2 ? item.spo2 : '-'
-        initialRows[5][index] = item.general_rbs ? item.general_rbs : "-";
-        initialRows[6][index] = item.fib4 ? item.fib4 : '-'
-        initialRows[7][index] = item.waist_circumference ? item.waist_circumference : '-'
-        initialRows[8][index] = item.ofc ? item.ofc : "-";
-        initialRows[9][index] = item.height ? item.height : '-'
-        initialRows[10][index] = item.weight ? item.weight : '-'
-        initialRows[11][index] = item.bmi ? parseFloat(item.bmi).toFixed(2) : '-'
-        initialRows[12][index] = item.bmr ? parseFloat(item.bmr).toFixed(2) : '-'
-        initialRows[13][index] = item.bsa ? parseFloat(item.bsa).toFixed(2) : '-'
-    });
+    caseManagerData &&
+        caseManagerData.vitals.length > 0 &&
+        caseManagerData.vitals.slice(0, 3).map((item, index) => {
+            setRowValue('Temp (F)', index, item.temp || '-');
+            setRowValue('Pulse (/min)', index, item.pres || '-');
+            setRowValue('Resp. Rate (/min)', index, item.resp_rate || '-');
+            const formattedBP = item.blood_press
+                ? item.blood_press.endsWith('/')
+                    ? item.blood_press.substring(0, item.blood_press.length - 1)
+                    : item.blood_press
+                : '-';
+            setRowValue('Blood Pressure (mmHg)', index, formattedBP || '-');
+            setRowValue('SPO2 (%)', index, item.spo2 || '-');
+            setRowValue('General RBS (mg/dl)', index, item.general_rbs || '-');
+            setRowValue('FIB4 ', index, item.fib4 || '-');
+            setRowValue('Waist Circumference (cms)', index, item.waist_circumference || '-');
+            setRowValue('OFC (cms)', index, item.ofc || '-');
+            setRowValue('Height (cms)', index, item.height || '-');
+            setRowValue('Weight (kgs)', index, item.weight || '-');
+            setRowValue('BMI (kg/m²)', index, item.bmi ? parseFloat(item.bmi).toFixed(2) : '-');
+            setRowValue('BMR (kcals)', index, item.bmr ? parseFloat(item.bmr).toFixed(2) : '-');
+            setRowValue('BSA (m²)', index, item.bsa ? parseFloat(item.bsa).toFixed(2) : '-');
+        });
 
     const [pdfUrl, setPdfUrl] = useState(null)
     const [numPages, setNumPages] = useState();

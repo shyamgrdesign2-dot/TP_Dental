@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles } from '../../utils/utils'
-import { EXTRA_OPTIONS, NEO_NATOLOGISTS_DP_ID, NORMAL, WHATSAPP } from '../../utils/constants';
+import { EXTRA_OPTIONS, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP } from '../../utils/constants';
 import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
@@ -262,6 +262,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const gynecHistoryData = caseManagerData?.gynecHistoryData
     const labParamsData = caseManagerData?.labParamsData
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
+    const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
     const { growthChartData, growthChartImageData, todayGrowthChartData } =
         growthChartDetails || {};
@@ -1827,47 +1828,40 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </>
                                                     )}
                                                     {caseManagerData.vitals.length > 0 && caseManagerData.vitals.map((item, i) => {
+                                                        const vitalsArray = [
+                                                            ['temp', item.temp ? `Temp: ${item.temp}F` : ''],
+                                                            ['pres', item.pres ? `Pulse: ${item.pres}/min` : ''],
+                                                            ['resp_rate', item.resp_rate ? `Resp. Rate: ${item.resp_rate}/min` : ''],
+                                                            ['blood_press', item.blood_press ? item.blood_press.endsWith("/") ? `BP: ${item.blood_press.substring(0, item.blood_press.length - 1)}mmHg` : `BP: ${item.blood_press}mmHg` : ''],
+                                                            ['spo2', item.spo2 ? `SPO2: ${item.spo2}%` : ''],
+                                                            ['general_rbs', item.general_rbs ? `General RBS: ${item.general_rbs}mg/dl` : ''],
+                                                            ['fib4', item.fib4 ? `FIB4: ${item.fib4}` : ''],
+                                                            ['waist_circumference', item.waist_circumference ? `Waist Circumference: ${item.waist_circumference}cms` : ''],
+                                                            ['ofc', item.ofc ? `OFC: ${item.ofc}cms` : ''],
+                                                            ['height', item.height ? `Height: ${item.height}cms` : ''],
+                                                            ['weight', item.weight ? `Weight: ${item.weight}kgs` : ''],
+                                                            ['bmi', item.bmi ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²` : ''],
+                                                            ['bmr', item.bmr ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
+                                                            ['bsa', item.bsa ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
+                                                        ];
+                                                        const priorityOrder = ['height', 'weight', 'ofc'];
+                                                        const orderedVitals = isPediatricAccessable
+                                                            ? [
+                                                                ...priorityOrder
+                                                                    .map((key) => vitalsArray.find(([k]) => k === key))
+                                                                    .filter(Boolean),
+                                                                ...vitalsArray.filter(([key]) => !priorityOrder.includes(key)),
+                                                            ]
+                                                            : vitalsArray;
+                                                        const vitalsText = orderedVitals
+                                                            .map(([, value]) => value)
+                                                            .filter(Boolean)
+                                                            .join(', ');
                                                         return (
                                                             <Text key={i}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{moment(item.date).format('DD/MM/YYYY')}&nbsp;</Text>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                    {`- ${Object.values(Object.fromEntries(Object.entries(
-                                                                        (
-                                                                            ({
-                                                                                temp,
-                                                                                pres,
-                                                                                resp_rate,
-                                                                                blood_press,
-                                                                                spo2,
-                                                                                height,
-                                                                                weight,
-                                                                                fib4,
-                                                                                waist_circumference,
-                                                                                bmi,
-                                                                                bmr,
-                                                                                bsa,
-                                                                                ofc,
-                                                                                general_rbs
-                                                                            }) => ({
-                                                                                temp: temp ? `Temp: ${temp}F` : '',
-                                                                                pres: pres ? `Pulse: ${pres}/min` : '',
-                                                                                resp_rate: resp_rate ? `Resp. Rate: ${resp_rate}/min` : '',
-                                                                                blood_press: blood_press ? blood_press.endsWith("/") ? `BP: ${blood_press?.substring(0, blood_press.length - 1)}mmHg` : `BP: ${blood_press}mmHg` : '',
-                                                                                // systolic: blood_press ? blood_press.split('/')[0] ? `Systolic (${blood_press.split('/')[0]}mmHg)` : '' : '',
-                                                                                // diastolic: blood_press ? blood_press.split('/')[1] ? `Diastolic (${blood_press.split('/')[1]}mmHg)` : '' : '',
-                                                                                spo2: spo2 ? `SPO2: ${spo2}%` : '',
-                                                                                general_rbs: general_rbs ? `General RBS: ${general_rbs}mg/dl` : '',
-                                                                                fib4: fib4 ? `FIB4: ${fib4}` : '',
-                                                                                waist_circumference: waist_circumference ? `Waist Circumference: ${waist_circumference}cms` : '',
-                                                                                ofc: ofc ? `OFC: ${ofc}cms` : '',
-                                                                                height: height ? `Height: ${height}cms` : '',
-                                                                                weight: weight ? `Weight: ${weight}kgs` : '',
-                                                                                bmi: bmi ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
-                                                                                bmr: bmr ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
-                                                                                bsa: bsa ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
-                                                                            })
-                                                                        )(caseManagerData.vitals[i])
-                                                                    ).filter(([_, v]) => v))).join(', ')}`}{caseManagerData.vitals.length - 1 != i ? ',' : ''}&nbsp;
+                                                                    {`- ${vitalsText}`}{caseManagerData.vitals.length - 1 != i ? ',' : ''}&nbsp;
                                                                 </Text>
                                                             </Text>
                                                         )
@@ -1900,48 +1894,60 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         )}
                                                     </Text>
                                                     {caseManagerData.vitals.length > 0 && caseManagerData.vitals.map((item, i) => {
+                                                        const vitalsEntries = Object.entries(
+                                                            (({
+                                                                temp,
+                                                                pres,
+                                                                resp_rate,
+                                                                blood_press,
+                                                                spo2,
+                                                                height,
+                                                                weight,
+                                                                fib4,
+                                                                waist_circumference,
+                                                                bmi,
+                                                                bmr,
+                                                                bsa,
+                                                                ofc,
+                                                                general_rbs
+                                                            }) => ({
+                                                                temp: temp ? `Temp: ${temp}F` : '',
+                                                                pres: pres ? `Pulse: ${pres}/min` : '',
+                                                                resp_rate: resp_rate ? `Resp. Rate: ${resp_rate}/min` : '',
+                                                                blood_press: blood_press
+                                                                    ? blood_press.endsWith("/")
+                                                                        ? `BP: ${blood_press?.substring(0, blood_press.length - 1)}mmHg`
+                                                                        : `BP: ${blood_press}mmHg`
+                                                                    : '',
+                                                                spo2: spo2 ? `SPO2: ${spo2}%` : '',
+                                                                general_rbs: general_rbs ? `General RBS: ${general_rbs}mg/dl` : '',
+                                                                fib4: fib4 ? `FIB4: ${fib4}` : '',
+                                                                waist_circumference: waist_circumference ? `Waist Circumference : ${waist_circumference}cms` : '',
+                                                                ofc: ofc ? `OFC: ${ofc}cms` : '',
+                                                                height: height ? `Height: ${height}cms` : '',
+                                                                weight: weight ? `Weight: ${weight}kgs` : '',
+                                                                bmi: bmi ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
+                                                                bmr: bmr ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
+                                                                bsa: bsa ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
+                                                            }))(item)
+                                                        ).filter(([_, value]) => value);
+
+                                                        const priorityKeys = ['height', 'weight', 'ofc'];
+                                                        const orderedEntries = isPediatricAccessable
+                                                            ? [
+                                                                ...priorityKeys.map((key) => vitalsEntries.find(([k]) => k === key)).filter(Boolean),
+                                                                ...vitalsEntries.filter(([key]) => !priorityKeys.includes(key)),
+                                                            ]
+                                                            : vitalsEntries;
+
+                                                        const vitalsText = orderedEntries.map(([, value]) => value).join(', ');
+
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{moment(item.date).format('DD/MM/YYYY')}&nbsp;</Text>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                    {`- ${Object.values(Object.fromEntries(Object.entries(
-                                                                        (
-                                                                            ({
-                                                                                temp,
-                                                                                pres,
-                                                                                resp_rate,
-                                                                                blood_press,
-                                                                                spo2,
-                                                                                height,
-                                                                                weight,
-                                                                                fib4,
-                                                                                waist_circumference,
-                                                                                bmi,
-                                                                                bmr,
-                                                                                bsa,
-                                                                                ofc,
-                                                                                general_rbs
-                                                                            }) => ({
-                                                                                temp: temp ? `Temp: ${temp}F` : '',
-                                                                                pres: pres ? `Pulse: ${pres}/min` : '',
-                                                                                resp_rate: resp_rate ? `Resp. Rate: ${resp_rate}/min` : '',
-                                                                                blood_press: blood_press ? blood_press.endsWith("/") ? `BP: ${blood_press?.substring(0, blood_press.length - 1)}mmHg` : `BP: ${blood_press}mmHg` : '',
-                                                                                // systolic: blood_press ? blood_press.split('/')[0] ? `Systolic (${blood_press.split('/')[0]}mmHg)` : '' : '',
-                                                                                // diastolic: blood_press ? blood_press.split('/')[1] ? `Diastolic (${blood_press.split('/')[1]}mmHg)` : '' : '',
-                                                                                spo2: spo2 ? `SPO2: ${spo2}%` : '',
-                                                                                general_rbs: general_rbs ? `General RBS: ${general_rbs}mg/dl` : '',
-                                                                                fib4: fib4 ? `FIB4: ${fib4}` : '',
-                                                                                waist_circumference: waist_circumference ? `Waist Circumference : ${waist_circumference}cms` : '',
-                                                                                ofc: ofc ? `OFC: ${ofc}cms` : '',
-                                                                                height: height ? `Height: ${height}cms` : '',
-                                                                                weight: weight ? `Weight: ${weight}kgs` : '',
-                                                                                bmi: bmi ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
-                                                                                bmr: bmr ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
-                                                                                bsa: bsa ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
-                                                                            })
-                                                                        )(caseManagerData.vitals[i])
-                                                                    ).filter(([_, v]) => v))).join(', ')}\n`}
+                                                                    {`- ${vitalsText}\n`}
                                                                 </Text>
                                                             </Text>
                                                         )

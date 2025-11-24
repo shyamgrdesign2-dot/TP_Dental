@@ -7,6 +7,7 @@ import CashManagerContext from '../context/CashManagerContext';
 
 import moment from "moment";
 import { useLocation } from "react-router-dom";
+import { useAccess } from "../pages/vaccination/useAccess";
 
 const showDateFormat = 'DD MMM, YY'
 
@@ -17,7 +18,7 @@ function VitalsList(props) {
     const { vitalsPastList, patientBirthWeight } = useSelector(
       (state) => state.vitals
     );
-
+    const { isPediatricAccessable } = useAccess();
     const { vitalsData } = useContext(CashManagerContext);
 
     const PAST_VITALS = useMemo(() => {
@@ -29,6 +30,26 @@ function VitalsList(props) {
                         <div className="title-sami mb-3">
                             {moment(item.date).format(showDateFormat)}
                         </div>
+                        {isPediatricAccessable && <>
+                        {item.height && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Height</div>
+                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
+                            </div>
+                        )}
+                        {item.weight && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Weight</div>
+                                <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
+                            </div>
+                        )}
+                        {item.ofc ? (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">OFC</div>
+                                <Input className='inputheight41-group mx-2' value={item.ofc} addonAfter={'cms'} readOnly />
+                            </div>
+                        ) : null}
+                        </>}
                         {item.temp && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Temperature</div>
@@ -83,7 +104,7 @@ function VitalsList(props) {
                                 <Input className='inputheight41-group mx-2' value={item.waist_circumference} addonAfter={'cms'} readOnly />
                             </div>
                         )}
-                        {item.ofc ? (
+                        {!isPediatricAccessable && <>{item.ofc ? (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">OFC</div>
                                 <Input className='inputheight41-group mx-2' value={item.ofc} addonAfter={'cms'} readOnly />
@@ -100,7 +121,7 @@ function VitalsList(props) {
                                 <div className="fontroboto">Weight</div>
                                 <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
                             </div>
-                        )}
+                        )}</>}
                         {item.bmi && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">BMI</div>
@@ -135,6 +156,25 @@ function VitalsList(props) {
                         <div className="title-sami mb-3">
                             {moment(item.date).format(showDateFormat)}
                         </div>
+                        {isPediatricAccessable && <>
+                        {item.height && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Height</div>
+                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
+                            </div>
+                        )}
+                        {item.weight && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Weight</div>
+                                <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
+                            </div>
+                        )}
+                        {item?.ofc ? (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">OFC</div>
+                                <Input className='inputheight41-group mx-2' value={item.ofc} addonAfter={'cms'} readOnly />
+                            </div>
+                        ) : null}</>}
                         {item.temp && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Temperature</div>
@@ -189,7 +229,7 @@ function VitalsList(props) {
                                 <Input className='inputheight41-group mx-2' value={item.waist_circumference} addonAfter={'cms'} readOnly />
                             </div>
                         )}
-                        {item?.ofc ? (
+                        {!isPediatricAccessable && <> {item?.ofc ? (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">OFC</div>
                                 <Input className='inputheight41-group mx-2' value={item.ofc} addonAfter={'cms'} readOnly />
@@ -206,7 +246,7 @@ function VitalsList(props) {
                                 <div className="fontroboto">Weight</div>
                                 <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
                             </div>
-                        )}
+                        )}</>}
                         {item.bmi && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">BMI</div>

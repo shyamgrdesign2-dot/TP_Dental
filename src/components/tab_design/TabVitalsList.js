@@ -7,6 +7,7 @@ import CashManagerContext from '../../context/CashManagerContext';
 
 import moment from "moment";
 import { useLocation } from "react-router-dom";
+import { useAccess } from "../../pages/vaccination/useAccess";
 
 const showDateFormat = 'DD MMM, YY'
 
@@ -15,7 +16,7 @@ function TabVitalsList(props) {
     const { handleDrawerVital, handleCollapsed } = props
     const { state } = useLocation();
     const { patient_data } = state;
-
+    const { isPediatricAccessable } = useAccess();
     const { vitalsPastList, patientBirthWeight } = useSelector(
       (state) => state.vitals
     );
@@ -36,6 +37,25 @@ function TabVitalsList(props) {
                                 <div className="fontroboto">BP(mm Hg)</div>
                                 <div className="fontroboto">{item.blood_press}</div>
                             </div> */}
+                            {isPediatricAccessable && <>
+                            {item.height && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Height (cms)</div>
+                                    <div className="fontroboto">{item.height}</div>
+                                </div>
+                            )}
+                            {item.weight && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Weight (kgs)</div>
+                                    <div className="fontroboto">{item.weight}</div>
+                                </div>
+                            )}
+                            {item.ofc ? (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">OFC (cms)</div>
+                                    <div className="fontroboto">{item.ofc}</div>
+                                </div>
+                            ) : null}</>}
                             {item.temp && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">Temperature(Frh)</div>
@@ -90,7 +110,7 @@ function TabVitalsList(props) {
                                     <div className="fontroboto">{item.waist_circumference}</div>
                                 </div>
                             )}
-                            {item.ofc ? (
+                            {!isPediatricAccessable && <>{item.ofc ? (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">OFC (cms)</div>
                                     <div className="fontroboto">{item.ofc}</div>
@@ -107,7 +127,7 @@ function TabVitalsList(props) {
                                     <div className="fontroboto">Weight (kgs)</div>
                                     <div className="fontroboto">{item.weight}</div>
                                 </div>
-                            )}
+                            )}</>}
                             {item.bmi && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">BMI (kg/m²)</div>
@@ -144,6 +164,25 @@ function TabVitalsList(props) {
                             {moment(item.date).format(showDateFormat)}
                         </div>
                         <div className="py-3">
+                            {isPediatricAccessable && <>
+                            {item.height && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Height (cms)</div>
+                                    <div className="fontroboto">{item.height}</div>
+                                </div>
+                            )}
+                             {item.weight && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Weight (kgs)</div>
+                                    <div className="fontroboto">{item.weight}</div>
+                                </div>
+                            )}
+                            {item.ofc ? (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">OFC (cms)</div>
+                                    <div className="fontroboto">{item.ofc}</div>
+                                </div>
+                            ) : null}</>}
                             {item.temp && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">Temperature(Frh)</div>
@@ -199,7 +238,7 @@ function TabVitalsList(props) {
                                     <div className="fontroboto">{item.waist_circumference}</div>
                                 </div>
                             )}
-                            {item.ofc ? (
+                            {!isPediatricAccessable && <>{item.ofc ? (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">OFC (cms)</div>
                                     <div className="fontroboto">{item.ofc}</div>
@@ -216,7 +255,7 @@ function TabVitalsList(props) {
                                     <div className="fontroboto">Weight (kgs)</div>
                                     <div className="fontroboto">{item.weight}</div>
                                 </div>
-                            )}
+                            )}</>}
                             {item.bmi && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">BMI (kg/m²)</div>

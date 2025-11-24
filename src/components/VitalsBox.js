@@ -16,6 +16,7 @@ import {
 import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useAccess } from "../pages/vaccination/useAccess";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
@@ -46,6 +47,7 @@ function VitalsBox(props) {
     );
 
     const { profile, userId } = useSelector((state) => state.doctors);
+    const { isPediatricAccessable } = useAccess();
 
     useEffect(() => {
         if (selectedVitalsList.length > 0) {
@@ -277,6 +279,16 @@ function VitalsBox(props) {
                 return (
                     <div key={i} className='vitals-wrap-body w-100 vitals-child-width'>
                         <div className='vitals-head rounded-start-0 w-100'>{moment(item.date).format(showDateFormat)}</div>
+                        {isPediatricAccessable && <><div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 7)} />
+                        </div>
+                        <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
+                        </div>
+                        {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
+                        </div> : null}
+                        </>}
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
                             <Input ref={(el) => (inputRef.current[i] = el)} className='inputheight41-group focused' placeholder="Enter" inputMode="numeric" value={item.temp} addonAfter={'Frh'} onChange={(e) => onChangeInput(e.target.value, i, 1)} />
                         </div>
@@ -304,7 +316,7 @@ function VitalsBox(props) {
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
                             <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.waist_circumference} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 12)} />
                         </div>
-                        {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
+                        {!isPediatricAccessable && <>{profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
                             <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
                         </div> : null}
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
@@ -312,7 +324,7 @@ function VitalsBox(props) {
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
                             <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
-                        </div>
+                        </div></>}
                         <div className='vitals-row vitals-row-40 d-flex align-items-center px-2 w-100'>
                             <div className='fs-14 '>{`${item.bmi != '' ? parseFloat(item.bmi).toFixed(2) : '--'} kg/m²`}</div>
                         </div>
@@ -380,6 +392,17 @@ function VitalsBox(props) {
                         <div className='vitals-wrapper w-100'>
                             <div className='vitals-wrap-body vitals-parent-width'>
                                 <div className='vitals-head'>Name</div>
+                                {isPediatricAccessable && (
+                                    <>
+                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
+                                    Height
+                                </div>
+                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
+                                    Weight
+                                </div>
+                                {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2'>
+                                    OFC
+                                </div> : null} </>)}
                                 <div className='vitals-row d-flex align-items-center border-bottom px-2'>
                                     Temperature
                                 </div>
@@ -407,6 +430,8 @@ function VitalsBox(props) {
                                  <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
                                     Waist Circumference
                                 </div>
+                                {!isPediatricAccessable && (
+                                    <>
                                 {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2'>
                                     OFC
                                 </div> : null}
@@ -415,7 +440,7 @@ function VitalsBox(props) {
                                 </div>
                                 <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
                                     Weight
-                                </div>
+                                </div> </>)}
                                 <div className='vitals-row vitals-row-40 d-flex align-items-center px-2'>
                                     BMI
                                     <Tooltip placement="right" title="Body mass index will be auto-calculated by entering Height and Weight">
