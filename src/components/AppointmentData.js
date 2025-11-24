@@ -1168,19 +1168,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           <span
             onClick={() => {
               setAppointmentSelectedFromMenu(record);
-              handleCreateAbhaDrawer();
-            }}
-          >
-            Create/Link ABHA
-          </span>
-        ),
-        key: "createabha",
-      },
-      {
-        label: (
-          <span
-            onClick={() => {
-              setAppointmentSelectedFromMenu(record);
               handleCreateCertificateDrawer();
             }}
           >
@@ -1240,6 +1227,22 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         key: "uploadDoc",
       },
     ]?.filter((item) => item);
+
+    if (!record?.abhaAddress) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleCreateAbhaDrawer();
+            }}
+          >
+            Create/Link ABHA
+          </span>
+        ),
+        key: "createabha",
+      });
+    }
 
     if (selectedTab === TAB_QUEUE) {
       const decodedToken = getDecodedToken();

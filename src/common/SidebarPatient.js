@@ -102,13 +102,15 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     <div className="fontroboto letterspacing fw-medium">{patient_data !== undefined ? patient_data.pm_contact_no : "000000"}</div>
                 </div>
             </div>
-            <div className="align-items-center d-flex medicine-templates border-top-0 without-hover p-0 pb-3">
-                <div className="round-box bg-body-secondary"><img src={AbhaIcon} /></div>
-                <div className="text-truncate">
-                    <div className="fontroboto letterspacing">ABHA Address</div>
-                    <div className="fontroboto letterspacing fw-medium">Ashis2345{getAbhaDomainSuffix()}</div>
+            {patient_data?.abhaAddress && (
+                <div className="align-items-center d-flex medicine-templates border-top-0 without-hover p-0 pb-3">
+                    <div className="round-box bg-body-secondary"><img src={AbhaIcon} /></div>
+                    <div className="text-truncate">
+                        <div className="fontroboto letterspacing">ABHA Address</div>
+                        <div className="fontroboto letterspacing fw-medium">{patient_data?.abhaAddress}</div>
+                    </div>
                 </div>
-            </div>
+            )}
             {tokenData?.hospital_business_id != config.zydus_business_id && (patient_data?.pm_blood_group || patient_data?.patient_blood_group || viewCaseManagerData?.patient_data?.patient_blood_group || patients_details?.pm_blood_group) && (
                 <div className="align-items-center d-flex medicine-templates border-top-0 without-hover p-0">
                     <div className="round-box bg-body-secondary"><img src={BloodIcon} alt="blood" style={{ width: '21px', height: '21px' }} /></div>
@@ -200,33 +202,38 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     </div>
                 )
             })}
-            <div>
-                <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
-                    <Nav.Link
-                        className={`${!collapsed && 'd-flex align-items-center p-0'} sidebar-abha-link`}
-                        onClick={handleAbhaDrawer}
-                    >
-                        <div className="sidebar-icon-wrapper">
-                            <img src={AbhaIcon} className="sidebar-abha-icon" alt="abha" />
-                        </div>
-                        <div className='sidebar_abha_text_container'>
-                            {collapsed ? (
-                                <div className="sidebar_abha_text_collapsed">
-                                    <div className="sidebar_abha_text_line">Create/Link</div>
-                                    <div className="sidebar_abha_text_line">ABHA</div>
+            {patient_data?.abhaAddress
+                ? <></> // TODO: Show ABHA details if already linked
+                : (
+                    <div>
+                        <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
+                            <Nav.Link
+                                className={`${!collapsed && 'd-flex align-items-center p-0'} sidebar-abha-link`}
+                                onClick={handleAbhaDrawer}
+                            >
+                                <div className="sidebar-icon-wrapper">
+                                    <img src={AbhaIcon} className="sidebar-abha-icon" alt="abha" />
                                 </div>
-                            ) : (
-                                <>
-                                    <div className={`sidebar_abha_text ms-3`}>
-                                        Create/Link ABHA
-                                    </div>
-                                    <img src={LeftArrow} width={6} />
-                                </>
-                            )}
-                        </div>
-                    </Nav.Link>
-                </Nav.Item>
-            </div>
+                                <div className='sidebar_abha_text_container'>
+                                    {collapsed ? (
+                                        <div className="sidebar_abha_text_collapsed">
+                                            <div className="sidebar_abha_text_line">Create/Link</div>
+                                            <div className="sidebar_abha_text_line">ABHA</div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`sidebar_abha_text ms-3`}>
+                                                Create/Link ABHA
+                                            </div>
+                                            <img src={LeftArrow} width={6} />
+                                        </>
+                                    )}
+                                </div>
+                            </Nav.Link>
+                        </Nav.Item>
+                    </div>
+                )
+            }
             {abhaDrawerOpen && (
                 <AbhaDrawer
                     onClose={handleAbhaDrawer}

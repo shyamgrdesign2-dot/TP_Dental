@@ -380,7 +380,7 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
-    return [
+    const menuItems = [
       {
         label: (
           <span onClick={() => onPatientDetailsClick(record)}>
@@ -445,7 +445,9 @@ const AllPatients = () => {
         ),
         key: "createCertificate",
       },
-      {
+    ];
+    if (!record?.abhaAddress) {
+      menuItems.push({
         label: (
           <span
             onClick={() => {
@@ -457,8 +459,9 @@ const AllPatients = () => {
           </span>
         ),
         key: "createLinkAbha",
-      },
-    ];
+      });
+    }
+    return menuItems;
   };
 
   const columns = [
