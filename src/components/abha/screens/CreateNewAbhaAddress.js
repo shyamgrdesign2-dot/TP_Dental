@@ -153,7 +153,7 @@ const CreateNewAbhaAddress = ({
 
     try {
       const response = await ApiAbha.setAbhaAddress({
-        patient_unique_id: "",
+        patient_unique_id,
         txnId,
         abhaAddress: address,
         userToken: accessToken,

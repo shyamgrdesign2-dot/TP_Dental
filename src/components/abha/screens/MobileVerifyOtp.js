@@ -177,7 +177,7 @@ const MobileVerifyOtp = ({
       } else {
         // Verify OTP for mobile update during ABHA creation
         response = await ApiAbha.verifyMobileUpdateOtp({
-          patient_unique_id: "",
+          patient_unique_id,
           mobile_no,
           txnId,
           otp,

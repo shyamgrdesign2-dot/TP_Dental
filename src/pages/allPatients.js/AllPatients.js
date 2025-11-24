@@ -456,7 +456,7 @@ const AllPatients = () => {
             Create/Link ABHA
           </span>
         ),
-        key: "createCertificate",
+        key: "createLinkAbha",
       },
     ];
   };

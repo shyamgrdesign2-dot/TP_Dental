@@ -58,7 +58,7 @@ const AbhaAddress = ({
         // For mobile/address linking, call verify ABHA address user API
         const response = await ApiAbha.verifyAbhaAddressUser({
           abhaAddress: selectedAddress,
-          patient_unique_id: "",
+          patient_unique_id,
           txnId: data.txnId || "",
           userToken: tokens?.token || "",
         });
