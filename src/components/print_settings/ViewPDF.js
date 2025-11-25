@@ -2083,6 +2083,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     details += `)`;
                                                                                 }
                                                                                 grouped[item.title].push({ conditionName, details, hasDetails });
+                                                                            } else if (tag && tag.enable === 'N') {
+                                                                                let conditionName = `No ${tag.title || ''}`;
+                                                                                grouped[item.title].push({ conditionName, details: '', hasDetails: false });
                                                                             }
                                                                         });
                                                                     } else if (item?.no_know_history) {
@@ -2158,9 +2161,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                                         </Text>
                                                                                                     }
                                                                                                 </>
-                                                                                            ) : (
+                                                                                            ) : item1.enable == 'N' ? (
                                                                                                 <Text key={i1} style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{'\n'}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{String.fromCharCode(abcd++)}.&nbsp;{`No ${item1.title}`}&nbsp;</Text>
-                                                                                            )}
+                                                                                            ) : null}
                                                                                         </>
                                                                                     )
                                                                                 })}
