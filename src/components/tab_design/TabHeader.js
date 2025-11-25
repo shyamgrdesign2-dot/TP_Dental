@@ -3,6 +3,7 @@ import { Button, Popover } from 'antd';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useSelector } from "react-redux";
+import { useDeviceType } from "../../utils/deviceDetection";
 
 import { ADD, EDIT } from "../../utils/constants";
 import tutorial from '../../assets/images/tutorial-icon.svg';
@@ -13,6 +14,11 @@ import { getClinicName } from "../../utils/utils";
 function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { isMobile: isMobileDevice, isTablet } = useDeviceType();
+    
+    // Automatically detect if we're on Add/Edit Patient pages and apply mobile design
+    const isPatientFormPage = location.pathname === '/add_patient' || location.pathname === '/edit_patient';
+    const isMobileOnly = isMobileDevice && !isTablet && isPatientFormPage;
 
     // Check if user came from all patients page
     const isFromAllPatients = location.state?.from === "/all_patients";
@@ -86,33 +92,37 @@ function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
                 <div className="w-100 px-20 title-common">{title}</div>
             </div>
             <div className="align-items-center d-flex">
-                <Popover
-                    open={popOverVideo}
-                    onOpenChange={showHideVideoListPopover}
-                    content={VIDEO_CONTENT}
-                    trigger="click"
-                    overlayClassName="pop-430 pp-0 videoTutorial"
-                    placement="bottom"
-                >
-                    <button className='btn d-flex align-items-center btn-text me-10 tutorial'>
-                        {/* onClick={showHideVideoListPopover} */}
-                        <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
-                    </button>
-                </Popover>
-                {flag === 1 ? (
-                    <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' icon={<i className="icon-Add"></i>} onClick={onClick}>
-                        Add New Patient
-                    </Button>
-                ) : flag === 2 && (
-                    mode === EDIT ? (
-                        <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' loading={loading} onClick={onClick}>
-                            Save
-                        </Button>
-                    ) : (
-                        <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' loading={loading} onClick={onClick}>
-                            {(isFromAllPatients || isFromAddAppointment) ? "Add Patient" : "Add Patient to Consult"}
-                        </Button>
-                    )
+                {!isMobileOnly && (
+                    <>
+                        <Popover
+                            open={popOverVideo}
+                            onOpenChange={showHideVideoListPopover}
+                            content={VIDEO_CONTENT}
+                            trigger="click"
+                            overlayClassName="pop-430 pp-0 videoTuto.rial"
+                            placement="bottom"
+                        >
+                            <button className='btn d-flex align-items-center btn-text me-10 tutorial'>
+                                {/* onClick={showHideVideoListPopover} */}
+                                <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                            </button>
+                        </Popover>
+                        {flag === 1 ? (
+                            <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' icon={<i className="icon-Add"></i>} onClick={onClick}>
+                                Add New Patient
+                            </Button>
+                        ) : flag === 2 && (
+                            mode === EDIT ? (
+                                <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' loading={loading} onClick={onClick}>
+                                    Save
+                                </Button>
+                            ) : (
+                                <Button className='btn btn-primary3 me-30 btn-41 px-4 d-flex align-items-center' loading={loading} onClick={onClick}>
+                                    {(isFromAllPatients || isFromAddAppointment) ? "Add Patient" : "Add Patient to Consult"}
+                                </Button>
+                            )
+                        )}
+                    </>
                 )}
 
                 {videoLink && (
