@@ -102,7 +102,7 @@ function VitalsBodyComposition({ loading, passVitals, patientBirthWeight }) {
         if (!isPediatricAccessable) {
             return baseRows;
         }
-        const priorityKeys = ['height', 'weight', 'ofc'];
+        const priorityKeys = ['weight', 'height', 'ofc'];
         const priorityRows = [];
         const remainingRows = [];
 

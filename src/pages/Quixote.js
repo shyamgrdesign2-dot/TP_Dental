@@ -99,7 +99,7 @@ function Quixote({ mode = NORMAL, ...props }) {
 
         if (!isPediatricAccessable) return rows;
 
-        const priorityNames = ['Height (cms)', 'Weight (kgs)', 'OFC (cms)'];
+        const priorityNames = ['Weight (kgs)', 'Height (cms)', 'OFC (cms)'];
         const priorityRows = [];
         const otherRows = [];
 

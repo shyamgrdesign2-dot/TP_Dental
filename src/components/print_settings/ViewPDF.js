@@ -1844,7 +1844,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             ['bmr', item.bmr ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
                                                             ['bsa', item.bsa ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
                                                         ];
-                                                        const priorityOrder = ['height', 'weight', 'ofc'];
+                                                        const priorityOrder = ['weight', 'height', 'ofc'];
                                                         const orderedVitals = isPediatricAccessable
                                                             ? [
                                                                 ...priorityOrder
@@ -1932,7 +1932,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             }))(item)
                                                         ).filter(([_, value]) => value);
 
-                                                        const priorityKeys = ['height', 'weight', 'ofc'];
+                                                        const priorityKeys = ['weight', 'height', 'ofc'];
                                                         const orderedEntries = isPediatricAccessable
                                                             ? [
                                                                 ...priorityKeys.map((key) => vitalsEntries.find(([k]) => k === key)).filter(Boolean),

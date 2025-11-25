@@ -38,16 +38,16 @@ function TabVitalsList(props) {
                                 <div className="fontroboto">{item.blood_press}</div>
                             </div> */}
                             {isPediatricAccessable && <>
-                            {item.height && (
-                                <div className="d-flex align-items-center justify-content-between mb-12">
-                                    <div className="fontroboto">Height (cms)</div>
-                                    <div className="fontroboto">{item.height}</div>
-                                </div>
-                            )}
                             {item.weight && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">Weight (kgs)</div>
                                     <div className="fontroboto">{item.weight}</div>
+                                </div>
+                            )}
+                            {item.height && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Height (cms)</div>
+                                    <div className="fontroboto">{item.height}</div>
                                 </div>
                             )}
                             {item.ofc ? (
@@ -165,16 +165,16 @@ function TabVitalsList(props) {
                         </div>
                         <div className="py-3">
                             {isPediatricAccessable && <>
+                            {item.weight && (
+                                <div className="d-flex align-items-center justify-content-between mb-12">
+                                    <div className="fontroboto">Weight (kgs)</div>
+                                    <div className="fontroboto">{item.weight}</div>
+                                </div>
+                            )}
                             {item.height && (
                                 <div className="d-flex align-items-center justify-content-between mb-12">
                                     <div className="fontroboto">Height (cms)</div>
                                     <div className="fontroboto">{item.height}</div>
-                                </div>
-                            )}
-                             {item.weight && (
-                                <div className="d-flex align-items-center justify-content-between mb-12">
-                                    <div className="fontroboto">Weight (kgs)</div>
-                                    <div className="fontroboto">{item.weight}</div>
                                 </div>
                             )}
                             {item.ofc ? (

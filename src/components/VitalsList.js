@@ -31,16 +31,16 @@ function VitalsList(props) {
                             {moment(item.date).format(showDateFormat)}
                         </div>
                         {isPediatricAccessable && <>
-                        {item.height && (
-                            <div className="d-flex align-items-center justify-content-between mb-12">
-                                <div className="fontroboto">Height</div>
-                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
-                            </div>
-                        )}
                         {item.weight && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Weight</div>
                                 <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
+                            </div>
+                        )}
+                        {item.height && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Height</div>
+                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
                             </div>
                         )}
                         {item.ofc ? (
@@ -157,16 +157,16 @@ function VitalsList(props) {
                             {moment(item.date).format(showDateFormat)}
                         </div>
                         {isPediatricAccessable && <>
-                        {item.height && (
-                            <div className="d-flex align-items-center justify-content-between mb-12">
-                                <div className="fontroboto">Height</div>
-                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
-                            </div>
-                        )}
                         {item.weight && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Weight</div>
                                 <Input className='inputheight41-group mx-2' value={item.weight} addonAfter={'kgs'} readOnly />
+                            </div>
+                        )}
+                        {item.height && (
+                            <div className="d-flex align-items-center justify-content-between mb-12">
+                                <div className="fontroboto">Height</div>
+                                <Input className='inputheight41-group mx-2' value={item.height} addonAfter={'cms'} readOnly />
                             </div>
                         )}
                         {item?.ofc ? (
