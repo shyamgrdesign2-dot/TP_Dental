@@ -68,6 +68,7 @@ import {
   S_BILLING,
   S_TATVA_PRACTICE,
   TRIAL,
+  PAID,
   GB_SNAP_RX_DIGITIZATION,
   NEO_NATOLOGISTS_DP_ID,
   S_VOICE_RX,
@@ -226,6 +227,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const BILLING_planDetails = service_mappings?.find(
     (e) => e.service_name === S_BILLING
   );
+  const VOICE_RX_planDetails = service_mappings?.find(
+    (e) => e.service_name === S_VOICE_RX
+  );
+  const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
   const isAppointmentAgentEnable = planDetails?.currentPlanStatus === "PAID" && !shouldAppointmentAgentDisabled();
 
@@ -2094,7 +2099,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
                             ? handleSnapRxClick(record)
                             : (selectedTab === TAB_QUEUE && ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER))
-                              ? onVoiceRxClick(record)
+                              ? (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
                               : onPrintRxUrlClick(record)
                       }
                     >
@@ -2103,7 +2108,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           ? "PrintRx"
                           : (isSmartSyncAccessableFromGB && "SmartRx") ||
                             (isSnapRxAccessable && "SnapRx") ||
-                            (((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) && "Voice Rx") ||
+                            (((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
                             ""
                       }
                     </button>
@@ -2144,20 +2149,44 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           SnapRx
                         </button>
                       }
-                      {(isFreeVoiceRxUser || tp_monetization_enable) && (<button
-                        className={`btn-consult ${(isSmartSyncAccessableFromGB && isSnapRxAccessable) ? "middle-br" : (isSnapRxAccessable || isSmartSyncAccessableFromGB) ? "top-br with-divider" : "top-br with-divider"}`}
-                        onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && isVoiceRxPaid && (
+                        <button
+                          className={`btn-consult ${(isSmartSyncAccessableFromGB && isSnapRxAccessable) ? "middle-br" : (isSnapRxAccessable || isSmartSyncAccessableFromGB) ? "top-br with-divider" : "top-br with-divider"}`}
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
                         >
                           Voice Rx
                         </button>
                       )}
-                      <button
-                        // ref={consultButtonRef}
-                        className={`btn-consult ${(isSnapRxAccessable && isSmartSyncAccessableFromGB) || (isFreeVoiceRxUser || tp_monetization_enable) ?  "bottom-br" : "border-radius-all"}`}
-                        onClick={() => onConsultClick(record)}
-                      >
-                        Consult
-                      </button>
+                      {((isSmartSyncAccessableFromGB || isSnapRxAccessable) || ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) && (
+                        <button
+                          className={`btn-consult ${
+                            ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || 
+                             ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable) && isVoiceRxPaid) ||
+                             ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) 
+                              ? "bottom-br" 
+                              : "border-radius-all"
+                          }`}
+                          onClick={() => onConsultClick(record)}
+                        >
+                          Consult
+                        </button>
+                      )}
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable)) && !isVoiceRxPaid && (
+                        <button
+                          className="btn-consult border-radius-all"
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
+                        >
+                          Voice Rx
+                        </button>
+                      )}
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && !isVoiceRxPaid && (
+                        <button
+                          className="btn-consult bottom-br"
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
+                        >
+                          Voice Rx
+                        </button>
+                      )}
                     </div>
                   }
                 </div>
@@ -2195,7 +2224,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                               : isSnapRxAccessable
                                 ? handleSnapRxClick(record)
                                 : (isFreeVoiceRxUser || tp_monetization_enable)
-                                  ? selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)
+                                  ? selectedTab === TAB_ZYDUS_ENCOUNTER 
+                                    ? onZydus_Consult_PatientDetails_Click(record, 4) 
+                                    : (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
                                   : onPrintRxUrlClick(record))
                           : onPrintRxUrlClick(record)
                       }
@@ -2205,7 +2236,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           ? "PrintRx"
                           : (isSmartSyncAccessableFromGB && "SmartRx") ||
                             (isSnapRxAccessable && "SnapRx") ||
-                            ((isFreeVoiceRxUser || tp_monetization_enable) && "Voice Rx") ||
+                            ((isFreeVoiceRxUser || tp_monetization_enable) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
                             ""
                       }                    
                     </button>
@@ -2245,7 +2276,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           SnapRx
                         </button>
                       }
-                      {(isFreeVoiceRxUser || tp_monetization_enable) && 
+                      {/* Only show Voice Rx in dropdown if main button is NOT Voice Rx (i.e., when SmartRx/SnapRx is main button) */}
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && isVoiceRxPaid && 
                         <button
                           className={`btn-consult ${(isSnapRxAccessable) ? "middle-br" : "top-br with-divider"}`}
                           onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
@@ -2253,12 +2285,37 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           Voice Rx
                         </button>
                       }
-                      <button
-                        className={`btn-consult ${(isSnapRxAccessable) || (isFreeVoiceRxUser || tp_monetization_enable) ?  "bottom-br" : "border-radius-all"}`}
-                        onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 1) : onConsultClick(record)}
-                      >
-                        Consult
-                      </button>
+                      {((isSmartSyncAccessableFromGB || isSnapRxAccessable) || ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) && (
+                        <button
+                          className={`btn-consult ${
+                            ((isSnapRxAccessable) || 
+                             ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable) && isVoiceRxPaid) ||
+                             ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) 
+                              ? "bottom-br" 
+                              : "border-radius-all"
+                          }`}
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 1) : onConsultClick(record)}
+                        >
+                          Consult
+                        </button>
+                      )}
+            
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable)) && !isVoiceRxPaid && 
+                        <button
+                          className="btn-consult border-radius-all"
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
+                        >
+                          Voice Rx
+                        </button>
+                      }
+                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && !isVoiceRxPaid && 
+                        <button
+                          className="btn-consult bottom-br"
+                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
+                        >
+                          Voice Rx
+                        </button>
+                      }
                     </div>
                   }
                 </div>

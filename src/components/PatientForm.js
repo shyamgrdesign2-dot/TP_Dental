@@ -12,7 +12,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX } from "../utils/constants";
+import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID } from "../utils/constants";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 
 import TabHeader from "../components/tab_design/TabHeader";
@@ -320,6 +320,12 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
     const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
     const isFreeVoiceRxUser = isVoiceRxFree();
     const tp_monetization_enable = !shouldMonetizationDisabled();
+    const { planDetails } = useSelector((state) => state.subscription);
+    const { service_mappings } = planDetails || {};
+    const VOICE_RX_planDetails = service_mappings?.find(
+      (e) => e.service_name === S_VOICE_RX
+    );
+    const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
     
     const [open, setOpen] = React.useState(false);
     const arrowRef = React.useRef(null);
@@ -438,7 +444,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                   </button>
                 </div>
               }
-              {(isFreeVoiceRxUser || tp_monetization_enable) && (
+              {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
                 <div>
                     <button
                       className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
@@ -453,7 +459,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
               )}
               <div>
                   <button
-                    className={`smart-rx-buttons ${((isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) || (isFreeVoiceRxUser || tp_monetization_enable)) ? "bottom-br" : "border-radius-all"}`}
+                    className={`smart-rx-buttons ${((isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) || ((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid)) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br" : "border-radius-all"}`}
                     onClick={() => {
                       setOpen(false);
                       handleConsult();
@@ -462,6 +468,19 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                     <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
                   </button>
               </div>
+              {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                <div>
+                    <button
+                      className="smart-rx-buttons bottom-br"
+                      onClick={() => {
+                        setOpen(false);
+                        handleVoiceRx();
+                      }}
+                    >
+                      <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                    </button>
+                </div>
+              )}
             </div>
           }
         </div>
@@ -515,10 +534,10 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
           </div>
           {open && 
             <div className="smart-rx-buttons-grp">
-              {(isFreeVoiceRxUser || tp_monetization_enable) && (
+              {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
                 <div>
                     <button
-                      className={`smart-rx-buttons bottom-border ${(isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : "border-radius-all"}`}
+                      className="smart-rx-buttons bottom-border"
                       onClick={() => {
                         setOpen(false);
                         handleVoiceRx();
@@ -530,7 +549,7 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
               )}
               <div>
                   <button
-                    className={`smart-rx-buttons ${(isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : "top-br"}`}
+                    className={`smart-rx-buttons ${((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br" : "top-br"}`}
                     onClick={() => {
                       setOpen(false);
                       handleConsult();
@@ -539,6 +558,19 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                     <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
                   </button>
               </div>
+              {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                <div>
+                    <button
+                      className="smart-rx-buttons bottom-br"
+                      onClick={() => {
+                        setOpen(false);
+                        handleVoiceRx();
+                      }}
+                    >
+                      <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                    </button>
+                </div>
+              )}
             </div>
           }
         </div>
@@ -554,12 +586,12 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
                   className="btn btn-primary3 btn-text-white mb-2 btn-41 d-flex justify-content-between align-items-center"
                   style={{width:"100%"}}
                   onClick={() => {
-                      handleVoiceRx();
+                      isVoiceRxPaid ? handleVoiceRx() : handleConsult();
                   }}
               >
                   <div className="">
                       <span>
-                          Start Voice Rx
+                          {isVoiceRxPaid ? "Start Voice Rx" : "Start New Consult"}
                       </span>
                   </div>
                   <div
@@ -591,17 +623,31 @@ function SmartDropdownButtons({ patient_data, navigate, profile, userId }) {
           </div>
           {open && 
             <div className="smart-rx-buttons-grp">
-              <div>
-                  <button
-                    className="smart-rx-buttons bottom-br"
-                    onClick={() => {
-                      setOpen(false);
-                      handleConsult();
-                    }}
-                  >
-                    <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
-                  </button>
-              </div>
+              {isVoiceRxPaid ? (
+                <div>
+                    <button
+                      className="smart-rx-buttons bottom-br"
+                      onClick={() => {
+                        setOpen(false);
+                        handleConsult();
+                      }}
+                    >
+                      <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
+                    </button>
+                </div>
+              ) : (
+                <div>
+                    <button
+                      className="smart-rx-buttons bottom-br"
+                      onClick={() => {
+                        setOpen(false);
+                        handleVoiceRx();
+                      }}
+                    >
+                      <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
+                    </button>
+                </div>
+              )}
             </div>
           }
         </div>

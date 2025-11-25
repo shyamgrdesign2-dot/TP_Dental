@@ -18,7 +18,7 @@ import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetization
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
-import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -32,6 +32,12 @@ function WalkInConsultation() {
 
   const { profile, userId } = useSelector((state) => state.doctors);
   const { patients, error } = useSelector((state) => state.records);
+  const { planDetails } = useSelector((state) => state.subscription);
+  const { service_mappings } = planDetails || {};
+  const VOICE_RX_planDetails = service_mappings?.find(
+    (e) => e.service_name === S_VOICE_RX
+  );
+  const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
   const dispatch = useDispatch();
 
@@ -154,46 +160,10 @@ function WalkInConsultation() {
   };
 
   const getMenuItems = (record) => {
-    const items = [
-      {
-        label: (
-          <span
-            style={{
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              setAutoCompleteFlag(false);
-              onConsultClick(record);
-            }}
-          >
-            Consult
-          </span>
-        ),
-        key: "consult",
-      },
-    ];
+    const items = [];
   
-    // Add Voice Rx option
-    items.unshift({
-      label: (
-        <span
-          style={{
-            display: "inline-block",
-            cursor: "pointer",
-          }}
-          onClick={() => {
-            setAutoCompleteFlag(false);
-            onVoiceRxClick(record);
-          }}
-        >
-          Voice Rx
-        </span>
-      ),
-      key: "voicerx",
-    });
-
     if (isSmartSyncAccessableFromGB && isSnapRxAccessable) {
-      items.unshift({
+      items.push({
         label: (
           <span
             style={{
@@ -209,6 +179,141 @@ function WalkInConsultation() {
           </span>
         ),
         key: "snaprx",
+      });
+    }
+
+    if (isFreeVoiceRxUser || tp_monetization_enable) {
+     
+      if (isSmartSyncAccessableFromGB || isSnapRxAccessable) {
+        if (isVoiceRxPaid) {
+         
+          items.push({
+            label: (
+              <span
+                style={{
+                  display: "inline-block",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onVoiceRxClick(record);
+                }}
+              >
+                Voice Rx
+              </span>
+            ),
+            key: "voicerx",
+          });
+          items.push({
+            label: (
+              <span
+                style={{
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onConsultClick(record);
+                }}
+              >
+                Consult
+              </span>
+            ),
+            key: "consult",
+          });
+        } else {
+          
+          items.push({
+            label: (
+              <span
+                style={{
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onConsultClick(record);
+                }}
+              >
+                Consult
+              </span>
+            ),
+            key: "consult",
+          });
+          items.push({
+            label: (
+              <span
+                style={{
+                  display: "inline-block",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onVoiceRxClick(record);
+                }}
+              >
+                Voice Rx
+              </span>
+            ),
+            key: "voicerx",
+          });
+        }
+      } else {
+       
+        if (isVoiceRxPaid) {
+          
+          items.push({
+            label: (
+              <span
+                style={{
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onConsultClick(record);
+                }}
+              >
+                Consult
+              </span>
+            ),
+            key: "consult",
+          });
+        } else {
+          // Main button is "Consult", dropdown should only have "Voice Rx"
+          items.push({
+            label: (
+              <span
+                style={{
+                  display: "inline-block",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setAutoCompleteFlag(false);
+                  onVoiceRxClick(record);
+                }}
+              >
+                Voice Rx
+              </span>
+            ),
+            key: "voicerx",
+          });
+        }
+      }
+    } else {
+      
+      items.push({
+        label: (
+          <span
+            style={{
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              setAutoCompleteFlag(false);
+              onConsultClick(record);
+            }}
+          >
+            Consult
+          </span>
+        ),
+        key: "consult",
       });
     }
   
@@ -302,9 +407,9 @@ function WalkInConsultation() {
                       type="text"
                       className="btn btn-primary3 align-items-center d-flex"
                       icon={<i className="icon-Consult"></i>}
-                      onClick={() => onVoiceRxClick(patient)}
+                      onClick={() => isVoiceRxPaid ? onVoiceRxClick(patient) : onConsultClick(patient)}
                     >
-                      Voice Rx
+                      {isVoiceRxPaid ? "Voice Rx" : "Consult"}
                     </Button>
                   ) : (
                     <Button
@@ -371,9 +476,9 @@ function WalkInConsultation() {
                     type="text"
                     className="btn btn-primary3 align-items-center d-flex"
                     icon={<i className="icon-Consult"></i>}
-                    onClick={() => onVoiceRxClick(patient)}
+                    onClick={() => isVoiceRxPaid ? onVoiceRxClick(patient) : onConsultClick(patient)}
                   >
-                    Voice Rx
+                    {isVoiceRxPaid ? "Voice Rx" : "Consult"}
                   </Button>
                 ) : null}
                 {(isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (
@@ -618,18 +723,29 @@ function WalkInConsultation() {
                                                 Snap Rx
                                             </button>
                                         }
+                                        {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
+                                            <button
+                                                className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
+                                                onClick={() => onVoiceRxClick(clickedPatient)}
+                                            >
+                                                Voice Rx
+                                            </button>
+                                        )}
                                         <button
-                                            className={`btn-consult-patient-details ${isSnapRxAccessable && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
-                                            onClick={() => onVoiceRxClick(clickedPatient)}
-                                        >
-                                            Voice Rx
-                                        </button>
-                                        <button
-                                            className={`btn-consult-patient-details bottom-br`}
+                                            className={`btn-consult-patient-details ${((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) || (isSnapRxAccessable && isSmartSyncAccessableFromGB) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br with-divider" : "bottom-br"}`}
                                             onClick={() => onConsultClick(clickedPatient)}
                                         >
                                             Consult
                                         </button>
+                                        {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                                            <button
+                                                className="btn-consult-patient-details bottom-br"
+                                                onClick={() => onVoiceRxClick(clickedPatient)}
+                                                style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                            >
+                                                Voice Rx
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -674,18 +790,29 @@ function WalkInConsultation() {
                                     </button>
                                     {clickedDownArrow && (
                                         <div className='ps-rx-btns-grp' ref={consultButtonRef}>
+                                            {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
+                                                <button
+                                                    className="btn-consult-patient-details top-br with-divider"
+                                                    onClick={() => onVoiceRxClick(clickedPatient)}
+                                                >
+                                                    Voice Rx
+                                                </button>
+                                            )}
                                             <button
-                                                className="btn-consult-patient-details top-br with-divider"
-                                                onClick={() => onVoiceRxClick(clickedPatient)}
-                                            >
-                                                Voice Rx
-                                            </button>
-                                            <button
-                                                className="btn-consult-patient-details bottom-br"
+                                                className={`btn-consult-patient-details ${((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br with-divider" : "bottom-br"}`}
                                                 onClick={() => onConsultClick(clickedPatient)}
                                             >
                                                 Consult
                                             </button>
+                                            {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                                                <button
+                                                    className="btn-consult-patient-details bottom-br"
+                                                    onClick={() => onVoiceRxClick(clickedPatient)}
+                                                    style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                >
+                                                    Voice Rx
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div> 
@@ -702,10 +829,10 @@ function WalkInConsultation() {
                                 >
                                     <button
                                         className="btn btn-outline-primary btn-smart-rx"
-                                        onClick={() => onVoiceRxClick(clickedPatient)}
+                                        onClick={() => isVoiceRxPaid ? onVoiceRxClick(clickedPatient) : onConsultClick(clickedPatient)}
                                         style={{ padding: "9px 2rem 9px 10px" }}
                                     >
-                                        <span className="btn-span-smartRx">Voice Rx</span>
+                                        <span className="btn-span-smartRx">{isVoiceRxPaid ? "Voice Rx" : "Consult"}</span>
                                     </button>
                                     <button
                                         className="btn btn-outline-primary btn-down-arrow"
@@ -729,12 +856,22 @@ function WalkInConsultation() {
                                     </button>
                                     {clickedDownArrow && (
                                         <div className='ps-rx-btns-grp' ref={consultButtonRef}>
-                                            <button
-                                                className="btn-consult-patient-details bottom-br"
-                                                onClick={() => onConsultClick(clickedPatient)}
-                                            >
-                                                Consult
-                                            </button>
+                                            {isVoiceRxPaid ? (
+                                                <button
+                                                    className="btn-consult-patient-details bottom-br"
+                                                    onClick={() => onConsultClick(clickedPatient)}
+                                                >
+                                                    Consult
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="btn-consult-patient-details bottom-br"
+                                                    onClick={() => onVoiceRxClick(clickedPatient)}
+                                                    style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                >
+                                                    Voice Rx
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
