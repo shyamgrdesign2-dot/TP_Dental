@@ -4888,12 +4888,21 @@ const ConsultationDrawer = ({
           tags: []
         };
       }
+      let tagTitle = item.name || '';
+      let tagEnable = item.enable || 'Y';
+      if (!item.enable) {
+        const nameToCheck = item.name || item.lineItem || '';
+        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
+          tagTitle = nameToCheck.trim().substring(3); 
+          tagEnable = 'N';
+        }
+      }
       
       // Create tag object
       const tag = {
-        tmmhst_id: Date.now() + Math.random(), // Generate unique ID
-        title: item.name || '',
-        enable: 'Y',
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
         note: item.notes || '',
         since: item.duration || '',
         status: 'Active',
