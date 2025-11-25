@@ -122,7 +122,7 @@ const UpdateVaccine = ({
           );
           if (frequentBrands && frequentBrands.length > 0) {
             const formattedFrequentBrands = frequentBrands.map((brand) => ({
-              label: brand?.tvc_name,
+              label: brand?.brand_name,
               value: brand?.tvc_id,
             }));
             setFrequentlyUsedBrands((prev) => ({
@@ -614,10 +614,7 @@ const UpdateVaccine = ({
                   const mergedOptions = isUserTyping
                     ? regularOptions
                     : [
-                        ...frequentOptions,
-                        ...regularOptions.filter(
-                          (regOpt) => !frequentOptions.some((freqOpt) => freqOpt.value === regOpt.value)
-                        ),
+                        ...frequentOptions
                       ];
                   return (
                     <>
@@ -666,7 +663,7 @@ const UpdateVaccine = ({
                             ?.toLowerCase()
                             .includes(input?.toLowerCase())
                         }
-                        filterSort={(optionA, optionB) =>
+                        filterSort={!isUserTyping ? undefined : (optionA, optionB) =>
                           (optionA?.label ?? "")
                             .toLowerCase()
                             .localeCompare((optionB?.label ?? "").toLowerCase())
