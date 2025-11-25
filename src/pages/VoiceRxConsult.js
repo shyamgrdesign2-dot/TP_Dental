@@ -11,17 +11,25 @@ import voiceMode2 from "../assets/images/voice-mode-2.svg";
 import styles from "./VoiceRxConsult.module.scss";
 import startConsultImg from "../assets/images/text-box.svg";
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../utils/utils";
-import { useSelector } from "react-redux";
-import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from "../utils/constants";
+import { useSelector, useDispatch } from "react-redux";
+import { FAILED_VERIFICATION, FREE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
+import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
+import { setShowSCPopup, setSymptomCollector } from "../redux/ddxSlice";
+import SCPopup from "../components/SCPopup";
+import { getDecodedToken } from "../utils/localStorage";
 
 const VoiceRxConsult = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const { showSCPopup } = useSelector((state) => state.ddx);
   
-  const { patient_data, isFromTabView, autoOpenModal, fromPrescription } = location.state || {};
+  const { patient_data, isFromTabView , autoOpenModal, fromPrescription } = location.state || {};
+  const decodedToken = getDecodedToken();
+  const clinicId = decodedToken?.result?.clinic_id;
   
   const [popOverVideo, setPopOverVideo] = useState(false);
   const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(autoOpenModal || false);
@@ -54,6 +62,94 @@ const VoiceRxConsult = () => {
       return () => clearTimeout(timer);
     }
   }, [VOICE_RX_planDetails]);
+
+  const getSymptomsCollectorData = useCallback(async () => {
+    if (!patient_data?.patient_unique_id || !userId || !clinicId) {
+      return;
+    }
+    
+    const payload = {
+      um_id: String(userId),
+      patient_unique_id: String(patient_data?.patient_unique_id),
+      hm_id: String(clinicId),
+      pam_id:
+        patient_data !== undefined && patient_data.pam_id !== undefined
+          ? String(patient_data.pam_id)
+          : 0,
+    };
+    
+    try {
+      const response = await fetchSymptomsCollectorData(payload);
+      if (response && Object.keys(response)?.length > 0) {
+        dispatch(
+          setSymptomCollector({
+            ...response?.summary_json_doctor,
+            _id: response?._id,
+          })
+        );
+        if (patient_data?.pam_status === "0") {
+          dispatch(setShowSCPopup(true));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching symptoms collector data:", error);
+    }
+  }, [patient_data, userId, clinicId, dispatch]);
+
+  useEffect(() => {
+    getSymptomsCollectorData();
+  }, [getSymptomsCollectorData]);
+
+  const handleGenRx = () => {
+    navigate('/voice-recording', {
+      state: {
+        patient_data,
+        mode: 'dictation',
+        isFromTabView: isFromTabView || false
+      }
+    });
+  };
+
+  const startPrefilledVoiceRx = useCallback(
+    (voicePayload, targetMode = "dictation") => {
+      if (!voicePayload || !patient_data) return;
+      try {
+        const payloadString = JSON.stringify(voicePayload);
+        if (typeof window !== "undefined") {
+          window.TATVA_ACTIVE_VOICE_SERVICE =
+            targetMode === "ambient" ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
+        }
+        const clinic_name = getClinicName(profile?.hospital_data);
+        window.Moengage?.track_event(
+          targetMode === "ambient"
+            ? "TP_AV_SC_Autofill_Ambient"
+            : "TP_AV_SC_Autofill_Voice",
+          {
+            patient_id: patient_data?.patient_unique_id || "",
+            patient_name: patient_data?.pm_fullname || "",
+            doctor_id: profile?.doctor_unique_id,
+            user_id: userId,
+            doctor_name: profile?.um_name,
+            doctor_specialty: profile?.dp_name,
+            hm_id: clinic?.hm_id,
+            clinic_name,
+          }
+        );
+        dispatch(setShowSCPopup(false));
+        navigate("/prescription", {
+          state: {
+            patient_data,
+            inputText: payloadString,
+            mode: targetMode,
+            isFromTabView: isFromTabView || false,
+          },
+        });
+      } catch (error) {
+        console.error("Error launching Voice Rx with symptom collector data:", error);
+      }
+    },
+    [clinic?.hm_id, dispatch, isFromTabView, navigate, patient_data, profile, userId]
+  );
 
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen((prev) => !prev);
@@ -371,6 +467,14 @@ const VoiceRxConsult = () => {
           <GenRxKnowMore handleGenRxKnowMore={showHideVideoListPopover} />
         </div>
       </Drawer>
+      {showSCPopup && (
+        <SCPopup
+          handlePopup={() => dispatch(setShowSCPopup(false))}
+          handleGenRx={handleGenRx}
+          onVoiceAutofill={(payload) => startPrefilledVoiceRx(payload, "dictation")}
+          onAmbientAutofill={(payload) => startPrefilledVoiceRx(payload, "ambient")}
+        />
+      )}
   </div>
 );
 };

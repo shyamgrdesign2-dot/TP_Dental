@@ -242,6 +242,42 @@ const ConsultationDrawer = ({
     thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
     title: "Voice Rx Tutorial"
   };
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+  const isFirstTranscriptJSON = useMemo(() => {
+    if (Array.isArray(queries) && queries.length > 0) {
+      const firstQuery = queries[0];
+      const firstText = typeof firstQuery === 'string' 
+        ? firstQuery 
+        : (firstQuery?.text || '');
+      return isSymptomCollectorJSON(firstText);
+    }
+    if (fullTranscript) {
+      return isSymptomCollectorJSON(fullTranscript);
+    }
+    if (genRxDetails?.source) {
+      return isSymptomCollectorJSON(genRxDetails.source);
+    }
+    if (typedInputText) {
+      return isSymptomCollectorJSON(typedInputText);
+    }
+    return false;
+  }, [queries, fullTranscript, genRxDetails?.source, typedInputText, isSymptomCollectorJSON]);
 
 
   useEffect(() => {
@@ -341,7 +377,8 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (hasAutoSubmittedRef.current) return;
     
-    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
+    const shouldSubmitTyped =
+      visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
@@ -835,10 +872,13 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     if (
-      isAutofillSelected &&
-      selectedSymptomsCollector &&
-      Object.keys(selectedSymptomsCollector)?.length > 0
+      typedInputText ||
+      !isAutofillSelected ||
+      !selectedSymptomsCollector ||
+      Object.keys(selectedSymptomsCollector)?.length === 0
     ) {
+      return;
+    }
       const formattedSymptomsCollectorData = getFormattedSymptomsCollectorData(
         selectedSymptomsCollector
       );
@@ -849,8 +889,7 @@ const ConsultationDrawer = ({
       if (!caseManagerData?.smart_prescription_filename) {
         handleVoiceDigitize(null, null, true);
       }
-    }
-  }, [selectedSymptomsCollector, isAutofillSelected]);
+  }, [selectedSymptomsCollector, isAutofillSelected, typedInputText]);
 
   useEffect(() => {
     let interval;
@@ -5140,7 +5179,7 @@ const ConsultationDrawer = ({
                         
                                                 {/* Transcript Cards */}
                         {/* First transcript card - show initial transcript */}
-                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
+                        {!isFirstTranscriptJSON && ((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
                           const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
                           const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations
@@ -5250,7 +5289,7 @@ const ConsultationDrawer = ({
                         })()}
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
-                        {!isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
+                        {!isFirstTranscriptJSON && !isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
                             <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
