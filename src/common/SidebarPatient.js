@@ -202,7 +202,7 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     </div>
                 )
             })}
-            {patient_data?.abhaAddress
+            {(patient_data?.abhaAddress && profile?.HipID)
                 ? <></> // TODO: Show ABHA details if already linked
                 : (
                     <div>

@@ -512,7 +512,7 @@ function WalkInConsultation() {
         label: (
           <div className="d-flex align-items-center gap-3">
             {AddPatientPlank()}
-            {AddPatientViaAbhaPlank()}
+            {profile?.HipID ? AddPatientViaAbhaPlank() : null}
           </div>
         ),
       });

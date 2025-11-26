@@ -1228,7 +1228,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       },
     ]?.filter((item) => item);
 
-    if (!record?.abhaAddress) {
+    if (!record?.abhaAddress && profile?.HipID) {
       items.push({
         label: (
           <span

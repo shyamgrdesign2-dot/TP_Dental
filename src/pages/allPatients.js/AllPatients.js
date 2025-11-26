@@ -447,7 +447,7 @@ const AllPatients = () => {
         key: "createCertificate",
       },
     ];
-    if (!record?.abhaAddress) {
+    if (!record?.abhaAddress && profile?.HipID) {
       menuItems.push({
         label: (
           <span
