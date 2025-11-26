@@ -27,6 +27,9 @@ import {
   getClinic,
   getTokenData
 } from "../utils/utils";
+import AbhaIcon from "../assets/images/abha-svg.svg";
+import AbhaDrawer from "../components/abha/AbhaDrawer";
+
 function WalkInConsultation() {
   const navigate = useNavigate();
 
@@ -54,6 +57,7 @@ function WalkInConsultation() {
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -429,6 +433,10 @@ function WalkInConsultation() {
     );
   };
 
+  const onSuccessAbhaLink = (linkedAddress, abhaInsertId) => {
+    goToAddPatient(linkedAddress, abhaInsertId);
+  };
+
   const AddPatientPlank = () => {
     return (
       <Button
@@ -438,6 +446,22 @@ function WalkInConsultation() {
         onClick={goToAddPatient}
       >
         Add New Patient
+      </Button>
+    );
+  };
+
+  const AddPatientViaAbhaPlank = () => {
+    return (
+      <Button
+        type="text"
+        className="btn btn-primary1 btn-41 align-items-center d-flex"
+        icon={<i className="icon-Add"></i>}
+        onClick={() => {
+          handleCreateAbhaDrawer();
+        }}
+      >
+        Add New Patient via ABHA{" "}
+        <img src={AbhaIcon} width={15} style={{ marginLeft: "6px" }} />
       </Button>
     );
   };
@@ -485,7 +509,12 @@ function WalkInConsultation() {
       data.push({
         key: -1,
         value: "Add New Patient",
-        label: AddPatientPlank(),
+        label: (
+          <div className="d-flex align-items-center gap-3">
+            {AddPatientPlank()}
+            {AddPatientViaAbhaPlank()}
+          </div>
+        ),
       });
     }
     setSearchOptions(data);
@@ -778,7 +807,11 @@ function WalkInConsultation() {
     );
   }, [clickedPatient, clickedDownArrow]);
 
-  function goToAddPatient() {
+  function goToAddPatient(abhaLinkedAddress = "", abhaInsertId = "") {
+    if (typeof abhaLinkedAddress !== "string" || typeof abhaInsertId !== "string") {
+      abhaLinkedAddress = "";
+      abhaInsertId = "";
+    }
     // window.Moengage.track_event("walkin_consult_start", {
     //   "doctor_id": profile?.doctor_unique_id,
     //   "patient_type": 'New',
@@ -788,11 +821,23 @@ function WalkInConsultation() {
       clinic_name,
     });
     if (searchQuery.length === 10 && isNumeric(searchQuery)) {
-      navigate("/add_patient", { state: { patient_data: { pm_fullname: '', pm_contact_no: searchQuery } } });
+      navigate("/add_patient", {
+        state: {
+          patient_data: { pm_fullname: "", pm_contact_no: searchQuery },
+          abhaLinkedAddress,
+          abhaInsertId: abhaInsertId,
+        },
+      });
     } else if (searchQuery.length > 0 && isAlphabet(searchQuery)) {
-      navigate("/add_patient", { state: { patient_data: { pm_fullname: searchQuery, pm_contact_no: '' } } });
+      navigate("/add_patient", {
+        state: {
+          patient_data: { pm_fullname: searchQuery, pm_contact_no: "" },
+          abhaLinkedAddress,
+          abhaInsertId: abhaInsertId,
+        },
+      });
     } else {
-      navigate("/add_patient");
+      navigate("/add_patient", { state: { abhaLinkedAddress, abhaInsertId } });
     }
   }
 
@@ -846,6 +891,10 @@ function WalkInConsultation() {
     });
   };
 
+  const handleCreateAbhaDrawer = useCallback(() => {
+    setCreateAbhaDrawer(!createAbhaDrawer);
+  }, [createAbhaDrawer]);
+
   return (
     <>
       {isMobile && <TabHeader flag={1} title="Start Walk-in Consultation" onClick={goToAddPatient} />}
@@ -892,6 +941,15 @@ function WalkInConsultation() {
           {COMMON_MODAL}
         </div>
       </div>
+
+      {createAbhaDrawer && (
+        <AbhaDrawer
+          onClose={handleCreateAbhaDrawer}
+          open={createAbhaDrawer}
+          patientUniqueId={null}
+          onSuccess={onSuccessAbhaLink}
+        />
+      )}
     </>
   );
 }

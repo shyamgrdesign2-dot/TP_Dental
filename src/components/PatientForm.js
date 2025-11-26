@@ -26,10 +26,11 @@ import saveIcon from '../assets/images/save.svg';
 import smartPad from '../assets/images/smartPad.svg';
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
+import ApiAbha from "../api/services/ApiAbha";
 
 const { TabPane } = Tabs;
 
-function PatientForm({ mode = ADD, patient_data }) {
+function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaInsertId = "" }) {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useDispatch();
@@ -108,6 +109,12 @@ function PatientForm({ mode = ADD, patient_data }) {
                     "patient_number": patient_data?.pm_contact_no,
                     "patient_id": patient_data?.patient_unique_id
                 });
+                if (abhaLinkedAddress && abhaInsertId && abhaInsertId !== "" && action.payload && action.payload?.patient_unique_id) {
+                    await ApiAbha.linkPatientUniqueidWithAbha({
+                        patient_unique_id: action.payload.patient_unique_id,
+                        abhaInsertId: abhaInsertId,
+                    });
+                }
                 if (
                     mode === EDIT &&
                     patient_data.pm_dob !== finalValues.pm_dob
@@ -202,7 +209,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                     <div className="tabs-patient">
                                         <Tabs defaultActiveKey="1">
                                             <TabPane tab="Personal Details" key="1">
-                                                <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
+                                                <PersonalDetails form={form} mode={mode} patient_data={patient_data} abhaLinkedAddress={abhaLinkedAddress} />
                                             </TabPane>
                                             <TabPane tab="Secondary Details" key="2">
                                                 <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
@@ -214,7 +221,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                     </div>
                                 ) : (
                                     <>
-                                        <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
+                                        <PersonalDetails form={form} mode={mode} patient_data={patient_data} abhaLinkedAddress={abhaLinkedAddress} />
                                         <hr className="mb-3 mt-3" />
                                         <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
                                         <hr className="mb-3 mt-3" />

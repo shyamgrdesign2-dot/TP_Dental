@@ -125,4 +125,11 @@ ApiAbha.verifyOtpForAbhaNumberLink = function (data) {
   );
 };
 
+ApiAbha.linkPatientUniqueidWithAbha = function (data) {
+  return api.post(
+    `/api/v1/abdm/m1/enrollmentByAadhaar/updatePatientUniqueid`,
+    data,
+    baseUrl
+  );
+}
 export default ApiAbha;

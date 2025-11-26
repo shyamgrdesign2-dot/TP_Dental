@@ -163,7 +163,7 @@ const MobileVerifyOtp = ({
           }
 
           // OTP verified successfully - return true to show success screen
-          return true;
+          return response.data;
         }
       } else if (isAbhaNumberLinking) {
         // Verify OTP for ABHA number linking

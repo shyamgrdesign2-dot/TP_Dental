@@ -48,7 +48,7 @@ const AbhaAddress = ({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLinkAbha = useCallback(async () => {
-    if (!selectedAddress || !patient_unique_id) {
+    if (!selectedAddress) {
       return;
     }
 
@@ -64,7 +64,11 @@ const AbhaAddress = ({
         });
 
         if (response?.success) {
-          return { success: true };
+          return {
+            success: true,
+            abhaAddress: response.data?.abhaAddress,
+            abhaInsertId: response.data?.abhaInsertId,
+          };
         } else {
           notification.error({
             message: "Error",
@@ -173,7 +177,7 @@ const AbhaAddress = ({
           </label>
         ))}
       </div>
-      {(!isAbhaAddressLinking && !isMobileLinking) && (
+      {!isAbhaAddressLinking && !isMobileLinking && (
         <>
           <div className="abha_address_selection_divider">
             <span className="divider_line" />

@@ -16,7 +16,12 @@ import useAbhaScreens, { ABHA_SCREENS } from "./hooks/useAbhaScreens";
 import ApiAbha from "../../api/services/ApiAbha";
 import "./AbhaDrawer.scss";
 
-const AbhaDrawer = ({ onClose, open, patientUniqueId }) => {
+const AbhaDrawer = ({
+  onClose,
+  open,
+  patientUniqueId,
+  onSuccess = () => {},
+}) => {
   const {
     currentScreen,
     screenData,
@@ -86,8 +91,14 @@ const AbhaDrawer = ({ onClose, open, patientUniqueId }) => {
     });
   };
 
-  const handleAbhaCreatedSuccess = () => {
+  const handleAbhaCreatedSuccess = (
+    linkedAddress = null,
+    abhaInsertId = null
+  ) => {
     // Close drawer
+    if (linkedAddress && abhaInsertId) {
+      onSuccess(linkedAddress, abhaInsertId);
+    }
     onClose();
 
     // Show success message
@@ -228,7 +239,11 @@ const AbhaDrawer = ({ onClose, open, patientUniqueId }) => {
           goToAbhaAddress({ ...screenData, showSuccessScreen: true });
           
           setTimeout(() => {
-            handleAbhaCreatedSuccess();
+            if (result.abhaAddress && result.abhaInsertId) {
+              handleAbhaCreatedSuccess(result.abhaAddress, result.abhaInsertId);
+            } else {
+              handleAbhaCreatedSuccess();
+            }
           }, 3000);
         } else if (isMobileLinking || isAbhaNumberLinking) {
           // Show success screen for 3 seconds, then show AbhaAddress
@@ -256,7 +271,11 @@ const AbhaDrawer = ({ onClose, open, patientUniqueId }) => {
         
         if (isMobileLinking || isAbhaAddressLinking) {
           // For mobile/address linking, directly link and show success
-          handleAbhaCreatedSuccess();
+          if (result.abhaAddress && result.abhaInsertId) {
+            handleAbhaCreatedSuccess(result.abhaAddress, result.abhaInsertId);
+          } else {
+            handleAbhaCreatedSuccess();
+          }
         } else if (linkAbhaData) {
           // For ABHA creation flow, navigate to OTP verification code screen
           goToOtpVerificationCode({

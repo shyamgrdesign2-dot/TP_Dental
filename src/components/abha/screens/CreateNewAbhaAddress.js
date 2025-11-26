@@ -162,7 +162,11 @@ const CreateNewAbhaAddress = ({
 
       if (response?.success) {
         // Close drawer on success
-        onSuccess();
+        if (response?.data?.abhaAddress && response?.data?.abhaInsertId) {
+          onSuccess(response?.data?.abhaAddress, response?.data?.abhaInsertId);
+        } else {
+          onSuccess();
+        }
       } else {
         notification.error({
           message: "Failed to create ABHA address",

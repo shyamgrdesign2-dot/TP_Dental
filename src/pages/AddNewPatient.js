@@ -8,10 +8,10 @@ import PatientForm from "../components/PatientForm";
 function AddNewPatient() {
 
     const { state } = useLocation();
-    const { patient_data } = state != null && state
+    const { patient_data, abhaLinkedAddress = "", abhaInsertId = "" } = state != null && state
 
     return (
-        <PatientForm mode={ADD} patient_data={patient_data} />
+        <PatientForm mode={ADD} patient_data={patient_data} abhaLinkedAddress={abhaLinkedAddress} abhaInsertId={abhaInsertId} />
     );
 
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { Form, Input, Button, Select, DatePicker, Radio, Row, Col } from "antd";
 import dayjs from "dayjs";
@@ -10,19 +10,35 @@ import { calculateAge, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils
 
 import { useDispatch, useSelector } from "react-redux";
 import { listSalutation } from "../redux/appointmentsSlice";
+import AbhaIcon from "../assets/images/abha-svg.svg";
+import GreenRight from "../assets/images/green-right.svg";
+import { getAbhaDomainSuffix } from "./abha/helpers";
 
 const { Option } = Select;
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
 
-function PersonalDetails({ form, mode = ADD, patient_data }) {
+function PersonalDetails({ form, mode = ADD, patient_data, abhaLinkedAddress = "" }) {
 
     const [showDetails, setShowDetails] = useState(true);
     const [ageYearsMonths, setAgeYearsMonths] = useState(null);
 
     const dispatch = useDispatch();
     const { salutationData, patients_details } = useSelector((state) => state.records);
+    
+    const normalizedAbhaAddress = useMemo(() => {
+        if (!abhaLinkedAddress) {
+            return "";
+        }
+        const trimmed = `${abhaLinkedAddress}`.trim();
+        if (!trimmed) {
+            return "";
+        }
+        return trimmed.includes("@")
+            ? trimmed
+            : `${trimmed}${getAbhaDomainSuffix()}`;
+    }, [abhaLinkedAddress]);
 
     useEffect(() => {
         dispatch(listSalutation());
@@ -210,6 +226,17 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
             )}
             {showDetails && (
                 <>
+                    {normalizedAbhaAddress && (
+                        <div className="abha-address-pill">
+                            <div className="abha-address-pill__info">
+                                <img src={AbhaIcon} alt="ABHA" className="abha-address-pill__icon" />
+                                <span className="abha-address-pill__value">{normalizedAbhaAddress}</span>
+                            </div>
+                            <div className="abha-address-pill__verified">
+                                <img src={GreenRight} alt="Verified" style={{ height: '20px', width: '20px' }} />
+                            </div>
+                        </div>
+                    )}
                     <Row gutter={{ xs: 8, sm: 18, md: 24, lg: 30 }}>
                         <Col xs={8} sm={8} md={6} lg={4}>
                             <Form.Item name="pm_salutation" label="Salutation">
