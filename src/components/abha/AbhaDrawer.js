@@ -296,7 +296,11 @@ const AbhaDrawer = ({
     ) {
       const success = await otpVerificationCodeFunctionRef.current();
       if (success) {
-        handleAbhaCreatedSuccess();
+        if (success?.abhaAddress && success?.abhaInsertId) {
+          handleAbhaCreatedSuccess(success.abhaAddress, success.abhaInsertId);
+        } else {
+          handleAbhaCreatedSuccess();
+        }
       }
     }
   };

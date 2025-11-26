@@ -106,7 +106,10 @@ const OtpVerificationCode = ({
 
       if (response?.success) {
         // Success - return true to trigger drawer close and success message
-        return true;
+        return {
+          abhaAddress: response?.data?.abhaAddress,
+          abhaInsertId: response?.data?.abhaInsertId,
+        };
       } else {
         setHasError(true);
         notification.error({
