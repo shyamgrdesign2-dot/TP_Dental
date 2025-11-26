@@ -19,14 +19,16 @@ const { Option } = Select;
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
 
-function PersonalDetails({ form, mode = ADD, patient_data, abhaLinkedAddress = "" }) {
+function PersonalDetails({ form, mode = ADD, patient_data }) {
 
     const [showDetails, setShowDetails] = useState(true);
     const [ageYearsMonths, setAgeYearsMonths] = useState(null);
 
     const dispatch = useDispatch();
     const { salutationData, patients_details } = useSelector((state) => state.records);
-    
+    const { abhaDetails } = useSelector((state) => state.abha || { abhaDetails: {} });
+    const abhaLinkedAddress = abhaDetails?.linkedAddress || "";
+
     const normalizedAbhaAddress = useMemo(() => {
         if (!abhaLinkedAddress) {
             return "";
@@ -69,6 +71,40 @@ function PersonalDetails({ form, mode = ADD, patient_data, abhaLinkedAddress = "
             }
         }
     }, [patients_details, patient_data]);
+
+    useEffect(() => {
+        if (!form || !abhaDetails || Object.keys(abhaDetails).length === 0) return;
+        const hasValue = (value) => value !== undefined && value !== null && value !== "";
+        const updatedFields = {};
+
+        if (hasValue(abhaDetails.fullName)) {
+            updatedFields.pm_fullname = abhaDetails.fullName;
+        }
+        if (hasValue(abhaDetails.mobile)) {
+            updatedFields.pm_contact_no = abhaDetails.mobile;
+        }
+        if (hasValue(abhaDetails.gender)) {
+            updatedFields.pm_gender = abhaDetails.gender === "M"
+                ? "Male" : abhaDetails.gender === "F"
+                    ? "Female" : "Other";
+        }
+        if (hasValue(abhaDetails.dateOfBirth)) {
+            const formattedDob = moment(abhaDetails.dateOfBirth).format(dateFormat);
+            updatedFields.pm_dob = dayjs(formattedDob, dateFormat);
+            const age = calculateAge(formattedDob);
+            setAgeYearsMonths(age);
+        }
+        if (hasValue(abhaDetails.pinCode)) {
+            updatedFields.pm_pincode = abhaDetails.pinCode;
+        }
+        if (hasValue(abhaDetails.address)) {
+            updatedFields.pm_address = abhaDetails.address;
+        }
+
+        if (Object.keys(updatedFields).length > 0) {
+            form.setFieldsValue(updatedFields);
+        }
+    }, [abhaDetails, form]);
 
     const validateMobileNumber = (_, value) => {
         const mobileNumberRegex = /^[0-9]{10}$/; // 10-digit number validation regex

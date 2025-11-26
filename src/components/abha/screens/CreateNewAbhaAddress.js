@@ -163,7 +163,11 @@ const CreateNewAbhaAddress = ({
       if (response?.success) {
         // Close drawer on success
         if (response?.data?.abhaAddress && response?.data?.abhaInsertId) {
-          onSuccess(response?.data?.abhaAddress, response?.data?.abhaInsertId);
+          onSuccess({
+            linkedAddress: response?.data?.abhaAddress,
+            insertId: response?.data?.abhaInsertId,
+            ...response?.data,
+          });
         } else {
           onSuccess();
         }

@@ -21,6 +21,7 @@ import SecondaryDetails from "../components/SecondaryDetails";
 import AddressDetails from "../components/AddressDetails";
 import UploadProfile from "../components/UploadProfile";
 import { viewPatient, addPatient, editPatient } from "../redux/appointmentsSlice";
+import { clearAbhaDetails } from "../redux/abhaSlice";
 import CommonModal from "../common/CommonModal";
 import saveIcon from '../assets/images/save.svg';
 import smartPad from '../assets/images/smartPad.svg';
@@ -30,7 +31,7 @@ import ApiAbha from "../api/services/ApiAbha";
 
 const { TabPane } = Tabs;
 
-function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaInsertId = "" }) {
+function PatientForm({ mode = ADD, patient_data }) {
     const navigate = useNavigate();
     const location = useLocation();
     const dispatch = useDispatch();
@@ -38,6 +39,11 @@ function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaIns
         (state) => state.records
     );
     const { profile, userId } = useSelector((state) => state.doctors);
+    const { abhaDetails } = useSelector((state) => state.abha || { abhaDetails: {} });
+    const {
+        linkedAddress: abhaLinkedAddress = "",
+        insertId: abhaInsertId = "",
+    } = abhaDetails || {};
 
     const [form] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,6 +68,12 @@ function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaIns
         }
         mode === EDIT && getEditData()
     }, []);
+
+    useEffect(() => {
+        return () => {
+            dispatch(clearAbhaDetails());
+        };
+    }, [dispatch]);
 
     const showHideModal = useCallback(() => {
         setIsModalOpen(!isModalOpen);
@@ -179,6 +191,7 @@ function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaIns
                         }
                     }
                 }
+                dispatch(clearAbhaDetails());
             } else {
                 errorMessage(action.error);
             }
@@ -209,7 +222,7 @@ function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaIns
                                     <div className="tabs-patient">
                                         <Tabs defaultActiveKey="1">
                                             <TabPane tab="Personal Details" key="1">
-                                                <PersonalDetails form={form} mode={mode} patient_data={patient_data} abhaLinkedAddress={abhaLinkedAddress} />
+                                                <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
                                             </TabPane>
                                             <TabPane tab="Secondary Details" key="2">
                                                 <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
@@ -221,7 +234,7 @@ function PatientForm({ mode = ADD, patient_data, abhaLinkedAddress = "", abhaIns
                                     </div>
                                 ) : (
                                     <>
-                                        <PersonalDetails form={form} mode={mode} patient_data={patient_data} abhaLinkedAddress={abhaLinkedAddress} />
+                                        <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
                                         <hr className="mb-3 mt-3" />
                                         <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
                                         <hr className="mb-3 mt-3" />

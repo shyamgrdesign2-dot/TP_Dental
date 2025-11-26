@@ -109,6 +109,7 @@ const OtpVerificationCode = ({
         return {
           abhaAddress: response?.data?.abhaAddress,
           abhaInsertId: response?.data?.abhaInsertId,
+          ...response?.data,
         };
       } else {
         setHasError(true);

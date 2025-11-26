@@ -66,6 +66,7 @@ import { resetObstetricState } from "../../redux/obstetricSlice";
 import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
+import { clearAbhaDetails } from "../../redux/abhaSlice";
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -876,6 +877,7 @@ const AllPatients = () => {
   };
 
   const handleAddPatient = () => {
+    dispatch(clearAbhaDetails());
     navigate("/add_patient", {
       state: { from: "/all_patients" },
     });

@@ -433,8 +433,8 @@ function WalkInConsultation() {
     );
   };
 
-  const onSuccessAbhaLink = (linkedAddress, abhaInsertId) => {
-    goToAddPatient(linkedAddress, abhaInsertId);
+  const onSuccessAbhaLink = () => {
+    goToAddPatient();
   };
 
   const AddPatientPlank = () => {
@@ -807,11 +807,7 @@ function WalkInConsultation() {
     );
   }, [clickedPatient, clickedDownArrow]);
 
-  function goToAddPatient(abhaLinkedAddress = "", abhaInsertId = "") {
-    if (typeof abhaLinkedAddress !== "string" || typeof abhaInsertId !== "string") {
-      abhaLinkedAddress = "";
-      abhaInsertId = "";
-    }
+  function goToAddPatient() {
     // window.Moengage.track_event("walkin_consult_start", {
     //   "doctor_id": profile?.doctor_unique_id,
     //   "patient_type": 'New',
@@ -824,20 +820,16 @@ function WalkInConsultation() {
       navigate("/add_patient", {
         state: {
           patient_data: { pm_fullname: "", pm_contact_no: searchQuery },
-          abhaLinkedAddress,
-          abhaInsertId: abhaInsertId,
         },
       });
     } else if (searchQuery.length > 0 && isAlphabet(searchQuery)) {
       navigate("/add_patient", {
         state: {
           patient_data: { pm_fullname: searchQuery, pm_contact_no: "" },
-          abhaLinkedAddress,
-          abhaInsertId: abhaInsertId,
         },
       });
     } else {
-      navigate("/add_patient", { state: { abhaLinkedAddress, abhaInsertId } });
+      navigate("/add_patient");
     }
   }
 

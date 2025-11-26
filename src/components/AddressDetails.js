@@ -61,6 +61,12 @@ function AddressDetails({ form }) {
     [pincode]
   );
 
+  useEffect(() => {
+    if (!form.getFieldValue("pm_pincode") || !dispatch) return;
+    if (form.getFieldValue("pm_pincode").length !== 6) return;
+    dispatch(searchPincode(form.getFieldValue("pm_pincode")));
+  }, [form.getFieldValue("pm_pincode"), dispatch]);
+
   return (
     <>
       {!isMobile && (

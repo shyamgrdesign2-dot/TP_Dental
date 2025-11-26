@@ -15,6 +15,8 @@ import imgCloseVisit from "../../assets/images/close-visit.svg";
 import useAbhaScreens, { ABHA_SCREENS } from "./hooks/useAbhaScreens";
 import ApiAbha from "../../api/services/ApiAbha";
 import "./AbhaDrawer.scss";
+import { useDispatch } from "react-redux";
+import { setAbhaDetails } from "../../redux/abhaSlice";
 
 const AbhaDrawer = ({
   onClose,
@@ -34,6 +36,8 @@ const AbhaDrawer = ({
     goToMobileVerifyOtp,
     resetScreens,
   } = useAbhaScreens();
+
+  const dispatch = useDispatch();
 
   const [isNextDisabled, setIsNextDisabled] = useState(true);
   const [isNextLoading, setIsNextLoading] = useState(false);
@@ -91,13 +95,15 @@ const AbhaDrawer = ({
     });
   };
 
-  const handleAbhaCreatedSuccess = (
-    linkedAddress = null,
-    abhaInsertId = null
-  ) => {
+  const handleAbhaCreatedSuccess = (abhaDetails = {}) => {
     // Close drawer
-    if (linkedAddress && abhaInsertId) {
-      onSuccess(linkedAddress, abhaInsertId);
+    if (abhaDetails?.linkedAddress && abhaDetails?.insertId) {
+      dispatch(
+        setAbhaDetails({
+          ...abhaDetails,
+        })
+      );
+      onSuccess();
     }
     onClose();
 
@@ -240,7 +246,11 @@ const AbhaDrawer = ({
           
           setTimeout(() => {
             if (result.abhaAddress && result.abhaInsertId) {
-              handleAbhaCreatedSuccess(result.abhaAddress, result.abhaInsertId);
+              handleAbhaCreatedSuccess({
+                linkedAddress: result.abhaAddress,
+                insertId: result.abhaInsertId,
+                ...result,
+              });
             } else {
               handleAbhaCreatedSuccess();
             }
@@ -272,7 +282,11 @@ const AbhaDrawer = ({
         if (isMobileLinking || isAbhaAddressLinking) {
           // For mobile/address linking, directly link and show success
           if (result.abhaAddress && result.abhaInsertId) {
-            handleAbhaCreatedSuccess(result.abhaAddress, result.abhaInsertId);
+            handleAbhaCreatedSuccess({
+              linkedAddress: result.abhaAddress, 
+              insertId: result.abhaInsertId,
+              ...result,
+            });
           } else {
             handleAbhaCreatedSuccess();
           }
@@ -297,7 +311,11 @@ const AbhaDrawer = ({
       const success = await otpVerificationCodeFunctionRef.current();
       if (success) {
         if (success?.abhaAddress && success?.abhaInsertId) {
-          handleAbhaCreatedSuccess(success.abhaAddress, success.abhaInsertId);
+          handleAbhaCreatedSuccess({
+            linkedAddress: success.abhaAddress,
+            insertId: success.abhaInsertId,
+            ...success,
+          });
         } else {
           handleAbhaCreatedSuccess();
         }

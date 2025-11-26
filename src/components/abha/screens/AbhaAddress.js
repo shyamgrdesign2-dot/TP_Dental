@@ -68,6 +68,7 @@ const AbhaAddress = ({
             success: true,
             abhaAddress: response.data?.abhaAddress,
             abhaInsertId: response.data?.abhaInsertId,
+            ...response?.data,
           };
         } else {
           notification.error({
