@@ -40,6 +40,7 @@ import {
   GB_SNAP_RX_DIGITIZATION,
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
+  PAID,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -70,6 +71,12 @@ function Cardiology(props) {
   const dispatch = useDispatch();
 
   const { profile, userId } = useSelector((state) => state.doctors);
+  const { planDetails } = useSelector((state) => state.subscription);
+  const { service_mappings } = planDetails || {};
+  const VOICE_RX_planDetails = service_mappings?.find(
+    (service) => service.service_name === S_VOICE_RX
+  );
+  const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
   const { frequencyList, timingList, defaultPrintSettings } = useSelector((state) => state.doctors);
   const medicationCaseOptions = defaultPrintSettings?.prescription?.case_option?.find((option) => option.id === 4);
 
@@ -1054,6 +1061,11 @@ function Cardiology(props) {
       return acc;
     }, {});
     
+    const entries = Object.entries(groupedByType).filter(([, items]) => items.length > 0);
+    if (!entries.length) {
+      return null;
+    }
+
     const typeDisplayNames = {
       'medical_condition': 'Medical Conditions',
       'allergy': 'Allergies',
@@ -1064,7 +1076,7 @@ function Cardiology(props) {
     
     return (
       <div className="medical-history-grouped" style={{ marginTop: '8px' }}>
-        {Object.entries(groupedByType).map(([type, items]) => (
+        {entries.map(([type, items]) => (
           <div key={type} style={{ marginBottom: '8px' }}>
             <div style={{ marginBottom: '4px', marginLeft: '16px' }}>
               <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
@@ -1373,6 +1385,35 @@ function Cardiology(props) {
     });
   };
   
+  const handleStartConsult = () => {
+    window.Moengage.track_event("start_new_visit_click", {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+    });
+    navigate("/prescription", {
+      state: {
+        patient_data: patient_data,
+        send_path: "patient_details",
+      },
+    });
+  };
+
+  const handleStartVoiceRx = () => {
+    const clinic_name = getClinicName(profile?.hospital_data);
+    window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+      patient_contact: patient_data?.pm_contact_no || "",
+      patient_id: patient_data?.patient_unique_id || "",
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+    });
+    navigate("/voice-rx-consult", {
+      state: {
+        patient_data: patient_data,
+      },
+    });
+  };
+
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -2674,11 +2715,29 @@ function Cardiology(props) {
                       patient_data={patient_data}
                       navigate={navigate}
                       userId={userId}
+                      isVoiceRxPaid={isVoiceRxPaid}
+                      handleStartConsult={handleStartConsult}
+                      handleStartVoiceRx={handleStartVoiceRx}
                     />
                   ) : (
-                    <Button
-                      className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
-                      onClick={() => {
+                  <Button
+                    className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
+                    onClick={() => {
+                      if (isVoiceRxPaid) {
+                        const clinic_name = getClinicName(profile?.hospital_data);
+                        window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
+                          patient_contact: patient_data?.pm_contact_no || "",
+                          patient_id: patient_data?.patient_unique_id || "",
+                          doctor_speciality: profile?.dp_name,
+                          doctor_unique_id: profile?.doctor_unique_id,
+                          clinic_name,
+                        });
+                        navigate("/voice-rx-consult", {
+                          state: {
+                            patient_data: patient_data,
+                          },
+                        });
+                      } else {
                         window.Moengage.track_event("start_new_visit_click", {
                           doctor_id: profile?.doctor_unique_id,
                           patient_id:
@@ -2692,10 +2751,11 @@ function Cardiology(props) {
                             send_path: "patient_details",
                           },
                         });
-                      }}
-                    >
-                      {"Start New Consult"}
-                    </Button>
+                      }
+                    }}
+                  >
+                    {isVoiceRxPaid ? "Start Voice Rx" : "Start New Consult"}
+                  </Button>
                   )}
                 </div>
               </div>
@@ -2707,7 +2767,15 @@ function Cardiology(props) {
   );
 }
 
-function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
+function SmartDropdownButtons({
+  profile,
+  patient_data,
+  navigate,
+  userId,
+  isVoiceRxPaid,
+  handleStartConsult,
+  handleStartVoiceRx,
+}) {
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
@@ -2745,21 +2813,15 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
         <Button
           className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
           onClick={() => {
-            window.Moengage.track_event("start_new_visit_click", {
-              doctor_id: profile?.doctor_unique_id,
-              patient_id:
-                patient_data !== undefined ? patient_data.patient_unique_id : 0,
-            });
-            navigate("/prescription", {
-              state: {
-                patient_data: patient_data,
-                send_path: "patient_details",
-              },
-            });
+            if (isVoiceRxPaid) {
+              handleStartVoiceRx();
+            } else {
+              handleStartConsult();
+            }
           }}
         >
           <span className="px-4" style={{ flex: 1, textAlign: "center" }}>
-            Start New Consult
+            {isVoiceRxPaid ? "Start Voice Rx" : "Start New Consult"}
           </span>
           <span
             ref={arrowRef}
@@ -2834,31 +2896,32 @@ function SmartDropdownButtons({ profile, patient_data, navigate, userId }) {
               </button>
             </div>
           }
-          {(isFreeVoiceRxUser || tp_monetization_enable) &&
+          {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid &&
             <div>
               <button
                 className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
                 onClick={() => {
                   setOpen(false);
-                  const clinic_name = getClinicName(profile?.hospital_data);
-                  window.Moengage?.track_event("TP_VoiceRx_EntryPoint_Click", {
-                    patient_contact: patient_data?.pm_contact_no || "",
-                    patient_id: patient_data?.patient_unique_id || "",
-                    doctor_speciality: profile?.dp_name,
-                    doctor_unique_id: profile?.doctor_unique_id,
-                    clinic_name,
-                  });
-                  navigate("/voice-rx-consult", {
-                    state: { 
-                      patient_data: patient_data,
-                    },
-                  });
+                  handleStartVoiceRx();
                 }}
               >
                 <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
               </button>
             </div>
           }
+          {isVoiceRxPaid && (
+            <div>
+              <button
+                className="smart-rx-buttons bottom-border"
+                onClick={() => {
+                  setOpen(false);
+                  handleStartConsult();
+                }}
+              >
+                <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
+              </button>
+            </div>
+          )}
         </div>
       }
     </div>

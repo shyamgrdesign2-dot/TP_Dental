@@ -11,7 +11,7 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID } from '../utils/constants';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled } from '../utils/utils';
 import { isAndroid, isBrowser } from 'react-device-detect';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -43,6 +43,12 @@ function Welcome1(props) {
     const { allUploadedDocs } = useSelector(
         (state) => state.uploadDoc
     );
+    const { planDetails } = useSelector((state) => state.subscription);
+    const { service_mappings } = planDetails || {};
+    const VOICE_RX_planDetails = service_mappings?.find(
+      (e) => e.service_name === S_VOICE_RX
+    );
+    const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
     const {
         locationPath,
         isMobile,
@@ -336,7 +342,7 @@ function Welcome1(props) {
                                                                     Snap Rx
                                                                 </button>
                                                             }
-                                                            {(isFreeVoiceRxUser || tp_monetization_enable) && (
+                                                            {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
                                                                 <button
                                                                     className={`btn-consult-patient-details ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ? "with-divider" : "top-br"}`}
                                                                     onClick={() => onVoiceRxClick(patient_data)}
@@ -346,11 +352,20 @@ function Welcome1(props) {
                                                                 </button>
                                                             )}
                                                             <button
-                                                                className={`btn-consult-patient-details ${((isFreeVoiceRxUser || tp_monetization_enable) || (isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB)) ? "bottom-br" : "top-br"}`}
+                                                                className={`btn-consult-patient-details ${((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) || (isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br with-divider" : "top-br"}`}
                                                                 onClick={() => onConsultClick(patient_data)}
                                                             >
                                                                 Consult
                                                             </button>
+                                                            {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                                                                <button
+                                                                    className="btn-consult-patient-details bottom-br"
+                                                                    onClick={() => onVoiceRxClick(patient_data)}
+                                                                    style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                                >
+                                                                    Voice Rx
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -424,10 +439,10 @@ function Welcome1(props) {
                                                     >
                                                         <button
                                                             className="btn btn-outline-primary btn-smart-rx"
-                                                            onClick={() => onVoiceRxClick(patient_data)}
+                                                            onClick={() => isVoiceRxPaid ? onVoiceRxClick(patient_data) : onConsultClick(patient_data)}
                                                             style={{ padding: "9px 2rem 9px 10px" }}
                                                         >
-                                                            <span className="btn-span-smartRx">Voice Rx</span>
+                                                            <span className="btn-span-smartRx">{isVoiceRxPaid ? "Voice Rx" : "Consult"}</span>
                                                         </button>
                                                         <button
                                                             className="btn btn-outline-primary btn-down-arrow"
@@ -451,12 +466,22 @@ function Welcome1(props) {
                                                         </button>
                                                         {clickedDownArrow && (
                                                             <div className='ps-rx-btns-grp' style={{ width: '100%' }} ref={consultButtonRef}>
-                                                                <button
-                                                                    className="btn-consult-patient-details bottom-br"
-                                                                    onClick={() => onConsultClick(patient_data)}
-                                                                >
-                                                                    Consult
-                                                                </button>
+                                                                {isVoiceRxPaid ? (
+                                                                    <button
+                                                                        className="btn-consult-patient-details bottom-br"
+                                                                        onClick={() => onConsultClick(patient_data)}
+                                                                    >
+                                                                        Consult
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        className="btn-consult-patient-details bottom-br"
+                                                                        onClick={() => onVoiceRxClick(patient_data)}
+                                                                        style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                                    >
+                                                                        Voice Rx
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -525,7 +550,7 @@ function Welcome1(props) {
                                                 </button>
                                                 {clickedDownArrow && (
                                                     <div className='ps-rx-btns-grp' ref={consultButtonRef}>
-                                                        {(isFreeVoiceRxUser || tp_monetization_enable) && (
+                                                        {(isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid && (
                                                             <button
                                                                 className="btn-consult-patient-details top-br with-divider"
                                                                 onClick={() => onVoiceRxClick(patient_data)}
@@ -535,11 +560,20 @@ function Welcome1(props) {
                                                             </button>
                                                         )}
                                                         <button
-                                                            className={`btn-consult-patient-details ${(isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : "top-br"}`}
+                                                            className={`btn-consult-patient-details ${((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) ? "bottom-br" : ((isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid) ? "top-br with-divider" : "top-br"}`}
                                                             onClick={() => onConsultClick(patient_data)}
                                                         >
                                                             Consult
                                                         </button>
+                                                        {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid && (
+                                                            <button
+                                                                className="btn-consult-patient-details bottom-br"
+                                                                onClick={() => onVoiceRxClick(patient_data)}
+                                                                style={{ paddingRight: '15px', whiteSpace: 'nowrap' }}
+                                                            >
+                                                                Voice Rx
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div> : isSnapRxAccessableFromGB ? <div
