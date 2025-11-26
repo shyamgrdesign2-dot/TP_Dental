@@ -89,10 +89,18 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
                     ? "Female" : "Other";
         }
         if (hasValue(abhaDetails.dateOfBirth)) {
-            const formattedDob = moment(abhaDetails.dateOfBirth).format(dateFormat);
-            updatedFields.pm_dob = dayjs(formattedDob, dateFormat);
-            const age = calculateAge(formattedDob);
-            setAgeYearsMonths(age);
+            const parsedDob = moment(
+                abhaDetails.dateOfBirth,
+                ["YYYY-MM-DD", "DD-MM-YYYY", "D-M-YYYY", dateFormat],
+                true
+            );
+
+            if (parsedDob.isValid()) {
+                const formattedDob = parsedDob.format(dateFormat);
+                updatedFields.pm_dob = dayjs(formattedDob, dateFormat);
+                const age = calculateAge(formattedDob);
+                setAgeYearsMonths(age);
+            }
         }
         if (hasValue(abhaDetails.pinCode)) {
             updatedFields.pm_pincode = abhaDetails.pinCode;
