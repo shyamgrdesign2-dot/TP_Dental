@@ -1496,6 +1496,56 @@ export const getSupportedMimeType = () => {
   return null; // No supported type found, let browser use default
 };
 
+export const stopAllActiveRecorders = () => {
+  try {
+    if (window.mediaRecorderRef && window.mediaRecorderRef.current) {
+      if (window.mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          window.mediaRecorderRef.current.stop();
+        } catch (e) {
+          console.error('Error stopping global mediaRecorderRef:', e);
+        }
+      }
+    }
+
+    if (window.audioStreamRef && window.audioStreamRef.current) {
+      try {
+        window.audioStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        window.audioStreamRef.current = null;
+      } catch (e) {
+        console.error('Error stopping global audioStreamRef:', e);
+      }
+    }
+
+    if (window.streamRef && window.streamRef.current) {
+      try {
+        window.streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        window.streamRef.current = null;
+      } catch (e) {
+        console.error('Error stopping global streamRef:', e);
+      }
+    }
+
+    if (window.audioContextRef && window.audioContextRef.current) {
+      try {
+        if (window.audioContextRef.current.state !== 'closed') {
+          window.audioContextRef.current.close();
+        }
+        window.audioContextRef.current = null;
+      } catch (e) {
+        console.error('Error closing global audioContextRef:', e);
+      }
+    }
+    console.log('Stopped active recorders and streams (page reload will complete cleanup)');
+  } catch (error) {
+    console.error('Error stopping all active recorders:', error);
+  }
+};
+
 export const isApollo = () => env?.APOLLO_BUSINESS_IDS?.includes(getTokenData()?.hospital_business_id);
 
 // List of specific doctors who should see "Tatva Care Platform" branding
