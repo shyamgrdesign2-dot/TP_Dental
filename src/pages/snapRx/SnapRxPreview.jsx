@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Row, Col, Spin, message } from "antd";
+import { Button, Row, Col, Spin, message, Select } from "antd";
 import "./SnapRxPreview.scss";
 import {
   isMobile,
@@ -26,6 +26,7 @@ import HeaderPrescriptionPrint from "../../common/HeaderPrescriptionPrint";
 
 import {
   GB_SNAP_RX_DIGITIZATION,
+  LANGUAGE_LIST,
   MESSAGE_KEY,
   WHATS_APP_API,
   WTSAP_ERR_MESSAGE,
@@ -43,6 +44,7 @@ import { env } from "../../EnvironmentConfig";
 import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -65,7 +67,6 @@ function SnapRxPreview() {
     try {
       const urlObj = new URL(url);
       urlObj.searchParams.delete("lg");
-      urlObj.searchParams.delete("rx");
       if (language) {
         const encodedData = btoa(language.toString());
         urlObj.searchParams.set("lg", encodedData);
@@ -77,7 +78,11 @@ function SnapRxPreview() {
     }
   };
 
-  const initialLanguage = defaultPrintSettings?.default_language || 1;
+  const initialLanguage =
+    defaultPrintSettings?.default_language &&
+    defaultPrintSettings?.default_language !== "English"
+      ? defaultPrintSettings?.default_language
+      : 1;
 
   const [selectedLang, setSelectedLang] = useState(initialLanguage);
   const basePrintUrl = state?.print_rx_url || state?.print_url || null;
@@ -87,7 +92,7 @@ function SnapRxPreview() {
 
   const [printUrl, setPrintUrl] = useState(initialUrl);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
@@ -97,8 +102,6 @@ function SnapRxPreview() {
   const [smartRxFile, setSmartRxFile] = useState(files || []);
   const [isLoading, setIsLoading] = useState(false);
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
-
-  const { profile } = useSelector((state) => state.doctors);
 
   const [showProgressbar, setShowProgressbar] = useState(false);
   const [showDigitalRx, setShowDigitalRx] = useState(false);
@@ -223,6 +226,24 @@ function SnapRxPreview() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchDefaultLanguage = async () => {
+      if (!patient_data?.patient_unique_id) return;
+      try {
+        const res = await fetchPatientDefaultLanguage(
+          patient_data.patient_unique_id
+        );
+        if (res?.settings?.defaultLanguage) {
+          setSelectedLang(res.settings.defaultLanguage);
+        }
+      } catch (error) {
+        console.error("Error fetching patient default language:", error);
+      }
+    };
+
+    fetchDefaultLanguage();
+  }, [patient_data?.patient_unique_id]);
+
   const handleDownload = async () => {
     try {
       if (showDigitalRx) {
@@ -305,14 +326,27 @@ function SnapRxPreview() {
     return urlObj.toString();
   };
 
-  // Effect to update printUrl when showDigitalRx changes
+  // Effect to update printUrl when showDigitalRx or language changes
   useEffect(() => {
-    if (printUrl) {
-      const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
-      setPreviewUrl(updatedUrl);
-      setPrintUrl(updatedUrl);
-    }
-  }, [showDigitalRx]);
+    if (!basePrintUrl) return;
+    const urlWithLanguage = buildUrlWithLanguage(basePrintUrl, selectedLang);
+    const updatedUrl = updateRxDigitizeInUrl(urlWithLanguage, showDigitalRx);
+    setPreviewUrl(updatedUrl);
+    setPrintUrl(updatedUrl);
+  }, [basePrintUrl, selectedLang, showDigitalRx]);
+
+  const handleLanguageSelect = useCallback(
+    (language) => {
+      setSelectedLang(language);
+      if (patient_data?.patient_unique_id) {
+        updatePatientDefaultLanguage({
+          patientId: patient_data.patient_unique_id,
+          default_language: language,
+        });
+      }
+    },
+    [patient_data?.patient_unique_id]
+  );
 
   const handleSendToWhatsapp = async () => {
     const body = {
@@ -487,6 +521,7 @@ function SnapRxPreview() {
         printUrl={printUrl}
         pam_id={state?.pam_id}
         isSnapRx={true}
+        selectedLang={selectedLang}
       />
       <div
         className={`${
@@ -659,7 +694,7 @@ function SnapRxPreview() {
           </Col>
           <Col md={17} lg={17} xl={12}>
             <div className={isMobile ? "p-20" : ""}>
-              <div className="d-flex align-itms-center justify-content-between">
+              <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
                 <div className="titleprint">Preview</div>
                 <div className="d-flex align-items-center flex-wrap gap-3">
                   {viewCaseManagerData?.isRxDigitize &&
@@ -687,6 +722,15 @@ function SnapRxPreview() {
                         </button>
                       </div>
                     )}
+                  <Select
+                    placeholder=""
+                    className="appointmentselect"
+                    value={LANGUAGE_LIST.find(
+                      (item) => item.value == selectedLang
+                    )}
+                    onSelect={handleLanguageSelect}
+                    options={LANGUAGE_LIST}
+                  />
                 </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
