@@ -71,7 +71,7 @@ function SidebarPatient({
             short_title: 'Add Bill',
             long_title: 'Add Bill/Payment'
         } : undefined,
-        {
+        (patient_data?.abhaAddress && profile?.HipID) ? {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
             icon_image: AbhaIcon,
             short_title: "ABHA",
@@ -80,7 +80,7 @@ function SidebarPatient({
                 ? `(${abhaConsentsCount})`
                 : ""
             }`.trim(),
-        },
+        } : undefined,
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
