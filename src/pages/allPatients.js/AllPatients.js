@@ -67,6 +67,7 @@ import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
+import AbhaIcon from '../../assets/images/abha-svg.svg';
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -311,6 +312,11 @@ const AllPatients = () => {
     setCreateAbhaDrawer(!createAbhaDrawer);
   }, [createAbhaDrawer]);
 
+  const onSuccessAbhaCreation = () => {
+    dispatch(clearAbhaDetails());
+    getAllPatients();
+  };
+
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
     if (files) {
@@ -492,6 +498,13 @@ const AllPatients = () => {
             className="text-primary cursor-pointer"
           >
             {record.pm_fullname}
+            {record?.abhaAddress && profile?.HipID && (
+              <img
+                src={AbhaIcon}
+                alt="ABHA"
+                style={{ width: "18px", height: "18px", marginLeft: "4px" }}
+              />
+            )}
           </span>
           <br />
           <small>
@@ -1236,6 +1249,7 @@ const AllPatients = () => {
           onClose={handleCreateAbhaDrawer}
           open={createAbhaDrawer}
           patientUniqueId={patientData?.patient_unique_id}
+          onSuccess={onSuccessAbhaCreation}
         />
       )}
     </>

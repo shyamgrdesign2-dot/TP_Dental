@@ -90,6 +90,7 @@ import welcomdoc from "../assets/images/welcom-doc.svg";
 import symptoms from "../assets/images/symptoms-green.svg";
 import suporticon from "../assets/images/suport-icon.svg";
 import windoc from "../assets/images/win-doc.png";
+import AbhaIcon from '../assets/images/abha-svg.svg';
 
 import CommonModal from "../common/CommonModal";
 import { useSelector, useDispatch } from "react-redux";
@@ -151,6 +152,7 @@ import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
+import { clearAbhaDetails } from "../redux/abhaSlice";
 
 const { TextArea } = Input;
 
@@ -784,6 +786,50 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       getShowOpdBilling();
     }
   }, []);
+
+  const getAllAppointments = async () => {
+    const timeOutId = setTimeout(async () => {
+      if (
+        selectedTab != TAB_ZYDUS_ENCOUNTER &&
+        selectedTab != TAB_ZYDUS_APPOINTMENT
+      ) {
+        const undigitisedIds = pendingDigitisation?.data?.split(",");
+        const snapRxUnDigitisedUnReviewedIds = [
+          ...(snapRxUnDigitisedIds?.unDigitizedAppointmentIds || []),
+          ...(snapRxUnDigitisedIds?.unReviewedAppointmentIds || []),
+        ];
+        const allUnDigitisedIds = [
+          ...(undigitisedIds || []),
+          ...(snapRxUnDigitisedUnReviewedIds || []),
+        ];
+        setAllUnDigitisedIds(allUnDigitisedIds);
+        var sendData = {
+          startDate: date.startDate,
+          endDate: date.endDate,
+          apStatue:
+            isDigitisationTab && allUnDigitisedIds?.length > 0
+              ? 3
+              : selectedTab,
+          filterVisitType: visitTypeFilters,
+          page: pageNo,
+          search: searchQuery,
+          sortOrder: sort_order,
+          fetchBillStatus: advancedSettings?.billingStatusInAppointmentScreen,
+          ...(isDigitisationTab && allUnDigitisedIds?.length > 0
+            ? {
+                cvtAppointmentIdsStr: allUnDigitisedIds?.join(","),
+              }
+            : {}),
+        };
+        dispatch(getAllAppointment(sendData));
+      } else {
+        encounterAndFinishDataManage();
+      }
+    }, 500);
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  };
 
   const getSymptomCollectorTourCheck = async () => {
     const decodedToken = getDecodedToken();
@@ -1921,6 +1967,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ) : (
             <span className="text-primary">{record.pm_fullname}</span>
           )}
+          {record?.abhaAddress && profile?.HipID && (
+            <img
+              src={AbhaIcon}
+              alt="ABHA"
+              style={{ width: "18px", height: "18px", marginLeft: "4px" }}
+            />
+          )}
           <br />
           <small>
             {genderAge(record)}
@@ -2474,6 +2527,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const handleCreateAbhaDrawer = useCallback(() => {
     setCreateAbhaDrawer(!createAbhaDrawer);
   }, [createAbhaDrawer]);
+
+  const onSuccessAbhaCreation = () => {
+    dispatch(clearAbhaDetails());
+    getAllAppointments();
+  };
 
   const handleRecentBillDrawer = useCallback(() => {
     setRecentBillDrawer(!recentBillDrawer);
@@ -3357,6 +3415,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           onClose={handleCreateAbhaDrawer}
           open={createAbhaDrawer}
           patientUniqueId={appointmentSelectedFromMenu?.patient_unique_id}
+          onSuccess={onSuccessAbhaCreation}
         />
       )}
 
