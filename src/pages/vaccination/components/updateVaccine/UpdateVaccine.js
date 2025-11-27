@@ -613,9 +613,7 @@ const UpdateVaccine = ({
                   const isUserTyping = isTyping[i];
                   const mergedOptions = isUserTyping
                     ? regularOptions
-                    : [
-                        ...frequentOptions
-                      ];
+                    : frequentOptions?.length > 0 ? frequentOptions : regularOptions;
                   return (
                     <>
                       <div className="d-flex justify-content-between">
