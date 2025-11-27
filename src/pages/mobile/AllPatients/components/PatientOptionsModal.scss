@@ -1,0 +1,159 @@
+.patient-options-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1001; // Higher than bottom navigation (z-index: 1000)
+  backdrop-filter: blur(2px);
+
+  .patient-options-modal {
+    background: white;
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px;
+      border-bottom: 1px solid rgba(226, 226, 234, 0.2);
+
+      .modal-title {
+        h3 {
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+          font-size: 18px;
+          line-height: 26px;
+          color: #454551;
+          margin: 0;
+        }
+      }
+
+      .close-button {
+        background: rgba(0, 0, 0, 0.1);
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: scale(0.9);
+        }
+
+        .close-icon {
+          width: 16px;
+          height: 16px;
+          opacity: 0.8;
+        }
+      }
+    }
+
+    .modal-content {
+      padding: 0;
+
+      .options-list {
+        display: flex;
+        flex-direction: column;
+        padding: 0 0 24px 0;
+        .option-item {
+          background: none;
+          border: none;
+          padding: 16px 14px;
+          text-align: left;
+          cursor: pointer;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 500;
+          font-size: 16px;
+          line-height: 24px;
+          color: #1f2933;
+          border-bottom: 1px solid rgba(226, 226, 234, 0.1);
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+
+          .option-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+
+            img {
+              width: 24px;
+              height: 24px;
+              // No color filters - use original icon colors
+            }
+          }
+
+          &:hover {
+            background: rgba(75, 74, 213, 0.05);
+          }
+
+          &:active {
+            background: rgba(75, 74, 213, 0.1);
+          }
+
+          &:last-child {
+            border-bottom: none;
+          }
+        }
+      }
+    }
+
+    // Gray navigation bar at bottom
+    .modal-bottom-bar {
+      height: 33px;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 8px;
+
+      .bottom-indicator {
+        width: 134px;
+        height: 5px;
+        background: #000000;
+        border-radius: 100px;
+      }
+    }
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+// Handle safe area for iPhone
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .patient-options-modal-backdrop .patient-options-modal {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
