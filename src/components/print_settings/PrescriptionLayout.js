@@ -177,6 +177,13 @@ const obsHistoryCheckboxOptions = [
   },
 ];
 
+const diagnosisCheckboxOptions = [
+  {
+    label: "ICD Code",
+    value: "show_icd_code",
+  },
+];
+
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
   const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules,carePlanAssignments } = contextValue || {};
@@ -325,6 +332,41 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       };
     });
   };
+
+  const onDiagnosisOptionChange = (checkedValues, i) => {
+    setPrintSettings((prev) => {
+      prev.prescription.case_option[i].show_icd_code = checkedValues.includes("show_icd_code");
+      return {
+        ...prev,
+      };
+    });
+  };
+
+  const diagnosisAccordionItems = (record, i) => [
+    {
+      key: "1",
+      label: (
+        <div className="text-start">
+          <div className="fw-semibold">Customise Options</div>
+          <div className="subtitle-customize">
+            Select/deselect the parameters need to be printed
+          </div>
+        </div>
+      ),
+      children: (
+        <div className="d-flex align-items-center">
+          <Checkbox.Group
+            style={{ columnGap: "4px" }}
+            options={diagnosisCheckboxOptions}
+            value={record?.show_icd_code === false ? [] : ["show_icd_code"]}
+            onChange={(checkedValues) =>
+              onDiagnosisOptionChange(checkedValues, i)
+            }
+          />
+        </div>
+      ),
+    },
+  ];
 
   const accordionItems = (record, i) => [
     {
@@ -577,6 +619,20 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 </Form.Item>
               </div>
             </div>
+          {record.id === 3 && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={diagnosisAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           {record.id === 4 && (
             <div style={{ marginLeft: -40, display: "flex" }}>
               <div style={{ flex: 1 }}>
