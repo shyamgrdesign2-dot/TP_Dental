@@ -351,7 +351,7 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
             className={"d-flex align-items-center justify-content-between text-truncate closable-chips closable-chips-active"}
         >
             <div className="text-truncate p-2" onClick={() => handleDrawerChild(item)}>
-                <div className="text-truncate">{item.tds_name}
+                <div className="text-truncate">{`${item.tds_name} ${item?.icd_code ? `(${item?.icd_code})` : ''}`}
                     {(item.since || item.status || item.note) ? (
                         <div className="text-truncate small">{`${item.since ? item.since + ' | ' : ''}${item.status ? item.status + ' | ' : ''}${item.note ? item.note : ''}`}</div>
                     ) : (
@@ -646,7 +646,7 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
                                 <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleDrawerChild}>
                                     <i className='icon-Cross fs-3'></i>
                                 </Button>
-                                <div className="modal-title text-truncate-twolines">{childDrawerData.tds_name}</div>
+                                <div className="modal-title text-truncate-twolines">{`${childDrawerData.tds_name} ${childDrawerData?.icd_code ? `(${childDrawerData?.icd_code})` : ''}`}</div>
                             </div>
                             <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={() => updateChild(childDrawerData)}>
                                 Done
@@ -829,7 +829,7 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
                     {parentOptionsList.length > 0 &&
                         parentOptionsList.filter(e => ![...diagnosisData.map(e1 => e1.tds_name)].includes(e.tds_name)).map((item, i) => {
                             return (
-                                <Button key={i} type="text" style={{ width: item.tds_name.length > 26 && '250px' }} className={`${item.tds_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{`${item.tds_name}`}</Button>
+                                <Button key={i} type="text" style={{ width: item.tds_name.length > 26 && '250px' }} className={`${item.tds_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{`${item.tds_name} ${item?.icd_code ? `(${item?.icd_code})` : ''}`}</Button>
                             )
                         })}
                 </div>

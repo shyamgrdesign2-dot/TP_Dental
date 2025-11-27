@@ -490,7 +490,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 symptoms: symptomsData.map(({ symptom_name, change }) => ({ symptom_name, ...(change !== undefined && { change }) })),
                 examination: examinationData.map(({ examination_name, change }) => ({ examination_name, ...(change !== undefined && { change }) })),
                 surgeries: surgeriesData.map(({ name, change, masterId, notes }) => ({ name, masterId, notes, ...(change !== undefined && { change }) })),
-                diagnosis: diagnosisData.map(({ tds_id, tds_name, status, pms_default, change }) => ({ tds_id, tds_name, status, pms_default, ...(change !== undefined && { change }) })),
+                diagnosis: diagnosisData.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
                 investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),

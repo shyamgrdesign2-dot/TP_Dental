@@ -2526,7 +2526,7 @@ function Cardiology(props) {
                           {viewCaseManagerData.diagnosis.map((item, i) => {
                             return (
                               <span key={i}>
-                                <span>{item.tds_name}</span> :{" "}
+                                <span>{`${item.tds_name} ${item?.icd_code ? `(${item?.icd_code})` : ''}`}</span> :{" "}
                                 <label>{`${
                                   item.since &&
                                   `since ${item.since}${item.status && ","}`

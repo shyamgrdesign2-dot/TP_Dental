@@ -17,7 +17,7 @@ import { useEffect, useState, memo, useRef, useMemo } from "react";
 import "./updateVaccine.scss";
 import moment from "moment";
 import SuccessPopup from "../SuccessPopup.js";
-import { updateDueDate, updateVaccine } from "../../service.js";
+import { updateDueDate, updateVaccine, fetchFrequentlyUsedVaccines } from "../../service.js";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
 import { errorMessage, getClinicName } from "../../../../utils/utils.js";
@@ -90,6 +90,8 @@ const UpdateVaccine = ({
   const [isOpen, setIsOpen] = useState(
     Array(selectedVaccines?.length).fill(false)
   );
+  const [frequentlyUsedBrands, setFrequentlyUsedBrands] = useState({});
+  const [isTyping, setIsTyping] = useState({});
   const selectRefs = useRef([]);
   const { state } = useLocation();
   const { patient_data } = state;
@@ -102,12 +104,41 @@ const UpdateVaccine = ({
   const decodedToken = getDecodedToken();
   const hospital_bid = decodedToken?.result?.hospital_business_id;
 
-  const handleDropdownVisibleChange = (index, isFocused = false) => {
+  const handleDropdownVisibleChange = async (index, isFocused = false) => {
     setIsOpen((prev) => {
       const newState = [...prev];
       newState[index] = isFocused;
       return newState;
     });
+    if (isFocused) {
+      const vaccine = selectedVaccines?.[index];
+      const vaccineName = vaccine?.tvac_name;
+      if (vaccineName && !frequentlyUsedBrands[vaccineName]) {
+        setIsTyping((prev) => ({ ...prev, [index]: false }));
+        try {
+          const frequentBrands = await fetchFrequentlyUsedVaccines(
+            userId,
+            vaccineName
+          );
+          if (frequentBrands && frequentBrands.length > 0) {
+            const formattedFrequentBrands = frequentBrands.map((brand) => ({
+              label: brand?.brand_name,
+              value: brand?.tvc_id,
+            }));
+            setFrequentlyUsedBrands((prev) => ({
+              ...prev,
+              [vaccineName]: formattedFrequentBrands,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching frequently used vaccines:", error);
+        }
+      } else if (vaccineName) {
+        setIsTyping((prev) => ({ ...prev, [index]: false }));
+      }
+    } else {
+      setIsTyping((prev) => ({ ...prev, [index]: false }));
+    }
   };
 
   const scrollToIndex = (index) => {
@@ -577,6 +608,14 @@ const UpdateVaccine = ({
                             ?.vaccine_company_id
                       )?.label
                     : undefined;
+                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
+                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
+                  const isUserTyping = isTyping[i];
+                  const mergedOptions = isUserTyping
+                    ? regularOptions
+                    : [
+                        ...frequentOptions
+                      ];
                   return (
                     <>
                       <div className="d-flex justify-content-between">
@@ -624,12 +663,19 @@ const UpdateVaccine = ({
                             ?.toLowerCase()
                             .includes(input?.toLowerCase())
                         }
-                        filterSort={(optionA, optionB) =>
+                        filterSort={!isUserTyping ? undefined : (optionA, optionB) =>
                           (optionA?.label ?? "")
                             .toLowerCase()
                             .localeCompare((optionB?.label ?? "").toLowerCase())
                         }
-                        options={vaccineOptions?.[vaccine?.tvac_name]}
+                        options={mergedOptions}
+                        onSearch={(value) => {
+                          if (value && value.trim().length > 0) {
+                            setIsTyping((prev) => ({ ...prev, [i]: true }));
+                          } else {
+                            setIsTyping((prev) => ({ ...prev, [i]: false }));
+                          }
+                        }}
                         onChange={(value, option) =>
                           handleDetails(
                             vaccine?.tvac_name,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Card from 'react-bootstrap/Card';
 import { Table, Spin } from 'antd';
 import moment from "moment";
@@ -7,77 +7,119 @@ import vitals from '../assets/images/Vitals.svg';
 // import arrowright from '../assets/images/arrow-box-right.svg';
 // import graph from '../assets/images/Graph.svg';
 import heartBeat from '../assets/images/heartBeat.svg';
+import { useAccess } from '../pages/vaccination/useAccess';
 
 const showDateFormat = 'DD MMM, YY'
 
+const formatNumber = (value, decimals = 2) => {
+    if (value === null || value === undefined || value === '') return '-';
+    const num = parseFloat(value);
+    return Number.isNaN(num) ? '-' : num.toFixed(decimals);
+};
+
 function VitalsBodyComposition({ loading, passVitals, patientBirthWeight }) {
 
-    const initialRows = [
+    const { isPediatricAccessable } = useAccess();
+
+    const baseRows = useMemo(() => [
         {
-            key: '1',
+            key: 'temperature',
             name: `Temperature (Frh)`,
+            getValue: (item) => item?.temp ?? '-',
         },
         {
-            key: '2',
+            key: 'pulse',
             name: `Pulse (/min)`,
+            getValue: (item) => item?.pres ?? '-',
         },
         {
-            key: '3',
+            key: 'respRate',
             name: `Resp. Rate (/min)`,
+            getValue: (item) => item?.resp_rate ?? '-',
         },
         {
-            key: '4',
+            key: 'bloodPressure',
             name: `Blood Pressure (mmHg)`,
+            getValue: (item) => {
+                const bp = item?.blood_press;
+                if (!bp) return '-';
+                return bp.endsWith('/') ? bp.slice(0, -1) : bp;
+            },
         },
-        // {
-        //     key: '4',
-        //     name: `Systolic (mmHg)`,
-        // },
-        // {
-        //     key: '5',
-        //     name: `Diastolic (mmHg)`,
-        // },
         {
-            key: '5',
+            key: 'spo2',
             name: `SPO2 (%)`,
+            getValue: (item) => item?.spo2 ?? '-',
         },
         {
-            key: '6',
+            key: 'generalRbs',
             name: `General RBS (mg/dl)`,
+            getValue: (item) => item?.general_rbs ?? '-',
         },
-         {
-            key: '7',
+        {
+            key: 'fib4',
             name: `FIB4 `,
+            getValue: (item) => formatNumber(item?.fib4),
         },
-         {
-            key: '8',
+        {
+            key: 'waistCircumference',
             name: `Waist Circumference (cms)`,
+            getValue: (item) => item?.waist_circumference ?? '-',
         },
         {
-            key: '9',
+            key: 'ofc',
             name: `OFC (cms)`,
+            getValue: (item) => item?.ofc ?? '-',
         },
         {
-            key: '10',
+            key: 'height',
             name: `Height (cms)`,
+            getValue: (item) => item?.height ?? '-',
         },
         {
-            key: '11',
+            key: 'weight',
             name: `Weight (kgs)`,
+            getValue: (item) => item?.weight ?? '-',
         },
         {
-            key: '12',
+            key: 'bmi',
             name: `BMI (kg/m²)`,
+            getValue: (item) => formatNumber(item?.bmi),
         },
         {
-            key: '13',
+            key: 'bmr',
             name: `BMR (kcals)`,
+            getValue: (item) => formatNumber(item?.bmr),
         },
         {
-            key: '14',
+            key: 'bsa',
             name: `BSA (m²)`,
+            getValue: (item) => formatNumber(item?.bsa),
         },
-    ];
+    ], []);
+
+    const orderedRows = useMemo(() => {
+        if (!isPediatricAccessable) {
+            return baseRows;
+        }
+        const priorityKeys = ['weight', 'height', 'ofc'];
+        const priorityRows = [];
+        const remainingRows = [];
+
+        baseRows.forEach((row) => {
+            if (priorityKeys.includes(row.key)) {
+                priorityRows.push(row);
+            } else {
+                remainingRows.push(row);
+            }
+        });
+
+        const sortedPriorityRows = priorityKeys
+            .map((key) => priorityRows.find((row) => row.key === key))
+            .filter(Boolean);
+
+        return [...sortedPriorityRows, ...remainingRows];
+    }, [baseRows, isPediatricAccessable]);
 
     const initialColumns = [
         {
@@ -87,6 +129,10 @@ function VitalsBodyComposition({ loading, passVitals, patientBirthWeight }) {
             width: 160,
         },
     ];
+    const tableRows = orderedRows.map((row) => ({
+        key: row.key,
+        name: row.name,
+    }));
 
     // Extract unique dates from the JSON array
     const uniqueDates = passVitals && passVitals.length > 0 ? [...passVitals.map((item) => item.date)] : [];
@@ -100,25 +146,13 @@ function VitalsBodyComposition({ loading, passVitals, patientBirthWeight }) {
     }));
     const columns = [...initialColumns, ...dateColumns];
 
-    passVitals && passVitals.length > 0 && passVitals.map((item, index) => {
-        initialRows[0][index] = item.temp ? item.temp : '-'
-        initialRows[1][index] = item.pres ? item.pres : '-'
-        initialRows[2][index] = item.resp_rate ? item.resp_rate : '-'
-        initialRows[3][index] = item.blood_press ? item.blood_press.endsWith("/") ? item.blood_press.substring(0, item.blood_press.length - 1) : item.blood_press : '-'
-        // initialRows[3][index] = item.blood_press ? item.blood_press.split('/')[0] ? item.blood_press.split('/')[0] : '-' : '-'
-        // initialRows[4][index] = item.blood_press ? item.blood_press.split('/')[1] ? item.blood_press.split('/')[1] : '-' : '-'
-        initialRows[4][index] = item.spo2 ? item.spo2 : '-'
-        initialRows[5][index] = item.general_rbs ? item.general_rbs : "-";
-        initialRows[6][index]  = item.fib4 ? parseFloat(item.fib4).toFixed(2) : '-'
-        initialRows[7][index] = item.waist_circumference ? item.waist_circumference : '-'
-        initialRows[8][index] = item.ofc ? item.ofc : "-";
-        initialRows[9][index] = item.height ? item.height : '-'
-        initialRows[10][index] = item.weight ? item.weight : '-'
-        initialRows[11][index] = item.bmi ? parseFloat(item.bmi).toFixed(2) : '-'
-        initialRows[12][index] = item.bmr ? parseFloat(item.bmr).toFixed(2) : '-'
-        initialRows[13][index] = item.bsa ? parseFloat(item.bsa).toFixed(2) : '-'
-        
-    });
+    if (passVitals && passVitals.length > 0) {
+        passVitals.forEach((item, dateIndex) => {
+            orderedRows.forEach((rowConfig, rowIndex) => {
+                tableRows[rowIndex][dateIndex] = rowConfig.getValue(item);
+            });
+        });
+    }
 
     return (
         <div className="appointment-wrap PatientDetailswrap m-0">
@@ -135,7 +169,7 @@ function VitalsBodyComposition({ loading, passVitals, patientBirthWeight }) {
                 </Card.Header>
                 <Card.Body className='p-0'>
                     {passVitals && passVitals.length > 0 ? (
-                        <Table dataSource={initialRows} columns={columns} pagination={false} loading={loading} />
+                        <Table dataSource={tableRows} columns={columns} pagination={false} loading={loading} />
                     ) : (
                         <div className='d-flex flex-column justify-content-center' style={{ minHeight: "300px" }}>
                             {loading ? (

@@ -195,7 +195,7 @@ function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
                 setSelectedIndex(item.index)
                 setSinceValue(item.since ? parseInt(item.since.split(" ")[0]) : 1)
             }}>
-                <div className="text-truncate">{item.tds_name}
+                <div className="text-truncate">{`${item.tds_name} ${item?.icd_code ? `(${item?.icd_code})` : ''}`}
                     {(item.since || item.status || item.note) ? (
                         <div className="text-truncate small">{`${item.since ? item.since + ' | ' : ''}${item.status ? item.status + ' | ' : ''}${item.note ? item.note : ''}`}</div>
                     ) : (

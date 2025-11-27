@@ -182,3 +182,17 @@ export const checkToShowVaccination = async (doctorUniqueId) => {
   }
   return false;
 };
+
+export const fetchFrequentlyUsedVaccines = async (doctorUniqueId, vaccineName) => {
+  let result = [];
+  try {
+    const response = await api.get(
+      `/vaccination/topRecentVaccineBrands?user_id=${doctorUniqueId}&vaccine=${vaccineName}`,
+      baseUrl
+    );
+    result = response?.brands || [];
+  } catch (error) {
+    console.error("Error while fetching frequently used vaccines", error);
+  }
+  return result;
+};
