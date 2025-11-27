@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import { clearSearch, getCaseTypes, listCategories, searchPatients } from "../../../redux/appointmentsSlice";
+import { clearAbhaDetails } from "../../../redux/abhaSlice";
 import { isAlphabet, isNumeric } from "../../../utils/utils";
 
 function ConfirmAppointment({
@@ -145,6 +146,7 @@ function ConfirmAppointment({
     };
 
     function goToAddPatient() {
+        dispatch(clearAbhaDetails());
         // Track the event with appropriate data
         window.Moengage.track_event("TP_AddAppointments_AddNewPatient", {
             "Doctor_specialty": profile?.dp_name,

@@ -70,4 +70,5 @@ export default {
   short_links_api_url: env.short_links_api_url,
   short_links_api_key: env.SHORT_LINKS_API_KEY,
   ipd_portal_url: env.ipd_portal_url,
+  abha_api_url: env.abha_api_url,
 };
