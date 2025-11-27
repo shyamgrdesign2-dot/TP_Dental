@@ -1,0 +1,259 @@
+.abha-records {
+  .ant-card.abha-records__card {
+    width: 1151px;
+    min-height: 830px;
+    margin: -70px auto 0 auto;
+    border-radius: 24px;
+    box-shadow: 0px 12px 40px rgba(0, 0, 0, 0.08);
+  }
+
+  &__card-body {
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    gap: 18px;
+    min-height: 830px;
+  }
+
+  &__header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+
+    h2 {
+      margin: 0;
+      font-weight: 600;
+    }
+  }
+
+  &__title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__title-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__eyebrow {
+    display: block;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5a6774;
+    margin-bottom: 6px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 12px;
+
+    .ant-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+  }
+
+  &__refresh-btn {
+    background: rgba(86, 76, 255, 0.12);
+    border: none;
+    color: #564cff;
+  }
+
+  &__request-btn {
+    background: #4b4ad5;
+    border: none;
+  }
+
+  &__filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+
+    .ant-input,
+    .ant-select-selector {
+      border-radius: 12px;
+      height: 44px;
+    }
+  }
+
+  &__filters-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+  }
+
+  &__search {
+    flex: 1;
+  }
+
+  &__search--narrow {
+    max-width: 320px;
+  }
+
+  &__status-filter {
+    width: 170px;
+  }
+
+  &__table-wrapper {
+    flex: 1;
+
+    .ant-table-thead > tr > th {
+      background: #f6f6f8;
+      font-weight: 600;
+    }
+  }
+
+  &__table {
+    .ant-table {
+      table-layout: fixed;
+    }
+  }
+
+  &__empty-state,
+  &__empty-message {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__empty-message {
+    flex-direction: column;
+    gap: 24px;
+    text-align: center;
+  }
+
+  &__column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__sort-actions {
+    display: flex;
+    flex-direction: column;
+
+    .sort-icon {
+      border: none;
+      background: transparent;
+      font-size: 10px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      color: #a1a7b2;
+
+      &.active {
+        color: #4b4ad5;
+      }
+    }
+  }
+
+  &__date-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+
+    small {
+      color: #8a8f9a;
+    }
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+
+    &--pending {
+      background-color: #fff6da;
+      color: #a56d00;
+    }
+
+    &--granted {
+      background-color: #dff7ec;
+      color: #0d5f45;
+    }
+
+    &--denied {
+      background-color: #fde8e8;
+      color: #b42318;
+    }
+
+    &--expired {
+      background-color: #f2f3f8;
+      color: #5a6774;
+    }
+  }
+
+  &__shared {
+    display: block;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  &__action-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__view-btn {
+    border-radius: 999px;
+    border: 1px solid #564cff;
+    color: #564cff;
+    height: 32px;
+    padding: 0 20px;
+
+    &:disabled {
+      border-color: #d9d9d9;
+      color: #a1a7b2;
+    }
+  }
+
+  &__more-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+
+    i {
+      font-size: 18px;
+      color: #5a6774;
+    }
+  }
+
+  &__abha-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(86, 76, 255, 0.12);
+    color: #4b4ad5;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+
+    img {
+      width: 20px;
+      height: 16px;
+      object-fit: contain;
+    }
+  }
+}
+

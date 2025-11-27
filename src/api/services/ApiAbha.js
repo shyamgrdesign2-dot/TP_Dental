@@ -2,6 +2,7 @@ import api from "./axiosService";
 import config from "../../config";
 
 const baseUrl = { customBaseUrl: config.abha_api_url };
+const abhaRecordsApiUrl = { customBaseUrl: config.abha_records_api_url };
 
 const ApiAbha = {};
 
@@ -132,4 +133,115 @@ ApiAbha.linkPatientUniqueidWithAbha = function (data) {
     baseUrl
   );
 }
+
+export const getAbhaConsentList = async function (payload = {}) {
+  const body = {
+    search: payload.search !== undefined ? payload.search : "",
+    page: payload.page !== undefined ? payload.page : 0,
+  };
+
+  try {
+    if (!config.abha_records_api_url) {
+      console.error("abha_records_api_url is not configured in config");
+    }
+
+    const response = await api.post(
+      `/api/v1/abdm/m3/hiuConsent/listConsent`,
+      body,
+      abhaRecordsApiUrl
+    );
+    return response;
+  } catch (error) {
+    console.error("Error while fetching ABHA consent list: ", error);
+    throw error;
+  }
+};
+
+export const viewDetailsConsent = async function (consentId) {
+  const body = {
+    consent_id_request: consentId,
+  };
+
+  try {
+    if (!config.abha_records_api_url) {
+      console.error("abha_records_api_url is not configured in config");
+    }
+
+    const response = await api.post(
+      `/api/v1/abdm/m3/hiuConsent/viewDetailsConsent`,
+      body,
+      abhaRecordsApiUrl
+    );
+    return response;
+  } catch (error) {
+    console.error("Error while fetching consent details: ", error);
+    throw error;
+  }
+};
+
+export const requestInitialConsent = async function (payload = {}) {
+  try {
+    if (!config.abha_records_api_url) {
+      console.error("abha_records_api_url is not configured in config");
+    }
+
+    const response = await api.post(
+      `/api/v1/abdm/m3/hiuConsent/requestInitialConsent`,
+      payload,
+      abhaRecordsApiUrl
+    );
+    return response;
+  } catch (error) {
+    console.error("Error while requesting initial consent: ", error);
+    throw error;
+  }
+};
+
+export const fetchHealthRecordDetail = async function (recordId, consentId) {
+  const body = {
+    record_id: recordId,
+    consent_id_request: consentId,
+  };
+
+  try {
+    if (!config.abha_records_api_url) {
+      console.error("abha_records_api_url is not configured in config");
+    }
+
+    const response = await api.post(
+      `/api/v1/abdm/m3/hiuConsent/fetchHealthRecord`,
+      body,
+      abhaRecordsApiUrl
+    );
+    return response;
+  } catch (error) {
+    console.error("Error while fetching health record detail: ", error);
+    throw error;
+  }
+};
+
+export const viewConsentRecord = async function (consentId, recordId) {
+  const body = {
+    consent_id_request: consentId,
+    recordId,
+    request_id: recordId,
+  };
+
+  try {
+    if (!config.abha_records_api_url) {
+      console.error("abha_records_api_url is not configured in config");
+    }
+
+    const response = await api.post(
+      `/api/v1/abdm/m3/hiuConsent/viewConsentRecord`,
+      body,
+      abhaRecordsApiUrl
+    );
+    return response;
+  } catch (error) {
+    console.error("Error while fetching consent record: ", error);
+    throw error;
+  }
+};
+
 export default ApiAbha;

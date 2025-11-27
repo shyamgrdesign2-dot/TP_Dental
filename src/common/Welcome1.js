@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Popover, Drawer } from "antd";
+import { Popover, Drawer, Button as AntButton } from "antd";
 import Button from 'react-bootstrap/Button';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
@@ -11,7 +11,7 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS } from '../utils/constants';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled } from '../utils/utils';
 import { isAndroid, isBrowser } from 'react-device-detect';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -59,6 +59,7 @@ function Welcome1(props) {
         setFilesData,
         handleUploadDocPopup,
         handleDrawerUploadDoc,
+        abhaHeaderActions
     } = props;
 
     const handleClickOutside = (event) => {
@@ -243,20 +244,41 @@ function Welcome1(props) {
             <div className="welcomesection position-relative">
                 <div className='bg-welcome d-flex justify-content-between align-items-center'>
                     <div className='d-flex align-items-center'>
-                        {sidebarKey === 1 ? (
+                        {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
                             <div>
                                 <h1 className='mt-2'>{'Patient Details'}</h1>
                                 {isMobile && (<ProfilePopover locationPath={locationPath} isMobile={isMobile} patient_data={patient_data} />)}
                                 {isMobile ? '' : <p className='mb-1'>&nbsp;</p>}
                             </div>
-                        ) : sidebarKey === 2 ? (
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE ? (
                             <h1 className='mt-2 mb-3'>{'Certificate'}</h1>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
+                            <h1 className='mt-2 mb-3'>{'ABHA Records'}</h1>
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}
                         <img src={require("../assets/images/bg-welcome.png")} className={`welcomeig d-inline-block align-top ${isMobile ? 'ms-2' : 'ms-4'}`} alt="Welcome" />
                     </div>
-                    {sidebarKey === 1 ? (
+                    {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && abhaHeaderActions ? (
+                        <div className="d-flex gap-2">
+                            <AntButton
+                              className="abha-records__refresh-btn"
+                              onClick={abhaHeaderActions.fetchConsents}
+                              loading={abhaHeaderActions.loading}
+                              icon={<i className="icon-reload" />}
+                            >
+                             Refresh Records
+                            </AntButton>
+                            <AntButton
+                              type="primary"
+                              className="abha-records__request-btn"
+                              onClick={abhaHeaderActions.handleRequestRecords}
+                              icon={<i className="icon-upload" />}
+                            >
+                              Request Medical Records
+                            </AntButton>
+                        </div>
+                    ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
                         <div>
                             {viewCaseManagerData && (
                                 <div className='d-sm-flex d-block'>

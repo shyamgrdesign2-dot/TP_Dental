@@ -1,0 +1,136 @@
+.health-records {
+  // Yellow Hero Section
+  &__hero {
+    background-color: #fed15e;
+    width: 100%;
+    padding: 20px 30px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    margin-bottom: 24px;
+  }
+
+  &__hero-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__back-btn {
+    padding: 0;
+    height: auto;
+    display: flex;
+    align-items: center;
+    color: #171725;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    
+    &:hover,
+    &:focus {
+      color: #171725;
+      background: transparent;
+    }
+    
+    i {
+      font-size: 18px;
+      transform: rotate(180deg); // Rotate icon-left to point left
+    }
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 36px;
+    color: #171725;
+  }
+
+  // Search Box Wrapper
+  &__search-wrapper {
+    margin-bottom: 18px;
+  }
+
+  &__search-input {
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #e2e2ea;
+    
+    &:hover {
+      border-color: #4b4ad5;
+    }
+    
+    &:focus,
+    &.ant-input-focused {
+      border-color: #4b4ad5;
+      box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.1);
+    }
+  }
+
+  .ant-card.health-records__card {
+    width: 1404px;
+    min-height: 903px;
+    margin: 0 auto;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0px 12px 40px rgba(0, 0, 0, 0.08);
+  }
+
+  &__card-body {
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    gap: 18px;
+    min-height: 903px;
+  }
+
+  &__table-wrapper {
+    flex: 1;
+
+    .ant-table-thead > tr > th {
+      background: #f6f6f8;
+      font-weight: 600;
+    }
+  }
+
+  &__table {
+    .ant-table {
+      table-layout: fixed;
+    }
+  }
+
+  &__view-btn {
+    background: transparent !important;
+    border: 1px solid #4b4ad5 !important;
+    border-radius: 8px;
+    width: 156px;
+    height: 42px;
+    padding: 0;
+    font-weight: 500;
+    color: #4b4ad5 !important;
+    
+    span {
+      color: #4b4ad5 !important;
+    }
+    
+    &:hover,
+    &:focus {
+      background: transparent !important;
+      border-color: #4b4ad5 !important;
+      color: #4b4ad5 !important;
+      
+      span {
+        color: #4b4ad5 !important;
+      }
+    }
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    font-size: 16px;
+    color: #5a6774;
+  }
+}
+

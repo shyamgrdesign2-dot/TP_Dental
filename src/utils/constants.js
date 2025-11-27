@@ -22,6 +22,14 @@ export const PERSISTANT_STORAGE_KEY_BILL_TOKEN = 'persistant.storage.key.bill-to
 export const IS_DEV = true;
 export const PAGE_SIZE = 10;
 
+export const PATIENT_DETAILS_SIDEBAR_KEYS = {
+  VISIT_SUMMARY: 1,
+  MEDICAL_CERTIFICATE: 2,
+  MEDICAL_RECORDS: 3,
+  BILL_PAYMENT: 4,
+  ABHA_RECORDS: 5,
+};
+
 export const TAB_QUEUE = 0;
 export const TAB_FINISHED = 3;
 export const TAB_CANCELLED = 4;

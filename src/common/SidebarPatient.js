@@ -14,14 +14,25 @@ import { setShouldShowOpdBilling } from '../redux/billingSlice';
 import { checkToShowOpdBilling } from '../pages/opdBilling/service';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
-import { NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
+import {
+  NEO_NATOLOGISTS_DP_ID,
+  PAEDIATRIC_DP_ID,
+  PATIENT_DETAILS_SIDEBAR_KEYS,
+} from "../utils/constants";
 import BloodIcon from '../assets/images/blood.svg';
 import AbhaIcon from '../assets/images/abha-svg.svg'
 import LeftArrow from '../assets/images/left-arrow.svg'
 import AbhaDrawer from '../components/abha/AbhaDrawer';
 import { getAbhaDomainSuffix } from '../components/abha/helpers';
 
-function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarKey, onClickSidebarHandle }) {
+function SidebarPatient({ 
+    collapsed, 
+    patient_data, 
+    viewCaseManagerData, 
+    sidebarKey, 
+    onClickSidebarHandle, 
+    abhaConsentsCount 
+}) {
     const dispatch = useDispatch();
     const { profile } = useSelector((state) => state.doctors);
     const { patients_details } = useSelector((state) => state.records);
@@ -36,10 +47,40 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
 
     const menu = [
-        { key: 1, icon_name: 'icon-Visit-Summary-Fill', short_title: 'Visit', long_title: 'Visit Summary' },
-        { key: 2, icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Certificate' },
-        { key: 3, icon_name: 'icon-Report', short_title: 'Records', long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : "" }` },
-        isOpdBillingAccessable ? { key: 4, icon_name: 'icon-Visit-Summary-Fill', short_title: 'Add Bill', long_title: 'Add Bill/Payment' } : undefined,
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
+            icon_name: "icon-Visit-Summary-Fill",
+            short_title: "Visit",
+            long_title: "Visit Summary",
+        },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE,
+            icon_name: "icon-Medical-Certificate",
+            short_title: "Certificate",
+            long_title: "Certificate",
+        },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS,
+            icon_name: "icon-Report",
+            short_title: "Records",
+            long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : "" }`,
+        },
+        isOpdBillingAccessable ? {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
+            icon_name: 'icon-Visit-Summary-Fill',
+            short_title: 'Add Bill',
+            long_title: 'Add Bill/Payment'
+        } : undefined,
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
+            icon_image: AbhaIcon,
+            short_title: "ABHA",
+            long_title: `ABHA Records ${
+              typeof abhaConsentsCount === "number" && abhaConsentsCount >= 0
+                ? `(${abhaConsentsCount})`
+                : ""
+            }`.trim(),
+        },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
@@ -194,7 +235,11 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     <div key={index}>
                         <Nav.Item className={collapsed && 'text-center'}>
                             <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
-                                <i className={item.icon_name}></i>
+                                {item.icon_image ? (
+                                    <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
+                                ) : (
+                                    <i className={item.icon_name}></i>
+                                )}
                                 <div className={collapsed ? 'text-truncate' : 'ms-3'}>{collapsed ? item.short_title : item.long_title}</div>
                             </Nav.Link>
                         </Nav.Item>

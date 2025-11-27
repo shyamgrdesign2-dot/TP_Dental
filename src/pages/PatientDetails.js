@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Button, Spin, Drawer } from "antd";
 import { isMobile } from 'react-device-detect';
@@ -26,6 +26,7 @@ import { useAccess } from "./vaccination/useAccess";
 import VisitObstetric from "./obstetric/components/visitObstetric/VisitObstetric";
 import { getClinicName } from "../utils/utils";
 import VisitMedicalRecords from "./medicalRecords/components/visitMedicalRecords/VisitMedicalRecords";
+import { PATIENT_DETAILS_SIDEBAR_KEYS } from "../utils/constants";
 import { setAllUploadedDocs, setPatientUploadedDocs } from "../redux/uploadDocSlice";
 import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from "./medicalRecords/service";
 import { mergeDocuments } from "./medicalRecords/utils/helper";
@@ -34,6 +35,7 @@ import UploadDocPopup from "./medicalRecords/components/uploadDocPopup/UploadDoc
 import CommonModal from "../common/CommonModal";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
+import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
 import { setBillPrintSettings } from "../redux/billingSlice";
 
@@ -64,7 +66,7 @@ function PatientDetails() {
       patient_data?.ageYears
     );
 
-    const [sidebarKey, setSidebarKey] = useState(1);
+    const [sidebarKey, setSidebarKey] = useState(PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
 
     const [locationPath, setLocationPath] = useState("/");
     const [collapsed, setCollapsed] = useState(isMobile ? true : false);
@@ -77,10 +79,45 @@ function PatientDetails() {
     const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
     const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
     const [isEditDocument, setIsEditDocument] = useState(false);
+    const abhaRecordsRef = useRef(null);
+    const [abhaHeaderActions, setAbhaHeaderActions] = useState(null);
+    const [abhaConsentsCount, setAbhaConsentsCount] = useState(null);
 
     useEffect(() => {
         setLocationPath(location.pathname);
     }, [location]);
+
+    // Update abhaHeaderActions when sidebarKey changes or ref becomes available
+    useEffect(() => {
+        if (sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS) {
+            const updateActions = () => {
+                if (abhaRecordsRef.current) {
+                    setAbhaHeaderActions({
+                        fetchConsents: abhaRecordsRef.current.fetchConsents,
+                        loading: abhaRecordsRef.current.loading,
+                        handleRequestRecords: abhaRecordsRef.current.handleRequestRecords,
+                    });
+
+                    if (typeof abhaRecordsRef.current.getConsentCount === "function") {
+                        setAbhaConsentsCount(abhaRecordsRef.current.getConsentCount());
+                    }
+                }
+            };
+            
+            // Use setTimeout to check after component mounts
+            const timer = setTimeout(updateActions, 0);
+            
+            // Update every 200ms to catch loading state changes
+            const interval = setInterval(updateActions, 200);
+            
+            return () => {
+                clearTimeout(timer);
+                clearInterval(interval);
+            };
+        } else {
+            setAbhaHeaderActions(null);
+        }
+    }, [sidebarKey]);
 
     useEffect(() => {
         const clinic_name = getClinicName(profile?.hospital_data);
@@ -191,12 +228,12 @@ function PatientDetails() {
                         </button>
                         {!isMobile && (<Button className={collapsed ? 'collapseborder border rounded-10px' : ''} style={collapsed && { marginRight: -12, backgroundColor: 'white', zIndex: 1, }} type="text" icon={collapsed ? <i className='icon-Expand fs-21'></i> : <i className='icon-Contract fs-21'></i>} onClick={() => setCollapsed(!collapsed)} />)}
                     </div>
-                    <SidebarPatient collapsed={collapsed} patient_data={patient_data} viewCaseManagerData={viewCaseManagerData} sidebarKey={sidebarKey} onClickSidebarHandle={onClickSidebarHandle} />
+                    <SidebarPatient collapsed={collapsed} patient_data={patient_data} viewCaseManagerData={viewCaseManagerData} sidebarKey={sidebarKey} onClickSidebarHandle={onClickSidebarHandle} abhaConsentsCount={abhaConsentsCount} />
                 </Sider>
 
                 <Content>
                     <div className='w-100 vh-100 overflow-y-auto'>
-                        { sidebarKey !== 4 &&
+                        { sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT &&
                             <Welcome1
                                 locationPath={locationPath}
                                 isMobile={isMobile}
@@ -207,9 +244,10 @@ function PatientDetails() {
                                 setFilesData={setFilesData}
                                 handleUploadDocPopup={handleUploadDocPopup}
                                 handleDrawerUploadDoc={handleDrawerUploadDoc}
+                                abhaHeaderActions={abhaHeaderActions}
                             />
                         }
-                        {sidebarKey === 1 ? (
+                        {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
                             <div className="appointment-wrap PatientDetailsPageWrap">
                                 <div className='row'>
                                     <div className='col-lg-5 col-md-12 col-12'>
@@ -239,11 +277,11 @@ function PatientDetails() {
                                     </div>
                                 </div>
                             </div>
-                        ) : sidebarKey === 2 ? (
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE ? (
                             <div className="appointment-wrap PatientDetailswrap">
                                 <CertificateDetails patient_data={patient_data} />
                             </div>
-                        ) : sidebarKey === 3 ? (
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS ? (
                             <div className="appointment-wrap PatientDetailswrap">
                                 <VisitMedicalRecords
                                     filesData={filesData}
@@ -254,11 +292,18 @@ function PatientDetails() {
                                     handleDrawerUploadDoc={handleDrawerUploadDoc}
                                  />
                             </div>
-                        ) : (
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT ? (
                             <div className="vh-100">
                                 <BillingDashboard patientData={patient_data} fromPath="patientDetails" />
                             </div>
-                        )}
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
+                            <div className="vh-100">
+                                <AbhaRecords
+                                  ref={abhaRecordsRef}
+                                  onConsentCountChange={setAbhaConsentsCount}
+                                />
+                            </div>
+                        ) : null}
                     </div>
                 </Content>
 
