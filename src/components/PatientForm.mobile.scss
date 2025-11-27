@@ -54,8 +54,8 @@
       position: absolute;
       bottom: 0;
       right: 0;
-      width: 24.533px;
-      height: 24.533px;
+      width: 30px;
+      height: 30px;
       background: #4b4ad5;
       border-radius: 50%;
       border: 1.533px solid white;
@@ -243,7 +243,7 @@
       flex-direction: column;
       gap: 12px;
       align-items: center;
-      padding: 12px 14px 0;
+      padding: 20px;
     }
 
     .mobile-button-wrapper {
@@ -282,24 +282,6 @@
 
       &:active {
         transform: scale(0.98);
-      }
-    }
-
-    // Home Indicator
-    .mobile-home-indicator {
-      height: 34px;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding-bottom: 8px;
-      
-      &::before {
-        content: '';
-        width: 134px;
-        height: 5px;
-        background: #000000;
-        border-radius: 100px;
       }
     }
   }

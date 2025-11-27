@@ -351,7 +351,6 @@ function PatientForm({ mode = ADD, patient_data }) {
                                         }
                                     </Button>
                                 </div>
-                                <div className="mobile-home-indicator"></div>
                             </div>
                         </div>
                     </div>

@@ -79,7 +79,7 @@ function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
     return (
         <div className='modalCard-header align-items-center d-flex justify-content-between'>
             <div className="align-items-center d-flex">
-                <div className='border-end h-100 text-center'>
+                <div className={`${!isMobileOnly ? 'border-end' : ''} h-100 text-center`}>
                     <Button className='btn btn-delete-prescription px-3 h-100' onClick={() => isFromAddAppointment ? navigate("/add-appointment", {
                         replace: true,
                         state: {
@@ -89,7 +89,7 @@ function TabHeader({ flag, mode = ADD, title, loading, onClick }) {
                         <i className='icon-right lh-lg'></i>
                     </Button>
                 </div>
-                <div className="w-100 px-20 title-common">{title}</div>
+                <div className={`w-100 ${!isMobileOnly ? 'px-20' : ''} title-common`}>{title}</div>
             </div>
             <div className="align-items-center d-flex">
                 {!isMobileOnly && (
