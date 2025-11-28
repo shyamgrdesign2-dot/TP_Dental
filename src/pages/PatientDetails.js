@@ -58,7 +58,7 @@ function PatientDetails() {
     const dispatch = useDispatch();
 
     const { state } = useLocation();
-    const { patient_data } = state
+    const { patient_data, sidebarKey: initialSidebarKey } = state
 
     let location = useLocation();
     const navigate = useNavigate();
@@ -66,7 +66,7 @@ function PatientDetails() {
       patient_data?.ageYears
     );
 
-    const [sidebarKey, setSidebarKey] = useState(PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
+    const [sidebarKey, setSidebarKey] = useState(initialSidebarKey || PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
 
     const [locationPath, setLocationPath] = useState("/");
     const [collapsed, setCollapsed] = useState(isMobile ? true : false);
@@ -302,6 +302,7 @@ function PatientDetails() {
                                   ref={abhaRecordsRef}
                                   onConsentCountChange={setAbhaConsentsCount}
                                   abhaAddress={patient_data?.abhaAddress}
+                                  patient_data={patient_data}
                                 />
                             </div>
                         ) : null}

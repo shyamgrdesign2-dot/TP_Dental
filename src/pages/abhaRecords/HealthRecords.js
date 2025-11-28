@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button, Card, Table, message, Input } from "antd";
-import { SearchOutlined } from "@ant-design/icons";
+import { PATIENT_DETAILS_SIDEBAR_KEYS } from "../../utils/constants";
 import ViewRecordsDrawer from "./ViewRecordsDrawer";
 import "./HealthRecords.scss";
 
@@ -23,23 +23,23 @@ const HealthRecords = () => {
 
   const columns = [
     {
-      title: "#",
+      title: <div className="health-records__column-header health-records__row-number">#</div>,
       dataIndex: "index",
       key: "index",
       width: 50,
-      render: (_, __, index) => index + 1,
+      render: (_, __, index) => <div className="health-records__row-number">{index + 1}</div>,
     },
     {
-      title: "Facility Name",
+      title: <div className="health-records__column-header">Facility Name</div>,
       dataIndex: "hospitalName",
       key: "hospitalName",
       render: (value) => value || "-",
     },
     {
-      title: "Action",
+      title: <div className="health-records__column-header">Action</div>,
       key: "action",
       width: 150,
-      align: "right",
+      align: "center",
       render: (_, record) => {
         const recordCount = record?.records?.length || 0;
         const buttonText = recordCount > 1 ? "View Records" : "View Record";
@@ -72,7 +72,13 @@ const HealthRecords = () => {
   };
 
   const handleBack = () => {
-    navigate(-1); // Go back to previous page
+    // Navigate back to patient details with ABHA Records sidebar active
+    navigate("/patient_details", {
+      state: {
+        patient_data: location.state?.patient_data,
+        sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
+      },
+    });
   };
 
   // Filter hospitals based on search term
@@ -92,49 +98,52 @@ const HealthRecords = () => {
     <>
       {contextHolder}
       <div className="appointment-wrap PatientDetailswrap m-0 health-records">
-        {/* Yellow Hero Section */}
-        <div className="health-records__hero">
-          <div className="health-records__hero-content">
-            <Button
-              type="text"
-              className="health-records__back-btn"
-              onClick={handleBack}
-              icon={<i className="icon-right" />}
-            >
-            </Button>
-            <h1 className="health-records__title">Health Records</h1>
+        <div className="health-records__layout">
+          {/* Yellow Hero Section */}
+          <div className="health-records__hero">
+            <div className="health-records__hero-content">
+              <Button
+                type="text"
+                className="health-records__back-btn"
+                onClick={handleBack}
+                icon={<i className="icon-right" />}
+              >
+              </Button>
+              <h1 className="health-records__title">Health Records</h1>
+            </div>
           </div>
-        </div>
 
-        {/* Main Card */}
-        <Card className="health-records__card" bodyStyle={{ padding: 0 }}>
-          <div className="health-records__card-body">
-            {/* Search Box */}
-            <div className="health-records__search-wrapper">
-              <Input
-                className="health-records__search-input"
-                placeholder="Search by Patient Reference"
-                prefix={<SearchOutlined />}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                allowClear
-              />
+          {/* Main Card */}
+          <Card className="health-records__card" bodyStyle={{ padding: 0 }}>
+            <div className="health-records__card-body">
+              {/* Search Box */}
+              <div className="health-records__search-wrapper">
+                <Input
+                  className="health-records__search-input"
+                  placeholder="Search by Facility Name"
+                  prefix={<i className="icon-search" />}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  allowClear
+                />
+                <div className="health-records__search-filler" aria-hidden="true" />
+              </div>
+              
+              <div className="health-records__table-wrapper">
+                <Table
+                  dataSource={filteredHospitals}
+                  columns={columns}
+                  pagination={false}
+                  rowKey={(record, index) =>
+                    record?.hospitalName || `hospital-${index}`
+                  }
+                  className="health-records__table"
+                  size="middle"
+                />
+              </div>
             </div>
-            
-            <div className="health-records__table-wrapper">
-              <Table
-                dataSource={filteredHospitals}
-                columns={columns}
-                pagination={false}
-                rowKey={(record, index) =>
-                  record?.hospitalName || `hospital-${index}`
-                }
-                className="health-records__table"
-                size="middle"
-              />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* View Records Drawer */}

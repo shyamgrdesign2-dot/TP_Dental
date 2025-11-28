@@ -90,7 +90,7 @@ const statusOptions = [
   { label: "Expired", value: "expired" },
 ];
 
-const AbhaRecords = forwardRef(({ onConsentCountChange, abhaAddress }, ref) => {
+const AbhaRecords = forwardRef(({ onConsentCountChange, abhaAddress, patient_data }, ref) => {
   const navigate = useNavigate();
   const [consents, setConsents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -193,6 +193,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange, abhaAddress }, ref) => {
           state: {
             hospitals: response.hospitals,
             consentId: record?.consent_id_request,
+            patient_data: patient_data,
           },
         });
       } else {
