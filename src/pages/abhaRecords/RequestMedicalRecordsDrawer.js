@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Drawer,
   Form,
@@ -22,7 +22,10 @@ const purposeOptions = [
   { label: "Care Management", value: "Care Management" },
   { label: "Break the Glass", value: "Break the Glass" },
   { label: "Public Health", value: "Public Health" },
-  { label: "Disease Specific Healthcare Research", value: "Disease Specific Healthcare Research" },
+  {
+    label: "Disease Specific Healthcare Research",
+    value: "Disease Specific Healthcare Research",
+  },
 ];
 
 const medicalRecordTypeOptions = [
@@ -40,7 +43,12 @@ const purposeMapping = {
   "Disease Specific Healthcare Research": "DSRCH",
 };
 
-const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} }) => {
+const RequestMedicalRecordsDrawer = ({
+  visible,
+  onClose,
+  onSuccess = () => {},
+  abhaAddress,
+}) => {
   const [form] = Form.useForm();
   const [requestPeriodFrom, setRequestPeriodFrom] = useState(null);
   const [requestPeriodTo, setRequestPeriodTo] = useState(null);
@@ -60,6 +68,12 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
     { label: "Next 6 months", months: 6 },
     { label: "Next 12 months", months: 12 },
   ];
+
+  useEffect(() => {
+    if (abhaAddress && form) {
+      form.setFieldsValue({ abha_address: abhaAddress });
+    }
+  }, [abhaAddress, form]);
 
   const disabledRequestPeriodDate = (current) => {
     // Disable dates in the future for request period (should be past dates)
@@ -116,17 +130,25 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
   const buildPayload = (values) => {
     const abhaAddress = values.abha_address?.trim();
     if (!abhaAddress || !abhaAddress.includes("@")) {
-      throw new Error("Invalid ABHA address. Please include postfix (e.g. user@sbx).");
+      throw new Error(
+        "Invalid ABHA address. Please include postfix (e.g. user@sbx)."
+      );
     }
 
     const [abhaId, postfix] = abhaAddress.split("@");
     if (!abhaId || !postfix) {
-      throw new Error("Invalid ABHA address. Please include postfix (e.g. user@sbx).");
+      throw new Error(
+        "Invalid ABHA address. Please include postfix (e.g. user@sbx)."
+      );
     }
 
-    const healthDateFrom = dayjs(values.request_period_from).format("YYYY-MM-DD");
+    const healthDateFrom = dayjs(values.request_period_from).format(
+      "YYYY-MM-DD"
+    );
     const healthDateTo = dayjs(values.request_period_to).format("YYYY-MM-DD");
-    const consentExpiryValue = dayjs(values.consent_expiry).format("YYYY-MM-DD HH:mm");
+    const consentExpiryValue = dayjs(values.consent_expiry).format(
+      "YYYY-MM-DD HH:mm"
+    );
     const mappedPurpose = purposeMapping[values.purpose] || values.purpose;
 
     return {
@@ -171,7 +193,8 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
         onClose();
         onSuccess(payload, response?.data);
       } else {
-        const errorMessage = response?.message || "Failed to submit request. Please try again.";
+        const errorMessage =
+          response?.message || "Failed to submit request. Please try again.";
         message.error(errorMessage);
         setLoading(false);
       }
@@ -184,7 +207,9 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
 
       console.error("Request Medical Records error:", error);
       const errorMessage =
-        error?.response?.data?.message || error?.message || "Failed to submit request. Please try again.";
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to submit request. Please try again.";
       message.error(errorMessage);
       setLoading(false);
     }
@@ -256,7 +281,13 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
         </div>
 
         {/* Form Content */}
-        <div style={{ padding: "20px", height: "calc(100% - 60px)", overflowY: "auto" }}>
+        <div
+          style={{
+            padding: "20px",
+            height: "calc(100% - 60px)",
+            overflowY: "auto",
+          }}
+        >
           <Form
             form={form}
             layout="vertical"
@@ -271,11 +302,13 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
                 </>
               }
               name="abha_address"
-              rules={[
-                { required: true, message: "Please enter ABHA Address" },
-              ]}
+              rules={[{ required: true, message: "Please enter ABHA Address" }]}
             >
-              <Input placeholder="Enter ABHA Address" className="inputheight45" />
+              <Input
+                placeholder="Enter ABHA Address"
+                className="inputheight45"
+                disabled
+              />
             </Form.Item>
 
             {/* Request Period From */}
@@ -287,7 +320,10 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
               }
               name="request_period_from"
               rules={[
-                { required: true, message: "Please select request period from date" },
+                {
+                  required: true,
+                  message: "Please select request period from date",
+                },
               ]}
             >
               <div>
@@ -306,7 +342,9 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
                       key={index}
                       type="text"
                       className="btn btn-primary2 btn-fw-bold fs-12"
-                      onClick={() => handleRequestPeriodQuickSelect(option.months)}
+                      onClick={() =>
+                        handleRequestPeriodQuickSelect(option.months)
+                      }
                     >
                       {option.label}
                     </Button>
@@ -324,7 +362,10 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
               }
               name="request_period_to"
               rules={[
-                { required: true, message: "Please select request period to date" },
+                {
+                  required: true,
+                  message: "Please select request period to date",
+                },
               ]}
             >
               <DatePicker
@@ -342,7 +383,8 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
             <Form.Item
               label={
                 <>
-                  Shared Records Will Expire In <span className="text-red"></span>
+                  Shared Records Will Expire In{" "}
+                  <span className="text-red"></span>
                 </>
               }
               name="consent_expiry"
@@ -404,13 +446,16 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
               }
               name="medical_record_type"
               rules={[
-                { required: true, message: "Please select medical record type" },
+                {
+                  required: true,
+                  message: "Please select medical record type",
+                },
               ]}
             >
               <Select
                 mode="multiple"
                 placeholder="Select medical record type(s)"
-                className="inputheight45"
+                className="medical-record-type-select"
                 options={medicalRecordTypeOptions}
                 allowClear
                 tagRender={renderMedicalRecordTag}
@@ -425,4 +470,3 @@ const RequestMedicalRecordsDrawer = ({ visible, onClose, onSuccess = () => {} })
 };
 
 export default RequestMedicalRecordsDrawer;
-

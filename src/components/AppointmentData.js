@@ -91,6 +91,7 @@ import symptoms from "../assets/images/symptoms-green.svg";
 import suporticon from "../assets/images/suport-icon.svg";
 import windoc from "../assets/images/win-doc.png";
 import AbhaIcon from '../assets/images/abha-svg.svg';
+import { saveAs } from "file-saver";
 
 import CommonModal from "../common/CommonModal";
 import { useSelector, useDispatch } from "react-redux";
@@ -147,6 +148,7 @@ import {
 } from "../redux/billingSlice";
 import WelcomeModal from "./userOnboarding/welcomeModal/WelcomeModal";
 import { checkSymptomsCollectorTour } from "../api/services/ApiGenRx";
+import ApiAbha from "../api/services/ApiAbha";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
@@ -1292,6 +1294,22 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           </span>
         ),
         key: "createabha",
+      });
+    }
+
+    if (record?.abhaAddress && profile?.HipID) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleDownloadAbhaCard(record);
+            }}
+          >
+            Download ABHA Card
+          </span>
+        ),
+        key: "downloadabha",
       });
     }
 
@@ -2531,6 +2549,39 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const onSuccessAbhaCreation = () => {
     dispatch(clearAbhaDetails());
     getAllAppointments();
+  };
+
+  const handleDownloadAbhaCard = async (record) => {
+    try {
+      const patientUniqueId = record?.patient_unique_id;
+      if (!patientUniqueId) {
+        message.error("Patient unique ID not found");
+        return;
+      }
+
+      message.loading({ content: "Downloading ABHA Card...", key: "downloadAbha", duration: 0 });
+      
+      const response = await ApiAbha.downloadAbhaCard({
+        patient_unique_id: patientUniqueId,
+      });
+
+      // Get content type from response headers
+      const contentType = response.headers['content-type'] || 'image/png';
+      const blob = new Blob([response.data], { type: contentType });
+      
+      // Generate filename with patient unique ID
+      const fileName = `ABHA_Card_${patientUniqueId}.${contentType.includes('png') ? 'png' : contentType.includes('jpg') || contentType.includes('jpeg') ? 'jpg' : 'png'}`;
+      
+      saveAs(blob, fileName);
+      message.success({ content: "ABHA Card downloaded successfully", key: "downloadAbha", duration: 3 });
+    } catch (error) {
+      console.error("Error downloading ABHA card:", error);
+      message.error({ 
+        content: error?.response?.data?.message || "Failed to download ABHA Card. Please try again.", 
+        key: "downloadAbha", 
+        duration: 3 
+      });
+    }
   };
 
   const handleRecentBillDrawer = useCallback(() => {

@@ -72,6 +72,22 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
         }
     }, [patients_details, patient_data]);
 
+    const preparePrefilledAddress = (address) => {
+        if (!address || typeof address !== 'string') {
+            return address;
+        }
+        
+        // If address character count is greater than or equal to 50
+        if (address.length >= 50) {
+            const addressParts = address.split(',');
+            const firstThreeParts = addressParts.slice(0, 3);
+            return firstThreeParts.join(',');
+        }
+        
+        // Return original address if length is less than 50
+        return address;
+    };
+
     useEffect(() => {
         if (!form || !abhaDetails || Object.keys(abhaDetails).length === 0) return;
         const hasValue = (value) => value !== undefined && value !== null && value !== "";
@@ -106,7 +122,7 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
             updatedFields.pm_pincode = abhaDetails.pinCode;
         }
         if (hasValue(abhaDetails.address)) {
-            updatedFields.pm_address = abhaDetails.address;
+            updatedFields.pm_address = preparePrefilledAddress(abhaDetails.address);
         }
 
         if (Object.keys(updatedFields).length > 0) {

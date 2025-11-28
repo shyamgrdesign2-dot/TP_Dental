@@ -68,6 +68,8 @@ import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
 import AbhaIcon from '../../assets/images/abha-svg.svg';
+import ApiAbha from "../../api/services/ApiAbha";
+import { saveAs } from "file-saver";
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -312,6 +314,39 @@ const AllPatients = () => {
     setCreateAbhaDrawer(!createAbhaDrawer);
   }, [createAbhaDrawer]);
 
+  const handleDownloadAbhaCard = async (record) => {
+    try {
+      const patientUniqueId = record?.patient_unique_id;
+      if (!patientUniqueId) {
+        message.error("Patient unique ID not found");
+        return;
+      }
+
+      message.loading({ content: "Downloading ABHA Card...", key: "downloadAbha", duration: 0 });
+      
+      const response = await ApiAbha.downloadAbhaCard({
+        patient_unique_id: patientUniqueId,
+      });
+
+      // Get content type from response headers
+      const contentType = response.headers['content-type'] || 'image/png';
+      const blob = new Blob([response.data], { type: contentType });
+      
+      // Generate filename with patient unique ID
+      const fileName = `ABHA_Card_${patientUniqueId}.${contentType.includes('png') ? 'png' : contentType.includes('jpg') || contentType.includes('jpeg') ? 'jpg' : 'png'}`;
+      
+      saveAs(blob, fileName);
+      message.success({ content: "ABHA Card downloaded successfully", key: "downloadAbha", duration: 3 });
+    } catch (error) {
+      console.error("Error downloading ABHA card:", error);
+      message.error({ 
+        content: error?.response?.data?.message || "Failed to download ABHA Card. Please try again.", 
+        key: "downloadAbha", 
+        duration: 3 
+      });
+    }
+  };
+
   const onSuccessAbhaCreation = () => {
     dispatch(clearAbhaDetails());
     getAllPatients();
@@ -466,6 +501,22 @@ const AllPatients = () => {
           </span>
         ),
         key: "createLinkAbha",
+      });
+    }
+
+    if (record?.abhaAddress && profile?.HipID) {
+      menuItems.push({
+        label: (
+          <span
+            onClick={() => {
+              setPatientData(record);
+              handleDownloadAbhaCard(record);
+            }}
+          >
+            Download ABHA Card
+          </span>
+        ),
+        key: "downloadAbha",
       });
     }
     return menuItems;

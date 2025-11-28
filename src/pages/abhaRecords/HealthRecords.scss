@@ -31,9 +31,8 @@
     display: flex;
     align-items: center;
     gap: 2px;
-    width: 100%;
+    width: 94%;
     margin: 0 auto;
-    padding: 0 52px;
     margin-bottom: 80px;
   }
 
@@ -48,13 +47,13 @@
     border: none;
     box-shadow: none;
     min-width: 32px;
-    
+
     &:hover,
     &:focus {
       color: #454551;
       background: transparent;
     }
-    
+
     i {
       font-size: 24px;
       transform: rotate(180deg); // Rotate icon-right to point left
@@ -102,11 +101,11 @@
         opacity: 0.8;
       }
     }
-    
+
     &:hover {
       border-color: #4b4ad5;
     }
-    
+
     &:focus,
     &.ant-input-focused {
       border-color: #4b4ad5;
@@ -149,7 +148,7 @@
       border-spacing: 0;
     }
 
-    .ant-table-thead > tr > th {
+    .ant-table-thead>tr>th {
       background: #f1f1f5;
       font-weight: 600;
       font-size: 12px;
@@ -160,7 +159,7 @@
       padding: 12px;
     }
 
-    .ant-table-tbody > tr > td {
+    .ant-table-tbody>tr>td {
       padding: 18px 12px;
       font-size: 14px;
       line-height: 22px;
@@ -168,12 +167,12 @@
       border-bottom: 1px solid #f1f1f5;
     }
 
-    .ant-table-tbody > tr:hover > td {
+    .ant-table-tbody>tr:hover>td {
       background: #f9f9fb;
     }
 
-    .ant-table-thead > tr > th:last-child,
-    .ant-table-tbody > tr > td:last-child {
+    .ant-table-thead>tr>th:last-child,
+    .ant-table-tbody>tr>td:last-child {
       text-align: center;
     }
   }
@@ -194,7 +193,7 @@
   }
 
   &__table {
-    .ant-table-tbody > tr {
+    .ant-table-tbody>tr {
       height: 58px;
     }
   }
@@ -208,17 +207,17 @@
     padding: 0;
     font-weight: 600;
     color: #4b4ad5 !important;
-    
+
     span {
       color: #4b4ad5 !important;
     }
-    
+
     &:hover,
     &:focus {
       background: rgba(75, 74, 213, 0.04) !important;
       border-color: #4b4ad5 !important;
       color: #4b4ad5 !important;
-      
+
       span {
         color: #4b4ad5 !important;
       }
@@ -234,41 +233,11 @@
     color: #5a6774;
   }
 
-  .ant-table-thead > tr > th:first-child {
+  .ant-table-thead>tr>th:first-child {
     border-top-left-radius: 12px;
   }
 
-  .ant-table-thead > tr > th:last-child {
+  .ant-table-thead>tr>th:last-child {
     border-top-right-radius: 12px;
   }
-
-  @media (max-width: 1024px) {
-    &__hero {
-      height: auto;
-      padding: 24px 0;
-      margin: 0 0 24px;
-    }
-
-    &__card-body {
-      min-height: auto;
-    }
-
-    &__search-wrapper {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    &__search-input {
-      width: 100%;
-    }
-
-    &__search-filler {
-      display: none;
-    }
-
-    .ant-card.health-records__card {
-      min-height: auto;
-    }
-  }
 }
-

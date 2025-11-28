@@ -2,22 +2,115 @@ import React, { useState, useEffect } from "react";
 import { Drawer, Button, Spin, message } from "antd";
 import arrowBoxIcon from "../../assets/images/arrow-box-right 2.svg";
 import { viewConsentRecord } from "../../api/services/ApiAbha";
+import SymptomsIcon from "../../assets/images/Symptoms.svg";
+import MedicationIcon from "../../assets/images/Medication.svg";
 import "./ViewRecordsDrawer.scss";
 
-// SVG Icons for cards (stylized pill and flower)
-const PrescriptionIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8 2L9.5 4.5L12 5L9.5 5.5L8 8L6.5 5.5L4 5L6.5 4.5L8 2Z" fill="#A461D8"/>
-    <path d="M4 10L6 12L8 10M8 10L10 12L12 10M8 10V14" stroke="#A461D8" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
+const formatDate = (value) => {
+  if (!value) return "";
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(value));
+  } catch {
+    return "";
+  }
+};
 
-const ConditionIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="8" cy="8" r="6" fill="#A461D8" fillOpacity="0.2"/>
-    <path d="M8 4L8.8 6.8L11.6 7.6L8.8 8.4L8 11.2L7.2 8.4L4.4 7.6L7.2 6.8L8 4Z" fill="#A461D8"/>
-  </svg>
-);
+const getSectionIcon = (resourceType = "") => {
+  if (resourceType === "MedicationRequest") {
+    return MedicationIcon;
+  }
+  return SymptomsIcon;
+};
+
+const formatObservationValue = (item) => {
+  if (item?.value == null && !item?.unit) return "";
+  const numeric =
+    typeof item.value === "number" || typeof item.value === "string"
+      ? `${item.value}`
+      : "";
+  return [numeric, item.unit].filter(Boolean).join(" ");
+};
+
+const formatSectionItem = (resourceType, item, index) => {
+  if (!item || typeof item !== "object") {
+    return { title: item || "-", subtitle: "" };
+  }
+
+  const recordedDate = formatDate(item.recordedDate);
+
+  switch (resourceType) {
+    case "MedicationRequest":
+      return {
+        title: item.medication || "-",
+        subtitle: [item.dosage, recordedDate].filter(Boolean).join(" • "),
+      };
+    case "Condition":
+      return {
+        title: item.display || "-",
+        subtitle: [
+          item.status && `Status: ${item.status}`,
+          item.severity && `Severity: ${item.severity}`,
+          item.note && `Note: ${item.note}`,
+          recordedDate,
+        ]
+          .filter(Boolean)
+          .join(", "),
+      };
+    case "Appointment":
+      return {
+        title: item.description || item.doctor || "-",
+        subtitle: [
+          item.status && `Status: ${item.status}`,
+          item.doctor && `Doctor: ${item.doctor}`,
+          recordedDate,
+        ]
+          .filter(Boolean)
+          .join(", "),
+      };
+    case "Observation": {
+      const value = formatObservationValue(item);
+      return {
+        title: item.display || "-",
+        subtitle: [value, item.note, recordedDate].filter(Boolean).join(" • "),
+      };
+    }
+    case "DocumentReference": {
+      const downloadLabel = item.title || `Document ${index + 1}`;
+      const dataHref = item.data
+        ? `data:${item.contentType || "application/octet-stream"};base64,${
+            item.data
+          }`
+        : item.url || null;
+      return {
+        title: downloadLabel,
+        subtitle: [item.contentType, item.status, recordedDate]
+          .filter(Boolean)
+          .join(" • "),
+        action: dataHref
+          ? {
+              href: dataHref,
+              filename: `${downloadLabel}`.replace(/\s+/g, "_"),
+              label: item.contentType?.includes("pdf")
+                ? "Download PDF"
+                : "Download",
+            }
+          : null,
+      };
+    }
+    default:
+      return {
+        title: item.display || item.title || item.description || "-",
+        subtitle: Object.entries(item)
+          .filter(([key]) => !["display", "title", "description"].includes(key))
+          .map(([key, value]) => `${key.replace(/_/g, " ")}: ${value}`)
+          .join(", "),
+      };
+  }
+};
 
 const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -124,7 +217,6 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
       }}
     >
       <div className="view-records-drawer-content">
-        {/* Header */}
         <div className="view-records-drawer__header">
           <div className="view-records-drawer__header-left">
             <Button
@@ -138,7 +230,6 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
           </div>
         </div>
 
-        {/* Navigation */}
         {totalRecords > 0 && (
           <div className="view-records-drawer__navigation">
             <Button
@@ -147,10 +238,15 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
               onClick={handlePrev}
               disabled={currentIndex === 0}
             >
-              <img src={arrowBoxIcon} alt="Next" className="view-records-drawer__nav-icon view-records-drawer__nav-icon--right" />
+              <img
+                src={arrowBoxIcon}
+                alt="Next"
+                className="view-records-drawer__nav-icon view-records-drawer__nav-icon--right"
+              />
             </Button>
             <span className="view-records-drawer__counter">
-              {formatRecordNumber(currentIndex + 1)}/{formatRecordNumber(totalRecords)}
+              {formatRecordNumber(currentIndex + 1)}/
+              {formatRecordNumber(totalRecords)}
             </span>
             <Button
               type="text"
@@ -158,12 +254,15 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
               onClick={handleNext}
               disabled={currentIndex === totalRecords - 1}
             >
-              <img src={arrowBoxIcon} alt="Previous" className="view-records-drawer__nav-icon view-records-drawer__nav-icon--left" />
+              <img
+                src={arrowBoxIcon}
+                alt="Previous"
+                className="view-records-drawer__nav-icon view-records-drawer__nav-icon--left"
+              />
             </Button>
           </div>
         )}
 
-        {/* Content */}
         <div className="view-records-drawer__body">
           {loadingRecord ? (
             <div className="view-records-drawer__loading">
@@ -171,61 +270,140 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
             </div>
           ) : currentRecord && recordDetails ? (
             <div className="view-records-drawer__content">
-              {/* Record ID Display */}
-              <div className="view-records-drawer__info-section">
-                <div className="view-records-drawer__info-row">
-                  <div className="view-records-drawer__info-column">
-                    <div className="view-records-drawer__info-label">Record ID:</div>
-                    <div className="view-records-drawer__info-value">
-                      {currentRecordId || "-"}
-                    </div>
-                  </div>
+              <div className="view-records-drawer__summary">
+                <div className="view-records-drawer__summary-col">
+                  <SummaryRow
+                    label="Practitioner Name"
+                    value={recordDetails?.consultation_info?.doctor_name || "-"}
+                  />
+                  <SummaryRow
+                    label="Clinic Name"
+                    value={
+                      recordDetails?.consultation_info?.facility_name ||
+                      record?.hospitalName ||
+                      "-"
+                    }
+                  />
+                  <SummaryRow
+                    label="Visit Date"
+                    value={
+                      formatDate(
+                        recordDetails?.consultation_info?.consultation_date
+                      ) || "-"
+                    }
+                  />
                 </div>
-                <div className="view-records-drawer__info-row">
-                  <div className="view-records-drawer__info-column">
-                    <div className="view-records-drawer__info-label">Facility Name:</div>
-                    <div className="view-records-drawer__info-value">
-                      {record?.hospitalName || "-"}
-                    </div>
-                  </div>
+                <div className="view-records-drawer__summary-col">
+                  <SummaryRow
+                    label="Patient Name"
+                    value={recordDetails?.patient_info?.name || "-"}
+                  />
+                  <SummaryRow
+                    label="Patient Gender"
+                    value={recordDetails?.patient_info?.gender || "-"}
+                  />
+                  <SummaryRow
+                    label="Patient Birth Date"
+                    value={
+                      formatDate(recordDetails?.patient_info?.birthDate) || "-"
+                    }
+                  />
                 </div>
               </div>
 
-              {recordDetails?.patient_info && (
-                <div className="view-records-drawer__card">
-                  <div className="view-records-drawer__card-header">
-                    <span className="view-records-drawer__card-title">Patient Information</span>
-                  </div>
-                  <div className="view-records-drawer__info-row view-records-drawer__info-row--grid">
-                    {[
-                      ["Patient ID", recordDetails.patient_info.id],
-                      ["Name", recordDetails.patient_info.name],
-                      ["Gender", recordDetails.patient_info.gender],
-                      ["Birth Date", recordDetails.patient_info.birthDate],
-                      ["Phone", recordDetails.patient_info.phone],
-                      ["Address", recordDetails.patient_info.address],
-                    ].map(([label, value]) => (
-                      <div className="view-records-drawer__info-column" key={label}>
-                        <div className="view-records-drawer__info-label">{label}</div>
-                        <div className="view-records-drawer__info-value">{value || "-"}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="view-records-drawer__divider" />
 
-              {renderArraySection("Symptoms", recordDetails?.symptoms)}
-              {renderArraySection("Medicines", recordDetails?.medicines)}
-              {renderArraySection("Investigations", recordDetails?.investigations)}
-              {renderArraySection("Diagnosis", recordDetails?.diagnosis)}
-              {renderArraySection("Procedures", recordDetails?.procedures)}
-              {renderArraySection("Documents", recordDetails?.documents)}
-              {renderArraySection("Other Examinations", recordDetails?.other_examinations)}
-              {renderArraySection("Vital Signs", recordDetails?.examination?.vital_signs)}
-              {renderArraySection(
-                "Clinical Findings",
-                recordDetails?.examination?.clinical_findings
-              )}
+              <div className="view-records-drawer__sections">
+                {(recordDetails?.sections || []).filter(
+                  (section) =>
+                    Array.isArray(section?.data) && section.data.length
+                ).length === 0 && (
+                  <div className="view-records-drawer__empty-card">
+                    No sections available for this record.
+                  </div>
+                )}
+
+                {(recordDetails?.sections || [])
+                  .filter(
+                    (section) =>
+                      Array.isArray(section?.data) && section.data.length
+                  )
+                  .map((section) => {
+                    try {
+                      return (
+                        <div
+                          className="view-records-drawer__card"
+                          key={section.title}
+                        >
+                          <div className="view-records-drawer__card-header">
+                            <img
+                              src={getSectionIcon(section.resourceType)}
+                              alt={section.resourceType || "Section"}
+                              className="view-records-drawer__card-icon"
+                            />
+                            <div>
+                              <div className="view-records-drawer__card-title">
+                                {section.title || "-"} ({section.resourceType})
+                              </div>
+                            </div>
+                          </div>
+                          <div className="view-records-drawer__card-content">
+                            <ul className="view-records-drawer__list">
+                              {section.data.map((item, index) => {
+                                try {
+                                  const { title, subtitle, action } =
+                                    formatSectionItem(
+                                      section.resourceType,
+                                      item,
+                                      index
+                                    );
+                                  if (!title && !subtitle && !action)
+                                    return null;
+                                  return (
+                                    <li key={`${section.title}-${index}`}>
+                                      <div className="view-records-drawer__list-title">
+                                        {title}
+                                      </div>
+                                      {subtitle && (
+                                        <div className="view-records-drawer__list-note">
+                                          {subtitle}
+                                        </div>
+                                      )}
+                                      {action?.href && (
+                                        <a
+                                          className="view-records-drawer__download"
+                                          href={action.href}
+                                          download={action.filename}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          {action.label || "Download"}
+                                        </a>
+                                      )}
+                                    </li>
+                                  );
+                                } catch (error) {
+                                  console.error(
+                                    "Failed to render record item",
+                                    error
+                                  );
+                                  return null;
+                                }
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Failed to render section",
+                        section?.title,
+                        error
+                      );
+                      return null;
+                    }
+                  })}
+              </div>
             </div>
           ) : (
             <div className="view-records-drawer__empty">
@@ -238,59 +416,11 @@ const ViewRecordsDrawer = ({ visible, onClose, record, consentId }) => {
   );
 };
 
-const renderArraySection = (title, data) => {
-  if (!Array.isArray(data) || data.length === 0) return null;
-
-  return (
-    <div className="view-records-drawer__card">
-      <div className="view-records-drawer__card-header">
-        <span className="view-records-drawer__card-title">{title}</span>
-      </div>
-      <div className="view-records-drawer__card-content">
-        <ul className="view-records-drawer__list">
-          {data.map((item, index) => (
-            <li key={`${title}-${index}`}>
-              {typeof item === "object" && item !== null
-                ? Object.entries(item).map(([key, value]) => (
-                    <div key={key} className="view-records-drawer__list-row">
-                      <strong>{formatLabel(key)}:</strong>&nbsp;
-                      <span>{formatValue(value)}</span>
-                    </div>
-                  ))
-                : formatValue(item)}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-};
-
-const formatLabel = (value = "") =>
-  value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase());
-
-const formatValue = (value) => {
-  if (Array.isArray(value)) {
-    if (!value.length) return "-";
-    return value
-      .map((entry) =>
-        typeof entry === "object" && entry !== null
-          ? Object.values(entry).filter(Boolean).join(", ")
-          : entry
-      )
-      .join("; ");
-  }
-
-  if (typeof value === "object" && value !== null) {
-    return Object.entries(value)
-      .map(([key, nestedValue]) => `${formatLabel(key)}: ${formatValue(nestedValue)}`)
-      .join(", ");
-  }
-
-  return value || "-";
-};
+const SummaryRow = ({ label, value }) => (
+  <div className="view-records-drawer__summary-row">
+    <span className="view-records-drawer__summary-label">{label}:</span>
+    <span className="view-records-drawer__summary-value">{value || "-"}</span>
+  </div>
+);
 
 export default ViewRecordsDrawer;
-

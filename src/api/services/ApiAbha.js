@@ -1,5 +1,7 @@
+import axios from "axios";
 import api from "./axiosService";
 import config from "../../config";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 
 const baseUrl = { customBaseUrl: config.abha_api_url };
 const abhaRecordsApiUrl = { customBaseUrl: config.abha_records_api_url };
@@ -131,6 +133,24 @@ ApiAbha.linkPatientUniqueidWithAbha = function (data) {
     `/api/v1/abdm/m1/enrollmentByAadhaar/updatePatientUniqueid`,
     data,
     baseUrl
+  );
+}
+
+ApiAbha.downloadAbhaCard = function (data) {
+  // Used axios directly for blob response
+  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  const authToken = token ? JSON.parse(token) : null;
+  
+  return axios.post(
+    `${config.abha_api_url}/api/v1/abdm/m1/enrollmentByAadhaar/downloadAbha`,
+    data,
+    {
+      responseType: 'blob',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
   );
 }
 

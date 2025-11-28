@@ -23,7 +23,7 @@
   }
 
   .request-medical-records-form {
-    .ant-form-item-label > label {
+    .ant-form-item-label>label {
       font-weight: 500;
     }
 
@@ -37,11 +37,9 @@
     }
 
     .ant-select-multiple {
-      width: 100%;
-
       .ant-select-selector {
         min-height: 45px;
-        padding: 4px 16px 8px;
+        padding: 8px 16px 6px;
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -49,15 +47,22 @@
         border-radius: 24px;
         height: auto !important;
         border-width: 1px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      &.ant-select-focused .ant-select-selector,
+      &.ant-select-open .ant-select-selector {
+        border-color: #4b4ad5 !important;
+        box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.12);
       }
 
       .ant-select-selection-placeholder {
-        position: static;
-        transform: none;
-        padding: 0;
-        margin: 0;
+        width: 100%;
+        display: flex;
+        align-items: center;
         line-height: 1.4;
         color: #8c8c8c;
+        margin: 0;
       }
 
       .ant-select-selection-overflow {
@@ -65,11 +70,29 @@
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
+        align-items: flex-start;
+      }
+
+      .ant-select-selection-search {
+        width: auto;
+        margin-inline-start: 0;
+      }
+    }
+
+    .medical-record-type-select {
+      &.ant-select-multiple {
+        .ant-select-selector {
+          padding: 8px 20px 6px;
+        }
+
+        .ant-select-selection-placeholder {
+          font-weight: 500;
+        }
       }
     }
 
     .medical-record-tag,
-    .ant-select-selection-item {
+    .ant-select-multiple .ant-select-selection-item {
       background: rgba(75, 74, 213, 0.08);
       color: #4b4ad5 !important;
       border: 1px solid #4b4ad5;
@@ -90,9 +113,11 @@
 }
 
 :global(.medical-record-type-dropdown) {
+
   .ant-select-item-option-active,
   .ant-select-item-option-selected {
     background-color: rgba(75, 74, 213, 0.08) !important;
+
     .ant-select-item-option-content {
       color: #4b4ad5 !important;
       font-weight: 600;
@@ -129,4 +154,3 @@
     height: 32px;
   }
 }
-

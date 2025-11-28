@@ -595,11 +595,14 @@ const AbhaRecords = forwardRef(({ onConsentCountChange, abhaAddress, patient_dat
           </div>
         </Card>
       </div>
-      <RequestMedicalRecordsDrawer
-        visible={requestRecordsDrawerVisible}
-        onClose={handleCloseRequestRecordsDrawer}
-        onSuccess={handleRequestSuccess}
-      />
+      {requestRecordsDrawerVisible && 
+        <RequestMedicalRecordsDrawer
+          visible={requestRecordsDrawerVisible}
+          onClose={handleCloseRequestRecordsDrawer}
+          onSuccess={handleRequestSuccess}
+          abhaAddress={abhaAddress}
+        />
+      }
     </>
   );
 });
