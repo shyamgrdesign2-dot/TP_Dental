@@ -138,6 +138,7 @@ export const getAbhaConsentList = async function (payload = {}) {
   const body = {
     search: payload.search !== undefined ? payload.search : "",
     page: payload.page !== undefined ? payload.page : 0,
+    abhaAddress: payload.abhaAddress,
   };
 
   try {

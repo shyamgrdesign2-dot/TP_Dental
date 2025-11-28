@@ -257,7 +257,9 @@ function Welcome1(props) {
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}
-                        <img src={require("../assets/images/bg-welcome.png")} className={`welcomeig d-inline-block align-top ${isMobile ? 'ms-2' : 'ms-4'}`} alt="Welcome" />
+                        {sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && 
+                            <img src={require("../assets/images/bg-welcome.png")} className={`welcomeig d-inline-block align-top ${isMobile ? 'ms-2' : 'ms-4'}`} alt="Welcome" />
+                        }
                     </div>
                     {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && abhaHeaderActions ? (
                         <div className="d-flex gap-2">

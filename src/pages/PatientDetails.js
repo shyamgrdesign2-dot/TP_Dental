@@ -297,10 +297,11 @@ function PatientDetails() {
                                 <BillingDashboard patientData={patient_data} fromPath="patientDetails" />
                             </div>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
-                            <div className="vh-100">
+                            <div className="appointment-wrap PatientDetailswrap">
                                 <AbhaRecords
                                   ref={abhaRecordsRef}
                                   onConsentCountChange={setAbhaConsentsCount}
+                                  abhaAddress={patient_data?.abhaAddress}
                                 />
                             </div>
                         ) : null}

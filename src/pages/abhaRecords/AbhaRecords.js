@@ -20,13 +20,47 @@ import RequestMedicalRecordsDrawer from "./RequestMedicalRecordsDrawer";
 import "./AbhaRecords.scss";
 
 const DATE_TIME_FORMAT = "DD MMM YYYY, hh:mm A";
+const DATE_ONLY_FORMAT = "DD MMM YYYY";
+const DATE_FORMAT = "DD-MM-YYYY";
+const DATE_TIME_INPUT_FORMAT = "DD-MM-YYYY hh:mm:ss A";
 
 const formatDateTime = (value) => {
-  if (!value || value === "-" || value === "") {
+  if (!value || value === "-" || value === "" || value.trim() === "-") {
     return "-";
   }
+  
   try {
-    return moment(value).local().format(DATE_TIME_FORMAT);
+    let parsedDate;
+    let hasTime = false;
+    
+    // Check if the value contains time (has space and AM/PM)
+    if (value.includes(" ") && (value.includes("AM") || value.includes("PM"))) {
+      hasTime = true;
+      // Parse date with time: "DD-MM-YYYY HH:mm:ss A" or "DD-MM-YYYY hh:mm:ss A"
+      parsedDate = moment(value, DATE_TIME_INPUT_FORMAT, true);
+      
+      // If parsing fails, try alternative format without seconds
+      if (!parsedDate.isValid()) {
+        parsedDate = moment(value, "DD-MM-YYYY hh:mm A", true);
+      }
+    } else {
+      // Parse date only: "DD-MM-YYYY"
+      parsedDate = moment(value, DATE_FORMAT, true);
+      hasTime = false;
+    }
+    
+    // Check if the parsed date is valid
+    if (!parsedDate.isValid()) {
+      console.warn("Invalid date format:", value);
+      return "-";
+    }
+    
+    // Format with or without time based on input
+    if (hasTime) {
+      return parsedDate.local().format(DATE_TIME_FORMAT);
+    } else {
+      return parsedDate.local().format(DATE_ONLY_FORMAT);
+    }
   } catch (error) {
     console.error("Error formatting date:", value, error);
     return "-";
@@ -56,7 +90,7 @@ const statusOptions = [
   { label: "Expired", value: "expired" },
 ];
 
-const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
+const AbhaRecords = forwardRef(({ onConsentCountChange, abhaAddress }, ref) => {
   const navigate = useNavigate();
   const [consents, setConsents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +105,10 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
   const fetchConsents = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getAbhaConsentList(defaultPayload);
+      const response = await getAbhaConsentList({
+        ...defaultPayload,
+        abhaAddress,
+      });
       setConsents(response?.consentData || []);
     } catch (err) {
       // On error, set empty array to show empty state
@@ -215,9 +252,11 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
     let data = [...consents];
     if (searchTerm?.trim()) {
       const term = searchTerm.trim().toLowerCase();
-      data = data.filter((item) =>
-        (item?.abha_id || "").toLowerCase().includes(term)
-      );
+      data = data.filter((item) => {
+        const consentId = (item?.consent_id_request || "").toLowerCase();
+        const abhaId = (item?.abha_id || "").toLowerCase();
+        return consentId.includes(term) || abhaId.includes(term);
+      });
     }
     if (statusFilter !== "ALL") {
       data = data.filter(
@@ -229,8 +268,6 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
         switch (sortConfig.field) {
           case "requested_on":
             return item?.patient_health_from_date;
-          case "last_updated_on":
-            return item?.patient_health_to_date;
           case "expires_on":
             return item?.expired_date;
           default:
@@ -240,8 +277,38 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
       data.sort((a, b) => {
         const valueA = getValue(a);
         const valueB = getValue(b);
-        const dateA = valueA ? new Date(valueA).getTime() : 0;
-        const dateB = valueB ? new Date(valueB).getTime() : 0;
+        
+        // Handle "-" or empty values
+        if (!valueA || valueA === "-") return 1; // Put empty values at the end
+        if (!valueB || valueB === "-") return -1;
+        
+        // Parse dates using moment with DD-MM-YYYY format
+        let dateA, dateB;
+        
+        if (valueA.includes(" ")) {
+          // Date with time: "DD-MM-YYYY HH:mm:ss A"
+          dateA = moment(valueA, "DD-MM-YYYY hh:mm:ss A", true).isValid()
+            ? moment(valueA, "DD-MM-YYYY hh:mm:ss A", true).valueOf()
+            : moment(valueA, "DD-MM-YYYY", true).valueOf();
+        } else {
+          // Date only: "DD-MM-YYYY"
+          dateA = moment(valueA, "DD-MM-YYYY", true).valueOf();
+        }
+        
+        if (valueB.includes(" ")) {
+          // Date with time: "DD-MM-YYYY HH:mm:ss A"
+          dateB = moment(valueB, "DD-MM-YYYY hh:mm:ss A", true).isValid()
+            ? moment(valueB, "DD-MM-YYYY hh:mm:ss A", true).valueOf()
+            : moment(valueB, "DD-MM-YYYY", true).valueOf();
+        } else {
+          // Date only: "DD-MM-YYYY"
+          dateB = moment(valueB, "DD-MM-YYYY", true).valueOf();
+        }
+        
+        // Handle invalid dates
+        if (!dateA || isNaN(dateA)) return 1;
+        if (!dateB || isNaN(dateB)) return -1;
+        
         if (dateA === dateB) return 0;
         return sortConfig.order === "asc"
           ? dateA - dateB
@@ -251,17 +318,14 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
     return data;
   }, [consents, searchTerm, statusFilter, sortConfig]);
 
-  const displayAbhaId =
-    filteredConsents?.[0]?.abha_id || consents?.[0]?.abha_id || "-";
-
   const columns = useMemo(
     () => [
       {
-        title: "#",
+        title: <div className="abha-records__column-header abha-records__row-number">#</div>,
         dataIndex: "row_number",
         key: "row_number",
         width: 10,
-        render: (_, __, index) => index + 1,
+        render: (_, __, index) => <div className="abha-records__row-number">{index + 1}</div>,
       },
       {
         title: "Consent ID",
@@ -295,44 +359,58 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
         dataIndex: "patient_health_from_date",
         key: "requested_on",
         width: 10,
-        render: (value) => (
-          <div className="abha-records__date-cell">
-            <div>{formatDateTime(value)?.split(",")[0]}</div>
-            <small>{formatDateTime(value)?.split(",")[1]}</small>
-          </div>
-        ),
+        render: (value) => {
+          const formatted = formatDateTime(value);
+          if (formatted === "-") {
+            return <div className="abha-records__date-cell">-</div>;
+          }
+          // Check if formatted date contains comma (has time part)
+          if (formatted.includes(",")) {
+            const parts = formatted.split(",");
+            return (
+              <div className="abha-records__date-cell">
+                <div>{parts[0] || "-"}</div>
+                {parts[1] && <small>{parts[1].trim()}</small>}
+              </div>
+            );
+          } else {
+            // Date without time
+            return (
+              <div className="abha-records__date-cell">
+                <div>{formatted}</div>
+              </div>
+            );
+          }
+        },
       },
       {
-        title: (
-          <div className="abha-records__column-header">
-            <span>Last Updated On</span>
-            <div className="abha-records__sort-actions">
-              <button
-                type="button"
-                className={`sort-icon ${sortConfig.field === "last_updated_on" && sortConfig.order === "asc" ? "active" : ""}`}
-                onClick={() => handleSort("last_updated_on", "asc")}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                className={`sort-icon ${sortConfig.field === "last_updated_on" && sortConfig.order === "desc" ? "active" : ""}`}
-                onClick={() => handleSort("last_updated_on", "desc")}
-              >
-                ▼
-              </button>
+        title: "Request Period",
+        dataIndex: "date_range",
+        key: "date_range",
+        width: 80,
+        render: (_, record) => {
+          const fromDate = formatDateTime(record?.patient_health_from_date);
+          const toDate = formatDateTime(record?.patient_health_to_date);
+          
+          if (fromDate === "-" && toDate === "-") {
+            return <div className="abha-records__date-cell">-</div>;
+          }
+          
+          // Extract just the date part (before comma if exists)
+          const fromDatePart = fromDate.includes(",") ? fromDate.split(",")[0] : fromDate;
+          const toDatePart = toDate.includes(",") ? toDate.split(",")[0] : toDate;
+          
+          return (
+            <div className="abha-records__date-range-cell">
+              <div>
+                {fromDatePart !== "-" ? fromDatePart : "-"} to
+              </div>
+              <div>
+                {toDatePart !== "-" ? toDatePart : "-"}
+              </div>
             </div>
-          </div>
-        ),
-        dataIndex: "patient_health_to_date",
-        key: "last_updated_on",
-        width: 10,
-        render: (value) => (
-          <div className="abha-records__date-cell">
-            <div>{formatDateTime(value)?.split(",")[0]}</div>
-            <small>{formatDateTime(value)?.split(",")[1]}</small>
-          </div>
-        ),
+          );
+        },
       },
       {
         title: "Shared For",
@@ -377,6 +455,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
         dataIndex: "status",
         key: "status",
         width: 10,
+        align: "center",
         render: (value) => (
           <span
             className={`abha-records__status abha-records__status--${normalizedStatus(
@@ -417,7 +496,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
               >
                 View
               </Button>
-              <Dropdown
+              {/* <Dropdown
                 menu={menu}
                 trigger={["click"]}
                 placement="bottomRight"
@@ -425,7 +504,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
                 <button type="button" className="abha-records__more-btn">
                   <i className="icon-More" />
                 </button>
-              </Dropdown>
+              </Dropdown> */}
             </div>
           );
         },
@@ -439,14 +518,9 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
   return (
     <>
       {contextHolder}
-      <div className="appointment-wrap PatientDetailswrap m-0 abha-records">
+      <div className="abha-records">
         <Card className="abha-records__card" bodyStyle={{ padding: 0 }}>
-          <div className="abha-records__card-body">
-            <div className="abha-records__header-row">
-              <div className="abha-records__actions">
-              </div>
-            </div>
-
+          <div className="p-20 overflow-y-auto abha-records__card-body" style={{ height: "calc(100vh - 117px)" }}>
             <div className="abha-records__filters">
               <div className="abha-records__filters-main">
                 <Input
@@ -455,7 +529,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   allowClear
                   prefix={<i className="icon-search" />}
-                  className="abha-records__search abha-records__search--narrow"
+                  className="abha-records__search"
                 />
                 <Select
                   className="abha-records__status-filter"
@@ -466,7 +540,7 @@ const AbhaRecords = forwardRef(({ onConsentCountChange }, ref) => {
               </div>
               <div className="abha-records__abha-pill">
                 <img src={AbhaLogo} alt="ABHA logo" />
-                <span>{displayAbhaId}</span>
+                <span>{abhaAddress || "-"}</span>
               </div>
             </div>
 

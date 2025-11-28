@@ -1,90 +1,75 @@
+// Header buttons styling (in Welcome1 component)
+.abha-records__refresh-btn {
+  background: #ffffff !important;
+  border: 1px solid #e2e2ea !important;
+  border-radius: 8px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  color: #5a6774 !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  &:hover {
+    background: #f6f6f8 !important;
+    border-color: #e2e2ea !important;
+    color: #5a6774 !important;
+  }
+
+  .anticon,
+  i {
+    font-size: 16px;
+  }
+}
+
+.abha-records__request-btn {
+  background: #564cff !important;
+  border: 1px solid #564cff !important;
+  border-radius: 8px !important;
+  height: 40px !important;
+  padding: 0 16px !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  &:hover {
+    background: #4b4ad5 !important;
+    border-color: #4b4ad5 !important;
+    color: #ffffff !important;
+  }
+
+  .anticon,
+  i {
+    font-size: 16px;
+  }
+}
+
 .abha-records {
   .ant-card.abha-records__card {
-    width: 1151px;
-    min-height: 830px;
-    margin: -70px auto 0 auto;
-    border-radius: 24px;
-    box-shadow: 0px 12px 40px rgba(0, 0, 0, 0.08);
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+
+  &__row-number {
+    margin-left: 12px;
   }
 
   &__card-body {
     display: flex;
     flex-direction: column;
-    padding: 18px;
-    gap: 18px;
-    min-height: 830px;
-  }
-
-  &__header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
-
-    h2 {
-      margin: 0;
-      font-weight: 600;
-    }
-  }
-
-  &__title-block {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  &__title-block {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  &__eyebrow {
-    display: block;
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #5a6774;
-    margin-bottom: 6px;
-  }
-
-  &__actions {
-    display: flex;
-    gap: 12px;
-
-    .ant-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      height: 40px;
-      border-radius: 12px;
-      font-weight: 500;
-    }
-  }
-
-  &__refresh-btn {
-    background: rgba(86, 76, 255, 0.12);
-    border: none;
-    color: #564cff;
-  }
-
-  &__request-btn {
-    background: #4b4ad5;
-    border: none;
+    gap: 20px;
   }
 
   &__filters {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 18px;
-
-    .ant-input,
-    .ant-select-selector {
-      border-radius: 12px;
-      height: 44px;
-    }
+    gap: 16px;
   }
 
   &__filters-main {
@@ -96,22 +81,106 @@
 
   &__search {
     flex: 1;
-  }
-
-  &__search--narrow {
     max-width: 320px;
+    height: 40px;
+
+    .ant-input {
+      border-radius: 8px;
+      height: 30px;
+      border: 1px solid #e2e2ea;
+      padding-left: 36px;
+      font-size: 14px;
+      font-weight: 400;
+
+      &:hover {
+        border-color: #564cff;
+      }
+
+      &:focus {
+        border-color: #564cff;
+        box-shadow: 0 0 0 2px rgba(86, 76, 255, 0.1);
+      }
+
+      &::placeholder {
+        color: #a1a7b2;
+        font-size: 14px;
+        font-weight: 400;
+      }
+    }
+
+    .ant-input-prefix {
+      left: 12px;
+      color: #a1a7b2;
+
+      i {
+        font-size: 16px;
+      }
+    }
   }
 
   &__status-filter {
-    width: 170px;
+    min-width: 170px;
+    padding-top: 4px;
+
+    .ant-select-selector {
+      border-radius: 8px;
+      height: 42px !important;
+      border: 1px solid #e2e2ea;
+      padding: 0 12px;
+
+      &:hover {
+        border-color: #564cff;
+      }
+    }
+
+    .ant-select-focused .ant-select-selector {
+      border-color: #564cff;
+      box-shadow: 0 0 0 2px rgba(86, 76, 255, 0.1);
+    }
+
+    .ant-select-selection-item {
+      line-height: 36px;
+      font-size: 14px;
+      font-weight: 400;
+      color: #2d3748;
+    }
+
+    .ant-select-arrow {
+      padding-bottom: 4px;
+      color: #a1a7b2;
+    }
   }
 
   &__table-wrapper {
     flex: 1;
+    margin-top: 0;
 
     .ant-table-thead > tr > th {
       background: #f6f6f8;
       font-weight: 600;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #2d3748;
+      line-height: 1.5;
+    }
+
+    // Center align status column header
+    .ant-table-thead > tr > th:nth-child(7) {
+      text-align: center;
+    }
+
+    .ant-table-tbody > tr > td {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 400;
+      color: #2d3748;
+      vertical-align: middle;
+      line-height: 1.5;
+    }
+
+    // Center align status column
+    .ant-table-tbody > tr > td:nth-child(7) {
+      text-align: center;
     }
   }
 
@@ -121,8 +190,7 @@
     }
   }
 
-  &__empty-state,
-  &__empty-message {
+  &__empty-state {
     min-height: 300px;
     display: flex;
     align-items: center;
@@ -130,7 +198,11 @@
   }
 
   &__empty-message {
+    min-height: 300px;
+    display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 24px;
     text-align: center;
   }
@@ -171,14 +243,40 @@
     }
   }
 
+  &__date-range-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+    font-size: 13px;
+    min-width: 80px;
+
+    div {
+      line-height: 1.6;
+    }
+
+    strong {
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 12px;
+      min-width: 120px;
+    }
+  }
+
   &__status {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     padding: 4px 12px;
-    border-radius: 999px;
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     text-transform: capitalize;
+    min-width: fit-content;
+    white-space: nowrap;
+    line-height: 1.5;
 
     &--pending {
       background-color: #fff6da;
@@ -214,15 +312,24 @@
   }
 
   &__view-btn {
-    border-radius: 999px;
+    border-radius: 8px;
     border: 1px solid #564cff;
     color: #564cff;
-    height: 32px;
+    height: 36px;
     padding: 0 20px;
+    font-weight: 500;
+    font-size: 14px;
+
+    &:hover:not(:disabled) {
+      border-color: #564cff;
+      color: #564cff;
+      background: rgba(86, 76, 255, 0.05);
+    }
 
     &:disabled {
       border-color: #d9d9d9;
       color: #a1a7b2;
+      background: transparent;
     }
   }
 
@@ -239,19 +346,21 @@
   }
 
   &__abha-pill {
-    display: inline-flex;
+    display: flex;
+    padding: 8px 12px;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: rgba(86, 76, 255, 0.12);
     color: #4b4ad5;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 12px;
+    border-radius: 10px;
+    font-size: 15px;
     font-weight: 600;
+    line-height: normal;
+    height: 38px;
 
     img {
-      width: 20px;
-      height: 16px;
+      width: 26px;
+      height: 22px;
       object-fit: contain;
     }
   }
