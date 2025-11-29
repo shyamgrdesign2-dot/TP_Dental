@@ -645,7 +645,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                           <div className="fontroboto fw-medium">
                             <AutoComplete
                               defaultValue={item.tds_name}
-                              value={`${item.tds_name} ${item?.icd_code ? `(${item?.icd_code})` : ''}`}
+                              value={`${item.tds_name}${item?.icd_code ? ` (${item?.icd_code})` : ''}`}
                               placeholder="Diagnosis Name"
                               bordered={false}
                               defaultOpen={false}
