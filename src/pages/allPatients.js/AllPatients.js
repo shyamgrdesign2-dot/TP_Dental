@@ -65,6 +65,11 @@ import { resetGrowthChartState } from "../../redux/growthChartSlice";
 import { resetObstetricState } from "../../redux/obstetricSlice";
 import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
+import AbhaDrawer from "../../components/abha/AbhaDrawer";
+import { clearAbhaDetails } from "../../redux/abhaSlice";
+import AbhaIcon from '../../assets/images/abha-svg.svg';
+import ApiAbha from "../../api/services/ApiAbha";
+import { saveAs } from "file-saver";
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -109,6 +114,7 @@ const AllPatients = () => {
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [pageNo, setPageNo] = useState(1);
   const [showCertificate, setShowCertificate] = useState(false);
+  const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -304,6 +310,48 @@ const AllPatients = () => {
     setShowCertificate((prev) => !prev);
   };
 
+  const handleCreateAbhaDrawer = useCallback(() => {
+    setCreateAbhaDrawer(!createAbhaDrawer);
+  }, [createAbhaDrawer]);
+
+  const handleDownloadAbhaCard = async (record) => {
+    try {
+      const patientUniqueId = record?.patient_unique_id;
+      if (!patientUniqueId) {
+        message.error("Patient unique ID not found");
+        return;
+      }
+
+      message.loading({ content: "Downloading ABHA Card...", key: "downloadAbha", duration: 0 });
+      
+      const response = await ApiAbha.downloadAbhaCard({
+        patient_unique_id: patientUniqueId,
+      });
+
+      // Get content type from response headers
+      const contentType = response.headers['content-type'] || 'image/png';
+      const blob = new Blob([response.data], { type: contentType });
+      
+      // Generate filename with patient unique ID
+      const fileName = `ABHA_Card_${patientUniqueId}.${contentType.includes('png') ? 'png' : contentType.includes('jpg') || contentType.includes('jpeg') ? 'jpg' : 'png'}`;
+      
+      saveAs(blob, fileName);
+      message.success({ content: "ABHA Card downloaded successfully", key: "downloadAbha", duration: 3 });
+    } catch (error) {
+      console.error("Error downloading ABHA card:", error);
+      message.error({ 
+        content: error?.response?.data?.message || "Failed to download ABHA Card. Please try again.", 
+        key: "downloadAbha", 
+        duration: 3 
+      });
+    }
+  };
+
+  const onSuccessAbhaCreation = () => {
+    dispatch(clearAbhaDetails());
+    getAllPatients();
+  };
+
   const handleFileUpload = (event, record) => {
     const files = event.target.files;
     if (files) {
@@ -374,7 +422,7 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
-    return [
+    const menuItems = [
       {
         label: (
           <span onClick={() => onPatientDetailsClick(record)}>
@@ -440,6 +488,38 @@ const AllPatients = () => {
         key: "createCertificate",
       },
     ];
+    if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
+      menuItems.push({
+        label: (
+          <span
+            onClick={() => {
+              setPatientData(record);
+              handleCreateAbhaDrawer();
+            }}
+          >
+            Create/Link ABHA
+          </span>
+        ),
+        key: "createLinkAbha",
+      });
+    }
+
+    if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
+      menuItems.push({
+        label: (
+          <span
+            onClick={() => {
+              setPatientData(record);
+              handleDownloadAbhaCard(record);
+            }}
+          >
+            Download ABHA Card
+          </span>
+        ),
+        key: "downloadAbha",
+      });
+    }
+    return menuItems;
   };
 
   const columns = [
@@ -469,6 +549,13 @@ const AllPatients = () => {
             className="text-primary cursor-pointer"
           >
             {record.pm_fullname}
+            {record?.abhaAddress && profile?.HipID && profile?.abhaEnable && (
+              <img
+                src={AbhaIcon}
+                alt="ABHA"
+                style={{ width: "18px", height: "18px", marginLeft: "4px" }}
+              />
+            )}
           </span>
           <br />
           <small>
@@ -854,6 +941,7 @@ const AllPatients = () => {
   };
 
   const handleAddPatient = () => {
+    dispatch(clearAbhaDetails());
     navigate("/add_patient", {
       state: { from: "/all_patients" },
     });
@@ -1206,6 +1294,14 @@ const AllPatients = () => {
             replace={false}
           />
         </Drawer>
+      )}
+      {createAbhaDrawer && (
+        <AbhaDrawer
+          onClose={handleCreateAbhaDrawer}
+          open={createAbhaDrawer}
+          patientUniqueId={patientData?.patient_unique_id}
+          onSuccess={onSuccessAbhaCreation}
+        />
       )}
     </>
   );

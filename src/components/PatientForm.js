@@ -21,11 +21,13 @@ import SecondaryDetails from "../components/SecondaryDetails";
 import AddressDetails from "../components/AddressDetails";
 import UploadProfile from "../components/UploadProfile";
 import { viewPatient, addPatient, editPatient } from "../redux/appointmentsSlice";
+import { clearAbhaDetails } from "../redux/abhaSlice";
 import CommonModal from "../common/CommonModal";
 import saveIcon from '../assets/images/save.svg';
 import smartPad from '../assets/images/smartPad.svg';
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
+import ApiAbha from "../api/services/ApiAbha";
 
 const { TabPane } = Tabs;
 
@@ -37,6 +39,11 @@ function PatientForm({ mode = ADD, patient_data }) {
         (state) => state.records
     );
     const { profile, userId } = useSelector((state) => state.doctors);
+    const { abhaDetails } = useSelector((state) => state.abha || { abhaDetails: {} });
+    const {
+        linkedAddress: abhaLinkedAddress = "",
+        insertId: abhaInsertId = "",
+    } = abhaDetails || {};
 
     const [form] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,6 +68,12 @@ function PatientForm({ mode = ADD, patient_data }) {
         }
         mode === EDIT && getEditData()
     }, []);
+
+    useEffect(() => {
+        return () => {
+            dispatch(clearAbhaDetails());
+        };
+    }, [dispatch]);
 
     const showHideModal = useCallback(() => {
         setIsModalOpen(!isModalOpen);
@@ -108,6 +121,12 @@ function PatientForm({ mode = ADD, patient_data }) {
                     "patient_number": patient_data?.pm_contact_no,
                     "patient_id": patient_data?.patient_unique_id
                 });
+                if (abhaLinkedAddress && abhaInsertId && abhaInsertId !== "" && action.payload && action.payload?.patient_unique_id) {
+                    await ApiAbha.linkPatientUniqueidWithAbha({
+                        patient_unique_id: action.payload.patient_unique_id,
+                        abhaInsertId: abhaInsertId,
+                    });
+                }
                 if (
                     mode === EDIT &&
                     patient_data.pm_dob !== finalValues.pm_dob
@@ -172,6 +191,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                         }
                     }
                 }
+                dispatch(clearAbhaDetails());
             } else {
                 errorMessage(action.error);
             }

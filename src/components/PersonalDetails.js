@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { Form, Input, Button, Select, DatePicker, Radio, Row, Col } from "antd";
 import dayjs from "dayjs";
@@ -10,6 +10,9 @@ import { calculateAge, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils
 
 import { useDispatch, useSelector } from "react-redux";
 import { listSalutation } from "../redux/appointmentsSlice";
+import AbhaIcon from "../assets/images/abha-svg.svg";
+import GreenRight from "../assets/images/green-right.svg";
+import { getAbhaDomainSuffix } from "./abha/helpers";
 
 const { Option } = Select;
 
@@ -23,6 +26,21 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
 
     const dispatch = useDispatch();
     const { salutationData, patients_details } = useSelector((state) => state.records);
+    const { abhaDetails } = useSelector((state) => state.abha || { abhaDetails: {} });
+    const abhaLinkedAddress = abhaDetails?.linkedAddress || "";
+
+    const normalizedAbhaAddress = useMemo(() => {
+        if (!abhaLinkedAddress) {
+            return "";
+        }
+        const trimmed = `${abhaLinkedAddress}`.trim();
+        if (!trimmed) {
+            return "";
+        }
+        return trimmed.includes("@")
+            ? trimmed
+            : `${trimmed}${getAbhaDomainSuffix()}`;
+    }, [abhaLinkedAddress]);
 
     useEffect(() => {
         dispatch(listSalutation());
@@ -53,6 +71,64 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
             }
         }
     }, [patients_details, patient_data]);
+
+    const preparePrefilledAddress = (address) => {
+        if (!address || typeof address !== 'string') {
+            return address;
+        }
+        
+        // If address character count is greater than or equal to 50
+        if (address.length >= 50) {
+            const addressParts = address.split(',');
+            const firstThreeParts = addressParts.slice(0, 3);
+            return firstThreeParts.join(',');
+        }
+        
+        // Return original address if length is less than 50
+        return address;
+    };
+
+    useEffect(() => {
+        if (!form || !abhaDetails || Object.keys(abhaDetails).length === 0) return;
+        const hasValue = (value) => value !== undefined && value !== null && value !== "";
+        const updatedFields = {};
+
+        if (hasValue(abhaDetails.fullName)) {
+            updatedFields.pm_fullname = abhaDetails.fullName;
+        }
+        if (hasValue(abhaDetails.mobile)) {
+            updatedFields.pm_contact_no = abhaDetails.mobile;
+        }
+        if (hasValue(abhaDetails.gender)) {
+            updatedFields.pm_gender = abhaDetails.gender === "M"
+                ? "Male" : abhaDetails.gender === "F"
+                    ? "Female" : "Other";
+        }
+        if (hasValue(abhaDetails.dateOfBirth)) {
+            const parsedDob = moment(
+                abhaDetails.dateOfBirth,
+                ["YYYY-MM-DD", "DD-MM-YYYY", "D-M-YYYY", dateFormat],
+                true
+            );
+
+            if (parsedDob.isValid()) {
+                const formattedDob = parsedDob.format(dateFormat);
+                updatedFields.pm_dob = dayjs(formattedDob, dateFormat);
+                const age = calculateAge(formattedDob);
+                setAgeYearsMonths(age);
+            }
+        }
+        if (hasValue(abhaDetails.pinCode)) {
+            updatedFields.pm_pincode = abhaDetails.pinCode;
+        }
+        if (hasValue(abhaDetails.address)) {
+            updatedFields.pm_address = preparePrefilledAddress(abhaDetails.address);
+        }
+
+        if (Object.keys(updatedFields).length > 0) {
+            form.setFieldsValue(updatedFields);
+        }
+    }, [abhaDetails, form]);
 
     const validateMobileNumber = (_, value) => {
         const mobileNumberRegex = /^[0-9]{10}$/; // 10-digit number validation regex
@@ -210,6 +286,17 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
             )}
             {showDetails && (
                 <>
+                    {normalizedAbhaAddress && (
+                        <div className="abha-address-pill">
+                            <div className="abha-address-pill__info">
+                                <img src={AbhaIcon} alt="ABHA" className="abha-address-pill__icon" />
+                                <span className="abha-address-pill__value">{normalizedAbhaAddress}</span>
+                            </div>
+                            <div className="abha-address-pill__verified">
+                                <img src={GreenRight} alt="Verified" style={{ height: '20px', width: '20px' }} />
+                            </div>
+                        </div>
+                    )}
                     <Row gutter={{ xs: 8, sm: 18, md: 24, lg: 30 }}>
                         <Col xs={8} sm={8} md={6} lg={4}>
                             <Form.Item name="pm_salutation" label="Salutation">

@@ -90,6 +90,8 @@ import welcomdoc from "../assets/images/welcom-doc.svg";
 import symptoms from "../assets/images/symptoms-green.svg";
 import suporticon from "../assets/images/suport-icon.svg";
 import windoc from "../assets/images/win-doc.png";
+import AbhaIcon from '../assets/images/abha-svg.svg';
+import { saveAs } from "file-saver";
 
 import CommonModal from "../common/CommonModal";
 import { useSelector, useDispatch } from "react-redux";
@@ -146,10 +148,13 @@ import {
 } from "../redux/billingSlice";
 import WelcomeModal from "./userOnboarding/welcomeModal/WelcomeModal";
 import { checkSymptomsCollectorTour } from "../api/services/ApiGenRx";
+import ApiAbha from "../api/services/ApiAbha";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
+import AbhaDrawer from "./abha/AbhaDrawer";
+import { clearAbhaDetails } from "../redux/abhaSlice";
 
 const { TextArea } = Input;
 
@@ -656,6 +661,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [patientWalletBalance, setPatientWalletBalance] = useState(0);
   const [isSymptomsCollectorTour, setIsSymptomsCollectorTour] = useState(false);
   const [firstSymptomIndex, setFirstSymptomIndex] = useState(null);
+  const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
+
   // Add this useEffect to find the first record with symptoms
   useEffect(() => {
     if (
@@ -781,6 +788,50 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       getShowOpdBilling();
     }
   }, []);
+
+  const getAllAppointments = async () => {
+    const timeOutId = setTimeout(async () => {
+      if (
+        selectedTab != TAB_ZYDUS_ENCOUNTER &&
+        selectedTab != TAB_ZYDUS_APPOINTMENT
+      ) {
+        const undigitisedIds = pendingDigitisation?.data?.split(",");
+        const snapRxUnDigitisedUnReviewedIds = [
+          ...(snapRxUnDigitisedIds?.unDigitizedAppointmentIds || []),
+          ...(snapRxUnDigitisedIds?.unReviewedAppointmentIds || []),
+        ];
+        const allUnDigitisedIds = [
+          ...(undigitisedIds || []),
+          ...(snapRxUnDigitisedUnReviewedIds || []),
+        ];
+        setAllUnDigitisedIds(allUnDigitisedIds);
+        var sendData = {
+          startDate: date.startDate,
+          endDate: date.endDate,
+          apStatue:
+            isDigitisationTab && allUnDigitisedIds?.length > 0
+              ? 3
+              : selectedTab,
+          filterVisitType: visitTypeFilters,
+          page: pageNo,
+          search: searchQuery,
+          sortOrder: sort_order,
+          fetchBillStatus: advancedSettings?.billingStatusInAppointmentScreen,
+          ...(isDigitisationTab && allUnDigitisedIds?.length > 0
+            ? {
+                cvtAppointmentIdsStr: allUnDigitisedIds?.join(","),
+              }
+            : {}),
+        };
+        dispatch(getAllAppointment(sendData));
+      } else {
+        encounterAndFinishDataManage();
+      }
+    }, 500);
+    return () => {
+      clearTimeout(timeOutId);
+    };
+  };
 
   const getSymptomCollectorTourCheck = async () => {
     const decodedToken = getDecodedToken();
@@ -1229,6 +1280,38 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         key: "uploadDoc",
       },
     ]?.filter((item) => item);
+
+    if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleCreateAbhaDrawer();
+            }}
+          >
+            Create/Link ABHA
+          </span>
+        ),
+        key: "createabha",
+      });
+    }
+
+    if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleDownloadAbhaCard(record);
+            }}
+          >
+            Download ABHA Card
+          </span>
+        ),
+        key: "downloadabha",
+      });
+    }
 
     if (selectedTab === TAB_QUEUE) {
       const decodedToken = getDecodedToken();
@@ -1902,6 +1985,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ) : (
             <span className="text-primary">{record.pm_fullname}</span>
           )}
+          {record?.abhaAddress && profile?.HipID && profile?.abhaEnable && (
+            <img
+              src={AbhaIcon}
+              alt="ABHA"
+              style={{ width: "18px", height: "18px", marginLeft: "4px" }}
+            />
+          )}
           <br />
           <small>
             {genderAge(record)}
@@ -2451,6 +2541,48 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const handleAddAdvanceDrawer = useCallback(() => {
     setAddAdvanceDrawer(!addAdvanceDrawer);
   }, [addAdvanceDrawer]);
+
+  const handleCreateAbhaDrawer = useCallback(() => {
+    setCreateAbhaDrawer(!createAbhaDrawer);
+  }, [createAbhaDrawer]);
+
+  const onSuccessAbhaCreation = () => {
+    dispatch(clearAbhaDetails());
+    getAllAppointments();
+  };
+
+  const handleDownloadAbhaCard = async (record) => {
+    try {
+      const patientUniqueId = record?.patient_unique_id;
+      if (!patientUniqueId) {
+        message.error("Patient unique ID not found");
+        return;
+      }
+
+      message.loading({ content: "Downloading ABHA Card...", key: "downloadAbha", duration: 0 });
+      
+      const response = await ApiAbha.downloadAbhaCard({
+        patient_unique_id: patientUniqueId,
+      });
+
+      // Get content type from response headers
+      const contentType = response.headers['content-type'] || 'image/png';
+      const blob = new Blob([response.data], { type: contentType });
+      
+      // Generate filename with patient unique ID
+      const fileName = `ABHA_Card_${patientUniqueId}.${contentType.includes('png') ? 'png' : contentType.includes('jpg') || contentType.includes('jpeg') ? 'jpg' : 'png'}`;
+      
+      saveAs(blob, fileName);
+      message.success({ content: "ABHA Card downloaded successfully", key: "downloadAbha", duration: 3 });
+    } catch (error) {
+      console.error("Error downloading ABHA card:", error);
+      message.error({ 
+        content: error?.response?.data?.message || "Failed to download ABHA Card. Please try again.", 
+        key: "downloadAbha", 
+        duration: 3 
+      });
+    }
+  };
 
   const handleRecentBillDrawer = useCallback(() => {
     setRecentBillDrawer(!recentBillDrawer);
@@ -3327,6 +3459,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             patientData={appointmentSelectedFromMenu}
           />
         </Drawer>
+      )}
+
+      {createAbhaDrawer && (
+        <AbhaDrawer
+          onClose={handleCreateAbhaDrawer}
+          open={createAbhaDrawer}
+          patientUniqueId={appointmentSelectedFromMenu?.patient_unique_id}
+          onSuccess={onSuccessAbhaCreation}
+        />
       )}
 
       <ExpiredSubModal

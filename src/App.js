@@ -69,6 +69,7 @@ import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentS
 import VoiceRxConsult from "./pages/VoiceRxConsult";
 import VoiceRecordingPage from "./pages/VoiceRecordingPage";
 import OpdBill from "./pages/opdBilling/OpdBill";
+import HealthRecords from "./pages/abhaRecords/HealthRecords";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -484,6 +485,10 @@ function App() {
                 <Route
                   path="appointment-agent/success"
                   element={<AppointmentSuccess />}
+                />
+                <Route
+                  path="abha-records/health-records"
+                  element={<HealthRecords />}
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />

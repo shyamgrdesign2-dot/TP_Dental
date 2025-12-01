@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Nav from 'react-bootstrap/Nav';
 import { Button, Popover } from 'antd';
 import { isMobile } from 'react-device-detect';
@@ -14,10 +14,25 @@ import { setShouldShowOpdBilling } from '../redux/billingSlice';
 import { checkToShowOpdBilling } from '../pages/opdBilling/service';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
-import { NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
+import {
+  NEO_NATOLOGISTS_DP_ID,
+  PAEDIATRIC_DP_ID,
+  PATIENT_DETAILS_SIDEBAR_KEYS,
+} from "../utils/constants";
 import BloodIcon from '../assets/images/blood.svg';
+import AbhaIcon from '../assets/images/abha-svg.svg'
+import LeftArrow from '../assets/images/left-arrow.svg'
+import AbhaDrawer from '../components/abha/AbhaDrawer';
+import { getAbhaDomainSuffix } from '../components/abha/helpers';
 
-function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarKey, onClickSidebarHandle }) {
+function SidebarPatient({ 
+    collapsed, 
+    patient_data, 
+    viewCaseManagerData, 
+    sidebarKey, 
+    onClickSidebarHandle, 
+    abhaConsentsCount 
+}) {
     const dispatch = useDispatch();
     const { profile } = useSelector((state) => state.doctors);
     const { patients_details } = useSelector((state) => state.records);
@@ -27,14 +42,45 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
      );
     const { isOpdBillChecked } = useSelector((state) => state.billing);
     const { isOpdBillingAccessable } = useOpdBilling();
+    const [abhaDrawerOpen, setAbhaDrawerOpen] = useState(false);
 
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
 
     const menu = [
-        { key: 1, icon_name: 'icon-Visit-Summary-Fill', short_title: 'Visit', long_title: 'Visit Summary' },
-        { key: 2, icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Certificate' },
-        { key: 3, icon_name: 'icon-Report', short_title: 'Records', long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : "" }` },
-        isOpdBillingAccessable ? { key: 4, icon_name: 'icon-Visit-Summary-Fill', short_title: 'Add Bill', long_title: 'Add Bill/Payment' } : undefined,
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
+            icon_name: "icon-Visit-Summary-Fill",
+            short_title: "Visit",
+            long_title: "Visit Summary",
+        },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE,
+            icon_name: "icon-Medical-Certificate",
+            short_title: "Certificate",
+            long_title: "Certificate",
+        },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS,
+            icon_name: "icon-Report",
+            short_title: "Records",
+            long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : "" }`,
+        },
+        isOpdBillingAccessable ? {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
+            icon_name: 'icon-Visit-Summary-Fill',
+            short_title: 'Add Bill',
+            long_title: 'Add Bill/Payment'
+        } : undefined,
+        (patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable) ? {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
+            icon_image: AbhaIcon,
+            short_title: "ABHA",
+            long_title: `ABHA Records ${
+              typeof abhaConsentsCount === "number" && abhaConsentsCount >= 0
+                ? `(${abhaConsentsCount})`
+                : ""
+            }`.trim(),
+        } : undefined,
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
@@ -66,6 +112,10 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
         dispatch(setShouldShowOpdBilling(res));
     };
 
+    const handleAbhaDrawer = useCallback(() => {
+        setAbhaDrawerOpen(!abhaDrawerOpen);
+    }, [abhaDrawerOpen]);
+
     const content = (
         <>
             {tokenData?.hospital_business_id != config.zydus_business_id && (
@@ -93,6 +143,15 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     <div className="fontroboto letterspacing fw-medium">{patient_data !== undefined ? patient_data.pm_contact_no : "000000"}</div>
                 </div>
             </div>
+            {patient_data?.abhaAddress && (
+                <div className="align-items-center d-flex medicine-templates border-top-0 without-hover p-0 pb-3">
+                    <div className="round-box bg-body-secondary"><img src={AbhaIcon} /></div>
+                    <div className="text-truncate">
+                        <div className="fontroboto letterspacing">ABHA Address</div>
+                        <div className="fontroboto letterspacing fw-medium">{patient_data?.abhaAddress}</div>
+                    </div>
+                </div>
+            )}
             {tokenData?.hospital_business_id != config.zydus_business_id && (patient_data?.pm_blood_group || patient_data?.patient_blood_group || viewCaseManagerData?.patient_data?.patient_blood_group || patients_details?.pm_blood_group) && (
                 <div className="align-items-center d-flex medicine-templates border-top-0 without-hover p-0">
                     <div className="round-box bg-body-secondary"><img src={BloodIcon} alt="blood" style={{ width: '21px', height: '21px' }} /></div>
@@ -176,7 +235,11 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     <div key={index}>
                         <Nav.Item className={collapsed && 'text-center'}>
                             <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
-                                <i className={item.icon_name}></i>
+                                {item.icon_image ? (
+                                    <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
+                                ) : (
+                                    <i className={item.icon_name}></i>
+                                )}
                                 <div className={collapsed ? 'text-truncate' : 'ms-3'}>{collapsed ? item.short_title : item.long_title}</div>
                             </Nav.Link>
                         </Nav.Item>
@@ -184,6 +247,45 @@ function SidebarPatient({ collapsed, patient_data, viewCaseManagerData, sidebarK
                     </div>
                 )
             })}
+            {(!patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable)
+                ? (
+                    <div>
+                        <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
+                            <Nav.Link
+                                className={`${!collapsed && 'd-flex align-items-center p-0'} sidebar-abha-link`}
+                                onClick={handleAbhaDrawer}
+                            >
+                                <div className="sidebar-icon-wrapper">
+                                    <img src={AbhaIcon} className="sidebar-abha-icon" alt="abha" />
+                                </div>
+                                <div className='sidebar_abha_text_container'>
+                                    {collapsed ? (
+                                        <div className="sidebar_abha_text_collapsed">
+                                            <div className="sidebar_abha_text_line">Create/Link</div>
+                                            <div className="sidebar_abha_text_line">ABHA</div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`sidebar_abha_text ms-3`}>
+                                                Create/Link ABHA
+                                            </div>
+                                            <img src={LeftArrow} width={6} />
+                                        </>
+                                    )}
+                                </div>
+                            </Nav.Link>
+                        </Nav.Item>
+                    </div>
+                )
+                : <></> // TODO: Show ABHA details if already linked
+            }
+            {abhaDrawerOpen && (
+                <AbhaDrawer
+                    onClose={handleAbhaDrawer}
+                    open={abhaDrawerOpen}
+                    patientUniqueId={patient_data?.patient_unique_id}
+                />
+            )}
         </div>
     )
 }
