@@ -73,7 +73,7 @@ const HealthRecords = () => {
 
   const handleBack = () => {
     // Navigate back to patient details with ABHA Records sidebar active
-    navigate("/patient_details", {
+    navigate(-1, {
       state: {
         patient_data: location.state?.patient_data,
         sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
