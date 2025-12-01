@@ -488,7 +488,7 @@ const AllPatients = () => {
         key: "createCertificate",
       },
     ];
-    if (!record?.abhaAddress && profile?.HipID) {
+    if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       menuItems.push({
         label: (
           <span
@@ -504,7 +504,7 @@ const AllPatients = () => {
       });
     }
 
-    if (record?.abhaAddress && profile?.HipID) {
+    if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       menuItems.push({
         label: (
           <span
@@ -549,7 +549,7 @@ const AllPatients = () => {
             className="text-primary cursor-pointer"
           >
             {record.pm_fullname}
-            {record?.abhaAddress && profile?.HipID && (
+            {record?.abhaAddress && profile?.HipID && profile?.abhaEnable && (
               <img
                 src={AbhaIcon}
                 alt="ABHA"

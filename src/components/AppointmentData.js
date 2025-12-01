@@ -1281,7 +1281,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       },
     ]?.filter((item) => item);
 
-    if (!record?.abhaAddress && profile?.HipID) {
+    if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       items.push({
         label: (
           <span
@@ -1297,7 +1297,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
-    if (record?.abhaAddress && profile?.HipID) {
+    if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       items.push({
         label: (
           <span
@@ -1985,7 +1985,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ) : (
             <span className="text-primary">{record.pm_fullname}</span>
           )}
-          {record?.abhaAddress && profile?.HipID && (
+          {record?.abhaAddress && profile?.HipID && profile?.abhaEnable && (
             <img
               src={AbhaIcon}
               alt="ABHA"

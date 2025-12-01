@@ -71,7 +71,7 @@ function SidebarPatient({
             short_title: 'Add Bill',
             long_title: 'Add Bill/Payment'
         } : undefined,
-        (patient_data?.abhaAddress && profile?.HipID) ? {
+        (patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable) ? {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
             icon_image: AbhaIcon,
             short_title: "ABHA",
@@ -247,9 +247,8 @@ function SidebarPatient({
                     </div>
                 )
             })}
-            {(patient_data?.abhaAddress && profile?.HipID)
-                ? <></> // TODO: Show ABHA details if already linked
-                : (
+            {(!patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable)
+                ? (
                     <div>
                         <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
                             <Nav.Link
@@ -278,6 +277,7 @@ function SidebarPatient({
                         </Nav.Item>
                     </div>
                 )
+                : <></> // TODO: Show ABHA details if already linked
             }
             {abhaDrawerOpen && (
                 <AbhaDrawer

@@ -442,6 +442,8 @@ const prod = {
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475, 12476, 12477, 12576],
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
+  abha_api_url: "https://pm-abha.tatvacare.in",
+  abha_records_api_url: "https://pm-abha.tatvacare.in",
 };
 
 const getEnv = () => {
