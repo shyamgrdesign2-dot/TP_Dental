@@ -95,7 +95,7 @@ instance.interceptors.response.use(
         }
 
         notificationParam.key = "notification_key"
-        if (error.response.status !== 404 && error.response.status !== 400 && error.response.status !== 401) {
+        if (error.response.status !== 404 && error.response.status !== 400 && error.response.status !== 401 && error.response.status !== 429) {
             notification.error(notificationParam)
         }
         return Promise.reject(error);
