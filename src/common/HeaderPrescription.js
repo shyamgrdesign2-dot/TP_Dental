@@ -1217,7 +1217,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         })
 
                         const actionPIO = await dispatch(placeIctOrder(zydusSendData))
-                        if (actionPIO.payload.status !== 400) {
+                        if (actionPIO.payload?.status !== 400) {
                             window.Moengage.track_event("Z_placeIctOrder_API_Response", {
                                 status: 'suceess'
                             })
