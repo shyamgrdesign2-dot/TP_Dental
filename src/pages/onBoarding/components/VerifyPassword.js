@@ -159,7 +159,7 @@ const VerifyPassword = ({ onViewChange, mobileNumber }) => {
 
           <div className="forgot-password">
             <span onClick={handleForgotPassword}>
-              Forget password
+              Forgot password
             </span>
           </div>
 
