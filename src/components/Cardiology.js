@@ -328,9 +328,21 @@ function Cardiology(props) {
             } else if (response.data.digitizeData) {
               prescriptionData = response.data.digitizeData;
             } else {
-              // Fallback to history digitize data
+
               const latestHistory = response.data?.history?.[response.data.history.length - 1];
-              prescriptionData = latestHistory?.digitize || null;
+              const digitizeObj = latestHistory?.digitize;
+              if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                if (numericKeys.length > 0) {
+                  prescriptionData = digitizeObj[numericKeys[0]];
+                } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                  prescriptionData = digitizeObj;
+                } else {
+                  prescriptionData = digitizeObj;
+                }
+              } else {
+                prescriptionData = digitizeObj || null;
+              }
             }
             
             setGenRxData(prescriptionData);

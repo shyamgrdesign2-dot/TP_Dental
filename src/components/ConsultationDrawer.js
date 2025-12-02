@@ -945,7 +945,19 @@ const ConsultationDrawer = ({
           } else if (response.data.digitizeData) {
             prescriptionData = response.data.digitizeData;
           } else if (response.data.digitize) {
-            prescriptionData = response.data.digitize;
+            const digitizeObj = response.data.digitize;
+            if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+              const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+              if (numericKeys.length > 0) {
+                prescriptionData = digitizeObj[numericKeys[0]];
+              } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                prescriptionData = digitizeObj;
+              } else {
+                prescriptionData = digitizeObj;
+              }
+            } else {
+              prescriptionData = digitizeObj;
+            }
           } else {
             const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
             const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
@@ -1848,7 +1860,19 @@ const ConsultationDrawer = ({
               // Priority 3: Check for digitize object (single digitization)
               else if (finalResponseData.digitize || actualData?.digitize || responseData?.digitize) {
                 // Extract prescription data from digitize object
-                prescriptionData = finalResponseData.digitize || actualData?.digitize || responseData.digitize;
+                const digitizeObj = finalResponseData.digitize || actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
                 // Find the latest ambient entry (for get/edit operations)
                 const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
@@ -1918,12 +1942,21 @@ const ConsultationDrawer = ({
                        responseData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                           
               prescriptionData = responseData.rxDigitizationHistory[0].payload;
             }
-              else if (actualData?.digitize) {
-                prescriptionData = actualData.digitize;
+              else if (actualData?.digitize || responseData?.digitize) {
+                const digitizeObj = actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               }
-              else if (responseData?.digitize) {
-              prescriptionData = responseData.digitize;
-            }
               else if (actualData?.prescription) {
                 prescriptionData = actualData.prescription;
               }
