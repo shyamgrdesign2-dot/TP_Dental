@@ -74,6 +74,8 @@ import {
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
   GB_VIDEO_CONSULT,
+  GB_NEW_IPD,
+  GB_NEW_IPD_HOS_BUSINESS_ID,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -387,6 +389,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_NEW_IPD_HOS_BUSINESS_ID
+  );
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -1229,6 +1235,20 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "certificate",
       },
+      (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
+        ? {
+            label: (
+              <span
+                onClick={() => {
+                  handleAdmitToIpd(record);
+                }}
+              >
+                Admit to IPD
+              </span>
+            ),
+            key: "admitToIpd",
+          }
+        : undefined,
       {
         label: (
           <span
@@ -2952,6 +2972,45 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         isFromTabView: isMobile
       },
     });
+  };
+
+  const handleAdmitToIpd = async (record) => {
+    try {
+      // Map patient record to the expected patient data format for CreateAdmission
+      const patientData = {
+        pm_fullname: record.pm_fullname || record.patientName || "",
+        pm_contact_no: record.pm_contact_no || record.mobileNo || "",
+        pm_pid: record.pm_pid || record.pm_reference_id || record.tpml_refrence_id || "",
+        patient_unique_id: record.patient_unique_id || record.pm_id || 0,
+        pm_gender: record.pm_gender || record.gender || "",
+        ageYears: record.ageYears || 0,
+        ageMonths: record.ageMonths || 0,
+        ageDays: record.ageDays || 0,
+        pm_salutation: record.pm_salutation || "",
+        pm_address: record.pm_address || record.patient_address || record.address || "",
+        pm_blood_group: record.pm_blood_group || record.bloodGroup || "",
+        pm_email: record.pm_email || record.email || "",
+        DOB: record.DOB || record.dob || "",
+      };
+
+      // Encode patient data to Base64
+      const jsonString = JSON.stringify(patientData);
+      const base64String = btoa(unescape(encodeURIComponent(jsonString)));
+      const encodedData = encodeURIComponent(base64String);
+
+      // Get the base URL - use doctor_portal_url from env if available, otherwise use current origin
+      const baseUrl = env.doctor_portal_url || window.location.origin;
+      
+      // Build the complete URL with encoded patient data
+      const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
+      // const url = `http://localhost:3000/ipd/create-admission?patientData=${encodedData}`;
+
+      // Redirect to the CreateAdmission page
+      window.location.href = url;
+    } catch (error) {
+      console.error("Error redirecting to CreateAdmission:", error);
+      message.error("Failed to redirect to admission page. Please try again.");
+    }
   };
 
   return (
