@@ -3192,7 +3192,7 @@ function SmartPrescription() {
           isVaccinationEnabled={isVaccinationAccessable}
           isGrowthChartEnabled={isGrowthChartAccessable}
           prescription={prescription}
-          onClear={handleClearCurrentPage}
+          onClear={handleClearAllPages}
           onSubmit={handleSubmit}
           smartRxData={smartRxDetails}
           loader={loader}
