@@ -2981,8 +2981,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       const patientData = {
         pm_fullname: record.pm_fullname || record.patientName || "",
         pm_contact_no: record.pm_contact_no || record.mobileNo || "",
-        pm_pid: record.pm_pid || record.pm_reference_id || record.tpml_refrence_id || "",
-        patient_unique_id: record.patient_unique_id || record.pm_id || 0,
+        pm_pid: record.pm_pid || "",
+        patient_unique_id: record.patient_unique_id || 0,
         pm_gender: record.pm_gender || record.gender || "",
         ageYears: record.ageYears || 0,
         ageMonths: record.ageMonths || 0,

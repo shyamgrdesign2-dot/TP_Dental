@@ -59,7 +59,8 @@ import { getDecodedToken, useLocalStorage } from "../../utils/localStorage";
 import axios from "axios";
 import config from "../../config";
 import { jwtDecode } from "jwt-decode";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import { resetVaccineState } from "../../redux/vaccineSlice";
 import { resetGrowthChartState } from "../../redux/growthChartSlice";
 import { resetObstetricState } from "../../redux/obstetricSlice";
@@ -115,6 +116,11 @@ const AllPatients = () => {
   const [pageNo, setPageNo] = useState(1);
   const [showCertificate, setShowCertificate] = useState(false);
   const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
+
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_NEW_IPD_HOS_BUSINESS_ID
+  );
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -487,6 +493,20 @@ const AllPatients = () => {
         ),
         key: "createCertificate",
       },
+      (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
+        ? {
+            label: (
+              <span
+                onClick={() => {
+                  handleAdmitToIpd(record);
+                }}
+              >
+                Admit to IPD
+              </span>
+            ),
+            key: "admitToIpd",
+          }
+        : undefined,
     ];
     if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       menuItems.push({
@@ -946,6 +966,45 @@ const AllPatients = () => {
       state: { from: "/all_patients" },
     });
     trackEvent("TP_AllPatients_AddNewPatient", doctorDetails);
+  };
+
+  const handleAdmitToIpd = async (record) => {
+    try {
+      // Map patient record to the expected patient data format for CreateAdmission
+      const patientData = {
+        pm_fullname: record.pm_fullname || record.patientName || "",
+        pm_contact_no: record.pm_contact_no || record.mobileNo || "",
+        pm_pid: record.pm_pid || "",
+        patient_unique_id: record.patient_unique_id || 0,
+        pm_gender: record.pm_gender || record.gender || "",
+        ageYears: record.ageYears || 0,
+        ageMonths: record.ageMonths || 0,
+        ageDays: record.ageDays || 0,
+        pm_salutation: record.pm_salutation || "",
+        pm_address: record.pm_address || record.patient_address || record.address || "",
+        pm_blood_group: record.pm_blood_group || record.bloodGroup || "",
+        pm_email: record.pm_email || record.email || "",
+        DOB: record.DOB || record.dob || "",
+      };
+
+      // Encode patient data to Base64
+      const jsonString = JSON.stringify(patientData);
+      const base64String = btoa(unescape(encodeURIComponent(jsonString)));
+      const encodedData = encodeURIComponent(base64String);
+
+      // Get the base URL - use doctor_portal_url from env if available, otherwise use current origin
+      const baseUrl = config.ipd_portal_url;
+      
+      // Build the complete URL with encoded patient data
+      const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
+      // const url = `http://localhost:3000/ipd/create-admission?patientData=${encodedData}`;
+
+      // Redirect to the CreateAdmission page
+      window.location.href = url;
+    } catch (error) {
+      console.error("Error redirecting to CreateAdmission:", error);
+      message.error("Failed to redirect to admission page. Please try again.");
+    }
   };
 
   return (
