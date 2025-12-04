@@ -2209,10 +2209,21 @@ function SmartPrescription() {
   };
 
   const handleClearAllPages = () => {
-    // Clear old canvas refs since we're resetting to a single page
+    // Clear old canvas refs since we're resetting
     canvasRefs.current = {};
     ctxGlobalRefs.current = {};
     
+    // Reload the selected template that was loaded on mount
+    if (selectedTemplateId && selectedTemplateId !== 'none' && templates.length > 0) {
+      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      if (selectedTemplate) {
+        // Reload the template images - this will recreate pages and load template images
+        loadTemplateImages(selectedTemplate);
+        return; // Exit early after reloading template
+      }
+    }
+    
+    // Fallback: If no template is selected, reset to a single blank page
     setPages([pages[0]]);
     setDataPresentInCanvas([false]);
     setSelectedPage(0);
