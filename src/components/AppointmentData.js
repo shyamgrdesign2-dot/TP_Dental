@@ -79,6 +79,7 @@ import {
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
+import config from "../config";
 import noData from "../assets/images/nodata-found.svg";
 import visitEnd from "../assets/images/end-visit.svg";
 import ImgcancelEnd from "../assets/images/cancel-visit.svg";
@@ -2999,7 +3000,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       const encodedData = encodeURIComponent(base64String);
 
       // Get the base URL - use doctor_portal_url from env if available, otherwise use current origin
-      const baseUrl = env.doctor_portal_url || window.location.origin;
+      const baseUrl = config.ipd_portal_url;
       
       // Build the complete URL with encoded patient data
       const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
