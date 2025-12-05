@@ -584,6 +584,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
+
     if (
       tokenData?.hospital_business_id == env.zydus_business_id &&
       isZydusUserAccessableFromGB
@@ -1129,6 +1130,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
   };
 
+  const tokenData = decodedToken?.result;
+  const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
+
   const getMenuItems = (record) => {
     const items = [
       {
@@ -1237,7 +1241,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "certificate",
       },
-      (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
+      ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydusAccount)
         ? {
             label: (
               <span

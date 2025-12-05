@@ -15,6 +15,7 @@ import Header from "../../common/Header";
 import SidebarDoctor from "../../common/SidebarDoctor";
 import { genderAge } from "../opdBilling/components/viewBillPdf/helper";
 import { fetchAllPatients } from "./service";
+import { env } from "../../EnvironmentConfig";
 import {
   isAndroid,
   isBrowser,
@@ -429,6 +430,7 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
+    const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
     const menuItems = [
       {
         label: (
@@ -494,7 +496,7 @@ const AllPatients = () => {
         ),
         key: "createCertificate",
       },
-      (isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB)
+      ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydusAccount)
         ? {
             label: (
               <span

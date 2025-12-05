@@ -293,31 +293,33 @@ function SidebarPatient({
                     : <></> // TODO: Show ABHA details if already linked
                 }
             </div>
-            <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: "2rem" }}>
-                {isIPDAccessible && !isAdmitted && !isCheckingAdmission && (
-                    <div className="p-3">
-                        <div
-                            onClick={() => handleAdmitToIpd(patient_data)}
-                            style={{
-                                border: '2px dashed #4B4AD5',
-                                borderRadius: '8px',
-                                padding: "8px",
-                                cursor: 'pointer',
-                                textAlign: collapsed ? 'center' : 'left',
-                                backgroundColor: '#ffffff',
-                                transition: 'all 0.3s ease',
-                            }}
-                        >
-                            <div className="d-flex flex-column align-items-center justify-content-center">
-                                <div className="position-relative mb-1 fw-medium">
-                                    <img src={HospitalBedIcon} className='pe-2' height={25}/> 
-                                    <span className='main-color'>Adm IPD</span>
+            { tokenData?.hospital_business_id != config.zydus_business_id && 
+                <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: "2rem" }}>
+                    {isIPDAccessible && !isAdmitted && !isCheckingAdmission && (
+                        <div className="p-3">
+                            <div
+                                onClick={() => handleAdmitToIpd(patient_data)}
+                                style={{
+                                    border: '2px dashed #4B4AD5',
+                                    borderRadius: '8px',
+                                    padding: "8px",
+                                    cursor: 'pointer',
+                                    textAlign: collapsed ? 'center' : 'left',
+                                    backgroundColor: '#ffffff',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                <div className="d-flex flex-column align-items-center justify-content-center">
+                                    <div className="position-relative mb-1 fw-medium">
+                                        <img src={HospitalBedIcon} className='pe-2' height={25}/> 
+                                        <span className='main-color'>Adm IPD</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            }
             {abhaDrawerOpen && (
                 <AbhaDrawer
                     onClose={handleAbhaDrawer}
