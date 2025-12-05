@@ -15,6 +15,7 @@ import Header from "../../common/Header";
 import SidebarDoctor from "../../common/SidebarDoctor";
 import { genderAge } from "../opdBilling/components/viewBillPdf/helper";
 import { fetchAllPatients } from "./service";
+import { env } from "../../EnvironmentConfig";
 import {
   isAndroid,
   isBrowser,
@@ -51,6 +52,7 @@ import {
   getClinicName,
   sendMessageToParent,
   trackEvent,
+  handleAdmitToIpd,
 } from "../../utils/utils";
 import successIcon from "../../assets/images/end-visit.svg";
 import closeIcon from "../../assets/images/close-visit.svg";
@@ -59,7 +61,8 @@ import { getDecodedToken, useLocalStorage } from "../../utils/localStorage";
 import axios from "axios";
 import config from "../../config";
 import { jwtDecode } from "jwt-decode";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import { resetVaccineState } from "../../redux/vaccineSlice";
 import { resetGrowthChartState } from "../../redux/growthChartSlice";
 import { resetObstetricState } from "../../redux/obstetricSlice";
@@ -115,6 +118,11 @@ const AllPatients = () => {
   const [pageNo, setPageNo] = useState(1);
   const [showCertificate, setShowCertificate] = useState(false);
   const [createAbhaDrawer, setCreateAbhaDrawer] = useState(false);
+
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_NEW_IPD_HOS_BUSINESS_ID
+  );
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -422,6 +430,7 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
+    const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
     const menuItems = [
       {
         label: (
@@ -487,6 +496,20 @@ const AllPatients = () => {
         ),
         key: "createCertificate",
       },
+      ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydusAccount)
+        ? {
+            label: (
+              <span
+                onClick={() => {
+                  handleAdmitToIpd(record);
+                }}
+              >
+                Admit to IPD
+              </span>
+            ),
+            key: "admitToIpd",
+          }
+        : undefined,
     ];
     if (!record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       menuItems.push({
@@ -947,6 +970,7 @@ const AllPatients = () => {
     });
     trackEvent("TP_AllPatients_AddNewPatient", doctorDetails);
   };
+
 
   return (
     <>

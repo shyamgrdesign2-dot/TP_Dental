@@ -1587,3 +1587,71 @@ export const updateFooterImageHeight = (
       }
     });
 };
+
+/**
+ * Handles redirecting to IPD admission page with patient data
+ * @param {Object} record - Patient record containing patient information
+ */
+export const handleAdmitToIpd = async (record) => {
+  try {
+    // Check if patient is already admitted before proceeding
+    const { store } = await import("../redux/store");
+    const { checkPatientAdmitted } = await import("../redux/ipdSlice");
+    
+    const patientId = record.patient_unique_id || record.pm_pid || "";
+    
+    if (patientId) {
+      try {
+        const checkResult = await store.dispatch(
+          checkPatientAdmitted({
+            patientId: patientId,
+          })
+        );
+        
+        if (checkResult.payload?.alreadyAdmitted) {
+          message.error("Patient is already admitted");
+          return;
+        }
+      } catch (checkError) {
+        // If check fails, log but continue with admission flow
+        // (API might not be available or patient might not exist in IPD system yet)
+        console.warn("Could not verify patient admission status:", checkError);
+      }
+    }
+
+    // Map patient record to the expected patient data format for CreateAdmission
+    const patientData = {
+      pm_fullname: record.pm_fullname || record.patientName || "",
+      pm_contact_no: record.pm_contact_no || record.mobileNo || "",
+      pm_pid: record.pm_pid || "",
+      patient_unique_id: record.patient_unique_id || 0,
+      pm_gender: record.pm_gender || record.gender || "",
+      ageYears: record.ageYears || 0,
+      ageMonths: record.ageMonths || 0,
+      ageDays: record.ageDays || 0,
+      pm_salutation: record.pm_salutation || "",
+      pm_address: record.pm_address || record.patient_address || record.address || "",
+      pm_blood_group: record.pm_blood_group || record.bloodGroup || "",
+      pm_email: record.pm_email || record.email || "",
+      DOB: record.DOB || record.dob || "",
+    };
+
+    // Encode patient data to Base64
+    const jsonString = JSON.stringify(patientData);
+    const base64String = btoa(unescape(encodeURIComponent(jsonString)));
+    const encodedData = encodeURIComponent(base64String);
+
+    // Get the base URL - use doctor_portal_url from env if available, otherwise use current origin
+    const baseUrl = config.ipd_portal_url;
+    
+    // Build the complete URL with encoded patient data
+    const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
+    // const url = `http://localhost:3000/ipd/create-admission?patientData=${encodedData}`;
+
+    // Redirect to the CreateAdmission page
+    window.location.href = url;
+  } catch (error) {
+    console.error("Error redirecting to CreateAdmission:", error);
+    message.error("Failed to redirect to admission page. Please try again.");
+  }
+};

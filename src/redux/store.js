@@ -31,6 +31,7 @@ import billingSlice from "./billingSlice";
 import shortLinkSlice from "./shortLinkSlice";
 import monetizationSlice from "./monetizationSlice";
 import abhaSlice from "./abhaSlice";
+import ipdSlice from "./ipdSlice";
 
 const persistConfig = {
   key: "root",
@@ -67,6 +68,7 @@ const rootReducer = combineReducers({
   shortLink: shortLinkSlice,
   monetization: monetizationSlice,
   abha: abhaSlice,
+  ipd: ipdSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

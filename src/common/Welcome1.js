@@ -59,7 +59,8 @@ function Welcome1(props) {
         setFilesData,
         handleUploadDocPopup,
         handleDrawerUploadDoc,
-        abhaHeaderActions
+        abhaHeaderActions,
+        patientAdmissionStatus
     } = props;
 
     const handleClickOutside = (event) => {
@@ -246,7 +247,14 @@ function Welcome1(props) {
                     <div className='d-flex align-items-center'>
                         {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
                             <div>
-                                <h1 className='mt-2'>{'Patient Details'}</h1>
+                                <div className='d-flex align-items-center gap-2'>
+                                    <h1 className='mt-2 mb-0'>{'Patient Details'}</h1>
+                                    {patientAdmissionStatus?.alreadyAdmitted && (
+                                        <span className="ipd-badge mt-2">
+                                            IPD
+                                        </span>
+                                    )}
+                                </div>
                                 {isMobile && (<ProfilePopover locationPath={locationPath} isMobile={isMobile} patient_data={patient_data} />)}
                                 {isMobile ? '' : <p className='mb-1'>&nbsp;</p>}
                             </div>
