@@ -1644,8 +1644,9 @@ export const handleAdmitToIpd = async (record) => {
     // Get the base URL - use doctor_portal_url from env if available, otherwise use current origin
     const baseUrl = config.ipd_portal_url;
     
+    const token = localStorage.getItem('persistant.storage.key.auth-token');
     // Build the complete URL with encoded patient data
-    const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}`;
+    const url = `${baseUrl}/ipd/create-admission?patientData=${encodedData}&authToken=${token}`;
     // const url = `http://localhost:3000/ipd/create-admission?patientData=${encodedData}`;
 
     // Redirect to the CreateAdmission page
