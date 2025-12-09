@@ -1673,3 +1673,7 @@ export const handleAdmitToIpd = async (record) => {
     message.error("Failed to redirect to admission page. Please try again.");
   }
 };
+
+export const isIPad = () => {
+  return navigator.userAgent.includes("iPad") || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+};
