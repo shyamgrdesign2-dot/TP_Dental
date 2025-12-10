@@ -28,6 +28,7 @@ import smartPad from '../assets/images/smartPad.svg';
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 import ApiAbha from "../api/services/ApiAbha";
+import GreenTick from "../assets/images/green_tick.svg";
 
 const { TabPane } = Tabs;
 
@@ -48,6 +49,8 @@ function PatientForm({ mode = ADD, patient_data }) {
     const [form] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [patientData, setPatientData] = useState(null);
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+    const [successAbhaAddress, setSuccessAbhaAddress] = useState("");
     const isSmartSyncAccessableFromGB = useFeatureIsOn(
         GB_ISCRIBE
     );
@@ -58,6 +61,11 @@ function PatientForm({ mode = ADD, patient_data }) {
     // Check if user came from all patients page
     const isFromAllPatients = location.state?.from === "/all_patients";
     const isFromAddAppointment = location.state?.from === "/add-appointment";
+    const isFromStandalone = location.state?.from === "abha-standalone";
+    const standaloneConfig = location.state || {};
+    const embedded = standaloneConfig.embedded === true;
+    const origin = standaloneConfig.origin;
+    const callbackUrl = standaloneConfig.callbackUrl;
 
     useEffect(() => {
         const getEditData = async () => {
@@ -74,6 +82,18 @@ function PatientForm({ mode = ADD, patient_data }) {
             dispatch(clearAbhaDetails());
         };
     }, [dispatch]);
+
+    // PostMessage helper for standalone mode
+    const postMessageToParent = useCallback((type, data) => {
+        if (embedded && window.parent !== window && isFromStandalone) {
+            const message = { type, ...data, source: "abha-standalone" };
+            if (origin) {
+                window.parent.postMessage(message, origin);
+            } else {
+                window.parent.postMessage(message, "*");
+            }
+        }
+    }, [embedded, origin, isFromStandalone]);
 
     const showHideModal = useCallback(() => {
         setIsModalOpen(!isModalOpen);
@@ -126,6 +146,40 @@ function PatientForm({ mode = ADD, patient_data }) {
                         patient_unique_id: action.payload.patient_unique_id,
                         abhaInsertId: abhaInsertId,
                     });
+                    
+                    // If from standalone mode, show success and send postMessage
+                    if (isFromStandalone) {
+                        setSuccessAbhaAddress(abhaLinkedAddress);
+                        setShowSuccessMessage(true);
+                        
+                        // Send success message to parent
+                        postMessageToParent("ABHA_SUCCESS", {
+                            linkedAddress: abhaLinkedAddress,
+                            insertId: abhaInsertId,
+                            patientUniqueId: action.payload.patient_unique_id,
+                            patientName: action.payload.pm_fullname,
+                            message: `ABHA ID: ${abhaLinkedAddress} created successfully`,
+                        });
+                        
+                        // Close iframe after delay
+                        setTimeout(() => {
+                            if (callbackUrl) {
+                                const params = new URLSearchParams({
+                                    status: "success",
+                                    abhaAddress: abhaLinkedAddress,
+                                    patientUniqueId: action.payload.patient_unique_id,
+                                });
+                                window.location.href = `${decodeURIComponent(callbackUrl)}?${params.toString()}`;
+                            } else if (embedded) {
+                                // Just close iframe
+                                postMessageToParent("ABHA_CLOSE", { completed: true });
+                            }
+                        }, 3000);
+                        
+                        // Don't navigate to prescription, just show success
+                        dispatch(clearAbhaDetails());
+                        return; // Exit early, don't navigate
+                    }
                 }
                 if (
                     mode === EDIT &&
@@ -213,7 +267,8 @@ function PatientForm({ mode = ADD, patient_data }) {
             <Form
                 form={form}
                 layout="vertical"
-                className="form_addnewpatient patient-form">
+                className="form_addnewpatient patient-form"
+                style={isFromStandalone ? { paddingTop: "40px" } : {}}>
                 <div className={isMobile ? "" : "border rounded-4 appointment-wrap"}>
                     <div className={isMobile ? "p-30 pt-0" : "p-30 overflow-y-auto"} style={{ height: 'calc(100vh - 242px)' }}>
                         <Row className="justify-content-between">
@@ -330,6 +385,35 @@ function PatientForm({ mode = ADD, patient_data }) {
                     )}
                 </div>
             </Form>
+            {showSuccessMessage && (
+                <div style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 9999,
+                }}>
+                    <div style={{
+                        backgroundColor: "white",
+                        padding: "32px",
+                        borderRadius: "8px",
+                        textAlign: "center",
+                        maxWidth: "400px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    }}>
+                        <img src={GreenTick} alt="Success" style={{ width: "80px", height: "80px", marginBottom: "16px" }} />
+                        <h2 style={{ marginBottom: "16px", color: "#454551", fontFamily: "Poppins, sans-serif" }}>Success!</h2>
+                        <p style={{ color: "#454551", fontSize: "16px", fontFamily: "Poppins, sans-serif" }}>
+                            ABHA ID: <strong style={{ color: "#4b4ad5" }}>{successAbhaAddress}</strong> created successfully
+                        </p>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
