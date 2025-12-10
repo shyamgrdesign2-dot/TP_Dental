@@ -37,7 +37,7 @@ import UploadDocument from "./medicalRecords/UploadDocument";
 import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
-import { setBillPrintSettings } from "../redux/billingSlice";
+import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
 
 const { Sider, Content } = Layout;
 
@@ -52,7 +52,7 @@ function PatientDetails() {
     const { allUploadedDocs } = useSelector(
       (state) => state.uploadDoc
     );
-      const { billPrintSettings } = useSelector(
+      const { billPrintSettings, ipdBillPrintSettings } = useSelector(
         (state) => state.billing
       );
     const dispatch = useDispatch();
@@ -152,12 +152,24 @@ function PatientDetails() {
     ) {
       getBillPrintSettings();
     }
+    if (
+      (ipdBillPrintSettings && Object.keys(ipdBillPrintSettings).length === 0)
+    ) {
+      getIpdBillPrintSettings();
+    }
     }, []);
 
     const getBillPrintSettings = async () => {
         const printSettingsResponse = await fetchPrintSetting();
         if (printSettingsResponse) {
             dispatch(setBillPrintSettings(printSettingsResponse));
+        }
+    };
+
+    const getIpdBillPrintSettings = async () => {
+        const printSettingsResponse = await fetchPrintSetting("", "ipdBill");
+        if (printSettingsResponse) {
+            dispatch(setIpdBillPrintSettings(printSettingsResponse));
         }
     };
 
