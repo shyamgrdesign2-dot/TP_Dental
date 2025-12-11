@@ -868,8 +868,8 @@ function Cardiology(props) {
           )}
           {/* Handle vitals type separately */}
           {type === "vitals" &&
-             Object.entries(data?.vitals || {})
-               .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
+             Object.entries(data?.vitalsAndBodyComposition || data?.vitals || {})
+               .filter(([key, value]) => value && String(value).trim()) // Filter out empty or falsy values
                .map(([key, value]) => (
                  <li key={key}>
                    <div className="medicine-item">
@@ -887,37 +887,37 @@ function Cardiology(props) {
               <li key={index}>
                 <div className="medicine-item">
                   <span>
-                    {/* Render dynamically based on type */}
-                    {type === "advice"
-                      ? item
-                      : type === "symptoms" && item?.name?.length > 0
-                      ? item.name[0]?.toUpperCase() + item.name?.slice(1)
-                      : type === "medications" || type === "tests"
-                      ? item?.refinedName
-                      : type === "labResults"
-                      ? (() => {
-                          const lineItem =
-                            typeof item?.lineItem === "string"
-                              ? item.lineItem.trim()
-                              : "";
-                          if (lineItem) return lineItem;
-                          const testname =
-                            typeof item?.testname === "string"
-                              ? item.testname.trim()
-                              : "";
-                          const value =
-                            typeof item?.value === "string"
-                              ? item.value.trim()
-                              : "";
-                          return testname && value
-                            ? `${testname} (${value})`
-                            : testname || value || "";
-                        })()
-                      : type === "dynamicFields"
-                      ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
-                      : type === "others"
-                      ? item
-                      : item?.name}
+                    {/* Render dynamically based on type - prioritize lineItem when available */}
+                    {(() => {
+                      const lineItem = item?.lineItem && String(item.lineItem).trim();
+                      if (lineItem) return lineItem;
+                      
+                      if (type === "advice") return item;
+                      if (type === "symptoms" && item?.name?.length > 0) {
+                        return item.name[0]?.toUpperCase() + item.name?.slice(1);
+                      }
+                      if (type === "medications" || type === "tests") {
+                        return item?.refinedName || item?.name || "";
+                      }
+                      if (type === "labResults") {
+                        const testname =
+                          typeof item?.testname === "string"
+                            ? item.testname.trim()
+                            : "";
+                        const value =
+                          typeof item?.value === "string"
+                            ? item.value.trim()
+                            : "";
+                        return testname && value
+                          ? `${testname} (${value})`
+                          : testname || value || "";
+                      }
+                      if (type === "dynamicFields") {
+                        return item?.title || item?.name || (typeof item === "string" ? item : "");
+                      }
+                      if (type === "others") return item;
+                      return item?.name || "";
+                    })()}
                   </span>
 
                   {/* Lab Results specific rendering */}
@@ -942,7 +942,7 @@ function Cardiology(props) {
                           item?.type && item?.type !== '' ? item?.type : null,
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : null;
                     
                     return details && (
                       <span> ({details})</span>
@@ -1296,6 +1296,11 @@ function Cardiology(props) {
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") && (() => {
+                    const lineItem = item?.lineItem && String(item.lineItem).trim();
+                    if (lineItem) {
+                      return <span>{lineItem}</span>;
+                    }
+                    
                     const hasIndividualFields = (item?.severity && item?.severity !== '') || 
                                                (item?.duration && item?.duration !== '') || 
                                                (item?.notes && item?.notes !== '') ||
@@ -1316,17 +1321,15 @@ function Cardiology(props) {
                           item?.frequency && item?.frequency !== '' ? item?.frequency : null,
                           item?.schedule && item?.schedule !== '' ? item?.schedule : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : null;
                     
-                    return item.lineItem && !hasIndividualFields ? (
-                      <span>{item.lineItem}</span>
-                    ) : item.name ? (
-                    <span>
-                      {item.name}
+                    return item.name ? (
+                      <span>
+                        {item.name}
                         {details && (
                           <span> ({details})</span>
                         )}
-                    </span>
+                      </span>
                     ) : (
                       <span>{item}</span>
                     );
@@ -2007,10 +2010,13 @@ function Cardiology(props) {
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
-                    {rxDigitisedData?.editedData?.vitals &&
+                    {((rxDigitisedData?.editedData?.vitalsAndBodyComposition &&
+                      Object.values(rxDigitisedData?.editedData?.vitalsAndBodyComposition).some(
+                        (value) => value && String(value).trim().length > 0
+                      )) || (rxDigitisedData?.editedData?.vitals &&
                       Object.values(rxDigitisedData?.editedData?.vitals).some(
-                        (value) => value?.trim?.().length > 0
-                      ) && (
+                        (value) => value && String(value).trim().length > 0
+                      ))) && (
                         <>
                           <div className="d-flex align-items-start">
                             <img
@@ -2294,10 +2300,13 @@ function Cardiology(props) {
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
                   <div className="m-4">
-                    {snapRxDigitisedData?.vitals &&
+                    {((snapRxDigitisedData?.vitalsAndBodyComposition &&
+                      Object.values(snapRxDigitisedData?.vitalsAndBodyComposition).some(
+                        (value) => value && String(value).trim().length > 0
+                      )) || (snapRxDigitisedData?.vitals &&
                       Object.values(snapRxDigitisedData?.vitals).some(
-                        (value) => value?.trim?.().length > 0
-                      ) && (
+                        (value) => value && String(value).trim().length > 0
+                      ))) && (
                         <>
                           <div className="d-flex align-items-start">
                             <img

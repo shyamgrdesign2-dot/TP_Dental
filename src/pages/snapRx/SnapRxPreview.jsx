@@ -58,9 +58,34 @@ function SnapRxPreview() {
   const { state } = useLocation();
   const { patient_data, files } = state || {};
 
-  const [printUrl, setPrintUrl] = useState(
-    state !== undefined ? `${state?.print_rx_url || state?.print_url}` : null
-  );
+  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+
+  const buildUrlWithLanguage = (url, language) => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.delete("lg");
+      urlObj.searchParams.delete("rx");
+      if (language) {
+        const encodedData = btoa(language.toString());
+        urlObj.searchParams.set("lg", encodedData);
+      }
+      return urlObj.toString();
+    } catch (error) {
+      console.error("Invalid print URL:", error);
+      return url;
+    }
+  };
+
+  const initialLanguage = defaultPrintSettings?.default_language || 1;
+
+  const [selectedLang, setSelectedLang] = useState(initialLanguage);
+  const basePrintUrl = state?.print_rx_url || state?.print_url || null;
+  const initialUrl = basePrintUrl
+    ? buildUrlWithLanguage(basePrintUrl, initialLanguage)
+    : null;
+
+  const [printUrl, setPrintUrl] = useState(initialUrl);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
@@ -431,7 +456,23 @@ function SnapRxPreview() {
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
       navigate("/configure_print_setting", {
-        state: { caseManagerData: action.payload, smartRxFile },
+        state: {
+          caseManagerData: {
+            ...action.payload,
+            patient_data: {
+              ...(action.payload?.patient_data || {}),
+              ...(patient_data || {}),
+            },
+          },
+          smartRxFile: smartRxFile && smartRxFile.length ? smartRxFile : (state?.files || []),
+          patient_data: {
+            ...(action.payload?.patient_data || {}),
+            ...(patient_data || {}),
+          },
+          pam_id: state?.pam_id || patient_data?.pam_id || 0,
+          tcm_id: state?.tcm_id,
+          print_url: state?.print_rx_url || state?.print_url,
+        },
       });
     } else {
       errorMessage(action.error);
@@ -620,31 +661,33 @@ function SnapRxPreview() {
             <div className={isMobile ? "p-20" : ""}>
               <div className="d-flex align-itms-center justify-content-between">
                 <div className="titleprint">Preview</div>
-                {viewCaseManagerData?.isRxDigitize &&
-                  state?.page === "digitise" && (
-                    <div>
-                      <button
-                        className={`digital-btn ${
-                          !showDigitalRx
-                            ? "digitise-toggle-btn"
-                            : "active-digitise-toggle-btn"
-                        }`}
-                        onClick={() => setShowDigitalRx(true)}
-                      >
-                        Digital Rx
-                      </button>
-                      <button
-                        className={`written-btn ${
-                          showDigitalRx
-                            ? "digitise-toggle-btn"
-                            : "active-digitise-toggle-btn"
-                        }`}
-                        onClick={() => setShowDigitalRx(false)}
-                      >
-                        Written Rx
-                      </button>
-                    </div>
-                  )}
+                <div className="d-flex align-items-center flex-wrap gap-3">
+                  {viewCaseManagerData?.isRxDigitize &&
+                    state?.page === "digitise" && (
+                      <div>
+                        <button
+                          className={`digital-btn ${
+                            !showDigitalRx
+                              ? "digitise-toggle-btn"
+                              : "active-digitise-toggle-btn"
+                          }`}
+                          onClick={() => setShowDigitalRx(true)}
+                        >
+                          Digital Rx
+                        </button>
+                        <button
+                          className={`written-btn ${
+                            showDigitalRx
+                              ? "digitise-toggle-btn"
+                              : "active-digitise-toggle-btn"
+                          }`}
+                          onClick={() => setShowDigitalRx(false)}
+                        >
+                          Written Rx
+                        </button>
+                      </div>
+                    )}
+                </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">

@@ -48,10 +48,19 @@ const AdviceRichTextEditor = ({
     let editorItems = editorItemsRef.current || [];
     
     if (editorItems.length === 0 && currentItems.length > 0) {
-      editorItems = currentItems.map(adv => {
+      editorItems = currentItems.map((adv) => {
+        if (typeof adv === 'string') {
+          return adv;
+        }
         const name = adv.name || adv.lineItem || '';
         const notes = adv.notes || '';
-        return notes ? `${name} (${notes})` : name;
+        if (notes && name) {
+          return `${name} (${notes})`;
+        }
+        if (notes && !name) {
+          return notes;
+        }
+        return name;
       });
       editorItemsRef.current = editorItems;
     }

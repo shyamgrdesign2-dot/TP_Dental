@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button, Card, DatePicker, Input, Popover, Tooltip, message, Spin } from 'antd';
 import { EllipsisOutlined, DeleteOutlined, CaretRightOutlined, CaretDownOutlined } from "@ant-design/icons";
 import axios from 'axios';
@@ -17,7 +17,257 @@ import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
 
 
-const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, isBackModalOpen, showHideBackModal, patientGender  }) => {
+// Calculate Levenshtein distance for fuzzy matching
+const levenshteinDistance = (str1 = "", str2 = "") => {
+    const s1 = String(str1).toLowerCase();
+    const s2 = String(str2).toLowerCase();
+    const matrix = [];
+    
+    for (let i = 0; i <= s2.length; i++) {
+        matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= s1.length; j++) {
+        matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= s2.length; i++) {
+        for (let j = 1; j <= s1.length; j++) {
+            if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    
+    return matrix[s2.length][s1.length];
+};
+
+// Normalize plural/singular forms
+const normalizePlural = (word = "") => {
+    if (!word) return word;
+    const lower = word.toLowerCase();
+    // Common plural to singular conversions
+    if (lower.endsWith("ies")) {
+        return lower.slice(0, -3) + "y";
+    }
+    if (lower.endsWith("es") && lower.length > 3) {
+        return lower.slice(0, -2);
+    }
+    if (lower.endsWith("s") && lower.length > 2) {
+        return lower.slice(0, -1);
+    }
+    return lower;
+};
+
+// Normalize test name with improved matching
+const normalizeTestName = (name = "") => {
+    if (!name) return "";
+    return String(name)
+        .toLowerCase()
+        .replace(/haem/g, "hem")
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+};
+
+// Extract cleaned words preserving order (used for acronyms)
+const getCleanWords = (name = "") => {
+    if (!name) return [];
+    const cleaned = String(name)
+        .toLowerCase()
+        .replace(/haem/g, "hem")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    if (!cleaned) return [];
+    return cleaned.split(" ").map((w) => normalizePlural(w));
+};
+
+// Enhanced normalization that handles plural/singular and word order
+const normalizeTestNameAdvanced = (name = "") => {
+    if (!name) return "";
+    
+    // Remove content in parentheses (usually units or abbreviations)
+    let cleaned = String(name).replace(/\([^)]*\)/g, "").trim();
+    
+    // Convert to lowercase and normalize
+    cleaned = cleaned
+        .toLowerCase()
+        .replace(/haem/g, "hem")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    
+    // Split into words and normalize each word
+    const words = cleaned.split(/\s+/).filter(w => w.length > 0).map(w => normalizePlural(w));
+    
+    // Normalize plurals and sort words for word-order independence
+    const normalizedWordsSorted = [...words].sort();
+    
+    return {
+        normalized: normalizedWordsSorted.join(""),
+        words, // preserve order for acronym generation
+    };
+};
+
+const getNormalizedVariants = (name = "") => {
+    const variants = new Set();
+    if (!name) {
+        return variants;
+    }
+
+    const bracketMatches = [...String(name).matchAll(/\(([^)]+)\)/g)];
+    const nameWithoutBrackets = String(name).replace(/\(([^)]+)\)/g, " ").trim();
+    const outsideWords = getCleanWords(nameWithoutBrackets);
+    const lastOutsideWord = outsideWords.length > 0 ? outsideWords[outsideWords.length - 1] : "";
+
+    const addVariant = (value) => {
+        const normalized = normalizeTestName(value);
+        if (normalized) {
+            variants.add(normalized);
+        }
+        // Add advanced normalization variant
+        const advancedNormalized = normalizeTestNameAdvanced(value);
+        if (advancedNormalized && advancedNormalized.normalized) {
+            variants.add(advancedNormalized.normalized);
+            // Add acronym from ordered words (e.g., "white blood cell count" => "wbcc")
+            if (Array.isArray(advancedNormalized.words) && advancedNormalized.words.length > 0) {
+                const acronym = advancedNormalized.words.map((w) => w[0]).join("");
+                if (acronym) variants.add(acronym);
+            }
+        }
+        // Add acronym from cleaned words preserving order
+        const words = getCleanWords(value);
+        if (words.length > 0) {
+            const acronym = words.map((w) => w[0]).join("");
+            if (acronym) variants.add(acronym);
+
+            // Add ordered join and ordered suffixes (helps match "wbc count" to "total wbc count")
+            const orderedJoin = words.join("");
+            if (orderedJoin) variants.add(orderedJoin);
+            for (let i = 0; i < words.length; i++) {
+                const suffix = words.slice(i).join("");
+                if (suffix) variants.add(suffix);
+            }
+        }
+    };
+
+    addVariant(name);
+    addVariant(nameWithoutBrackets);
+
+    // Add variants from bracket contents and bracket+lastWord combos
+    bracketMatches.forEach((match) => {
+        const bracketContent = match[1] || "";
+        addVariant(bracketContent);
+
+        const bracketWords = getCleanWords(bracketContent);
+        const bracketAcronym = bracketWords.length > 0 ? bracketWords.map((w) => w[0]).join("") : "";
+        const bracketNormalized = normalizeTestName(bracketContent);
+        const bracketOrdered = bracketWords.length > 0 ? bracketWords.join("") : "";
+        if (bracketOrdered) variants.add(bracketOrdered);
+        for (let i = 0; i < bracketWords.length; i++) {
+            const suffix = bracketWords.slice(i).join("");
+            if (suffix) variants.add(suffix);
+        }
+
+        if (lastOutsideWord) {
+            if (bracketAcronym) {
+                variants.add(`${bracketAcronym}${lastOutsideWord}`);
+            }
+            if (bracketNormalized) {
+                variants.add(`${bracketNormalized}${lastOutsideWord}`);
+            }
+            if (bracketOrdered) {
+                variants.add(`${bracketOrdered}${lastOutsideWord}`);
+            }
+        }
+    });
+
+    return variants;
+};
+
+// Find best match using fuzzy matching
+const findBestMatch = (inputName = "", testLookup = {}, defaultTestData = []) => {
+    if (!inputName || !defaultTestData || defaultTestData.length === 0) {
+        return null;
+    }
+    
+    // First try exact match with variants
+    const variants = Array.from(getNormalizedVariants(inputName));
+    for (const variantKey of variants) {
+        if (testLookup[variantKey]) {
+            return testLookup[variantKey];
+        }
+    }
+    
+    // If no exact match, try fuzzy matching
+    const inputNormalized = normalizeTestNameAdvanced(inputName);
+    if (!inputNormalized || !inputNormalized.normalized) {
+        return null;
+    }
+    
+    let bestMatch = null;
+    let bestScore = Infinity;
+    const maxDistance = Math.max(3, Math.floor(inputNormalized.normalized.length * 0.3)); // Allow up to 30% difference
+    
+    for (const test of defaultTestData) {
+        const testName = test?.testName || "";
+        if (!testName) continue;
+        
+        const testNormalized = normalizeTestNameAdvanced(testName);
+        if (!testNormalized || !testNormalized.normalized) continue;
+        
+        const distance = levenshteinDistance(inputNormalized.normalized, testNormalized.normalized);
+        
+        // Also check word-by-word matching
+        const inputWords = inputNormalized.words || [];
+        const testWords = testNormalized.words || [];
+        const commonWords = inputWords.filter(w => testWords.includes(w));
+        const wordMatchScore = inputWords.length + testWords.length - (commonWords.length * 2);
+        
+        // Combined score (lower is better)
+        const combinedScore = distance + wordMatchScore;
+        
+        if (combinedScore < bestScore && combinedScore <= maxDistance) {
+            bestScore = combinedScore;
+            bestMatch = test;
+        }
+    }
+    
+    return bestMatch;
+};
+
+const extractUnitsFromValue = (rawValue = "") => {
+    if (!rawValue) return "";
+    const match = String(rawValue)
+        .trim()
+        .match(/^[+-]?\d*\.?\d+\s*(.*)$/);
+    return match && match[1] ? match[1].trim() : "";
+};
+
+const extractNumericValue = (rawValue = "") => {
+    if (!rawValue) return "";
+    const match = String(rawValue)
+        .trim()
+        .match(/^[+-]?\d*\.?\d+/);
+    return match ? match[0].trim() : String(rawValue).trim();
+};
+
+const LabResultsTable = ({
+    handleAddLabParamsDrawer,
+    patient_unique_id,
+    onSave,
+    isBackModalOpen,
+    showHideBackModal,
+    patientGender,
+    prefillLabResults = [],
+    onResultsChange,
+}) => {
 
     const [token, setToken] = useState(null);
     const searchRef = useRef(null);
@@ -88,6 +338,111 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         });
         return grouped;
     };
+
+    const testLookup = useMemo(() => {
+        const lookup = {};
+        defaultTestData?.forEach((test = {}) => {
+            const variants = getNormalizedVariants(test?.testName || "");
+            variants.forEach((key) => {
+                if (key && !lookup[key]) {
+                    lookup[key] = test;
+                }
+            });
+        });
+        return lookup;
+    }, [defaultTestData]);
+
+    const sanitizeDateValue = (value) => {
+        if (!value) return null;
+        const parsed = moment(value);
+        if (parsed.isValid()) {
+            return parsed.format("YYYY-MM-DD");
+        }
+        return null;
+    };
+
+    const mapLabResultToInput = useCallback(
+        (result = {}) => {
+            const rawTestName = (result?.testname || result?.testName || result?.name || "").trim();
+            if (!rawTestName) {
+                return null;
+            }
+
+            // First try exact match with variants
+            const variants = Array.from(getNormalizedVariants(rawTestName));
+            let matchedTest = variants
+                .map((variantKey) => testLookup[variantKey])
+                .find(Boolean);
+            
+            // If no exact match, try fuzzy matching
+            if (!matchedTest) {
+                matchedTest = findBestMatch(rawTestName, testLookup, defaultTestData);
+            }
+            
+            const rawValue = result?.value !== undefined ? String(result.value).trim() : "";
+
+            if (!rawValue || !matchedTest) {
+                return null;
+            }
+
+            const derivedUnits = extractUnitsFromValue(rawValue);
+            const normalizedValue = extractNumericValue(rawValue);
+
+            return {
+                reportName: matchedTest.reportName,
+                testName: matchedTest.testName,
+                value: normalizedValue,
+                units: matchedTest.units || derivedUnits || "",
+                arrowDirection: "",
+                refRange: matchedTest.refRange || "",
+                recentlyUpdated: true,
+            };
+        },
+        [testLookup, defaultTestData]
+    );
+
+    const applyPrefillLabResults = useCallback(
+        (labResultsArray = []) => {
+            if (!Array.isArray(labResultsArray) || labResultsArray.length === 0) {
+                return;
+            }
+
+            setDates((prevDates) => {
+                const nextDates = new Set(prevDates);
+                labResultsArray.forEach((result = {}) => {
+                    const normalizedDate = sanitizeDateValue(result?.date) || currentDate;
+                    nextDates.add(normalizedDate);
+                });
+                return Array.from(nextDates).sort((a, b) => new Date(b) - new Date(a));
+            });
+
+            setInputValues((prev) => {
+                const updated = { ...prev };
+                labResultsArray.forEach((result = {}) => {
+                    const mappedInput = mapLabResultToInput(result);
+                    if (!mappedInput) {
+                        return;
+                    }
+                    const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                    const reportName = mappedInput.reportName;
+                    const testName = mappedInput.testName;
+
+                    const reportBlock = { ...(updated[reportName] || {}) };
+                    const testBlock = { ...(reportBlock[testName] || {}) };
+
+                    testBlock[dateKey] = {
+                        ...(testBlock[dateKey] || {}),
+                        ...mappedInput,
+                    };
+
+                    reportBlock[testName] = testBlock;
+                    updated[reportName] = reportBlock;
+                });
+                return updated;
+            });
+        },
+        [mapLabResultToInput, currentDate]
+    );
 
     useEffect(() => {
         const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -361,7 +716,7 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
     const mergeSearchResults = (existingResults, labParamsResults, searchQuery) => {
         const tempResults = [];
     
-        const currentFilledData = assemblePayload(inputValues);
+        const currentFilledData = assemblePayload();
         const data = combineData(currentFilledData, filledData);
     
         setFilledData(data);
@@ -530,6 +885,12 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         }
     }, [existingResults]);
 
+    useEffect(() => {
+        if (prefillLabResults?.length > 0) {
+            applyPrefillLabResults(prefillLabResults);
+        }
+    }, [prefillLabResults, applyPrefillLabResults]);
+
   function replaceDate(inputValues, oldDate, newDate) {
     const updatedValues = { ...inputValues };
 
@@ -694,6 +1055,44 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         return results;
     };
 
+    const formatResultsForRxPad = (results = []) => {
+        if (!Array.isArray(results) || results.length === 0) {
+            return [];
+        }
+
+        const sortedResults = [...results].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const seenTests = new Set();
+        const formatted = [];
+
+        sortedResults.forEach((result = {}) => {
+            (result.inputs || []).forEach((input = {}) => {
+                if (!input?.testName || input.testName === "Remarks") {
+                    return;
+                }
+
+                const key = normalizeTestName(input.testName);
+                if (seenTests.has(key)) {
+                    return;
+                }
+
+                const value = input.value !== undefined ? String(input.value).trim() : "";
+                if (!value) {
+                    return;
+                }
+
+                const units = input.units?.trim();
+                const displayValue = units ? `${value} ${units}`.trim() : value;
+                formatted.push({
+                    testname: input.testName,
+                    value: displayValue,
+                });
+                seenTests.add(key);
+            });
+        });
+
+        return formatted;
+    };
+
     const handleAddNewDate = (date) => {
         if (!dates.includes(date)) {
       // Update the dates
@@ -745,8 +1144,9 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
 
     const handleSave = async() =>{
 
-        const currentFilledData = assemblePayload(inputValues);
+        const currentFilledData = assemblePayload();
         const data = combineData(currentFilledData,filledData);
+        const formattedRxPadResults = formatResultsForRxPad(currentFilledData);
         
         setFilledData([])
 
@@ -763,6 +1163,9 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
               baseUrl
             );
             if(response){
+                if (typeof onResultsChange === "function") {
+                    onResultsChange(formattedRxPadResults);
+                }
                 onSave();
                 handleAddLabParamsDrawer();
             }

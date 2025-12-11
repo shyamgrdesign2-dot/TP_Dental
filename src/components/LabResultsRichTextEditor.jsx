@@ -1,8 +1,13 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useContext } from 'react';
+import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
 import labResultsIcon from '../assets/images/Lab.svg';
+import addEditIcon from '../assets/images/Icon.svg';
+import LabParams from './LabParams';
+import CashManagerContext from '../context/CashManagerContext';
+import styles from './ConsultationDrawer.module.css';
 
 /**
  * LabResultsRichTextEditor - Rich text editor specifically for Lab Results section
@@ -14,37 +19,24 @@ const LabResultsRichTextEditor = ({
   isProcessing = false,
   className = '',
 }) => {
-  const previousCountRef = useRef(null);
-  const keyVersionRef = useRef(0);
-
-  const nonEmptyCount = useMemo(() => {
-    if (!Array.isArray(labResults) || labResults.length === 0) {
-      return 0;
+  const [labResultsDrawer, setLabResultsDrawer] = useState(false);
+  const [drawerPrefillResults, setDrawerPrefillResults] = useState([]);
+  const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
+  const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const { patient_data } = useContext(CashManagerContext);
+  const editorSignature = useMemo(() => {
+    if (!Array.isArray(labResults)) {
+      return 'empty';
     }
-
-    return labResults.filter((result = {}) => {
-      const testname = result.testname || result.name || '';
-      const value = result.value || '';
-      return (
-        (testname && testname.trim() !== '') ||
-        (value && value.trim() !== '')
-      );
-    }).length;
+    return JSON.stringify(
+      labResults.map((result = {}) => ({
+        testname: (result.testname || result.name || '').trim(),
+        value: (result.value || '').trim(),
+      }))
+    );
   }, [labResults]);
 
-  const editorKey = useMemo(() => {
-    if (previousCountRef.current === null) {
-      previousCountRef.current = nonEmptyCount;
-      return 'labresults-0';
-    }
-
-    if (nonEmptyCount < previousCountRef.current) {
-      keyVersionRef.current += 1;
-    }
-
-    previousCountRef.current = nonEmptyCount;
-    return `labresults-${keyVersionRef.current}`;
-  }, [nonEmptyCount]);
+  const editorKey = useMemo(() => `labresults-${editorSignature}`, [editorSignature]);
 
   const initialSlateValue = useMemo(() => {
     if (!labResults || labResults.length === 0) {
@@ -72,34 +64,40 @@ const LabResultsRichTextEditor = ({
     return arrayToSlateBulletList(formattedResults);
   }, [labResults]);
 
-  const handleChange = useCallback((value) => {
-    const items = slateBulletListToArray(value);
-    const labResultsArray = items.map(text => {
-      const colonIndex = text.indexOf(':');
-      if (colonIndex > -1) {
-        return {
-          testname: text.substring(0, colonIndex).trim(),
-          value: text.substring(colonIndex + 1).trim()
-        };
+  const handleLabParamsUpdate = useCallback(() => {
+    // This can be used to refresh lab results if needed
+    setLabResultsDrawer(false);
+  }, []);
+
+  const handleSidebarResultsSync = useCallback(
+    (syncedLabResults = []) => {
+      if (onUpdate) {
+        onUpdate(Array.isArray(syncedLabResults) ? syncedLabResults : []);
       }
-      return { value: text, testname: '' };
-    });
-    
-    if (onUpdate) {
-      onUpdate(labResultsArray);
-    }
-  }, [onUpdate]);
+    },
+    [onUpdate]
+  );
+
+  const handleOpenLabResultsDrawer = useCallback(() => {
+    setDrawerPrefillResults(Array.isArray(labResults) ? labResults : []);
+    setDrawerInstanceKey((prev) => prev + 1);
+    setLabResultsDrawer(true);
+  }, [labResults]);
+
+  const showHideBackModal = useCallback(() => {
+    setIsBackModalOpen(!isBackModalOpen);
+  }, [isBackModalOpen]);
 
   if (isProcessing) {
     return (
       <div className={`labresults-rich-text-editor ${className}`}>
-        <div className="labresults-header">
-          <div className="labresults-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-            </svg>
+        <div className={`${styles['lab-results-header']} ${styles['vitals-header']}`}>
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['lab-results-icon']}>
+              <img src={labResultsIcon} alt="Lab Results" />
+            </div>
+            <span className={styles['lab-results-title']}>Lab Results</span>
           </div>
-          <span className="labresults-title">Lab Results</span>
         </div>
         <div className="editor-container">
           <div className="shimmer-container">
@@ -111,25 +109,60 @@ const LabResultsRichTextEditor = ({
   }
 
   return (
-    <div className={`labresults-rich-text-editor ${className}`}>
-      <div className="labresults-header">
-        <div className="labresults-icon">
-          <img src={labResultsIcon} alt="Lab Results" />
+    <>
+      <div className={`labresults-rich-text-editor ${className}`}>
+        <div className={`${styles['lab-results-header']} ${styles['vitals-header']}`}>
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['lab-results-icon']}>
+              <img src={labResultsIcon} alt="Lab Results" />
+            </div>
+            <span className={styles['lab-results-title']}>Lab Results</span>
+          </div>
+          <button
+            className={styles['medical-history-action-button']}
+            onClick={handleOpenLabResultsDrawer}
+          >
+            <img
+              src={addEditIcon}
+              alt="Add/Edit"
+              className={styles['medical-history-action-icon']}
+            />
+            <span>Add/Edit Results</span>
+          </button>
         </div>
-        <span className="labresults-title">Lab Results</span>
+        <div className="editor-container lab-results-readonly">
+          <RichTextEditor
+            key={editorKey}
+            initialValue={initialSlateValue}
+            placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
+            spellCheck={true}
+            autoFocus={false}
+            showToolbar={false}
+            readOnly={true}
+          />
+        </div>
       </div>
-      <div className="editor-container">
-        <RichTextEditor
-          key={editorKey}
-          initialValue={initialSlateValue}
-          onChange={handleChange}
-          placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
-          spellCheck={true}
-          autoFocus={false}
-          showToolbar={false}
+      <Drawer
+        className="scroll-y-hidden"
+        closeIcon={false}
+        placement="right"
+        onClose={() => setLabResultsDrawer(false)}
+        open={labResultsDrawer}
+        width={880}
+      >
+        <LabParams
+          key={drawerInstanceKey}
+          handleAddLabParamsDrawer={() => setLabResultsDrawer(false)}
+          patient_unique_id={patient_data?.patient_unique_id}
+          onSave={handleLabParamsUpdate}
+          isBackModalOpen={isBackModalOpen}
+          showHideBackModal={showHideBackModal}
+          patientGender={patient_data?.pm_gender}
+          prefillLabResults={drawerPrefillResults}
+          onResultsChange={handleSidebarResultsSync}
         />
-      </div>
-    </div>
+      </Drawer>
+    </>
   );
 };
 

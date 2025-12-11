@@ -1009,6 +1009,46 @@
   flex-shrink: 0;
 }
 
+.vitals-header,
+.medical-history-header,
+.lab-results-header {
+  justify-content: space-between;
+}
+
+.medical-history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.medical-history-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #4b4ad5;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.medical-history-action-button span {
+  color: #4B4AD5 !important;
+}
+
+.medical-history-action-button:hover {
+  color: #3b3ac4;
+}
+
+.medical-history-action-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .symptoms-icon,
 .examination-icon,
 .diagnosis-icon,
@@ -1079,6 +1119,18 @@
   display: flex;
   flex-direction: column;
   min-height: auto;
+}
+
+.vitals-editor-container {
+  pointer-events: none;
+  cursor: default;
+  opacity: 1;
+}
+
+.vitals-editor-container :global(.richTextEditor) {
+  pointer-events: none;
+  cursor: default;
+  user-select: text;
 }
 
 .symptoms-shimmer-container,
@@ -1226,46 +1278,6 @@
 .medical-history-textarea::placeholder {
   color: #9CA3AF;
   font-style: italic;
-}
-
-.add-medical-history-container {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 8px;
-  padding: 0 12px; /* Match sub-box padding */
-}
-
-.add-medical-history-button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  height: 54px;
-  padding: 0 16px;
-  background: #F8F9FF;
-  border: 1px dashed #4B4AD5;
-  border-radius: 6px;
-  color: #4B4AD5;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(75, 74, 213, 0.1);
-}
-
-.add-medical-history-button:hover {
-  background: #F0F2FF;
-  border-color: #3B3AC4;
-  color: #3B3AC4;
-  box-shadow: 0 2px 4px rgba(75, 74, 213, 0.15);
-}
-
-.add-medical-history-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
 }
 
 /* Lab Investigation Table Styles */
