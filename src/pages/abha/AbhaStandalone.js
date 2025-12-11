@@ -210,7 +210,7 @@ const AbhaStandalone = () => {
     // For new_patient flow, navigate to add_patient page
     if (flow === FLOW_TYPES.NEW_PATIENT) {
       // Navigate to add patient page with ABHA details
-      navigate("/add_patient/receptionist=true", {
+      navigate("/add_patient&receptionist=true", {
         state: {
           from: "abha-standalone",
           abhaDetails: {
