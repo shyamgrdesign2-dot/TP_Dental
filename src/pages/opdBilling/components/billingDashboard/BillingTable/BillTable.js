@@ -1,4 +1,4 @@
-import { Drawer, Dropdown, Table, message } from "antd";
+import { Drawer, Dropdown, Table, message, Tooltip } from "antd";
 import { useState, useCallback } from "react";
 import PreviewBill from "../../../PreviewBill";
 import RefundBill from "../RefundBill/RefundBill";
@@ -17,6 +17,7 @@ import config from "../../../../../config";
 import { useLocalStorage } from "../../../../../utils/localStorage";
 import { EVENTS } from "../../../../../utils/events";
 import { sendMessageToParent } from "../../../../../utils/utils";
+import { EditBillDeployedDate } from "../../../utils/constants";
 
 const BillTable = ({
   data,
@@ -316,50 +317,76 @@ const BillTable = ({
         // Check if edit button should be disabled
         const hasPaidDues = record?.paidDues && Array.isArray(record.paidDues) && record.paidDues.length > 0;
         const hasRefundedAmount = record?.refundedAmount && parseFloat(record.refundedAmount) > 0;
-        const isEditDisabled = hasPaidDues || hasRefundedAmount;
+        const isEditDisabled = hasPaidDues || hasRefundedAmount || moment(record?.date).isBefore(EditBillDeployedDate);
 
         return (
           <div
             className="d-flex align-items-center justify-content-center gap-2"
             style={{ marginLeft: "-60px" }}
           >
-            <button className="btn p-0 ms-3" onClick={ async () => {
-              let token = getBillToken();
-              if (!token) {
-                token = await generateBillToken();
-                setBillToken(token);
-              }
-              const billLink = 
-                `${config.doctor_portal_url}/opd-bill?token=${token}${
+            <button
+              className="btn p-0 ms-3"
+              onClick={async () => {
+                let token = getBillToken();
+                if (!token) {
+                  token = await generateBillToken();
+                  setBillToken(token);
+                }
+                const billLink = `${
+                  config.doctor_portal_url
+                }/opd-bill?token=${token}${
                   record?.billNumber ? `&billNumber=${record?.billNumber}` : ""
                 }${record?.patientId ? `&patientId=${record?.patientId}` : ""}${
                   record?.doctorId ? `&doctorId=${record?.doctorId}` : ""
+                }${
+                  record?.admissionId
+                    ? `&admissionId=${record?.admissionId}`
+                    : ""
                 }&patientViewBill=true`;
-                if (browserName == "Chrome WebView" || browserName == "WebKit") {
+                if (
+                  browserName == "Chrome WebView" ||
+                  browserName == "WebKit"
+                ) {
                   sendMessageToParent(EVENTS.PRINT, { url: billLink });
                 } else {
                   window.open(billLink, "_blank");
                 }
-            }}>
-              <i className="icon-Print"></i>
-            </button>
-            <button 
-              className="btn p-0" 
-              disabled={isEditDisabled}
-              onClick={() => {
-                if (!isEditDisabled) {
-                  handleEditBillDrawer();
-                  setBillData(record);
-                }
-              }}
-              style={{
-                opacity: isEditDisabled ? 0.5 : 1,
-                cursor: isEditDisabled ? "not-allowed" : "pointer",
-                border: "none", 
               }}
             >
-              <i className="icon-Edit"></i>
+              <i className="icon-Print"></i>
             </button>
+            <Tooltip
+              title={
+                isEditDisabled
+                  ? hasRefundedAmount && hasPaidDues
+                    ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
+                    : hasRefundedAmount
+                    ? "A refund has already been issued for this bill, so editing isn’t allowed."
+                    : hasPaidDues
+                    ? "The full due amount or some of the due amount has been cleared for this bill, so editing isn’t allowed."
+                    : "Cannot edit bill"
+                  : ""
+              }
+            >
+              <span>
+                <button
+                  className="btn p-0"
+                  disabled={isEditDisabled}
+                  onClick={() => {
+                    if (!isEditDisabled) {
+                      handleEditBillDrawer();
+                      setBillData(record);
+                    }
+                  }}
+                  style={{
+                    opacity: isEditDisabled ? 0.5 : 1,
+                    border: "none",
+                  }}
+                >
+                  <i className="icon-Edit"></i>
+                </button>
+              </span>
+            </Tooltip>
             <Dropdown
               className="cursor-pointer"
               menu={{
@@ -527,6 +554,7 @@ const BillTable = ({
           <CreateBill
             handleCreateBillDrawer={handleEditBillDrawer}
             editBillData={billData}
+            admissionId={billData?.admissionId}
           />
         </Drawer>
       )}
