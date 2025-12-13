@@ -1,0 +1,210 @@
+.date-selector-modal {
+  .ant-modal-content {
+    border-radius: 24px;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .ant-modal-close {
+    top: 16px;
+    right: 16px;
+
+    .close-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F5F5F5;
+      border-radius: 50%;
+      color: #454551;
+      font-size: 18px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: #E8E8E8;
+      }
+    }
+  }
+
+  .date-selector-content {
+    padding: 24px;
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #3D4854;
+      font-family: 'Poppins', sans-serif;
+      margin: 0 0 24px 0;
+      line-height: 28px;
+    }
+
+    .calendar-container {
+      margin-bottom: 24px;
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+
+        .month-nav-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: transparent;
+          color: #4B4AD5;
+          font-size: 24px;
+          cursor: pointer;
+          border-radius: 8px;
+          transition: background 0.2s ease;
+
+          &:hover {
+            background: rgba(75, 74, 213, 0.08);
+          }
+
+          &:active {
+            background: rgba(75, 74, 213, 0.15);
+          }
+        }
+
+        .month-year {
+          font-size: 16px;
+          font-weight: 600;
+          color: #3D4854;
+          font-family: 'Poppins', sans-serif;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+      }
+
+      .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-bottom: 12px;
+
+        .weekday {
+          font-size: 12px;
+          font-weight: 500;
+          color: #A2A2A8;
+          font-family: 'Poppins', sans-serif;
+          text-align: center;
+          padding: 8px 0;
+        }
+      }
+
+      .calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+
+        .calendar-day {
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: 400;
+          color: #3D4854;
+          font-family: 'Poppins', sans-serif;
+          border: none;
+          background: transparent;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover:not(:disabled) {
+            background: rgba(75, 74, 213, 0.08);
+          }
+
+          &.other-month {
+            color: #D1D1D6;
+            cursor: not-allowed;
+          }
+
+          &.today {
+            font-weight: 600;
+          }
+
+          &.selected {
+            background: #4B4AD5;
+            color: white;
+            font-weight: 600;
+
+            &:hover {
+              background: #3d3cc4;
+            }
+          }
+
+          &:active:not(:disabled) {
+            transform: scale(0.95);
+          }
+        }
+      }
+    }
+
+    .quick-select-options {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+
+      .quick-select-btn {
+        flex: 1;
+        padding: 12px 20px;
+        background: rgba(75, 74, 213, 0.08);
+        border: none;
+        border-radius: 240px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #4B4AD5;
+        font-family: 'Poppins', sans-serif;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+
+        &:hover {
+          background: rgba(75, 74, 213, 0.15);
+        }
+
+        &:active {
+          transform: scale(0.98);
+          background: rgba(75, 74, 213, 0.2);
+        }
+      }
+    }
+  }
+}
+
+// Mobile adjustments
+@media (max-width: 480px) {
+  .date-selector-modal {
+    .ant-modal {
+      max-width: calc(100% - 32px);
+      margin: 16px;
+    }
+
+    .date-selector-content {
+      padding: 20px;
+
+      .modal-title {
+        font-size: 18px;
+        margin-bottom: 20px;
+      }
+
+      .quick-select-options {
+        flex-direction: column;
+
+        .quick-select-btn {
+          width: 100%;
+        }
+      }
+    }
+  }
+}

@@ -8,8 +8,9 @@ import {
 } from "react-router-dom";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
-import { isMobile, isChrome, isSafari } from "react-device-detect";
+import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
@@ -52,6 +53,7 @@ import GenRxPrescriptionPrintView from "./pages/GenRxPrescriptionPrintView";
 import BillingDashboard from "./pages/opdBilling/components/billingDashboard/BillingDashboard";
 import BillingSettings from "./pages/opdBilling/components/advanceBillSettings/BillingSettings";
 import AllPatients from "./pages/allPatients.js/AllPatients";
+import MobileAllPatients from "./pages/mobile/AllPatients/AllPatients";
 import AddAppointment from "./pages/addAppointment/AddAppointment";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
@@ -91,6 +93,7 @@ function App() {
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
+  const { isMobile: isMobileDevice, isPWA } = useDeviceType();
   const [getToken, setToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_AUTH_TOKEN
   );
@@ -103,6 +106,7 @@ function App() {
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
   const token = getToken();
+  const isMobileOrPWA = isMobileDevice || isPWA;
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -352,6 +356,27 @@ function App() {
       return;
     }
 
+    if (isMobileOrPWA) {
+      if (localRedirectTo && localRedirectTo !== "/" && localRedirectTo !== "") {
+        if (localRedirectTo === "profile") {
+          navigate("/doctor_profile");
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else if (redirectReady && localRedirectTo) {
+          navigate(localRedirectTo);
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else {
+          navigate("/");
+        }
+      } else {
+        if (location.pathname !== "/") {
+          navigate("/");
+        }
+      }
+      return;
+    }
+
     if (isChrome || isSafari) {
       // Determine and execute redirection
       const redirectPath =
@@ -369,7 +394,7 @@ function App() {
 
       navigate(redirectPath);
     }
-  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady]);
+  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady, isMobileOrPWA, location.pathname]);
 
   //Upgraded Services Modal
   const upgrade_services = searchParams.get("upgrade_services");
@@ -405,10 +430,12 @@ function App() {
           console.error(details);
         }}
       >
+        {!isMobileOrPWA && (
         <TalkativeWidget
           region="au"
           configUuid="3f5d31d7-aae5-43f2-903a-2dc2d90a36f3"
         />
+        )}
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
             {!isLoginPage && (
@@ -494,7 +521,10 @@ function App() {
                   path="billing-dashboard"
                   element={<BillingDashboard />}
                 />
-                <Route path="all_patients" element={<AllPatients />} />
+                <Route 
+                  path="all_patients" 
+                  element={(isMobile && !isTablet) ? <MobileAllPatients /> : <AllPatients />} 
+                />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
                 {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}

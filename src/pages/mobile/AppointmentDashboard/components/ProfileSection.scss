@@ -1,0 +1,88 @@
+.profile-section {
+  padding: 24px 14px;
+  transition: transform 0.3s ease, opacity 0.3s ease, max-height 0.3s ease;
+  // border-bottom: 1px solid rgba(226, 226, 234, 0.5);
+  transform-origin: top;
+  overflow: hidden;
+
+  .profile-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      // background: rgba(255, 255, 255, 0.20);
+      // border: 2px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .avatar-initials {
+        font-size: 20px;
+        font-weight: 600;
+        color: #ffffff;
+        font-family: 'Poppins', sans-serif;
+      }
+    }
+
+    .profile-info {
+      flex: 1;
+      min-width: 0;
+
+      .doctor-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: #ffffff !important;
+        line-height: 26px;
+        font-family: 'Poppins', sans-serif;
+        margin-bottom: 2px;
+      }
+
+      .doctor-specialty {
+        font-size: 14px;
+        color: #ffffff !important;
+        opacity: 0.9;
+        line-height: 20px;
+        font-family: 'Poppins', sans-serif;
+        margin-bottom: 2px;
+      }
+
+      .clinic-name {
+        font-size: 12px;
+        color: #ffffff !important;
+        opacity: 0.8;
+        line-height: 18px;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .wavy-icon {
+        display: inline-block;
+        animation: wave 1s ease-in-out infinite;
+        transform-origin: 70% 70%;
+        margin-left: 4px;
+      }
+    }
+  }
+}
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
