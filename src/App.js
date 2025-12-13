@@ -476,7 +476,7 @@ function App() {
                 <Route path="all_patients" element={<AllPatients />} />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
-                <Route path="add_patient" element={<AddNewPatient />} />
+                {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
