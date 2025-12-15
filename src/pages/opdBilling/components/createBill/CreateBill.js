@@ -919,11 +919,14 @@ const CreateBill = ({
                   patientData?.pm_fullname ||
                   patientDetails?.patientName ||
                   editBillData?.patient?.name
-                }'s new bill saved successfully`}
+                }'s ${
+                  editBillData?.id ? "bill updated" : "new bill saved"
+                } successfully`}
               </div>
             </div>
             <img
               src={imgCloseVisit}
+              alt="close"
               className="ms-3"
               onClick={() => message.destroy()}
             />
@@ -2117,7 +2120,7 @@ const CreateBill = ({
             handleCreateBillDrawer={handleCreateBillDrawer}
             patientData={patientData}
             billData={billData}
-            isPreviewFromTable={isPreviewFromTable}
+            isPreviewFromTable={isPreviewFromTable || editBillData}
             totalAdvanceBalance={patientWalletBalance}
             handleEditBillDrawer={handleDrawerPreviewBill}
           />

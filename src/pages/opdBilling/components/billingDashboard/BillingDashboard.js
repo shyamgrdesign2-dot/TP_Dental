@@ -164,7 +164,6 @@ function BillingDashboard({ patientData, fromPath }) {
         receptionistName: receptionistName,
       });
       setCreateBillDrawer(!createBillDrawer);
-      setEditBillData(record ?? {});
     }
   }, [createBillDrawer]);
 
