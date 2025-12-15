@@ -47,8 +47,11 @@ const TableBillingDashboard = forwardRef(
       handleTotalAdvanceUpdate,
       totalAdvanceBalance,
       createBillDrawer,
+      setCreateBillDrawer,
       addAdvanceDrawer,
       showHideSubModal,
+      billData,
+      setBillData,
       fromPath="opdDashboard",
     },
     ref
@@ -281,6 +284,8 @@ const TableBillingDashboard = forwardRef(
           <div className="appointment-data">
             {selectedTab === 1 ? (
               <BillingTable
+                billData={billData}
+                setBillData={setBillData}
                 patientData={patientData}
                 handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
                 setBillingCount={setBillingCount}
@@ -291,12 +296,15 @@ const TableBillingDashboard = forwardRef(
                 selectedDoctors={selectedDoctors}
                 setSelectedDoctors={setSelectedDoctors}
                 createBillDrawer={createBillDrawer}
+                setCreateBillDrawer={setCreateBillDrawer}
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"opd"}
               />
             ) : selectedTab === 2 ? (
               <BillingTable
+                billData={billData}
+                setBillData={setBillData}
                 patientData={patientData}
                 handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
                 setBillingCount={setBillingCount}
@@ -307,6 +315,7 @@ const TableBillingDashboard = forwardRef(
                 selectedDoctors={selectedDoctors}
                 setSelectedDoctors={setSelectedDoctors}
                 createBillDrawer={createBillDrawer}
+                setCreateBillDrawer={setCreateBillDrawer}
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"ipd"}
