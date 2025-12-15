@@ -13,6 +13,7 @@ import {
 import moment from "moment";
 import { sendMessageToParent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
+import { EditBillDeployedDate } from "./constants";
 
 export const handleDownload = async (
   pdfUrl,
@@ -175,4 +176,20 @@ export const formatDateWithOrdinal = (date) => {
   const suffix = moment(date).format("Do").replace(/\d+/g, ""); // Extract suffix from "Do"
 
   return `${day}${suffix} ${monthYear}`;
+};
+
+export const isEditBillDisabled = (billData) => {
+  const hasPaidDues =
+    billData?.paidDues &&
+    Array.isArray(billData.paidDues) &&
+    billData?.paidDues?.length > 0;
+  const hasRefundedAmount =
+    billData?.refundedAmount && parseFloat(billData.refundedAmount) > 0;
+  const isBeforeEditBillDeployedDate = moment(billData?.date).isBefore(EditBillDeployedDate);
+  return {
+    hasPaidDues,
+    hasRefundedAmount,
+    isBeforeEditBillDeployedDate,
+    isEditDisabled: hasPaidDues || hasRefundedAmount || isBeforeEditBillDeployedDate,
+  };
 };

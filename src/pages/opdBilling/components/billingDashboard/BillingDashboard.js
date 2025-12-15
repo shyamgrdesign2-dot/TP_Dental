@@ -61,6 +61,7 @@ function BillingDashboard({ patientData, fromPath }) {
   const [createBillDrawer, setCreateBillDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [billingDrawer, setBillingDrawer] = useState(false);
+  const [billData, setBillData] = useState(null);
   const { advancedSettings } = useSelector(
     (state) => state.billing
   );
@@ -79,7 +80,6 @@ function BillingDashboard({ patientData, fromPath }) {
   const receptionistName = urlParams.get("receptionistName");
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [editBillData, setEditBillData] = useState({});
 
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
@@ -426,9 +426,12 @@ function BillingDashboard({ patientData, fromPath }) {
             handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
             totalAdvanceBalance={totalAdvanceBalance}
             createBillDrawer={createBillDrawer}
+            setCreateBillDrawer={setCreateBillDrawer}
             addAdvanceDrawer={addAdvanceDrawer}
             showHideSubModal={showHideSubModal}
             fromPath={fromPath}
+            billData={billData}
+            setBillData={setBillData}
           />
         </div>
 
@@ -499,8 +502,8 @@ function BillingDashboard({ patientData, fromPath }) {
               patientData={patientData}
               isDashboard={true}
               isPreviewFromTable={true}
-              editBillData={editBillData}
-              admissionId={editBillData?.admissionId}
+              editBillData={billData}
+              admissionId={billData?.admissionId}
             />
           </Drawer>
         )}

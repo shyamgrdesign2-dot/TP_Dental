@@ -85,9 +85,12 @@ export default function BillingTable({
   selectedDoctors,
   setSelectedDoctors,
   createBillDrawer,
+  setCreateBillDrawer,
   totalAdvanceBalance,
   showHideSubModal,
   billType,
+  billData,
+  setBillData,
 }) {
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
@@ -553,7 +556,7 @@ export default function BillingTable({
     const params = {
       status:
         selectedCard === 1
-          ? ["FullyPaid","Due","CarriedForward"]
+          ? ["FullyPaid", "Due", "CarriedForward"]
           : selectedCard === 2
           ? ["FullyPaid"]
           : selectedCard === 3
@@ -613,7 +616,7 @@ export default function BillingTable({
   };
 
   useEffect(() => {
-    if (patientData && finalDoctorList?.length > 0) {
+    if (patientData && finalDoctorList?.length > 0 && !createBillDrawer) {
       patientAdvanceData();
     }
   }, []);
@@ -624,7 +627,7 @@ export default function BillingTable({
     const params = {
       status:
         selectedCard === 1
-          ? ["FullyPaid","Due","CarriedForward"]
+          ? ["FullyPaid", "Due", "CarriedForward"]
           : selectedCard === 2
           ? ["FullyPaid"]
           : selectedCard === 3
@@ -659,13 +662,15 @@ export default function BillingTable({
   };
 
   useEffect(() => {
-    resetTableScroll();
-    if (finalDoctorList?.length > 0 || userId) {
-      // Reset data and pagination when billType changes
-      setPage(1);
-      setHasMore(true);
-      const fetchData = patientData ? patientBillingData : loadData;
-      fetchData(true); // Always reset data when fetching
+    if (!createBillDrawer) {
+      resetTableScroll();
+      if (finalDoctorList?.length > 0 || userId) {
+        // Reset data and pagination when billType changes
+        setPage(1);
+        setHasMore(true);
+        const fetchData = patientData ? patientBillingData : loadData;
+        fetchData(true); // Always reset data when fetching
+      }
     }
   }, [
     selectedCard,
@@ -676,7 +681,7 @@ export default function BillingTable({
     sortConfig,
     doctorList,
     createBillDrawer,
-    billType, // Add billType to dependencies - triggers refetch when switching between OPD/IPD
+    billType, // Add billType to dependencies - triggers refetch when switching between OPD/IPD,
   ]);
 
   const handleRefundSuccess = () => {
@@ -716,10 +721,13 @@ export default function BillingTable({
 
       try {
         const response = patientData
-          ? await fetchBillsByPatient({
-              ...params,
-              patientId: patientData?.patient_unique_id,
-            }, billType)
+          ? await fetchBillsByPatient(
+              {
+                ...params,
+                patientId: patientData?.patient_unique_id,
+              },
+              billType
+            )
           : await fetchBillingDashboard(params, billType);
         if (response?.bills?.length > 0) {
           allBills = [...allBills, ...response.bills];
@@ -987,6 +995,10 @@ export default function BillingTable({
           </div>
 
           <BillTable
+            billData={billData}
+            setBillData={setBillData}
+            createBillDrawer={createBillDrawer}
+            setCreateBillDrawer={setCreateBillDrawer}
             data={
               patientData
                 ? data?.bills?.map((item) => ({
