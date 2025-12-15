@@ -2,10 +2,21 @@ import { Drawer, Dropdown, Table, message, Tooltip } from "antd";
 import { useState, useCallback } from "react";
 import PreviewBill from "../../../PreviewBill";
 import RefundBill from "../RefundBill/RefundBill";
-import { addBillsToForm3C, fetchPatientWalletBalance, generateBillToken } from "../../../service";
+import ClearDue from "../ClearDue/ClearDue";
+import {
+  addBillsToForm3C,
+  fetchPatientWalletBalance,
+  generateBillToken,
+} from "../../../service";
 import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
 import visitEnd from "../../../../../assets/images/end-visit.svg";
-import { TRIAL, MESSAGE_KEY, S_BILLING, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN } from "../../../../../utils/constants";
+import {
+  TRIAL,
+  MESSAGE_KEY,
+  S_BILLING,
+  S_TATVA_PRACTICE,
+  PERSISTANT_STORAGE_KEY_BILL_TOKEN,
+} from "../../../../../utils/constants";
 import { formatDateWithOrdinal } from "../../../utils/helper";
 import InfoTooltip from "./InfoToolTip/InfoTooltip";
 import { browserName, isMobile } from "react-device-detect";
@@ -31,18 +42,23 @@ const BillTable = ({
   tableRef,
   patientAdvanceData,
   totalAdvanceBalance,
-  showHideSubModal
+  showHideSubModal,
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const { service_mappings } = planDetails || {};
-  const EMR_planDetails = service_mappings?.find(e => e.service_name === S_TATVA_PRACTICE)
-  const BILLING_planDetails = service_mappings?.find(e => e.service_name === S_BILLING)
+  const EMR_planDetails = service_mappings?.find(
+    (e) => e.service_name === S_TATVA_PRACTICE
+  );
+  const BILLING_planDetails = service_mappings?.find(
+    (e) => e.service_name === S_BILLING
+  );
   const [getBillToken, setBillToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_BILL_TOKEN
   );
   const [editBillDrawer, setEditBillDrawer] = useState(false);
   const [refundBillDrawer, setRefundBillDrawer] = useState(false);
+  const [clearDueDrawer, setClearDueDrawer] = useState(false);
   const [previewBillDrawer, setPreviewBillDrawer] = useState(false);
   const [billData, setBillData] = useState(null);
   const [patientWalletBalance, setPatientWalletBalance] = useState(0);
@@ -58,18 +74,21 @@ const BillTable = ({
 
   const checkBillingPurchased = async () => {
     // if (moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0) {
-      if (EMR_planDetails?.plan_tier !== TRIAL && BILLING_planDetails?.plan_tier === TRIAL) {
-        showHideSubModal()
-      } else {
-        return true;
-      }
+    if (
+      EMR_planDetails?.plan_tier !== TRIAL &&
+      BILLING_planDetails?.plan_tier === TRIAL
+    ) {
+      showHideSubModal();
+    } else {
+      return true;
+    }
     // } else {
     //   return true;
     // }
-  }
+  };
 
   const onBillingDetailsClick = async (status, record) => {
-    const isPurchased = await checkBillingPurchased()
+    const isPurchased = await checkBillingPurchased();
     if (isPurchased) {
       setBillData(record);
       if (status === 1) {
@@ -125,6 +144,18 @@ const BillTable = ({
       getPatientBills();
     }
     setRefundBillDrawer(false);
+  }, [getPatientBills]);
+
+  const handleClearDueDrawer = () => {
+    setClearDueDrawer(!clearDueDrawer);
+  };
+
+  const handleClearDueComplete = useCallback(() => {
+    // If getPatientBills exists, call it, otherwise do nothing
+    if (getPatientBills) {
+      getPatientBills();
+    }
+    setClearDueDrawer(false);
   }, [getPatientBills]);
 
   const getPatientWalletBalance = async (patientId) => {
@@ -213,12 +244,17 @@ const BillTable = ({
       sorter: true,
       render: (text, record) => {
         // Calculate total paid amount: record.paidAmount + sum of all paidAmount from paidDues array
-        const paidDuesSum = record?.paidDues?.reduce((sum, item) => {
-          return sum + (parseFloat(item.paidAmount) || 0);
-        }, 0) || 0;
-        const totalPaidAmount = (parseFloat(record.paidAmount) || 0) + paidDuesSum;
+        const paidDuesSum =
+          record?.paidDues?.reduce((sum, item) => {
+            return sum + (parseFloat(item.paidAmount) || 0);
+          }, 0) || 0;
+        const totalPaidAmount =
+          (parseFloat(record.paidAmount) || 0) + paidDuesSum;
         return (
-          <div className="dashboard-table-font-style"> ₹{totalPaidAmount.toFixed(2)} </div>
+          <div className="dashboard-table-font-style">
+            {" "}
+            ₹{totalPaidAmount.toFixed(2)}{" "}
+          </div>
         );
       },
     },
@@ -241,7 +277,10 @@ const BillTable = ({
       ellipsis: true,
       sorter: true,
       render: (text, record) => (
-        <div className="dashboard-table-font-style"> {record?.refundedAmount ? `₹ ${record.refundedAmount}` : "-"} </div>
+        <div className="dashboard-table-font-style">
+          {" "}
+          {record?.refundedAmount ? `₹ ${record.refundedAmount}` : "-"}{" "}
+        </div>
       ),
     },
     // {
@@ -451,19 +490,30 @@ const BillTable = ({
       });
     }
 
-    // Conditionally add "clear " if (due amount & not refunded)
-    if (record.dueAmount && record.paymentStatus !== "Refunded") {
+    // Conditionally add "Clear Due" if (due amount & not refunded)
+    if (
+      record.dueAmount &&
+      parseFloat(record.dueAmount) > 0 &&
+      record.paymentStatus !== "Refunded"
+    ) {
       items.push({
         label: (
-          <div 
-            onClick={() => 
-              // {onBillingDetailsClick(2, record)}
-              console.log("TODO => Handle Clear Due")
-            }>
+          <div
+            onClick={async () => {
+              const isPurchased = await checkBillingPurchased();
+              if (isPurchased) {
+                if (!isPatientScreen) {
+                  await getPatientWalletBalance(record?.patientId);
+                }
+                setBillData(record);
+                handleClearDueDrawer();
+              }
+            }}
+          >
             Clear Due
           </div>
         ),
-        key: "clear_bill",
+        key: "clear_due",
       });
     }
 
@@ -474,7 +524,7 @@ const BillTable = ({
     const { target } = e;
     if (
       Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) <=
-      5 &&
+        5 &&
       hasMore
     ) {
       loadData(false);
@@ -541,6 +591,26 @@ const BillTable = ({
           />
         </Drawer>
       )}
+
+      {clearDueDrawer && (
+        <Drawer
+          closeIcon={false}
+          placement="right"
+          onClose={handleClearDueDrawer}
+          open={clearDueDrawer}
+          width={isMobile ? "80%" : "60%"}
+        >
+          <ClearDue
+            handleClearDueDrawer={handleClearDueDrawer}
+            billData={billData}
+            handleMessageForm3c={handleMessageForm3c}
+            getPatientBills={getPatientBills}
+            onClearDueSuccess={handleClearDueComplete}
+            patientAdvanceData={patientAdvanceData}
+          />
+        </Drawer>
+      )}
+
       {editBillDrawer && (
         <Drawer
           closeIcon={false}
