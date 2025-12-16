@@ -20,27 +20,14 @@ const showDateFormat = "DD-MM-YYYY";
 
 const purposeOptions = [
   { label: "Care Management", value: "Care Management" },
-  { label: "Break the Glass", value: "Break the Glass" },
-  { label: "Public Health", value: "Public Health" },
-  {
-    label: "Disease Specific Healthcare Research",
-    value: "Disease Specific Healthcare Research",
-  },
 ];
 
 const medicalRecordTypeOptions = [
-  { label: "OP Consultation", value: "OPConsultation" },
   { label: "Prescription", value: "Prescription" },
-  { label: "Diagnostic Report", value: "DiagnosticReport" },
-  { label: "Discharge Summary", value: "DischargeSummary" },
-  { label: "Immunization Record", value: "ImmunizationRecord" },
 ];
 
 const purposeMapping = {
   "Care Management": "CAREMGT",
-  "Break the Glass": "BTG",
-  "Public Health": "PUBHLTH",
-  "Disease Specific Healthcare Research": "DSRCH",
 };
 
 const RequestMedicalRecordsDrawer = ({
