@@ -23,7 +23,7 @@ const purposeOptions = [
 ];
 
 const medicalRecordTypeOptions = [
-  { label: "OP Consultation", value: "OPConsultation" },
+  { label: "Prescriptions", value: "Prescriptions" },
 ];
 
 const purposeMapping = {
