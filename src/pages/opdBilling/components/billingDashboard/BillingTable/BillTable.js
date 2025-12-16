@@ -17,7 +17,7 @@ import {
   S_TATVA_PRACTICE,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
 } from "../../../../../utils/constants";
-import { formatDateWithOrdinal, isEditBillDisabled } from "../../../utils/helper";
+import { calculateTotalPaidAmount, formatDateWithOrdinal, isEditBillDisabled } from "../../../utils/helper";
 import InfoTooltip from "./InfoToolTip/InfoTooltip";
 import { browserName, isMobile } from "react-device-detect";
 import { throttle } from "lodash";
@@ -225,8 +225,8 @@ const BillTable = ({
       : undefined,
     {
       title: "Billed",
-      dataIndex: "totalAmount",
-      key: "totalAmount",
+      dataIndex: "payableAmount",
+      key: "payableAmount",
       ellipsis: true,
       width: "10%",
       sorter: true,
@@ -245,13 +245,7 @@ const BillTable = ({
       ellipsis: true,
       sorter: true,
       render: (text, record) => {
-        // Calculate total paid amount: record.paidAmount + sum of all paidAmount from paidDues array
-        const paidDuesSum =
-          record?.paidDues?.reduce((sum, item) => {
-            return sum + (parseFloat(item.paidAmount) || 0);
-          }, 0) || 0;
-        const totalPaidAmount =
-          (parseFloat(record.paidAmount) || 0) + paidDuesSum;
+        const totalPaidAmount = calculateTotalPaidAmount(record);
         return (
           <div className="dashboard-table-font-style">
             {" "}
@@ -273,8 +267,8 @@ const BillTable = ({
     },
     {
       title: "Refund",
-      dataIndex: "refundAmount",
-      key: "refundAmount",
+      dataIndex: "refundedAmount",
+      key: "refundedAmount",
       width: "10%",
       ellipsis: true,
       sorter: true,

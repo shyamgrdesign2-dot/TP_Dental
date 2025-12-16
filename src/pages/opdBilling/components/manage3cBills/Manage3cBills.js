@@ -50,6 +50,7 @@ import {
   generateBillToken,
 } from "../../service.js";
 import {
+  calculateTotalPaidAmount,
   formatDateWithOrdinal,
   handleDownload,
   printContent,
@@ -422,8 +423,8 @@ const Manage3cBills = forwardRef(
       },
       {
         title: "TOTAL AMOUNT",
-        dataIndex: "totalAmount",
-        key: "totalAmount",
+        dataIndex: "payableAmount",
+        key: "payableAmount",
         ellipsis: true,
         sorter: true,
         render: (text, record) => <div> ₹{record.payableAmount} </div>,
@@ -434,7 +435,10 @@ const Manage3cBills = forwardRef(
         key: "paidAmount",
         ellipsis: true,
         sorter: true,
-        render: (text, record) => <div> ₹{record.paidAmount} </div>,
+        render: (text, record) => {
+          const totalPaidAmount = calculateTotalPaidAmount(record);
+          return <div>₹{totalPaidAmount.toFixed(2)} </div>;
+        },
       },
       {
         title: "STATUS",
