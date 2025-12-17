@@ -1,6 +1,7 @@
 import { Text, View } from "@react-pdf/renderer";
 import { PX_TO_PT, styles } from "./constants";
 import React from "react";
+import dayjs from "dayjs";
 
 const BillDetails = ({ pageFormat, billData, totalAdvanceBalance, isIpdBill }) => {
   const {
@@ -253,7 +254,7 @@ const BillDetails = ({ pageFormat, billData, totalAdvanceBalance, isIpdBill }) =
                 },
               ]}
             >
-              {item?.itemDate ?? ""}
+              {item?.itemDate ? dayjs(item?.itemDate).format("DD-MM-YYYY") : ""}
             </Text>}
             <Text
               style={[
