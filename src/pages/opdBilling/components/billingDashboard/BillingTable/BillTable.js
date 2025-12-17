@@ -47,6 +47,7 @@ const BillTable = ({
   showHideSubModal,
   billData,
   setBillData,
+  selectedCard,
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -254,6 +255,7 @@ const BillTable = ({
         );
       },
     },
+    selectedCard !== 4 ?
     {
       title: "Due",
       dataIndex: "dueAmount",
@@ -264,7 +266,7 @@ const BillTable = ({
       render: (text, record) => (
         <div className="dashboard-table-font-style"> ₹{record.dueAmount} </div>
       ),
-    },
+    } : undefined,
     {
       title: "Refund",
       dataIndex: "refundedAmount",
