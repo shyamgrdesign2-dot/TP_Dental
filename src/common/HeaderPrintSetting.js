@@ -29,6 +29,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const previousPage = state?.from;
+    const { selectedLang, isAmbientRx, rxId, print_url } = state || {};
 
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const decodedToken = getDecodedToken();
@@ -103,10 +104,33 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
 
     const onSavePrintSettingsClick = async () => {
         if (printSettings?.letterhead_format == 0 && printSettings?.header_footer?.header?.doctor_info?.enable == 'N' && printSettings?.header_footer?.header?.clinic_info?.enable == 'N' && printSettings?.logo_enable == 'N') {
-            errorMessage(`Enable at least one option (Doctor’s information, Clinic's information, Logo on Header)`)
+            errorMessage(`Enable at least one option (Doctor's information, Clinic's information, Logo on Header)`)
         } else if (printSettings?.letterhead_format == 1 && !fileHeader) {
             errorMessage(`Upload header`)
         } else {
+            const getImageValue = async (fileObj, imageName) => {
+                if (!fileObj) return '';
+                
+                if (fileObj.uploadFile && fileObj.uploadFile instanceof File) {
+                    return fileObj.uploadFile;
+                }
+                
+                if (fileObj.showFile && typeof fileObj.showFile === 'string' && fileObj.showFile.startsWith('data:image/')) {
+                    try {
+                        const { dataUrlToFileUsingFetch } = await import('../utils/utils');
+                        const file = await dataUrlToFileUsingFetch(fileObj.showFile, `${imageName}.png`, 'image/png');
+                        return file;
+                    } catch (error) {
+                        return '';
+                    }
+                }
+                if (fileObj.showFile && typeof fileObj.showFile === 'string' && fileObj.showFile.startsWith('http')) {
+                    return fileObj.showFile;
+                }
+                
+                return '';
+            };
+            
             var sendData = {
                 default_language: printSettings?.default_language,
                 letterhead_format: printSettings?.letterhead_format,
@@ -116,31 +140,17 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                 header_footer: JSON.stringify(printSettings?.header_footer),
                 page_format: JSON.stringify(printSettings?.page_format),
 
-                // logo_enable: printSettings?.letterhead_format == 0 || (printSettings?.letterhead_format == 2 && printSettings?.whatsapp_letterhead_format == 0) ?
-                //     printSettings?.logo_enable
-                //     : 'N',
-                // logo_image: printSettings?.letterhead_format == 0 || (printSettings?.letterhead_format == 2 && printSettings?.whatsapp_letterhead_format == 0) ?
-                //     fileLogo ? fileLogo?.uploadFile : ''
-                //     : 'N',
-
-                // header_image: printSettings?.letterhead_format == 1 || (printSettings?.letterhead_format == 2 && printSettings?.whatsapp_letterhead_format == 1) ?
-                //     fileHeader ? fileHeader?.uploadFile : ''
-                //     : '',
-                // footer_image: printSettings?.letterhead_format == 1 || (printSettings?.letterhead_format == 2 && printSettings?.whatsapp_letterhead_format == 1) ?
-                //     fileFooter ? fileFooter?.uploadFile : ''
-                //     : '',
-
                 logo_enable: printSettings?.logo_enable,
-                logo_image: fileLogo ? fileLogo?.uploadFile : '',
+                logo_image: await getImageValue(fileLogo, 'logo'),
 
-                header_image: fileHeader ? fileHeader?.uploadFile : '',
-                footer_image: fileFooter ? fileFooter?.uploadFile : '',
+                header_image: await getImageValue(fileHeader, 'header'),
+                footer_image: await getImageValue(fileFooter, 'footer'),
 
                 water_mark_enable: printSettings?.water_mark_enable,
-                water_mark_image: fileWatermark ? fileWatermark?.uploadFile : '',
+                water_mark_image: await getImageValue(fileWatermark, 'watermark'),
 
                 signature_enable: printSettings?.signature_enable,
-                signature_image: fileSignature ? fileSignature?.uploadFile : '',
+                signature_image: await getImageValue(fileSignature, 'signature'),
                 
                 signature_image_delete: printSettings?.signature_image_delete !== undefined ? printSettings?.signature_image_delete : 0
             }
@@ -148,7 +158,33 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             const action = await dispatch(savePrintsettings(sendData));
 
             if (action.meta.requestStatus === "fulfilled") {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                if (previousPage === "/gen-rx-print") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/gen-rx-print", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            print_url: print_url,
+                            isAmbientRx: isAmbientRx,
+                            rxId: rxId,
+                            currentSessionRx: null
+                        } 
+                    });
+                } else if (previousPage === "/snap-rx/preview") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/snap-rx/preview", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            currentSessionRx: null,
+                            from: "/configure_print_setting"
+                        } 
+                    });
+                } else {
+                    navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                }
             } else {
                 errorMessage(action.error)
             }
@@ -165,7 +201,29 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
         let update_json = { ...printSettings }
         delete update_json['qrcode']
         if (JSON.stringify(defaultPrintSettings) == JSON.stringify(update_json)) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            if (previousPage === "/gen-rx-print") {
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: currentSessionRx
+                    } 
+                });
+            } else {
+                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            }
         } else {
             setFlag(1)
             showHideBackModal()
@@ -178,9 +236,58 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
 
     const onYesLeaveClick = async() => {
         if (flag === 1) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+            if (previousPage === "/gen-rx-print") {
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting"
+                    } 
+                });
+            } else {
+                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+            }
         } else if (flag === 3) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            if (previousPage === "/gen-rx-print") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId,
+                        currentSessionRx: currentSessionRx
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting"
+                    } 
+                });
+            } else {
+                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            }
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));
             if(action.meta.requestStatus === "fulfilled") {
