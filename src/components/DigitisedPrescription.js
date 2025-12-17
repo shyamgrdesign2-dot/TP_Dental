@@ -262,6 +262,9 @@ const DigitisedPrescription = ({
       } else if (!blood_press && systolic && diastolic) {
         blood_press = `${systolic}/${diastolic}`;
       }
+      if (!systolic || !diastolic) {
+        blood_press = '';
+      }
       
       const vitalsArray = [{
         date: vitalsData.date || moment().format('YYYY-MM-DD'),

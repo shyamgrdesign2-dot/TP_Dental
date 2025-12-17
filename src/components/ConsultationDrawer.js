@@ -3220,6 +3220,9 @@ const ConsultationDrawer = ({
       } else if (!blood_press && systolic && diastolic) {
         blood_press = `${systolic}/${diastolic}`;
       }
+      if (!systolic || !diastolic) {
+        blood_press = '';
+      }
       
     const vitalsArray = [{
       // Always record against today's date; API will upsert current date entry
@@ -3229,7 +3232,7 @@ const ConsultationDrawer = ({
         resp_rate: String(cleanVitals.respRate || '').trim(),
         systolic: String(systolic).trim(),
         diastolic: String(diastolic).trim(),
-        blood_press: String(blood_press).trim(),
+        ...(systolic && diastolic ? { blood_press: String(blood_press).trim() } : {}),
         spo2: String(cleanVitals.spo2 || '').trim(),
         height: String(cleanVitals.height || '').trim(),
         weight: String(cleanVitals.weight || '').trim(),
@@ -3376,6 +3379,11 @@ const ConsultationDrawer = ({
         pm_pid: patient_data?.pm_pid || 0,
         pm_id: patient_data?.pm_id || 0,
       });
+      const patientInfo = patient_data ? {
+        age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
+        gender: patient_data.pm_gender || patient_data.gender
+      } : {};
+      
       if (vitalsResp?.status && Array.isArray(vitalsResp.data) && vitalsResp.data.length > 0) {
         const byDate = {};
         vitalsResp.data.forEach((v) => {
@@ -3384,11 +3392,13 @@ const ConsultationDrawer = ({
             byDate[dateKey] = v;
           }
         });
-        vitalsForCase = Object.values(byDate);
+        vitalsForCase = Object.values(byDate).map(v => enrichVitalsWithCalculations(v, patientInfo));
       }
       
       // Merge Rx pad vitals with fetched vitals (which include sidebar edits)
-      if (prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0) {
+      // Process if either Rx pad vitals exist OR we have vitals from sidebar/API
+      const hasRxPadVitals = prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0;
+      if (hasRxPadVitals || vitalsForCase.length > 0) {
         const sanitizeVitalsValue = (key, value) => {
           if (value === undefined || value === null) return "";
           const str = String(value).trim();
@@ -3400,12 +3410,12 @@ const ConsultationDrawer = ({
           }
           return str.replace(/[^0-9.\-]/g, '');
         };
-        const cleanVitals = Object.fromEntries(
+        const cleanVitals = hasRxPadVitals ? Object.fromEntries(
           Object.entries(prescriptionData.vitalsAndBodyComposition || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
-        );
+        ) : {};
 
-        let systolic = cleanVitals.Systolic || cleanVitals.systolic || '';
-        let diastolic = cleanVitals.Diastolic || cleanVitals.diastolic || '';
+        let systolic = String(cleanVitals.Systolic || cleanVitals.systolic || '').trim();
+        let diastolic = String(cleanVitals.Diastolic || cleanVitals.diastolic || '').trim();
         let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
         
         if (blood_press && !systolic && !diastolic) {
@@ -3414,24 +3424,23 @@ const ConsultationDrawer = ({
             systolic = bpParts[0].trim();
             diastolic = bpParts[1].trim();
           }
-        } else if (!blood_press && systolic && diastolic) {
+        }
+        
+        if (!systolic || !diastolic) {
+          blood_press = '';
+        } else if (!blood_press) {
           blood_press = `${systolic}/${diastolic}`;
         }
         
         const today = moment().format('YYYY-MM-DD');
-        const patientInfo = patient_data ? {
-          age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-          gender: patient_data.pm_gender || patient_data.gender
-        } : {};
         
         const rxPadVital = {
           date: today,
           temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
           pres: String(cleanVitals.pulse || cleanVitals.pres || '').trim(),
           resp_rate: String(cleanVitals.respRate || cleanVitals.resp_rate || '').trim(),
-          systolic: String(systolic).trim(),
-          diastolic: String(diastolic).trim(),
-          blood_press: String(blood_press).trim(),
+          systolic: systolic,
+          diastolic: diastolic,
           spo2: String(cleanVitals.spo2 || cleanVitals.SPO2 || '').trim(),
           height: String(cleanVitals.height || cleanVitals.Height || '').trim(),
           weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
@@ -3444,6 +3453,9 @@ const ConsultationDrawer = ({
           bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
           bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim()
         };
+        if (systolic && diastolic) {
+          rxPadVital.blood_press = blood_press;
+        }
         
         const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
         const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today);
@@ -3461,6 +3473,11 @@ const ConsultationDrawer = ({
               }
             }
           });
+          const mergedSystolic = String(merged.systolic || '').trim();
+          const mergedDiastolic = String(merged.diastolic || '').trim();
+          if (!mergedSystolic || !mergedDiastolic) {
+            merged.blood_press = '';
+          }
           vitalsForCase[existingTodayIndex] = merged;
         } else {
           vitalsForCase.push(enrichedRxPadVital);
@@ -3468,21 +3485,47 @@ const ConsultationDrawer = ({
         
         // Save merged vitals to API
         if (patient_data?.patient_unique_id) {
-          const mergedVitalsArray = existingTodayIndex >= 0 ? [vitalsForCase[existingTodayIndex]] : [enrichedRxPadVital];
-          const finalVital = mergedVitalsArray[0];
-          if (finalVital) {
-            finalVital.general_rbs = finalVital.general_rbs !== undefined ? String(finalVital.general_rbs).trim() : '';
-            finalVital.ofc = finalVital.ofc !== undefined ? String(finalVital.ofc).trim() : '';
-            finalVital.fib4 = finalVital.fib4 !== undefined ? String(finalVital.fib4).trim() : '';
+          const mergedVitalsArray = hasRxPadVitals 
+            ? (existingTodayIndex >= 0 ? [vitalsForCase[existingTodayIndex]] : [enrichedRxPadVital])
+            : vitalsForCase.filter(v => v.date === moment().format('YYYY-MM-DD'));
+          if (mergedVitalsArray.length > 0) {
+            mergedVitalsArray.forEach(v => {
+              const systolic = String(v.systolic || '').trim();
+              const diastolic = String(v.diastolic || '').trim();
+              if (!systolic || !diastolic) {
+                v.blood_press = '';
+              }
+              v.general_rbs = v.general_rbs !== undefined ? String(v.general_rbs).trim() : '';
+              v.ofc = v.ofc !== undefined ? String(v.ofc).trim() : '';
+              v.fib4 = v.fib4 !== undefined ? String(v.fib4).trim() : '';
+            });
+            const saveResult = await ApiVitals.addUpdateVitals({
+              patient_unique_id: patient_data.patient_unique_id,
+              pm_pid: patient_data.pm_pid || 0,
+              pm_id: patient_data.pm_id || 0,
+              pam_id: patient_data.pam_id || 0,
+              patient_birth_weight: null,
+              data: mergedVitalsArray
+            });
+            // Update vitalsForCase with saved data (with IDs) from API response for case manager payload
+            if (saveResult?.status && Array.isArray(saveResult.data) && saveResult.data.length > 0) {
+              const savedVital = saveResult.data[0];
+              const enrichedSavedVital = enrichVitalsWithCalculations(savedVital, patientInfo);
+              if (existingTodayIndex >= 0) {
+                // Replace existing entry with saved data
+                vitalsForCase[existingTodayIndex] = enrichedSavedVital;
+              } else {
+                // Replace the entry we just pushed (last item) with saved data
+                const today = moment().format('YYYY-MM-DD');
+                const todayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today);
+                if (todayIndex >= 0) {
+                  vitalsForCase[todayIndex] = enrichedSavedVital;
+                } else {
+                  vitalsForCase.push(enrichedSavedVital);
+                }
+              }
+            }
           }
-          await ApiVitals.addUpdateVitals({
-            patient_unique_id: patient_data.patient_unique_id,
-            pm_pid: patient_data.pm_pid || 0,
-            pm_id: patient_data.pm_id || 0,
-            pam_id: patient_data.pam_id || 0,
-            patient_birth_weight: null,
-            data: mergedVitalsArray
-          });
         }
       }
     } catch (err) {
@@ -3491,6 +3534,16 @@ const ConsultationDrawer = ({
 
     const labResultsDataForApi = formatLabResultsForApi(prescriptionData?.labResults || []);
     await persistLabResultsToApi(labResultsDataForApi);
+
+    const cleanedVitalsForCase = vitalsForCase.map(v => {
+      const cleaned = { ...v };
+      const systolic = String(cleaned.systolic || '').trim();
+      const diastolic = String(cleaned.diastolic || '').trim();
+      if (!systolic || !diastolic) {
+        cleaned.blood_press = '';
+      }
+      return cleaned;
+    });
 
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
@@ -3506,7 +3559,7 @@ const ConsultationDrawer = ({
       consultation_date: consultationDate,
       smart_prescription_filename: genRxDetails?._id,
       labReportID: labReportID,
-      vitals: vitalsForCase,
+      ...(cleanedVitalsForCase.length > 0 && { vitals: cleanedVitalsForCase }),
       ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
       ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
     };

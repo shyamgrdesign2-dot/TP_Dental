@@ -250,7 +250,16 @@ function PatientDetails() {
             }
             return acc;
         }, {});
-        return Object.values(uniqueVitalsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const vitals = Object.values(uniqueVitalsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
+        return vitals.map(v => {
+            const systolic = String(v.systolic || '').trim();
+            const diastolic = String(v.diastolic || '').trim();
+            const cleaned = { ...v };
+            if (!systolic || !diastolic) {
+                delete cleaned.blood_press;
+            }
+            return cleaned;
+        });
     }, [viewCaseManagerData?.vitals, apiVitals]);
 
     const getBillPrintSettings = async () => {

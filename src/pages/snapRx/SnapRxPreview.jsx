@@ -62,12 +62,32 @@ function SnapRxPreview() {
 
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
 
-  const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language || 1);
-  const encodedData = btoa(selectedLang.toString());
-  const pam_id = state?.pam_id || patient_data?.pam_id || 0;
-  
-  const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state?.print_rx_url || state?.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
-  const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
+  const buildUrlWithLanguage = (url, language) => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.delete("lg");
+      urlObj.searchParams.delete("rx");
+      urlObj.searchParams.set("rx", "0");
+      if (language) {
+        const encodedData = btoa(language.toString());
+        urlObj.searchParams.set("lg", encodedData);
+      }
+      return urlObj.toString();
+    } catch (error) {
+      return url;
+    }
+  };
+
+  const initialLanguage = defaultPrintSettings?.default_language || 1;
+
+  const [selectedLang, setSelectedLang] = useState(initialLanguage);
+  const basePrintUrl = state?.print_rx_url || state?.print_url || null;
+  const initialUrl = basePrintUrl
+    ? buildUrlWithLanguage(basePrintUrl, initialLanguage)
+    : null;
+
+  const [printUrl, setPrintUrl] = useState(initialUrl);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
@@ -154,22 +174,17 @@ function SnapRxPreview() {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
         setViewCaseManagerData(viewCaseManagerData);
-        
-        // After print configuration, always show digitized Rx
-        if (state?.from === "/configure_print_setting") {
-          setShowDigitalRx(true);
-        } else if (state?.page === "digitise") {
-          // After digitization, show written Rx (but digitized prescription will load via rxDigitize=true when user toggles to Digital Rx)
-          setShowDigitalRx(false);
-        } else {
-          // Default: show digitized Rx only if it's digitized and page is "digitise"
-          const shouldShowDigital = viewCaseManagerData?.isRxDigitize && state?.page === "digitise";
-          setShowDigitalRx(shouldShowDigital);
+        if (viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url) {
+          const baseUrl = viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url;
+          const urlWithLanguage = buildUrlWithLanguage(baseUrl, selectedLang);
+          const updatedUrl = updateRxDigitizeInUrl(urlWithLanguage, viewCaseManagerData?.isRxDigitize && state?.page === "digitise");
+          setPreviewUrl(updatedUrl);
+          setPrintUrl(updatedUrl);
         }
       }
     };
     fetchData();
-  }, [state?.tcm_id, patient_data?.patient_unique_id, state?.from, state?.page]);
+  }, [state?.tcm_id, patient_data?.patient_unique_id, selectedLang]);
 
   const fetchRxDigitisedData = async () => {
     try {

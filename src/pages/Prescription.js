@@ -756,6 +756,47 @@ function Prescription() {
     }
   }, [selectedVitalsList]);
 
+
+  useEffect(() => {
+    if ((caseManagerData === undefined || tcmId === 0) && vitalsPastList.length > 0) {
+      const targetDate = consultationDate 
+        ? moment(consultationDate).format("YYYY-MM-DD")
+        : moment().format("YYYY-MM-DD");
+      
+      const hasDataForDate = vitalsData.some((v) => {
+        const vitalDate = moment(v.date).format("YYYY-MM-DD");
+        return vitalDate === targetDate;
+      });
+
+
+      if (!hasDataForDate) {
+        const matchingVitals = vitalsPastList
+          .filter((v) => {
+            const vitalDate = moment(v.date).format("YYYY-MM-DD");
+            return vitalDate === targetDate;
+          })
+          .sort((a, b) => {
+            const aId = Math.max(Number(a.tcv_id || 0), Number(a.tcbc_id || 0));
+            const bId = Math.max(Number(b.tcv_id || 0), Number(b.tcbc_id || 0));
+            if (bId !== aId) return bId - aId;
+            const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+            const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+            return bTime - aTime;
+          })[0];
+
+        if (matchingVitals) {
+          const updatedData = [{
+            ...matchingVitals,
+            systolic: matchingVitals.blood_press ? matchingVitals.blood_press.split("/")[0] : matchingVitals.systolic || "",
+            diastolic: matchingVitals.blood_press ? matchingVitals.blood_press.split("/")[1] : matchingVitals.diastolic || "",
+          }];
+          setVitalsData(updatedData);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vitalsPastList, consultationDate]);
+
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
