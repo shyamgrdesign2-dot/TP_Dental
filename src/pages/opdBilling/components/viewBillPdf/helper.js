@@ -96,26 +96,20 @@ export const patientIpdDataShow = (id, patient_data, billData, profile) => {
         : "-"
     }`;
   } else if (id == 7) {
-    value = billData?.admissionNo ?? "-"; //need to check
-  } else if (id == 8) {
     value = billData?.admissionId ?? "-";
-  } else if (id == 9) {
+  } else if (id == 8) {
     value = billData?.admission?.admittedOn
       ? moment(billData?.admission?.admittedOn).format("DD/MM/YYYY")
       : "-";
+  } else if (id == 9) {
+    value = billData?.admission?.doctor?.name ?? "-";
   } else if (id == 10) {
-    value = billData?.admission?.doctor?.name ?? "-"; //need to check
-  } else if (id == 11) {
     value = billData?.admission?.dischargedAt
       ? moment(billData?.admission?.dischargedAt).format("DD/MM/YYYY")
-      : "-"; //need to check
+      : "-";
+  } else if (id == 11) {
+    value = billData?.dischargeNo ?? "-";
   } else if (id == 12) {
-    value = billData?.dischargeNo ?? "-"; //need to check
-  } else if (id == 13) {
-    value = billData?.admission?.doctor?.name ?? "-"; //need to check
-  } else if (id == 14) {
-    value = billData?.admission?.doctor?.phone ?? "-"; //need to check
-  } else if (id == 15) {
     value = patient_data?.address ?? "-";
   }
   return value;

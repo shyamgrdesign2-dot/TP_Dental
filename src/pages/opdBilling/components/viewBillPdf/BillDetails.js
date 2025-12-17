@@ -2,6 +2,7 @@ import { Text, View } from "@react-pdf/renderer";
 import { PX_TO_PT, styles } from "./constants";
 import React from "react";
 import { formatDateWithOrdinal } from "../../utils/helper";
+import dayjs from "dayjs";
 
 const BillDetails = ({
   pageFormat,
@@ -286,22 +287,20 @@ const BillDetails = ({
             >
               {i + 1}
             </Text>
-            {isIpdBill && (
-              <Text
-                style={[
-                  styles.cell,
-                  {
-                    flex: 0.3,
-                    color: "#171725",
-                    fontFamily: pageFormat?.fontFamily,
-                    fontSize: PX_TO_PT * pageFormat?.fontSize,
-                    fontWeight: 400,
-                  },
-                ]}
-              >
-                {item?.itemDate ?? ""}
-              </Text>
-            )}
+            {isIpdBill && <Text
+              style={[
+                styles.cell,
+                {
+                  flex: 0.3,
+                  color: "#171725",
+                  fontFamily: pageFormat?.fontFamily,
+                  fontSize: PX_TO_PT * pageFormat?.fontSize,
+                  fontWeight: 400,
+                },
+              ]}
+            >
+              {item?.itemDate ? dayjs(item?.itemDate).format("DD-MM-YYYY") : ""}
+            </Text>}
             <Text
               style={[
                 styles.cell,
