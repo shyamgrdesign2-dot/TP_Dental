@@ -160,14 +160,14 @@ function PatientDetails() {
     }, []);
 
     const getBillPrintSettings = async () => {
-        const printSettingsResponse = await fetchPrintSetting();
+        const printSettingsResponse = await fetchPrintSetting(userId);
         if (printSettingsResponse) {
             dispatch(setBillPrintSettings(printSettingsResponse));
         }
     };
 
     const getIpdBillPrintSettings = async () => {
-        const printSettingsResponse = await fetchPrintSetting("", "ipdBill");
+        const printSettingsResponse = await fetchPrintSetting(userId, "ipdBill");
         if (printSettingsResponse) {
             dispatch(setIpdBillPrintSettings(printSettingsResponse));
         }

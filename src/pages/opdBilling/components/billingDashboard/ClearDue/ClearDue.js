@@ -137,7 +137,7 @@ function ClearDue({
 
       // Add remarks if provided
       if (remarks.trim()) {
-        payload.paidDue.remarks = remarks.trim();
+        payload.paidDue.notes = remarks.trim();
       }
 
       const response = await processClearDue(payload);
