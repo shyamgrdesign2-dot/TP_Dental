@@ -6,8 +6,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
 import { isChrome, isSafari, isBrowser } from "react-device-detect";
 import axios from 'axios';
-import { QRCodeSVG } from 'qrcode.react';
-import { Button as ButtonOPD } from "antd";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import jsQR from 'jsqr';
@@ -23,6 +21,7 @@ import playIcons from '../assets/images/tube-icon.svg';
 import qrIcon from '../assets/images/qr-icon.svg';
 import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
+import QrPrintDownloadModal from "./QrPrintDownloadModal";
 import videorotate from '../assets/images/videorotate.gif';
 import upgradeIcon from "../assets/images/upgrade.svg";
 import profileBg from "../assets/images/profile-bg.svg";
@@ -1175,55 +1174,20 @@ function Header({ locationPath }) {
               </div>
             )}
 
-            <Modal
-              open={(isQRCodeVisible && opdPlansUrl)}
-              centered
-              closeIcon={false}
-              onCancel={showHideBackModal}
-              footer={null}
-              title={null}
-              destroyOnClose
+            <QrPrintDownloadModal
+              open={!!isQRCodeVisible && !!opdPlansUrl}
+              onClose={showHideBackModal}
+              contentRef={printRef}
+              title="OPD Plans"
+              byName={profile?.um_name}
+              logoSrc={logoIcom}
+              qrValue={opdPlansUrl}
+              qrSize={180}
+              scanText="Scan the QR to view & buy OPD plans"
+              onPrint={handlePrint}
+              onDownload={handleDownload}
               className="opd-plan-qr"
-            >
-              <div className="opd-qr">
-                <button className="qr-close-btn" onClick={showHideBackModal}>
-                  <i style={{ fontSize: "2rem" }} className="icon-Cross"></i>
-                </button>
-                <div ref={printRef} className="opd-plans-inner-contianer">
-                  <div className="opd-title" style={{ fontWeight: "700", fontSize: "2rem", color: "#1F2933 !important" }}>
-                    OPD Plans
-                  </div>
-                  <div className="opd-byline" style={{ marginBottom: "2rem", marginTop: "0.4rem" }}>
-                    by <strong>{profile?.um_name}</strong>
-                  </div>
-                  <div className="d-flex align-items-center justify-content-center">
-                    <div className="opd-logo log-holder">
-                      <img src={logoIcom} style={{ height: "1.8rem" }} className="logo-text-icon" alt="Logo" />
-                    </div>
-                    <QRCodeSVG className="opd-qr-image" value={opdPlansUrl} size={180} />
-                  </div>
-                  <div className="opd-scan-text" style={{ marginTop: "2rem", fontSize: "1.2rem", color: "#454551 !important" }}>
-                    Scan the QR to view & buy OPD plans
-                  </div>
-                </div>
-                <div className="d-flex align-items-center justify-content-between gap-4 mt-4">
-                  <ButtonOPD
-                    onClick={handlePrint}
-                    className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
-                    style={{ width: "13rem", height: "3rem" }}
-                  >
-                    <span className="fs-18 align-items-center d-flex "><i className="icon-Print me-2"></i>Print</span>
-                  </ButtonOPD>
-                  <ButtonOPD
-                    onClick={handleDownload}
-                    className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
-                    style={{ width: "13rem", height: "3rem" }}
-                  >
-                    <span className="fs-18 align-items-center d-flex"><i className="icon-download me-2"></i>Download</span>
-                  </ButtonOPD>
-                </div>
-              </div>
-            </Modal>
+            />
 
             {/* ABHA QR Code Modal */}
             {isLoadingAbhaQR ? (
