@@ -111,6 +111,14 @@ export const patientIpdDataShow = (id, patient_data, billData, profile) => {
     value = billData?.dischargeNo ?? "-";
   } else if (id == 12) {
     value = patient_data?.address ?? "-";
+  } else if (id == 13) {
+    value = billData?.admission?.metadata?.insuranceno ?? "-";
+  }
+  else if (id == 14) {
+    value = billData?.admission?.metadata?.policyno ?? "-";
+  }
+  else if (id == 15) {
+    value = billData?.admission?.metadata?.tpano ?? "-";
   }
   return value;
 };
