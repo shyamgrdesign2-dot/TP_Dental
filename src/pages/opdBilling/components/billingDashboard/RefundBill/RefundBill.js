@@ -51,7 +51,7 @@ function RefundBill({
   getPatientBills,
   onRefundSuccess,
   patientAdvanceData,
-  billType,
+  billType = "opd",
 }) {
   const totalPaidAmount = calculateTotalPaidAmount(billData);
   const scrollContainerRef = useRef(null);
