@@ -1,0 +1,142 @@
+.patient-history-tab {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  .history-accordions {
+    display: flex;
+    flex-direction: column;
+    background: #FFFFFF;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+    .history-accordion-item {
+      display: flex;
+      flex-direction: column;
+
+      .accordion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        width: 100%;
+        text-align: left;
+        gap: 12px;
+
+        &:active {
+          background-color: rgba(164, 97, 216, 0.05);
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .accordion-header-content {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+
+          .icon-wrapper {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #EDDFF7;
+            border-radius: 50%;
+            padding: 2px;
+
+            .section-icon {
+              width: 20px;
+              height: 20px;
+              object-fit: contain;
+            }
+          }
+
+          .section-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #454551;
+            font-family: 'Poppins', sans-serif;
+            line-height: 24px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+
+        .chevron-icon {
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.3s ease;
+          transform: rotate(0deg);
+
+          svg {
+            width: 100%;
+            height: 100%;
+          }
+
+          &.expanded {
+            transform: rotate(90deg);
+          }
+        }
+      }
+
+      .accordion-content {
+        padding: 0 16px 16px 16px;
+        animation: slideDown 0.3s ease-out;
+
+        // Override card styles for mobile
+        :global(.appointment-wrap) {
+          margin: 0;
+          border-radius: 12px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        :global(.PatientDetailswrap) {
+          margin: 0;
+        }
+      }
+
+      .section-divider {
+        height: 1px;
+        background: #E2E2EA;
+        margin: 0 16px;
+      }
+    }
+  }
+
+  .empty-state {
+    padding: 40px 16px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+    transform: translateY(0);
+  }
+}

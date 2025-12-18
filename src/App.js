@@ -17,6 +17,7 @@ import config from "./config";
 
 import AppointmentList from "./pages/AppointmentList";
 import PatientDetails from "./pages/PatientDetails";
+import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import Prescription from "./pages/Prescription";
 import SmartPrescription from "./pages/SmartPrescription";
 import SmartRxPreview from "./pages/SmartRxPreview";
@@ -480,7 +481,16 @@ function App() {
                   path="create-campaign"
                   element={<MessageCreateCampaign />}
                 />
-                <Route path="patient_details" element={<PatientDetails />} />
+                <Route 
+                  path="patient_details" 
+                  element={
+                    isMobileDevice && !isTablet ? (
+                      <MobilePatientDetails />
+                    ) : (
+                      <PatientDetails />
+                    )
+                  } 
+                />
                 <Route
                   path="prescription"
                   element={isMobile ? <TabPrescription /> : <Prescription />}
