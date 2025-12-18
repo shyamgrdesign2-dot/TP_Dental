@@ -68,6 +68,7 @@ const TableBillingDashboard = forwardRef(
     const [visitTypeFilters, setVisitTypeFilters] = useState("");
     const [isHovered, setIsHovered] = useState(false);
     const [billingCount, setBillingCount] = useState(0);
+    const [ipdBillingCount, setIpdBillingCount] = useState(0);
     const [advanceCount, setAdvanceCount] = useState(0);
     const [dateStatus, setDateStatus] = useState(1);
     const [dateRange, setDateRange] = useState({
@@ -102,6 +103,7 @@ const TableBillingDashboard = forwardRef(
       addAdvanceDrawer,
       selectedDoctors,
       doctorList,
+      fromPath,
     ]);
 
     useEffect(() => {
@@ -162,14 +164,26 @@ const TableBillingDashboard = forwardRef(
           ? patientData?.patient_unique_id
           : "",
       };   
-      const billResponse = patientData
-        ? await fetchBillsByPatient(billParams)
-        : await fetchBillingDashboard(billParams);
+      
+      // Fetch OPD billing count
+      const opdBillResponse = patientData
+        ? await fetchBillsByPatient(billParams, "opd")
+        : await fetchBillingDashboard(billParams, "opd");
+      
+      // Fetch IPD billing count (only if feature flags are enabled)
+      let ipdBillResponse = null;
+      if ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !(fromPath === "opdDashboard")) {
+        ipdBillResponse = patientData
+          ? await fetchBillsByPatient(billParams, "ipd")
+          : await fetchBillingDashboard(billParams, "ipd");
+      }
+      
       const advanceResponse = patientData
         ? await listAdvancedDepositByPatient(advanceParams)
         : await fetchAdvancedDepositDashboard(advanceParams);
 
-      setBillingCount(billResponse?.summary?.count);
+      setBillingCount(opdBillResponse?.summary?.count || 0);
+      setIpdBillingCount(ipdBillResponse?.summary?.count || 0);
       setAdvanceCount(
         advanceResponse?.summary?.totalCount ||
           advanceResponse?.summary?.count ||
@@ -198,7 +212,7 @@ const TableBillingDashboard = forwardRef(
           label: (
             <div className="d-flex align-items-center">
               <i className="icon-billings"></i>
-              {`IPD Billing (${billingCount})`}
+              {`IPD Billing (${ipdBillingCount})`}
             </div>
           ),
         });
@@ -236,9 +250,11 @@ const TableBillingDashboard = forwardRef(
       selectedTab,
       isHovered,
       billingCount,
+      ipdBillingCount,
       advanceCount,
       isNewIPDAccessableFromGB,
       isNewIPDHosBusinessIdAccessableFromGB,
+      fromPath,
     ]); // Add feature flags as dependencies
 
     // Create a ref for the AdvanceDepositTable
@@ -307,7 +323,7 @@ const TableBillingDashboard = forwardRef(
                 setBillData={setBillData}
                 patientData={patientData}
                 handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
-                setBillingCount={setBillingCount}
+                setBillingCount={setIpdBillingCount}
                 dateRange={dateRange}
                 setDateRange={setDateRange}
                 dateStatus={dateStatus}
