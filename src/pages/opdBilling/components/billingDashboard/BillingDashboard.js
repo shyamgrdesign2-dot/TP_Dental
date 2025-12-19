@@ -148,7 +148,7 @@ function BillingDashboard({ patientData, fromPath }) {
     }
   };
 
-  const handleCreateBillDrawer = useCallback(async (isPreviewScreen = false) => {
+  const handleCreateBillDrawer = useCallback(async (record, isPreviewScreen = false) => {
     const isPurchased = await checkBillingPurchased()
     if (isPurchased) {
       const clinic = getClinic();
