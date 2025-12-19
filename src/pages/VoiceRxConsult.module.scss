@@ -638,13 +638,6 @@
     padding: 20px 16px !important;
     justify-content: space-between !important;
   }
-
-    .disclaimerText {
-      display: flex;
-      justify-content: center;
-      color: rgba(162, 162, 168, 1) !important;
-      font-size: 12px;
-    }
   
   .modeCard {
     width: 360.5px !important;
@@ -784,13 +777,6 @@
   gap: 12px;
   padding: 20px 16px;
   justify-content: space-between;
-}
-
-.disclaimerText {
-  display: flex;
-  justify-content: center;
-  color: rgba(162, 162, 168, 1) !important;
-  font-size: 12px;
 }
 
 .modeCard {
@@ -985,6 +971,13 @@
   }
 }
 
+.disclaimerText {
+  display: flex;
+  justify-content: center;
+  color: rgba(162, 162, 168, 1) !important;
+  font-size: 12px;
+}
+
 // Mobile responsive for modal - ONLY for small phones <= 600px
 @media (max-width: 600px) {
   .voiceRxModal {
@@ -1004,13 +997,6 @@
     flex-direction: column !important;
     gap: 16px !important;
     padding: 20px 16px 16px 16px !important;
-  }
-
-  .disclaimerText {
-    display: flex;
-    justify-content: center;
-    color: rgba(162, 162, 168, 1) !important;
-    font-size: 12px;
   }
 
   .modeCard {
