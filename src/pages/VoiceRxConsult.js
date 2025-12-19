@@ -321,6 +321,7 @@ const VoiceRxConsult = () => {
               </button>
             </div>
           </div>
+          <div className={styles.disclaimerText}>*These conversations help us improve accuracy and your overall experience.</div>
         </div>
       </Modal>
 
