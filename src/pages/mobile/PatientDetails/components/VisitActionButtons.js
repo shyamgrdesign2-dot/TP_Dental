@@ -75,11 +75,11 @@ function VisitActionButtons({
 
   const showPrintMedicinesOnly = !isVoiceRx && (!isSmartRxFile && !isSnapRx);
 
-  const shouldShowEdit = showEdit && !isSmartRxFile;
+  const shouldShowEdit = showEdit && !isSmartRxFile && isVoiceRx;
 
   const shouldShowPrint = true;
 
-  const shouldShowRepeatRx = !smartPrescriptionFilename?.length;
+  const shouldShowRepeatRx = isVoiceRx;
 
   return (
     <div className="visit-action-buttons">
