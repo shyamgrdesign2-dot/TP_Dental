@@ -362,25 +362,28 @@ function PatientDetails() {
     }
   };
 
-  // Handle Download Prescription
-  const handleDownloadRx = async () => {
-    if (!viewCaseManagerData?.print_rx_url) return;
-
-    try {
-      if (!isChrome && !isSafari) {
-        // In-app download
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: viewCaseManagerData.print_rx_url });
-      } else {
-        // Browser download
-        const link = document.createElement('a');
-        link.href = viewCaseManagerData.print_rx_url;
-        link.download = `prescription_${moment(viewCaseManagerData.consultation_date).format('YYYY-MM-DD')}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+  // Handle Download Prescription - Use same logic as Cardiology component
+  const handleDownloadRx = () => {
+    if (cardiologyPrintHandlerRef.current && cardiologyPrintHandlerRef.current.downloadContent) {
+      // Use Cardiology's download function (handles Digital Rx, Voice Rx, language, etc.)
+      cardiologyPrintHandlerRef.current.downloadContent();
+    } else {
+      // Fallback to simple download if handlers not ready yet
+      if (!viewCaseManagerData?.print_rx_url) return;
+      try {
+        if (!isChrome && !isSafari) {
+          sendMessageToParent(EVENTS.DOWNLOAD, { url: viewCaseManagerData.print_rx_url });
+        } else {
+          const link = document.createElement('a');
+          link.href = viewCaseManagerData.print_rx_url;
+          link.download = `prescription_${moment(viewCaseManagerData.consultation_date).format('YYYY-MM-DD')}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (error) {
+        errorMessage('Failed to download prescription');
       }
-    } catch (error) {
-      errorMessage('Failed to download prescription');
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
+import { saveAs } from "file-saver";
 import Card from "react-bootstrap/Card";
 import { Table, Dropdown, Button, Spin, Drawer } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +52,7 @@ import {
   isValidMongoId,
   medicine_freq_dosage_format,
   sendMessageToParent,
+  errorMessage,
 } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -656,7 +658,107 @@ function Cardiology(props) {
     // navigate(0, { replace: true });
   };
 
-  // Expose print handlers to parent component via callback
+  const downloadContent = async () => {
+    try {
+      let downloadUrl;
+      if (showDigitalRx || showDigitalSnapRx) {
+        if (showDigitalRx) {
+          window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+            Doctor_Name: profile?.um_name,
+            Doctor_Number: profile?.um_contact,
+            Doctor_Unique_Id: profile?.doctor_unique_id,
+          });
+        }
+        if (!printUrl) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        downloadUrl = `${printUrl}&lg=${selectedLang}`;
+      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+        if (!viewCaseManagerData?.print_url) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        try {
+          const urlObj = new URL(viewCaseManagerData.print_url);
+          if (isAmbientRx) {
+            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+            urlObj.searchParams.set("rxDigitize", "false");
+          } else {
+            urlObj.searchParams.set("voiceRxDigitize", "true");
+          }
+          const updatedUrl = urlObj.toString();
+          downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
+        } catch (error) {
+          console.error("Invalid download URL:", error);
+          errorMessage('Failed to generate download URL.');
+          return;
+        }
+      } else {
+        if (!viewCaseManagerData?.print_rx_url) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+      }
+
+      if (!downloadUrl) return;
+
+      const response = await axios({
+        url: downloadUrl,
+        method: 'GET',
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/pdf' 
+      });
+      const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      errorMessage('Failed to download prescription');
+    }
+  };
+
+  const downloadInAppContent = async () => {
+    let voiceRxUrl;
+    if (showDigitalGenRx) {
+      window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+        Doctor_Name: profile?.um_name,
+        Doctor_Number: profile?.um_contact,
+        Doctor_Unique_Id: profile?.doctor_unique_id,
+      });
+      if (!viewCaseManagerData?.print_url) {
+        errorMessage('Download URL is missing.');
+        return;
+      }
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        voiceRxUrl = urlObj.toString();
+      } catch (error) {
+        console.error("Invalid download URL:", error);
+        errorMessage('Failed to generate download URL.');
+        return;
+      }
+    }
+    const finalDownloadUrl =
+      showDigitalGenRx && voiceRxUrl
+        ? voiceRxUrl
+        : viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url;
+    if (!finalDownloadUrl) {
+      errorMessage('Download URL is missing.');
+      return;
+    }
+    sendMessageToParent(EVENTS.DOWNLOAD, { url: `${finalDownloadUrl}&lg=${selectedLang}` });
+  };
+
+  // Expose print and download handlers to parent component via callback
   useEffect(() => {
     if (onPrintHandlersReady && typeof onPrintHandlersReady === 'function') {
       onPrintHandlersReady({
@@ -665,6 +767,13 @@ function Cardiology(props) {
             printInAppContent();
           } else {
             printContent();
+          }
+        },
+        downloadContent: () => {
+          if (!isChrome && !isSafari) {
+            downloadInAppContent();
+          } else {
+            downloadContent();
           }
         },
       });
