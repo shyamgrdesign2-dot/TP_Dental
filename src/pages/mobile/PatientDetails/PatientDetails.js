@@ -11,7 +11,7 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
-import { getClinicName, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import { getClinicName, getClinic, errorMessage, sendMessageToParent } from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
@@ -336,6 +336,30 @@ function PatientDetails() {
     });
   };
 
+  const handleVoiceRxClick = useCallback(() => {
+    if (profile && window.Moengage) {
+      const clinic = getClinic(profile?.hospital_data);
+      window.Moengage.track_event("TP_AV_Entry", {
+        patient_id: patient_data?.patient_unique_id || patient_data?.pm_pid || "",
+        patient_name: patient_data?.pm_fullname || "",
+        patient_mobile_number: patient_data?.pm_contact_no || "",
+        doctor_id: profile?.doctor_unique_id,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        doctor_mobile_number: profile?.um_contact,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+        source: "Patient Details",
+      });
+    }
+    navigate('/voice-rx-consult', {
+      state: { 
+        patient_data: patient_data,
+        isFromTabView: true
+      },
+    });
+  }, [navigate, profile, patient_data]);
+
   // Handle Edit Prescription
   const handleEditRx = async () => {
     if (!viewCaseManagerData?.tcm_id) return;
@@ -510,6 +534,8 @@ function PatientDetails() {
           profileSection={
             showProfile ? <PatientProfileSection patient_data={patient_data} /> : null
           }
+          patient_data={patient_data}
+          onVoiceRxClick={handleVoiceRxClick}
         />
 
         <PatientTabs

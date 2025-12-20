@@ -23,12 +23,10 @@ function PatientProfileSection({ patient_data }) {
     
     const parts = [];
     
-    // Gender
     if (patient_data?.pm_gender) {
       parts.push(patient_data.pm_gender[0].toUpperCase());
     }
     
-    // Age
     let ageStr = '';
     if (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) {
       if (patient_data?.ageYears != 0) {
@@ -53,15 +51,14 @@ function PatientProfileSection({ patient_data }) {
       parts.push(ageStr.trim());
     }
     
-    // Phone number
     if (patient_data?.pm_contact_no) {
       parts.push(patient_data.pm_contact_no);
     }
     
-    // MRN
-    const mrn = patient_data?.pm_reference_id || patient_data?.tpml_refrence_id;
-    if (mrn) {
-      parts.push(`MRN${mrn}`);
+    const mrn = patients_details?.pm_reference_id || patient_data?.pm_reference_id || patient_data?.tpml_refrence_id;
+    const patientId = mrn || patient_data?.pm_pid;
+    if (patientId) {
+      parts.push(patientId);
     }
     
     return parts.length > 0 ? parts.join(' | ') : 'N/A';
