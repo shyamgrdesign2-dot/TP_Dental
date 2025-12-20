@@ -90,6 +90,7 @@ function Cardiology(props) {
     viewCaseManagerData,
     nextPress,
     prevPress,
+    onPrintHandlersReady,
   } = props;
 
   const [customModulesRxData, setCustomModulesRxData] = useState([]);
@@ -654,6 +655,22 @@ function Cardiology(props) {
     // });
     // navigate(0, { replace: true });
   };
+
+  // Expose print handlers to parent component via callback
+  useEffect(() => {
+    if (onPrintHandlersReady && typeof onPrintHandlersReady === 'function') {
+      onPrintHandlersReady({
+        printContent: () => {
+          if (!isChrome && !isSafari) {
+            printInAppContent();
+          } else {
+            printContent();
+          }
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData]);
 
   const handleEditRxClick = () => {
     window.Moengage.track_event("edit_rx_click", {

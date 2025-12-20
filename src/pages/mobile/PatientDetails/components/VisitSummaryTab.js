@@ -17,6 +17,7 @@ function VisitSummaryTab({
   onDownloadRx,
   onPrintRx,
   onRepeatRx,
+  onCardiologyPrintHandlersReady,
 }) {
   return (
     <div className="visit-summary-tab">
@@ -29,6 +30,7 @@ function VisitSummaryTab({
           viewCaseManagerData={viewCaseManagerData}
           nextPress={nextPress}
           prevPress={prevPress}
+          onPrintHandlersReady={onCardiologyPrintHandlersReady}
         />
       </div>
 

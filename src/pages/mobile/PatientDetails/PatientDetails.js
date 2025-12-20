@@ -56,6 +56,7 @@ function PatientDetails() {
   const location = useLocation();
   const { isMobile, isPWA } = useDeviceType();
   const scrollContainerRef = useRef(null);
+  const cardiologyPrintHandlerRef = useRef(null);
 
   const { state } = useLocation();
   const { patient_data, sidebarKey: initialSidebarKey } = state || {};
@@ -383,16 +384,24 @@ function PatientDetails() {
     }
   };
 
-  // Handle Print Prescription
-  const handlePrintRx = () => {
-    if (!viewCaseManagerData?.print_rx_url) return;
+  // Callback to receive print handlers from Cardiology component
+  const handleCardiologyPrintHandlersReady = useCallback((handlers) => {
+    cardiologyPrintHandlerRef.current = handlers;
+  }, []);
 
-    if (!isChrome && !isSafari) {
-      // In-app print
-      sendMessageToParent(EVENTS.PRINT, { url: viewCaseManagerData.print_rx_url });
+  // Handle Print Prescription - Use same logic as Cardiology component
+  const handlePrintRx = () => {
+    if (cardiologyPrintHandlerRef.current && cardiologyPrintHandlerRef.current.printContent) {
+      // Use Cardiology's print function (handles Digital Rx, Voice Rx, language, etc.)
+      cardiologyPrintHandlerRef.current.printContent();
     } else {
-      // Browser print
-      window.open(viewCaseManagerData.print_rx_url, '_blank');
+      // Fallback to simple print if handlers not ready yet
+      if (!viewCaseManagerData?.print_rx_url) return;
+      if (!isChrome && !isSafari) {
+        sendMessageToParent(EVENTS.PRINT, { url: viewCaseManagerData.print_rx_url });
+      } else {
+        window.open(viewCaseManagerData.print_rx_url, '_blank');
+      }
     }
   };
 
@@ -516,6 +525,7 @@ function PatientDetails() {
             onDownloadRx={handleDownloadRx}
             onPrintRx={handlePrintRx}
             onRepeatRx={handleRepeatRx}
+            onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}
           />
         )}
 
