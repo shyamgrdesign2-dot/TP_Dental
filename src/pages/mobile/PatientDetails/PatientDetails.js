@@ -12,11 +12,12 @@ import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
 import { getClinicName, errorMessage, sendMessageToParent } from '../../../utils/utils';
-import { PATIENT_DETAILS_SIDEBAR_KEYS } from '../../../utils/constants';
+import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
 import { useOpdBilling } from '../../opdBilling/useOpdBilling';
 import { isChrome, isSafari } from 'react-device-detect';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
 
 // Components
 import DetailsHeader from './components/DetailsHeader';
@@ -73,6 +74,12 @@ function PatientDetails() {
   const { isVaccinationAccessable, isGrowthChartAccessable } = useAccess(
     patient_data?.ageYears
   );
+
+  // Determine Rx type for Edit handler
+  const smartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
+  const isSnapRx = smartPrescriptionFilename?.includes('snap_rx');
+  const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
+  const isSmartRxFile = smartPrescriptionFilename?.includes('.jpeg');
 
   const [selectedTab, setSelectedTab] = useState(
     initialSidebarKey || PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY
@@ -339,36 +346,43 @@ function PatientDetails() {
       rx_date: viewCaseManagerData?.consultation_date,
     });
 
-    try {
-      const sendData = {
-        patient_unique_id: patient_data?.patient_unique_id || 0,
-        tcm_id: viewCaseManagerData.tcm_id,
-      };
-      const action = await dispatch(viewCaseManager(sendData));
-      
-      if (action.meta.requestStatus === 'fulfilled') {
-        navigate('/prescription', {
-          state: {
-            patient_data: patient_data,
-            send_path: 'patient_details',
-            caseManagerData: action.payload,
-          },
-        });
-      } else {
-        errorMessage(action.error || 'Failed to load prescription data');
-      }
-    } catch (error) {
-      errorMessage(error.message || 'Failed to edit prescription');
+    if (isSnapRx && isSnapRxAccessableFromGB) {
+      return navigate('/snap-rx', {
+        state: {
+          patient_data: patient_data,
+          caseManagerData: viewCaseManagerData,
+        },
+      });
     }
+    
+    if (isSmartRxFile) {
+      navigate('/smart-prescription', {
+        state: {
+          patient_data: patient_data,
+          caseManagerData: viewCaseManagerData,
+          smartRxFilesData: [],
+        },
+      });
+      return;
+    }
+    
+    // Set default voice service - prescription page will determine correct mode (ambient vs dictate) when loading
+    window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+    
+    navigate('/prescription', {
+      state: {
+        patient_data: patient_data,
+        send_path: 'patient_details',
+        caseManagerData: viewCaseManagerData,
+      },
+    });
   };
 
-  // Handle Download Prescription - Use same logic as Cardiology component
+  // Handle Download Prescription
   const handleDownloadRx = () => {
-    if (cardiologyPrintHandlerRef.current && cardiologyPrintHandlerRef.current.downloadContent) {
-      // Use Cardiology's download function (handles Digital Rx, Voice Rx, language, etc.)
-      cardiologyPrintHandlerRef.current.downloadContent();
-    } else {
-      // Fallback to simple download if handlers not ready yet
+      if (cardiologyPrintHandlerRef.current?.downloadContent) {
+        cardiologyPrintHandlerRef.current.downloadContent();
+      } else {
       if (!viewCaseManagerData?.print_rx_url) return;
       try {
         if (!isChrome && !isSafari) {
@@ -387,18 +401,29 @@ function PatientDetails() {
     }
   };
 
-  // Callback to receive print handlers from Cardiology component
   const handleCardiologyPrintHandlersReady = useCallback((handlers) => {
     cardiologyPrintHandlerRef.current = handlers;
   }, []);
 
-  // Handle Print Prescription - Use same logic as Cardiology component
+  // Handle Print Prescription
   const handlePrintRx = () => {
-    if (cardiologyPrintHandlerRef.current && cardiologyPrintHandlerRef.current.printContent) {
-      // Use Cardiology's print function (handles Digital Rx, Voice Rx, language, etc.)
-      cardiologyPrintHandlerRef.current.printContent();
-    } else {
-      // Fallback to simple print if handlers not ready yet
+      if (cardiologyPrintHandlerRef.current?.printContent) {
+        cardiologyPrintHandlerRef.current.printContent();
+      } else {
+      if (!viewCaseManagerData?.print_rx_url) return;
+      if (!isChrome && !isSafari) {
+        sendMessageToParent(EVENTS.PRINT, { url: viewCaseManagerData.print_rx_url });
+      } else {
+        window.open(viewCaseManagerData.print_rx_url, '_blank');
+      }
+    }
+  };
+
+  // Handle Print Medicines Only
+  const handlePrintMedicinesOnly = () => {
+      if (cardiologyPrintHandlerRef.current?.printRxContent) {
+        cardiologyPrintHandlerRef.current.printRxContent();
+      } else {
       if (!viewCaseManagerData?.print_rx_url) return;
       if (!isChrome && !isSafari) {
         sendMessageToParent(EVENTS.PRINT, { url: viewCaseManagerData.print_rx_url });
@@ -528,6 +553,7 @@ function PatientDetails() {
             onDownloadRx={handleDownloadRx}
             onPrintRx={handlePrintRx}
             onRepeatRx={handleRepeatRx}
+            onPrintMedicinesOnly={handlePrintMedicinesOnly}
             onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}
           />
         )}

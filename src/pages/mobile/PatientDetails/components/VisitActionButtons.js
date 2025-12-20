@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import editIcon from '../../../../assets/mobile/edit-2.svg';
 import downloadIcon from '../../../../assets/mobile/Arrow Download.svg';
 import printIcon from '../../../../assets/mobile/Print.svg';
 import repeatIcon from '../../../../assets/mobile/Repeat.svg';
+import { isValidMongoId } from '../../../../utils/utils';
+import PrintOptionsModal from './PrintOptionsModal';
 import './VisitActionButtons.scss';
 
 function VisitActionButtons({
@@ -10,18 +12,20 @@ function VisitActionButtons({
   onDownload,
   onPrint,
   onRepeatRx,
+  onPrintMedicinesOnly,
   showEdit = true,
   currentPage = 1,
   totalPages = 1,
+  viewCaseManagerData,
 }) {
-  // Format page number with leading zeros (e.g., 01/12)
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
   const formatPageNumber = (page, total) => {
     const formattedPage = String(page).padStart(2, '0');
     const formattedTotal = String(total).padStart(2, '0');
     return `${formattedPage}/${formattedTotal}`;
   };
 
-  // Ensure handlers are functions before calling
   const handleEditClick = (e) => {
     e.preventDefault();
     if (onEdit && typeof onEdit === 'function') {
@@ -38,9 +42,7 @@ function VisitActionButtons({
 
   const handlePrintClick = (e) => {
     e.preventDefault();
-    if (onPrint && typeof onPrint === 'function') {
-      onPrint();
-    }
+    setIsPrintModalOpen(true);
   };
 
   const handleRepeatRxClick = (e) => {
@@ -50,11 +52,39 @@ function VisitActionButtons({
     }
   };
 
+  const handlePrintFromModal = () => {
+    if (onPrint && typeof onPrint === 'function') {
+      onPrint();
+    }
+  };
+
+  const handlePrintMedicinesOnlyFromModal = () => {
+    if (onPrintMedicinesOnly && typeof onPrintMedicinesOnly === 'function') {
+      onPrintMedicinesOnly();
+    }
+  };
+
+  const handleClosePrintModal = () => {
+    setIsPrintModalOpen(false);
+  };
+
+  const smartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
+  const isSmartRxFile = smartPrescriptionFilename?.includes('.jpeg');
+  const isSnapRx = smartPrescriptionFilename?.includes('snap_rx');
+  const isVoiceRx = isValidMongoId(smartPrescriptionFilename);
+
+  const showPrintMedicinesOnly = !isVoiceRx && (!isSmartRxFile && !isSnapRx);
+
+  const shouldShowEdit = showEdit && !isSmartRxFile;
+
+  const shouldShowPrint = true;
+
+  const shouldShowRepeatRx = !smartPrescriptionFilename?.length;
+
   return (
     <div className="visit-action-buttons">
-      {/* Action Buttons Row */}
       <div className="action-buttons-row">
-        {showEdit && (
+        {shouldShowEdit && (
           <button
             className="action-button icon-button"
             onClick={handleEditClick}
@@ -74,30 +104,41 @@ function VisitActionButtons({
           <img src={downloadIcon} alt="Download" />
         </button>
         
-        <button
-          className="action-button icon-button"
-          onClick={handlePrintClick}
-          type="button"
-          aria-label="Print"
-        >
-          <img src={printIcon} alt="Print" />
-        </button>
+        {shouldShowPrint && (
+          <button
+            className="action-button icon-button"
+            onClick={handlePrintClick}
+            type="button"
+            aria-label="Print"
+          >
+            <img src={printIcon} alt="Print" />
+          </button>
+        )}
         
-        <button
-          className="action-button repeat-button"
-          onClick={handleRepeatRxClick}
-          type="button"
-          aria-label="Repeat Rx"
-        >
-          <img src={repeatIcon} alt="Repeat" className="repeat-icon" />
-          <span className="repeat-text">Repeat Rx</span>
-        </button>
+        {shouldShowRepeatRx && (
+          <button
+            className="action-button repeat-button"
+            onClick={handleRepeatRxClick}
+            type="button"
+            aria-label="Repeat Rx"
+          >
+            <img src={repeatIcon} alt="Repeat" className="repeat-icon" />
+            <span className="repeat-text">Repeat Rx</span>
+          </button>
+        )}
       </div>
-      
-      {/* Page Number Display */}
+
       <div className="page-number-display">
         {formatPageNumber(currentPage, totalPages)}
       </div>
+
+      <PrintOptionsModal
+        visible={isPrintModalOpen}
+        onClose={handleClosePrintModal}
+        onPrintClick={handlePrintFromModal}
+        onPrintMedicinesOnlyClick={handlePrintMedicinesOnlyFromModal}
+        showPrintMedicinesOnly={showPrintMedicinesOnly}
+      />
     </div>
   );
 }

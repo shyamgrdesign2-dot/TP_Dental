@@ -17,11 +17,11 @@ function VisitSummaryTab({
   onDownloadRx,
   onPrintRx,
   onRepeatRx,
+  onPrintMedicinesOnly,
   onCardiologyPrintHandlersReady,
 }) {
   return (
     <div className="visit-summary-tab">
-      {/* Visit Details - Shown first on mobile */}
       <div className="summary-visit-details">
         <Cardiology
           patient_data={patient_data}
@@ -34,17 +34,17 @@ function VisitSummaryTab({
         />
       </div>
 
-
-      {/* Fixed Bottom Action Buttons - Edit, Download, Print, Repeat Rx with Page Number */}
       {viewCaseManagerData && (
         <VisitActionButtons
           onEdit={onEditRx}
           onDownload={onDownloadRx}
           onPrint={onPrintRx}
           onRepeatRx={onRepeatRx}
+          onPrintMedicinesOnly={onPrintMedicinesOnly}
           showEdit={viewCaseManagerData?.doctor_data?.editCase}
           currentPage={tcmData?.page || 1}
           totalPages={viewCaseManagerData?.total_consultation || 1}
+          viewCaseManagerData={viewCaseManagerData}
         />
       )}
     </div>

@@ -758,7 +758,6 @@ function Cardiology(props) {
     sendMessageToParent(EVENTS.DOWNLOAD, { url: `${finalDownloadUrl}&lg=${selectedLang}` });
   };
 
-  // Expose print and download handlers to parent component via callback
   useEffect(() => {
     if (onPrintHandlersReady && typeof onPrintHandlersReady === 'function') {
       onPrintHandlersReady({
@@ -774,6 +773,13 @@ function Cardiology(props) {
             downloadInAppContent();
           } else {
             downloadContent();
+          }
+        },
+        printRxContent: () => {
+          if (!isChrome && !isSafari) {
+            printRxInAppContent();
+          } else {
+            printRxContent();
           }
         },
       });

@@ -109,9 +109,8 @@ function PatientHistoryTab({
       id: 'gynec-history',
       label: 'Gynec History',
       icon: notesIcon,
-      // Note: Not in web version yet, but included per mobile design requirements
-      visible: false, // Hidden until component is implemented
-      component: null, // Component to be implemented
+      visible: false,
+      component: null,
     },
     {
       id: 'obstetric-history',
