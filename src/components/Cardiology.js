@@ -121,6 +121,7 @@ function Cardiology(props) {
   const [ambientConversations, setAmbientConversations] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
+  const [isPdfLoading, setIsPdfLoading] = useState(true);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -217,6 +218,19 @@ function Cardiology(props) {
       getPatientDefaultLanguage();
     }
   }, [defaultPrintSettings]);
+
+  // Reset PDF loading state when PDF URL changes (e.g., switching between Digital Rx and Written Rx)
+  useEffect(() => {
+    if (isMobile && viewCaseManagerData) {
+      const pdfUrl = getMobilePdfUrl();
+      if (pdfUrl) {
+        setIsPdfLoading(true);
+      } else {
+        // If URL is not available yet, keep loading state as true to show spinner
+        setIsPdfLoading(true);
+      }
+    }
+  }, [showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isMobile, viewCaseManagerData, selectedLang, isRxdigitised, isSnapRxdigitised, printUrl]);
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
@@ -758,6 +772,44 @@ function Cardiology(props) {
     sendMessageToParent(EVENTS.DOWNLOAD, { url: `${finalDownloadUrl}&lg=${selectedLang}` });
   };
 
+  // Get PDF URL for mobile iframe
+  const getMobilePdfUrl = () => {
+    // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
+      return showDigitalRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSnapRx && isSnapRxdigitised) {
+      return showDigitalSnapRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
+    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      if (!viewCaseManagerData?.print_url) return null;
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        return `${urlObj.toString()}&lg=${selectedLang}`;
+      } catch (error) {
+        console.error("Invalid URL:", error);
+        return null;
+      }
+    }
+    
+    // Default: use print_rx_url for regular prescriptions
+    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
+  };
+
   useEffect(() => {
     if (onPrintHandlersReady && typeof onPrintHandlersReady === 'function') {
       onPrintHandlersReady({
@@ -782,10 +834,11 @@ function Cardiology(props) {
             printRxContent();
           }
         },
+        editRx: handleEditRxClick,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData]);
+  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
 
   const handleEditRxClick = () => {
     window.Moengage.track_event("edit_rx_click", {
@@ -1551,9 +1604,10 @@ function Cardiology(props) {
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
-      <Card className="">
+      <Card className="" style={isMobile ? { border: 'none' } : {}}>
         {viewCaseManagerData ? (
           <>
+            {!isMobile && (
             <Card.Header className="bg-white py-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
@@ -1684,6 +1738,7 @@ function Cardiology(props) {
                 </div>
               </div>
             </Card.Header>
+            )}
 
             {isSmartSyncCVTAccessableFromGB &&
               isSmartRxFile &&
@@ -1691,13 +1746,14 @@ function Cardiology(props) {
               rxDigitisedData &&
               !isSnapRx &&
               (isRxdigitised ? (
-                <div className="p-2 mb-2">
+                <div className={isMobile ? "py-2 mb-2 px-0" : "p-2 mb-2"} style={isMobile ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalRx(true)}
                   >
                     Digital Rx
@@ -1708,6 +1764,7 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalRx(false)}
                   >
                     Written Rx
@@ -1758,13 +1815,14 @@ function Cardiology(props) {
             {isSnapRxDigitizationAccessable &&
               isSnapRx &&
               (isSnapRxdigitised ? (
-                <div className="p-2 mb-2">
+                <div className={isMobile ? "py-2 mb-2 px-0" : "p-2 mb-2"} style={isMobile ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalSnapRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalSnapRx(true)}
                   >
                     Digital Rx
@@ -1775,6 +1833,7 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalSnapRx(false)}
                   >
                     Written Rx
@@ -1826,13 +1885,14 @@ function Cardiology(props) {
               ) &&
               !isSmartRxFile &&
               !loading && (
-                <div className="p-2 m-2">
+                <div className={isMobile ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={isMobile ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalGenRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalGenRx(true)}
                   >
                     Digital Rx
@@ -1843,6 +1903,7 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={isMobile ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalGenRx(false)}
                   >
                     Transcript
@@ -1863,16 +1924,87 @@ function Cardiology(props) {
                 handleCollapsed={(flag) => handleCollapsed(flag)}
               />
             </Drawer>
-            {loading ? (
+            {/* Mobile view: Show PDF in iframe */}
+            {isMobile && !loading && viewCaseManagerData && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                {(() => {
+                  const pdfUrl = getMobilePdfUrl();
+                  if (pdfUrl) {
+                    return (
+                      <>
+                        {isPdfLoading && (
+                          <>
+                            <div style={{
+                              position: 'fixed',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              pointerEvents: 'none',
+                            }} />
+                            <div style={{
+                              position: 'fixed',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              flexDirection: 'column',
+                              gap: '16px',
+                              zIndex: 9999,
+                              pointerEvents: 'none',
+                            }}>
+                              <Spin size="small" />
+                              <div style={{ fontSize: '14px', color: '#666' }}>Loading Prescription ...</div>
+                            </div>
+                          </>
+                        )}
+                        <iframe
+                          src={pdfUrl}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            border: 'none',
+                            display: isPdfLoading ? 'none' : 'block',
+                          }}
+                          title="Prescription PDF"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          onLoad={() => setIsPdfLoading(false)}
+                          onError={() => setIsPdfLoading(false)}
+                        />
+                      </>
+                    );
+                  }
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                      flexDirection: 'column',
+                      gap: '16px',
+                    }}>
+                      <Spin size="small" />
+                      <div style={{ fontSize: '14px', color: '#666' }}>Loading Prescription ...</div>
+                    </div>
+                  );
+                })()}
+              </Card.Body>
+            )}
+            {/* Web/Tablet view: Show original content */}
+            {!isMobile && loading ? (
               <div
                 className="d-flex flex-column justify-content-center"
                 style={{ height: "calc(100vh - 218px)" }}
               >
                 <div className="align-items-center text-center">
-                  <Spin />
+                  <Spin size="small" />
                 </div>
               </div>
-            ) : genRxData &&
+            ) : !isMobile && genRxData &&
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
@@ -2074,7 +2206,7 @@ function Cardiology(props) {
                   </div>
                 )}
               </div>
-            ) : isSmartRxFile && !isSnapRx ? (
+            ) : !isMobile && isSmartRxFile && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
@@ -2361,7 +2493,7 @@ function Cardiology(props) {
                   )}
                 </div>
               </div>
-            ) : isSnapRx && isSnapRxAccessableFromGB ? (
+            ) : !isMobile && isSnapRx && isSnapRxAccessableFromGB ? (
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
                   <div className="m-4">
@@ -2612,7 +2744,7 @@ function Cardiology(props) {
                   </>
                 )}
               </div>
-            ) : (
+            ) : !isMobile && (
               <Card.Body className="p-0 cardbody-data">
                 <div>
                   <div className="p-3 pb-0">
@@ -2871,7 +3003,7 @@ function Cardiology(props) {
           >
             {loading ? (
               <div className="align-items-center text-center">
-                <Spin />
+                <Spin size="small" />
               </div>
             ) : (
               <div className="align-items-center text-center">

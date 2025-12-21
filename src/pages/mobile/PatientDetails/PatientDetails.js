@@ -360,49 +360,50 @@ function PatientDetails() {
     });
   }, [navigate, profile, patient_data]);
 
-  // Handle Edit Prescription
   const handleEditRx = async () => {
     if (!viewCaseManagerData?.tcm_id) return;
     
-    window.Moengage?.track_event('edit_rx_click', {
-      doctor_id: profile?.doctor_unique_id,
-      patient_id: patient_data?.patient_unique_id || 0,
-      rx_date: viewCaseManagerData?.consultation_date,
-    });
+    if (cardiologyPrintHandlerRef.current?.editRx) {
+      cardiologyPrintHandlerRef.current.editRx();
+    } else {
+      window.Moengage?.track_event('edit_rx_click', {
+        doctor_id: profile?.doctor_unique_id,
+        patient_id: patient_data?.patient_unique_id || 0,
+        rx_date: viewCaseManagerData?.consultation_date,
+      });
 
-    if (isSnapRx && isSnapRxAccessableFromGB) {
-      return navigate('/snap-rx', {
+      if (isSnapRx && isSnapRxAccessableFromGB) {
+        return navigate('/snap-rx', {
+          state: {
+            patient_data: patient_data,
+            caseManagerData: viewCaseManagerData,
+          },
+        });
+      }
+      
+      if (isSmartRxFile) {
+        navigate('/smart-prescription', {
+          state: {
+            patient_data: patient_data,
+            caseManagerData: viewCaseManagerData,
+            smartRxFilesData: [],
+          },
+        });
+        return;
+      }
+      
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+      
+      navigate('/prescription', {
         state: {
           patient_data: patient_data,
+          send_path: 'patient_details',
           caseManagerData: viewCaseManagerData,
         },
       });
     }
-    
-    if (isSmartRxFile) {
-      navigate('/smart-prescription', {
-        state: {
-          patient_data: patient_data,
-          caseManagerData: viewCaseManagerData,
-          smartRxFilesData: [],
-        },
-      });
-      return;
-    }
-    
-    // Set default voice service - prescription page will determine correct mode (ambient vs dictate) when loading
-    window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-    
-    navigate('/prescription', {
-      state: {
-        patient_data: patient_data,
-        send_path: 'patient_details',
-        caseManagerData: viewCaseManagerData,
-      },
-    });
   };
 
-  // Handle Download Prescription
   const handleDownloadRx = () => {
       if (cardiologyPrintHandlerRef.current?.downloadContent) {
         cardiologyPrintHandlerRef.current.downloadContent();
@@ -429,7 +430,6 @@ function PatientDetails() {
     cardiologyPrintHandlerRef.current = handlers;
   }, []);
 
-  // Handle Print Prescription
   const handlePrintRx = () => {
       if (cardiologyPrintHandlerRef.current?.printContent) {
         cardiologyPrintHandlerRef.current.printContent();
@@ -443,7 +443,6 @@ function PatientDetails() {
     }
   };
 
-  // Handle Print Medicines Only
   const handlePrintMedicinesOnly = () => {
       if (cardiologyPrintHandlerRef.current?.printRxContent) {
         cardiologyPrintHandlerRef.current.printRxContent();
@@ -457,7 +456,6 @@ function PatientDetails() {
     }
   };
 
-  // Handle Repeat Rx
   const handleRepeatRx = () => {
     if (!viewCaseManagerData) return;
 
@@ -558,11 +556,6 @@ function PatientDetails() {
       )}
 
       <div className="patient-content" ref={scrollContainerRef}>
-        {loading && (
-          <div className="loading-container">
-            <Spin size="large" />
-          </div>
-        )}
 
         {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY && (
           <VisitSummaryTab

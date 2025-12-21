@@ -1,5 +1,4 @@
 .visit-date-selector {
-//   background: linear-gradient(90deg, rgba(164, 97, 216, 0.04) 0%, rgba(164, 97, 216, 0.20) 50%, rgba(164, 97, 216, 0.04) 100%);
   padding: 10px 14px;
   display: flex;
   align-items: center;
@@ -10,9 +9,6 @@
   transition: background 0.2s ease;
   background: #FFF;
   box-shadow: 0 0 12px 0 rgba(0, 0, 0, 0.06);
-//   &:active {
-//     background: linear-gradient(90deg, rgba(164, 97, 216, 0.06) 0%, rgba(164, 97, 216, 0.25) 50%, rgba(164, 97, 216, 0.06) 100%);
-//   }
 
   .date-nav-button {
     background: transparent;
