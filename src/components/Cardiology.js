@@ -1962,7 +1962,7 @@ function Cardiology(props) {
                           </>
                         )}
                         <iframe
-                          src={pdfUrl}
+                          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                           style={{
                             width: '100%',
                             height: '100%',
@@ -1970,8 +1970,7 @@ function Cardiology(props) {
                             display: isPdfLoading ? 'none' : 'block',
                           }}
                           title="Prescription PDF"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
+                          type="application/pdf"
                           onLoad={() => setIsPdfLoading(false)}
                           onError={() => setIsPdfLoading(false)}
                         />

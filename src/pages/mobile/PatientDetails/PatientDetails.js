@@ -526,7 +526,7 @@ function PatientDetails() {
       {/* Header Wrapper with Background, Header, Profile Section and Tabs */}
       <div className="patient-header-wrapper">
         <DetailsHeader
-          onBack={handleBack}
+        onBack={handleBack}
           title={showProfile ? null : patient_data?.pm_fullname || "Patient Details"}
           onEdit={handleOpenOptionsModal}
           profileSection={
@@ -536,10 +536,10 @@ function PatientDetails() {
           onVoiceRxClick={handleVoiceRxClick}
         />
 
-        <PatientTabs
-          tabs={tabs}
-          selectedTab={selectedTab}
-          onTabChange={handleTabChange}
+      <PatientTabs
+        tabs={tabs}
+        selectedTab={selectedTab}
+        onTabChange={handleTabChange}
           showProfile={showProfile}
         />
       </div>
@@ -552,7 +552,7 @@ function PatientDetails() {
           onNext={prevPress}
           hasPrevious={!!viewCaseManagerData?.next_tcm_id}
           hasNext={!!viewCaseManagerData?.prev_tcm_id}
-        />
+      />
       )}
 
       <div className="patient-content" ref={scrollContainerRef}>

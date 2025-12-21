@@ -17,6 +17,8 @@ function VisitActionButtons({
   currentPage = 1,
   totalPages = 1,
   viewCaseManagerData,
+  hidePageNumber = false,
+  skipPrintModal = false,
 }) {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -42,7 +44,13 @@ function VisitActionButtons({
 
   const handlePrintClick = (e) => {
     e.preventDefault();
-    setIsPrintModalOpen(true);
+    if (skipPrintModal) {
+      if (onPrint && typeof onPrint === 'function') {
+        onPrint();
+      }
+    } else {
+      setIsPrintModalOpen(true);
+    }
   };
 
   const handleRepeatRxClick = (e) => {
@@ -128,9 +136,11 @@ function VisitActionButtons({
         )}
       </div>
 
-      <div className="page-number-display">
-        {formatPageNumber(currentPage, totalPages)}
-      </div>
+      {!hidePageNumber && (
+        <div className="page-number-display">
+          {formatPageNumber(currentPage, totalPages)}
+        </div>
+      )}
 
       <PrintOptionsModal
         visible={isPrintModalOpen}

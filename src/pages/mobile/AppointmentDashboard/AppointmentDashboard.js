@@ -31,6 +31,7 @@ import CancelAppointmentModal from './components/CancelAppointmentModal';
 import WalkInConsultationModal from './components/WalkInConsultationModal';
 import MoreOptionsModal from './components/MoreOptionsModal';
 import EndVisitModal from './components/EndVisitModal';
+import RxPreviewModal from './components/RxPreviewModal';
 
 import './AppointmentDashboard.scss';
 
@@ -74,6 +75,8 @@ function AppointmentDashboard() {
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showDateSelector, setShowDateSelector] = useState(false);
+  const [showRxPreviewModal, setShowRxPreviewModal] = useState(false);
+  const [selectedRxAppointment, setSelectedRxAppointment] = useState(null);
   const [dateDisplayText, setDateDisplayText] = useState('Today');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [endVisitLoading, setEndVisitLoading] = useState(false);
@@ -361,8 +364,9 @@ function AppointmentDashboard() {
 
   // Handle view Rx click
   const handleViewRxClick = useCallback((record) => {
-    navigate('/prescription', { state: { patient_data: record } });
-  }, [navigate]);
+    setSelectedRxAppointment(record);
+    setShowRxPreviewModal(true);
+  }, []);
 
   // Handle cancel appointment
   const handleCancelAppointment = useCallback((record) => {
@@ -776,6 +780,16 @@ function AppointmentDashboard() {
         onDateSelect={handleDateSelect}
         selectedTab={selectedTab}
         currentDate={date.startDate}
+      />
+
+      {/* Rx Preview Modal */}
+      <RxPreviewModal
+        visible={showRxPreviewModal}
+        onClose={() => {
+          setShowRxPreviewModal(false);
+          setSelectedRxAppointment(null);
+        }}
+        appointment={selectedRxAppointment}
       />
 
       {/* Bottom Navigation */}
