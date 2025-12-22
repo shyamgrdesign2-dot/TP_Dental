@@ -1030,6 +1030,7 @@ export default function BillingTable({
             patientAdvanceData={patientData ? patientAdvanceData : ""}
             totalAdvanceBalance={totalAdvanceBalance}
             showHideSubModal={showHideSubModal}
+            billType={billType}
           />
         </Row>
 
