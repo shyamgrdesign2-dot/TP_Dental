@@ -498,6 +498,7 @@ function BillingDashboard({ patientData, fromPath }) {
             onClose={showHideBackModal}
             width="100%"
             push={false}
+            // zIndex={9999}
           >
             <CreateBill
               handleCreateBillDrawer={handleCreateBillDrawer}
