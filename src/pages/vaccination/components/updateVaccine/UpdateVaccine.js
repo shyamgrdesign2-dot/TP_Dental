@@ -660,7 +660,11 @@ const UpdateVaccine = ({
                                   option,
                                   i
                                 );
-                                setIsOpen(prev => ({ ...prev, [i]: false }));
+                                setIsOpen((prev) => {
+                                  const newState = [...prev];
+                                  newState[i] = false;
+                                  return newState;
+                                });
                               }}
                               style={{
                                 padding: '8px 12px',
