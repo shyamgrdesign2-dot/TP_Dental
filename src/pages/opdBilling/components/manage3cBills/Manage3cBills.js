@@ -537,15 +537,6 @@ const Manage3cBills = forwardRef(
             >
               <i className="icon-Print"></i>
             </button>
-            <button
-              className="btn p-0"
-              onClick={() => {
-                handleEditBillDrawer(record, true);
-                setEditBillData(record);
-              }}
-            >
-              <i className="icon-Edit"></i>
-            </button>
           </div>
         ),
       },
@@ -771,6 +762,7 @@ const Manage3cBills = forwardRef(
                 billData={billData}
                 totalAdvanceBalance={patientWalletBalance}
                 handleEditBillDrawer={() => handleEditBillDrawer(null, true)}
+                isPreviewForm3c={true}
               />
             </Drawer>
           )}
