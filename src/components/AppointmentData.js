@@ -44,6 +44,7 @@ import {
   isMunshiHospital,
   isVoiceRxFree,
   shouldMonetizationDisabled,
+  handleAdmitToIpd,
 } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import {
@@ -74,9 +75,12 @@ import {
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
   GB_VIDEO_CONSULT,
+  GB_NEW_IPD,
+  GB_NEW_IPD_HOS_BUSINESS_ID,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
+import config from "../config";
 import noData from "../assets/images/nodata-found.svg";
 import visitEnd from "../assets/images/end-visit.svg";
 import ImgcancelEnd from "../assets/images/cancel-visit.svg";
@@ -387,6 +391,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
+  const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+  const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+    GB_NEW_IPD_HOS_BUSINESS_ID
+  );
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -575,6 +583,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
+
     if (
       tokenData?.hospital_business_id == env.zydus_business_id &&
       isZydusUserAccessableFromGB
@@ -1120,6 +1129,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
   };
 
+  const tokenData = decodedToken?.result;
+  const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
+
   const getMenuItems = (record) => {
     const items = [
       {
@@ -1228,6 +1240,20 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "certificate",
       },
+      ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !isZydusAccount)
+        ? {
+            label: (
+              <span
+                onClick={() => {
+                  handleAdmitToIpd(record);
+                }}
+              >
+                Admit to IPD
+              </span>
+            ),
+            key: "admitToIpd",
+          }
+        : undefined,
       {
         label: (
           <span
@@ -2952,6 +2978,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       },
     });
   };
+
 
   return (
     <>

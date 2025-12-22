@@ -24,6 +24,10 @@ import AbhaIcon from '../assets/images/abha-svg.svg'
 import LeftArrow from '../assets/images/left-arrow.svg'
 import AbhaDrawer from '../components/abha/AbhaDrawer';
 import { getAbhaDomainSuffix } from '../components/abha/helpers';
+import { handleAdmitToIpd } from '../utils/utils';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
+import HospitalBedIcon from "../assets/images/bed-with-h.svg"
 
 function SidebarPatient({ 
     collapsed, 
@@ -31,7 +35,9 @@ function SidebarPatient({
     viewCaseManagerData, 
     sidebarKey, 
     onClickSidebarHandle, 
-    abhaConsentsCount 
+    abhaConsentsCount,
+    patientAdmissionStatus,
+    isCheckingAdmission
 }) {
     const dispatch = useDispatch();
     const { profile } = useSelector((state) => state.doctors);
@@ -43,6 +49,12 @@ function SidebarPatient({
     const { isOpdBillChecked } = useSelector((state) => state.billing);
     const { isOpdBillingAccessable } = useOpdBilling();
     const [abhaDrawerOpen, setAbhaDrawerOpen] = useState(false);
+    const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+    const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+        GB_NEW_IPD_HOS_BUSINESS_ID
+    );
+    const isIPDAccessible = isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
+    const isAdmitted = patientAdmissionStatus?.alreadyAdmitted === true;
 
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
 
@@ -208,76 +220,105 @@ function SidebarPatient({
     }
 
     return (
-        <div>
-            <Popover
-                content={!isMobile ? content : null}
-                trigger="click"
-                className='cursor-pointer'
-                overlayClassName="pop-260 pp-20"
-            >
-                <div className={`d-flex align-items-center rounded-3 m-2 text-truncate ${collapsed ? '' : 'bg-body p-2'}`}>
-                    <div className={`rounded-pill patientProfile border ${collapsed ? 'mx-auto' : 'me-2'}`}>
-                        {makeDefaultLogo(patient_data?.pm_fullname)}
-                    </div>
-                    {!collapsed && (
-                        <div className='text-truncate'>
-                            <div className='patientName d-flex align-items-center'> <div className='text-truncate pt-2px'>{`${patient_data !== undefined ? patient_data.pm_fullname : "Hello Guest"}`}</div>
-                                <button className='btn p-0 ms-2 iconrotate270'><i className='icon-right'></i></button>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: '0 0 auto' }}>
+                <Popover
+                    content={!isMobile ? content : null}
+                    trigger="click"
+                    className='cursor-pointer'
+                    overlayClassName="pop-260 pp-20"
+                >
+                    <div className={`d-flex align-items-center rounded-3 m-2 text-truncate ${collapsed ? '' : 'bg-body p-2'}`}>
+                        <div className={`rounded-pill patientProfile border ${collapsed ? 'mx-auto' : 'me-2'}`}>
+                            {makeDefaultLogo(patient_data?.pm_fullname)}
+                        </div>
+                        {!collapsed && (
+                            <div className='text-truncate'>
+                                <div className='patientName d-flex align-items-center'> <div className='text-truncate pt-2px'>{`${patient_data !== undefined ? patient_data.pm_fullname : "Hello Guest"}`}</div>
+                                    <button className='btn p-0 ms-2 iconrotate270'><i className='icon-right'></i></button>
+                                </div>
+                                <p className='mb-0'>{patient_data !== undefined ? genderAge(patient_data) : `M, 30y`} {isPaediatric && patientDOB ? `(${patientDOB})` : ''}</p>
                             </div>
-                            <p className='mb-0'>{patient_data !== undefined ? genderAge(patient_data) : `M, 30y`} {isPaediatric && patientDOB ? `(${patientDOB})` : ''}</p>
+                        )}
+                    </div>
+                </Popover>
+                <hr />
+                {menu.map((item, index) => {
+                    return (
+                        <div key={index}>
+                            <Nav.Item className={collapsed && 'text-center'}>
+                                <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
+                                    {item.icon_image ? (
+                                        <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
+                                    ) : (
+                                        <i className={item.icon_name}></i>
+                                    )}
+                                    <div className={collapsed ? 'text-truncate' : 'ms-3'}>{collapsed ? item.short_title : item.long_title}</div>
+                                </Nav.Link>
+                            </Nav.Item>
+                            {/* {index == menu.length - 2 && <hr className='my-1' />} */}
+                        </div>
+                    )
+                })}
+                {(!patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable)
+                    ? (
+                        <div>
+                            <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
+                                <Nav.Link
+                                    className={`${!collapsed && 'd-flex align-items-center p-0'} sidebar-abha-link`}
+                                    onClick={handleAbhaDrawer}
+                                >
+                                    <div className="sidebar-icon-wrapper">
+                                        <img src={AbhaIcon} className="sidebar-abha-icon" alt="abha" />
+                                    </div>
+                                    <div className='sidebar_abha_text_container'>
+                                        {collapsed ? (
+                                            <div className="sidebar_abha_text_collapsed">
+                                                <div className="sidebar_abha_text_line">Create/Link</div>
+                                                <div className="sidebar_abha_text_line">ABHA</div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className={`sidebar_abha_text ms-3`}>
+                                                    Create/Link ABHA
+                                                </div>
+                                                <img src={LeftArrow} width={6} />
+                                            </>
+                                        )}
+                                    </div>
+                                </Nav.Link>
+                            </Nav.Item>
+                        </div>
+                    )
+                    : <></> // TODO: Show ABHA details if already linked
+                }
+            </div>
+            { tokenData?.hospital_business_id != config.zydus_business_id && 
+                <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: "2rem" }}>
+                    {isIPDAccessible && !isAdmitted && !isCheckingAdmission && (
+                        <div className="p-3">
+                            <div
+                                onClick={() => handleAdmitToIpd(patient_data)}
+                                style={{
+                                    border: '2px dashed #4B4AD5',
+                                    borderRadius: '8px',
+                                    padding: "8px",
+                                    cursor: 'pointer',
+                                    textAlign: collapsed ? 'center' : 'left',
+                                    backgroundColor: '#ffffff',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                <div className="d-flex flex-column align-items-center justify-content-center">
+                                    <div className="position-relative mb-1 fw-medium">
+                                        <img src={HospitalBedIcon} className='pe-2' height={25}/> 
+                                        <span className='main-color'>Adm IPD</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
-            </Popover>
-            <hr />
-            {menu.map((item, index) => {
-                return (
-                    <div key={index}>
-                        <Nav.Item className={collapsed && 'text-center'}>
-                            <Nav.Link className={`${item.key == sidebarKey && 'active'} ${!collapsed && 'd-flex align-items-center'}`} onClick={() => onClickSidebarHandle(item?.key)}>
-                                {item.icon_image ? (
-                                    <img src={item.icon_image} alt={item.long_title} style={{ width: '21px', height: '21px' }} />
-                                ) : (
-                                    <i className={item.icon_name}></i>
-                                )}
-                                <div className={collapsed ? 'text-truncate' : 'ms-3'}>{collapsed ? item.short_title : item.long_title}</div>
-                            </Nav.Link>
-                        </Nav.Item>
-                        {/* {index == menu.length - 2 && <hr className='my-1' />} */}
-                    </div>
-                )
-            })}
-            {(!patient_data?.abhaAddress && profile?.HipID && profile?.abhaEnable)
-                ? (
-                    <div>
-                        <Nav.Item className={`${collapsed && 'text-center'} sidebar_abha_link_container`}>
-                            <Nav.Link
-                                className={`${!collapsed && 'd-flex align-items-center p-0'} sidebar-abha-link`}
-                                onClick={handleAbhaDrawer}
-                            >
-                                <div className="sidebar-icon-wrapper">
-                                    <img src={AbhaIcon} className="sidebar-abha-icon" alt="abha" />
-                                </div>
-                                <div className='sidebar_abha_text_container'>
-                                    {collapsed ? (
-                                        <div className="sidebar_abha_text_collapsed">
-                                            <div className="sidebar_abha_text_line">Create/Link</div>
-                                            <div className="sidebar_abha_text_line">ABHA</div>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className={`sidebar_abha_text ms-3`}>
-                                                Create/Link ABHA
-                                            </div>
-                                            <img src={LeftArrow} width={6} />
-                                        </>
-                                    )}
-                                </div>
-                            </Nav.Link>
-                        </Nav.Item>
-                    </div>
-                )
-                : <></> // TODO: Show ABHA details if already linked
             }
             {abhaDrawerOpen && (
                 <AbhaDrawer

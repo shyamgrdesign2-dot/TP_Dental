@@ -611,9 +611,92 @@ const UpdateVaccine = ({
                   const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
                   const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
-                  const mergedOptions = isUserTyping
-                    ? regularOptions
-                    : frequentOptions?.length > 0 ? frequentOptions : regularOptions;
+                  
+                  // Options for the Select component - only regular options when showing custom dropdown
+                  const selectOptions = (() => {
+                    if (isUserTyping) {
+                      return regularOptions;
+                    }
+                    // When we have frequent options, we'll show them separately in dropdownRender
+                    // So only pass regular options to Select
+                    if (frequentOptions?.length > 0) {
+                      return regularOptions;
+                    }
+                    return regularOptions;
+                  })();
+                  
+                  // Custom dropdown render with sticky header
+                  const customDropdownRender = (menu) => {
+                    if (isUserTyping || frequentOptions?.length === 0) {
+                      return menu;
+                    }
+                    
+                    return (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        <div
+                          style={{
+                            backgroundColor: '#f5f5f5',
+                            padding: '8px 12px',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            color: '#666',
+                            borderBottom: '1px solid #e8e8e8',
+                            margin: 0
+                          }}
+                        >
+                          FREQUENTLY USED
+                        </div>
+                        {frequentOptions.map((option) => {
+                          const isSelected = selectedBrand === option.label || selectedBrand === option.value;
+                          return (
+                            <div
+                              key={option.value}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDetails(
+                                  vaccine?.tvac_name,
+                                  "vaccine_company_id",
+                                  option.value,
+                                  option,
+                                  i
+                                );
+                                setIsOpen((prev) => {
+                                  const newState = [...prev];
+                                  newState[i] = false;
+                                  return newState;
+                                });
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                backgroundColor: isSelected ? '#e6f7ff' : 'transparent'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }
+                              }}
+                            >
+                              {option.label}
+                            </div>
+                          );
+                        })}
+                        <div
+                          style={{
+                            height: '1px',
+                            backgroundColor: '#e8e8e8',
+                            margin: '8px 0'
+                          }}
+                        />
+                        {menu}
+                      </div>
+                    );
+                  };
                   return (
                     <>
                       <div className="d-flex justify-content-between">
@@ -656,6 +739,7 @@ const UpdateVaccine = ({
                         className="custom-select-style"
                         optionFilterProp="children"
                         value={selectedBrand}
+                        defaultActiveFirstOption={false}
                         filterOption={(input, option) =>
                           (option?.label ?? "")
                             ?.toLowerCase()
@@ -666,7 +750,8 @@ const UpdateVaccine = ({
                             .toLowerCase()
                             .localeCompare((optionB?.label ?? "").toLowerCase())
                         }
-                        options={mergedOptions}
+                        options={selectOptions}
+                        dropdownRender={customDropdownRender}
                         onSearch={(value) => {
                           if (value && value.trim().length > 0) {
                             setIsTyping((prev) => ({ ...prev, [i]: true }));
@@ -674,15 +759,15 @@ const UpdateVaccine = ({
                             setIsTyping((prev) => ({ ...prev, [i]: false }));
                           }
                         }}
-                        onChange={(value, option) =>
+                        onChange={(value, option) => {
                           handleDetails(
                             vaccine?.tvac_name,
                             "vaccine_company_id",
                             value,
                             option,
                             i
-                          )
-                        }
+                          );
+                        }}
                         defaultValue={vaccine?.brandId}
                         ref={(ref) => {
                           if (ref) selectRefs.current[i] = ref;

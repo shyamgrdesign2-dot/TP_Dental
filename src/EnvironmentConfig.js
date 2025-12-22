@@ -79,6 +79,7 @@ const dev = {
   doctor_portal_url: "https://pm-uat-doctor-portal.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
+  ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
 };
 
 const qa_tp = {
@@ -169,6 +170,7 @@ const qa_tp = {
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
+  ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
 };
 
 const qa = {
@@ -343,6 +345,7 @@ const uat = {
   zydus_voice_rx_expiry_date: "2025-11-01",
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
+  ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
 };
@@ -440,8 +443,9 @@ const prod = {
   doctor_portal_url: "https://tatvapractice.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   zydus_voice_rx_expiry_date: "2025-11-01",
-  FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475, 12476, 12477, 12576],
+  FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475, 12476, 12477, 12576, 21044, 14754, 11766, 11762], // added 21044 zydus id for testing one zydus user in prod
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
+  ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
 };

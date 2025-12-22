@@ -19,6 +19,7 @@ import { useSelector, useDispatch } from "react-redux";
 import {
     viewCaseManager,
 } from "../redux/caseManagerSlice";
+import { checkPatientAdmitted } from "../redux/ipdSlice";
 import VisitVaccination from "./vaccination/components/visitVaccination/VisitVaccination";
 import CertificateDetails from "../components/medical_certificate/CertificateDetails";
 import VisitGrowthChart from "./growthChart/components/visitGrowthChart/VisitGrowthChart";
@@ -82,6 +83,8 @@ function PatientDetails() {
     const abhaRecordsRef = useRef(null);
     const [abhaHeaderActions, setAbhaHeaderActions] = useState(null);
     const [abhaConsentsCount, setAbhaConsentsCount] = useState(null);
+    const [patientAdmissionStatus, setPatientAdmissionStatus] = useState(null);
+    const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
 
     useEffect(() => {
         setLocationPath(location.pathname);
@@ -158,6 +161,33 @@ function PatientDetails() {
       getIpdBillPrintSettings();
     }
     }, []);
+
+    // Check patient admission status on mount
+    useEffect(() => {
+        const checkAdmissionStatus = async () => {
+            const patientId = patient_data?.patient_unique_id || patient_data?.pm_pid || "";
+            if (patientId) {
+                setIsCheckingAdmission(true);
+                try {
+                    const result = await dispatch(
+                        checkPatientAdmitted({
+                            patientId: patientId,
+                        })
+                    );
+                    if (result.payload) {
+                        setPatientAdmissionStatus(result.payload);
+                    }
+                } catch (error) {
+                    console.warn("Could not check patient admission status:", error);
+                    setPatientAdmissionStatus(null);
+                } finally {
+                    setIsCheckingAdmission(false);
+                }
+            }
+        };
+
+        checkAdmissionStatus();
+    }, [patient_data?.patient_unique_id, patient_data?.pm_pid, dispatch]);
 
     const getBillPrintSettings = async () => {
         const printSettingsResponse = await fetchPrintSetting(userId);
@@ -240,7 +270,7 @@ function PatientDetails() {
                         </button>
                         {!isMobile && (<Button className={collapsed ? 'collapseborder border rounded-10px' : ''} style={collapsed && { marginRight: -12, backgroundColor: 'white', zIndex: 1, }} type="text" icon={collapsed ? <i className='icon-Expand fs-21'></i> : <i className='icon-Contract fs-21'></i>} onClick={() => setCollapsed(!collapsed)} />)}
                     </div>
-                    <SidebarPatient collapsed={collapsed} patient_data={patient_data} viewCaseManagerData={viewCaseManagerData} sidebarKey={sidebarKey} onClickSidebarHandle={onClickSidebarHandle} abhaConsentsCount={abhaConsentsCount} />
+                    <SidebarPatient collapsed={collapsed} patient_data={patient_data} viewCaseManagerData={viewCaseManagerData} sidebarKey={sidebarKey} onClickSidebarHandle={onClickSidebarHandle} abhaConsentsCount={abhaConsentsCount} patientAdmissionStatus={patientAdmissionStatus} isCheckingAdmission={isCheckingAdmission} />
                 </Sider>
 
                 <Content>
@@ -257,6 +287,7 @@ function PatientDetails() {
                                 handleUploadDocPopup={handleUploadDocPopup}
                                 handleDrawerUploadDoc={handleDrawerUploadDoc}
                                 abhaHeaderActions={abhaHeaderActions}
+                                patientAdmissionStatus={patientAdmissionStatus}
                             />
                         }
                         {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (

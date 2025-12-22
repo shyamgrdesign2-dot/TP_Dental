@@ -971,6 +971,13 @@
   }
 }
 
+.disclaimerText {
+  display: flex;
+  justify-content: center;
+  color: rgba(162, 162, 168, 1) !important;
+  font-size: 12px;
+}
+
 // Mobile responsive for modal - ONLY for small phones <= 600px
 @media (max-width: 600px) {
   .voiceRxModal {

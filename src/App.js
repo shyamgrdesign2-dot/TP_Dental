@@ -70,6 +70,8 @@ import VoiceRxConsult from "./pages/VoiceRxConsult";
 import VoiceRecordingPage from "./pages/VoiceRecordingPage";
 import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
+import AbhaStandalone from "./pages/abha/AbhaStandalone";
+import AddNewPatient from "./pages/AddNewPatient";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -243,7 +245,8 @@ function App() {
         params.delete("authToken");
         // Navigate to appointment list
         // add condition for user comming from Medeco to practice offering page
-        if (location.pathname !== "/our-offerings")
+        // Don't redirect if we're on abha-standalone page
+        if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
           navigate(
             {
               pathname: "/",
@@ -251,9 +254,10 @@ function App() {
             },
             { replace: true }
           );
+        }
       }
     }
-  }, [authToken, setToken, navigate]);
+  }, [authToken, setToken, navigate, location.pathname]);
 
   useEffect(() => {
     if (uploadParams) {
@@ -418,6 +422,9 @@ function App() {
               {/* Restricted route - authorized only to get/upload snapRx files */}
               <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
 
+              {/* ABHA Standalone - Can work with URL auth token */}
+              <Route path="/abha-standalone" element={<AbhaStandalone />} />
+
               {/* Protected routes */}
               <Route element={<PrivateRoute />}>
                 <Route path="/*" element={<AppointmentList />} />
@@ -469,6 +476,7 @@ function App() {
                 <Route path="all_patients" element={<AllPatients />} />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
+                {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
