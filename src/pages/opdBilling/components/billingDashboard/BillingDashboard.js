@@ -452,6 +452,7 @@ function BillingDashboard({ patientData, fromPath }) {
               handleAddForm3cDrawer={handleAddForm3cDrawer}
               form3cData={form3cData}
               handleEditBillDrawer={handleCreateBillDrawer}
+              setEditBillData={setBillData}
             />
           </Drawer>
         )}
