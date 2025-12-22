@@ -1426,7 +1426,7 @@ function Cardiology(props) {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
-                  <div className="d-flex align-items-center gap-2">            <div className="subtitle d-flex align-items-center">
+                  <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
                     {(() => {
                       // Check if it's a normal consult flow (not snaprx, smart rx, or voice rx)
