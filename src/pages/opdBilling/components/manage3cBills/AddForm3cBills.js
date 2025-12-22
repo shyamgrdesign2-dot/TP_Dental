@@ -63,7 +63,7 @@ const SELECT_AFTER = [
 
 const GENDER = ["Male", "Female", "Other"];
 
-function AddForm3cBills({ handleAddForm3cDrawer, setForm3cData, onSuccess }) {
+function AddForm3cBills({ handleAddForm3cDrawer, setForm3cData, onSuccess, billType = "opd" }) {
   const {
     loading,
     userCreditObj,
@@ -396,7 +396,7 @@ function AddForm3cBills({ handleAddForm3cDrawer, setForm3cData, onSuccess }) {
       const payload = {
         billIds: [...selectedRowKeys],
       };
-      const response = await addBillsToForm3C(payload);
+      const response = await addBillsToForm3C(payload, billType);
 
       if (response.status === 200 || response.status === 204) {
         // Update the count in parent

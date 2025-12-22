@@ -224,6 +224,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isFileTypeError, setIsFileTypeError] = useState(null);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const [billData, setBillData] = useState(null);
   const [patientData, setPatientData] = useState(null);
   const [unDigitizedUnReviewedIds, setAllUnDigitisedIds] = useState([]);
   const fileInputRef = useRef(null);
@@ -3449,6 +3450,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             isBackModalOpen={isBackModalOpen}
             showHideBackModal={showHideBackModal}
             patientData={appointmentSelectedFromMenu}
+            editBillData={billData}
           />
         </Drawer>
       )}
@@ -3468,6 +3470,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             getPatientBills={getPatientBills}
             totalAdvanceBalance={patientWalletBalance}
             patientData={appointmentSelectedFromMenu}
+            billData={billData}
+            setBillData={setBillData}
+            createBillDrawer={createBillDrawer}
+            setCreateBillDrawer={setCreateBillDrawer}
           />
         </Drawer>
       )}

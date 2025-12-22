@@ -86,6 +86,7 @@ function PrescriptionPrintView() {
 
     const [isWhatsAppLoading, setIsWhatsAppLoading] = useState(false);
     const [whatsAppButtonText, setWhatsAppButtonText] = useState("Send to WhatsApp");
+    const [billData, setBillData] = useState(null);
 
     const baseUrl = env.lab_params_api_url;
 
@@ -657,7 +658,7 @@ function PrescriptionPrintView() {
                     width="100%"
                     push={false}
                 >
-                    <CreateBill handleCreateBillDrawer={handleCreateBillDrawer} isBackModalOpen={isBackModalOpen} showHideBackModal={showHideBackModal} isRxPage={true} patientData={patient_data} />
+                    <CreateBill handleCreateBillDrawer={handleCreateBillDrawer} isBackModalOpen={isBackModalOpen} showHideBackModal={showHideBackModal} isRxPage={true} patientData={patient_data} editBillData={billData} />
                 </Drawer>)}
                 {recentBillDrawer &&
                 <Drawer
@@ -675,6 +676,10 @@ function PrescriptionPrintView() {
                         getPatientBills={getPatientBills}
                         totalAdvanceBalance={patientWalletBalance}
                         patientData={patient_data}
+                        billData={billData}
+                        setBillData={setBillData}
+                        createBillDrawer={createBillDrawer}
+                        setCreateBillDrawer={setCreateBillDrawer}
                     />
                 </Drawer>
             }
