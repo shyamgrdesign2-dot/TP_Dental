@@ -3,12 +3,11 @@ import { Dropdown, Button, Drawer, Spin, message } from "antd";
 import Card from 'react-bootstrap/Card';
 import moment from "moment";
 import { useNavigate } from 'react-router-dom';
-import { isChrome, isSafari } from "react-device-detect";
+import { isChrome, isSafari, isMobile } from "react-device-detect";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import notcertificate from '../../assets/images/not-certificate.svg';
-import certificatepdf from '../../assets/images/certificate-pdf.svg';
 import CreateCertificate from "./CreateCertificate";
 import PdfThumbnail from "../../common/PdfThumbnail";
 import { listPatientCertificate, deletePatientCertificate } from "../../redux/doctorsSlice";
@@ -47,8 +46,6 @@ function CertificateDetails({ patient_data }) {
     };
 
     async function printInAppContent(item) {
-        // navigate(`/patient_details/?url=${item?.certificate}&key=print`, { replace: true, state: { patient_data: patient_data } })
-        // navigate(0, { replace: true });
         sendMessageToParent(EVENTS.PRINT, { url: item?.certificate });
     };
 
@@ -97,21 +94,35 @@ function CertificateDetails({ patient_data }) {
 
     return (
         <div className="appointment-wrap PatientDetailswrap m-0">
-            <Card>
-                <div className='p-20 overflow-y-auto' style={{ height: "calc(100vh - 117px)" }}>
+            <Card style={isMobile ? { border: 'none', backgroundColor: '#FAF8FD' } : {}}>
+                <div className='p-20 overflow-y-auto' style={{ height: "calc(100vh - 117px)", ...(isMobile ? { padding: '16px' } : {}) }}>
                     {loading ? (
                         <div className='align-items-center text-center'>
                             <Spin />
                         </div>
                     ) : (
                         patientCertificateList?.length > 0 ? (
-                            <div className="d-flex flex-wrap">
+                            <div 
+                                className={isMobile ? '' : 'd-flex flex-wrap'}
+                                style={isMobile ? {
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(2, 1fr)',
+                                    gap: '12px',
+                                    padding: 0
+                                } : {}}
+                            >
                                 {patientCertificateList?.map((item, index) => {
                                     return (
-                                        <div key={index} className="certificate-box border me-4 mb-4">
+                                        <div 
+                                            key={index} 
+                                            className={`certificate-box border ${isMobile ? '' : 'me-4 mb-4'}`}
+                                            style={isMobile ? {
+                                                width: '100%',
+                                                margin: 0
+                                            } : {}}
+                                        >
                                             <div className="pfd-box d-flex justify-content-center align-items-center cursor-pointer"
                                                 onClick={() => navigate('/certificate_print_view', { state: { ...item, viewable: true } })}>
-                                                {/* <img src={certificatepdf} alt="Certificate PDF" /> */}
                                                 <PdfThumbnail pdfUrl={item?.certificate} index={index} thumbnailUrl={item?.thumbnailUrl} />
                                             </div>
                                             <div className="bg-selected leave-ui d-flex justify-content-between">
@@ -151,7 +162,6 @@ function CertificateDetails({ patient_data }) {
                         closable
                         open={createCertificateDrawer}
                         onClose={handleCreateCertificateDrawer}
-                        // key="left"
                     >
                         <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
                     </Drawer>
