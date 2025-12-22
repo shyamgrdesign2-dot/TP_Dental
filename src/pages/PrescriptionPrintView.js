@@ -609,6 +609,7 @@ function PrescriptionPrintView() {
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
                                         <Document
+                                            key={`${currentSessionRx || printUrl}-${patientBills?.length || 0}-${advanceReceipts?.length || 0}`}
                                             loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                             error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                             noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}

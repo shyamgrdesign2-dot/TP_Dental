@@ -113,7 +113,7 @@ const CreateBill = ({
         (d) => String(d?.value) === String(editBillData?.doctorId)
       )
     : null;
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(editDoctorFromList);
   const deviceUid = localStorage.getItem("app_device_unique_id");
   const { profile, userId } = useSelector((state) => state.doctors);
   const { patients, error } = useSelector((state) => state.records);
