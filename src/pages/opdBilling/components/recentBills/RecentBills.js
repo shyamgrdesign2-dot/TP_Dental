@@ -9,12 +9,14 @@ const RecentBills = ({
   getPatientBills,
   totalAdvanceBalance,
   patientData,
+  billData,
+  setBillData,
+  createBillDrawer,
+  setCreateBillDrawer,
 }) => {
   const [sortConfig, setSortConfig] = useState({ field: null, order: null });
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
-  const [createBillDrawer, setCreateBillDrawer] = useState(false);
-  const [billData, setBillData] = useState(null);
   
   const handleSortChange = useCallback(
     (field, order) => {
