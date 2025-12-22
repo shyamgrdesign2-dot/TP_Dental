@@ -76,30 +76,25 @@ const AbhaSyncButton = ({
     } catch (error) {
       console.error('Error syncing prescription:', error);
       
-      // Check if it's a duplicate token request error (prescription already synced)
+      // Check if it's a duplicate token request error
       const errorData = error?.response?.data;
       const errorMessage = errorData?.message || '';
       const isDuplicateRequest = errorMessage.includes('Duplicate Link token request') || 
                                  errorMessage.includes('ABDM-1092');
       
+      // Always revert to idle state on error
+      setCurrentState('idle');
+      
       if (isDuplicateRequest) {
-        // If it's a duplicate request, it means the prescription is already synced
-        // Update state to synced and refresh data
-        setCurrentState('synced');
-        
-        // Call callback to refresh data (treat as success)
+        // For duplicate requests, show specific message
         if (onSyncComplete) {
           onSyncComplete({ 
-            success: true, 
-            message: 'Prescription is already synced',
+            error: 'Please try again after sometime',
             isDuplicate: true 
           });
         }
       } else {
-        // For other errors, revert to idle state
-        setCurrentState('idle');
-        
-        // Extract error message
+        // For other errors, extract error message
         const userFriendlyMessage = errorData?.message || 
                                    errorData?.error || 
                                    error?.message || 

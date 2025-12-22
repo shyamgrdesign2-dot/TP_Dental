@@ -1448,7 +1448,8 @@ function Cardiology(props) {
                             onSyncComplete={async (data) => {
                               // Check if sync was successful or had an error
                               if (data?.error) {
-                                message.error(data.error);
+                                // Show error message (including duplicate error message)
+                                message.warning(data.error);
                                 return;
                               }
                               
@@ -1459,13 +1460,7 @@ function Cardiology(props) {
                                   tcm_id: viewCaseManagerData?.tcm_id
                                 };
                                 await dispatch(viewCaseManager(sendData));
-                                
-                                // Show appropriate message based on whether it was a duplicate request
-                                if (data?.isDuplicate) {
-                                  message.info('Prescription is already synced');
-                                } else {
-                                  message.success('Prescription synced successfully');
-                                }
+                                message.success('Prescription synced successfully');
                               } catch (error) {
                                 console.error('Error refreshing case manager data:', error);
                                 message.error('Sync completed but failed to refresh data');
