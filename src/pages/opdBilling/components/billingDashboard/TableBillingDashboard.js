@@ -17,6 +17,7 @@ import {
   isSafari,
 } from "react-device-detect";
 import { Tabs, Select, Input } from "antd";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { Row, Col, ButtonGroup } from "react-bootstrap";
 import BillingTable from "./BillingTable/BillingTable";
 import AdvanceDeposit from "./AdvanceDepositTable/AdvanceDepositTable";
@@ -35,6 +36,7 @@ import { deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { useDispatch } from "react-redux";
 import { deleteDocsUploadedFromAndroid } from "../../../medicalRecords/service";
 import { setLoadingStatus } from "../../../../redux/uploadDocSlice";
+import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../../utils/constants";
 
 const dateFormat = "YYYY-MM-DD";
 const TableBillingDashboard = forwardRef(
@@ -45,8 +47,12 @@ const TableBillingDashboard = forwardRef(
       handleTotalAdvanceUpdate,
       totalAdvanceBalance,
       createBillDrawer,
+      setCreateBillDrawer,
       addAdvanceDrawer,
-      showHideSubModal
+      showHideSubModal,
+      billData,
+      setBillData,
+      fromPath="opdDashboard",
     },
     ref
   ) => {
@@ -62,6 +68,7 @@ const TableBillingDashboard = forwardRef(
     const [visitTypeFilters, setVisitTypeFilters] = useState("");
     const [isHovered, setIsHovered] = useState(false);
     const [billingCount, setBillingCount] = useState(0);
+    const [ipdBillingCount, setIpdBillingCount] = useState(0);
     const [advanceCount, setAdvanceCount] = useState(0);
     const [dateStatus, setDateStatus] = useState(1);
     const [dateRange, setDateRange] = useState({
@@ -81,6 +88,11 @@ const TableBillingDashboard = forwardRef(
     //     endDate: moment().format(dateFormat),
     //   });
 
+    const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
+    const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
+      GB_NEW_IPD_HOS_BUSINESS_ID
+    );
+
     useEffect(() => {
       if (!createBillDrawer || !addAdvanceDrawer) {
         getBillAndAdvanceCount();
@@ -91,6 +103,7 @@ const TableBillingDashboard = forwardRef(
       addAdvanceDrawer,
       selectedDoctors,
       doctorList,
+      fromPath,
     ]);
 
     useEffect(() => {
@@ -151,14 +164,26 @@ const TableBillingDashboard = forwardRef(
           ? patientData?.patient_unique_id
           : "",
       };   
-      const billResponse = patientData
-        ? await fetchBillsByPatient(billParams)
-        : await fetchBillingDashboard(billParams);
+      
+      // Fetch OPD billing count
+      const opdBillResponse = patientData
+        ? await fetchBillsByPatient(billParams, "opd")
+        : await fetchBillingDashboard(billParams, "opd");
+      
+      // Fetch IPD billing count (only if feature flags are enabled)
+      let ipdBillResponse = null;
+      if ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && !(fromPath === "opdDashboard")) {
+        ipdBillResponse = patientData
+          ? await fetchBillsByPatient(billParams, "ipd")
+          : await fetchBillingDashboard(billParams, "ipd");
+      }
+      
       const advanceResponse = patientData
         ? await listAdvancedDepositByPatient(advanceParams)
         : await fetchAdvancedDepositDashboard(advanceParams);
 
-      setBillingCount(billResponse?.summary?.count);
+      setBillingCount(opdBillResponse?.summary?.count || 0);
+      setIpdBillingCount(ipdBillResponse?.summary?.count || 0);
       setAdvanceCount(
         advanceResponse?.summary?.totalCount ||
           advanceResponse?.summary?.count ||
@@ -167,46 +192,70 @@ const TableBillingDashboard = forwardRef(
     };
 
     // Move items into the component body and make them depend on selectedTab
-    const items = useMemo(
-      () => [
+    const items = useMemo(() => {
+      const baseItems = [
         {
           key: 1,
           label: (
             <div className="d-flex align-items-center">
               <i className="icon-billings"></i>
-              {`Billing (${billingCount})`}
+              {`OPD Billing (${billingCount})`}
             </div>
           ),
         },
-        {
+      ];
+
+      // Only show IPD Billing tab if either feature flag is true
+      if ((isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB) && ! (fromPath === "opdDashboard")) {
+        baseItems.push({
           key: 2,
           label: (
-            <div
-              className="d-flex align-items-center"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-            >
-              <img
-                src={
-                  selectedTab === 2 || isHovered
-                    ? depositSelectedIcon
-                    : depositIcon
-                }
-                className="me-2"
-                alt={selectedTab === 2 ? "selected-deposit" : "default-deposit"}
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  display: "block",
-                }}
-              />
-              {`Advance Deposit (${advanceCount})`}
+            <div className="d-flex align-items-center">
+              <i className="icon-billings"></i>
+              {`IPD Billing (${ipdBillingCount})`}
             </div>
           ),
-        },
-      ],
-      [selectedTab, isHovered, billingCount, advanceCount]
-    ); // Add isHovered as dependency
+        });
+      }
+
+      baseItems.push({
+        key: 3,
+        label: (
+          <div
+            className="d-flex align-items-center"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <img
+              src={
+                selectedTab === 3 || isHovered
+                  ? depositSelectedIcon
+                  : depositIcon
+              }
+              className="me-2"
+              alt={selectedTab === 3 ? "selected-deposit" : "default-deposit"}
+              style={{
+                width: "20px",
+                height: "20px",
+                display: "block",
+              }}
+            />
+            {`Advance Deposit (${advanceCount})`}
+          </div>
+        ),
+      });
+
+      return baseItems;
+    }, [
+      selectedTab,
+      isHovered,
+      billingCount,
+      ipdBillingCount,
+      advanceCount,
+      isNewIPDAccessableFromGB,
+      isNewIPDHosBusinessIdAccessableFromGB,
+      fromPath,
+    ]); // Add feature flags as dependencies
 
     // Create a ref for the AdvanceDepositTable
     const advanceTableRef = useRef(null);
@@ -229,6 +278,8 @@ const TableBillingDashboard = forwardRef(
         if (key === 1) {
           onTabChange("billingtable");
           setIsBillingTab(true);
+        } else if (key === 2) {
+          onTabChange("ipdbillingtable");
         } else {
           onTabChange("advancetable");
           setIsAdvanceDepositTab(false);
@@ -249,6 +300,8 @@ const TableBillingDashboard = forwardRef(
           <div className="appointment-data">
             {selectedTab === 1 ? (
               <BillingTable
+                billData={billData}
+                setBillData={setBillData}
                 patientData={patientData}
                 handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
                 setBillingCount={setBillingCount}
@@ -259,8 +312,29 @@ const TableBillingDashboard = forwardRef(
                 selectedDoctors={selectedDoctors}
                 setSelectedDoctors={setSelectedDoctors}
                 createBillDrawer={createBillDrawer}
+                setCreateBillDrawer={setCreateBillDrawer}
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
+                billType={"opd"}
+              />
+            ) : selectedTab === 2 ? (
+              <BillingTable
+                billData={billData}
+                setBillData={setBillData}
+                patientData={patientData}
+                handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
+                setBillingCount={setIpdBillingCount}
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                dateStatus={dateStatus}
+                setDateStatus={setDateStatus}
+                selectedDoctors={selectedDoctors}
+                setSelectedDoctors={setSelectedDoctors}
+                createBillDrawer={createBillDrawer}
+                setCreateBillDrawer={setCreateBillDrawer}
+                totalAdvanceBalance={totalAdvanceBalance}
+                showHideSubModal={showHideSubModal}
+                billType={"ipd"}
               />
             ) : (
               <AdvanceDepositTable
