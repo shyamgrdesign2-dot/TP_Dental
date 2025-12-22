@@ -48,7 +48,7 @@ const BillTable = ({
   billData,
   setBillData,
   selectedCard,
-  billType
+  billType = "opd"
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -105,7 +105,7 @@ const BillTable = ({
       } else if (status === 3) {
         try {
           const payload = { billIds: [record.id] }; // Adjust payload as needed
-          const response = await addBillsToForm3C(payload);
+          const response = await addBillsToForm3C(payload, billType);
           if (response.status === 204) {
             message.open({
               key: MESSAGE_KEY,

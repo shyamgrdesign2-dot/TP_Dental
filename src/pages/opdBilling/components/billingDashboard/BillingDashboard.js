@@ -469,6 +469,7 @@ function BillingDashboard({ patientData, fromPath }) {
               handleAddForm3cDrawer={handleAddForm3cDrawer}
               setForm3cData={setForm3cData}
               onSuccess={handleForm3cSuccess}
+              billType={selectedTab === "ipdbillingtable" ? "ipd" : "opd"}
             />
           </Drawer>
         )}
