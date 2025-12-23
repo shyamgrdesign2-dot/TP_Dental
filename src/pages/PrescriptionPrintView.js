@@ -140,6 +140,8 @@ function PrescriptionPrintView() {
     useEffect(() => {
       if (!createBillDrawer) {
         getPatientBills();
+      } else {
+        setCurrentSessionRx(null);
       }
     }, [createBillDrawer]);
 
