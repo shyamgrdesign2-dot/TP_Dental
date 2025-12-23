@@ -11,9 +11,9 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS } from '../utils/constants';
-import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled } from '../utils/utils';
-import { isAndroid, isBrowser } from 'react-device-detect';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS } from '../utils/constants';
+import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId } from '../utils/utils';
+import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
 import { EVENTS } from '../utils/events';
 import { getDecodedToken } from '../utils/localStorage';
@@ -89,6 +89,39 @@ function Welcome1(props) {
     }, [viewCaseManagerData])
 
     const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
+    const [isV2VoiceAmbientRx, setIsV2VoiceAmbientRx] = useState(false);
+    const isVoiceOrAmbientRx = useMemo(() => {
+        return viewCaseManagerData?.smart_prescription_filename && 
+               isValidMongoId(viewCaseManagerData.smart_prescription_filename);
+    }, [viewCaseManagerData?.smart_prescription_filename]);
+
+    const voiceRxId = useMemo(() => {
+        return isVoiceOrAmbientRx ? viewCaseManagerData?.smart_prescription_filename : null;
+    }, [isVoiceOrAmbientRx, viewCaseManagerData?.smart_prescription_filename]);
+
+    useEffect(() => {
+        const checkRxVersion = async () => {
+            if (!voiceRxId) {
+                setIsV2VoiceAmbientRx(false);
+                return;
+            }
+
+            try {
+                let rxResponse = await getAmbientRx(voiceRxId);
+                if (!rxResponse?.success || !rxResponse?.data) {
+                    rxResponse = await getGenRx(voiceRxId);
+                }
+
+                const version = rxResponse?.data?.version || rxResponse?.data?.data?.version;
+                const isV2 = typeof version === "string" && version.trim().toLowerCase() === "v2";
+                setIsV2VoiceAmbientRx(isV2);
+            } catch (error) {
+                setIsV2VoiceAmbientRx(false);
+            }
+        };
+
+        checkRxVersion();
+    }, [voiceRxId]);
 
     const onSmartRxClick = async (patient) => {
         const tokenData = getTokenData();
@@ -144,6 +177,44 @@ function Welcome1(props) {
 
     const handleClickDownArrow = () => {
         setClickedDownArrow(!clickedDownArrow);
+    };
+
+    const handleRepeatVoiceAmbientRx = async () => {
+        if (!voiceRxId || !patient_data) return;
+
+        try {
+            let copyResponse = await copyAmbientRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+            let isAmbientRxType = copyResponse?.success;
+
+            if (!isAmbientRxType) {
+                copyResponse = await copyVoiceRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+            }
+
+            if (!copyResponse?.success) {
+                const ambientCheck = await getAmbientRx(voiceRxId);
+                isAmbientRxType = ambientCheck?.success || ambientCheck?.data ? true : false;
+            }
+
+            window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
+            const copiedRxId = copyResponse?.success 
+                ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
+                : voiceRxId;
+
+            navigate("/prescription", {
+                state: {
+                    patient_data: patient_data,
+                    send_path: "patient_details",
+                    caseManagerData: {
+                        ...viewCaseManagerData,
+                        smart_prescription_filename: copiedRxId,
+                        tcm_id: 0,
+                        consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Error repeating voice/ambient Rx:", error);
+        }
     };
 
     const handleCreateCertificateDrawer = useCallback(() => {
@@ -312,14 +383,18 @@ function Welcome1(props) {
                                         />
                                     )}
                                     
-                                    {!viewCaseManagerData?.smart_prescription_filename?.length &&
+                                    {(!viewCaseManagerData?.smart_prescription_filename?.length || (isVoiceOrAmbientRx && isV2VoiceAmbientRx)) &&
                                         <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={() => {
-                                            window.Moengage.track_event("repeat_rx_click", {
-                                                "doctor_id": profile?.doctor_unique_id,
-                                                "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
-                                                "rx_date": viewCaseManagerData?.consultation_date
-                                            });
-                                            navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') } } })
+                                            if (isVoiceOrAmbientRx && isV2VoiceAmbientRx) {
+                                                handleRepeatVoiceAmbientRx();
+                                            } else {
+                                                window.Moengage.track_event("repeat_rx_click", {
+                                                    "doctor_id": profile?.doctor_unique_id,
+                                                    "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
+                                                    "rx_date": viewCaseManagerData?.consultation_date
+                                                });
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') } } })
+                                            }
                                         }}> <i className={'icon-reload me-2'}></i>Repeat {modifyFormat && modifyFormat.first}<sup>{modifyFormat && modifyFormat.second}</sup>&nbsp;{modifyFormat && modifyFormat.third} Rx</Button>
                                     }
                                     {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && !isMobile ? (

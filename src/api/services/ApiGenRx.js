@@ -467,3 +467,53 @@ export const fhirBundleAmbientRx = async function (payload) {
   }
   return res;
 };
+
+export const copyVoiceRx = async function (id, newAppointmentId) {
+  let res = { success: false };
+  try {
+    const response = await api.post(
+      `/api/v1/voice-digitize/copy-rx/${id}`,
+      { newAppointmentId },
+      baseUrl
+    );
+    if (response?.data) {
+      res = { success: true, data: response.data };
+    } else {
+      res = { success: true, data: response };
+    }
+  } catch (e) {
+    console.error("Error while copying voice rx: ", e);
+    res = { 
+      success: false, 
+      error: e.message,
+      status: e.response?.status,
+      statusText: e.response?.statusText
+    };
+  }
+  return res;
+};
+
+export const copyAmbientRx = async function (id, newAppointmentId) {
+  let res = { success: false };
+  try {
+    const response = await api.post(
+      `/api/v1/ambient-voice-rx/copy-rx/${id}`,
+      { newAppointmentId },
+      ambientRxBaseUrl
+    );
+    if (response?.data) {
+      res = { success: true, data: response.data };
+    } else {
+      res = { success: true, data: response };
+    }
+  } catch (e) {
+    console.error("Error while copying ambient rx: ", e);
+    res = { 
+      success: false, 
+      error: e.message,
+      status: e.response?.status,
+      statusText: e.response?.statusText
+    };
+  }
+  return res;
+};
