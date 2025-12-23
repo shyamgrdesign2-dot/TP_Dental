@@ -2341,7 +2341,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                                 ? handleSnapRxClick(record)
                                 : (isFreeVoiceRxUser || tp_monetization_enable)
                                   ? selectedTab === TAB_ZYDUS_ENCOUNTER 
-                                    ? onZydus_Consult_PatientDetails_Click(record, 4) 
+                                    ? isVoiceRxPaid ? onZydus_Consult_PatientDetails_Click(record, 4) : onZydus_Consult_PatientDetails_Click(record, 1) 
                                     : (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
                                   : onPrintRxUrlClick(record))
                           : onPrintRxUrlClick(record)
