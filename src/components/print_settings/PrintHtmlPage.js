@@ -2313,7 +2313,7 @@ function PrintHtmlPage() {
                                     >
                                       <strong>{item.tmm_medicine_name}</strong>
                                       <br />
-                                      {item.tmm_generic}
+                                      {item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}
                                     </td>
                                     <td
                                       className={`${printSettings.page_format.font_family}`}
