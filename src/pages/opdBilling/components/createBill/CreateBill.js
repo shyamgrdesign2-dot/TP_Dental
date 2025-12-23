@@ -389,11 +389,8 @@ const CreateBill = ({
 
   useEffect(() => {
     if (advancedSettings && Object.keys(advancedSettings)?.length) {
-      setIncludeInRx(advancedSettings.defaultRxFlag);
-      // Only set default Form3C flag for new bills, not when editing
-      if (!editBillData) {
-        setAddBillTo3C( isIpdBill ? advancedSettings?.ipdSetting?.defaultForm3cFlag : advancedSettings?.defaultForm3cFlag);
-      }
+      setIncludeInRx( editBillData?.includeInRx || advancedSettings.defaultRxFlag);
+      setAddBillTo3C( editBillData?.isForm3C ? editBillData?.isForm3C : isIpdBill ? advancedSettings?.ipdSetting?.defaultForm3cFlag : advancedSettings?.defaultForm3cFlag);
       setPaymentModes([
         {
           paymentMode: isIpdBill ? advancedSettings?.ipdSetting?.defaultPaymentMode : advancedSettings?.defaultPaymentMode,
@@ -402,7 +399,7 @@ const CreateBill = ({
         },
       ]);
     }
-  }, [advancedSettings]);
+  }, [advancedSettings, editBillData]);
 
   useEffect(() => {
     if (editBillData?.paymentModes) {
@@ -1444,7 +1441,7 @@ const CreateBill = ({
                     <span>
                       <Checkbox
                         className="me-2"
-                        disabled={editBillData?.isForm3C}
+                        style={editBillData?.isForm3C ? {  opacity: 0.5, cursor: "not-allowed" } : {}}
                         checked={shouldAddBillTo3C}
                         onChange={(e) => {
                           if (!editBillData?.isForm3C) {
