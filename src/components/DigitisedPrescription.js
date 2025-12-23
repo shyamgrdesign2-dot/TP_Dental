@@ -51,6 +51,7 @@ const DigitisedPrescription = ({
   onMedicationsUpdate,
   onLabInvestigationUpdate,
   onLabResultsUpdate,
+  onLabResultsSaved,
   onAdviceUpdate,
   onVaccinationsUpdate,
   onFollowUpUpdate,
@@ -911,6 +912,7 @@ const DigitisedPrescription = ({
           labResults={data?.labResults || []}
           onUpdate={labResultsUpdater}
           isProcessing={resolvedProcessing}
+          onLabResultsSaved={onLabResultsSaved}
         />
       )}
 

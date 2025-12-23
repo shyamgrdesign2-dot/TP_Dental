@@ -55,6 +55,7 @@ function SmartRxDigitise() {
   
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
   const [vitalsData, setVitalsData] = useState([]);
+  const [labResultsSavedFromSidebar, setLabResultsSavedFromSidebar] = useState(false);
   // Grounding check (Zydus users)
   const tokenDataLocal = getTokenData();
   const isGroundingAccessable =
@@ -444,39 +445,36 @@ function SmartRxDigitise() {
                 ? (existingTodayIndex >= 0 ? [vitalsForCase[existingTodayIndex]] : [enrichedRxPadVital])
                 : vitalsForCase.filter(v => v.date === moment().format('YYYY-MM-DD'));
               if (mergedVitalsArray.length > 0) {
-                mergedVitalsArray.forEach(v => {
-                  const systolic = String(v.systolic || '').trim();
-                  const diastolic = String(v.diastolic || '').trim();
-                  if (!systolic || !diastolic) {
-                    v.blood_press = '';
-                  }
+              mergedVitalsArray.forEach(v => {
+                const systolic = String(v.systolic || '').trim();
+                const diastolic = String(v.diastolic || '').trim();
+                if (!systolic || !diastolic) {
+                  v.blood_press = '';
+                }
                   v.general_rbs = v.general_rbs !== undefined ? String(v.general_rbs).trim() : '';
                   v.ofc = v.ofc !== undefined ? String(v.ofc).trim() : '';
                   v.fib4 = v.fib4 !== undefined ? String(v.fib4).trim() : '';
-                });
+              });
                 const saveResult = await ApiVitals.addUpdateVitals({
-                  patient_unique_id: patient_data.patient_unique_id,
-                  pm_pid: patient_data.pm_pid || 0,
-                  pm_id: patient_data.pm_id || 0,
-                  pam_id: patient_data.pam_id || 0,
-                  patient_birth_weight: null,
-                  data: mergedVitalsArray
-                });
+                patient_unique_id: patient_data.patient_unique_id,
+                pm_pid: patient_data.pm_pid || 0,
+                pm_id: patient_data.pm_id || 0,
+                pam_id: patient_data.pam_id || 0,
+                patient_birth_weight: null,
+                data: mergedVitalsArray
+              });
                 
                 // Update vitalsForCase with saved data (with IDs) from API response for case manager payload
                 if (saveResult?.status && Array.isArray(saveResult.data) && saveResult.data.length > 0) {
                   const savedVital = saveResult.data[0];
                   const enrichedSavedVital = enrichVitalsWithCalculations(savedVital, patientInfo);
-                  if (existingTodayIndex >= 0) {
-                    vitalsForCase[existingTodayIndex] = enrichedSavedVital;
-                  } else {
-                    // Find the entry we just pushed and replace it with the API response
-                    const todayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today && v.temp === enrichedRxPadVital.temp && v.pres === enrichedRxPadVital.pres);
-                    if (todayIndex >= 0) {
-                      vitalsForCase[todayIndex] = enrichedSavedVital;
+                  const savedDate = enrichedSavedVital.date || moment().format("YYYY-MM-DD");
+                  // Find existing entry for this date and update it, or add if not found
+                  const existingDateIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === savedDate);
+                  if (existingDateIndex >= 0) {
+                    vitalsForCase[existingDateIndex] = enrichedSavedVital;
                     } else {
                       vitalsForCase.push(enrichedSavedVital);
-                    }
                   }
                 }
               }
@@ -488,8 +486,7 @@ function SmartRxDigitise() {
 
         const labResultsDataForApi = formatLabResultsForApi(data?.labResults || []);
         
-        // Save lab results to API
-        if (labResultsDataForApi.length > 0 && patient_data?.patient_unique_id) {
+        if (labResultsDataForApi.length > 0 && patient_data?.patient_unique_id && !labResultsSavedFromSidebar) {
           try {
             const payload = {
               patientId: patient_data.patient_unique_id,
@@ -503,7 +500,32 @@ function SmartRxDigitise() {
         }
 
         const hasTcm = tcm_id !== undefined && tcm_id !== null;
-        const cleanedVitalsForCase = vitalsForCase.map(v => {
+        const deduplicatedVitals = {};
+        vitalsForCase.forEach((v) => {
+          const dateKey = v.date || moment().format("YYYY-MM-DD");
+          if (!deduplicatedVitals[dateKey]) {
+            deduplicatedVitals[dateKey] = v;
+          } else {
+            const existing = deduplicatedVitals[dateKey];
+            if (v.tcv_id && existing.tcv_id && v.tcv_id > existing.tcv_id) {
+              deduplicatedVitals[dateKey] = v;
+            } else if (!existing.tcv_id && v.tcv_id) {
+              deduplicatedVitals[dateKey] = v;
+            } else {
+              const merged = { ...existing };
+              Object.keys(v).forEach(key => {
+                if (key !== 'date' && key !== 'tcv_id' && key !== 'tcbc_id' && key !== 'dev_unique_id' && key !== 'pam_id') {
+                  const vValue = v[key];
+                  if (vValue !== undefined && vValue !== null && String(vValue).trim() !== '') {
+                    merged[key] = vValue;
+                  }
+                }
+              });
+              deduplicatedVitals[dateKey] = merged;
+            }
+          }
+        });
+        const cleanedVitalsForCase = Object.values(deduplicatedVitals).map(v => {
           const cleaned = { ...v };
           const systolic = String(cleaned.systolic || '').trim();
           const diastolic = String(cleaned.diastolic || '').trim();
@@ -780,6 +802,7 @@ function SmartRxDigitise() {
                     showAbsHeaderInsideLoader={isLoading}
                     enableInstructionBanner={false}
                     showHeader={false}
+                    onLabResultsSaved={() => setLabResultsSavedFromSidebar(true)}
                   />
               </div>
             </div>

@@ -94,7 +94,7 @@ function SmartRxPreview() {
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
     const [printBlob, setPrintBlob] = useState(null);
-    const [smartRxFile, setSmartRxFile] = useState([]);
+    const [smartRxFile, setSmartRxFile] = useState(state?.smartRxFile || []);
     const [isLoading, setIsLoading] = useState(false);
     const [buttonText, setButtonText] = useState("Send to WhatsApp");
 
@@ -179,6 +179,16 @@ function SmartRxPreview() {
         };
         fetchData();
     }, [state.tcm_id, patient_data?.patient_unique_id]);
+
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    useEffect(() => {
+        if (state?.smartRxFile && state.smartRxFile.length > 0) {
+            setSmartRxFile(state.smartRxFile);
+        } else if (state?.files && state.files.length > 0) {
+            setSmartRxFile(state.files);
+        }
+    }, [state?.smartRxFile, state?.files, state?.from]);
 
     const fetchRxDigitisedData = async () => {
         try {
@@ -283,6 +293,12 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
+          // Only fetch if we don't have smartRxFile from state
+          if (state?.smartRxFile?.length > 0 || state?.files?.length > 0) {
+              console.log('SmartRxPreview - Skipping API fetch, using state data');
+              return;
+          }
+          
           const payload = {
             tcm_id: state?.tcm_id,
           };
@@ -300,7 +316,7 @@ function SmartRxPreview() {
           }
         };
         fetchData();
-    }, []);
+    }, [state?.tcm_id, state?.smartRxFile, state?.files]);
 
     const tempRxDigitise = async () => {
     
@@ -460,7 +476,7 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx", page: state?.page } })
         } else {
             errorMessage(action.error)
         }
@@ -714,6 +730,7 @@ function SmartRxPreview() {
                                             <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
                                         </div>
                                     }
+                                    {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
                                     <Select
                                         placeholder=""
                                         className="appointmentselect"
@@ -721,6 +738,7 @@ function SmartRxPreview() {
                                         onSelect={handleLanguageSelect}
                                         options={LANGUAGE_LIST}
                                     />
+                                    )}
                                 </div>
                             </div>
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">

@@ -258,10 +258,11 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, labParamsData: labParamsDataProp } = props
+    
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const gynecHistoryData = caseManagerData?.gynecHistoryData
-    const labParamsData = caseManagerData?.labParamsData
+    const labParamsData = labParamsDataProp || caseManagerData?.labParamsData
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
@@ -535,7 +536,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const isSmartSyncPrescription = smartRxData && smartRxData[0]?.smart_prescription_file;
+    const isSmartSyncPrescription = !!(smartRxData && smartRxData.length > 0 && (smartRxData[0]?.smart_prescription_file || smartRxData[0]?.fileUrl));
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -549,6 +550,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
             return {
                 date: item.date,
+                createdAt: item.createdAt || item.created_at || item.createdDate,
                 groupedInputs,
             };
         });
@@ -614,7 +616,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const labParamsPatchData = labParamsData ? groupByReportNameForAll(labParamsData) : null;
-    const labParamsPatchTableData = labParamsPatchData ? syncLabResultsData(labParamsPatchData) : null;
+    const filteredLabParamsPatchData = labParamsPatchData ? labParamsPatchData.filter((item) => {
+        const checkDate = item.createdAt || item.created_at || item.createdDate || item.date;
+        if (!checkDate) return false;
+        const itemDate = moment(checkDate).format('YYYY-MM-DD');
+        const today = moment().format('YYYY-MM-DD');
+        return itemDate === today;
+    }) : null;
+    const labParamsPatchTableData = filteredLabParamsPatchData ? syncLabResultsData(filteredLabParamsPatchData) : null;
 
     const getCustomModuleName = (id) => {
         const customModule = customModules.find((module) => module.module_id === id);
@@ -769,7 +778,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, filteredLabParamsPatchData, transformGivenVaccines, growthChartData) ||
             // (zydusLabData?.data?.length > 0) ||
             
             // Check smart sync data
@@ -779,6 +788,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     // Utility function to check if any custom module options are enabled and have data
+    // Note: labParamsPatchData parameter receives filteredLabParamsPatchData (only today's data)
     const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) => {
         if (!printSettings?.prescription?.case_option) return false;
         
@@ -828,8 +838,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return gynecHistoryData && Object.keys(gynecHistoryData).length > 2;
                 case 14: // Obs History
                     return obsHistoryData && Object.keys(obsHistoryData).length > 2;
-                case 15: // Lab Parameters
-                    return labParamsPatchData && labParamsPatchData?.length > 0;
+                case 15: // Lab Parameters - only show if there are lab results from today
+                    return filteredLabParamsPatchData && filteredLabParamsPatchData?.length > 0;
                 case 16: // Surgeries
                     return caseManagerData?.surgeries?.length > 0;
                 case 17: // Patient Bills (already handled in hasAnyData)
@@ -861,17 +871,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     <>
                         {/* Smart RX Images for Custom SSRX - Show at the beginning */}
                         {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1" ) && (
-                            smartRxData?.map((item, i) => (
-                                <View key={i}>
-                                    <View style={{ width: '100%', height: '100%' }}>
-                                        <Image
-                                            style={{ width: '100%', height: '100%' }}
-                                            src={item.smart_prescription_file}
-                                            objectFit="contain"
-                                        />
-                                    </View>
-                                </View>
-                            ))
+                            smartRxData
+                                ?.filter(item => item.smart_prescription_file || item.fileUrl)
+                                ?.map((item, i) => {
+                                    const imageUrl = item.smart_prescription_file || item.fileUrl;
+                                    if (!imageUrl) return null;
+                                    
+                                    return (
+                                        <View key={i}>
+                                            <View style={{ width: '100%', height: '100%' }}>
+                                                <Image
+                                                    style={{ width: '100%', height: '100%' }}
+                                                    src={imageUrl}
+                                                    objectFit="contain"
+                                                />
+                                            </View>
+                                        </View>
+                                    );
+                                })
+                                .filter(Boolean)
                         )}
                     </>
                 </Page>
@@ -1146,7 +1164,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 5: 
                                     return caseManagerData.advice?.length > 0;
                                 case 6: 
-                                    return caseManagerData.investigation?.length > 0;
+                                    return caseManagerData.investigation?.length > 0 && caseManagerData.investigation.some(item => item?.investigation_name);
                                 case 7: 
                                     return caseManagerData.vitals?.length > 0 || caseManagerData?.patient_birth_weight;
                                 case 8: 
@@ -1158,7 +1176,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 10: 
                                     return (todayVaccines?.given?.length || todayVaccines?.due?.length);
                                 case 11: 
-                                    return caseManagerData?.smart_prescription_filename?.length;
+                                    return caseManagerData?.smart_prescription_filename?.length || (smartRxData && smartRxData.length > 0);
                                 case 12: 
                                     return growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0;
                                 case 13: 
@@ -1842,7 +1860,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 6 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {caseManagerData.investigation.length > 0 && (
+                                        {caseManagerData.investigation?.length > 0 && caseManagerData.investigation.some(item => item?.investigation_name) && (
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
@@ -2635,19 +2653,33 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 11 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" ) && (
-                                            smartRxData?.map((item, i) => (
-                                                <View key={i}>
-                                                    <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
-                                                        <Image
-                                                            style={{ width: '100%', height: '100%' }}
-                                                            src={item.smart_prescription_file}
-                                                            objectFit="contain"
-                                                        />
-                                                    </View>
-                                                </View>
-                                            ))
-                                        )}
+                                        {(() => {
+                                            // Render Smart Rx images for non-custom SSRX (before digitization)
+                                            if (isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX === undefined)) {
+                                                const imagesToRender = smartRxData
+                                                    ?.map((item, i) => {
+                                                        const imageUrl = item.smart_prescription_file || item.fileUrl;
+                                                        
+                                                        if (!imageUrl) return null;
+                                                        
+                                                        return (
+                                                            <View key={i}>
+                                                                <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
+                                                                    <Image
+                                                                        style={{ width: '100%', height: '100%' }}
+                                                                        src={imageUrl}
+                                                                        objectFit="contain"
+                                                                    />
+                                                                </View>
+                                                            </View>
+                                                        );
+                                                    })
+                                                    .filter(Boolean); // Filter out null values
+                                                
+                                                return imagesToRender && imagesToRender.length > 0 ? imagesToRender : null;
+                                            }
+                                            return null;
+                                        })()}
                                     </>
                                 ) : option?.id === 12 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
@@ -5045,8 +5077,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 15 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {labParamsPatchData &&
-                                            labParamsPatchData.length &&
+                                        {filteredLabParamsPatchData &&
+                                            filteredLabParamsPatchData.length &&
                                             (option?.format === "inline" ? (
                                                 <View style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text>
@@ -5063,7 +5095,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 Lab Results:&nbsp;
                                                             </Text>
 
-                                                            {labParamsPatchData?.map((item, i) => (
+                                                            {filteredLabParamsPatchData?.map((item, i) => (
                                                                 <>
                                                                     {i !== 0 && (
                                                                         <Text
@@ -5167,7 +5199,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         Lab Results:
                                                     </Text>
         
-                                                    {labParamsPatchData?.map((item, dateIndex) => (
+                                                    {filteredLabParamsPatchData?.map((item, dateIndex) => (
                                                         <View key={dateIndex}>
                                                             <Text style={{
                                                                 color: "#171725",

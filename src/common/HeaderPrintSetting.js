@@ -179,7 +179,23 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                             ...state, 
                             selectedLang: updatedSelectedLang,
                             currentSessionRx: null,
-                            from: "/configure_print_setting"
+                            from: "/configure_print_setting",
+                            page: state?.page, // Preserve page state to indicate if it's after digitization
+                            smartRxFile: state?.smartRxFile || state?.files,
+                            files: state?.files || state?.smartRxFile
+                        } 
+                    });
+                } else if (previousPage === "/print-smart-rx") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/print-smart-rx", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            currentSessionRx: null,
+                            from: "/configure_print_setting",
+                            page: state?.page, // Preserve page state to indicate if it's after digitization
+                            smartRxFile: state?.smartRxFile || state?.files
                         } 
                     });
                 } else {
@@ -218,7 +234,22 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: selectedLang,
-                        currentSessionRx: currentSessionRx
+                        currentSessionRx: currentSessionRx,
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
             } else {
@@ -254,7 +285,10 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         ...state, 
                         selectedLang: selectedLang,
                         currentSessionRx: null,
-                        from: "/configure_print_setting"
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
                     } 
                 });
             } else {
@@ -282,7 +316,23 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         ...state, 
                         selectedLang: updatedSelectedLang,
                         currentSessionRx: currentSessionRx,
-                        from: "/configure_print_setting"
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
             } else {
