@@ -48,7 +48,8 @@ const BillTable = ({
   billData,
   setBillData,
   selectedCard,
-  billType = "opd"
+  billType = "opd",
+  isPreviewForm3c,
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -573,6 +574,7 @@ const BillTable = ({
               isPatientScreen ? totalAdvanceBalance : patientWalletBalance
             }
             handleEditBillDrawer={handleEditBillDrawer}
+            isPreviewForm3c={isPreviewForm3c}
           />
         </Drawer>
       )}

@@ -152,6 +152,7 @@ const CreateBill = ({
     editBillData?.paymentModes || []
   );
   const [disableSaveBtn, setDisableSaveBtn] = useState(true);
+  const [isSavingBill, setIsSavingBill] = useState(false);
   const [getToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const [tokenData, setTokenData] = useState(null);
   const [billData, setBillData] = useState(editBillData || {});
@@ -650,13 +651,22 @@ const CreateBill = ({
       render: (_, record, index) => (
         <Input
           value={record.quantity}
-          onChange={(e) =>
+          onChange={(e) => {
+            const quantity = e.target.value.replace(/[^0-9]/g, "");
+            // Allow empty string during typing, only default to 1 when field is empty on blur
             handleInputChange(
-              e.target.value.replace(/[^0-9]/g, ""),
+              quantity === "" ? "" : Number(quantity) || "",
               index,
               "quantity"
             )
-          }
+          }}
+          onBlur={(e) => {
+            // Set to 1 if empty when user leaves the field
+            const quantity = e.target.value.replace(/[^0-9]/g, "");
+            if (quantity === "" || Number(quantity) === 0) {
+              handleInputChange(1, index, "quantity");
+            }
+          }}
           bordered={false}
           type="number"
         />
@@ -874,76 +884,78 @@ const CreateBill = ({
   };
 
   const handleCreateBill = async (type) => {
-    const clinic = getClinic();
-    if (!type) {
-      trackEvent("TP_Billing_SaveAndPrint", {
-        patientName: patientDetails?.patientName || "",
-        patientId: patientDetails?.patientUniqueId || "",
-        doctorSpeciality: profile?.dp_name,
-        doctorId: profile?.doctor_unique_id,
-        doctorContact: profile?.um_contact,
-        city: clinic?.hm_city,
-        pincode: clinic?.hm_pincode,
-        subscriptionStatus: planDetails?.currentPlanStatus,
-        receptionistId: receptionistId,
-        receptionistName: receptionistName,
+    setIsSavingBill(true);
+    try {
+      const clinic = getClinic();
+      if (!type) {
+        trackEvent("TP_Billing_SaveAndPrint", {
+          patientName: patientDetails?.patientName || "",
+          patientId: patientDetails?.patientUniqueId || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          city: clinic?.hm_city,
+          pincode: clinic?.hm_pincode,
+          subscriptionStatus: planDetails?.currentPlanStatus,
+          receptionistId: receptionistId,
+          receptionistName: receptionistName,
+        });
+      } else if (type === "preview") {
+        trackEvent("TP_Billing_SaveandPreview", {
+          patientName: patientDetails?.patientName || "",
+          patientId: patientDetails?.patientUniqueId || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          city: clinic?.hm_city,
+          pincode: clinic?.hm_pincode,
+          subscriptionStatus: planDetails?.currentPlanStatus,
+          receptionistId: receptionistId,
+          receptionistName: receptionistName,
+        });
+      }
+      const updatedDataSource = dataSource.filter((item) => {
+        const { masterId, name, quantity, amount, totalAmount } = item;
+        return masterId && name && quantity && amount && totalAmount;
       });
-    } else if (type === "preview") {
-      trackEvent("TP_Billing_SaveandPreview", {
-        patientName: patientDetails?.patientName || "",
-        patientId: patientDetails?.patientUniqueId || "",
-        doctorSpeciality: profile?.dp_name,
-        doctorId: profile?.doctor_unique_id,
-        doctorContact: profile?.um_contact,
-        city: clinic?.hm_city,
-        pincode: clinic?.hm_pincode,
-        subscriptionStatus: planDetails?.currentPlanStatus,
-        receptionistId: receptionistId,
-        receptionistName: receptionistName,
-      });
-    }
-    const updatedDataSource = dataSource.filter((item) => {
-      const { masterId, name, quantity, amount, totalAmount } = item;
-      return masterId && name && quantity && amount && totalAmount;
-    });
-    // const updatedPaymentModes = paymentModes?.filter(
-    //   (item) => item.paymentMode && item.amount > 0
-    // );
-    // if (updatedPaymentModes?.length !== paymentModes?.length) {
-    //   setPaymentModeItemMissing(true);
-    //   return;
-    // }
-    const patientUniqueId =
-      patientData?.patient_unique_id ||
-      patientDetails?.patientUniqueId ||
-      editBillData?.patientId;
-    const payload = {
-      patientId: patientUniqueId,
-      doctorId: isReceptionist
-        ? doctorsList?.length === 1
-          ? doctorsList[0].value
-          : selectedDoctor?.value
-        : userId,
-      billItems: updatedDataSource,
-      paymentModes: paymentModes,
-      subTotal: subTotal,
-      lineItemDiscount: lineItemDiscount,
-      extraDiscount: extraDiscount || 0,
-      extraDiscountType: extraDiscountType,
-      applicableGst: applicableGst,
-      payableAmount: payableAmount,
-      paidAmount: paidAmount,
-      includeInRx: includeInRx,
-      isForm3C: shouldAddBillTo3C,
-      date: moment().format("YYYY-MM-DD"),
-      notes: patientBillNotes,
-      // dueFromPreviousBill: patientDueAmount,
-      appointmentId: pam_id || patientData?.pam_id,
-      admissionId: admissionId,
-      id: editBillData?.id,
-    };
-    const createRes = await createBill(payload, isIpdBill ? "ipd" : "", editBillData?.id);
-    if (createRes?.id) {
+      // const updatedPaymentModes = paymentModes?.filter(
+      //   (item) => item.paymentMode && item.amount > 0
+      // );
+      // if (updatedPaymentModes?.length !== paymentModes?.length) {
+      //   setPaymentModeItemMissing(true);
+      //   return;
+      // }
+      const patientUniqueId =
+        patientData?.patient_unique_id ||
+        patientDetails?.patientUniqueId ||
+        editBillData?.patientId;
+      const payload = {
+        patientId: patientUniqueId,
+        doctorId: isReceptionist
+          ? doctorsList?.length === 1
+            ? doctorsList[0].value
+            : selectedDoctor?.value
+          : userId,
+        billItems: updatedDataSource,
+        paymentModes: paymentModes,
+        subTotal: subTotal,
+        lineItemDiscount: lineItemDiscount,
+        extraDiscount: extraDiscount || 0,
+        extraDiscountType: extraDiscountType,
+        applicableGst: applicableGst,
+        payableAmount: payableAmount,
+        paidAmount: paidAmount,
+        includeInRx: includeInRx,
+        isForm3C: shouldAddBillTo3C,
+        date: moment().format("YYYY-MM-DD"),
+        notes: patientBillNotes,
+        // dueFromPreviousBill: patientDueAmount,
+        appointmentId: pam_id || patientData?.pam_id,
+        admissionId: admissionId,
+        id: editBillData?.id,
+      };
+      const createRes = await createBill(payload, isIpdBill ? "ipd" : "", editBillData?.id);
+      if (createRes?.id) {
       message.open({
         key: MESSAGE_KEY,
         type: "",
@@ -1014,9 +1026,14 @@ const CreateBill = ({
             showCreatedBy={isIpdBill ? advancedSettings?.ipdSetting?.enableCreatedByInRx : advancedSettings?.enableCreatedByInRx}
           />
         ).toBlob();
-        printContent(blob, createRes.patientId, setStartLoader);
-        handleCreateBillDrawer();
+          printContent(blob, createRes.patientId, setStartLoader);
+          handleCreateBillDrawer();
+        }
       }
+    } catch (error) {
+      console.error("Error creating bill:", error);
+    } finally {
+      setIsSavingBill(false);
     }
   };
 
@@ -1417,23 +1434,26 @@ const CreateBill = ({
                   >
                     <span>
                       <Checkbox
-                        className={`me-2 ${editBillData?.isForm3C ? "disabled pe-none" : ""}`}
+                        className="me-2"
+                        style={editBillData?.isForm3C ? {  opacity: 0.5, cursor: "not-allowed" } : {}}
                         checked={shouldAddBillTo3C}
                         onChange={(e) => {
-                          const clinic = getClinic();
-                          trackEvent("TP_Billing_AddBilltoForm3C", {
-                            patientName: patientDetails?.patientName || "",
-                            patientId: patientDetails?.patientUniqueId || "",
-                            doctorSpeciality: profile?.dp_name,
-                            doctorId: profile?.doctor_unique_id,
-                            doctorContact: profile?.um_contact,
-                            city: clinic?.hm_city,
-                            pincode: clinic?.hm_pincode,
-                            subscriptionStatus: planDetails?.currentPlanStatus,
-                            receptionistId: receptionistId,
-                            receptionistName: receptionistName,
-                          });
-                          setAddBillTo3C(e.target.checked);
+                          if (!editBillData?.isForm3C) {
+                            const clinic = getClinic();
+                            trackEvent("TP_Billing_AddBilltoForm3C", {
+                              patientName: patientDetails?.patientName || "",
+                              patientId: patientDetails?.patientUniqueId || "",
+                              doctorSpeciality: profile?.dp_name,
+                              doctorId: profile?.doctor_unique_id,
+                              doctorContact: profile?.um_contact,
+                              city: clinic?.hm_city,
+                              pincode: clinic?.hm_pincode,
+                              subscriptionStatus: planDetails?.currentPlanStatus,
+                              receptionistId: receptionistId,
+                              receptionistName: receptionistName,
+                            });
+                            setAddBillTo3C(e.target.checked);
+                          }
                         }}
                       />
                     </span>
@@ -1504,7 +1524,9 @@ const CreateBill = ({
                     onClick={() => {
                       handleCreateBill("exit");
                     }}
+                    loading={isSavingBill}
                     disabled={
+                      isSavingBill ||
                       disableSaveBtn ||
                       (!patientData?.patient_unique_id &&
                         !patientDetails?.patientUniqueId &&
@@ -1524,7 +1546,9 @@ const CreateBill = ({
                       onClick={() => {
                         handleCreateBill("exit");
                       }}
+                      loading={isSavingBill}
                       disabled={
+                        isSavingBill ||
                         disableSaveBtn ||
                         (!patientData?.patient_unique_id &&
                           !patientDetails?.patientUniqueId &&
@@ -1540,7 +1564,9 @@ const CreateBill = ({
                         isMobile ? "me-1" : "px-4 me-20"
                       }`}
                       onClick={handleCreateBill}
+                      loading={isSavingBill}
                       disabled={
+                        isSavingBill ||
                         disableSaveBtn ||
                         (!patientData?.patient_unique_id &&
                           !patientDetails?.patientUniqueId &&
@@ -1561,7 +1587,9 @@ const CreateBill = ({
                         isReceptionist ? "receptionist-white-btn" : "btn-input"
                       }`}
                       onClick={handleCreateBill}
+                      loading={isSavingBill}
                       disabled={
+                        isSavingBill ||
                         disableSaveBtn ||
                         (!patientData?.patient_unique_id &&
                           !patientDetails?.patientUniqueId &&
@@ -1582,7 +1610,9 @@ const CreateBill = ({
                       onClick={() => {
                         handleCreateBill("preview");
                       }}
+                      loading={isSavingBill}
                       disabled={
+                        isSavingBill ||
                         disableSaveBtn ||
                         (!patientData?.patient_unique_id &&
                           !patientDetails?.patientUniqueId &&
