@@ -16,7 +16,7 @@ import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_R
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
 import { useOpdBilling } from '../../opdBilling/useOpdBilling';
-import { isChrome, isSafari } from 'react-device-detect';
+import { isChrome, isSafari, isMobile } from 'react-device-detect';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 
 // Components
@@ -511,11 +511,11 @@ function PatientDetails() {
       label: `Medical Records${allUploadedDocs?.length > 0 ? ` (${allUploadedDocs.length})` : ''}`,
       icon: 'icon-Report',
     },
-    ...(isOpdBillingAccessable
+    ...(isOpdBillingAccessable || isMobile
       ? [
           {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
-            label: 'Add Bill',
+            label: 'Add Bill/Payment',
             icon: 'icon-Visit-Summary-Fill',
           },
         ]

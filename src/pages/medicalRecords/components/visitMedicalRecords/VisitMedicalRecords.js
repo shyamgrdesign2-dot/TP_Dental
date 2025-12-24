@@ -170,7 +170,7 @@ const VisitMedicalRecords = ({
               <div
                 className={`d-flex ${isMobile ? 'category-buttons-scrollable' : 'flex-wrap'}`}
                 style={{
-                  padding: "24px",
+                  padding: isMobile ? "12px" : "24px",
                   columnGap: "16px",
                   ...(isMobile && {
                     flexWrap: "nowrap",
@@ -209,7 +209,10 @@ const VisitMedicalRecords = ({
                 md={3}
                 lg={4}
                 className="gy-4 w-100"
-                style={{ paddingLeft: "24px" }}
+                style={{ 
+                  paddingLeft: isMobile ? "12px" : "24px", 
+                  ...(isMobile && { paddingTop: "12px" })
+                }}
               >
                 {activeCategoryDocs.map((cardData, index) => {
                   return (
