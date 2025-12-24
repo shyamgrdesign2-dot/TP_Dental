@@ -174,6 +174,25 @@ const VerifyPassword = ({ onViewChange, mobileNumber }) => {
             Login
           </Button>
 
+          <div className="terms-text" style={{ paddingTop: "1rem" }}>
+            By continuing I accept for the{" "}
+            <a
+              href="https://www.tatvacare.in/terms-conditions/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              T&C
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://www.tatvacare.in/privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Privacy Policy
+            </a>
+          </div>
+
           <div className="go-back" onClick={handleGoBack} style={{ marginTop: "2rem" }}>
             Go back
           </div>

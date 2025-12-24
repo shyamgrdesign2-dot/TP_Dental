@@ -135,11 +135,24 @@ function App() {
         console.warn("Some logout URLs failed:", statuses);
       }
 
+      const isAutoLogout = localStorage.getItem("isAutoLogout");
+
       localStorage.clear();
       sessionStorage.clear();
+
+      if (isAutoLogout) {
+        localStorage.setItem("isAutoLogout", isAutoLogout);
+      }
+
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
+      const isAutoLogout = localStorage.getItem("isAutoLogout");
+      localStorage.clear();
+      sessionStorage.clear();
+      if (isAutoLogout) {
+        localStorage.setItem("isAutoLogout", isAutoLogout);
+      }
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -152,6 +165,34 @@ function App() {
     if (fromNative) {
       setFromNativeFlag(fromNative)
     }
+  }, []);
+
+  useEffect(() => {
+    const checkAutoLogout = () => {
+      const token = getToken();
+      const isAutoLogout = localStorage.getItem("isAutoLogout");
+      const currentPath = location.pathname;
+      const isOnLoginPage = currentPath === "/login";
+      
+      if (token && !isAutoLogout && !isOnLoginPage && !isReceptionist) {
+        localStorage.setItem("isAutoLogout", "true");
+        
+        const urlsToOpen = [config.pedia_logout_url, config.tatvaAi_logout_url];
+        
+        openUrlsSilently(urlsToOpen).catch((error) => {
+          console.error("Error opening logout URLs:", error);
+        });
+
+        const preservedAutoLogout = localStorage.getItem("isAutoLogout");
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem("isAutoLogout", preservedAutoLogout);
+        
+        window.location.href = "/login";
+      }
+    };
+
+    checkAutoLogout();
   }, []);
   useEffect(() => {
     const checkUserStatus = async () => {
