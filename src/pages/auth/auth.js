@@ -23,11 +23,19 @@ const AuthContainer = () => {
     const logoutParam = params.get("logout");
 
     if (logoutParam === "old") {
+      // Preserve isAutoLogout flag before clearing localStorage
+      const isAutoLogout = localStorage.getItem("isAutoLogout");
+      
       // Clear local storage
       localStorage.clear();
 
       // Clear session storage (if used)
       sessionStorage.clear();
+
+      // Restore isAutoLogout flag if it existed
+      if (isAutoLogout) {
+        localStorage.setItem("isAutoLogout", isAutoLogout);
+      }
     }
 
     // Check for persistent storage key "auth-token"
