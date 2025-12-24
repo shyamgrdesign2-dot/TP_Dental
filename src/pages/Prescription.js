@@ -122,6 +122,7 @@ import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
 import GenRxKnowMore from "../components/GenRxKnowMore";
+import { AddCustomModuleDrawer, AddCustomModuleV2 } from "../components/customModulesV2";
 
 function Prescription() {
   const {
@@ -198,6 +199,7 @@ function Prescription() {
   const [labParamsData, setLabParamsData] = useState([]);
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [customModuleContents, setCustomModuleContents] = useState([]);
+  const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
     caseManagerData?.smart_prescription_filename || 
     (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
@@ -1783,7 +1785,12 @@ function Prescription() {
                     customModule && <CustomModule module={customModule} />
                   );
                 })}
-                <AddCustomModule />
+                {/* <AddCustomModule /> */}
+                <AddCustomModuleV2 onOpenDrawer={() => setIsAddCustomModuleDrawerVisible(true)} />
+                <AddCustomModuleDrawer
+                  open={isAddCustomModuleDrawerVisible}
+                  onClose={() => setIsAddCustomModuleDrawerVisible(false)}
+                />
               </Content>
             </div>
           </div>
