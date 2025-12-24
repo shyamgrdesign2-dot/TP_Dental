@@ -19,12 +19,15 @@ import {
   getVaccineBrands,
   getPatientVaccineDetails,
   getOverridenDueDate,
+  getTvtAgeBySection,
 } from "./service";
 import {
   getDates,
   getDefaultOption,
   getDistinctAges,
   mergeDataPatientDetails,
+  splitVaccinesByCategory,
+  VaccinationCategoryEnum,
 } from "./VaccinationHelper";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useLocation } from "react-router-dom";
@@ -49,6 +52,7 @@ function Vaccination({ handleDrawerVaccination }) {
   const [dateOptions, setDateOptions] = useState([]);
   const [ageFilters, setAgeFilters] = useState([]);
   const [previewData, setPreviewData] = useState([]);
+  const [tvtAgeBySectionData, setTvtAgeBySectionData] = useState({});
   const { state } = useLocation();
   let { patient_data } = state;
   const [printType, setPrintType] = useState("");
@@ -57,6 +61,13 @@ function Vaccination({ handleDrawerVaccination }) {
   const [loading, setLoading] = useState(false);
   const [vaccinePatientDetails, setVaccinePatientDetails] = useState();
   const [tabLoader, setTabLoader] = useState(false);
+  const [activeVaccineTab, setActiveVaccineTab] = useState(
+    VaccinationCategoryEnum[0].key
+  );
+  const [splitVaccineData, setSplitVaccineData] = useState({
+    [VaccinationCategoryEnum[0].key]: [],
+    [VaccinationCategoryEnum[1].key]: [],
+  });
 
   const contextApi = {
     patient_data,
@@ -77,10 +88,53 @@ function Vaccination({ handleDrawerVaccination }) {
   }, [warningMsg]);
 
   useEffect(() => {
+    // Filter vaccines based on active date and active tab
     const activeValue = ageFilters?.[activeDate];
-    setVaccinesData(completeData?.get?.(activeValue));
+    const filteredData = completeData?.get?.(activeValue) || [];
+    
+    // Since completeData is already filtered by tab, we can directly use filteredData
+    setVaccinesData(filteredData);
     setShouldShowSelectAll(false);
-  }, [activeDate, completeData]);
+  }, [activeDate, completeData, ageFilters]);
+
+  useEffect(() => {
+    // Update filters and data when tab changes
+    if (
+      splitVaccineData &&
+      Object.keys(splitVaccineData).length > 0 &&
+      Object.keys(tvtAgeBySectionData).length > 0
+    ) {
+      const currentTabData = splitVaccineData[activeVaccineTab] || [];
+      const result = getDistinctAges(currentTabData);
+      
+      // Update ageFilters based on active tab
+      const currentTabValue = VaccinationCategoryEnum.find(
+        (cat) => cat.key === activeVaccineTab
+      )?.value;
+      
+      // Get age filters from tvtAgeBySection if available, otherwise use distinct ages
+      const ageFilterList =
+        tvtAgeBySectionData[currentTabValue] || result.distinctIds;
+      setAgeFilters(ageFilterList);
+      
+      // Update completeData with the current tab's data
+      setCompleteData(result.idMap);
+      
+      // Update dateOptions based on current tab's data
+      const options = getDates(result.idMap);
+      setDateOptions(options);
+      
+      // Reset activeDate to default for the new tab
+      if (options.length > 0) {
+        setActiveDate(getDefaultOption(options));
+      } else {
+        setActiveDate(0);
+      }
+      
+      // Update previewData
+      setPreviewData(currentTabData);
+    }
+  }, [activeVaccineTab, splitVaccineData, tvtAgeBySectionData]);
 
   useEffect(() => {
     if (printType) {
@@ -127,8 +181,23 @@ function Vaccination({ handleDrawerVaccination }) {
   };
 
   const getVaccineDetails = async (updatedVaccine) => {
+    const tvtAgeBySection = await getTvtAgeBySection();
+    setTvtAgeBySectionData(tvtAgeBySection);
     const vaccineTemplate = await getVaccineTemplates();
     const patientDetail = await getPatientDetail();
+    
+    // Calculate patient age and set initial tab if age > 18
+    let currentActiveTab = activeVaccineTab;
+    if (patientDetail?.vac_dob && !updatedVaccine) {
+      const birthDate = moment(patientDetail.vac_dob, "DD-MMM-YYYY");
+      const ageInYears = moment().diff(birthDate, "years", true);
+      
+      if (ageInYears > 18) {
+        currentActiveTab = VaccinationCategoryEnum[1].key; // Set to "Other Vaccines"
+        setActiveVaccineTab(currentActiveTab);
+      }
+    }
+    
     const overridenVaccines = await getOverridenDueDate(
       patient_data?.patient_unique_id,
       patient_data?.pm_pid
@@ -152,12 +221,22 @@ function Vaccination({ handleDrawerVaccination }) {
       details,
       birthDate
     );
-    setPreviewData(combinedData);
-    const result = getDistinctAges(combinedData);
-    setAgeFilters(result.distinctIds);
+    const splitData = splitVaccinesByCategory(combinedData, tvtAgeBySection);
+    setSplitVaccineData(splitData);
+    
+    // Initialize with current active tab
+    const currentTabData = splitData[currentActiveTab] || [];
+    setPreviewData(currentTabData);
+    const result = getDistinctAges(currentTabData);
+    
+    // Set ageFilters based on active tab
+    const currentTabValue = VaccinationCategoryEnum.find(
+      (cat) => cat.key === currentActiveTab
+    )?.value;
+    setAgeFilters(tvtAgeBySection[currentTabValue] || result.distinctIds);
 
     setCompleteData(result.idMap);
-
+    console.log("combinedData", splitData);
     const options = getDates(result.idMap);
     setDateOptions(options);
     if (!updatedVaccine) {
@@ -285,6 +364,9 @@ function Vaccination({ handleDrawerVaccination }) {
             setPrintType={setPrintType}
             isVaccination={true}
             printLoader={tabLoader}
+            splitVaccineData={splitVaccineData}
+            activeVaccineTab={activeVaccineTab}
+            setActiveVaccineTab={setActiveVaccineTab}
           />
         )}
         <div
@@ -307,6 +389,22 @@ function Vaccination({ handleDrawerVaccination }) {
               width={220}
             />
           </div>
+          {splitVaccineData?.[VaccinationCategoryEnum[1].key]?.length > 0 && (
+            <div className="vaccine-tab-filter mb-3">
+              {VaccinationCategoryEnum.map((category) => (
+                <button
+                  key={category.key}
+                  type="button"
+                  className={`vaccine-tab-btn ${
+                    activeVaccineTab === category.key ? "active" : ""
+                  }`}
+                  onClick={() => setActiveVaccineTab(category.key)}
+                >
+                  {category.value}
+                </button>
+              ))}
+            </div>
+          )}
           {vaccinesData?.length && !loading ? (
             <>
               <div className={isFixed ? "fixFilter" : ""}>
@@ -316,6 +414,7 @@ function Vaccination({ handleDrawerVaccination }) {
                   setActiveDate={setActiveDate}
                   setSelectedCards={setSelectedCards}
                   setSelectAll={setSelectAll}
+                  activeVaccineTab={activeVaccineTab}
                 />
               </div>
               <div style={{ marginTop: isFixed ? "100px" : "0px" }}>
@@ -340,6 +439,8 @@ function Vaccination({ handleDrawerVaccination }) {
                         setSelectedCards={setSelectedCards}
                         index={index}
                         handleCardClick={handleCardClick}
+                        activeVaccineTab={activeVaccineTab}
+                        isOtherVaccine={activeVaccineTab === VaccinationCategoryEnum[1].key}
                       />
                     </Col>
                   ))}

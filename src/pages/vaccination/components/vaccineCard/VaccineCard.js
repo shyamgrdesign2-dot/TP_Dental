@@ -11,6 +11,7 @@ const VaccineCard = ({
   handleCardCheckboxChange,
   index,
   handleCardClick,
+  isOtherVaccine = false,
 }) => {
   const dueDate = moment(vaccineData.dueDate);
   const givenDate = moment(vaccineData.tvp_given_date);
@@ -43,9 +44,7 @@ const VaccineCard = ({
 
         {vaccineData.tvp_remarks || vaccineData.tvd_remarks ? (
           <div className="vaccineDetailsValue d-flex direction-row gap-1">
-            <span className="vaccineDetailsKey">
-              Note :{" "}
-            </span>
+            <span className="vaccineDetailsKey">Note : </span>
             <span className="noteStyle">
               {vaccineData.tvp_remarks || vaccineData.tvd_remarks}
             </span>
@@ -108,23 +107,25 @@ const VaccineCard = ({
           </Col>
         </Row>
         {/* Due Date Info */}
-        <Row
-          className={`dueDetails ${
-            (!vaccineData.tvp_given_date && isVaccineDueExceeded) ||
-            isDateGivenExceeded
-              ? "isDelayed"
-              : vaccineData?.tvp_given_date
-              ? "isGiven"
-              : ""
-          }`}
-        >
-          <Col>
-            <div className="d-flex flex-column dueMessage">
-              <div>Due date : {vaccineData.dueDate}</div>
-              <div>Based on DOB</div>
-            </div>
-          </Col>
-        </Row>
+        {!isOtherVaccine && (
+          <Row
+            className={`dueDetails ${
+              (!vaccineData.tvp_given_date && isVaccineDueExceeded) ||
+              isDateGivenExceeded
+                ? "isDelayed"
+                : vaccineData?.tvp_given_date
+                ? "isGiven"
+                : ""
+            }`}
+          >
+            <Col>
+              <div className="d-flex flex-column dueMessage">
+                <div>Due date : {vaccineData.dueDate}</div>
+                <div>Based on DOB</div>
+              </div>
+            </Col>
+          </Row>
+        )}
       </div>
       <div
         style={{

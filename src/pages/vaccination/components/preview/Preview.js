@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal } from "antd";
 import closeFill from "../../../../assets/images/closeFill.svg";
+import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import "./Preview.scss";
 import VaccineTable from "../vaccineTable/VaccineTable";
 
@@ -49,7 +50,24 @@ const columns = [
   },
 ];
 
-const Preview = ({ vaccinesData, onCancel, shouldShowPreview }) => {
+const Preview = ({ vaccinesData, onCancel, shouldShowPreview, splitVaccineData, activeVaccineTab, setActiveVaccineTab }) => {
+  const [localActiveTab, setLocalActiveTab] = useState(activeVaccineTab || VaccinationCategoryEnum[0].key);
+  
+  // Use local state if activeVaccineTab prop is not provided
+  const currentActiveTab = activeVaccineTab !== undefined ? activeVaccineTab : localActiveTab;
+  const handleTabChange = (tab) => {
+    if (setActiveVaccineTab) {
+      setActiveVaccineTab(tab);
+    } else {
+      setLocalActiveTab(tab);
+    }
+  };
+  
+  // Filter data based on active tab
+  const filteredData = splitVaccineData && Object.keys(splitVaccineData).length > 0
+    ? splitVaccineData[currentActiveTab] || []
+    : vaccinesData || [];
+  
   return (
     <div>
       <Modal
@@ -78,9 +96,27 @@ const Preview = ({ vaccinesData, onCancel, shouldShowPreview }) => {
         show={true}
         onHide={onCancel}
       >
+        {splitVaccineData?.[VaccinationCategoryEnum[1].key]?.length > 0 && (
+          <div className="vaccine-tab-filter mb-3">
+            {VaccinationCategoryEnum.map((category) => (
+              <button
+                key={category.key}
+                type="button"
+                className={`vaccine-tab-btn ${
+                  currentActiveTab === category.key
+                    ? "active btn-create-bill text-white"
+                    : ""
+                }`}
+                onClick={() => handleTabChange(category.key)}
+              >
+                {category.value}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="tableContainer">
           <VaccineTable
-            dataSource={vaccinesData}
+            dataSource={filteredData}
             columns={columns}
             isPreview={true}
           />

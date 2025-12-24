@@ -160,3 +160,37 @@ export const isVaccineModifiedRecently = (modifyDate) => {
   // Return true if difference is less than 24 hours
   return hoursDifference <= 24;
 };
+
+export const splitVaccinesByCategory = (vaccineData, categoryMapping) => {
+  const result = {
+    [VaccinationCategoryEnum[0].key]: [],
+    [VaccinationCategoryEnum[1].key]: [],
+  };
+
+  const iapAges = categoryMapping[VaccinationCategoryEnum[0].value] || [];
+  const otherAges = categoryMapping[VaccinationCategoryEnum[1].value] || [];
+
+  vaccineData.forEach((vaccine) => {
+    const age = vaccine.tvt_age;
+
+    if (iapAges.includes(age)) {
+      result[VaccinationCategoryEnum[0].key].push(vaccine);
+    } else if (otherAges.includes(age)) {
+      result[VaccinationCategoryEnum[1].key].push(vaccine);
+    }
+  });
+
+  return result;
+};
+
+export const VaccinationCategoryEnum = 
+[
+  {
+  key: "iapVaccines",
+  value: "IAP Vaccines",
+ },
+ {
+  key: "otherVaccines",
+  value: "Other Vaccines",
+ }
+];

@@ -196,3 +196,16 @@ export const fetchFrequentlyUsedVaccines = async (doctorUniqueId, vaccineName) =
   }
   return result;
 };
+
+export const getTvtAgeBySection = async function () {
+  let tvtAgeBySection = [];
+  try {
+    tvtAgeBySection = await api.get(`/vaccination/tvtAgeBySection`, baseUrl);
+    if (tvtAgeBySection?.sections) {
+      tvtAgeBySection = tvtAgeBySection.sections;
+    }
+  } catch (e) {
+    console.error("Error while fetching tvt age by section", e);
+  }
+  return tvtAgeBySection;
+};

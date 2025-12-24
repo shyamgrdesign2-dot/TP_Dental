@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button, Tooltip } from "antd";
 import chevron from "../../../../assets/images/arrow-box-right.svg";
 import closeFill from "../../../../assets/images/closeFill.svg";
+import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import "./VaccineFilter.scss";
 
 const VaccineFilter = ({
@@ -10,6 +11,7 @@ const VaccineFilter = ({
   setActiveDate,
   setSelectedCards,
   setSelectAll,
+  activeVaccineTab,
 }) => {
   const datesContainerRef = useRef(null);
   const hasScrolledRef = useRef(false);
@@ -80,6 +82,7 @@ const VaccineFilter = ({
     return () => clearTimeout(timer);
   }, []);
 
+  const isOtherVaccinesTab = activeVaccineTab === VaccinationCategoryEnum[1].key;
   const pendingVaccines = dateOptions.filter(
     (item) => item?.alert === "failure"
   );
@@ -136,6 +139,7 @@ const VaccineFilter = ({
               title={tooltipTitle}
               overlayClassName="customTooltip"
               open={
+                !isOtherVaccinesTab &&
                 showTooltip &&
                 pendingVaccines.length === 1 &&
                 item.alert === "failure"
@@ -151,7 +155,7 @@ const VaccineFilter = ({
                 style={{ margin: "0" }}
                 onClick={() => dateOptionHandler(i)}
               >
-                {item.alert ? (
+                {!isOtherVaccinesTab && item.alert ? (
                   <span
                     className={`alertStyle ${
                       item.alert === "success" ? "success" : "failure"

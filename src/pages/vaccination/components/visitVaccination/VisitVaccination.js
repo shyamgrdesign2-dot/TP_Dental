@@ -5,13 +5,15 @@ import "./VisitVaccination.scss";
 
 import Vaccination from "../../../../assets/images/Vaccination.svg";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getOverridenDueDate } from "../../service";
+import { getOverridenDueDate, getTvtAgeBySection } from "../../service";
 import {
   dateFormatter,
   getDates,
   getDefaultOption,
   getDistinctAges,
   mergeDataPatientDetails,
+  splitVaccinesByCategory,
+  VaccinationCategoryEnum,
 } from "../../VaccinationHelper";
 import moment from "moment";
 
@@ -22,8 +24,10 @@ function VisitVaccination() {
 
   const [upcomingVaccines, setUpcomingVaccines] = useState([]);
   const [pendingVaccines, setPendingVaccines] = useState([]);
+  const [otherVaccines, setOtherVaccines] = useState([]);
 
   const overDueVaccines = async () => {
+    const tvtAgeBySection = await getTvtAgeBySection();
     const overridenVaccines = await getOverridenDueDate(
       patient_data?.patient_unique_id,
       patient_data?.pm_pid
@@ -36,10 +40,22 @@ function VisitVaccination() {
       [],
       patient_data?.DOB || patient_data?.vac_dob || ""
     );
-    const vaccineDetailsWithAges = getDistinctAges(combinedData);
+    
+    // Split vaccines by category (IAP and Other)
+    const splitData = splitVaccinesByCategory(combinedData, tvtAgeBySection);
+    
+    // Use only IAP vaccines
+    const iapVaccines = splitData[VaccinationCategoryEnum[0].key] || [];
+    
+    const vaccineDetailsWithAges = getDistinctAges(iapVaccines);
     const completeData = vaccineDetailsWithAges.idMap;
     const options = getDates(completeData);
     const defaultOption = getDefaultOption(options);
+
+    const otherVaccines = splitData[VaccinationCategoryEnum[1].key] || [];
+    const otherVaccinesWithAges = getDistinctAges(otherVaccines);
+    const otherCompleteData = otherVaccinesWithAges.idMap;
+    setOtherVaccines([...otherCompleteData]);
 
     setUpcomingVaccines(
       [...completeData]?.slice(defaultOption + 1, defaultOption + 2)
@@ -189,6 +205,12 @@ function VisitVaccination() {
                       <>
                         <div className="title">Upcoming Vaccines</div>
                         {resultData(upcomingVaccines)}
+                      </>
+                    ) : null}
+                    {otherVaccines?.length ? (
+                      <>
+                        <div className="title">Other Vaccines</div>
+                        {resultData(otherVaccines)}
                       </>
                     ) : null}
                   </div>

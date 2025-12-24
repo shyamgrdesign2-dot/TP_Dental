@@ -32,6 +32,9 @@ function VaccineHeader({
   isObstetric,
   isGrowthChart,
   isPregnancyCompleted,
+  splitVaccineData,
+  activeVaccineTab,
+  setActiveVaccineTab,
 }) {
   const vaccinationVideo = {
     link: "https://www.youtube.com/embed/o6ALwX9hPMM",
@@ -333,6 +336,9 @@ function VaccineHeader({
               vaccinesData={vaccinesData}
               onCancel={previewBtnHandler}
               shouldShowPreview={shouldShowPreview}
+              splitVaccineData={splitVaccineData}
+              activeVaccineTab={activeVaccineTab}
+              setActiveVaccineTab={setActiveVaccineTab}
             />
           ) : null}
         </Container>
