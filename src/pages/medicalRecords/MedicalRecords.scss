@@ -23,4 +23,33 @@
   .active-category-label {
     color: #a461d8 !important;
   }
+
+  .category-buttons-scrollable {
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+
+    .category-btn {
+      flex-shrink: 0;
+    }
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  .PatientDetailswrap {
+    .ant-card {
+      border: none !important;
+      background: none !important;
+
+      .ant-card-body {
+        padding: 0 !important;
+      }
+    }
+
+    .image-wrapper {
+      height: 153px !important;
+    }
+  }
 }

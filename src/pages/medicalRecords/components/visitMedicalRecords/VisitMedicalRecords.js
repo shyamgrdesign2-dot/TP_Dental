@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Col, Row } from "react-bootstrap";
 import "./../../MedicalRecords.scss";
 import RecordCard from "../recordCard/RecordCard";
-import { isAndroid, isBrowser } from "react-device-detect";
+import { isAndroid, isBrowser, isMobile } from "react-device-detect";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -168,8 +168,17 @@ const VisitMedicalRecords = ({
           ) : (
             <div className="d-flex justify-content-center flex-column medical-records">
               <div
-                className="d-flex flex-wrap"
-                style={{ padding: "24px", columnGap: "16px" }}
+                className={`d-flex ${isMobile ? 'category-buttons-scrollable' : 'flex-wrap'}`}
+                style={{
+                  padding: "24px",
+                  columnGap: "16px",
+                  ...(isMobile && {
+                    flexWrap: "nowrap",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                  }),
+                }}
               >
                 {updatedCategory.map((item) => (
                   <Button
