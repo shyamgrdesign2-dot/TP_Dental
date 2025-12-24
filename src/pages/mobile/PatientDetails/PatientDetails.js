@@ -47,6 +47,7 @@ import BillingDashboard from '../../opdBilling/components/billingDashboard/Billi
 import UploadDocPopup from '../../medicalRecords/components/uploadDocPopup/UploadDocPopup';
 import CommonModal from '../../../common/CommonModal';
 import UploadDocument from '../../medicalRecords/UploadDocument';
+import MobileUploadMedicalRecord from './components/MobileUploadMedicalRecord';
 import alertIcon from '../../../assets/images/alertIcon.svg';
 
 import './PatientDetails.scss';
@@ -614,29 +615,46 @@ function PatientDetails() {
       </div>
 
       {/* Upload Document Drawer */}
-      {uploadDocDrawer && (
-        <Drawer
-          closeIcon={false}
-          placement="right"
-          bodyStyle={{ backgroundColor: 'white' }}
-          onClose={handleDeletePopup}
-          open={uploadDocDrawer}
-          className="modalWidth-700"
-          width="auto"
-          push={false}
-        >
-          <UploadDocument
+      {uploadDocDrawer && isMobile ? (
+        <MobileUploadMedicalRecord
+          visible={uploadDocDrawer}
+          onClose={handleDrawerUploadDoc}
+          handleDrawerUploadDoc={handleDrawerUploadDoc}
+          shouldShowDeletePopup={shouldShowDeletePopup}
+          setShowDeletePopup={setShowDeletePopup}
+          filesData={filesData}
+          setFilesData={setFilesData}
+          isEditDocument={isEditDocument}
+          setIsEditDocument={setIsEditDocument}
+          patientData={patient_data}
+          isAppointmentData={false}
+          handleUploadDocPopup={handleUploadDocPopup}
+        />
+      ) : (
+        uploadDocDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: 'white' }}
             onClose={handleDeletePopup}
-            handleDrawerUploadDoc={handleDrawerUploadDoc}
-            shouldShowDeletePopup={shouldShowDeletePopup}
-            setShowDeletePopup={setShowDeletePopup}
-            filesData={filesData}
-            setFilesData={setFilesData}
-            isEditDocument={isEditDocument}
-            setIsEditDocument={setIsEditDocument}
-            handleUploadDocPopup={handleUploadDocPopup}
-          />
-        </Drawer>
+            open={uploadDocDrawer}
+            className="modalWidth-700"
+            width="auto"
+            push={false}
+          >
+            <UploadDocument
+              onClose={handleDeletePopup}
+              handleDrawerUploadDoc={handleDrawerUploadDoc}
+              shouldShowDeletePopup={shouldShowDeletePopup}
+              setShowDeletePopup={setShowDeletePopup}
+              filesData={filesData}
+              setFilesData={setFilesData}
+              isEditDocument={isEditDocument}
+              setIsEditDocument={setIsEditDocument}
+              handleUploadDocPopup={handleUploadDocPopup}
+            />
+          </Drawer>
+        )
       )}
 
       {/* Upload Document Popup */}
