@@ -6,13 +6,14 @@ import genRxMic from "../assets/images/gen-rx-mic.svg";
 import { useState } from "react";
 import { getClinicName, trackEvent } from "../utils/utils";
 import { useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   const [isCollapseActive, setIsCollapseActive] = useState(true);
   const { profile } = useSelector((state) => state.doctors);
   const { state } = useLocation();
   const { patient_data } = state;
+  const navigate = useNavigate();
 
   const handlePanelChange = () => {
     setIsCollapseActive((prev) => !prev);
@@ -76,7 +77,14 @@ const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
                   doctor_unique_id: profile?.doctor_unique_id,
                   clinic_name,
                 });
-                setIsGenRxDrawerVisible(true);
+                // Navigate to VoiceRxConsult page with auto-open modal
+                navigate("/voice-rx-consult", {
+                  state: {
+                    patient_data,
+                    autoOpenModal: true,
+                    fromPrescription: true,
+                  },
+                });
               }}
             >
               <img src={tryGenRxIcon} alt="genrx-icon" />

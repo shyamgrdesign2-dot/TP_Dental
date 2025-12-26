@@ -21,11 +21,11 @@ const VoiceRxConsult = () => {
   const navigate = useNavigate();
   const { profile, userId, servicesList } = useSelector((state) => state.doctors);
   
-  const { patient_data, isFromTabView } = location.state || {};
+  const { patient_data, isFromTabView, autoOpenModal, fromPrescription } = location.state || {};
   
   const [popOverVideo, setPopOverVideo] = useState(false);
-  const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [isVoiceRxModalOpen, setIsVoiceRxModalOpen] = useState(autoOpenModal || false);
+  const [showWelcome, setShowWelcome] = useState(!autoOpenModal);
   const [consentChecked, setConsentChecked] = useState(true);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
@@ -91,6 +91,16 @@ const VoiceRxConsult = () => {
   const handleModalClose = () => {
     setIsVoiceRxModalOpen(false);
     setShowWelcome(true);
+    
+    // If user came from prescription page, navigate back to prescription
+    if (fromPrescription && patient_data) {
+      navigate("/prescription", {
+        state: {
+          patient_data,
+          isFromTabView: isFromTabView || false,
+        },
+      });
+    }
   };
 
   const handleDictationMode = () => {

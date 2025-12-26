@@ -44,8 +44,6 @@ import {
   updateAmbientRx,
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
-import genRxRecordIcon from "../assets/images/gen-rx-record.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
@@ -64,12 +62,8 @@ import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import VoiceWaveVisualizer from "./WaveVisualizer";
-import GenRXLoaders from "./GenRxLoaders";
-import genRxSendCta from "../assets/images/genRxSendCta.svg";
 import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import tatvaAiChakra from "../assets/lotties/tatvaAiChakra.lottie";
 import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
@@ -128,8 +122,9 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import { useGrounding } from "../hooks/useGrounding";
+import GenRXLoaders from "./GenRxLoaders";
+import genRxBg from "../assets/images/gen-rx-bg.gif";
 
-const GenRxTips = lazy(() => import("./GenRxTips"));
 
 const ConsultationDrawer = ({
   visible,
@@ -5119,133 +5114,8 @@ const ConsultationDrawer = ({
               <SCBanner handleBanner={() => setShowSCBanner(false)} />
             </div>
           )}
-          <div
-            className={!showPrescription ? styles.gradientBorder : ""}
-            style={{ background: !showPrescription ? `url(${genRxBg})` : "" }}
-          >
-            <div className={styles.container}>
-              {!showPrescription ? (
-                <>
-                  <div style={{ padding: 24 }}>
-                    <h1 className={styles.title}>
-                      {isAmbientMode ? "Ambient Voice Rx" : "Voice Rx"}
-                    </h1>
-                    <div className={styles.subtitle}>
-                      {isAmbientMode 
-                        ? "Record conversation between doctor and patient for prescription generation"
-                        : "Dictate the complete prescription effortlessly"
-                      }
-                    </div>
-                  </div>
-                  {!isTyping && !isRecording && <GenRxTips />}
-
-                  {isRecording ? (
-                    <div
-                      className={styles.recordingContainer}
-                      style={{ marginLeft: 20, marginBottom: 20 }}
-                    >
-                      <div className="d-flex align-items-center justify-content-between">
-                        <span>{formatTime(recordingTime)}</span>
-                        <VoiceWaveVisualizer
-                          isRecording={isRecording}
-                          isPaused={isPaused}
-                        />
-                        <div className={styles.controlButtons}>
-                          {isPaused ? (
-                            <button
-                              className={styles.micBtn}
-                              onClick={handlePauseResume}
-                            >
-                              <img src={micIcon} alt="resume" />
-                            </button>
-                          ) : (
-                            <div onClick={handlePauseResume} role="button">
-                              <img src={pauseIcon} alt="pause" />
-                            </div>
-                          )}
-                          <div
-                            role="button"
-                            onClick={handleSend}
-                            style={{ width: 32 }}
-                          >
-                            <img src={genRxSendCta} alt="send" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className={styles.controlButtons}>
-                        <div
-                          role="button"
-                          onClick={handleStopRecording}
-                          className={styles.deleteButton}
-                        >
-                          <img src={deleteIcon} alt="delete" />
-                        </div>
-                        <span className={styles.recordingStatus}>
-                          {isPaused
-                            ? "Tap on the mic to continue recording!"
-                            : "Listening..."}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {!isTyping && (
-                        <div className={styles.tapToSpeak}>
-                          <div
-                            role="button"
-                            className={styles.animatedButton}
-                            onClick={handleStartRecording}
-                          >
-                            <DotLottieReact
-                              src={tatvaAiChakra}
-                              loop
-                              autoplay
-                              style={{ width: "150px", height: "105px" }}
-                            />
-                          </div>
-                          <p className={styles.tapText}>Tap to Speak</p>
-                        </div>
-                      )}
-                      <div style={{ padding: "24px 15px" }}>
-                        <div className={styles.inputContainerChat}>
-                          <TextArea
-                            ref={textAreaRef}
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            onClick={() => setIsTyping(true)}
-                            onBlur={() =>
-                              setTimeout(() => setIsTyping(false), 200)
-                            }
-                            placeholder={isTyping ? "" : "Or type here instead"}
-                            className={styles.textArea}
-                            autoSize={{ minRows: 1, maxRows: 6 }}
-                          />
-                          {isTyping && (
-                            <div className={styles.controls}>
-                              <div
-                                role="button"
-                                onMouseDown={handleStartRecording}
-                                onTouchStart={handleStartRecording}
-                              >
-                                <img src={genRxRecordIcon} alt="MIC" />
-                              </div>
-                              <div
-                                role="button"
-                                onMouseDown={handleSend}
-                                onTouchStart={handleSend}
-                                style={{ width: 32 }}
-                              >
-                                <img src={genRxSendCta} alt="send" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
+          <div className={styles.container}>
+            {showPrescription ? (
                   <div
                     className={`${styles.splitView} w-100`}
                     ref={splitRef}
@@ -5884,8 +5754,7 @@ const ConsultationDrawer = ({
                     </div>
                   </div>
                 </div>
-              )}
-              {DELETE_MODULE_MODAL}
+            ) : null}
               <CommonModal
                 isModalOpen={isBackModalOpen}
                 onCancel={showHideBackModal}
@@ -5936,7 +5805,6 @@ const ConsultationDrawer = ({
                   </>
                 }
               />
-            </div>
           </div>
         </>
       </Suspense>
