@@ -81,7 +81,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
   const decodedToken = getDecodedToken();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = decodedToken?.result;
-  const isGroundingAccessable = 
+  const isGroundingAccessableForZydus = 
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const groundingVideoLink = {
@@ -242,7 +242,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
                   showHideSubModal={showHideSubModal}
                 />
 
-                {isGroundingAccessable && (
+                {isGroundingAccessableForZydus && (
                   <button
                     type="button"
                     style={{

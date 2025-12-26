@@ -169,7 +169,7 @@ function TabPrescription() {
   );
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
@@ -1055,7 +1055,7 @@ function TabPrescription() {
 
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
-    openCollapsed(isGroundingAccessable ? 12 : (isFreeVoiceRxUser || tp_monetization_enable) ? 10 : 9);
+    openCollapsed(isGroundingAccessableForZydus ? 12 : (isFreeVoiceRxUser || tp_monetization_enable) ? 10 : 9);
     window.Moengage.track_event("TP_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
@@ -1134,7 +1134,7 @@ function TabPrescription() {
                       <i className="icon-Cross" style={{ color: "#7742FE" }} />
                     </div>
                   </button>
-                  {isGroundingAccessable && <button
+                  {isGroundingAccessableForZydus && <button
                     type="button"
                     className="mb-3 text-center btn btn-action"
                     onClick={() => openCollapsed(12)}
@@ -1204,7 +1204,7 @@ function TabPrescription() {
                 </>
               ) : (
                 <>
-                  {((isApexAIAccessable || isGroundingAccessable) || tp_monetization_enable || isFreeVoiceRxUser) && (
+                  {((isApexAIAccessable || isGroundingAccessableForZydus) || tp_monetization_enable || isFreeVoiceRxUser) && (
                     <button
                       type="button"
                       className="mb-3 text-center btn btn-action"
@@ -1605,7 +1605,7 @@ function TabPrescription() {
                         clinicId={decodedToken?.result?.clinic_id}
                         carePlanPlaceholder={carePlanPlaceholder}
                     />
-                  ) : collapsedFlag === 12 && isGroundingAccessable && (
+                  ) : collapsedFlag === 12 && isGroundingAccessableForZydus && (
                     <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
                   )
               }

@@ -317,7 +317,7 @@ function Prescription() {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const {
@@ -1626,7 +1626,7 @@ function Prescription() {
                     }
                     key="apexAI"
                   >
-                    {isGroundingAccessable && <div className="prescription-box-sm">
+                    {isGroundingAccessableForZydus && <div className="prescription-box-sm">
                       <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
                     </div>}
                     {(tp_monetization_enable || isFreeVoiceRxUser) && <div className="prescription-box-sm">

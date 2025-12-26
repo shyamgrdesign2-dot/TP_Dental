@@ -21,6 +21,7 @@ import { GB_ZYDUS_USER, EXTRA_OPTIONS } from '../utils/constants';
 import ApiMedication from '../api/services/ApiMedication';
 import CustomMedicinePopup from './CustomMedicinePopup';
 import config from '../config';
+import { useGrounding } from '../hooks/useGrounding';
 
 const MedicationsTable = ({
   medications = [],
@@ -37,7 +38,10 @@ const MedicationsTable = ({
   const tokenData = getTokenData();
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
-  const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
+  const isGroundingAccessable = useGrounding();
+  const isGroundingAccessableForZydus =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [parentSearchOptions, setParentSearchOptions] = useState([]);
@@ -389,8 +393,7 @@ const MedicationsTable = ({
         const isZydusMedicine = ((medication?.tmm_hm_type == 1 || medication?.tmm_hm_type == 2) && medication?.um_id === 0);
         
         if (
-          isGroundingAccessable &&
-          !isApollo &&
+          isGroundingAccessableForZydus &&
           !isZydusMedicine &&
           !dontShowZydusWarning
         ) {
@@ -408,7 +411,7 @@ const MedicationsTable = ({
         addNewMedication(value, option);
       }
     },
-    [isGroundingAccessable, dontShowZydusWarning, addNewMedication]
+    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewMedication]
   );
 
   const handleCellClick = async (itemId, field, currentValue) => {
@@ -575,8 +578,7 @@ const MedicationsTable = ({
       }
       const isZydusMedicine = ((medicineData?.metadata?.tmm_hm_type == 1 || medicineData?.metadata?.tmm_hm_type == 2) && medicineData?.metadata?.um_id === 0) || ((medicineData?.tmm_hm_type == 1 || medicineData?.tmm_hm_type == 2) && medicineData?.um_id === 0);
       if (
-        isGroundingAccessable &&
-        !isApollo &&
+        isGroundingAccessableForZydus &&
         !isZydusMedicine &&
         !dontShowZydusWarning
       ) {
@@ -603,13 +605,13 @@ const MedicationsTable = ({
           clinic_name: clinic?.hm_name,
           medicine_name: value,
           grounding_element: "Medications",
-          user: userType === "Z" ? "Zydus" : "Apollo",
+          // user: userType === "Z" ? "Zydus" : "Apollo",
         });
       }
     } catch (e) {
       handleNameSelect(itemId, value, option, isTabletMode);
     }
-  }, [isGroundingAccessable, dontShowZydusWarning, handleNameSelect]);
+  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect]);
 
   // Handle editing entire row (tablet view)
   const handleRowEdit = (itemId) => {

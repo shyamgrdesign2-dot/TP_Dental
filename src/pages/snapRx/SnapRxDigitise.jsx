@@ -187,12 +187,12 @@ function SnapRxDigitise() {
             consultation_id: state?.tcm_id,
             doctor_id: getDecodedToken()?.user_id,
           });
-        const isGroundingAccessable =
+        const isGroundingAccessableForZydus =
           tokenData?.hospital_business_id == env.zydus_business_id &&
           isZydusUserAccessableFromGB;
 
         // Call placeIctOrder for Zydus users
-        if (isGroundingAccessable && patient_data?.departmentId) {
+        if (isGroundingAccessableForZydus && patient_data?.departmentId) {
           let sendInvestigationAndMedicine = {
             patient_unique_id:
               patient_data !== undefined ? patient_data.patient_unique_id : 0,
