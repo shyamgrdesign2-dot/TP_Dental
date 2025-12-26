@@ -1364,22 +1364,39 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>
                                                         Symptoms:&nbsp;
                                                     </Text>
-                                                    <View style={styles.table}>
+                                                    {(() => {
+                                                        const allStringFormat = caseManagerData.symptoms.every(item => {
+                                                            if (item.isStringFormat) return true;
+                                                            const hasStructuredData = (item.since && item.since !== '') || (item.severity && item.severity !== '') || (item.note && item.note !== '');
+                                                            return !hasStructuredData;
+                                                        });
+                                                        return (
+                                                            <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                                {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SINCE</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SEVERITY</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.5, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                         </View>
+                                                                )}
                                                         {caseManagerData.symptoms.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                        {allStringFormat ? (
+                                                                            <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.symptom_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>{item.symptom_name}&nbsp;</Text>
+                                                                        ) : (
+                                                                            <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.symptom_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.symptom_name}&nbsp;</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.since ? item.since : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.severity ? item.severity : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.5, color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.note ? item.note : '-'}&nbsp;</Text>
+                                                                            </>
+                                                                        )}
                                                             </View>
                                                         ))}
                                                     </View>
+                                                        );
+                                                    })()}
                                                 </View>
                                             )
                                         )}
@@ -1418,10 +1435,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         )
                                                     })}
                                                 </View>
-                                            ) : (
+                                            ) : (() => {
+                                                const allStringFormat = caseManagerData.examination.every(item => {
+                                                    const hasStructuredData = (item.note && item.note !== '');
+                                                    return !hasStructuredData;
+                                                });
+                                                return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Examinations:&nbsp;</Text>
-                                                    <View style={styles.table}>
+                                                        <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                            {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed wrap={false}>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>
                                                                 NAME
@@ -1430,19 +1453,29 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 NOTE
                                                             </Text>
                                                         </View>
+                                                            )}
                                                         {caseManagerData.examination.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                    {allStringFormat ? (
+                                                                        <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.examination_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>
+                                                                            {item.examination_name}&nbsp;
+                                                                        </Text>
+                                                                    ) : (
+                                                                        <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.examination_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
                                                                     {item.examination_name}&nbsp;
                                                                 </Text>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
                                                                     {item.note ? item.note : '-'}&nbsp;
                                                                 </Text>
+                                                                        </>
+                                                                    )}
                                                             </View>
                                                         ))}
                                                     </View>
                                                 </View>
-                                            )
+                                                );
+                                            })()
                                         )}
                                     </>
                                 ) : option?.id === 3 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
@@ -1500,27 +1533,42 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         )
                                                     })}
                                                 </View>
-                                            ) : (
+                                            ) : (() => {
+                                                const allStringFormat = caseManagerData.diagnosis.every(item => {
+                                                    if (item.isStringFormat) return true;
+                                                    const hasStructuredData = (item.since && item.since !== '') || (item.status && item.status !== '') || (item.note && item.note !== '');
+                                                    return !hasStructuredData;
+                                                });
+                                                return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Diagnosis:&nbsp;</Text>
-                                                    <View style={styles.table}>
+                                                        <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                            {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SINCE</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>STATUS</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.5, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                         </View>
+                                                            )}
                                                         {caseManagerData.diagnosis.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                    {allStringFormat ? (
+                                                                        <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.tds_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>{`${item.tds_name}${item?.icd_code && option?.show_icd_code !== false ? ` (${item?.icd_code})` : ''}`}&nbsp;</Text>
+                                                                    ) : (
+                                                                        <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.tds_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tds_name}${item?.icd_code && option?.show_icd_code !== false ? ` (${item?.icd_code})` : ''}`}&nbsp;</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.since ? item.since : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.status ? item.status : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.5, color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.note ? item.note : '-'}&nbsp;</Text>
+                                                                        </>
+                                                                    )}
                                                             </View>
                                                         ))}
                                                     </View>
                                                 </View>
-                                            )
+                                                );
+                                            })()
                                         )}
                                     </>
                                 ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (

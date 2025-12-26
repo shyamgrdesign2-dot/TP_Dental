@@ -3386,14 +3386,24 @@ const ConsultationDrawer = ({
       } : {};
       
       if (vitalsResp?.status && Array.isArray(vitalsResp.data) && vitalsResp.data.length > 0) {
-        const byDate = {};
-        vitalsResp.data.forEach((v) => {
-          const dateKey = v.date || moment().format("YYYY-MM-DD");
-          if (!byDate[dateKey] || (v.tcv_id && byDate[dateKey].tcv_id && v.tcv_id > byDate[dateKey].tcv_id)) {
-            byDate[dateKey] = v;
-          }
+        const today = moment().format('YYYY-MM-DD');
+        // Only use vitals that are for today's date (check createdAt or date)
+        const todayVitals = vitalsResp.data.filter(v => {
+          const vitalDate = v.createdAt || v.created_at || v.createdDate || v.date;
+          if (!vitalDate) return false;
+          return moment(vitalDate).format('YYYY-MM-DD') === today;
         });
-        vitalsForCase = Object.values(byDate).map(v => enrichVitalsWithCalculations(v, patientInfo));
+        
+        if (todayVitals.length > 0) {
+          const latestTodayVital = todayVitals.reduce((latest, current) => {
+            const latestId = Math.max(Number(latest.tcv_id || 0), Number(latest.tcbc_id || 0));
+            const currentId = Math.max(Number(current.tcv_id || 0), Number(current.tcbc_id || 0));
+            return currentId > latestId ? current : latest;
+          });
+          vitalsForCase = [enrichVitalsWithCalculations(latestTodayVital, patientInfo)];
+        } else {
+          vitalsForCase = [];
+        }
       }
       
       // Merge Rx pad vitals with fetched vitals (which include sidebar edits)
@@ -3463,15 +3473,24 @@ const ConsultationDrawer = ({
         
         if (existingTodayIndex >= 0) {
           const existing = vitalsForCase[existingTodayIndex];
-          const merged = { ...existing };
-          Object.keys(enrichedRxPadVital).forEach(key => {
+          const merged = { ...enrichedRxPadVital };
+          Object.keys(existing).forEach(key => {
             if (key !== 'date' && key !== 'tcv_id' && key !== 'tcbc_id' && key !== 'dev_unique_id' && key !== 'pam_id') {
               const rxValue = enrichedRxPadVital[key];
+              const existingValue = existing[key];
               if (key === 'general_rbs' || key === 'ofc' || key === 'fib4') {
-                merged[key] = rxValue !== undefined ? rxValue : '';
-              } else if (rxValue !== undefined && rxValue !== null && String(rxValue).trim() !== '') {
-                merged[key] = rxValue;
+                merged[key] = rxValue !== undefined && rxValue !== null && String(rxValue).trim() !== '' 
+                  ? rxValue 
+                  : (existingValue !== undefined && existingValue !== null && String(existingValue).trim() !== '' ? existingValue : '');
+              } else {
+                if (rxValue === undefined || rxValue === null || String(rxValue).trim() === '') {
+                  if (existingValue !== undefined && existingValue !== null && String(existingValue).trim() !== '') {
+                    merged[key] = existingValue;
+                  }
+                }
               }
+            } else {
+              merged[key] = existing[key];
             }
           });
           const mergedSystolic = String(merged.systolic || '').trim();

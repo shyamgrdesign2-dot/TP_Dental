@@ -431,7 +431,13 @@ function Prescription() {
         ) !== -1
       ) {
         if (tcmId !== 0) {
-          const updatedData = caseManagerData.vitals.map((e, i) => {
+          const today = moment().format('YYYY-MM-DD');
+          const filteredVitals = caseManagerData.vitals.filter(v => {
+            const createdAt = v.createdAt || v.created_at || v.createdDate;
+            if (!createdAt) return false;
+            return moment(createdAt).format('YYYY-MM-DD') === today;
+          });
+          const updatedData = filteredVitals.map((e, i) => {
             return {
               ...e,
               systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
@@ -745,7 +751,13 @@ function Prescription() {
 
   useEffect(() => {
     if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
+      const today = moment().format('YYYY-MM-DD');
+      const filteredVitals = selectedVitalsList.filter(v => {
+        const createdAt = v.createdAt || v.created_at || v.createdDate;
+        if (!createdAt) return false;
+        return moment(createdAt).format('YYYY-MM-DD') === today;
+      });
+      const updatedData = filteredVitals.map((e, i) => {
         return {
           ...e,
           systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
@@ -785,6 +797,11 @@ function Prescription() {
           })[0];
 
         if (matchingVitals) {
+          const createdAt = matchingVitals.createdAt || matchingVitals.created_at || matchingVitals.createdDate;
+          const today = moment().format('YYYY-MM-DD');
+          if (!createdAt || moment(createdAt).format('YYYY-MM-DD') !== today) {
+            return;
+          }
           const updatedData = [{
             ...matchingVitals,
             systolic: matchingVitals.blood_press ? matchingVitals.blood_press.split("/")[0] : matchingVitals.systolic || "",

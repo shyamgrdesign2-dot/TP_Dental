@@ -265,7 +265,8 @@ function ConfigurePrintSetting() {
                                             severity: "",
                                             note: "",
                                             unique_id: `voice-${Date.now()}-${Math.random()}`,
-                                            change: 0
+                                            change: 0,
+                                            isStringFormat: true
                                         };
                                     }
                                     return {
@@ -514,12 +515,28 @@ function ConfigurePrintSetting() {
                             }
                             
                             if (Array.isArray(data.diagnosis)) {
-                                transformed.diagnosis = data.diagnosis.map(diag => ({
-                                    ...diag,
-                                    tds_name: diag.name || diag.tds_name || diag.lineItem || "",
-                                    unique_id: diag.unique_id || diag._id || `voice-${Date.now()}-${Math.random()}`,
-                                    change: diag.change || 0
-                                }));
+                                transformed.diagnosis = data.diagnosis.map(diag => {
+                                    if (typeof diag === 'string') {
+                                        return {
+                                            tds_name: diag,
+                                            since: "",
+                                            status: "",
+                                            note: "",
+                                            unique_id: `voice-${Date.now()}-${Math.random()}`,
+                                            change: 0,
+                                            isStringFormat: true
+                                        };
+                                    }
+                                    return {
+                                        ...diag,
+                                        tds_name: diag.name || diag.tds_name || diag.lineItem || "",
+                                        since: diag.since || "",
+                                        status: diag.status || "",
+                                        note: diag.note || diag.notes || "",
+                                        unique_id: diag.unique_id || diag._id || `voice-${Date.now()}-${Math.random()}`,
+                                        change: diag.change || 0
+                                    };
+                                });
                             }
                             
                             return transformed;

@@ -154,9 +154,15 @@ function TabVitalsList(props) {
     }, [vitalsPastList]);
 
     const TODAY_VITALS = useMemo(() => {
+        const today = moment().format('YYYY-MM-DD');
+        const filteredVitals = vitalsData.filter(item => {
+            const createdAt = item.createdAt || item.created_at || item.createdDate;
+            if (!createdAt) return false;
+            return moment(createdAt).format('YYYY-MM-DD') === today;
+        });
         return (
-            vitalsData.length > 0 &&
-            vitalsData.map((item, i) => {
+            filteredVitals.length > 0 &&
+            filteredVitals.map((item, i) => {
                 if (item.temp || item.pres || item.resp_rate || item.blood_press || item.spo2 || item.ofc || item.height || item.weight || item.bmi || item.bmr || item.bsa || item.fib4 || item.waist_circumference ) {
                 return (
                     <div key={i} className="p-10 border-bottom pb-0">
@@ -278,6 +284,7 @@ function TabVitalsList(props) {
                     </div>
                 );
                 }
+                return null;
             })
         );
     }, [vitalsData]);
