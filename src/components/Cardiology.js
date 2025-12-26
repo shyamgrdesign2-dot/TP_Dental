@@ -283,6 +283,25 @@ function Cardiology(props) {
     setSnapRxFile(response?.uploaded_files || []);
   };
 
+
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+
   const getGenRxDetails = async () => {
     try {
       setIsGenRxTableView(false);
@@ -1945,11 +1964,18 @@ function Cardiology(props) {
                       ))
                     ) : (
                     
-                      genRxQueries?.map((query, index) => (
-                        <div key={index} className="gen-rx-transcript">
-                          {query}
-                        </div>
-                      ))
+                      genRxQueries
+                        ?.filter((query) => {
+                          if (typeof query === "string") {
+                            return !isSymptomCollectorJSON(query);
+                          }
+                          return true;
+                        })
+                        ?.map((query, index) => (
+                          <div key={index} className="gen-rx-transcript">
+                            {query}
+                          </div>
+                        ))
                     )}
                   </div>
                 )}
