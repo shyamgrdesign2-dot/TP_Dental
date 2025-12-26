@@ -1744,11 +1744,11 @@ const CreateBill = ({
                 </div>
               </div>
               <Divider />
-              {/* <BillTemplate
+              <BillTemplate
                 setDataSource={setDataSource}
                 dataSource={dataSource}
                 totalBillAmount={totalBillAmount}
-              /> */}
+              />
               <Table
                 dataSource={dataSource}
                 columns={columns}
