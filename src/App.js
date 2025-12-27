@@ -74,6 +74,7 @@ import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentS
 import VoiceRxConsult from "./pages/VoiceRxConsult";
 import MobileVoiceRxConsult from "./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult";
 import VoiceRecordingPage from "./pages/VoiceRecordingPage";
+import MobileVoiceRecording from "./pages/mobile/VoiceRecording/MobileVoiceRecording";
 import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
@@ -552,7 +553,16 @@ function App() {
                     )
                   } 
                 />
-                <Route path="voice-recording" element={<VoiceRecordingPage />} />
+                <Route 
+                  path="voice-recording" 
+                  element={
+                    isMobileDevice && !isTablet ? (
+                      <MobileVoiceRecording />
+                    ) : (
+                      <VoiceRecordingPage />
+                    )
+                  } 
+                />
                 <Route
                   path="get-unlimited-access"
                   element={<GetUnlimitedAccess />}

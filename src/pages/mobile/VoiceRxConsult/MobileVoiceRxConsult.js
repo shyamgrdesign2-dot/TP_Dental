@@ -27,7 +27,7 @@ function MobileVoiceRxConsult() {
   const [isModeDrawerOpen, setIsModeDrawerOpen] = useState(false);
   const [consentChecked, setConsentChecked] = useState(true);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const [showPatientSummary, setShowPatientSummary] = useState(false);
+  const [showPatientSummary, setShowPatientSummary] = useState(true);
 
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
