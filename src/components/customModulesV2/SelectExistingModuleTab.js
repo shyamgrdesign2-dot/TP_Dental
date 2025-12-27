@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Input, Spin, Button } from "antd";
+import { Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import ModuleListItem from "./ModuleListItem";
-import { getMockModules } from "./mockData";
+import { getModules } from "../../redux/customModuleSlice";
 import "./SelectExistingModuleTab.scss";
 
 /**
@@ -16,34 +16,28 @@ import "./SelectExistingModuleTab.scss";
  * @param {Function} onViewMore - Callback when "View more" is clicked
  */
 const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
-  const { customModules: reduxModules } = useSelector(
+  const dispatch = useDispatch();
+  const { customModules: reduxModules, loading } = useSelector(
     (state) => state.customModules
   );
+  const { userId } = useSelector((state) => state.doctors);
   const [modules, setModules] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch modules on mount (using mock data for now)
+  // Fetch modules on mount
   useEffect(() => {
-    const fetchModules = async () => {
-      setLoading(true);
-      try {
-        // TODO: Replace with actual API call when ready
-        // For now, use mock data
-        const response = await getMockModules();
-        setModules(response.modules || []);
-      } catch (error) {
-        console.error("Error fetching modules:", error);
-        // Fallback to Redux state if available
-        if (reduxModules && reduxModules.length > 0) {
-          setModules(reduxModules);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (userId) {
+      dispatch(getModules(userId));
+    }
+  }, [userId, dispatch]);
 
-    fetchModules();
+  // Update local modules when Redux state changes
+  useEffect(() => {
+    if (reduxModules && reduxModules.length > 0) {
+      setModules(reduxModules);
+    } else {
+      setModules([]);
+    }
   }, [reduxModules]);
 
   // Filter modules based on search query

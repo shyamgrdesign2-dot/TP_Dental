@@ -71,6 +71,43 @@ export const userPreModulesRX = createAsyncThunk(
   }
 );
 
+export const searchModulesByHospital = createAsyncThunk(
+  "customModules/searchModulesByHospital",
+  async ({ hospitalId, moduleName, page, limit }, { rejectWithValue }) => {
+    try {
+      const response = await ApiCustomModule.searchModulesByHospital(
+        hospitalId,
+        moduleName,
+        page,
+        limit
+      );
+      return response; // Returns paginated modules with pagination metadata
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || "Failed to search modules by hospital."
+      );
+    }
+  }
+);
+
+export const migrateModule = createAsyncThunk(
+  "customModules/migrateModule",
+  async ({ userId, moduleId, migrationData }, { rejectWithValue }) => {
+    try {
+      const response = await ApiCustomModule.migrateModule(
+        userId,
+        moduleId,
+        migrationData
+      );
+      return response; // Returns the migrated V2 module
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || "Failed to migrate module."
+      );
+    }
+  }
+);
+
 const customModuleSlice = createSlice({
   name: "customModules",
   initialState: {
@@ -78,12 +115,26 @@ const customModuleSlice = createSlice({
     moduleContents: [],
     searchModuleResults: [],
     latestSearchedModules: {},
+    hospitalSearchResults: {
+      modules: [],
+      pagination: null,
+    },
+    migrationResult: null,
     loading: false,
     error: null,
   },
   reducers: {
     clearSearchResults(state) {
       state.searchModuleResults = [];
+    },
+    clearHospitalSearchResults(state) {
+      state.hospitalSearchResults = {
+        modules: [],
+        pagination: null,
+      };
+    },
+    clearMigrationResult(state) {
+      state.migrationResult = null;
     },
   },
   extraReducers: (builder) => {
@@ -201,10 +252,65 @@ const customModuleSlice = createSlice({
       .addCase(searchModule.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Failed to search module contents.";
+      })
+      .addCase(searchModulesByHospital.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(searchModulesByHospital.fulfilled, (state, action) => {
+        state.loading = false;
+        // Sanitize modules by removing created_at and updated_at
+        const sanitizedModules = (action.payload.modules || []).map(
+          ({ created_at, updated_at, ...rest }) => rest
+        );
+        state.hospitalSearchResults = {
+          modules: sanitizedModules,
+          pagination: action.payload.pagination || null,
+        };
+      })
+      .addCase(searchModulesByHospital.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to search modules by hospital.";
+        state.hospitalSearchResults = {
+          modules: [],
+          pagination: null,
+        };
+      })
+      .addCase(migrateModule.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.migrationResult = null;
+      })
+      .addCase(migrateModule.fulfilled, (state, action) => {
+        state.loading = false;
+        // Sanitize the migrated module
+        const { created_at, updated_at, ...sanitizedModule } =
+          action.payload || {};
+        state.migrationResult = sanitizedModule;
+
+        // Update the module in customModules if it exists
+        const moduleIndex = state.customModules.findIndex(
+          (module) => module.module_id === sanitizedModule.module_id
+        );
+        if (moduleIndex !== -1) {
+          state.customModules[moduleIndex] = sanitizedModule;
+        } else {
+          // Add the migrated module to the list if it doesn't exist
+          state.customModules.push(sanitizedModule);
+        }
+      })
+      .addCase(migrateModule.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to migrate module.";
+        state.migrationResult = null;
       });
   },
 });
 
-export const { clearSearchResults } = customModuleSlice.actions;
+export const {
+  clearSearchResults,
+  clearHospitalSearchResults,
+  clearMigrationResult,
+} = customModuleSlice.actions;
 
 export default customModuleSlice.reducer;

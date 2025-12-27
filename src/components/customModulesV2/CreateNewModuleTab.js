@@ -46,6 +46,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
       .fill("")
       .map((_, index) => columnLabels[index] || "");
     setColumnLabels(newLabels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnCount]);
 
   const handleModuleNameChange = (e) => {

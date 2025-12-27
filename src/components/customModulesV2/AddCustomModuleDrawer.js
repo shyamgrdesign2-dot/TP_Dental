@@ -1,9 +1,12 @@
-import React, { useState, useMemo } from "react";
-import { Drawer, Tabs, Button } from "antd";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { Drawer, Tabs, Button, message } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
 import SelectExistingModuleTab from "./SelectExistingModuleTab";
 import CreateNewModuleTab from "./CreateNewModuleTab";
 import ConfirmModuleModal from "./ConfirmModuleModal";
+import { addModule, getModules } from "../../redux/customModuleSlice";
+import { customizedPad } from "../../redux/doctorsSlice";
 import "./AddCustomModuleDrawer.scss";
 
 const { TabPane } = Tabs;
@@ -18,19 +21,88 @@ const { TabPane } = Tabs;
  * @param {Function} onClose - Callback to close the drawer
  */
 const AddCustomModuleDrawer = ({ open, onClose }) => {
+  const dispatch = useDispatch();
+  const { userId, customizedPadRightList, customizedPadLeftList } =
+    useSelector((state) => state.doctors);
+  const { loading, customModules } = useSelector(
+    (state) => state.customModules
+  );
   const [activeTab, setActiveTab] = useState("select"); // "select" | "create"
   const [createModuleFormData, setCreateModuleFormData] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
-  const handleAddToRx = (module) => {
-    // TODO: Implement add to Rx functionality
-    console.log("Add to Rx:", module);
-  };
+  // Fetch modules when drawer opens
+  useEffect(() => {
+    if (open && userId) {
+      dispatch(getModules(userId));
+    }
+  }, [open, userId, dispatch]);
 
-  const handleViewMore = (module) => {
-    // TODO: Implement view more functionality
+  const handleAddToRx = useCallback(
+    async (module) => {
+      if (!module || !module.module_id) {
+        message.error("Invalid module selected");
+        return;
+      }
+
+      try {
+        // Check if module already exists in the right pad
+        const moduleExists = customizedPadRightList?.some(
+          (item) => item.tmdpm_id === module.module_id
+        );
+
+        if (moduleExists) {
+          message.warning("This module is already added to your prescription pad");
+          return;
+        }
+
+        // Add module to customized pad right list
+        const updatedRightPad = [
+          ...(customizedPadRightList || []),
+          {
+            tmdpm_id: module.module_id,
+            tmdpm_name: module.name,
+            tmdpm_short_name: module.name,
+            tmdpm_type: "R",
+            tmdpm_status: 0,
+            is_custom_module: true,
+          },
+        ];
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList || [],
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+        message.success(
+          `"${module.name}" has been added to your prescription pad`
+        );
+        onClose();
+      } catch (error) {
+        console.error("Error adding module to Rx:", error);
+        message.error(
+          error?.message || "Failed to add module to prescription pad"
+        );
+      }
+    },
+    [
+      dispatch,
+      customizedPadRightList,
+      customizedPadLeftList,
+      onClose,
+    ]
+  );
+
+  const handleViewMore = useCallback((module) => {
+    // TODO: Implement view more functionality - could open a modal with module details
     console.log("View more:", module);
-  };
+    message.info(`View more details for: ${module.name}`);
+  }, []);
 
   const handleCreateModule = () => {
     // Show confirmation modal
@@ -39,19 +111,71 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
     }
   };
 
-  const handleConfirmModule = (moduleData) => {
-    // TODO: Implement actual module creation API call
-    console.log("Confirm create module:", moduleData);
-    setConfirmModalOpen(false);
-    // Close drawer after creation
-    onClose();
-    // Reset form data
-    setCreateModuleFormData(null);
-  };
+  const handleConfirmModule = useCallback(
+    async (moduleData) => {
+      if (!moduleData || !userId) {
+        message.error("Missing required information");
+        return;
+      }
 
-  const handleFormChange = (formData) => {
+      try {
+        // Transform form data to V2 module format
+        const namedFields = moduleData.columnLabels.map((label, index) => ({
+          fieldName: `field_${index + 1}`,
+          fieldLabel: label.trim(),
+          fieldType: "string",
+          isRequired: true,
+          order: index,
+        }));
+
+        // Generate a unique module_id
+        const moduleId = `${moduleData.moduleName
+          .toLowerCase()
+          .replace(/\s+/g, "-")}-${Date.now()}`;
+
+        const modulePayload = {
+          module_id: moduleId,
+          name: moduleData.moduleName.trim(),
+          version: "v2",
+          namedFields: namedFields,
+        };
+
+        const payload = {
+          userId: userId,
+          modules: [modulePayload],
+        };
+
+        await dispatch(addModule(payload)).unwrap();
+
+        message.success(
+          `Module "${moduleData.moduleName}" created successfully!`
+        );
+
+        // Refresh modules list
+        await dispatch(getModules(userId)).unwrap();
+
+        setConfirmModalOpen(false);
+        // Close drawer after creation
+        onClose();
+        // Reset form data
+        setCreateModuleFormData(null);
+        // Reset to select tab
+        setActiveTab("select");
+      } catch (error) {
+        console.error("Error creating module:", error);
+        const errorMessage =
+          error?.message ||
+          error?.error ||
+          "Failed to create module. Please try again.";
+        message.error(errorMessage);
+      }
+    },
+    [dispatch, userId, onClose]
+  );
+
+  const handleFormChange = useCallback((formData) => {
     setCreateModuleFormData(formData);
-  };
+  }, []);
 
   const isCreateButtonEnabled = useMemo(() => {
     if (activeTab !== "create") return false;
@@ -79,7 +203,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           <Button
             type="primary"
             className="add-custom-module-drawer__create-button"
-            disabled={!isCreateButtonEnabled}
+            disabled={!isCreateButtonEnabled || loading}
+            loading={loading}
             onClick={handleCreateModule}
           >
             Create Module
@@ -122,6 +247,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         onClose={() => setConfirmModalOpen(false)}
         onConfirm={handleConfirmModule}
         moduleData={createModuleFormData}
+        loading={loading}
       />
     </Drawer>
   );

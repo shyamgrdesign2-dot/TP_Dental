@@ -15,8 +15,15 @@ import "./ConfirmModuleModal.scss";
  * @param {String} moduleData.moduleName - Name of the module
  * @param {Number} moduleData.columnCount - Number of columns
  * @param {Array} moduleData.columnLabels - Array of column labels
+ * @param {Boolean} loading - Loading state for the confirm action
  */
-const ConfirmModuleModal = ({ open, onClose, onConfirm, moduleData }) => {
+const ConfirmModuleModal = ({
+  open,
+  onClose,
+  onConfirm,
+  moduleData,
+  loading = false,
+}) => {
   const {
     moduleName = "",
     columnCount = 2,
@@ -104,8 +111,9 @@ const ConfirmModuleModal = ({ open, onClose, onConfirm, moduleData }) => {
           <button
             className="confirm-module-modal__confirm-button"
             onClick={handleConfirm}
+            disabled={loading}
           >
-            Yes, Create Module
+            {loading ? "Creating..." : "Yes, Create Module"}
           </button>
         </div>
       </div>
