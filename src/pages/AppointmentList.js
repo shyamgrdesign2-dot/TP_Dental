@@ -22,6 +22,7 @@ import DocumentVerificationPopup from "../components/common/DocumentVerification
 import config from "../config";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
+import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -99,6 +100,7 @@ function AppointmentList() {
             <Route path="bulk_messages" element={<MessagesData appointmentAgentsData={agentsData} />} />
           </Routes>
           {(!isZydus && !isApollo) && <DocumentVerificationPopup />}
+          <VoiceRxPromoModal />
         </div>
       </div>
 

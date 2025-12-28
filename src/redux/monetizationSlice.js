@@ -206,6 +206,18 @@ export const discountCodeValidate = createAsyncThunk(
     }
 );
 
+export const extendCredits = createAsyncThunk(
+    "monetization/extendCredits",
+    async (data, { rejectWithValue }) => {
+        try {
+            const result = await ApiMonetization.extendCredits(data);
+            return result;
+        } catch (error) {
+            return rejectWithValue({ visible: false, message: error.response.data.message });
+        }
+    }
+);
+
 const monetizationSlice = createSlice({
     name: "monetization",
     initialState,
