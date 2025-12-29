@@ -21,6 +21,7 @@ import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
+import { useGrounding } from "../hooks/useGrounding";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -122,10 +123,7 @@ const DigitisedPrescription = ({
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
-  const isGroundingAccessable =
-    (tokenData?.hospital_business_id == env.zydus_business_id &&
-      isZydusUserAccessableFromGB) ||
-    isApollo;
+  const isGroundingAccessable = useGrounding();
 
   const handleLineItemBlur = useCallback(
     (type, index) => {

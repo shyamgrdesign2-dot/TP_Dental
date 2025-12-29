@@ -127,6 +127,7 @@ import {
 } from "../redux/investigationSlice";
 import config from "../config";
 import { isMobile } from "react-device-detect";
+import { useGrounding } from "../hooks/useGrounding";
 
 const GenRxTips = lazy(() => import("./GenRxTips"));
 
@@ -237,11 +238,10 @@ const ConsultationDrawer = ({
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
-  const { hospital_business_id } = tokenData || {};
-  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
+  const isGroundingAccessable = useGrounding();
   const videoLink = {
     link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
     thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
@@ -376,7 +376,7 @@ const ConsultationDrawer = ({
   }, [prescriptionData]);
 
   useEffect(() => {
-    if (!isGroundingAccessable && !isApollo) return;
+    if (!isGroundingAccessable) return;
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
@@ -398,7 +398,7 @@ const ConsultationDrawer = ({
 
   // Fuzzy-correct lab investigations (tests) names with guards
   useEffect(() => {
-    if (!isGroundingAccessable && !isApollo) return;
+    if (!isGroundingAccessable) return;
     const tests = prescriptionData?.labInvestigation || [];
     if (!tests.length) return;
     if (isFuzzyUpdatingTestsRef.current) return;
@@ -3351,7 +3351,7 @@ const ConsultationDrawer = ({
         dispatch(setSelectAutofill(false));
       }
 
-      if (isGroundingAccessable && patient_data?.departmentId) {
+      if (isGroundingAccessableForZydus && patient_data?.departmentId) {
         let sendInvestigationAndMedicine = {
           patient_unique_id:
             patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -4919,7 +4919,7 @@ const ConsultationDrawer = ({
                 )}
             </div>
             <div className="d-flex align-items-center gap-2">
-              {isGroundingAccessable && (
+              {isGroundingAccessableForZydus && (
                 <button
                   type="button"
                   style={{

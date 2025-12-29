@@ -59,7 +59,7 @@ function SmartRxDigitise() {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   // Grounding check (Zydus users)
   const tokenDataLocal = getTokenData();
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenDataLocal?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
 
@@ -179,7 +179,7 @@ function SmartRxDigitise() {
 
       // Handle navigation based on the API response
       if (response.status === 204) {
-        if (isGroundingAccessable && patient_data?.departmentId) {
+        if (isGroundingAccessableForZydus && patient_data?.departmentId) {
           let sendInvestigationAndMedicine = {
             patient_unique_id:
               patient_data !== undefined ? patient_data.patient_unique_id : 0,
