@@ -434,7 +434,7 @@ const ConsultationDrawer = ({
             const corrected = result?.[0]?.tmm_medicine_name?.trim();
             return {
               correctedName: corrected || currentName,
-              fullData: result?.[0] || null,
+              fullData: {...result?.[0]} || null,
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
@@ -488,7 +488,7 @@ const ConsultationDrawer = ({
             const corrected = result?.[0]?.investigation_name?.trim();
             return {
               correctedName: corrected || currentName,
-              fullData: result?.[0] || null,
+              fullData: {...result?.[0]} || null,
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
@@ -499,7 +499,7 @@ const ConsultationDrawer = ({
       const anyChanged = tests.some(
         (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
       );
-      if (!anyChanged) return;
+      // if (!anyChanged) return;
 
       const correctedSig = correctedResults
         .map((r) => r.correctedName)
@@ -1554,10 +1554,23 @@ const ConsultationDrawer = ({
     const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
       ? cleanedData.labInvestigation.map(item => {
           const { instruction, ...restItem } = item;
-          return {
+          const mappedItem = {
             ...restItem,
             notes: item.notes || item.instruction || ''
           };
+          // Preserve hm_type and um_id at top level for API compatibility
+          // Check both top level and metadata
+          if (item.hm_type !== undefined) {
+            mappedItem.hm_type = item.hm_type;
+          } else if (item.metadata?.hm_type !== undefined) {
+            mappedItem.hm_type = item.metadata.hm_type;
+          }
+          if (item.um_id !== undefined) {
+            mappedItem.um_id = item.um_id;
+          } else if (item.metadata?.um_id !== undefined) {
+            mappedItem.um_id = item.metadata.um_id;
+          }
+          return mappedItem;
         })
       : [];
     

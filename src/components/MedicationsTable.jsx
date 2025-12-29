@@ -620,6 +620,8 @@ const MedicationsTable = ({
       setEditingRow(itemId);
       setRowEditValues({
       name: item.name || '',
+      hm_type: item.hm_type,
+      um_id: item.um_id,
       dosage: item.dosage || '',
       quantity: item.quantity || 0,
       frequency: item.frequency || '',
@@ -643,6 +645,8 @@ const MedicationsTable = ({
         updated.edited = isQuantityChanged;
 
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        updated.hm_type = rowEditValues.hm_type;
+        updated.um_id = rowEditValues.um_id;
         return updated;
           }
       return item;

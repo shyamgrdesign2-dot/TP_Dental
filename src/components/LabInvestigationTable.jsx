@@ -257,6 +257,8 @@ const LabInvestigationTable = ({
         name: investigationName,
         notes: '',
         lineItem: investigationName,
+        hm_type: investigation?.hm_type,
+        um_id: investigation?.um_id,
       };
       
       // Add metadata if available
@@ -265,6 +267,13 @@ const LabInvestigationTable = ({
           ...investigation,
           selectedValue: investigationName,
         };
+        // Preserve hm_type and um_id at top level for API compatibility
+        if (investigation.hm_type !== undefined) {
+          newInvestigation.hm_type = investigation.hm_type;
+        }
+        if (investigation.um_id !== undefined) {
+          newInvestigation.um_id = investigation.um_id;
+        }
       }
       
       const updatedInvestigations = [...labInvestigation, newInvestigation];
@@ -431,6 +440,13 @@ const LabInvestigationTable = ({
               ...investigationData,
               selectedValue: investigationName,
             };
+            // Preserve hm_type and um_id at top level for API compatibility
+            if (investigationData.hm_type !== undefined) {
+              updated.hm_type = investigationData.hm_type;
+            }
+            if (investigationData.um_id !== undefined) {
+              updated.um_id = investigationData.um_id;
+            }
           }
           
           // Recalculate lineItem
