@@ -3,10 +3,45 @@ import { Modal } from "antd";
 
 import fullicon from '../assets/images/full-icon.svg';
 
+// Format any YouTube URL to youtube-nocookie.com embed format
+const formatEmbedUrl = (url) => {
+    if (!url) return '';
+    
+    // Extract video ID from various YouTube URL formats
+    let videoId = '';
+    
+    // Match youtube.com/embed/VIDEO_ID (handles single or double slashes)
+    const embedMatch = url.match(/youtube\.com\/embed\/+([a-zA-Z0-9_-]+)/);
+    // Match youtube.com/watch?v=VIDEO_ID
+    const watchMatch = url.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/);
+    // Match youtu.be/VIDEO_ID (handles single or double slashes)
+    const shortMatch = url.match(/youtu\.be\/+([a-zA-Z0-9_-]+)/);
+    // Match youtube-nocookie.com/embed/VIDEO_ID (handles single or double slashes)
+    const nocookieMatch = url.match(/youtube-nocookie\.com\/embed\/+([a-zA-Z0-9_-]+)/);
+    
+    if (embedMatch) videoId = embedMatch[1];
+    else if (watchMatch) videoId = watchMatch[1];
+    else if (shortMatch) videoId = shortMatch[1];
+    else if (nocookieMatch) videoId = nocookieMatch[1];
+    
+    if (videoId) {
+        return `https://www.youtube-nocookie.com/embed/${videoId}`;
+    }
+    
+    return url;
+};
+
 function VideoModal({ videoLink, onCancel, isOpen }) {
+
+const rawUrl = videoLink?.link || videoLink?.tmv_link || '';
+console.log(rawUrl,"rawUrl")
+    const embedUrl = formatEmbedUrl(rawUrl);
+    const title = videoLink?.title || videoLink?.tmv_title || "Video Tutorial";
+
+    console.log(embedUrl,"embedUrl")
     return (
         <Modal
-            open={isOpen}
+            open={videoLink}
             centered
             footer={null}
             width={1000}
@@ -14,7 +49,7 @@ function VideoModal({ videoLink, onCancel, isOpen }) {
             onCancel={onCancel}
         >
             <div className='use-prescription d-flex w-100 justify-content-between'>
-                <h5 className="mb-0">Voice Rx Tutorial</h5>
+                <h5 className="mb-0">{title} || Video Tutorial</h5>
                 <a href={videoLink?.link} target='_blank' rel="noopener noreferrer">
                     <img src={fullicon} alt="Full screen" />
                 </a>
@@ -23,7 +58,7 @@ function VideoModal({ videoLink, onCancel, isOpen }) {
                 <iframe 
                     width="100%" 
                     height="460" 
-                    src={videoLink?.link} 
+                    src={embedUrl} 
                     title="YouTube video player" 
                     frameBorder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 

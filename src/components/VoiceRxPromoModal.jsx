@@ -331,7 +331,7 @@ const VoiceRxPromoModal = () => {
       </Drawer>
       {shouldShowVideo && (
         <VideoModal
-          voiceRxVideoLink={voiceRxVideoLink}
+          videoLink={voiceRxVideoLink}
           isOpen={shouldShowVideo}
           onCancel={() => setShowVideo(false)}
         />
