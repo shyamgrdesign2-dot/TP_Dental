@@ -78,13 +78,14 @@ function SmartRxPreview() {
         }
     };
 
-    const initialLanguage = defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English"
-        ? defaultPrintSettings?.default_language
-        : 1;
-
-    const [selectedLang, setSelectedLang] = useState(initialLanguage);
+    const [selectedLang, setSelectedLang] = useState(
+      defaultPrintSettings?.default_language && 
+      defaultPrintSettings?.default_language !== "English" 
+      ? defaultPrintSettings?.default_language 
+      : 1
+    );
     const basePrintUrl = state?.print_url || null;
-    const initialUrl = basePrintUrl ? buildUrlWithLanguage(basePrintUrl, initialLanguage) : null;
+    const initialUrl = basePrintUrl ? buildUrlWithLanguage(basePrintUrl, selectedLang) : null;
 
     const [printUrl, setPrintUrl] = useState(initialUrl);
     const [previewUrl, setPreviewUrl] = useState(initialUrl);
