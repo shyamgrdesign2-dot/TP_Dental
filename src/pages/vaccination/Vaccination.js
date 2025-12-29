@@ -56,6 +56,7 @@ function Vaccination({ handleDrawerVaccination }) {
   const { state } = useLocation();
   let { patient_data } = state;
   const [printType, setPrintType] = useState("");
+  const [printVaccineCategory, setPrintVaccineCategory] = useState("iap");
   const [shouldShowSelectAll, setShouldShowSelectAll] = useState(false);
   const [isCardClicked, setCardClicked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -367,6 +368,8 @@ function Vaccination({ handleDrawerVaccination }) {
             splitVaccineData={splitVaccineData}
             activeVaccineTab={activeVaccineTab}
             setActiveVaccineTab={setActiveVaccineTab}
+            printVaccineCategory={printVaccineCategory}
+            setPrintVaccineCategory={setPrintVaccineCategory}
           />
         )}
         <div
@@ -505,11 +508,29 @@ function Vaccination({ handleDrawerVaccination }) {
           <div style={{ display: "none" }}>
             <div ref={printableRef}>
               <VaccinationChart
-                vaccinesData={
-                  printType === "2"
-                    ? previewData?.filter((data) => !!data?.tvp_given_date)
-                    : previewData
-                }
+                vaccinesData={(() => {
+                  // Determine which vaccines to include based on category selection
+                  let vaccinesToPrint = [];
+                  
+                  if (printVaccineCategory === "iap") {
+                    vaccinesToPrint = splitVaccineData?.[VaccinationCategoryEnum[0].key] || [];
+                  } else if (printVaccineCategory === "other") {
+                    vaccinesToPrint = splitVaccineData?.[VaccinationCategoryEnum[1].key] || [];
+                  } else if (printVaccineCategory === "both") {
+                    vaccinesToPrint = [
+                      ...(splitVaccineData?.[VaccinationCategoryEnum[0].key] || []),
+                      ...(splitVaccineData?.[VaccinationCategoryEnum[1].key] || [])
+                    ];
+                  } else {
+                    vaccinesToPrint = previewData;
+                  }
+
+                  // Filter by status (printType: "1" = All, "2" = Given only)
+                  if (printType === "2") {
+                    return vaccinesToPrint.filter((data) => !!data?.tvp_given_date);
+                  }
+                  return vaccinesToPrint;
+                })()}
                 patientDetails={patientDetails}
                 profile={profile}
               />
