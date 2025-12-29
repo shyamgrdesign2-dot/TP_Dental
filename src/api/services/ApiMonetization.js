@@ -97,4 +97,8 @@ ApiMonetization.discountCodeValidate = function (data) {
     return api.get(`/user/tatva/discount/validate?code=${data?.code}&id=${data?.id}`, baseUserManagementUrl);
 };
 
+ApiMonetization.extendCredits = function (data) {
+    return api.put(`/api/v1/monetization/extend-credits?service_name=${data?.service_name}`, {}, baseUrl);
+};
+
 export default ApiMonetization;
