@@ -975,7 +975,7 @@ const MedicationsTable = ({
                         // Extract medicine name from option value (before ||| separator) for matching
                         const optionValue = option?.value || '';
                         const medicineName = optionValue.includes('|||') ? optionValue.split('|||')[0] : optionValue;
-                        return medicineName.toLowerCase().includes(inputValue.toLowerCase());
+                        return medicineName;
                       }}
                       defaultActiveFirstOption
                       popupMatchSelectWidth={false}
@@ -1346,7 +1346,7 @@ const MedicationsTable = ({
               // Extract medicine name from option value (before ||| separator) for matching
               const optionValue = option?.value || '';
               const medicineName = optionValue.includes('|||') ? optionValue.split('|||')[0] : optionValue;
-              return medicineName.toLowerCase().includes(inputValue.toLowerCase());
+              return medicineName;
             }}
             defaultActiveFirstOption={true}
             popupClassName={!searchQuery && "boxpopup"}
