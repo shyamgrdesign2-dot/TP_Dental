@@ -34,11 +34,9 @@ const formatEmbedUrl = (url) => {
 function VideoModal({ videoLink, onCancel, isOpen }) {
 
 const rawUrl = videoLink?.link || videoLink?.tmv_link || '';
-console.log(rawUrl,"rawUrl")
     const embedUrl = formatEmbedUrl(rawUrl);
     const title = videoLink?.title || videoLink?.tmv_title || "Video Tutorial";
 
-    console.log(embedUrl,"embedUrl")
     return (
         <Modal
             open={videoLink}
@@ -49,7 +47,7 @@ console.log(rawUrl,"rawUrl")
             onCancel={onCancel}
         >
             <div className='use-prescription d-flex w-100 justify-content-between'>
-                <h5 className="mb-0">{title} || Video Tutorial</h5>
+                <h5 className="mb-0">{title}</h5>
                 <a href={videoLink?.link} target='_blank' rel="noopener noreferrer">
                     <img src={fullicon} alt="Full screen" />
                 </a>
