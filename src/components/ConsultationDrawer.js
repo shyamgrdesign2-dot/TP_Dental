@@ -403,6 +403,18 @@ const ConsultationDrawer = ({
     const tests = prescriptionData?.labInvestigation || [];
     if (!tests.length) return;
     if (isFuzzyUpdatingTestsRef.current) return;
+    
+    // Skip fuzzy search if any test is a custom investigation (change === 1)
+    const hasCustomInvestigation = tests.some(
+      (t) => t?.metadata?.change === 1 || t?.change === 1
+    );
+    if (hasCustomInvestigation) {
+      // Update the signature to prevent re-triggering, but don't call fuzzy search
+      const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
+      lastFuzzyTestsRef.current = namesSignature;
+      return;
+    }
+    
     const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
     if (!namesSignature || namesSignature === lastFuzzyTestsRef.current) return;
 
