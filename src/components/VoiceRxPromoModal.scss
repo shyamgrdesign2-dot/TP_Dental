@@ -498,29 +498,29 @@
   }
 }
 
-// Responsive adjustments
-@media (max-width: 1024px) {
-  .monetization-popup-container {
-    width: 90vw;
-    max-width: 931px;
-    height: auto;
-    min-height: 539px;
-    flex-direction: column;
-  }
+// // Responsive adjustments
+// @media (max-width: 1024px) {
+//   .monetization-popup-container {
+//     width: 90vw;
+//     max-width: 931px;
+//     height: auto;
+//     min-height: 539px;
+//     flex-direction: column;
+//   }
 
-  .monetization-popup-left {
-    padding: 60px 40px;
-  }
+//   .monetization-popup-left {
+//     padding: 60px 40px;
+//   }
 
-  .monetization-popup-content-wrapper {
-    width: 100%;
-  }
+//   .monetization-popup-content-wrapper {
+//     width: 100%;
+//   }
 
-  .monetization-popup-offer-box {
-    width: 100%;
-    max-width: 456px;
-  }
-}
+//   .monetization-popup-offer-box {
+//     width: 100%;
+//     max-width: 456px;
+//   }
+// }
 
 .monetization-popup-loading-icon {
   font-size: 18px;
