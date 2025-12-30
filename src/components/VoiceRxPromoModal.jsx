@@ -9,13 +9,14 @@ import christmasTree from "../assets/images/christmas-tree.png";
 import checkIcon from "../assets/images/check-icon-purple.svg";
 import { useSelector, useDispatch } from "react-redux";
 import { services } from "../redux/doctorsSlice";
-import { FREE, S_VOICE_RX } from "../utils/constants";
+import { FREE, GB_ZYDUS_USER, S_VOICE_RX } from "../utils/constants";
 import { extendCredits } from "../redux/monetizationSlice";
 import contactSupport from "../assets/images/messages-secondary.svg";
 import arrowRight from "../assets/images/arrow-right-primary.svg";
 import GenRxKnowMore from "./GenRxKnowMore";
 import VideoModal from "../common/VideoModal";
 import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 const voiceRxVideoLink = {
   link: "https://www.youtube.com/embed/vIeSUFJ7JgE",
@@ -36,6 +37,7 @@ const VoiceRxPromoModal = () => {
   const clinic = getClinic(profile?.hospital_data);
   const [isOpen, setIsOpen] = useState(false);
   const isFreeVoiceRxUser = isVoiceRxFree();
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
 
   const moeData = {
     doctor_id: profile?.doctor_unique_id,
@@ -83,6 +85,7 @@ const VoiceRxPromoModal = () => {
       const shouldShow =
         !festival_extend &&
         !isZydus() &&
+        !isZydusUserAccessableFromGB &&
         plan_tier === FREE &&
         !isFreeVoiceRxUser &&
         !shownInSession && // Not shown in current session
