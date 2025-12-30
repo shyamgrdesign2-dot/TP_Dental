@@ -346,7 +346,7 @@ const BillDetails = ({
                 },
               ]}
             >
-              {item?.amount ? `₹${item?.amount}` : ""}
+              {item?.amount ? `₹${item?.amount}` : "₹0"}
             </Text>
             <Text
               style={[
@@ -392,7 +392,7 @@ const BillDetails = ({
                 },
               ]}
             >
-              {item?.totalAmount ? `₹${item?.totalAmount}` : ""}
+              {item?.totalAmount ? `₹${item?.totalAmount}` : "₹0"}
             </Text>
           </View>
         ))}

@@ -916,8 +916,8 @@ const CreateBill = ({
         });
       }
       const updatedDataSource = dataSource.filter((item) => {
-        const { masterId, name, quantity, amount, totalAmount } = item;
-        return masterId && name && quantity && amount && totalAmount;
+        const { masterId, name, quantity } = item;
+        return masterId && name && quantity;
       });
       // const updatedPaymentModes = paymentModes?.filter(
       //   (item) => item.paymentMode && item.amount > 0
