@@ -15,7 +15,7 @@ import contactSupport from "../assets/images/messages-secondary.svg";
 import arrowRight from "../assets/images/arrow-right-primary.svg";
 import GenRxKnowMore from "./GenRxKnowMore";
 import VideoModal from "../common/VideoModal";
-import { getClinic, isVoiceRxFree } from "../utils/utils";
+import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
 
 const voiceRxVideoLink = {
   link: "https://www.youtube.com/embed/vIeSUFJ7JgE",
@@ -82,6 +82,7 @@ const VoiceRxPromoModal = () => {
       // Check if we should show the modal
       const shouldShow =
         !festival_extend &&
+        !isZydus() &&
         plan_tier === FREE &&
         !isFreeVoiceRxUser &&
         !shownInSession && // Not shown in current session
