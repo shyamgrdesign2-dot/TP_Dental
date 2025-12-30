@@ -4,4 +4,5 @@ export { default as SelectExistingModuleTab } from "./SelectExistingModuleTab";
 export { default as CreateNewModuleTab } from "./CreateNewModuleTab";
 export { default as ModuleListItem } from "./ModuleListItem";
 export { default as ConfirmModuleModal } from "./ConfirmModuleModal";
+export { default as CustomModuleV2 } from "./CustomModuleV2";
 export { mockModulesResponse, getMockModules } from "./mockData";

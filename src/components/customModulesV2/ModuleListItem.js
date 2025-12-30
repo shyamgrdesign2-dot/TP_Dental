@@ -92,23 +92,50 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore }) => {
   return (
     <div className="module-list-item">
       <div className="module-list-item__content" style={gridStyle}>
-        <div className="module-list-item__header">
-          <h3 className="module-list-item__name">{module.name}</h3>
-        </div>
-
-        <div className="module-list-item__details">
-          <div className="module-list-item__tags">
-            <span className="module-list-item__tag module-list-item__tag--creator">
-              <UserOutlined className="module-list-item__tag-icon" />
-              <span>Dr. {creatorName}</span>
-            </span>
-            <span className="module-list-item__tag module-list-item__tag--columns">
-              {String(columnCount).padStart(2, "0")} columns
-            </span>
+        <div className="module-list-item__container">
+          <div className="module-list-item__header">
+            <h3 className="module-list-item__name">{module.name}</h3>
+            <div className="module-list-item__details">
+              <div className="module-list-item__tags">
+                <span className="module-list-item__tag module-list-item__tag--creator">
+                  <UserOutlined className="module-list-item__tag-icon" />
+                  <span>Dr. {creatorName}</span>
+                </span>
+                <span className="module-list-item__tag module-list-item__tag--columns">
+                  {String(columnCount).padStart(2, "0")} columns
+                </span>
+              </div>
+              <a className="module-list-item__view-more" onClick={handleViewMore}>
+                {isExpanded ? "View less" : "View more"}
+              </a>
+            </div>
           </div>
-          <a className="module-list-item__view-more" onClick={handleViewMore}>
-            {isExpanded ? "View less" : "View more"}
-          </a>
+          <div className="module-list-item__actions">
+            <Button
+              type="default"
+              icon={<PlusOutlined />}
+              onClick={handleAddToRx}
+              className="module-list-item__add-button"
+            >
+              Add to Rx
+            </Button>
+            <Dropdown
+              menu={{
+                items: menuItems,
+                onClick: handleMenuClick,
+              }}
+              trigger={["click"]}
+              open={dropdownVisible}
+              onOpenChange={setDropdownVisible}
+              placement="bottomRight"
+            >
+              <Button
+                type="text"
+                icon={<MoreOutlined />}
+                className="module-list-item__more-button"
+              />
+            </Dropdown>
+          </div>
         </div>
 
         {/* Expanded Preview Table */}
@@ -143,33 +170,6 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore }) => {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="module-list-item__actions">
-        <Button
-          type="default"
-          icon={<PlusOutlined />}
-          onClick={handleAddToRx}
-          className="module-list-item__add-button"
-        >
-          Add to Rx
-        </Button>
-        <Dropdown
-          menu={{
-            items: menuItems,
-            onClick: handleMenuClick,
-          }}
-          trigger={["click"]}
-          open={dropdownVisible}
-          onOpenChange={setDropdownVisible}
-          placement="bottomRight"
-        >
-          <Button
-            type="text"
-            icon={<MoreOutlined />}
-            className="module-list-item__more-button"
-          />
-        </Dropdown>
       </div>
     </div>
   );

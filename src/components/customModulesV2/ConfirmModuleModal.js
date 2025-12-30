@@ -42,7 +42,7 @@ const ConfirmModuleModal = ({
       onCancel={onClose}
       footer={null}
       closable={false}
-      width={847}
+      width={Math.max(700, columnCount * 200)}
       className="confirm-module-modal"
       maskClosable={false}
     >
@@ -58,7 +58,10 @@ const ConfirmModuleModal = ({
 
         {/* Module Preview */}
         <div className="confirm-module-modal__preview">
-          <div className="confirm-module-modal__preview-table">
+          <div 
+            className="confirm-module-modal__preview-table"
+            style={{ "--column-count": columnLabels.length }}
+          >
             {/* Column Headers */}
             <div className="confirm-module-modal__preview-row confirm-module-modal__preview-row--header">
               {columnLabels.map((label, index) => (

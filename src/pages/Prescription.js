@@ -122,7 +122,11 @@ import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
 import GenRxKnowMore from "../components/GenRxKnowMore";
-import { AddCustomModuleDrawer, AddCustomModuleV2 } from "../components/customModulesV2";
+import {
+  AddCustomModuleDrawer,
+  AddCustomModuleV2,
+  CustomModuleV2,
+} from "../components/customModulesV2";
 
 function Prescription() {
   const {
@@ -165,6 +169,7 @@ function Prescription() {
     (state) => state.uploadDoc
   );
   const { customModules } = useSelector((state) => state.customModules);
+  console.log(customModules,"customModules")
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -1782,9 +1787,57 @@ function Prescription() {
                   ) : (
                     e.is_custom_module &&
                     e.tmdpm_status === 0 &&
-                    customModule && <CustomModule module={customModule} />
+                    customModule &&
+                    (customModule.version === "v2" ? (
+                      <CustomModuleV2 module={customModule} />
+                    ) : (
+                      <CustomModule module={customModule} />
+                    ))
                   );
                 })}
+                
+                {/* DUMMY V2 MODULE - FOR UI TESTING ONLY */}
+                {/* {true && (
+                  <CustomModuleV2
+                    module={{
+                      module_id: "dummy-diet-plan-v2",
+                      name: "Diet",
+                      version: "v2",
+                      namedFields: [
+                        {
+                          fieldName: "diet",
+                          fieldLabel: "Diet",
+                          fieldType: "string",
+                          isRequired: true,
+                          order: 0,
+                        },
+                        {
+                          fieldName: "morning",
+                          fieldLabel: "Morning",
+                          fieldType: "string",
+                          isRequired: true,
+                          order: 1,
+                        },
+                        {
+                          fieldName: "evening",
+                          fieldLabel: "Evening",
+                          fieldType: "string",
+                          isRequired: true,
+                          order: 2,
+                        },
+                        {
+                          fieldName: "night",
+                          fieldLabel: "Night",
+                          fieldType: "string",
+                          isRequired: true,
+                          order: 3,
+                        },
+                      ],
+                    }}
+                  />
+                )} */}
+                {/* END DUMMY DATA */}
+                
                 {/* <AddCustomModule /> */}
                 <AddCustomModuleV2 onOpenDrawer={() => setIsAddCustomModuleDrawerVisible(true)} />
                 <AddCustomModuleDrawer

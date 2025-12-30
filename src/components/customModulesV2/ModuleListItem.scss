@@ -21,6 +21,13 @@
     min-width: 0;
   }
 
+  &__container{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
   &__header {
     margin-bottom: 8px;
   }

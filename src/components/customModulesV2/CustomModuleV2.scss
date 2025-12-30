@@ -1,0 +1,124 @@
+/* Custom Module V2 - Table Design */
+.custom-module-v2__table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.custom-module-v2__table-header {
+  display: grid;
+  gap: 0;
+//   padding: 12px 12px;
+  background: #fafafa;
+}
+
+.custom-module-v2__table-header-cell {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 12px;
+
+  &--action {
+    width: 50px;
+    min-width: 50px;
+  }
+}
+
+.custom-module-v2__table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-module-v2__table-row {
+  display: grid;
+  gap: 0;
+  align-items: center;
+  min-height: 48px;
+}
+
+.custom-module-v2__table-cell {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  min-height: 48px;
+
+  &--action {
+    width: 50px;
+    min-width: 50px;
+    // padding: 8px 0;
+  }
+}
+
+.custom-module-v2__input {
+  width: 100%;
+  font-size: 14px;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+
+  &:hover,
+  &:focus {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  &::placeholder {
+    color: #bfbfbf;
+  }
+
+  .ant-input {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 0;
+  }
+}
+
+/* Dynamic grid columns based on number of fields */
+@mixin grid-columns($count) {
+  grid-template-columns: repeat(#{$count}, 1fr) 50px;
+}
+
+// Default 2 columns (+ action column)
+.custom-module-v2__table-header,
+.custom-module-v2__table-row {
+  @include grid-columns(2);
+}
+
+// Support for different column counts
+.custom-module-v2--3-cols {
+  .custom-module-v2__table-header,
+  .custom-module-v2__table-row {
+    @include grid-columns(3);
+  }
+}
+
+.custom-module-v2--4-cols {
+  .custom-module-v2__table-header,
+  .custom-module-v2__table-row {
+    @include grid-columns(4);
+  }
+}
+
+.custom-module-v2--5-cols {
+  .custom-module-v2__table-header,
+  .custom-module-v2__table-row {
+    @include grid-columns(5);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .custom-module-v2__table {
+    overflow-x: scroll;
+  }
+
+  .custom-module-v2__table-header,
+  .custom-module-v2__table-row {
+    min-width: 600px;
+  }
+}

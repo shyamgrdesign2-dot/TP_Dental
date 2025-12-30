@@ -3,7 +3,8 @@ import { Input, Spin } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import ModuleListItem from "./ModuleListItem";
-import { getModules } from "../../redux/customModuleSlice";
+import { getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
+import { getDecodedToken } from "../../utils/localStorage";
 import "./SelectExistingModuleTab.scss";
 
 /**
@@ -17,28 +18,40 @@ import "./SelectExistingModuleTab.scss";
  */
 const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   const dispatch = useDispatch();
-  const { customModules: reduxModules, loading } = useSelector(
+  const { customModules: reduxModules, hospitalSearchResults, loading } = useSelector(
     (state) => state.customModules
   );
+  console.log(reduxModules,"reduxModules")
   const { userId } = useSelector((state) => state.doctors);
   const [modules, setModules] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const decodedToken = getDecodedToken();
+  const hospitalId = decodedToken?.result?.clinic_id;
+  console.log(hospitalSearchResults,"hospitalSearchResults")
 
-  // Fetch modules on mount
+  // Fetch modules by hospital on mount
   useEffect(() => {
-    if (userId) {
+    if (hospitalId && userId) {
+      // Fetch user's own modules (for upsert operations)
       dispatch(getModules(userId));
+      // Fetch all hospital modules (for display)
+      dispatch(searchModulesByHospital({
+        hospitalId,
+        moduleName: "",
+        page: 1,
+        limit: 100
+      }));
     }
-  }, [userId, dispatch]);
+  }, [hospitalId, userId, dispatch]);
 
   // Update local modules when Redux state changes
   useEffect(() => {
-    if (reduxModules && reduxModules.length > 0) {
-      setModules(reduxModules);
+    if (hospitalSearchResults?.modules && hospitalSearchResults.modules.length > 0) {
+      setModules(hospitalSearchResults.modules);
     } else {
       setModules([]);
     }
-  }, [reduxModules]);
+  }, [hospitalSearchResults]);
 
   // Filter modules based on search query
   const filteredModules = useMemo(() => {

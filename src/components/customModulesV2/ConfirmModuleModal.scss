@@ -44,8 +44,8 @@
   }
 
   &__preview {
-    padding: 18px 16px 30px 16px;
-    background: #fafafb;
+    padding: 24px 24px 30px 24px;
+    background: #ffffff;
   }
 
   &__preview-table {
@@ -58,20 +58,16 @@
   &__preview-row {
     display: grid;
     grid-template-columns: repeat(var(--column-count, 2), 1fr);
-    border-bottom: 1px solid #e2e2ea;
-
-    &:last-child {
-      border-bottom: none;
-    }
 
     &--header {
       background: #fafafb;
+      border-bottom: 1px solid #e2e2ea;
     }
   }
 
   &__preview-cell {
-    padding: 12px 16px;
-    min-height: 48px;
+    padding: 16px 20px;
+    min-height: 56px;
     display: flex;
     align-items: center;
     border-right: 1px solid #e2e2ea;
@@ -85,8 +81,8 @@
       font-weight: 600;
       color: #454551;
       font-family: "Poppins", sans-serif;
-      line-height: 100%;
-      letter-spacing: 0;
+      line-height: 20px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
     }
 
@@ -95,6 +91,7 @@
       font-weight: 400;
       color: #a2a2a8;
       font-family: "Poppins", sans-serif;
+      line-height: 20px;
     }
   }
 
@@ -104,18 +101,19 @@
 
   &__warning {
     display: flex;
-    gap: 12px;
-    padding: 16px 24px;
+    gap: 16px;
+    padding: 14px 20px;
     background: #fff7e6;
-    margin: 0 16px;
-    border-radius: 10px;
+    margin: 0 24px 24px 24px;
+    border-radius: 12px;
+    align-items: flex-start;
   }
 
   &__warning-icon {
-    font-size: 20px;
+    font-size: 24px;
     color: #ed8a00;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 0;
   }
 
   &__warning-content {
@@ -126,7 +124,7 @@
       font-weight: 400;
       color: #454551;
       margin: 0;
-      line-height: 20px;
+      line-height: 22px;
       font-family: "Poppins", sans-serif;
 
       strong {
@@ -140,8 +138,8 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 16px;
-    padding: 20px 24px;
+    gap: 24px;
+    padding: 0 24px 24px 24px;
   }
 
   &__cancel-button {
@@ -162,8 +160,8 @@
   }
 
   &__confirm-button {
-    padding: 10px 24px;
-    height: 40px;
+    padding: 12px 32px;
+    height: 44px;
     border: none;
     border-radius: 8px;
     background: #4b4ad5;
@@ -180,6 +178,11 @@
 
     &:active {
       background: #3030c2;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   }
 }

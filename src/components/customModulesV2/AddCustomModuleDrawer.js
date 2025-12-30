@@ -5,8 +5,9 @@ import { useDispatch, useSelector } from "react-redux";
 import SelectExistingModuleTab from "./SelectExistingModuleTab";
 import CreateNewModuleTab from "./CreateNewModuleTab";
 import ConfirmModuleModal from "./ConfirmModuleModal";
-import { addModule, getModules } from "../../redux/customModuleSlice";
+import { addModule, getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
 import { customizedPad } from "../../redux/doctorsSlice";
+import { getDecodedToken } from "../../utils/localStorage";
 import "./AddCustomModuleDrawer.scss";
 
 const { TabPane } = Tabs;
@@ -24,19 +25,31 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
   const dispatch = useDispatch();
   const { userId, customizedPadRightList, customizedPadLeftList } =
     useSelector((state) => state.doctors);
-  const { loading, customModules } = useSelector(
+  const { loading, customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
   const [activeTab, setActiveTab] = useState("select"); // "select" | "create"
   const [createModuleFormData, setCreateModuleFormData] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const decodedToken = getDecodedToken();
+  const hospitalId = decodedToken?.result?.clinic_id;
 
   // Fetch modules when drawer opens
   useEffect(() => {
     if (open && userId) {
+      // Fetch user's own modules (needed for upsert operation)
       dispatch(getModules(userId));
     }
-  }, [open, userId, dispatch]);
+    if (open && hospitalId) {
+      // Fetch all hospital modules for display
+      dispatch(searchModulesByHospital({
+        hospitalId,
+        moduleName: "",
+        page: 1,
+        limit: 100
+      }));
+    }
+  }, [open, userId, hospitalId, dispatch]);
 
   const handleAddToRx = useCallback(
     async (module) => {
@@ -100,7 +113,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
   const handleViewMore = useCallback((module) => {
     // TODO: Implement view more functionality - could open a modal with module details
-    console.log("View more:", module);
+    // console.log("View more:", module);
     message.info(`View more details for: ${module.name}`);
   }, []);
 
@@ -128,21 +141,23 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           order: index,
         }));
 
-        // Generate a unique module_id
-        const moduleId = `${moduleData.moduleName
-          .toLowerCase()
-          .replace(/\s+/g, "-")}-${Date.now()}`;
-
-        const modulePayload = {
-          module_id: moduleId,
+        // Create new module payload (without module_id - DB will generate it)
+        const newModulePayload = {
           name: moduleData.moduleName.trim(),
           version: "v2",
           namedFields: namedFields,
         };
 
+        // Get all existing user modules and add the new one
+        // This is an UPSERT API - must send all existing modules + new module
+        const allModules = [
+          ...(customModules || []), // All existing user modules
+          newModulePayload, // New module
+        ];
+
         const payload = {
           userId: userId,
-          modules: [modulePayload],
+          modules: allModules,
         };
 
         await dispatch(addModule(payload)).unwrap();
@@ -151,8 +166,13 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           `Module "${moduleData.moduleName}" created successfully!`
         );
 
-        // Refresh modules list
-        await dispatch(getModules(userId)).unwrap();
+        // Refresh modules list by hospital
+        await dispatch(searchModulesByHospital({
+          hospitalId,
+          moduleName: "",
+          page: 1,
+          limit: 100
+        })).unwrap();
 
         setConfirmModalOpen(false);
         // Close drawer after creation
@@ -170,7 +190,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         message.error(errorMessage);
       }
     },
-    [dispatch, userId, onClose]
+    [dispatch, userId, onClose, customModules, hospitalId]
   );
 
   const handleFormChange = useCallback((formData) => {
