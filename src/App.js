@@ -169,12 +169,17 @@ function App() {
 
   useEffect(() => {
     const checkAutoLogout = () => {
+      if (authToken) {
+        localStorage.setItem("isAutoLogout", "false");
+        return;
+      }
+
       const token = getToken();
       const isAutoLogout = localStorage.getItem("isAutoLogout");
       const currentPath = location.pathname;
       const isOnLoginPage = currentPath === "/login";
       
-      if (token && !isAutoLogout && !isOnLoginPage && !isReceptionist) {
+      if (token && isAutoLogout === null && !isOnLoginPage && !isReceptionist) {
         localStorage.setItem("isAutoLogout", "true");
         
         const urlsToOpen = [config.pedia_logout_url, config.tatvaAi_logout_url];
@@ -193,7 +198,7 @@ function App() {
     };
 
     checkAutoLogout();
-  }, []);
+  }, [authToken, location.pathname, isReceptionist]);
   useEffect(() => {
     const checkUserStatus = async () => {
       const token = getToken();
@@ -279,6 +284,7 @@ function App() {
     if (authToken) {
       setToken(authToken);
       localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+      localStorage.setItem("isAutoLogout", "false");
 
       // Clean up URL but preserve other params
       const params = new URLSearchParams(location.search);
