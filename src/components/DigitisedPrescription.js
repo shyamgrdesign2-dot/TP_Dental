@@ -23,6 +23,14 @@ import documentIcon from "../assets/images/document-normal.svg";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
 import CashManagerContext from "../context/CashManagerContext";
 import moment from "moment";
+import ApiMedication from "../api/services/ApiMedication";
+import ApiInvestigation from "../api/services/ApiInvestigation";
+import { getTokenData } from "../utils/utils";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_ZYDUS_USER } from "../utils/constants";
+import config from "../config";
+import { useGrounding } from "../hooks/useGrounding";
 
 const ensureRefObject = (maybeRef, fallbackRef) => {
   if (!maybeRef) return fallbackRef;
@@ -102,6 +110,22 @@ const DigitisedPrescription = ({
   const { setMedicalHistoryData, setVitalsData, medicalHistoryData: contextMedicalHistoryData } = context || {};
   const isUpdatingFromRxPadRef = useRef(false);
   const isUpdatingFromContextRef = useRef(false);
+  
+  // Fuzzy search guards for meds and tests
+  const hasFuzzyRunMedsRef = useRef(false);
+  const hasFuzzyRunTestsRef = useRef(false);
+  const lastFuzzyNamesRef = useRef("");
+  const lastFuzzyTestsRef = useRef("");
+  const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
+  const lastFuzzyTestsCallRef = useRef({ sig: "", ts: 0 });
+  
+  // Grounding access check
+  const tokenData = getTokenData();
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const { hospital_business_id } = tokenData || {};
+  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
+  //const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
+  const isGroundingAccessable = useGrounding(); 
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
     if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
@@ -245,6 +269,168 @@ const DigitisedPrescription = ({
 
     return rxPadArray;
   }, []);
+
+  const getFuzzySearchMedicine = useCallback(
+    async (medsSnapshot) => {
+      if (hasFuzzyRunMedsRef.current) return; // Prevent concurrent execution
+      try {
+        hasFuzzyRunMedsRef.current = true;
+        const meds = medsSnapshot || data?.medications || [];
+        if (!meds.length) {
+          hasFuzzyRunMedsRef.current = false;
+          return;
+        }
+
+        const correctedResults = await Promise.all(
+          meds.map(async (med) => {
+            const currentName = (med?.name || "").trim();
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
+            try {
+              console.log("[DigitisedPrescription] Calling ApiMedication.getFuzzySearch for:", currentName);
+              const result = await ApiMedication.getFuzzySearch(currentName);
+              const corrected = result?.[0]?.tmm_medicine_name?.trim();
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
+            } catch (error) {
+              console.error("[DigitisedPrescription] Error in fuzzy search for", currentName, ":", error);
+              return { correctedName: currentName, fullData: null };
+            }
+          })
+        );
+
+        const anyChanged = meds.some(
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        );
+        if (!anyChanged) {
+          const correctedSig = meds.map((m) => (m?.name || "").trim()).join("|");
+          lastFuzzyNamesRef.current = correctedSig;
+          return;
+        }
+
+        const correctedSig = correctedResults
+          .map((r) => r.correctedName)
+          .join("|");
+        lastFuzzyNamesRef.current = correctedSig;
+
+        setData((prev) => ({
+          ...prev,
+          medications: (prev?.medications || []).map((m, idx) => ({
+            ...m,
+            name: correctedResults[idx].correctedName,
+            refinedName: correctedResults[idx].correctedName,
+            // Add metadata for fuzzy search corrected name with full data
+            metadata: {
+              ...m.metadata,
+              fuzzyCorrectedName: correctedResults[idx].correctedName,
+              originalName: m.name,
+              isFuzzyCorrected: true,
+              ...(correctedResults[idx].fullData || {}),
+            },
+          })),
+        }));
+      } catch (error) {
+        console.error("[DigitisedPrescription] Fuzzy search medicine error:", error);
+      } finally {
+        hasFuzzyRunMedsRef.current = false;
+      }
+    },
+    [data?.medications, setData]
+  );
+
+  const getFuzzySearchLabs = useCallback(
+    async (testsSnapshot) => {
+      if (hasFuzzyRunTestsRef.current) return; // Prevent concurrent execution
+      try {
+        hasFuzzyRunTestsRef.current = true;
+        const tests = testsSnapshot || data?.labInvestigation || data?.tests || [];
+        if (!tests.length) {
+          hasFuzzyRunTestsRef.current = false;
+          return;
+        }
+
+        const correctedResults = await Promise.all(
+          tests.map(async (it) => {
+            const currentName = (it?.name || "").trim();
+            if (!currentName)
+              return { correctedName: currentName, fullData: null };
+            try {
+              console.log("[DigitisedPrescription] Calling ApiInvestigation.getFuzzySearch for:", currentName);
+              const result = await ApiInvestigation.getFuzzySearch(currentName);
+              const corrected = result?.[0]?.investigation_name?.trim();
+              return {
+                correctedName: corrected || currentName,
+                fullData: result?.[0] || null,
+              };
+            } catch (error) {
+              console.error("[DigitisedPrescription] Error in fuzzy search for", currentName, ":", error);
+              return { correctedName: currentName, fullData: null };
+            }
+          })
+        );
+
+        const anyChanged = tests.some(
+          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        );
+        if (!anyChanged) {
+          const correctedSig = tests.map((t) => (t?.name || "").trim()).join("|");
+          lastFuzzyTestsRef.current = correctedSig;
+          return;
+        }
+
+        const correctedSig = correctedResults
+          .map((r) => r.correctedName)
+          .join("|");
+        lastFuzzyTestsRef.current = correctedSig;
+
+        setData((prev) => {
+          const labInvestigationData = prev?.labInvestigation || prev?.tests || [];
+          const updatedData = { ...prev };
+          
+          if (prev?.labInvestigation) {
+            updatedData.labInvestigation = labInvestigationData.map((m, idx) => ({
+              ...m,
+              name: correctedResults[idx].correctedName,
+              refinedName: correctedResults[idx].correctedName,
+              edited: false,
+              // Add metadata for fuzzy search corrected name with full data
+              metadata: {
+                ...m.metadata,
+                fuzzyCorrectedName: correctedResults[idx].correctedName,
+                originalName: m.name,
+                isFuzzyCorrected: true,
+                ...(correctedResults[idx].fullData || {}),
+              },
+            }));
+          } else if (prev?.tests) {
+            updatedData.tests = labInvestigationData.map((m, idx) => ({
+              ...m,
+              name: correctedResults[idx].correctedName,
+              refinedName: correctedResults[idx].correctedName,
+              edited: false,
+              // Add metadata for fuzzy search corrected name with full data
+              metadata: {
+                ...m.metadata,
+                fuzzyCorrectedName: correctedResults[idx].correctedName,
+                originalName: m.name,
+                isFuzzyCorrected: true,
+                ...(correctedResults[idx].fullData || {}),
+              },
+            }));
+          }
+          
+          return updatedData;
+        });
+      } catch (error) {
+        console.error("[DigitisedPrescription] Fuzzy search labs error:", error);
+      } finally {
+        hasFuzzyRunTestsRef.current = false;
+      }
+    },
+    [data?.labInvestigation, data?.tests, setData]
+  );
 
 
   const syncVitalsToContext = useCallback((vitalsObject) => {
@@ -562,6 +748,59 @@ const DigitisedPrescription = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextMedicalHistoryData]);
+
+  // Fuzzy-correct medication names when medications become available
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const meds = data?.medications || [];
+    if (!meds.length) return;
+    
+    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    if (!namesSignature) return;
+    
+    // If signature matches what we last processed, skip
+    if (namesSignature === lastFuzzyNamesRef.current) return;
+
+    const now = Date.now();
+    // Prevent rapid duplicate calls (e.g., StrictMode double effect)
+    if (
+      lastFuzzyCallRef.current.sig === namesSignature &&
+      now - lastFuzzyCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyCallRef.current = { sig: namesSignature, ts: now };
+
+    lastFuzzyNamesRef.current = namesSignature;
+    getFuzzySearchMedicine(meds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.medications, isGroundingAccessable, getFuzzySearchMedicine]);
+
+  // Fuzzy-correct tests (lab investigations) when tests become available
+  useEffect(() => {
+    if (!isGroundingAccessable) return;
+    const tests = data?.labInvestigation || data?.tests || [];
+    if (!tests.length) return;
+    
+    const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
+    if (!namesSignature) return;
+    
+    // If signature matches what we last processed, skip
+    if (namesSignature === lastFuzzyTestsRef.current) return;
+
+    const now = Date.now();
+    // Prevent rapid duplicate calls
+    if (
+      lastFuzzyTestsCallRef.current.sig === namesSignature &&
+      now - lastFuzzyTestsCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyTestsCallRef.current = { sig: namesSignature, ts: now };
+    lastFuzzyTestsRef.current = namesSignature;
+    getFuzzySearchLabs(tests);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.labInvestigation, data?.tests, isGroundingAccessable, getFuzzySearchLabs]);
 
   const adviceUpdater = useMemo(() => {
     const baseUpdater = (adviceArray) => {
