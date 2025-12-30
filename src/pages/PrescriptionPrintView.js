@@ -38,6 +38,8 @@ import api from '../api/services/axiosService';
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { samplePrintPayloadData } from "../utils/samplePrintPayload";
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -151,6 +153,33 @@ function PrescriptionPrintView() {
       setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
     }, [patientBills, advanceReceipts, selectedLang]);
 
+    const useSamplePayload = false;
+    const {
+        printBlob: generatedPrintBlob,
+        isGenerating: isPdfGenerating,
+        error: printPayloadError,
+    } = usePrintPayloadPdf({
+        printUrl,
+        selectedLang,
+        isGynaecHistoryAccessable,
+        payloadOverride: useSamplePayload ? samplePrintPayloadData : null,
+    });
+
+    useEffect(() => {
+        if (generatedPrintBlob) {
+            setPrintBlob(generatedPrintBlob);
+            setCurrentSessionRx(generatedPrintBlob);
+        }
+    }, [generatedPrintBlob]);
+
+    useEffect(() => {
+        if (printPayloadError) {
+            message.error("Failed to load prescription data.");
+        }
+    }, [printPayloadError]);
+
+    
+
     useEffect(() => {
         if (!isOpdBillChecked) {
             getShowOpdBilling();
@@ -229,11 +258,16 @@ function PrescriptionPrintView() {
 
     const printContent = async () => {
         const isMobileDevice = isMobile || isTablet || isIPad();
+        if (!printBlob && !(currentSessionRx instanceof Blob)) {
+            message.error("PDF is not ready yet.");
+            return;
+        }
+        const pdfBlob = printBlob || currentSessionRx;
 
         if (isMobileDevice) {
-            printBlobInNewTab(printBlob);
+            printBlobInNewTab(pdfBlob);
         } else {
-            var blobURL = URL.createObjectURL(printBlob);
+            var blobURL = URL.createObjectURL(pdfBlob);
             // Remove all existing iframes
             document.querySelectorAll('iframe').forEach(function (iframe) {
                 iframe.parentNode.removeChild(iframe);
@@ -256,18 +290,19 @@ function PrescriptionPrintView() {
     const printInAppContent = async () => {
         // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=print`, { replace: true, state: state })
         // navigate(0, { replace: true });
-        if (currentSessionRx) {
-            const file = new File([currentSessionRx], `${new Date().toISOString().split("T")[0]}.pdf`, {
-              type: "application/pdf",
-            });
-            const formData = new FormData();
-            formData.append(file?.name, file);
-            const res = await uploadDocsToAzure(formData);
-            const printUrl = res?.[0]?.url;
-            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-        } else {
-            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        if (!printBlob && !(currentSessionRx instanceof Blob)) {
+            message.error("PDF is not ready yet.");
+            return;
         }
+        const pdfBlob = printBlob || currentSessionRx;
+        const file = new File([pdfBlob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+          type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const printUrl = res?.[0]?.url;
+        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
     };
 
     // const printContent = async () => {
@@ -283,7 +318,7 @@ function PrescriptionPrintView() {
     const onSelect = useCallback(
         (data) => {
             const encodedData = btoa(data.toString());
-            setPrintUrl(`${currentSessionRx || state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
+            setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
             setSelectedLang(data);
             updatePatientDefaultLanguage({
               patientId: patient_data?.patient_unique_id,
@@ -296,8 +331,19 @@ function PrescriptionPrintView() {
 
     const handleDownload = async () => {
         try {
+            if (printBlob instanceof Blob) {
+                saveAs(printBlob, `${Date.now()}.pdf`);
+                return;
+            }
+            if (currentSessionRx instanceof Blob) {
+                saveAs(currentSessionRx, `${Date.now()}.pdf`);
+                return;
+            }
+            if (!currentSessionRx) {
+                message.error("PDF is not ready yet.");
+                return;
+            }
             const response = await axios({
-                // url: "https://morth.nic.in/sites/default/files/dd12-13_0.pdf",
                 url: currentSessionRx || printUrl,
                 method: 'GET',
                 responseType: 'blob', // Important for binary data
@@ -314,18 +360,19 @@ function PrescriptionPrintView() {
     const handleInAppDownload = async () => {
         // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=download`, { replace: true, state: state })
         // navigate(0, { replace: true });
-        if (currentSessionRx) {
-            const file = new File([currentSessionRx], `${new Date().toISOString().split("T")[0]}.pdf`, {
-              type: "application/pdf",
-            });
-            const formData = new FormData();
-            formData.append(file?.name, file);
-            const res = await uploadDocsToAzure(formData);
-            const printUrl = res?.[0]?.url;
-            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-        } else {
-            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        if (!printBlob && !(currentSessionRx instanceof Blob)) {
+            message.error("PDF is not ready yet.");
+            return;
         }
+        const pdfBlob = printBlob || currentSessionRx;
+        const file = new File([pdfBlob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+          type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const printUrl = res?.[0]?.url;
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
     };
 
     const onEditPrescriptionClick = async () => {
@@ -477,9 +524,6 @@ function PrescriptionPrintView() {
     // }
     async function onDocumentLoadSuccess(successEvent) {
         setNumPages(successEvent?.numPages);
-        const data = await successEvent.getData()
-        const blob = new Blob([data], { type: 'application/pdf' })
-        setPrintBlob(blob)
     }
 
     const configurePrintUrl = async () => {
@@ -499,7 +543,7 @@ function PrescriptionPrintView() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={currentSessionRx || printUrl} pam_id={pam_id} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 {/* <img src={hey} alt="Hey" className='me-3 hey' /> */}
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
@@ -530,6 +574,7 @@ function PrescriptionPrintView() {
                                 </Button>)}
                                 <Button
                                     type="text"
+                                    disabled={isPdfGenerating}
                                     onClick={() => {
                                         window.Moengage.track_event("print_select", {
                                             "language": LANGUAGE_LIST.find(e => e.value == selectedLang)?.label
@@ -546,6 +591,7 @@ function PrescriptionPrintView() {
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
+                                    disabled={isPdfGenerating}
                                     onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                                 >
                                     <span className="fw-semibold">Download Prescription</span>
@@ -622,7 +668,7 @@ function PrescriptionPrintView() {
                                             loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                             error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                             noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                            file={currentSessionRx || printUrl}
+                                            file={currentSessionRx || printBlob}
                                             onLoadError={() => {
                                                 setCurrentSessionRx(null);
                                             }}

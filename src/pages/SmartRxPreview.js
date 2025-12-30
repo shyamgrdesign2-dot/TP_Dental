@@ -7,7 +7,7 @@ import axios from 'axios';
 import { saveAs } from 'file-saver';
 import { jwtDecode } from "jwt-decode";
 
-import { errorMessage } from "../utils/utils";
+import { errorMessage, sendMessageToParent } from "../utils/utils";
 import api from "../api/services/axiosService";
 
 import visitEnd from '../assets/images/end-visit.svg';
@@ -22,6 +22,7 @@ import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KE
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { EVENTS } from "../utils/events";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -39,6 +40,8 @@ import {
   getClinic,
   getTokenData,
 } from "../utils/utils";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { uploadDocsToAzure } from "./medicalRecords/service";
 
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -61,13 +64,11 @@ function SmartRxPreview() {
     const { patient_data, isDigitiseRxSubmit} = state
 
     const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}` : null);
-    const [previewUrl, setPreviewUrl] = useState(null);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
-    const [printBlob, setPrintBlob] = useState(null);
     const [smartRxFile, setSmartRxFile] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [buttonText, setButtonText] = useState("Send to WhatsApp");
@@ -187,6 +188,18 @@ function SmartRxPreview() {
         }
     }, []);
 
+    const {
+        printBlob,
+        isGenerating: isPdfGenerating,
+        error: printPayloadError,
+    } = usePrintPayloadPdf({ printUrl });
+
+    useEffect(() => {
+        if (printPayloadError) {
+            message.error("Failed to load prescription data.");
+        }
+    }, [printPayloadError]);
+
     const handleDownload = async () => {
         try {
             if(showDigitalRx){
@@ -196,13 +209,11 @@ function SmartRxPreview() {
                     Doctor_Unique_Id: profile?.doctor_unique_id,
                 });
             }
-            const response = await axios({
-                url: printUrl,
-                method: 'GET',
-                responseType: 'blob', // Important for binary data
-            });
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            saveAs(blob, `${Date.now()}.pdf`);
+            if (!printBlob) {
+                message.error("PDF is not ready yet.");
+                return;
+            }
+            saveAs(printBlob, `${Date.now()}.pdf`);
         } catch (error) {
             console.error('Error downloading file:', error);
             // Handle errors gracefully, e.g., display an error message to the user
@@ -217,15 +228,22 @@ function SmartRxPreview() {
                 Doctor_Unique_Id: profile?.doctor_unique_id,
             });
         }
-        navigate(`/prescription_print_view/?url=${printUrl}&key=download`, { replace: true, state: state })
-        navigate(0, { replace: true });
+        if (!printBlob) {
+            message.error("PDF is not ready yet.");
+            return;
+        }
+        const file = new File([printBlob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+            type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const downloadUrl = res?.[0]?.url;
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
     };
 
     async function onDocumentLoadSuccess(successEvent) {
         setNumPages(successEvent?.numPages);
-        const data = await successEvent.getData()
-        const blob = new Blob([data], { type: 'application/pdf' })
-        setPrintBlob(blob)
     }
 
     const handleDrawerCvtKnowMore = useCallback(() => {
@@ -399,7 +417,6 @@ function SmartRxPreview() {
         if (printUrl) {
             // Only modify the URL if showDigitalRx is true, else keep printUrl unchanged
             const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
-            setPreviewUrl(updatedUrl);
             setPrintUrl(updatedUrl);
         }
     }, [showDigitalRx]);
@@ -537,6 +554,7 @@ function SmartRxPreview() {
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
+                                    disabled={isPdfGenerating}
                                     onClick={() => !isChrome && !isSafari ? handleInAppDownload() : handleDownload()}
                                 >
                                     <span className="fw-semibold">{showDigitalRx ? "Download Digital Rx" : "Download Written Rx"}</span>
@@ -674,7 +692,7 @@ function SmartRxPreview() {
                                         loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                         error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                         noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={!showDigitalRx ? printUrl : previewUrl }
+                                        file={printBlob}
                                         onLoadSuccess={onDocumentLoadSuccess}>
                                         {Array.apply(null, Array(numPages))
                                             .map((x, i) => i + 1)

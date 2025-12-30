@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { Button, Row, Col, Spin } from "antd";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
-import axios from "axios";
 import { saveAs } from "file-saver";
 import { jwtDecode } from "jwt-decode";
 
@@ -30,6 +29,8 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { uploadDocsToAzure } from "./medicalRecords/service";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -64,11 +65,9 @@ function GenRxPrescriptionPrintView() {
 
   const initialUrl = state?.print_url ? buildUrlWithParams(state.print_url, isAmbientMode) : null;
   const [printUrl, setPrintUrl] = useState(initialUrl);
-  const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
-  const [printBlob, setPrintBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
@@ -90,18 +89,26 @@ function GenRxPrescriptionPrintView() {
     }
   }, []);
 
+  const {
+    printBlob,
+    isGenerating: isPdfGenerating,
+    error: printPayloadError,
+  } = usePrintPayloadPdf({ printUrl });
+
+  useEffect(() => {
+    if (printPayloadError) {
+      errorMessage("Failed to load prescription data.");
+    }
+  }, [printPayloadError]);
+
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
-      const response = await axios({
-        url: printUrl,
-        method: "GET",
-        responseType: "blob", // Important for binary data
-      });
-      const blob = new Blob([response.data], {
-        type: response.headers["content-type"],
-      });
-      saveAs(blob, `${Date.now()}.pdf`);
+      if (!printBlob) {
+        errorMessage("PDF is not ready yet.");
+        return;
+      }
+      saveAs(printBlob, `${Date.now()}.pdf`);
     } catch (error) {
       console.error("Error downloading file:", error);
       // Handle errors gracefully, e.g., display an error message to the user
@@ -116,21 +123,32 @@ function GenRxPrescriptionPrintView() {
     //   state: state,
     // });
     // navigate(0, { replace: true });
-    sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+    if (!printBlob) {
+      errorMessage("PDF is not ready yet.");
+      return;
+    }
+    const file = new File(
+      [printBlob],
+      `${new Date().toISOString().split("T")[0]}.pdf`,
+      {
+        type: "application/pdf",
+      }
+    );
+    const formData = new FormData();
+    formData.append(file.name, file);
+    const res = await uploadDocsToAzure(formData);
+    const downloadUrl = res?.[0]?.url;
+    sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
   };
 
   async function onDocumentLoadSuccess(successEvent) {
     setNumPages(successEvent?.numPages);
-    const data = await successEvent.getData();
-    const blob = new Blob([data], { type: "application/pdf" });
-    setPrintBlob(blob);
   }
 
   // Effect to update URLs when mode changes or on initial load
   useEffect(() => {
     if (state?.print_url) {
       const updatedUrl = buildUrlWithParams(state.print_url, isAmbientMode);
-      setPreviewUrl(updatedUrl);
       setPrintUrl(updatedUrl);
     }
   }, [isAmbientMode, state?.print_url]);
@@ -255,7 +273,23 @@ function GenRxPrescriptionPrintView() {
     //   state,
     // });
     // navigate(0, { replace: true });
-    sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    if (!printBlob) {
+      errorMessage("PDF is not ready yet.");
+      return;
+    }
+    const file = new File(
+      [printBlob],
+      `${new Date().toISOString().split("T")[0]}.pdf`,
+      {
+        type: "application/pdf",
+      }
+    );
+    const formData = new FormData();
+    formData.append(file.name, file);
+    uploadDocsToAzure(formData).then((res) => {
+      const printLink = res?.[0]?.url;
+      sendMessageToParent(EVENTS.PRINT, { url: printLink });
+    });
   };
 
   return (
@@ -291,6 +325,7 @@ function GenRxPrescriptionPrintView() {
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                   icon={<i className="icon-Print"></i>}
+                  disabled={isPdfGenerating}
                   onClick={() =>
                     !isChrome && !isSafari
                       ? printInAppContent()
@@ -304,6 +339,7 @@ function GenRxPrescriptionPrintView() {
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                   icon={<i className="icon-download"></i>}
+                  disabled={isPdfGenerating}
                   onClick={() =>
                     !isChrome && !isSafari
                       ? handleInAppDownload()
@@ -404,7 +440,7 @@ function GenRxPrescriptionPrintView() {
                           {"No PDF file specified."}
                         </div>
                       }
-                      file={previewUrl}
+                      file={printBlob}
                       onLoadSuccess={onDocumentLoadSuccess}
                     >
                       {Array.apply(null, Array(numPages))
