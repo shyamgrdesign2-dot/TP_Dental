@@ -53,7 +53,6 @@ function SmartRxDigitise() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
-  const [uploadedFilenames, setUploadedFilenames] = useState([]);
   
   // Fetch file URLs when smartRxFilesData contains only filenames (strings)
   useEffect(() => {
@@ -617,9 +616,7 @@ function SmartRxDigitise() {
           )
           .filter(Boolean) || [];
         let allFilenames = [];
-        if (uploadedFilenames.length > 0) {
-          allFilenames = uploadedFilenames;
-        } else if (smartRxFiles.length > 0) {
+        if (smartRxFiles.length > 0) {
           allFilenames = smartRxFiles;
         } else if (smartRxFileFilenames.length > 0) {
           allFilenames = smartRxFileFilenames;
@@ -764,33 +761,6 @@ function SmartRxDigitise() {
           },
         }
       );
-
-      // Extract filenames from upload response if available
-      // Check multiple possible paths in the response
-      let extractedFilenames = null;
-      if (response?.data?.data?.files) {
-        extractedFilenames = response.data.data.files;
-      } else if (response?.data?.data?.fileNames) {
-        extractedFilenames = response.data.data.fileNames;
-      } else if (response?.data?.files) {
-        extractedFilenames = response.data.files;
-      } else if (response?.data?.data?.refinedData?.fileName) {
-        extractedFilenames = [response.data.data.refinedData.fileName];
-      } else if (response?.data?.data?.refinedData?.fileNames) {
-        extractedFilenames = Array.isArray(response.data.data.refinedData.fileNames) 
-          ? response.data.data.refinedData.fileNames 
-          : [response.data.data.refinedData.fileNames];
-      }
-      
-      if (extractedFilenames) {
-        const filenamesArray = Array.isArray(extractedFilenames) 
-          ? extractedFilenames 
-          : [extractedFilenames];
-        const validFilenames = filenamesArray.filter(f => f && String(f).trim() !== '');
-        if (validFilenames.length > 0) {
-          setUploadedFilenames(validFilenames);
-        }
-      }
 
       // Update the digitized data
       if (response?.data?.data) {
