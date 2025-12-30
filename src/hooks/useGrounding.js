@@ -18,5 +18,5 @@ const isGroundingAccessable =
 
 const isGroundingDisabledFromGB = useFeatureIsOn(GB_DISABLE_GROUNDING);
 
-  return !isGroundingDisabledFromGB;
+  return isGroundingAccessable;
 };
