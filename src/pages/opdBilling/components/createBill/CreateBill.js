@@ -595,7 +595,7 @@ const CreateBill = ({
               value={record.name}
             />
           </AutoComplete>
-          {dataSource[index]?.totalAmount > 0 &&
+          {dataSource[index]?.quantity > 0 &&
             (userId === dataSource[index]?.createdBy ||
               tokenData?.admin === 1) && (
               <i
@@ -659,7 +659,7 @@ const CreateBill = ({
               quantity === "" ? "" : Number(quantity) || "",
               index,
               "quantity"
-            )
+            );
           }}
           onBlur={(e) => {
             // Set to 1 if empty when user leaves the field
