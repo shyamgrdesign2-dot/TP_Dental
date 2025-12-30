@@ -157,7 +157,7 @@ const VoiceRxPromoModal = () => {
             <h1 className="monetization-popup-title">Try VoiceRx Now!</h1>
             <p className="monetization-popup-description">
               Auto captures your <strong>consult conversation</strong> & get{" "}
-              <strong>structured Rx</strong> in second inside EMR.
+              <strong>structured Rx</strong> in seconds inside EMR.
             </p>
 
             {/* Offer Box */}
