@@ -84,7 +84,6 @@ const UploadRx = () => {
       } = data;
       if (authToken) {
         setToken(authToken);
-        localStorage.setItem("isAutoLogout", "false");
         if (timestamp && sessionId) {
           const uploadRxTimestamps = JSON.parse(
             localStorage.getItem("uploadRxTimestamps") || "{}"

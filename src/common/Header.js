@@ -628,15 +628,9 @@ function Header({ locationPath }) {
         }
       }, 1000);
 
-      const isAutoLogout = localStorage.getItem("isAutoLogout");
-
       // Clear storage - this is our confirmation of logout
       localStorage.clear();
       sessionStorage.clear();
-
-      if (isAutoLogout) {
-        localStorage.setItem("isAutoLogout", isAutoLogout);
-      }
 
       sendMessageToParent(EVENTS.LOGOUT);
       // Redirect to login page
@@ -644,13 +638,9 @@ function Header({ locationPath }) {
 
     } catch (error) {
       console.error("Error during logout:", error);
-      const isAutoLogout = localStorage.getItem("isAutoLogout");
       // Even if there's an error, clear storage and redirect
       localStorage.clear();
       sessionStorage.clear();
-      if (isAutoLogout) {
-        localStorage.setItem("isAutoLogout", isAutoLogout);
-      }
 
       sendMessageToParent(EVENTS.LOGOUT);
       // Redirect to login page
