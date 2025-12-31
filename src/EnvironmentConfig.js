@@ -443,7 +443,11 @@ const prod = {
   doctor_portal_url: "https://tatvapractice.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   zydus_voice_rx_expiry_date: "2025-11-01",
-  FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475, 12476, 12477, 12576, 21044, 14754, 11766, 11762, 16588], // added 21044 zydus id for testing one zydus user in prod
+  FREE_VOICE_RX_APOLLO_USER_IDS: [
+    12469, 12475, 12476, 12477, 12576, 21044, 14754, 11766, 11762, 16588, 23472,
+    16443, 16442, 21184, 28038, 28036, 28035, 28034, 28033, 28032, 28031, 28029,
+    28028, 28027,
+  ], // added 21044 zydus id for testing one zydus user in prod
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
   ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",
   abha_api_url: "https://pm-abha.tatvacare.in",
