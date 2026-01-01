@@ -9,8 +9,8 @@
     border-bottom: 1px solid #e2e2ea;
     background: #ffffff;
     position: sticky;
-    top: 0;
-    z-index: 5;
+    top: 0; // Stick to top of tab content
+    z-index: 1100 !important; // Higher than dropdown to overlay when scrolling
   }
 
   &__search-wrapper {

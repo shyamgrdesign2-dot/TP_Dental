@@ -254,6 +254,22 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     //     },
     // ];
 
+    // Helper function to check if custom module content has data (supports both V1 and V2)
+    const hasCustomModuleContent = useCallback(() => {
+        return customModuleContents?.some((e) => {
+            return e?.content?.some(row => {
+                if (e.module_version === "v2") {
+                    // For V2 modules, check if any named field has content
+                    const { id, ...fields } = row;
+                    return Object.values(fields).some(value => value && value.toString().trim().length > 0);
+                } else {
+                    // For V1 modules, check for title or notes
+                    return row.title || row.notes;
+                }
+            });
+        });
+    }, [customModuleContents]);
+
     const showHideBackModal = useCallback(() => {
         setIsBackModalOpen(!isBackModalOpen);
     }, [isBackModalOpen]);
@@ -408,9 +424,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
                 if(data?.userModules?.length > 0){
                     const moduleMap = new Map();
+                    
+                    // First, preserve ALL existing custom module data (both V1 and V2)
                     customModuleContents.forEach((module) => {
-                      moduleMap.set(module.module_id, { ...module, content: module?.content?.filter((e) => e.title || e.notes) });
+                      // Filter content based on module version
+                      let filteredContent;
+                      if (module.module_version === "v2") {
+                        // For V2 modules, check if any named field has content
+                        filteredContent = module?.content?.filter((row) => {
+                          const { id, ...fields } = row;
+                          return Object.values(fields).some(value => value && value.toString().trim().length > 0);
+                        });
+                      } else {
+                        // For V1 modules, check for title or notes
+                        filteredContent = module?.content?.filter((e) => e.title || e.notes);
+                      }
+                      moduleMap.set(module.module_id, { ...module, content: filteredContent || [] });
                     });
+                    
+                    // Then, add template module data to existing modules
                     data?.userModules?.forEach((module) => {
                         if(customModules?.find((x) => x.module_id == module.module_id)){
                             if (moduleMap.has(module.module_id)) {
@@ -494,7 +526,27 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
                 investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
-                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)}))
+                userModules: customModuleContents?.map((e) => {
+                    // Filter content based on module version
+                    let filteredContent;
+                    if (e.module_version === "v2") {
+                        // For V2 modules, filter rows with content and remove 'id' field
+                        filteredContent = e.content
+                            ?.filter((row) => {
+                                const { id, ...fields } = row;
+                                return Object.values(fields).some(value => value && value.toString().trim().length > 0);
+                            })
+                            .map((row) => {
+                                // Remove 'id' field from the actual payload
+                                const { id, ...cleanRow } = row;
+                                return cleanRow;
+                            });
+                    } else {
+                        // For V1 modules, check for title or notes
+                        filteredContent = e.content?.filter(c => c?.title || c?.notes);
+                    }
+                    return {...e, content: filteredContent};
+                })
             }
         }
 
@@ -604,7 +656,27 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
                 investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
-                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)}))
+                userModules: customModuleContents?.map((e) => {
+                    // Filter content based on module version
+                    let filteredContent;
+                    if (e.module_version === "v2") {
+                        // For V2 modules, filter rows with content and remove 'id' field
+                        filteredContent = e.content
+                            ?.filter((row) => {
+                                const { id, ...fields } = row;
+                                return Object.values(fields).some(value => value && value.toString().trim().length > 0);
+                            })
+                            .map((row) => {
+                                // Remove 'id' field from the actual payload
+                                const { id, ...cleanRow } = row;
+                                return cleanRow;
+                            });
+                    } else {
+                        // For V1 modules, check for title or notes
+                        filteredContent = e.content?.filter(c => c?.title || c?.notes);
+                    }
+                    return {...e, content: filteredContent};
+                })
             }
         }
         const action = await dispatch(oneClickUpdateTemplate(sendData));
@@ -1030,7 +1102,28 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     given: givenVaccines,
                     due: updatedDueVaccines
                 },
-                moduleContents: customModuleContents?.map((e) => ({...e, content: e.content.filter((e1) => e1.title || e1.notes)})),
+                moduleContents: customModuleContents?.map((e) => {
+                    // Filter content based on module version
+                    let filteredContent;
+                    if (e.module_version === "v2") {
+                        // For V2 modules, filter rows with content and remove 'id' field
+                        filteredContent = e.content
+                            .filter((row) => {
+                                // Check if any field (except 'id') has content
+                                const { id, ...fields } = row;
+                                return Object.values(fields).some(value => value && value.toString().trim().length > 0);
+                            })
+                            .map((row) => {
+                                // Remove 'id' field from the actual payload
+                                const { id, ...cleanRow } = row;
+                                return cleanRow;
+                            });
+                    } else {
+                        // For V1 modules, check for title or notes
+                        filteredContent = e.content.filter((e1) => e1.title || e1.notes);
+                    }
+                    return {...e, content: filteredContent};
+                }),
                 pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
                 labReportID: labReportID,
                 zydusSelectedLabParams: zydusSelectedLabParams
@@ -1362,10 +1455,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <i className="icon-template me-2"></i> <span>Templates</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
                                         <Popover
                                             open={popOver2}
-                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) && showHideSaveTemplatePopOver()}
+                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
                                             content={SAVE_CONTENT_WEB}
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
@@ -1384,8 +1477,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>Templates</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0) ? "" : "Please enter some data to save a template"}>
-                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
                                     </Tooltip>
                                 </div>
                             )}
@@ -1458,8 +1551,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {(isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && (
                                 <GenRxButton onClick={handleGenRx} />
                             )}
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) && onEndVisitClick()} loading={loading}>
+                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
+                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasCustomModuleContent()) && onEndVisitClick()} loading={loading}>
                                     <i className='icon-exit me-2'></i>
                                     End Visit
                                 </Button>

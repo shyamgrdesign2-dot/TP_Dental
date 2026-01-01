@@ -15,7 +15,7 @@
     border-bottom: 1px solid #e2e2ea;
     background: #ffffff;
     flex-shrink: 0;
-    z-index: 10;
+    z-index: 1200 !important; // Highest - drawer header stays on top
   }
 
   &__create-button {
@@ -91,6 +91,7 @@
         border-bottom: 1px solid #e2e2ea;
         background: #fafafb;
         flex-shrink: 0;
+        z-index: 1150; // Below header but above dropdown
 
         &::before {
           display: none;

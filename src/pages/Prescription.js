@@ -127,6 +127,7 @@ import {
   AddCustomModuleV2,
   CustomModuleV2,
 } from "../components/customModulesV2";
+import { getModules } from "../redux/customModuleSlice";
 
 function Prescription() {
   const {
@@ -169,7 +170,6 @@ function Prescription() {
     (state) => state.uploadDoc
   );
   const { customModules } = useSelector((state) => state.customModules);
-  console.log(customModules,"customModules")
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -413,6 +413,13 @@ function Prescription() {
     };
     dispatch(viewPatient(sendData));
   }, []);
+
+  // Fetch custom modules on component mount
+  useEffect(() => {
+    if (userId) {
+      dispatch(getModules(userId));
+    }
+  }, [userId, dispatch]);
 
   useEffect(() => {
     if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {

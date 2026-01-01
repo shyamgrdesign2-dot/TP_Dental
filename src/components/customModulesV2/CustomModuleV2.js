@@ -14,6 +14,7 @@ import ModuleIcon from "../../assets/images/custom-module.svg";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
 import { addModule } from "../../redux/customModuleSlice";
+import { customizedPad } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage } from "../../utils/utils";
 import "./CustomModuleV2.scss";
 
@@ -30,7 +31,7 @@ import "./CustomModuleV2.scss";
  */
 const CustomModuleV2 = ({ module }) => {
   const dispatch = useDispatch();
-  const { userId } = useSelector((state) => state.doctors);
+  const { userId, customizedPadLeftList, customizedPadRightList } = useSelector((state) => state.doctors);
   const { customModules, loading } = useSelector((state) => state.customModules);
   const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
     useContext(CashManagerContext);
@@ -48,6 +49,15 @@ const CustomModuleV2 = ({ module }) => {
     { key: TAB_ADD_TEMPLATE, label: "New Template" },
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
+
+  // Check if module is disabled (used or cloned by the user)
+  const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId);
+  // Tooltip content for disabled items
+  const disabledTooltipContent = (
+    <div>
+      <strong>Note:</strong> This module is used in an Rx and can't be <strong>edited/deleted</strong>. Create a new one if you need a different version
+    </div>
+  );
   const templates = module?.templates;
 
   // Initialize module data and templates from context
@@ -118,6 +128,7 @@ const CustomModuleV2 = ({ module }) => {
       row.id === rowId ? { ...row, [fieldName]: value } : row
     );
     setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
     setHasChanges(true);
   };
 
@@ -126,6 +137,7 @@ const CustomModuleV2 = ({ module }) => {
     const newRow = createEmptyRow();
     const updatedData = [...moduleData, newRow];
     setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
     setHasChanges(true);
   };
 
@@ -143,7 +155,7 @@ const CustomModuleV2 = ({ module }) => {
     message.success("Row deleted successfully");
   };
 
-  // Handle save
+  // Handle save (just shows a message, data is already saved in context)
   const handleSave = () => {
     // Filter out empty rows
     const nonEmptyData = moduleData.filter((row) => {
@@ -157,7 +169,7 @@ const CustomModuleV2 = ({ module }) => {
       return;
     }
 
-    updateCustomModuleContents(nonEmptyData);
+    // Data is already in context from handleFieldChange, just confirm
     setHasChanges(false);
     message.success("Module data saved successfully");
   };
@@ -285,12 +297,76 @@ const CustomModuleV2 = ({ module }) => {
     }
   };
 
+  // Handle delete module
+  const handleDeleteModule = async () => {
+    try {
+      // Filter out the current module from customModules
+      const modules = customModules.filter((cm) => cm.module_id !== module.module_id);
+      
+      // Call addModule API with remaining modules (upsert)
+      const action = await dispatch(addModule({ userId, modules }));
+      
+      if (action.meta.requestStatus === "fulfilled") {
+        message.success(`Module "${module.name}" deleted successfully`);
+        
+        // Also remove from customModuleContents if present
+        const updatedContents = customModuleContents.filter(
+          (mc) => mc.module_id !== module.module_id
+        );
+        setCustomModuleContents(updatedContents);
+      } else {
+        message.error("Failed to delete module");
+      }
+    } catch (error) {
+      console.error("Error deleting module:", error);
+      message.error("Failed to delete module. Please try again.");
+    }
+  };
+
+  // Handle remove module from Rx pad
+  const handleRemoveFromRxPad = async () => {
+    try {
+      // Filter out the current module from customizedPadRightList
+      const updatedRightList = customizedPadRightList.filter(
+        (item) => item.tmdpm_id !== module.module_id
+      );
+      
+      // Prepare payload to update pad configuration
+      const sendData = {
+        data: {
+          default: false,
+          reset: false,
+          left: customizedPadLeftList,  // Keep left side as-is
+          right: updatedRightList,       // Remove module from right side
+        }
+      };
+      
+      // Call customizedPad API to update configuration
+      const action = await dispatch(customizedPad(sendData));
+      
+      if (action.meta.requestStatus === "fulfilled") {
+        message.success(`"${module.name}" removed from Rx pad successfully`);
+        
+        // Also remove from customModuleContents if present
+        const updatedContents = customModuleContents.filter(
+          (mc) => mc.module_id !== module.module_id
+        );
+        setCustomModuleContents(updatedContents);
+      } else {
+        message.error("Failed to remove module from Rx pad");
+      }
+    } catch (error) {
+      console.error("Error removing module from Rx pad:", error);
+      message.error("Failed to remove module from Rx pad. Please try again.");
+    }
+  };
+
   // More options menu
   const moreMenu = (
     <Menu>
       <Menu.Item
-        key="edit"
-        onClick={() => message.info("Edit module feature coming soon")}
+        key="remove"
+        onClick={handleRemoveFromRxPad}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -306,14 +382,15 @@ const CustomModuleV2 = ({ module }) => {
           src={editIcon}
           width={16}
           height={16}
-          alt="edit"
+          alt="remove"
           style={{ margin: "0 8px 3px 0" }}
         />
-        Edit Module Name
+          Remove From Rx Pad
       </Menu.Item>
       <Menu.Item
-        key="delete"
-        onClick={() => message.info("Delete module feature coming soon")}
+        key="edit"
+        onClick={() => message.info("Edit module")}
+        disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -321,18 +398,90 @@ const CustomModuleV2 = ({ module }) => {
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          color: "#ff4d4f",
+          color: isModuleDisabled ? "#a2a2a8" : "#4a4a4a",
           padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
         }}
       >
-        <img
-          src={deleteIcon}
-          width={16}
-          height={16}
-          alt="delete"
-          style={{ margin: "0 8px 3px 0" }}
-        />
-        Delete Module
+        {isModuleDisabled ? (
+          <Tooltip 
+            title={disabledTooltipContent}
+            placement="left"
+            overlayStyle={{ maxWidth: 350 }}
+            overlayClassName="module-disabled-tooltip"
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={editIcon}
+                width={16}
+                height={16}
+                alt="edit"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Edit Module Name
+            </span>
+          </Tooltip>
+        ) : (
+          <>
+            <img
+              src={editIcon}
+              width={16}
+              height={16}
+              alt="edit"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Edit Module Name
+          </>
+        )}
+      </Menu.Item>
+      <Menu.Item
+        key="delete"
+        onClick={isModuleDisabled ? undefined : handleDeleteModule}
+        disabled={isModuleDisabled}
+        style={{
+          fontFamily: "Poppins, sans-serif",
+          fontSize: "14px",
+          fontWeight: "500",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: isModuleDisabled ? "#a2a2a8" : "#ff4d4f",
+          padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
+        }}
+      >
+        {isModuleDisabled ? (
+          <Tooltip 
+            title={disabledTooltipContent}
+            placement="left"
+            overlayStyle={{ maxWidth: 350 }}
+            overlayClassName="module-disabled-tooltip"
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={deleteIcon}
+                width={16}
+                height={16}
+                alt="delete"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Delete Module
+            </span>
+          </Tooltip>
+        ) : (
+          <>
+            <img
+              src={deleteIcon}
+              width={16}
+              height={16}
+              alt="delete"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Delete Module
+          </>
+        )}
       </Menu.Item>
     </Menu>
   );

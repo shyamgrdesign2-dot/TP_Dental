@@ -132,12 +132,24 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
       }
 
       try {
+        // Helper function to convert label to camelCase fieldName
+        const toCamelCase = (str) => {
+          return str
+            .trim()
+            // Replace spaces and special characters with a marker
+            .replace(/[^a-zA-Z0-9]+(.)?/g, (match, chr) => {
+              return chr ? chr.toUpperCase() : '';
+            })
+            // Make first character lowercase
+            .replace(/^[A-Z]/, (chr) => chr.toLowerCase());
+        };
+
         // Transform form data to V2 module format
         const namedFields = moduleData.columnLabels.map((label, index) => ({
-          fieldName: `field_${index + 1}`,
+          fieldName: toCamelCase(label),
           fieldLabel: label.trim(),
           fieldType: "string",
-          isRequired: true,
+          isRequired: false,
           order: index,
         }));
 

@@ -53,6 +53,18 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
     }
   }, [hospitalSearchResults]);
 
+  // Handle module deletion - refresh the list
+  const handleModuleDeleted = () => {
+    // Re-fetch both user's own modules and hospital modules after deletion
+    dispatch(getModules(userId));
+    dispatch(searchModulesByHospital({
+      hospitalId,
+      moduleName: searchQuery || "",
+      page: 1,
+      limit: 100
+    }));
+  };
+
   // Filter modules based on search query
   const filteredModules = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -110,6 +122,7 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
               module={module}
               onAddToRx={onAddToRx}
               onViewMore={onViewMore}
+              onDelete={handleModuleDeleted}
             />
           ))
         )}
