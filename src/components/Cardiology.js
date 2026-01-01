@@ -2680,10 +2680,32 @@ function Cardiology(props) {
                       </div>
                     )}
                     {customModulesRxData.length > 0 &&
-                      customModulesRxData?.map(
-                        (item) =>
-                          item.module_name && (
-                            <div className="d-flex align-items-start mb-4">
+                      customModulesRxData
+                        ?.filter((item) => {
+                          // Only show modules that have content
+                          if (!item.content || item.content.length === 0) return false;
+                          
+                          // Check if V2 module has any non-empty fields
+                          if (item.module_version === "v2") {
+                            return item.content.some((row) => {
+                              const { id, ...fields } = row;
+                              return Object.values(fields).some(
+                                (value) => value && value.toString().trim().length > 0
+                              );
+                            });
+                          }
+                          
+                          // For V1 modules, check if title or notes exist
+                          return item.content.some((c) => c.title?.trim() || c.notes?.trim());
+                        })
+                        .map((item) => {
+                          // Get module definition to access namedFields for V2
+                          const moduleDefinition = customModulesRxData.find(
+                            (m) => m.module_id === item.module_id
+                          );
+                          
+                          return (
+                            <div className="d-flex align-items-start mb-4" key={item.module_id}>
                               <img
                                 className="me-2"
                                 src={customModuleIcon}
@@ -2691,42 +2713,78 @@ function Cardiology(props) {
                               />
                               <div>
                                 <div className="title">{item.module_name}</div>
-                                {item.content.map((c, i) => {
-                                  return (
-                                    <span key={i}>
-                                      {c.title && (
-                                        <>
-                                          <span>{c.title}</span>
-                                          {c.notes?.trim() ? <br /> : ""}
-                                        </>
-                                      )}
-                                      {c.notes?.trim() && (
-                                        <div>
-                                          {c.notes
-                                            ?.trim()
-                                            ?.replace(/\n+/g, "\n")
-                                            .split("\n")
-                                            .map((line, index) => (
-                                              <React.Fragment key={index}>
-                                                {line}
-                                                {index !==
-                                                  c.notes
-                                                    ?.trim()
-                                                    ?.replace(/\n+/g, "\n")
-                                                    .split("\n").length -
-                                                    1 && <br />}
-                                              </React.Fragment>
-                                            ))}
-                                        </div>
-                                      )}
-                                      {item.content.length - 1 !== i && <br />}
-                                    </span>
-                                  );
-                                })}
+                                {item.module_version === "v2" ? (
+                                  // V2 Module Rendering
+                                  item.content
+                                    .filter((row) => {
+                                      const { id, ...fields } = row;
+                                      return Object.values(fields).some(
+                                        (value) => value && value.toString().trim().length > 0
+                                      );
+                                    })
+                                    .map((row, rowIndex) => {
+                                      const { id, ...fields } = row;
+                                      const fieldEntries = Object.entries(fields).filter(
+                                        ([key, value]) => value && value.toString().trim().length > 0
+                                      );
+                                      
+                                      return (
+                                        <span key={rowIndex}>
+                                          {fieldEntries.map(([fieldName, value], fieldIndex) => (
+                                            <React.Fragment key={fieldIndex}>
+                                              {fieldIndex > 0 && " | "}
+                                              <span className="fw-medium">{fieldName}:</span> {value}
+                                            </React.Fragment>
+                                          ))}
+                                          {rowIndex < item.content.filter((r) => {
+                                            const { id, ...f } = r;
+                                            return Object.values(f).some(v => v && v.toString().trim().length > 0);
+                                          }).length - 1 && <br />}
+                                        </span>
+                                      );
+                                    })
+                                ) : (
+                                  // V1 Module Rendering (Original)
+                                  item.content
+                                    .filter((c) => c.title?.trim() || c.notes?.trim())
+                                    .map((c, i) => {
+                                      return (
+                                        <span key={i}>
+                                          {c.title && (
+                                            <>
+                                              <span>{c.title}</span>
+                                              {c.notes?.trim() ? <br /> : ""}
+                                            </>
+                                          )}
+                                          {c.notes?.trim() && (
+                                            <div>
+                                              {c.notes
+                                                ?.trim()
+                                                ?.replace(/\n+/g, "\n")
+                                                .split("\n")
+                                                .map((line, index) => (
+                                                  <React.Fragment key={index}>
+                                                    {line}
+                                                    {index !==
+                                                      c.notes
+                                                        ?.trim()
+                                                        ?.replace(/\n+/g, "\n")
+                                                        .split("\n").length -
+                                                        1 && <br />}
+                                                  </React.Fragment>
+                                                ))}
+                                            </div>
+                                          )}
+                                          {i < item.content.filter(c => c.title?.trim() || c.notes?.trim()).length - 1 && <br />}
+                                        </span>
+                                      );
+                                    })
+                                )}
                               </div>
                             </div>
-                          )
-                      )}
+                          );
+                        })
+                    }
                   </div>
                 </div>
               </Card.Body>
