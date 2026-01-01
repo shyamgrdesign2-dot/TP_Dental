@@ -127,16 +127,19 @@ import {
   AddCustomModuleV2,
   CustomModuleV2,
 } from "../components/customModulesV2";
-import { getModules } from "../redux/customModuleSlice";
+import { getModules, searchModulesByHospital } from "../redux/customModuleSlice";
 
 function Prescription() {
   const {
     userId,
     customizedPadLeftList,
-    customizedPadRightList,
+    customizedPadRightList: originalCustomizedPadRightList,
     frequencyList,
     timingList,
   } = useSelector((state) => state.doctors);
+  
+  // Local state to manage customizedPadRightList with deleted modules for edit case
+  const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
 
   const { planDetails } = useSelector((state) => state.subscription);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
@@ -169,13 +172,120 @@ function Prescription() {
   const { allUploadedDocs, uploadDocCategories } = useSelector(
     (state) => state.uploadDoc
   );
-  const { customModules } = useSelector((state) => state.customModules);
+  const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
   const dispatch = useDispatch();
+  
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
+  
+  // Create a combined module list that includes both user's modules and hospital-wide modules
+  // This ensures deleted modules are still available when editing a prescription
+  const allAvailableModules = React.useMemo(() => {
+    const combined = [...customModules];
+    const existingIds = new Set(customModules.map((m) => m.module_id));
+    
+    // Add hospital modules that aren't already in the user's list
+    if (hospitalSearchResults?.modules) {
+      hospitalSearchResults.modules.forEach((module) => {
+        if (!existingIds.has(module.module_id)) {
+          combined.push(module);
+        }
+      });
+    }
+    
+    return combined;
+  }, [customModules, hospitalSearchResults]);
+
+  // Update local customizedPadRightList when Redux state changes
+  useEffect(() => {
+    setCustomizedPadRightList(originalCustomizedPadRightList);
+  }, [originalCustomizedPadRightList]);
+
+  // Reconstruct customizedPadRightList to include deleted modules when editing a prescription
+  useEffect(() => {
+    if (caseManagerData?.moduleContents?.length > 0 && allAvailableModules.length > 0) {
+      // Get module IDs from the prescription content
+      const moduleIdsInPrescription = caseManagerData.moduleContents.map(
+        (content) => content.module_id
+      );
+
+      // Get module IDs already in the right list
+      const existingModuleIds = new Set(
+        originalCustomizedPadRightList
+          .filter((item) => item.is_custom_module)
+          .map((item) => item.tmdpm_id)
+      );
+
+      // Find modules that are in the prescription but not in the right list (deleted modules)
+      const missingModules = moduleIdsInPrescription.filter(
+        (moduleId) => !existingModuleIds.has(moduleId)
+      );
+
+      if (missingModules.length > 0) {
+        // Create pad entries for missing modules
+        const missingModuleEntries = missingModules
+          .map((moduleId) => {
+            // Try to find the module definition
+            const moduleDefinition = allAvailableModules.find(
+              (m) => m.module_id === moduleId
+            );
+            
+            if (moduleDefinition) {
+              return {
+                tmdpm_id: moduleDefinition.module_id,
+                tmdpm_name: moduleDefinition.name,
+                tmdpm_type: "custom_module",
+                tmdpm_status: 0, // Enabled
+                is_custom_module: true,
+              };
+            }
+            
+            // If module definition not found, try to get name from moduleContents
+            const moduleContent = caseManagerData.moduleContents.find(
+              (content) => content.module_id === moduleId
+            );
+            
+            if (moduleContent) {
+              console.warn(
+                `Module definition not found for ${moduleId}, using fallback from moduleContents`
+              );
+              return {
+                tmdpm_id: moduleId,
+                tmdpm_name: moduleContent.module_name || moduleId,
+                tmdpm_type: "custom_module",
+                tmdpm_status: 0, // Enabled
+                is_custom_module: true,
+              };
+            }
+            
+            // Last resort: create entry with just the ID
+            console.error(
+              `Cannot find module ${moduleId} in allAvailableModules or moduleContents`
+            );
+            return {
+              tmdpm_id: moduleId,
+              tmdpm_name: `Module ${moduleId}`,
+              tmdpm_type: "custom_module",
+              tmdpm_status: 0,
+              is_custom_module: true,
+            };
+          })
+          .filter(Boolean);
+
+        // Add missing modules to the right list
+        const updatedRightList = [...originalCustomizedPadRightList, ...missingModuleEntries];
+        setCustomizedPadRightList(updatedRightList);
+
+        console.log(
+          `Added ${missingModules.length} deleted module(s) back to prescription pad for editing:`,
+          missingModules
+        );
+      }
+    }
+  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList]);
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -416,9 +526,30 @@ function Prescription() {
 
   // Fetch custom modules on component mount
   useEffect(() => {
-    if (userId) {
-      dispatch(getModules(userId));
-    }
+    const fetchModules = async () => {
+      if (userId) {
+        // Always fetch user's own modules
+        await dispatch(getModules(userId));
+        
+        // If editing a case with custom modules, also fetch hospital-wide modules
+        // This ensures deleted modules are still available for rendering
+        if (caseManagerData?.moduleContents?.length > 0) {
+          const hospitalId = decodedToken?.result?.clinic_id;
+          if (hospitalId) {
+            await dispatch(
+              searchModulesByHospital({
+                hospitalId,
+                moduleName: "",
+                page: 1,
+                limit: 100,
+              })
+            );
+          }
+        }
+      }
+    };
+
+    fetchModules();
   }, [userId, dispatch]);
 
   useEffect(() => {
@@ -593,11 +724,10 @@ function Prescription() {
         setAdditionalNote(caseManagerData.visit_advice);
       }
       if (caseManagerData?.moduleContents?.length) {
-        setCustomModuleContents(
-          caseManagerData?.moduleContents?.filter(
-            (e) => !!customModules.find((cm) => cm.module_id === e.module_id)
-          )
-        );
+        // Don't filter out modules - they should all be rendered even if deleted
+        // The allAvailableModules list will include deleted modules from hospital search
+        console.log(caseManagerData.moduleContents,"caseManagerData.moduleContents")
+        setCustomModuleContents(caseManagerData.moduleContents);
       }
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false);
 
@@ -1726,9 +1856,40 @@ function Prescription() {
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
                 {customizedPadRightList?.map((e, i) => {
-                  const customModule = customModules?.find(
+                  let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );
+                  
+                  // If module not found in allAvailableModules, create fallback from moduleContents
+                  if (!customModule && e.is_custom_module && customModuleContents?.length > 0) {
+                    const moduleContent = customModuleContents.find(
+                      (content) => content.module_id === e.tmdpm_id
+                    );
+                    
+                    if (moduleContent) {
+                      // Create a fallback module definition from the content
+                      customModule = {
+                        module_id: moduleContent.module_id,
+                        name: moduleContent.module_name || e.tmdpm_name,
+                        version: moduleContent.module_version || "v2",
+                        // For V2 modules, extract namedFields from the first content row
+                        namedFields: moduleContent.module_version === "v2" && moduleContent.content?.length > 0
+                          ? Object.keys(moduleContent.content[0])
+                              .filter((key) => key !== "id") // Exclude the id field
+                              .map((key, index) => ({
+                                fieldName: key,
+                                fieldLabel: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " "),
+                                fieldType: "string",
+                                isRequired: false,
+                                order: index,
+                              }))
+                          : [],
+                      };
+                      console.warn(
+                        `Using fallback module definition for ${e.tmdpm_id} from moduleContents`
+                      );
+                    }
+                  }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
                     <div
                       key={i}
@@ -1803,47 +1964,7 @@ function Prescription() {
                   );
                 })}
                 
-                {/* DUMMY V2 MODULE - FOR UI TESTING ONLY */}
-                {/* {true && (
-                  <CustomModuleV2
-                    module={{
-                      module_id: "dummy-diet-plan-v2",
-                      name: "Diet",
-                      version: "v2",
-                      namedFields: [
-                        {
-                          fieldName: "diet",
-                          fieldLabel: "Diet",
-                          fieldType: "string",
-                          isRequired: true,
-                          order: 0,
-                        },
-                        {
-                          fieldName: "morning",
-                          fieldLabel: "Morning",
-                          fieldType: "string",
-                          isRequired: true,
-                          order: 1,
-                        },
-                        {
-                          fieldName: "evening",
-                          fieldLabel: "Evening",
-                          fieldType: "string",
-                          isRequired: true,
-                          order: 2,
-                        },
-                        {
-                          fieldName: "night",
-                          fieldLabel: "Night",
-                          fieldType: "string",
-                          isRequired: true,
-                          order: 3,
-                        },
-                      ],
-                    }}
-                  />
-                )} */}
-                {/* END DUMMY DATA */}
+
                 
                 {/* <AddCustomModule /> */}
                 <AddCustomModuleV2 onOpenDrawer={() => setIsAddCustomModuleDrawerVisible(true)} />
