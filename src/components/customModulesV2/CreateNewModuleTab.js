@@ -3,6 +3,7 @@ import { Input, Radio, Tooltip, Alert } from "antd";
 import {
   InfoCircleOutlined,
   ExclamationCircleOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import ModuleListItem from "./ModuleListItem";
@@ -26,6 +27,8 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   const [columnCount, setColumnCount] = useState(2);
   const [columnLabels, setColumnLabels] = useState(["", ""]);
   const [similarModules, setSimilarModules] = useState([]);
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [expandedModules, setExpandedModules] = useState({});
 
   // Check for similar module names
   useEffect(() => {
@@ -53,6 +56,10 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
     const value = e.target.value;
     if (value.length <= MAX_MODULE_NAME_LENGTH) {
       setModuleName(value);
+      // Reset column config visibility when module name changes
+      if (showColumnConfig) {
+        setShowColumnConfig(false);
+      }
     }
   };
 
@@ -93,8 +100,15 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   };
 
   const handleAddAsNew = () => {
-    // TODO: Implement add as new module functionality
-    console.log("Add as new module:", moduleName);
+    // Show the column configuration section when user decides to add as new
+    setShowColumnConfig(true);
+  };
+
+  const handleViewMore = (moduleId) => {
+    setExpandedModules((prev) => ({
+      ...prev,
+      [moduleId]: !prev[moduleId],
+    }));
   };
 
   return (
@@ -127,52 +141,114 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
           {similarModules.length > 0 && (
             <div className="create-new-module-tab__warning">
               <Alert
-                message="Modules with a similar name already exists! Consider using an existing module to avoid duplication."
+                message={
+                  <div className="d-flex flex-column">
+                    <span>Modules with a similar name already exists!</span>
+                    <span>Consider using an existing module to avoid duplication.</span>
+                  </div>
+                }
                 type="warning"
                 icon={<ExclamationCircleOutlined />}
                 showIcon
                 className="create-new-module-tab__alert"
               />
               <div className="create-new-module-tab__similar-modules">
-                {similarModules.map((module) => (
-                  <div
-                    key={module.module_id}
-                    className="create-new-module-tab__similar-item"
-                  >
-                    <div className="create-new-module-tab__similar-content">
-                      <h4 className="create-new-module-tab__similar-name">
-                        {module.name}
-                      </h4>
-                      <div className="create-new-module-tab__similar-details">
-                        <span className="create-new-module-tab__similar-tag">
-                          Dr. {module.creator_name || "Unknown"}
-                        </span>
-                        <span className="create-new-module-tab__similar-tag">
-                          {String(
-                            module.version === "v2" && module.namedFields
-                              ? module.namedFields.length
-                              : 2
-                          ).padStart(2, "0")}{" "}
-                          columns
-                        </span>
-                        <a className="create-new-module-tab__similar-view-more">
-                          View more
-                        </a>
-                      </div>
-                    </div>
-                    <button
-                      className="create-new-module-tab__use-button"
-                      onClick={() => handleUseExistingModule(module)}
+                {similarModules.map((module) => {
+                  const isExpanded = expandedModules[module.module_id];
+                  const moduleColumnCount =
+                    module.version === "v2" && module.namedFields
+                      ? module.namedFields.length
+                      : 2;
+                  const columnLabels =
+                    module.version === "v2" && module.namedFields
+                      ? module.namedFields.map((field) => field.fieldLabel)
+                      : ["Title", "Notes"];
+
+                  return (
+                    <div
+                      key={module.module_id}
+                      className="create-new-module-tab__similar-item"
                     >
-                      Use this Module
-                    </button>
-                  </div>
-                ))}
-                <div className="create-new-module-tab__add-new">
+                      <div className="create-new-module-tab__similar-container">
+                        <div className="create-new-module-tab__similar-header">
+                          <h4 className="create-new-module-tab__similar-name">
+                            {module.name}
+                          </h4>
+                          <div className="create-new-module-tab__similar-details">
+                            <div className="create-new-module-tab__similar-tags">
+                              <span className="create-new-module-tab__similar-tag">
+                                <UserOutlined className="create-new-module-tab__similar-tag-icon" />
+                                <span>Dr. {module.creator_name || "Unknown"}</span>
+                              </span>
+                              <span className="create-new-module-tab__similar-tag">
+                                {String(moduleColumnCount).padStart(2, "0")}{" "}
+                                columns
+                              </span>
+                            </div>
+                            <a
+                              className="create-new-module-tab__similar-view-more"
+                              onClick={() => handleViewMore(module.module_id)}
+                            >
+                              {isExpanded ? "View less" : "View more"}
+                            </a>
+                          </div>
+                        </div>
+                        <button
+                          className="create-new-module-tab__use-button"
+                          onClick={() => handleUseExistingModule(module)}
+                        >
+                          Use this Module
+                        </button>
+                      </div>
+
+                      {/* Expanded Preview Table */}
+                      {isExpanded && (
+                        <div className="create-new-module-tab__preview">
+                          <div
+                            className="create-new-module-tab__preview-table"
+                            style={{
+                              "--column-count": moduleColumnCount,
+                            }}
+                          >
+                            {/* Column Headers */}
+                            <div className="create-new-module-tab__preview-row create-new-module-tab__preview-row--header">
+                              {columnLabels.map((label, index) => (
+                                <div
+                                  key={index}
+                                  className="create-new-module-tab__preview-cell create-new-module-tab__preview-cell--header"
+                                >
+                                  {label.toUpperCase()}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Input Placeholders Row */}
+                            <div className="create-new-module-tab__preview-row">
+                              {columnLabels.map((label, index) => (
+                                <div
+                                  key={index}
+                                  className="create-new-module-tab__preview-cell create-new-module-tab__preview-cell--input"
+                                >
+                                  <span className="create-new-module-tab__preview-placeholder">
+                                    Eg. Add {label}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div 
+                  className="create-new-module-tab__add-new"
+                  onClick={handleAddAsNew}
+                >
                   <span>
                     (or){" "}
                     <span className="create-new-module-tab__add-icon">+</span>{" "}
-                    Add '{moduleName}' as new Custom module
+                    Add "{moduleName}" as new Custom module
                   </span>
                 </div>
               </div>
@@ -180,7 +256,8 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
           )}
         </div>
 
-        {/* Configure Columns Section */}
+        {/* Configure Columns Section - Show when user clicks "Add as new" or no similar modules */}
+        {(showColumnConfig || (moduleName.trim().length > 0 && similarModules.length === 0)) && (
         <div className="create-new-module-tab__section">
           <div className="create-new-module-tab__label">
             <span>
@@ -236,6 +313,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Informational Box */}
         <div className="create-new-module-tab__info-box">

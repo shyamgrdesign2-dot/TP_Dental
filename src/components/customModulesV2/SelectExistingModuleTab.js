@@ -21,13 +21,11 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   const { customModules: reduxModules, hospitalSearchResults, loading } = useSelector(
     (state) => state.customModules
   );
-  console.log(reduxModules,"reduxModules")
   const { userId } = useSelector((state) => state.doctors);
   const [modules, setModules] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
-  console.log(hospitalSearchResults,"hospitalSearchResults")
 
   // Fetch modules by hospital on mount
   useEffect(() => {

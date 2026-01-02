@@ -89,7 +89,7 @@
         margin: 0;
         padding: 0 24px;
         border-bottom: 1px solid #e2e2ea;
-        background: #fafafb;
+        background: #ffffff !important;
         flex-shrink: 0;
         z-index: 1150; // Below header but above dropdown
 
@@ -98,6 +98,8 @@
         }
 
         .ant-tabs-nav-wrap {
+          background: #ffffff !important;
+          
           .ant-tabs-nav-list {
             .ant-tabs-tab {
               padding: 16px 0;
