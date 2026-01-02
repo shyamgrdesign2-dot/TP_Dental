@@ -54,7 +54,7 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, mergeVitalsByDate } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -431,20 +431,24 @@ function Prescription() {
         ) !== -1
       ) {
         if (tcmId !== 0) {
-          const today = moment().format('YYYY-MM-DD');
-          const filteredVitals = caseManagerData.vitals.filter(v => {
-            const createdAt = v.createdAt || v.created_at || v.createdDate;
-            if (!createdAt) return false;
-            return moment(createdAt).format('YYYY-MM-DD') === today;
-          });
-          const updatedData = filteredVitals.map((e, i) => {
+          // When editing, merge caseManagerData vitals with selectedVitalsList
+          // This ensures we get all vitals data, not just today's
+          const caseManagerVitals = caseManagerData.vitals.map((e) => {
             return {
               ...e,
-              systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-              diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+              systolic: e.blood_press ? e.blood_press.split("/")[0] : (e.systolic || ""),
+              diastolic: e.blood_press ? e.blood_press.split("/")[1] : (e.diastolic || ""),
             };
           });
-          setVitalsData(updatedData);
+          const mergedVitals = selectedVitalsList.length > 0 
+            ? mergeVitalsByDate(caseManagerVitals, selectedVitalsList.map((e) => ({
+                ...e,
+                systolic: e.blood_press ? e.blood_press.split("/")[0] : (e.systolic || ""),
+                diastolic: e.blood_press ? e.blood_press.split("/")[1] : (e.diastolic || ""),
+              })))
+            : caseManagerVitals;
+          
+          setVitalsData(mergedVitals);
         }
       }
       if (
@@ -751,20 +755,17 @@ function Prescription() {
 
   useEffect(() => {
     if (caseManagerData === undefined || tcmId === 0) {
-      const today = moment().format('YYYY-MM-DD');
-      const filteredVitals = selectedVitalsList.filter(v => {
-        const createdAt = v.createdAt || v.created_at || v.createdDate;
-        if (!createdAt) return false;
-        return moment(createdAt).format('YYYY-MM-DD') === today;
-      });
-      const updatedData = filteredVitals.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
+      if (selectedVitalsList.length > 0) {
+        const newVitals = selectedVitalsList.map((e, i) => {
+          return {
+            ...e,
+            systolic: e.blood_press ? e.blood_press.split("/")[0] : (e.systolic || ""),
+            diastolic: e.blood_press ? e.blood_press.split("/")[1] : (e.diastolic || ""),
+          };
+        });
+        const merged = mergeVitalsByDate(vitalsData, newVitals);
+        setVitalsData(merged);
+      }
     }
   }, [selectedVitalsList]);
 

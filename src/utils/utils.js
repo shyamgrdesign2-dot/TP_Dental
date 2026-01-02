@@ -293,6 +293,111 @@ export const formatAmount = (amount) => {
   return amount.toFixed(2).replace(/\.00$/, "");
 };
 
+/**
+ * Intelligently merges vitals data for the same date
+ * Preserves existing non-empty values when new values are empty
+ * Updates fields when new values are provided
+ * @param {Array} existingVitals - Array of existing vitals
+ * @param {Array} newVitals - Array of new vitals to merge
+ * @returns {Array} Merged vitals array
+ */
+export const mergeVitalsByDate = (existingVitals = [], newVitals = []) => {
+  if (!Array.isArray(existingVitals)) existingVitals = [];
+  if (!Array.isArray(newVitals)) newVitals = [];
+  
+  const vitalsMap = new Map();
+  
+  // First, add all existing vitals to map
+  existingVitals.forEach(v => {
+    if (!v || !v.date) return;
+    const date = String(v.date).trim();
+    if (date) {
+      vitalsMap.set(date, { ...v });
+    }
+  });
+  
+  // Then merge new vitals with existing ones
+  newVitals.forEach(newVital => {
+    if (!newVital || !newVital.date) return;
+    const date = String(newVital.date).trim();
+    if (!date) return;
+    
+    const existing = vitalsMap.get(date);
+    
+    if (existing) {
+      // Merge: new values override existing, but preserve existing non-empty values if new is empty
+      const merged = { ...existing };
+      
+      // Fields that should preserve existing value if new is empty
+      const preserveFields = ['general_rbs', 'ofc', 'fib4'];
+      
+      Object.keys(newVital).forEach(key => {
+        if (key === 'date' || key === 'pam_id') {
+          // Preserve date and pam_id
+          return;
+        }
+        
+        const newValue = newVital[key];
+        const existingValue = existing[key];
+        
+        // Handle null, undefined, empty string
+        const isNewEmpty = newValue === undefined || newValue === null || String(newValue).trim() === '';
+        const isExistingEmpty = existingValue === undefined || existingValue === null || String(existingValue).trim() === '';
+        
+        if (preserveFields.includes(key)) {
+          // For preserve fields, use new if not empty, otherwise keep existing
+          merged[key] = !isNewEmpty ? String(newValue).trim() : (!isExistingEmpty ? String(existingValue).trim() : '');
+        } else if (key === 'tcv_id' || key === 'tcbc_id' || key === 'dev_unique_id') {
+          // For IDs, prefer the higher value (more recent)
+          const newId = parseInt(newValue) || 0;
+          const existingId = parseInt(existingValue) || 0;
+          merged[key] = Math.max(newId, existingId);
+        } else {
+          // For other fields, use new value if not empty, otherwise keep existing
+          if (!isNewEmpty) {
+            merged[key] = String(newValue).trim();
+          } else if (!isExistingEmpty) {
+            merged[key] = String(existingValue).trim();
+          } else {
+            merged[key] = '';
+          }
+        }
+      });
+      
+      // Handle blood_press, systolic, diastolic
+      const systolic = String(merged.systolic || '').trim();
+      const diastolic = String(merged.diastolic || '').trim();
+      if (systolic && diastolic) {
+        merged.blood_press = `${systolic}/${diastolic}`;
+      } else if (merged.blood_press) {
+        // If blood_press exists but systolic/diastolic don't, try to split
+        const bpParts = String(merged.blood_press).split('/');
+        if (bpParts.length === 2) {
+          merged.systolic = bpParts[0].trim();
+          merged.diastolic = bpParts[1].trim();
+        }
+      } else {
+        merged.blood_press = '';
+      }
+      
+      vitalsMap.set(date, merged);
+    } else {
+      // New date, add as is
+      const processed = { ...newVital };
+      if (processed.blood_press) {
+        const bpParts = String(processed.blood_press).split('/');
+        if (bpParts.length === 2) {
+          processed.systolic = bpParts[0].trim();
+          processed.diastolic = bpParts[1].trim();
+        }
+      }
+      vitalsMap.set(date, processed);
+    }
+  });
+  
+  return Array.from(vitalsMap.values());
+};
+
 export const currencyFormat = (amount) => {
   return numeral(amount).format("0,0.00").replace(/\.00$/, "");
 };

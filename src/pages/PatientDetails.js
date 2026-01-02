@@ -217,46 +217,56 @@ function PatientDetails() {
 
     const mergedVitals = useMemo(() => {
         const caseManagerVitals = viewCaseManagerData?.vitals || [];
-        const allVitals = [...caseManagerVitals, ...apiVitals];
-        const uniqueVitalsByDate = allVitals.reduce((acc, vital) => {
-            const date = vital.date;
-            const existing = acc[date];
-            
-            if (!existing) {
-                acc[date] = vital;
-            } else {
-                // Compare by createdAt timestamp first
-                const existingDate = new Date(existing.createdAt || existing.date);
-                const vitalDate = new Date(vital.createdAt || vital.date);
-                
-                if (vitalDate > existingDate) {
-                    acc[date] = vital;
-                } else if (vitalDate.getTime() === existingDate.getTime()) {
-                    // If dates are the same, compare by tcv_id (higher = more recent)
-                    const existingTcvId = parseInt(existing.tcv_id) || 0;
-                    const vitalTcvId = parseInt(vital.tcv_id) || 0;
-                    
-                    if (vitalTcvId > existingTcvId) {
-                        acc[date] = vital;
-                    } else if (vitalTcvId === existingTcvId) {
-                        // If tcv_id is also same, prefer the one with more data
-                        const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                        const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                        if (vitalDataCount > existingDataCount) {
-                            acc[date] = vital;
-                        }
-                    }
-                }
+        const vitalsMap = new Map();
+        
+        apiVitals.forEach(v => {
+            if (!v || !v.date) return;
+            const date = String(v.date).trim();
+            if (date) {
+                vitalsMap.set(date, { ...v });
             }
-            return acc;
-        }, {});
-        const vitals = Object.values(uniqueVitalsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
-        return vitals.map(v => {
-            const systolic = String(v.systolic || '').trim();
-            const diastolic = String(v.diastolic || '').trim();
+        });
+        caseManagerVitals.forEach(cmVital => {
+            if (!cmVital || !cmVital.date) return;
+            const date = String(cmVital.date).trim();
+            if (!date) return;
+            
+            const existing = vitalsMap.get(date);
+            if (existing) {                const merged = { ...existing, ...cmVital };
+                Object.keys(existing).forEach(key => {
+                    if (key === 'date' || key === 'pam_id') return;
+                    const cmValue = cmVital[key];
+                    const apiValue = existing[key];
+                    const isCmEmpty = cmValue === undefined || cmValue === null || String(cmValue).trim() === '';
+                    const isApiEmpty = apiValue === undefined || apiValue === null || String(apiValue).trim() === '';
+                    if (isCmEmpty && !isApiEmpty) {
+                        merged[key] = apiValue;
+                    }
+                });
+                if (cmVital.tcv_id) merged.tcv_id = cmVital.tcv_id;
+                if (cmVital.tcbc_id) merged.tcbc_id = cmVital.tcbc_id;
+                if (cmVital.dev_unique_id) merged.dev_unique_id = cmVital.dev_unique_id;
+                vitalsMap.set(date, merged);
+            } else {
+                vitalsMap.set(date, { ...cmVital });
+            }
+        });
+        
+        const merged = Array.from(vitalsMap.values());
+        
+        const sorted = merged.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateB - dateA;
+        });
+        return sorted.map(v => {
             const cleaned = { ...v };
-            if (!systolic || !diastolic) {
-                delete cleaned.blood_press;
+            if (!cleaned.systolic && !cleaned.diastolic && cleaned.blood_press) {
+                const bpParts = String(cleaned.blood_press).split('/');
+                if (bpParts.length === 2) {
+                    cleaned.systolic = bpParts[0].trim();
+                    cleaned.diastolic = bpParts[1].trim();
+                }
             }
             return cleaned;
         });
