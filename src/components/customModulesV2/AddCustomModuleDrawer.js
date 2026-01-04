@@ -174,9 +174,63 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
         await dispatch(addModule(payload)).unwrap();
 
-        message.success(
-          `Module "${moduleData.moduleName}" created successfully!`
+        // Refresh user's modules to get the newly created module with its ID
+        const updatedModulesResponse = await dispatch(getModules(userId)).unwrap();
+
+        // Find the newly created module by comparing old and new module lists
+        // The newly added module will exist in the updated list but not in the old list
+        const oldModuleIds = new Set(
+          (customModules || []).map((module) => module.module_id)
         );
+        
+        const newlyCreatedModule = updatedModulesResponse?.modules?.find(
+          (module) => !oldModuleIds.has(module.module_id)
+        );
+
+        if (newlyCreatedModule && newlyCreatedModule.module_id) {
+          // Check if module already exists in the right pad
+          const moduleExists = customizedPadRightList?.some(
+            (item) => item.tmdpm_id === newlyCreatedModule.module_id
+          );
+
+          if (!moduleExists) {
+            // Add module to customized pad right list
+            const updatedRightPad = [
+              ...(customizedPadRightList || []),
+              {
+                tmdpm_id: newlyCreatedModule.module_id,
+                tmdpm_name: newlyCreatedModule.name,
+                tmdpm_short_name: newlyCreatedModule.name,
+                tmdpm_type: "R",
+                tmdpm_status: 0,
+                is_custom_module: true,
+              },
+            ];
+
+            const sendData = {
+              data: {
+                default: false,
+                reset: false,
+                left: customizedPadLeftList || [],
+                right: updatedRightPad,
+              },
+            };
+
+            await dispatch(customizedPad(sendData)).unwrap();
+            
+            message.success(
+              `Module "${moduleData.moduleName}" created and added to your prescription pad!`
+            );
+          } else {
+            message.success(
+              `Module "${moduleData.moduleName}" created successfully!`
+            );
+          }
+        } else {
+          message.success(
+            `Module "${moduleData.moduleName}" created successfully!`
+          );
+        }
 
         // Refresh modules list by hospital
         await dispatch(searchModulesByHospital({
@@ -202,7 +256,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         message.error(errorMessage);
       }
     },
-    [dispatch, userId, onClose, customModules, hospitalId]
+    [dispatch, userId, onClose, customModules, hospitalId, customizedPadRightList, customizedPadLeftList]
   );
 
   const handleFormChange = useCallback((formData) => {
