@@ -32,7 +32,6 @@ export const checkTncRecord = async () => {
  * Create TNC record for the user
  * @param {Object} data - TNC record data
  * @param {string|number} data.um_id - User ID
- * @param {string} data.timestamp - ISO timestamp
  * @param {number} data.tnc_version - TNC version
  * @returns {Promise<Object>}
  */
@@ -42,7 +41,6 @@ export const createTncRecord = async (data) => {
       `/api/v1/user-consent/create`,
       {
         um_id: Number(data.um_id), 
-        timestamp: data.timestamp,
         tnc_version: Number(data.tnc_version) || Number(TNC_VERSION), 
       },
       baseTncUrl

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Routes,
   Route,
@@ -95,6 +95,8 @@ function App() {
     PERSISTANT_STORAGE_KEY_AUTH_TOKEN
   );
 
+  const tncProcessingRef = useRef(false);
+
   const [getMedecoToken, setMedecoToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_MEDECO_TOKEN
   );
@@ -159,95 +161,6 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const checkTncAndLogout = async (retryCount = 0) => {
-      if (authToken) {
-        return;
-      }
-
-      const token = getToken();
-      const currentPath = location.pathname;
-      const isOnLoginPage = currentPath === "/login";
-      
-      if (!token || isOnLoginPage || isReceptionist) {
-        return;
-      }
-
-      try {
-        const decoded = jwtDecode(token);
-        const userId = decoded?.result?.user_id;
-        
-        if (!userId) {
-          console.error("Unable to decode token or get user_id");
-          return;
-        }
-
-        const tncCheckKey = `tnc_check_done_${userId}`;
-        const hasCheckedTnc = localStorage.getItem(tncCheckKey);
-        
-        if (hasCheckedTnc) {
-          return;
-        }
-
-        const response = await checkTncRecord();
-        
-        localStorage.setItem(tncCheckKey, "true");
-        
-        if (response?.exists === false) {
-          const urlsToOpen = [config.pedia_logout_url, config.tatvaAi_logout_url];
-          
-          openUrlsSilently(urlsToOpen).catch((error) => {
-            console.error("Error opening logout URLs:", error);
-          });
-
-          localStorage.clear();
-          sessionStorage.clear();
-          
-          window.location.href = "/login";
-        }
-      } catch (error) {
-        const statusCode = error?.response?.status;
-        const isNetworkError = !error.response; // Network error, CORS, timeout
-        const isServerError = statusCode >= 500 && statusCode < 600; // 5xx errors
-        const isTimeout = statusCode === 408 || statusCode === 504 || statusCode === 508;
-        const isClientError = statusCode >= 400 && statusCode < 500; // 4xx errors (except timeout)
-        
-        const MAX_RETRIES = 2; // Total 3 attempts (initial + 2 retries)
-        const shouldRetry = retryCount < MAX_RETRIES && (isNetworkError || isServerError || isTimeout);
-        
-        if (shouldRetry) {
-          // Exponential backoff: 2s, 4s, 8s (but cap at 10s)
-          const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-          
-          console.error(`Error checking TNC record (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, {
-            status: statusCode,
-            message: error?.message || error?.response?.data?.message,
-            retryingIn: `${delay}ms`
-          });
-          
-          setTimeout(() => {
-            checkTncAndLogout(retryCount + 1);
-          }, delay);
-        } else {
-          // Don't retry: max retries reached or client error (4xx)
-          if (isClientError && !isTimeout) {
-            console.error("TNC check failed with client error (4xx), not retrying:", {
-              status: statusCode,
-              message: error?.response?.data?.message || error?.message
-            });
-          } else {
-            console.error("TNC check failed after all retries, continuing without logout:", {
-              status: statusCode,
-              message: error?.message || error?.response?.data?.message,
-              attempts: retryCount + 1
-            });
-          }
-        }
-      }
-    };
-
-    checkTncAndLogout();
-  }, [authToken, location.pathname, isReceptionist]);
   useEffect(() => {
     const checkUserStatus = async () => {
       const token = getToken();
@@ -333,96 +246,105 @@ function App() {
     if (authToken) {
       setToken(authToken);
       localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+    }
+  }, [authToken]);
 
-      try {
-        const decoded = jwtDecode(authToken);
-        const userId = decoded?.result?.user_id;
-        if (userId) {
-          const tncCheckKey = `tnc_check_done_${userId}`;
-          localStorage.setItem(tncCheckKey, "true");
-        }
-      } catch (decodeError) {
-        console.error("Error decoding token for TNC flag:", decodeError);
+  useEffect(() => {
+    const checkAndCreateTncRecord = async () => {
+      if (isLoginPage || isReceptionist) {
+        return;
       }
 
-      const createTncRecordAsync = async () => {
-        try {
-          const decoded = jwtDecode(authToken);
-          const userId = decoded?.result?.user_id;
-          
-          if (userId) {
-            const timestamp = new Date().toISOString();
+      const currentToken = authToken || getToken();
+      if (!currentToken) {
+        return;
+      }
+
+      try {
+        const decoded = jwtDecode(currentToken);
+        const userId = decoded?.result?.user_id;
+        
+        if (!userId) {
+          return;
+        }
+
+        const tncCheckKey = `tnc_check_done_${userId}`;
+        const hasCheckedTnc = localStorage.getItem(tncCheckKey);
+        
+        if (hasCheckedTnc || tncProcessingRef.current) {
+          return;
+        }
+
+        tncProcessingRef.current = true;
+
+        const checkResponse = await checkTncRecord();
+        console.log('TNC Check Response:', checkResponse);
+        console.log('TNC Check Response exists value:', checkResponse?.exists, 'Type:', typeof checkResponse?.exists);
+        
+        const doesNotExist = checkResponse?.exists === false || checkResponse?.exists === "false";
+        console.log('Should create record?', doesNotExist);
+        
+        if (doesNotExist) {
+          try {
             const response = await createTncRecord({
               um_id: userId, 
-              timestamp: timestamp,
               tnc_version: Number(TNC_VERSION), 
             });
             
-            
-            const tncCheckKey = `tnc_check_done_${userId}`;
+            console.log('TNC record created successfully:', response);
             localStorage.setItem(tncCheckKey, "true");
-          }
-        } catch (error) {
-          const statusCode = error?.response?.status;
-          const errorMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message || "";
-          
-          const isAlreadyExists = statusCode === 409 || 
-                                  errorMessage.toLowerCase().includes("already exists") || 
-                                  errorMessage.toLowerCase().includes("tnc change record already exists") ||
-                                  errorMessage.toLowerCase().includes("user consent record already exists");
-          
-          if (isAlreadyExists) {
-            try {
-              const decoded = jwtDecode(authToken);
-              const userId = decoded?.result?.user_id;
-              if (userId) {
-                const tncCheckKey = `tnc_check_done_${userId}`;
-                localStorage.setItem(tncCheckKey, "true");
-              }
-            } catch (decodeError) {
-              console.error("Error decoding token:", decodeError);
-            }
-          } else {
-            console.error("Error creating TNC record:", {
-              status: statusCode,
-              message: errorMessage
-            });
+            tncProcessingRef.current = false;
+          } catch (createError) {
+            const statusCode = createError?.response?.status;
+            const errorMessage = createError?.response?.data?.message || createError?.response?.data?.error || createError?.message || "";
             
-            try {
-              const decoded = jwtDecode(authToken);
-              const userId = decoded?.result?.user_id;
-              if (userId) {
-                const tncCheckKey = `tnc_check_done_${userId}`;
-                localStorage.setItem(tncCheckKey, "true");
-              }
-            } catch (decodeError) {
-              console.error("Error decoding token:", decodeError);
+            const isAlreadyExists = statusCode === 409 || 
+                                    errorMessage.toLowerCase().includes("already exists") || 
+                                    errorMessage.toLowerCase().includes("tnc change record already exists") ||
+                                    errorMessage.toLowerCase().includes("user consent record already exists");
+            
+            if (isAlreadyExists) {
+              localStorage.setItem(tncCheckKey, "true");
+            } else {
+              console.error("Error creating TNC record:", {
+                status: statusCode,
+                message: errorMessage
+              });
+              localStorage.setItem(tncCheckKey, "true");
             }
+            tncProcessingRef.current = false;
           }
+        } else {
+          localStorage.setItem(tncCheckKey, "true");
+          tncProcessingRef.current = false;
         }
-      };
+      } catch (error) {
+        console.error("Error checking TNC record:", {
+          status: error?.response?.status,
+          message: error?.response?.data?.message || error?.message
+        });
+        tncProcessingRef.current = false;
+      }
+    };
 
-      createTncRecordAsync();
+    checkAndCreateTncRecord();
+  }, [authToken, isLoginPage, isReceptionist, location.pathname]);
 
-      // Clean up URL but preserve other params
+  useEffect(() => {
+    if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
-      if (!isReceptionist) {
-        params.delete("authToken");
-        // Navigate to appointment list
-        // add condition for user comming from Medeco to practice offering page
-        // Don't redirect if we're on abha-standalone page
-        if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
-          navigate(
-            {
-              pathname: "/",
-              search: params.toString(),
-            },
-            { replace: true }
-          );
-        }
+      params.delete("authToken");
+      if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
+        navigate(
+          {
+            pathname: "/",
+            search: params.toString(),
+          },
+          { replace: true }
+        );
       }
     }
-  }, [authToken, setToken, navigate, location.pathname]);
+  }, [authToken, navigate, location.pathname, isReceptionist]);
 
   useEffect(() => {
     if (uploadParams) {
