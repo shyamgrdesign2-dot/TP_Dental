@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext, useMemo } from "react";
-import { Input, Button, Dropdown, Menu, Tooltip, message, Popover, Tabs, Select } from "antd";
+import { Input, Button, Dropdown, Menu, Tooltip, message, Popover, Tabs, Select, Spin } from "antd";
 import {
   InfoCircleOutlined,
   MoreOutlined,
@@ -13,9 +13,12 @@ import CashManagerContext from "../../context/CashManagerContext";
 import ModuleIcon from "../../assets/images/custom-module.svg";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
-import { addModule } from "../../redux/customModuleSlice";
+import alertIcon from "../../assets/images/alertIcon.svg";
+import CommonModal from "../../common/CommonModal";
+import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage } from "../../utils/utils";
+import { getDecodedToken } from "../../utils/localStorage";
 import "./CustomModuleV2.scss";
 
 /**
@@ -38,10 +41,18 @@ const CustomModuleV2 = ({ module }) => {
 
   const [moduleData, setModuleData] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Templates List Popover (popOver1)
+  const [popOver1, setPopOver1] = useState(false);
+  const [allTemplates, setAllTemplates] = useState([]);
+  const [matchedTemplates, setMatchedTemplates] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [removeTemplateId, setRemoveTemplateId] = useState(null);
+  
+  // Save Template Popover (popOver2)
   const [popOver2, setPopOver2] = useState(false);
   const [inputTemplateName, setInputTemplateName] = useState(null);
   const [tabChange, setTabChange] = useState(1); // 1 = Add Template, 2 = Update Template
-  const [allTemplates, setAllTemplates] = useState([]);
   
   const TAB_ADD_TEMPLATE = 1;
   const TAB_UPDATE_TEMPLATE = 2;
@@ -49,6 +60,8 @@ const CustomModuleV2 = ({ module }) => {
     { key: TAB_ADD_TEMPLATE, label: "New Template" },
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
+  
+  const decodedToken = getDecodedToken();
 
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId);
@@ -76,6 +89,7 @@ const CustomModuleV2 = ({ module }) => {
     }
     
     setAllTemplates(templates || []);
+    setMatchedTemplates(templates || []);
   }, [module, customModuleContents]);
 
   // Create an empty row based on module's named fields
@@ -183,10 +197,158 @@ const CustomModuleV2 = ({ module }) => {
     message.success("Module data cleared");
   };
 
-  // Handle templates (placeholder)
-  const handleTemplates = () => {
-    message.info("Templates feature coming soon");
+  // Templates List Popover functions
+  const showHideTemplatesListPopover = useCallback(() => {
+    setPopOver1(!popOver1);
+  }, [popOver1]);
+
+  const onSearch = (e) => {
+    const searchQuery = e.target.value;
+    if (searchQuery) {
+      let filteredTemplates = (templates || []).filter((template) => {
+        return template.template_name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+      });
+      setMatchedTemplates(filteredTemplates);
+    } else {
+      setMatchedTemplates(templates || []);
+    }
   };
+
+  const loadPreviousClick = async () => {
+    const tokenData = decodedToken?.result;
+    var sendData = {
+      module_id: module?.module_id,
+      hm_business_id: tokenData?.hospital_business_id,
+      um_id: tokenData?.user_id,
+      patient_unique_id:
+        patient_data !== undefined ? patient_data.patient_unique_id : 0,
+      tcm_id: tcmId,
+    };
+    const action = await dispatch(userPreModulesRX(sendData));
+    if (action.meta.requestStatus === "fulfilled") {
+      const prevContent = action.payload?.moduleContents[0]?.content || [];
+      
+      // Map previous content and ensure all named fields exist
+      const updatedData = prevContent
+        .map((item) => {
+          // Check if this item has any actual content
+          const hasContent = module.namedFields?.some(
+            (field) => item[field.fieldName]?.trim?.().length > 0
+          );
+          
+          // Skip empty items
+          if (!hasContent) {
+            return null;
+          }
+          
+          // Create a new row with id and all named fields
+          const row = { id: uuidv4() };
+          module.namedFields?.forEach((field) => {
+            row[field.fieldName] = item[field.fieldName] || "";
+          });
+          return row;
+        })
+        .filter(Boolean); // Remove null entries
+
+      // If no previous data found, show message
+      if (updatedData.length === 0) {
+        message.info("No previous data found");
+        return;
+      }
+
+      // Merge with existing content
+      const updatedModuleData = [
+        ...moduleData?.filter((row) => {
+          return module.namedFields?.some(
+            (field) => row[field.fieldName]?.trim().length > 0
+          );
+        }),
+        ...updatedData,
+      ];
+      setModuleData(updatedModuleData);
+      updateCustomModuleContents(updatedModuleData);
+      message.success("Previous data loaded successfully");
+    } else {
+      errorMessage(action.error);
+    }
+  };
+
+  const onTemplateSelected = (template) => {
+    // Map template content and ensure all named fields exist
+    const updatedData = template.content
+      .map((item) => {
+        // Check if this item has any actual content
+        const hasContent = module.namedFields?.some(
+          (field) => item[field.fieldName]?.trim?.().length > 0
+        );
+        
+        // Skip empty items
+        if (!hasContent) {
+          return null;
+        }
+        
+        // Create a new row with id and all named fields
+        const row = { id: uuidv4() };
+        module.namedFields?.forEach((field) => {
+          row[field.fieldName] = item[field.fieldName] || "";
+        });
+        return row;
+      })
+      .filter(Boolean); // Remove null entries
+
+    // If no valid data in template, show warning
+    if (updatedData.length === 0) {
+      message.warning("This template has no data");
+      showHideTemplatesListPopover();
+      return;
+    }
+
+    // Merge with existing content (preserve existing non-empty rows)
+    const updatedModuleData = [
+      ...moduleData?.filter((row) => {
+        return module.namedFields?.some(
+          (field) => row[field.fieldName]?.trim().length > 0
+        );
+      }),
+      ...updatedData,
+    ];
+    setModuleData(updatedModuleData);
+    updateCustomModuleContents(updatedModuleData);
+
+    // Close the template popover
+    showHideTemplatesListPopover();
+    message.success("Template loaded successfully");
+  };
+
+  const onDeleteTemplateClicked = async (templateId) => {
+    const modules = customModules.map((cm) => {
+      if (cm.module_id === module.module_id) {
+        return {
+          ...cm,
+          templates: (cm.templates || []).filter((t) => t.template_id !== templateId),
+        };
+      }
+      return cm;
+    });
+    const action = await dispatch(addModule({ userId, modules }));
+    if (action.meta.requestStatus === "fulfilled") {
+      message.success("Template deleted successfully");
+    } else {
+      errorMessage(action.error);
+    }
+  };
+
+  const showHideModal = useCallback(
+    (template_id) => {
+      template_id !== undefined
+        ? setRemoveTemplateId(template_id)
+        : setRemoveTemplateId(null);
+      setIsModalOpen(!isModalOpen);
+    },
+    [isModalOpen]
+  );
 
   // Save template functions
   const showHideSaveTemplatePopOver = useCallback(() => {
@@ -223,6 +385,12 @@ const CustomModuleV2 = ({ module }) => {
         `At least 1 ${module.name} should be added`
       );
     } else {
+      // Strip the 'id' field from content before saving
+      const contentToSave = nonEmptyData.map((row) => {
+        const { id, ...rest } = row;
+        return rest;
+      });
+
       const modules = customModules.map((cm) => {
         if (cm.module_id === module.module_id) {
           return {
@@ -230,7 +398,7 @@ const CustomModuleV2 = ({ module }) => {
             templates: [
               {
                 template_name: inputTemplateName,
-                content: nonEmptyData,
+                content: contentToSave,
               },
               ...(cm.templates || []),
             ],
@@ -269,6 +437,12 @@ const CustomModuleV2 = ({ module }) => {
     if (nonEmptyData.length === 0) {
       errorMessage(`At least 1 ${module?.name} added`);
     } else {
+      // Strip the 'id' field from content before saving
+      const contentToSave = nonEmptyData.map((row) => {
+        const { id, ...rest } = row;
+        return rest;
+      });
+
       let data = JSON.parse(inputTemplateName);
       const modules = customModules.map((cm) => {
         if (cm.module_id === module.module_id) {
@@ -279,7 +453,7 @@ const CustomModuleV2 = ({ module }) => {
                 return {
                   ...t,
                   template_name: data.template_name,
-                  content: nonEmptyData,
+                  content: contentToSave,
                 };
               }
               return t;
@@ -486,6 +660,132 @@ const CustomModuleV2 = ({ module }) => {
     </Menu>
   );
 
+  // Template List Content Component
+  const TEMPLATE_CONTENT = useCallback(() => {
+    return (
+      <>
+        <div className="pop-header" key={`${module.name}-template`}>
+          <div className="align-items-center d-flex justify-content-between">
+            <div className="title-common">{module?.name} Templates</div>
+            <Button
+              className="btn btn-delete-prescription p-0"
+              onClick={showHideTemplatesListPopover}
+            >
+              <i className="icon-Cross" />
+            </Button>
+          </div>
+          <div className="mt-3" key={`${module.name}-template-search`}>
+            <Input
+              allowClear
+              className="popinput"
+              onChange={onSearch}
+              placeholder="Search Templates"
+              prefix={<i className="icon-search me-2" />}
+            />
+          </div>
+        </div>
+        <div className="pop-body">
+          {matchedTemplates.length > 0 &&
+            matchedTemplates.map((template, i) => {
+              return (
+                <div
+                  className="align-items-center d-flex medicine-templates"
+                  key={i}
+                >
+                  <div
+                    className="round-box"
+                    onClick={() => onTemplateSelected(template)}
+                  >
+                    <i className="icon-template"></i>
+                  </div>
+                  <div
+                    className="text-truncate w-100"
+                    onClick={() => onTemplateSelected(template)}
+                  >
+                    <div className="title text-main2">
+                      {template.template_name}
+                    </div>
+                    <div className="text-truncate">
+                      {template?.content?.map((item, ii) => {
+                        // Get all field values from the item
+                        const fieldValues = module.namedFields
+                          ?.map((field) => item[field.fieldName])
+                          .filter(Boolean)
+                          .join(", ");
+                        return (
+                          <span key={ii}>{`${fieldValues}${
+                            template.content.length - 1 != ii ? ", " : ""
+                          }`}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Button
+                    className="btn btn-delete-prescription p-0 ms-2"
+                    onClick={() => {
+                      showHideModal(template.template_id);
+                      showHideTemplatesListPopover();
+                    }}
+                  >
+                    {template.loading ? (
+                      <Spin
+                        indicator={
+                          <LoadingOutlined style={{ fontSize: 22 }} spin />
+                        }
+                      />
+                    ) : (
+                      <i className="icon-delete"></i>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+        </div>
+      </>
+    );
+  }, [popOver1, matchedTemplates, module]);
+
+  // Delete Template Modal
+  const DELETE_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={isModalOpen}
+        onCancel={showHideModal}
+        modalWidth={500}
+        title={"You may lose your data"}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>Are you sure you want to delete this template?</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    onDeleteTemplateClicked(removeTemplateId);
+                    showHideModal();
+                  }}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  Yes, Delete
+                </div>
+                <Button
+                  onClick={showHideModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [isModalOpen, removeTemplateId]);
+
   // Save Content Component
   const SAVE_CONTENT = useCallback(() => {
     return (
@@ -606,12 +906,25 @@ const CustomModuleV2 = ({ module }) => {
         </div>
 
         <div className="d-flex align-items-center">
-          <button
+          {/* <button
             className="btn d-flex align-items-center btn-text"
-            onClick={handleTemplates}
+            onClick={loadPreviousClick}
           >
-            <i className="icon-template me-2"></i> <span>Templates</span>
-          </button>
+            <i className="icon-reload me-2"></i>
+            <span>Load Prev. data</span>
+          </button> */}
+          <Popover
+            open={popOver1}
+            onOpenChange={showHideTemplatesListPopover}
+            content={TEMPLATE_CONTENT}
+            trigger="click"
+            overlayClassName="pop-350 pp-0"
+            placement="bottom"
+          >
+            <button className="btn d-flex align-items-center btn-text">
+              <i className="icon-template me-2"></i> <span>Templates</span>
+            </button>
+          </Popover>
           <Tooltip
             placement="bottom"
             title={
@@ -640,6 +953,7 @@ const CustomModuleV2 = ({ module }) => {
           <button
             onClick={handleClear}
             className="btn btn-text clear-text d-flex align-items-center"
+            disabled={!hasDataToSave}
           >
             <i className="icon-eraser1 me-2"></i> <span>Clear</span>
           </button>
@@ -664,6 +978,9 @@ const CustomModuleV2 = ({ module }) => {
           </Dropdown>
         </div>
       </div>
+
+      {/* Delete Template Modal */}
+      {DELETE_MODAL}
 
       {/* Table */}
       <div className={`custom-module-v2__table ${columnClass}`}>
