@@ -69,6 +69,8 @@ function Vaccination({ handleDrawerVaccination }) {
     [VaccinationCategoryEnum[0].key]: [],
     [VaccinationCategoryEnum[1].key]: [],
   });
+  const lastUpdatedVaccineRef = useRef(null);
+  const pendingActiveDateRef = useRef(null);
 
   const contextApi = {
     patient_data,
@@ -89,6 +91,20 @@ function Vaccination({ handleDrawerVaccination }) {
   }, [warningMsg]);
 
   useEffect(() => {
+    // If there's a pending activeDate update after vaccine update, apply it first
+    if (pendingActiveDateRef.current !== null && completeData && ageFilters.length > 0) {
+      const pendingIndex = pendingActiveDateRef.current;
+      if (pendingIndex >= 0 && pendingIndex < ageFilters.length) {
+        const tempPending = pendingIndex;
+        pendingActiveDateRef.current = null;
+        // Use setTimeout to ensure this happens after current render
+        setTimeout(() => {
+          setActiveDate(tempPending);
+        }, 0);
+        return; // Exit early, let the next effect run handle the filtering
+      }
+    }
+    
     // Filter vaccines based on active date and active tab
     const activeValue = ageFilters?.[activeDate];
     const filteredData = completeData?.get?.(activeValue) || [];
@@ -119,15 +135,108 @@ function Vaccination({ handleDrawerVaccination }) {
       setAgeFilters(ageFilterList);
       
       // Update completeData with the current tab's data
-      setCompleteData(result.idMap);
+      // For "Other Vaccines" tab, sort vaccines within each age group by latest date (newest first)
+      let sortedIdMap = result.idMap;
+      if (activeVaccineTab === VaccinationCategoryEnum[1].key) {
+        sortedIdMap = new Map();
+        result.idMap.forEach((vaccines, ageKey) => {
+          const sortedVaccines = [...vaccines].sort((a, b) => {
+            const getLatestDate = (v) => {
+              let latestDate = null;
+              // Check given date first (most recent)
+              if (v?.tvp_given_date) {
+                const givenDate = new Date(v.tvp_given_date);
+                if (!latestDate || givenDate > latestDate) {
+                  latestDate = givenDate;
+                }
+              }
+              // Then check due date
+              if (v?.tvd_due_date) {
+                const dueDate = new Date(v.tvd_due_date);
+                if (!latestDate || dueDate > latestDate) {
+                  latestDate = dueDate;
+                }
+              }
+              // Finally check calculated due date
+              if (v?.dueDate) {
+                const calcDueDate = new Date(v.dueDate);
+                if (!latestDate || calcDueDate > latestDate) {
+                  latestDate = calcDueDate;
+                }
+              }
+              return latestDate || new Date(0);
+            };
+            
+            const dateA = getLatestDate(a);
+            const dateB = getLatestDate(b);
+            // Sort descending (newest first)
+            return dateB - dateA;
+          });
+          sortedIdMap.set(ageKey, sortedVaccines);
+        });
+      }
+      setCompleteData(sortedIdMap);
       
       // Update dateOptions based on current tab's data
-      const options = getDates(result.idMap);
+      let options = getDates(result.idMap);
+      
+      // For "Other Vaccines" tab, sort by latest date (newest first, left to right)
+      if (activeVaccineTab === VaccinationCategoryEnum[1].key) {
+        options = options.sort((a, b) => {
+          // Get the latest date from each group (given date or due date)
+          const getLatestDate = (option) => {
+            const vaccines = result.idMap?.get?.(option.label) || [];
+            let latestDate = null;
+            
+            vaccines.forEach((v) => {
+              // Check given date first (most recent)
+              if (v?.tvp_given_date) {
+                const givenDate = new Date(v.tvp_given_date);
+                if (!latestDate || givenDate > latestDate) {
+                  latestDate = givenDate;
+                }
+              }
+              // Then check due date
+              if (v?.tvd_due_date) {
+                const dueDate = new Date(v.tvd_due_date);
+                if (!latestDate || dueDate > latestDate) {
+                  latestDate = dueDate;
+                }
+              }
+              // Finally check calculated due date
+              if (v?.dueDate) {
+                const calcDueDate = new Date(v.dueDate);
+                if (!latestDate || calcDueDate > latestDate) {
+                  latestDate = calcDueDate;
+                }
+              }
+            });
+            
+            return latestDate || new Date(0); // Return epoch if no date found
+          };
+          
+          const dateA = getLatestDate(a);
+          const dateB = getLatestDate(b);
+          
+          // Sort descending (newest first)
+          return dateB - dateA;
+        });
+        
+        // Update ageFilters to match the sorted order of dateOptions
+        const sortedAgeFilters = options.map(option => option.label);
+        setAgeFilters(sortedAgeFilters);
+      }
+      
       setDateOptions(options);
       
       // Reset activeDate to default for the new tab
       if (options.length > 0) {
-        setActiveDate(getDefaultOption(options));
+        // For "Other Vaccines", select the first option (latest/newest)
+        if (activeVaccineTab === VaccinationCategoryEnum[1].key) {
+          setActiveDate(0);
+        } else {
+          setActiveDate(getDefaultOption(options));
+        }
       } else {
         setActiveDate(0);
       }
@@ -236,12 +345,139 @@ function Vaccination({ handleDrawerVaccination }) {
     )?.value;
     setAgeFilters(tvtAgeBySection[currentTabValue] || result.distinctIds);
 
-    setCompleteData(result.idMap);
-    console.log("combinedData", splitData);
-    const options = getDates(result.idMap);
+    // For "Other Vaccines" tab, sort vaccines within each age group by latest date (newest first)
+    let sortedIdMap = result.idMap;
+    if (currentActiveTab === VaccinationCategoryEnum[1].key) {
+      sortedIdMap = new Map();
+      result.idMap.forEach((vaccines, ageKey) => {
+        const sortedVaccines = [...vaccines].sort((a, b) => {
+          const getLatestDate = (v) => {
+            let latestDate = null;
+            // Check given date first (most recent)
+            if (v?.tvp_given_date) {
+              const givenDate = new Date(v.tvp_given_date);
+              if (!latestDate || givenDate > latestDate) {
+                latestDate = givenDate;
+              }
+            }
+            // Then check due date
+            if (v?.tvd_due_date) {
+              const dueDate = new Date(v.tvd_due_date);
+              if (!latestDate || dueDate > latestDate) {
+                latestDate = dueDate;
+              }
+            }
+            // Finally check calculated due date
+            if (v?.dueDate) {
+              const calcDueDate = new Date(v.dueDate);
+              if (!latestDate || calcDueDate > latestDate) {
+                latestDate = calcDueDate;
+              }
+            }
+            return latestDate || new Date(0);
+          };
+          
+          const dateA = getLatestDate(a);
+          const dateB = getLatestDate(b);
+          // Sort descending (newest first)
+          return dateB - dateA;
+        });
+        sortedIdMap.set(ageKey, sortedVaccines);
+      });
+    }
+    setCompleteData(sortedIdMap);
+    let options = getDates(result.idMap);
+    
+    // For "Other Vaccines" tab, sort by latest date (newest first, left to right)
+    if (currentActiveTab === VaccinationCategoryEnum[1].key) {
+      options = options.sort((a, b) => {
+        // Get the latest date from each group (given date or due date)
+        const getLatestDate = (option) => {
+          const vaccines = result.idMap?.get?.(option.label) || [];
+          let latestDate = null;
+          
+          vaccines.forEach((v) => {
+            // Check given date first (most recent)
+            if (v?.tvp_given_date) {
+              const givenDate = new Date(v.tvp_given_date);
+              if (!latestDate || givenDate > latestDate) {
+                latestDate = givenDate;
+              }
+            }
+            // Then check due date
+            if (v?.tvd_due_date) {
+              const dueDate = new Date(v.tvd_due_date);
+              if (!latestDate || dueDate > latestDate) {
+                latestDate = dueDate;
+              }
+            }
+            // Finally check calculated due date
+            if (v?.dueDate) {
+              const calcDueDate = new Date(v.dueDate);
+              if (!latestDate || calcDueDate > latestDate) {
+                latestDate = calcDueDate;
+              }
+            }
+          });
+          
+          return latestDate || new Date(0); // Return epoch if no date found
+        };
+        
+        const dateA = getLatestDate(a);
+        const dateB = getLatestDate(b);
+        
+        // Sort descending (newest first)
+        return dateB - dateA;
+      });
+      
+      // Update ageFilters to match the sorted order of dateOptions
+      const sortedAgeFilters = options.map(option => option.label);
+      setAgeFilters(sortedAgeFilters);
+    }
+    
     setDateOptions(options);
-    if (!updatedVaccine) {
-      setActiveDate(getDefaultOption(options));
+    
+    if (updatedVaccine && lastUpdatedVaccineRef.current) {
+      // Find the vaccine that was updated and set activeDate to the filter containing it
+      const { tvt_id, tvac_name, tvt_age, currentActiveDate } = lastUpdatedVaccineRef.current;
+      
+      // Search through options array to find which filter contains the updated vaccine
+      // This ensures we match the exact order of the options array
+      let foundIndex = -1;
+      
+      // Search all options to find the vaccine
+      for (let i = 0; i < options.length; i++) {
+        const optionLabel = options[i]?.label;
+        const ageValue = result.idMap?.get?.(optionLabel);
+        if (ageValue && Array.isArray(ageValue)) {
+          const foundVaccine = ageValue.find(
+            (v) => String(v?.tvt_id) === String(tvt_id) && v?.tvac_name === tvac_name
+          );
+          if (foundVaccine) {
+            foundIndex = i;
+            break;
+          }
+        }
+      }
+      
+      if (foundIndex >= 0) {
+        // Store the index to be applied when completeData is ready
+        pendingActiveDateRef.current = foundIndex;
+      } else {
+        // If vaccine not found, try to preserve the current activeDate if it's still valid
+        if (currentActiveDate >= 0 && currentActiveDate < options.length) {
+          pendingActiveDateRef.current = currentActiveDate;
+        }
+      }
+      // Clear the ref after use
+      lastUpdatedVaccineRef.current = null;
+    } else if (!updatedVaccine) {
+      // For "Other Vaccines", select the first option (latest/newest)
+      if (currentActiveTab === VaccinationCategoryEnum[1].key) {
+        setActiveDate(0);
+      } else {
+        setActiveDate(getDefaultOption(options));
+      }
     }
     setLoading(false);
   };
@@ -382,7 +618,13 @@ function Vaccination({ handleDrawerVaccination }) {
             <div>
               <h2>Vaccination</h2>
               <p>
-                Immunisation schedule recommended by <b>IAP</b>
+                {activeVaccineTab === VaccinationCategoryEnum[1].key ? (
+                  "Other Vaccines"
+                ) : (
+                  <>
+                    Immunisation schedule recommended by <b>IAP</b>
+                  </>
+                )}
               </p>
             </div>
             <img
@@ -418,6 +660,7 @@ function Vaccination({ handleDrawerVaccination }) {
                   setSelectedCards={setSelectedCards}
                   setSelectAll={setSelectAll}
                   activeVaccineTab={activeVaccineTab}
+                  completeData={completeData}
                 />
               </div>
               <div style={{ marginTop: isFixed ? "100px" : "0px" }}>
@@ -443,7 +686,9 @@ function Vaccination({ handleDrawerVaccination }) {
                         index={index}
                         handleCardClick={handleCardClick}
                         activeVaccineTab={activeVaccineTab}
-                        isOtherVaccine={activeVaccineTab === VaccinationCategoryEnum[1].key}
+                        isOtherVaccine={
+                          activeVaccineTab === VaccinationCategoryEnum[1].key
+                        }
                       />
                     </Col>
                   ))}
@@ -497,7 +742,19 @@ function Vaccination({ handleDrawerVaccination }) {
             brands={brands}
             selectedVaccines={selectedCards?.map((id) => vaccinesData[id])}
             patientDetails={patientDetails}
-            getVaccineDetails={getVaccineDetails}
+            getVaccineDetails={(updatedVaccine) => {
+              // Store the vaccine identifier and current filter before updating
+              if (updatedVaccine && selectedCards.length > 0 && vaccinesData[selectedCards[0]]) {
+                const vaccine = vaccinesData[selectedCards[0]];
+                lastUpdatedVaccineRef.current = {
+                  tvt_id: vaccine?.tvt_id,
+                  tvac_name: vaccine?.tvac_name,
+                  tvt_age: vaccine?.tvt_age,
+                  currentActiveDate: activeDate,
+                };
+              }
+              getVaccineDetails(updatedVaccine);
+            }}
             setSelectedCards={setSelectedCards}
             setSelectAll={setSelectAll}
             setCardClicked={setCardClicked}
@@ -511,15 +768,19 @@ function Vaccination({ handleDrawerVaccination }) {
                 vaccinesData={(() => {
                   // Determine which vaccines to include based on category selection
                   let vaccinesToPrint = [];
-                  
+
                   if (printVaccineCategory === "iap") {
-                    vaccinesToPrint = splitVaccineData?.[VaccinationCategoryEnum[0].key] || [];
+                    vaccinesToPrint =
+                      splitVaccineData?.[VaccinationCategoryEnum[0].key] || [];
                   } else if (printVaccineCategory === "other") {
-                    vaccinesToPrint = splitVaccineData?.[VaccinationCategoryEnum[1].key] || [];
+                    vaccinesToPrint =
+                      splitVaccineData?.[VaccinationCategoryEnum[1].key] || [];
                   } else if (printVaccineCategory === "both") {
                     vaccinesToPrint = [
-                      ...(splitVaccineData?.[VaccinationCategoryEnum[0].key] || []),
-                      ...(splitVaccineData?.[VaccinationCategoryEnum[1].key] || [])
+                      ...(splitVaccineData?.[VaccinationCategoryEnum[0].key] ||
+                        []),
+                      ...(splitVaccineData?.[VaccinationCategoryEnum[1].key] ||
+                        []),
                     ];
                   } else {
                     vaccinesToPrint = previewData;
@@ -527,7 +788,9 @@ function Vaccination({ handleDrawerVaccination }) {
 
                   // Filter by status (printType: "1" = All, "2" = Given only)
                   if (printType === "2") {
-                    return vaccinesToPrint.filter((data) => !!data?.tvp_given_date);
+                    return vaccinesToPrint.filter(
+                      (data) => !!data?.tvp_given_date
+                    );
                   }
                   return vaccinesToPrint;
                 })()}

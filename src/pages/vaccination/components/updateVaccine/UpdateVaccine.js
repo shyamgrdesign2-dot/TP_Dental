@@ -653,15 +653,20 @@ const UpdateVaccine = ({
                   const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
                   
+                  // Remove frequentOptions from regularOptions to avoid duplicates
+                  const frequentValues = new Set(frequentOptions.map(opt => opt.label));
+                  const filteredRegularOptions = regularOptions.filter(
+                    opt => !frequentValues.has(opt.label)
+                  );
                   // Options for the Select component - only regular options when showing custom dropdown
                   const selectOptions = (() => {
                     if (isUserTyping) {
-                      return regularOptions;
+                      return regularOptions; // Show all options when typing
                     }
                     // When we have frequent options, we'll show them separately in dropdownRender
-                    // So only pass regular options to Select
+                    // So only pass filtered regular options (without frequent ones) to Select
                     if (frequentOptions?.length > 0) {
-                      return regularOptions;
+                      return filteredRegularOptions;
                     }
                     return regularOptions;
                   })();
