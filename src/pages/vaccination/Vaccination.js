@@ -180,7 +180,7 @@ function Vaccination({ handleDrawerVaccination }) {
       // Update dateOptions based on current tab's data
       let options = getDates(result.idMap);
       
-      // For "Other Vaccines" tab, sort by alert status (orange first, then green), then by latest date
+      // For "Other Vaccines" tab, sort: orange first, then green (all given), then others
       if (activeVaccineTab === VaccinationCategoryEnum[1].key) {
         options = options.sort((a, b) => {
           // Get alert status for each option
@@ -193,11 +193,28 @@ function Vaccination({ handleDrawerVaccination }) {
             const anyDue = vaccines.some((v) => v?.tvd_due_date);
             
             if (allGiven) {
-              return "success"; // Green
+              return "success"; // Green - all vaccines given
             } else if (anyGiven || anyDue) {
-              return "warning"; // Orange
+              return "warning"; // Orange - some given or due
             }
             return null;
+          };
+          
+          // Get the latest given date (tvp_given_date) from each group
+          const getLatestGivenDate = (option) => {
+            const vaccines = result.idMap?.get?.(option.label) || [];
+            let latestGivenDate = null;
+            
+            vaccines.forEach((v) => {
+              if (v?.tvp_given_date) {
+                const givenDate = new Date(v.tvp_given_date);
+                if (!latestGivenDate || givenDate > latestGivenDate) {
+                  latestGivenDate = givenDate;
+                }
+              }
+            });
+            
+            return latestGivenDate;
           };
           
           // Get the latest date from each group (given date or due date)
@@ -235,17 +252,26 @@ function Vaccination({ handleDrawerVaccination }) {
           const statusA = getAlertStatus(a);
           const statusB = getAlertStatus(b);
           
-          // Priority: warning (orange) > success (green) > null
+          // Priority: warning (orange) > success (green/all given) > null
           const statusPriority = { warning: 0, success: 1, null: 2 };
           const priorityA = statusPriority[statusA] ?? 2;
           const priorityB = statusPriority[statusB] ?? 2;
           
-          // First sort by status priority
+          // First sort by status priority (orange first, then green, then others)
           if (priorityA !== priorityB) {
             return priorityA - priorityB;
           }
           
-          // If same status, sort by latest date (newest first)
+          // If both are green (all given), sort by latest given date (newest first)
+          if (statusA === "success" && statusB === "success") {
+            const latestGivenDateA = getLatestGivenDate(a);
+            const latestGivenDateB = getLatestGivenDate(b);
+            if (latestGivenDateA && latestGivenDateB) {
+              return latestGivenDateB - latestGivenDateA; // Newest given date first
+            }
+          }
+          
+          // For other cases (orange or null), sort by latest date (newest first)
           const dateA = getLatestDate(a);
           const dateB = getLatestDate(b);
           return dateB - dateA;
@@ -417,7 +443,7 @@ function Vaccination({ handleDrawerVaccination }) {
     setCompleteData(sortedIdMap);
     let options = getDates(result.idMap);
     
-    // For "Other Vaccines" tab, sort by alert status (orange first, then green), then by latest date
+    // For "Other Vaccines" tab, sort: orange first, then green (all given), then others
     if (currentActiveTab === VaccinationCategoryEnum[1].key) {
       options = options.sort((a, b) => {
         // Get alert status for each option
@@ -430,11 +456,28 @@ function Vaccination({ handleDrawerVaccination }) {
           const anyDue = vaccines.some((v) => v?.tvd_due_date);
           
           if (allGiven) {
-            return "success"; // Green
+            return "success"; // Green - all vaccines given
           } else if (anyGiven || anyDue) {
-            return "warning"; // Orange
+            return "warning"; // Orange - some given or due
           }
           return null;
+        };
+        
+        // Get the latest given date (tvp_given_date) from each group
+        const getLatestGivenDate = (option) => {
+          const vaccines = result.idMap?.get?.(option.label) || [];
+          let latestGivenDate = null;
+          
+          vaccines.forEach((v) => {
+            if (v?.tvp_given_date) {
+              const givenDate = new Date(v.tvp_given_date);
+              if (!latestGivenDate || givenDate > latestGivenDate) {
+                latestGivenDate = givenDate;
+              }
+            }
+          });
+          
+          return latestGivenDate;
         };
         
         // Get the latest date from each group (given date or due date)
@@ -472,17 +515,26 @@ function Vaccination({ handleDrawerVaccination }) {
         const statusA = getAlertStatus(a);
         const statusB = getAlertStatus(b);
         
-        // Priority: warning (orange) > success (green) > null
+        // Priority: warning (orange) > success (green/all given) > null
         const statusPriority = { warning: 0, success: 1, null: 2 };
         const priorityA = statusPriority[statusA] ?? 2;
         const priorityB = statusPriority[statusB] ?? 2;
         
-        // First sort by status priority
+        // First sort by status priority (orange first, then green, then others)
         if (priorityA !== priorityB) {
           return priorityA - priorityB;
         }
         
-        // If same status, sort by latest date (newest first)
+        // If both are green (all given), sort by latest given date (newest first)
+        if (statusA === "success" && statusB === "success") {
+          const latestGivenDateA = getLatestGivenDate(a);
+          const latestGivenDateB = getLatestGivenDate(b);
+          if (latestGivenDateA && latestGivenDateB) {
+            return latestGivenDateB - latestGivenDateA; // Newest given date first
+          }
+        }
+        
+        // For other cases (orange or null), sort by latest date (newest first)
         const dateA = getLatestDate(a);
         const dateB = getLatestDate(b);
         return dateB - dateA;
@@ -534,7 +586,7 @@ function Vaccination({ handleDrawerVaccination }) {
       if (currentActiveTab === VaccinationCategoryEnum[1].key) {
         setActiveDate(0);
       } else {
-        setActiveDate(getDefaultOption(options));
+      setActiveDate(getDefaultOption(options));
       }
     }
     setLoading(false);
@@ -680,7 +732,7 @@ function Vaccination({ handleDrawerVaccination }) {
                   "Non-Scheduled Vaccinations"
                 ) : (
                   <>
-                    Immunisation schedule recommended by <b>IAP</b>
+                Immunisation schedule recommended by <b>IAP</b>
                   </>
                 )}
               </p>
@@ -706,7 +758,7 @@ function Vaccination({ handleDrawerVaccination }) {
                   {category.value}
                 </button>
               ))}
-            </div>
+          </div>
           )}
           {vaccinesData?.length && !loading ? (
             <>

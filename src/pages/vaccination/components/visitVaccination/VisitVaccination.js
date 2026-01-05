@@ -154,7 +154,7 @@ function VisitVaccination() {
 
   return (
     <>
-      {!pendingVaccines.length && !upcomingVaccines.length ? null : (
+      {!pendingVaccines.length && !upcomingVaccines.length && !otherVaccines.length ? null : (
         <div className="appointment-wrap PatientDetailswrap m-0">
           <Card>
             <Card.Header className="bg-white py-3">
