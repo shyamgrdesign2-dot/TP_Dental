@@ -383,18 +383,29 @@ function App() {
           }
         }
         
-        if (statusCode === 401 || statusCode === 404 || statusCode === 400) {
-          try {
-            const response = await createTncRecord({
-              um_id: userId, 
-              tnc_version: Number(TNC_VERSION), 
-            });
-            console.log('TNC record created successfully after check error:', response);
-            localStorage.setItem(tncCheckKey, "true");
-          } catch (createError) {
-            console.error("Error creating TNC record after check error:", createError);
-            localStorage.setItem(tncCheckKey, "true"); 
+        try {
+          const currentToken = authToken || getToken();
+          if (currentToken) {
+            const decoded = jwtDecode(currentToken);
+            const userId = decoded?.result?.user_id;
+            
+            if (userId && (statusCode === 401 || statusCode === 404 || statusCode === 400)) {
+              const tncCheckKey = `tnc_check_done_${userId}`;
+              try {
+                const response = await createTncRecord({
+                  um_id: userId, 
+                  tnc_version: Number(TNC_VERSION), 
+                });
+                console.log('TNC record created successfully after check error:', response);
+                localStorage.setItem(tncCheckKey, "true");
+              } catch (createError) {
+                console.error("Error creating TNC record after check error:", createError);
+                localStorage.setItem(tncCheckKey, "true"); 
+              }
+            }
           }
+        } catch (tokenError) {
+          console.error("Error extracting userId from token in catch block:", tokenError);
         }
         
         tncProcessingRef.current = false;
