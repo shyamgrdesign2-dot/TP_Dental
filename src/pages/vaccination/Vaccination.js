@@ -180,9 +180,26 @@ function Vaccination({ handleDrawerVaccination }) {
       // Update dateOptions based on current tab's data
       let options = getDates(result.idMap);
       
-      // For "Other Vaccines" tab, sort by latest date (newest first, left to right)
+      // For "Other Vaccines" tab, sort by alert status (orange first, then green), then by latest date
       if (activeVaccineTab === VaccinationCategoryEnum[1].key) {
         options = options.sort((a, b) => {
+          // Get alert status for each option
+          const getAlertStatus = (option) => {
+            const vaccines = result.idMap?.get?.(option.label) || [];
+            if (vaccines.length === 0) return null;
+            
+            const allGiven = vaccines.every((v) => v?.tvp_given_date);
+            const anyGiven = vaccines.some((v) => v?.tvp_given_date);
+            const anyDue = vaccines.some((v) => v?.tvd_due_date);
+            
+            if (allGiven) {
+              return "success"; // Green
+            } else if (anyGiven || anyDue) {
+              return "warning"; // Orange
+            }
+            return null;
+          };
+          
           // Get the latest date from each group (given date or due date)
           const getLatestDate = (option) => {
             const vaccines = result.idMap?.get?.(option.label) || [];
@@ -215,10 +232,22 @@ function Vaccination({ handleDrawerVaccination }) {
             return latestDate || new Date(0); // Return epoch if no date found
           };
           
+          const statusA = getAlertStatus(a);
+          const statusB = getAlertStatus(b);
+          
+          // Priority: warning (orange) > success (green) > null
+          const statusPriority = { warning: 0, success: 1, null: 2 };
+          const priorityA = statusPriority[statusA] ?? 2;
+          const priorityB = statusPriority[statusB] ?? 2;
+          
+          // First sort by status priority
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
+          
+          // If same status, sort by latest date (newest first)
           const dateA = getLatestDate(a);
           const dateB = getLatestDate(b);
-          
-          // Sort descending (newest first)
           return dateB - dateA;
         });
         
@@ -388,9 +417,26 @@ function Vaccination({ handleDrawerVaccination }) {
     setCompleteData(sortedIdMap);
     let options = getDates(result.idMap);
     
-    // For "Other Vaccines" tab, sort by latest date (newest first, left to right)
+    // For "Other Vaccines" tab, sort by alert status (orange first, then green), then by latest date
     if (currentActiveTab === VaccinationCategoryEnum[1].key) {
       options = options.sort((a, b) => {
+        // Get alert status for each option
+        const getAlertStatus = (option) => {
+          const vaccines = result.idMap?.get?.(option.label) || [];
+          if (vaccines.length === 0) return null;
+          
+          const allGiven = vaccines.every((v) => v?.tvp_given_date);
+          const anyGiven = vaccines.some((v) => v?.tvp_given_date);
+          const anyDue = vaccines.some((v) => v?.tvd_due_date);
+          
+          if (allGiven) {
+            return "success"; // Green
+          } else if (anyGiven || anyDue) {
+            return "warning"; // Orange
+          }
+          return null;
+        };
+        
         // Get the latest date from each group (given date or due date)
         const getLatestDate = (option) => {
           const vaccines = result.idMap?.get?.(option.label) || [];
@@ -423,10 +469,22 @@ function Vaccination({ handleDrawerVaccination }) {
           return latestDate || new Date(0); // Return epoch if no date found
         };
         
+        const statusA = getAlertStatus(a);
+        const statusB = getAlertStatus(b);
+        
+        // Priority: warning (orange) > success (green) > null
+        const statusPriority = { warning: 0, success: 1, null: 2 };
+        const priorityA = statusPriority[statusA] ?? 2;
+        const priorityB = statusPriority[statusB] ?? 2;
+        
+        // First sort by status priority
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        
+        // If same status, sort by latest date (newest first)
         const dateA = getLatestDate(a);
         const dateB = getLatestDate(b);
-        
-        // Sort descending (newest first)
         return dateB - dateA;
       });
       
