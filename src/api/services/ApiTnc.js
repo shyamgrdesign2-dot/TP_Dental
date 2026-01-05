@@ -6,10 +6,6 @@ const baseTncUrl = {
   customBaseUrl: config.upload_doc_api_url,
 };
 
-/**
- * Check if TNC record exists for the user
- * @returns {Promise<{exists: boolean}>}
- */
 export const checkTncRecord = async () => {
   try {
     const response = await api.get(
@@ -28,13 +24,6 @@ export const checkTncRecord = async () => {
   }
 };
 
-/**
- * Create TNC record for the user
- * @param {Object} data - TNC record data
- * @param {string|number} data.um_id - User ID
- * @param {number} data.tnc_version - TNC version
- * @returns {Promise<Object>}
- */
 export const createTncRecord = async (data) => {
   try {
     const response = await api.post(

@@ -141,7 +141,6 @@ function App() {
 
       localStorage.clear();
       sessionStorage.clear();
-
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
@@ -303,11 +302,8 @@ function App() {
           }
           checkResponse = { exists: false };
         }
-        console.log('TNC Check Response:', checkResponse);
-        console.log('TNC Check Response exists value:', checkResponse?.exists, 'Type:', typeof checkResponse?.exists);
         
         const doesNotExist = checkResponse?.exists === false || checkResponse?.exists === "false";
-        console.log('Should create record?', doesNotExist);
         
         if (doesNotExist) {
           try {
@@ -316,7 +312,6 @@ function App() {
               tnc_version: Number(TNC_VERSION), 
             });
             
-            console.log('TNC record created successfully:', response);
             localStorage.setItem(tncCheckKey, "true");
             tncProcessingRef.current = false;
           } catch (createError) {
@@ -396,7 +391,6 @@ function App() {
                   um_id: userId, 
                   tnc_version: Number(TNC_VERSION), 
                 });
-                console.log('TNC record created successfully after check error:', response);
                 localStorage.setItem(tncCheckKey, "true");
               } catch (createError) {
                 console.error("Error creating TNC record after check error:", createError);

@@ -69,11 +69,6 @@ instance.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // Conflict - don't show error notification, let calling code handle it
-        if (error.response.status === 409) {
-            return Promise.reject(error);
-        }
-
         if (error.response.status === 404) {
             notificationParam.message = 'Not Found'
         }
