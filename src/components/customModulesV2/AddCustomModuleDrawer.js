@@ -58,12 +58,12 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         return;
       }
 
-      try {
-        let targetModuleId = module.module_id;
-        let targetModuleName = module.name;
-        let needsCloning = false;
+      let targetModuleId = module.module_id;
+      let targetModuleName = module.name;
+      let needsCloning = false;
 
-        // Step 1: Check if the module is from another doctor
+      try {
+        // Step 1: Check if the module is from another doctor and handle cloning
         const isOwnModule = module.userId === userId;
         
         if (!isOwnModule) {
@@ -76,42 +76,54 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             needsCloning = true;
             message.loading({ content: "Cloning module...", key: "addToRx" });
 
-            // Clone the module from source user to current user
-            await dispatch(
-              cloneModule({
-                sourceUserId: module.userId,
-                sourceModuleId: module.module_id,
-                targetUserId: userId,
-              })
-            ).unwrap();
+            try {
+              // Clone the module from source user to current user
+              await dispatch(
+                cloneModule({
+                  sourceUserId: module.userId,
+                  sourceModuleId: module.module_id,
+                  targetUserId: userId,
+                })
+              ).unwrap();
 
-            message.success({ content: "Module cloned successfully", key: "addToRx", duration: 2 });
+              message.success({ content: "Module cloned successfully", key: "addToRx", duration: 2 });
 
-            // Refresh customModules to include the newly cloned module
-            const updatedModulesResponse = await dispatch(getModules(userId)).unwrap();
-            
-            // Find the newly cloned module by origin_id
-            const clonedModule = updatedModulesResponse?.modules?.find(
-              (m) => m.origin_id === module.module_id
-            );
+              // Refresh customModules to include the newly cloned module
+              const updatedModulesResponse = await dispatch(getModules(userId)).unwrap();
+              
+              // Find the newly cloned module by origin_id
+              const clonedModule = updatedModulesResponse?.modules?.find(
+                (m) => m.origin_id === module.module_id
+              );
 
-            if (!clonedModule || !clonedModule.module_id) {
-              console.error("Failed to find cloned module:", {
-                sourceModuleId: module.module_id,
-                allModules: updatedModulesResponse?.modules,
+              if (!clonedModule || !clonedModule.module_id) {
+                console.error("Failed to find cloned module:", {
+                  sourceModuleId: module.module_id,
+                  allModules: updatedModulesResponse?.modules,
+                });
+                throw new Error("Failed to retrieve cloned module information");
+              }
+
+              console.log("Cloned module found:", {
+                clonedModuleId: clonedModule.module_id,
+                clonedModuleName: clonedModule.name,
+                originId: clonedModule.origin_id,
               });
-              throw new Error("Failed to retrieve cloned module information");
+
+              // Update the target module ID to the newly cloned module's ID
+              targetModuleId = clonedModule.module_id;
+              targetModuleName = clonedModule.name;
+
+            } catch (cloneError) {
+              console.error("Cloning failed:", cloneError);
+              message.error({
+                content: cloneError?.message || "Failed to clone module. Please try again.",
+                key: "addToRx",
+                duration: 3
+              });
+              // Return early - do not proceed with print settings or customized pad
+              return;
             }
-
-            console.log("Cloned module found:", {
-              clonedModuleId: clonedModule.module_id,
-              clonedModuleName: clonedModule.name,
-              originId: clonedModule.origin_id,
-            });
-
-            // Update the target module ID to the newly cloned module's ID
-            targetModuleId = clonedModule.module_id;
-            targetModuleName = clonedModule.name;
           } else {
             // Use the already cloned module's ID
             targetModuleId = alreadyCloned.module_id;
@@ -125,7 +137,12 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         // Validate that we have valid module ID and name before proceeding
         if (!targetModuleId || !targetModuleName) {
           console.error("Invalid module data:", { targetModuleId, targetModuleName, module });
-          throw new Error("Invalid module information. Please try again.");
+          message.error({
+            content: "Invalid module information. Please try again.",
+            key: "addToRx",
+            duration: 3
+          });
+          return;
         }
 
         // Step 2: Check if module already exists in the right pad
@@ -141,80 +158,100 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         message.loading({ content: "Updating prescription pad...", key: "addToRx" });
 
         // Step 3: Sync print settings (add module to print settings)
-        if (defaultPrintSettings?.prescription?.case_option) {
-          const caseOptions = defaultPrintSettings.prescription.case_option;
-          
-          // Check if module is already in print settings
-          const existsInPrintSettings = caseOptions.some(
-            (option) => option.id === targetModuleId && option.is_custom_module
-          );
+        try {
+          if (defaultPrintSettings?.prescription?.case_option) {
+            const caseOptions = defaultPrintSettings.prescription.case_option;
+            
+            // Check if module is already in print settings
+            const existsInPrintSettings = caseOptions.some(
+              (option) => option.id === targetModuleId && option.is_custom_module
+            );
 
-          if (!existsInPrintSettings) {
-            const updatedCaseOptions = [
-              ...caseOptions,
-              {
-                id: targetModuleId,
-                title: targetModuleName,
-                format: "inline",
-                enable: "Y",
-                custom_status: "Y",
-                is_custom_module: true,
-              },
-            ];
+            if (!existsInPrintSettings) {
+              const updatedCaseOptions = [
+                ...caseOptions,
+                {
+                  id: targetModuleId,
+                  title: targetModuleName,
+                  format: "inline",
+                  enable: "Y",
+                  custom_status: "Y",
+                  is_custom_module: true,
+                },
+              ];
 
-            const rxPrescription = {
-              ...defaultPrintSettings.prescription,
-              case_option: updatedCaseOptions,
-            };
+              const rxPrescription = {
+                ...defaultPrintSettings.prescription,
+                case_option: updatedCaseOptions,
+              };
 
-            const printSettingsData = {
-              ...defaultPrintSettings,
-              prescription: JSON.stringify(rxPrescription),
-              header_footer: JSON.stringify(defaultPrintSettings.header_footer),
-              page_format: JSON.stringify(defaultPrintSettings.page_format),
-            };
+              const printSettingsData = {
+                ...defaultPrintSettings,
+                prescription: JSON.stringify(rxPrescription),
+                header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+                page_format: JSON.stringify(defaultPrintSettings.page_format),
+              };
 
-            await dispatch(savePrintsettings(printSettingsData)).unwrap();
+              await dispatch(savePrintsettings(printSettingsData)).unwrap();
+            }
           }
+        } catch (printSettingsError) {
+          console.error("Failed to update print settings:", printSettingsError);
+          message.error({
+            content: "Failed to update print settings. Please try again.",
+            key: "addToRx",
+            duration: 3
+          });
+          // Return early - do not proceed with customized pad if print settings fail
+          return;
         }
 
         // Step 4: Add module to customized pad right list (Rx pad)
-        const updatedRightPad = [
-          ...(customizedPadRightList || []),
-          {
-            tmdpm_id: targetModuleId,
-            tmdpm_name: targetModuleName,
-            tmdpm_short_name: targetModuleName,
-            tmdpm_type: "R",
-            tmdpm_status: 0,
-            is_custom_module: true,
-          },
-        ];
+        try {
+          const updatedRightPad = [
+            ...(customizedPadRightList || []),
+            {
+              tmdpm_id: targetModuleId,
+              tmdpm_name: targetModuleName,
+              tmdpm_short_name: targetModuleName,
+              tmdpm_type: "R",
+              tmdpm_status: 0,
+              is_custom_module: true,
+            },
+          ];
 
-        const sendData = {
-          data: {
-            default: false,
-            reset: false,
-            left: customizedPadLeftList || [],
-            right: updatedRightPad,
-          },
-        };
+          const sendData = {
+            data: {
+              default: false,
+              reset: false,
+              left: customizedPadLeftList || [],
+              right: updatedRightPad,
+            },
+          };
 
-        await dispatch(customizedPad(sendData)).unwrap();
-        
-        message.success({
-          content: needsCloning 
-            ? `"${targetModuleName}" cloned and added to your prescription pad!`
-            : `"${targetModuleName}" has been added to your prescription pad`,
-          key: "addToRx",
-          duration: 3
-        });
-        
-        onClose();
+          await dispatch(customizedPad(sendData)).unwrap();
+          
+          message.success({
+            content: needsCloning 
+              ? `"${targetModuleName}" cloned and added to your prescription pad!`
+              : `"${targetModuleName}" has been added to your prescription pad`,
+            key: "addToRx",
+            duration: 3
+          });
+          
+          onClose();
+        } catch (customizedPadError) {
+          console.error("Failed to update customized pad:", customizedPadError);
+          message.error({
+            content: "Failed to add module to prescription pad. Please try again.",
+            key: "addToRx",
+            duration: 3
+          });
+        }
       } catch (error) {
-        console.error("Error adding module to Rx:", error);
+        console.error("Unexpected error in handleAddToRx:", error);
         message.error({
-          content: error?.message || "Failed to add module to prescription pad",
+          content: error?.message || "An unexpected error occurred. Please try again.",
           key: "addToRx",
           duration: 3
         });
