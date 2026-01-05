@@ -137,13 +137,35 @@ const ZydusLabParams = ({
         }));
     };
 
-    const expandAllSections = () => {
+    // Check if all sections are currently expanded
+    const areAllSectionsExpanded = () => {
+        if (!organizedData.tests || Object.keys(organizedData.tests).length === 0) {
+            return false;
+        }
+        const allServiceNames = Object.keys(organizedData.tests);
+        return allServiceNames.every(serviceName => expandedSections[serviceName] === true);
+    };
+
+    // Toggle between expand all and collapse all
+    const toggleAllSections = () => {
         if (organizedData.tests && Object.keys(organizedData.tests).length > 0) {
-            const allExpanded = {};
-            Object.keys(organizedData.tests).forEach(serviceName => {
-                allExpanded[serviceName] = true;
-            });
-            setExpandedSections(allExpanded);
+            const isAllExpanded = areAllSectionsExpanded();
+            
+            if (isAllExpanded) {
+                // Collapse all sections
+                const allCollapsed = {};
+                Object.keys(organizedData.tests).forEach(serviceName => {
+                    allCollapsed[serviceName] = false;
+                });
+                setExpandedSections(allCollapsed);
+            } else {
+                // Expand all sections
+                const allExpandedState = {};
+                Object.keys(organizedData.tests).forEach(serviceName => {
+                    allExpandedState[serviceName] = true;
+                });
+                setExpandedSections(allExpandedState);
+            }
         }
     };
 
@@ -1053,14 +1075,21 @@ const ZydusLabParams = ({
                     <div className="modal-title">Zydus Test Reports</div>
                 </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <Button 
-                        className='btn btn-primary3 btn-41 px-4' 
-                        onClick={expandAllSections}
+                    <button
+                        className='btn d-flex align-items-center btn-text' 
+                        onClick={toggleAllSections}
                         disabled={organizedData.dates.length === 0 || Object.keys(organizedData.tests || {}).length === 0}
                     >
-                        <i className="icon-eye me-2"></i>
-                        View All
-                    </Button>
+                        {areAllSectionsExpanded() ? (
+                            <span>
+                                Collapse All
+                            </span>
+                        ) : (
+                            <span>
+                                View All
+                            </span>
+                        )}
+                    </button>
                     <Button 
                         className='btn btn-primary3 btn-41 px-4 me-20' 
                         onClick={handleSave}
