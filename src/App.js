@@ -275,9 +275,34 @@ function App() {
           return;
         }
 
+        const tokenToBackup = currentToken;
+        if (tokenToBackup && typeof tokenToBackup === 'string') {
+          sessionStorage.setItem('tnc_backup_token', JSON.stringify(tokenToBackup));
+        }
+
         tncProcessingRef.current = true;
 
-        const checkResponse = await checkTncRecord();
+        let checkResponse;
+        try {
+          checkResponse = await checkTncRecord();
+        } catch (checkError) {
+          const statusCode = checkError?.response?.status;
+          if ((statusCode === 401 || statusCode === 400 || statusCode === 403) && !getToken()) {
+            if (authToken) {
+              setToken(authToken);
+            } else {
+              const backupToken = sessionStorage.getItem('tnc_backup_token');
+              if (backupToken) {
+                try {
+                  setToken(JSON.parse(backupToken));
+                } catch (e) {
+                  console.warn('Could not restore token from backup');
+                }
+              }
+            }
+          }
+          checkResponse = { exists: false };
+        }
         console.log('TNC Check Response:', checkResponse);
         console.log('TNC Check Response exists value:', checkResponse?.exists, 'Type:', typeof checkResponse?.exists);
         
@@ -297,6 +322,21 @@ function App() {
           } catch (createError) {
             const statusCode = createError?.response?.status;
             const errorMessage = createError?.response?.data?.message || createError?.response?.data?.error || createError?.message || "";
+            
+            if ((statusCode === 401 || statusCode === 400 || statusCode === 403) && !getToken()) {
+              if (authToken) {
+                setToken(authToken);
+              } else {
+                const backupToken = sessionStorage.getItem('tnc_backup_token');
+                if (backupToken) {
+                  try {
+                    setToken(JSON.parse(backupToken));
+                  } catch (e) {
+                    console.warn('Could not restore token from backup');
+                  }
+                }
+              }
+            }
             
             const isAlreadyExists = statusCode === 409 || 
                                     errorMessage.toLowerCase().includes("already exists") || 
@@ -319,10 +359,44 @@ function App() {
           tncProcessingRef.current = false;
         }
       } catch (error) {
+        const statusCode = error?.response?.status;
+        const errorMessage = error?.response?.data?.message || error?.message || "";
+        
         console.error("Error checking TNC record:", {
-          status: error?.response?.status,
-          message: error?.response?.data?.message || error?.message
+          status: statusCode,
+          message: errorMessage
         });
+        
+        if (statusCode === 401 || statusCode === 404 || statusCode === 400 || statusCode === 403) {
+          const currentToken = authToken || getToken();
+          if (!currentToken && authToken) {
+            setToken(authToken);
+          } else if (!currentToken) {
+            const storedToken = sessionStorage.getItem('tnc_backup_token');
+            if (storedToken) {
+              try {
+                setToken(JSON.parse(storedToken));
+              } catch (e) {
+                console.warn('Could not restore token from backup');
+              }
+            }
+          }
+        }
+        
+        if (statusCode === 401 || statusCode === 404 || statusCode === 400) {
+          try {
+            const response = await createTncRecord({
+              um_id: userId, 
+              tnc_version: Number(TNC_VERSION), 
+            });
+            console.log('TNC record created successfully after check error:', response);
+            localStorage.setItem(tncCheckKey, "true");
+          } catch (createError) {
+            console.error("Error creating TNC record after check error:", createError);
+            localStorage.setItem(tncCheckKey, "true"); 
+          }
+        }
+        
         tncProcessingRef.current = false;
       }
     };
