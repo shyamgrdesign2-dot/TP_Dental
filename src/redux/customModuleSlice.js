@@ -108,6 +108,24 @@ export const migrateModule = createAsyncThunk(
   }
 );
 
+export const cloneModule = createAsyncThunk(
+  "customModules/cloneModule",
+  async ({ sourceUserId, sourceModuleId, targetUserId }, { rejectWithValue }) => {
+    try {
+      const response = await ApiCustomModule.cloneModule(
+        sourceUserId,
+        sourceModuleId,
+        targetUserId
+      );
+      return response; // Returns the cloned module with new module_id and origin_id
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || "Failed to clone module."
+      );
+    }
+  }
+);
+
 const customModuleSlice = createSlice({
   name: "customModules",
   initialState: {
@@ -303,6 +321,23 @@ const customModuleSlice = createSlice({
         state.loading = false;
         state.error = action.payload || "Failed to migrate module.";
         state.migrationResult = null;
+      })
+      .addCase(cloneModule.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cloneModule.fulfilled, (state, action) => {
+        state.loading = false;
+        // Sanitize the cloned module
+        const { created_at, updated_at, ...sanitizedModule } =
+          action.payload || {};
+        
+        // Add the cloned module to customModules
+        state.customModules.push(sanitizedModule);
+      })
+      .addCase(cloneModule.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to clone module.";
       });
   },
 });

@@ -16,7 +16,7 @@ import deleteIcon from "../../assets/images/delete-icon-blue.svg";
 import alertIcon from "../../assets/images/alertIcon.svg";
 import CommonModal from "../../common/CommonModal";
 import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
-import { customizedPad } from "../../redux/doctorsSlice";
+import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
 import "./CustomModuleV2.scss";
@@ -34,7 +34,7 @@ import "./CustomModuleV2.scss";
  */
 const CustomModuleV2 = ({ module }) => {
   const dispatch = useDispatch();
-  const { userId, customizedPadLeftList, customizedPadRightList } = useSelector((state) => state.doctors);
+  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
   const { customModules, loading } = useSelector((state) => state.customModules);
   const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
     useContext(CashManagerContext);
@@ -64,7 +64,7 @@ const CustomModuleV2 = ({ module }) => {
   const decodedToken = getDecodedToken();
 
   // Check if module is disabled (used or cloned by the user)
-  const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId);
+  const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
   // Tooltip content for disabled items
   const disabledTooltipContent = (
     <div>
@@ -500,12 +500,37 @@ const CustomModuleV2 = ({ module }) => {
   // Handle remove module from Rx pad
   const handleRemoveFromRxPad = async () => {
     try {
-      // Filter out the current module from customizedPadRightList
+      message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
+
+      // Step 1: Remove from print settings
+      if (defaultPrintSettings?.prescription?.case_option) {
+        const caseOptions = defaultPrintSettings.prescription.case_option;
+        
+        // Filter out the current module from case_option
+        const updatedCaseOptions = caseOptions.filter(
+          (option) => !(option.id === module.module_id && option.is_custom_module)
+        );
+
+        const rxPrescription = {
+          ...defaultPrintSettings.prescription,
+          case_option: updatedCaseOptions,
+        };
+
+        const printSettingsData = {
+          ...defaultPrintSettings,
+          prescription: JSON.stringify(rxPrescription),
+          header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+          page_format: JSON.stringify(defaultPrintSettings.page_format),
+        };
+
+        await dispatch(savePrintsettings(printSettingsData)).unwrap();
+      }
+
+      // Step 2: Remove from customized pad right list
       const updatedRightList = customizedPadRightList.filter(
         (item) => item.tmdpm_id !== module.module_id
       );
       
-      // Prepare payload to update pad configuration
       const sendData = {
         data: {
           default: false,
@@ -515,23 +540,26 @@ const CustomModuleV2 = ({ module }) => {
         }
       };
       
-      // Call customizedPad API to update configuration
-      const action = await dispatch(customizedPad(sendData));
+      await dispatch(customizedPad(sendData)).unwrap();
       
-      if (action.meta.requestStatus === "fulfilled") {
-        message.success(`"${module.name}" removed from Rx pad successfully`);
-        
-        // Also remove from customModuleContents if present
-        const updatedContents = customModuleContents.filter(
-          (mc) => mc.module_id !== module.module_id
-        );
-        setCustomModuleContents(updatedContents);
-      } else {
-        message.error("Failed to remove module from Rx pad");
-      }
+      // Step 3: Remove from customModuleContents if present
+      const updatedContents = customModuleContents.filter(
+        (mc) => mc.module_id !== module.module_id
+      );
+      setCustomModuleContents(updatedContents);
+
+      message.success({
+        content: `"${module.name}" removed from Rx pad successfully`,
+        key: "removeFromRx",
+        duration: 3
+      });
     } catch (error) {
       console.error("Error removing module from Rx pad:", error);
-      message.error("Failed to remove module from Rx pad. Please try again.");
+      message.error({
+        content: error?.message || "Failed to remove module from Rx pad. Please try again.",
+        key: "removeFromRx",
+        duration: 3
+      });
     }
   };
 

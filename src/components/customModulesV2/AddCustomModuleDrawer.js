@@ -5,8 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import SelectExistingModuleTab from "./SelectExistingModuleTab";
 import CreateNewModuleTab from "./CreateNewModuleTab";
 import ConfirmModuleModal from "./ConfirmModuleModal";
-import { addModule, getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
-import { customizedPad } from "../../redux/doctorsSlice";
+import { addModule, getModules, searchModulesByHospital, cloneModule } from "../../redux/customModuleSlice";
+import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
 import "./AddCustomModuleDrawer.scss";
 
@@ -23,7 +23,7 @@ const { TabPane } = Tabs;
  */
 const AddCustomModuleDrawer = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { userId, customizedPadRightList, customizedPadLeftList } =
+  const { userId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings } =
     useSelector((state) => state.doctors);
   const { loading, customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules
@@ -59,23 +59,132 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
       }
 
       try {
-        // Check if module already exists in the right pad
-        const moduleExists = customizedPadRightList?.some(
-          (item) => item.tmdpm_id === module.module_id
+        let targetModuleId = module.module_id;
+        let targetModuleName = module.name;
+        let needsCloning = false;
+
+        // Step 1: Check if the module is from another doctor
+        const isOwnModule = module.userId === userId;
+        
+        if (!isOwnModule) {
+          // Check if user already has this module cloned (check by origin_id)
+          const alreadyCloned = customModules?.find(
+            (m) => m.origin_id === module.module_id
+          );
+
+          if (!alreadyCloned) {
+            needsCloning = true;
+            message.loading({ content: "Cloning module...", key: "addToRx" });
+
+            // Clone the module from source user to current user
+            await dispatch(
+              cloneModule({
+                sourceUserId: module.userId,
+                sourceModuleId: module.module_id,
+                targetUserId: userId,
+              })
+            ).unwrap();
+
+            message.success({ content: "Module cloned successfully", key: "addToRx", duration: 2 });
+
+            // Refresh customModules to include the newly cloned module
+            const updatedModulesResponse = await dispatch(getModules(userId)).unwrap();
+            
+            // Find the newly cloned module by origin_id
+            const clonedModule = updatedModulesResponse?.modules?.find(
+              (m) => m.origin_id === module.module_id
+            );
+
+            if (!clonedModule || !clonedModule.module_id) {
+              console.error("Failed to find cloned module:", {
+                sourceModuleId: module.module_id,
+                allModules: updatedModulesResponse?.modules,
+              });
+              throw new Error("Failed to retrieve cloned module information");
+            }
+
+            console.log("Cloned module found:", {
+              clonedModuleId: clonedModule.module_id,
+              clonedModuleName: clonedModule.name,
+              originId: clonedModule.origin_id,
+            });
+
+            // Update the target module ID to the newly cloned module's ID
+            targetModuleId = clonedModule.module_id;
+            targetModuleName = clonedModule.name;
+          } else {
+            // Use the already cloned module's ID
+            targetModuleId = alreadyCloned.module_id;
+            targetModuleName = alreadyCloned.name;
+            
+            // Refresh customModules to ensure we have the latest data
+            await dispatch(getModules(userId)).unwrap();
+          }
+        }
+
+        // Validate that we have valid module ID and name before proceeding
+        if (!targetModuleId || !targetModuleName) {
+          console.error("Invalid module data:", { targetModuleId, targetModuleName, module });
+          throw new Error("Invalid module information. Please try again.");
+        }
+
+        // Step 2: Check if module already exists in the right pad
+        const moduleExistsInRx = customizedPadRightList?.some(
+          (item) => item.tmdpm_id === targetModuleId
         );
 
-        if (moduleExists) {
+        if (moduleExistsInRx) {
           message.warning("This module is already added to your prescription pad");
           return;
         }
 
-        // Add module to customized pad right list
+        message.loading({ content: "Updating prescription pad...", key: "addToRx" });
+
+        // Step 3: Sync print settings (add module to print settings)
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+          
+          // Check if module is already in print settings
+          const existsInPrintSettings = caseOptions.some(
+            (option) => option.id === targetModuleId && option.is_custom_module
+          );
+
+          if (!existsInPrintSettings) {
+            const updatedCaseOptions = [
+              ...caseOptions,
+              {
+                id: targetModuleId,
+                title: targetModuleName,
+                format: "inline",
+                enable: "Y",
+                custom_status: "Y",
+                is_custom_module: true,
+              },
+            ];
+
+            const rxPrescription = {
+              ...defaultPrintSettings.prescription,
+              case_option: updatedCaseOptions,
+            };
+
+            const printSettingsData = {
+              ...defaultPrintSettings,
+              prescription: JSON.stringify(rxPrescription),
+              header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+              page_format: JSON.stringify(defaultPrintSettings.page_format),
+            };
+
+            await dispatch(savePrintsettings(printSettingsData)).unwrap();
+          }
+        }
+
+        // Step 4: Add module to customized pad right list (Rx pad)
         const updatedRightPad = [
           ...(customizedPadRightList || []),
           {
-            tmdpm_id: module.module_id,
-            tmdpm_name: module.name,
-            tmdpm_short_name: module.name,
+            tmdpm_id: targetModuleId,
+            tmdpm_name: targetModuleName,
+            tmdpm_short_name: targetModuleName,
             tmdpm_type: "R",
             tmdpm_status: 0,
             is_custom_module: true,
@@ -92,21 +201,32 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         };
 
         await dispatch(customizedPad(sendData)).unwrap();
-        message.success(
-          `"${module.name}" has been added to your prescription pad`
-        );
+        
+        message.success({
+          content: needsCloning 
+            ? `"${targetModuleName}" cloned and added to your prescription pad!`
+            : `"${targetModuleName}" has been added to your prescription pad`,
+          key: "addToRx",
+          duration: 3
+        });
+        
         onClose();
       } catch (error) {
         console.error("Error adding module to Rx:", error);
-        message.error(
-          error?.message || "Failed to add module to prescription pad"
-        );
+        message.error({
+          content: error?.message || "Failed to add module to prescription pad",
+          key: "addToRx",
+          duration: 3
+        });
       }
     },
     [
       dispatch,
+      userId,
+      customModules,
       customizedPadRightList,
       customizedPadLeftList,
+      defaultPrintSettings,
       onClose,
     ]
   );
@@ -194,7 +314,38 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           );
 
           if (!moduleExists) {
-            // Add module to customized pad right list
+            // Step 1: Sync print settings (add module to print settings)
+            if (defaultPrintSettings?.prescription?.case_option) {
+              const caseOptions = defaultPrintSettings.prescription.case_option;
+              
+              const updatedCaseOptions = [
+                ...caseOptions,
+                {
+                  id: newlyCreatedModule.module_id,
+                  title: newlyCreatedModule.name,
+                  format: "inline",
+                  enable: "Y",
+                  custom_status: "Y",
+                  is_custom_module: true,
+                },
+              ];
+
+              const rxPrescription = {
+                ...defaultPrintSettings.prescription,
+                case_option: updatedCaseOptions,
+              };
+
+              const printSettingsData = {
+                ...defaultPrintSettings,
+                prescription: JSON.stringify(rxPrescription),
+                header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+                page_format: JSON.stringify(defaultPrintSettings.page_format),
+              };
+
+              await dispatch(savePrintsettings(printSettingsData)).unwrap();
+            }
+
+            // Step 2: Add module to customized pad right list
             const updatedRightPad = [
               ...(customizedPadRightList || []),
               {
@@ -256,7 +407,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         message.error(errorMessage);
       }
     },
-    [dispatch, userId, onClose, customModules, hospitalId, customizedPadRightList, customizedPadLeftList]
+    [dispatch, userId, onClose, customModules, hospitalId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings]
   );
 
   const handleFormChange = useCallback((formData) => {

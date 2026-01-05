@@ -79,4 +79,23 @@ ApiCustomModule.migrateModule = function (userId, moduleId, migrationData) {
   );
 };
 
+/**
+ * Clone a module from one user to another
+ * @param {String} sourceUserId - Source user ID
+ * @param {String} sourceModuleId - Source module ID to clone
+ * @param {String} targetUserId - Target user ID
+ * @returns {Promise} Returns the cloned module with new module_id and origin_id
+ */
+ApiCustomModule.cloneModule = function (sourceUserId, sourceModuleId, targetUserId) {
+  return api.post(
+    `/dynamicmodules/user_modules/clone`,
+    {
+      sourceUserId,
+      sourceModuleId,
+      targetUserId,
+    },
+    baseUrl
+  );
+};
+
 export default ApiCustomModule;
