@@ -271,10 +271,14 @@ function Vaccination({ handleDrawerVaccination }) {
             }
           }
           
-          // For other cases (orange or null), sort by latest date (newest first)
+          // For other cases (orange or null), sort by latest date
           const dateA = getLatestDate(a);
           const dateB = getLatestDate(b);
-          return dateB - dateA;
+          // If orange (warning), sort in increasing order (oldest first), otherwise newest first
+          if (statusA === "warning" || statusB === "warning") {
+            return dateA - dateB; // Increasing order for orange
+          }
+          return dateB - dateA; // Decreasing order for others
         });
         
         // Update ageFilters to match the sorted order of dateOptions
@@ -534,10 +538,14 @@ function Vaccination({ handleDrawerVaccination }) {
           }
         }
         
-        // For other cases (orange or null), sort by latest date (newest first)
+        // For other cases (orange or null), sort by latest date
         const dateA = getLatestDate(a);
         const dateB = getLatestDate(b);
-        return dateB - dateA;
+        // If orange (warning), sort in increasing order (oldest first), otherwise newest first
+        if (statusA === "warning" || statusB === "warning") {
+          return dateA - dateB; // Increasing order for orange
+        }
+        return dateB - dateA; // Decreasing order for others
       });
       
       // Update ageFilters to match the sorted order of dateOptions
