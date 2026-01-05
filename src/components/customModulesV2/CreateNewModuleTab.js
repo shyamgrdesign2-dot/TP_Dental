@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { Input, Radio, Tooltip, Alert } from "antd";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { Input, Radio, Tooltip, Alert, message } from "antd";
 import {
   InfoCircleOutlined,
   ExclamationCircleOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { customizedPad } from "../../redux/doctorsSlice";
 import ModuleListItem from "./ModuleListItem";
 import "./CreateNewModuleTab.scss";
 
@@ -22,7 +23,11 @@ const MAX_COLUMN_LABEL_LENGTH = 15;
  * @param {Function} onFormChange - Callback when form data changes (for button state)
  */
 const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
+  const dispatch = useDispatch();
   const { customModules } = useSelector((state) => state.customModules);
+  const { customizedPadRightList, customizedPadLeftList } = useSelector(
+    (state) => state.doctors
+  );
   const [moduleName, setModuleName] = useState("");
   const [columnCount, setColumnCount] = useState(2);
   const [columnLabels, setColumnLabels] = useState(["", ""]);
@@ -94,10 +99,59 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
     }
   }, [isFormValid, moduleName, columnCount, columnLabels, onFormChange]);
 
-  const handleUseExistingModule = (module) => {
-    // TODO: Implement use existing module functionality
-    console.log("Use existing module:", module);
-  };
+  const handleUseExistingModule = useCallback(
+    async (module) => {
+      if (!module || !module.module_id) {
+        message.error("Invalid module selected");
+        return;
+      }
+
+      try {
+        // Check if module already exists in the right pad
+        const moduleExists = customizedPadRightList?.some(
+          (item) => item.tmdpm_id === module.module_id
+        );
+
+        if (moduleExists) {
+          message.warning("This module is already added to your prescription pad");
+          return;
+        }
+
+        // Add module to customized pad right list
+        const updatedRightPad = [
+          ...(customizedPadRightList || []),
+          {
+            tmdpm_id: module.module_id,
+            tmdpm_name: module.name,
+            tmdpm_short_name: module.name,
+            tmdpm_type: "R",
+            tmdpm_status: 0,
+            is_custom_module: true,
+          },
+        ];
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList || [],
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+        message.success(
+          `"${module.name}" has been added to your prescription pad`
+        );
+      } catch (error) {
+        console.error("Error adding module to Rx:", error);
+        message.error(
+          error?.message || "Failed to add module to prescription pad"
+        );
+      }
+    },
+    [dispatch, customizedPadRightList, customizedPadLeftList]
+  );
 
   const handleAddAsNew = () => {
     // Show the column configuration section when user decides to add as new

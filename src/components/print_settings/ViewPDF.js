@@ -1125,7 +1125,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 default:
                                     if (option.is_custom_module) {
                                         const customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                                        return customModule?.content?.length > 0;
+                                        if (!customModule?.content?.length) {
+                                            return false;
+                                        }
+                                        
+                                        // Find module definition to check version
+                                        const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
+                                        const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                                        
+                                        if (isV2) {
+                                            // V2: Check if any named field has content
+                                            const namedFields = moduleDefinition.namedFields;
+                                            return customModule.content.some((item) => 
+                                                namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
+                                            );
+                                        } else {
+                                            // V1: Check for title or notes
+                                            return customModule.content.some((item) => item?.title || item?.notes);
+                                        }
                                     }
                                     return false;
                             }
@@ -1145,6 +1162,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             return false;
                         };
+                        
+                        const hasEnabledItemsAfterPageBreak = (pageBreakIndex) => {
+                            for (let i = pageBreakIndex + 1; i < printSettings?.prescription?.case_option?.length; i++) {
+                                const nextOption = printSettings?.prescription?.case_option[i];
+                                if (nextOption?.type === "page_break") {
+                                    continue;
+                                }
+                                if (nextOption?.enable === "Y") {
+                                    const hasData = hasModuleData(nextOption, caseManagerData);
+                                    if (hasData) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        };
+                        console.log(printSettings?.prescription?.case_option,"printSettings?.prescription?.case_option?")
+                        console.log(caseManagerData?.moduleContents,"caseManagerData?.moduleContents")
                         return printSettings?.prescription?.case_option?.map((option, index) => {
                             let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
                             if(customModule) {
@@ -1173,6 +1208,37 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             if (option?.type !== "page_break" && option?.enable === "Y") {
                                 hasRenderedPageBreak = false;
                             }
+                            
+                            const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
+                            
+                            // Check if this is a custom module and if it has data
+                            const hasCustomModuleData = (() => {
+                                if (option?.is_custom_module !== true || !customModule?.content) {
+                                    return false;
+                                }
+                                
+                                // Find module definition to check version
+                                const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
+                                console.log(moduleDefinition,"moduleDefinition")
+                                const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                                
+                                if (isV2) {
+                                    // V2: Check if any named field has content
+                                    const namedFields = moduleDefinition.namedFields;
+                                    return customModule.content.some((item) => 
+                                        namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
+                                    );
+                                } else {
+                                    // V1: Check for title or notes
+                                    return customModule.content.some((item) => item?.title || item?.notes);
+                                }
+                            })();
+                            
+                            // Skip rendering if it's a custom module with no data
+                            if (option?.is_custom_module === true && !hasCustomModuleData) {
+                                return null;
+                            }
+                            
                             return (
                                 <View key={option.id} style={{
                                     marginTop: index === 0 ? (printSettings?.header_footer?.show_patient_info === 'first' ||
@@ -5744,58 +5810,208 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         )}
                                     </>
                                 ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.length > 0 ? (
-                                    option?.format === 'inline' ? (
-                                        <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
-                                            {customModule?.content?.map((item, i) => {
-                                                return (
-                                                    <Text key={i}>
-                                                        {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
-                                                        {item.notes &&
-                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                {`${item?.title ? '(' : ''}`}
-                                                                {item.notes?.replace(/ /g, '\u00A0')}
-                                                                {`${item?.title ? ')' : ''}`}
-                                                            </Text>
+                                    (() => {
+                                        // Find module definition to check if it's V2
+                                        const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
+                                        const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                                        const namedFields = moduleDefinition?.namedFields || [];
+
+                                        // Helper to check if V2 content has any data
+                                        const hasV2Content = (item) => {
+                                            if (!isV2) return false;
+                                            return namedFields.some(field => item[field.fieldName]?.trim?.().length > 0);
+                                        };
+
+                                        // Helper to check if V1 content has any data
+                                        const hasV1Content = (item) => {
+                                            return item.title || item.notes;
+                                        };
+
+                                        // Check if content has data
+                                        const hasContent = isV2 
+                                            ? customModule?.content?.some(hasV2Content)
+                                            : customModule?.content?.some(hasV1Content);
+
+                                        if (!hasContent) return null;
+
+                                        // Render based on format
+                                        if (option?.format === 'inline') {
+                                            return (
+                                                <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    {customModule?.content?.map((item, i) => {
+                                                        if (isV2) {
+                                                            // V2: Render all named fields with labels
+                                                            const fieldEntries = namedFields
+                                                                .map(field => ({
+                                                                    label: field.fieldLabel,
+                                                                    value: item[field.fieldName]
+                                                                }))
+                                                                .filter(entry => entry.value?.trim?.().length > 0);
+                                                            
+                                                            if (fieldEntries.length === 0) return null;
+
+                                                            return (
+                                                                <Text key={i}>
+                                                                    {fieldEntries.map((entry, idx) => (
+                                                                        <Text key={idx}>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
+                                                                                {entry.label}:&nbsp;
+                                                                            </Text>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                                {entry.value}
+                                                                            </Text>
+                                                                            {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
+                                                                        </Text>
+                                                                    ))}
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{i < customModule?.content.length - 1 ? '; ' : ''}&nbsp;</Text>
+                                                                </Text>
+                                                            );
+                                                        } else {
+                                                            // V1: Original rendering
+                                                            return (
+                                                                <Text key={i}>
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.notes &&
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                            {`${item?.title ? '(' : ''}`}
+                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {`${item?.title ? ')' : ''}`}
+                                                                        </Text>
+                                                                    }
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{customModule?.content.length - 1 != i ? ',' : ''}&nbsp;</Text>
+                                                                </Text>
+                                                            );
                                                         }
-                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{customModule?.content.length - 1 != i ? ',' : ''}&nbsp;</Text>
-                                                    </Text>
-                                                )
-                                            })}
-                                        </Text>
-                                    ) : option?.format === 'listview' ? (
-                                        <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
-                                            {customModule?.content.map((item, i) => {
-                                                return (
-                                                    <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
-                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                        {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
-                                                        {item.notes &&
-                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                {`${item?.title ? '(' : ''}`}
-                                                                {item.notes?.replace(/ /g, '\u00A0')}
-                                                                {`${item?.title ? ')' : ''}`}
-                                                            </Text>
+                                                    })}
+                                                </Text>
+                                            );
+                                        } else if (option?.format === 'listview') {
+                                            return (
+                                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    {customModule?.content.map((item, i) => {
+                                                        if (isV2) {
+                                                            // V2: Render all named fields
+                                                            const fieldEntries = namedFields
+                                                                .map(field => ({
+                                                                    label: field.fieldLabel,
+                                                                    value: item[field.fieldName]
+                                                                }))
+                                                                .filter(entry => entry.value?.trim?.().length > 0);
+                                                            
+                                                            if (fieldEntries.length === 0) return null;
+
+                                                            return (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
+                                                                    {fieldEntries.map((entry, idx) => (
+                                                                        <Text key={idx}>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
+                                                                                {entry.label}:&nbsp;
+                                                                            </Text>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                                {entry.value}
+                                                                            </Text>
+                                                                            {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
+                                                                        </Text>
+                                                                    ))}
+                                                                </Text>
+                                                            );
+                                                        } else {
+                                                            // V1: Original rendering
+                                                            return (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.notes &&
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                            {`${item?.title ? '(' : ''}`}
+                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {`${item?.title ? ')' : ''}`}
+                                                                        </Text>
+                                                                    }
+                                                                </Text>
+                                                            );
                                                         }
-                                                    </Text>
-                                                )
-                                            })}
-                                        </View>
-                                    ) : (customModule?.content?.some((item) => item.title || item.notes) &&
-                                        <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.name}:&nbsp;</Text>
-                                            <View style={styles.table}>
-                                                <View style={styles.headerRowFixed} fixed/>
-                                                {customModule?.content.map((item, i) => (
-                                                    <View style={styles.row} key={i} wrap={false}>
-                                                        {customModule?.content?.some((item) => item.title) &&<Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.title || '-'}&nbsp;</Text>}
-                                                        {customModule?.content?.some((item) => item.notes) &&<Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.notes?.replace(/ /g, '\u00A0') || '-'}&nbsp;</Text>}
+                                                    })}
+                                                </View>
+                                            );
+                                        } else {
+                                            // Table format
+                                            return (
+                                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    <View style={styles.table}>
+                                                        <View style={styles.headerRowFixed} fixed/>
+                                                        {isV2 && (
+                                                            // V2: Render column headers with field labels
+                                                            <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                {namedFields.map((field, idx) => {
+                                                                    const flexPerColumn = 1 / namedFields.length;
+                                                                    return (
+                                                                        <Text 
+                                                                            key={idx}
+                                                                            style={[
+                                                                                styles.dynamicModuleCell, 
+                                                                                { 
+                                                                                    flex: flexPerColumn, 
+                                                                                    color: '#171725', 
+                                                                                    fontFamily: getIndianLanguageFont(field.fieldLabel, printSettings?.page_format?.font_family), 
+                                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                    fontWeight: 700,
+                                                                                    textTransform: 'uppercase'
+                                                                                }
+                                                                            ]}
+                                                                        >
+                                                                            {field.fieldLabel.toUpperCase()}&nbsp;
+                                                                        </Text>
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        )}
+                                                        {customModule?.content.map((item, i) => {
+                                                            if (isV2) {
+                                                                // V2: Render all named fields in columns
+                                                                const fieldValues = namedFields.map(field => item[field.fieldName] || '-');
+                                                                const flexPerColumn = 1 / namedFields.length;
+                                                                
+                                                                return (
+                                                                    <View style={styles.row} key={i} wrap={false}>
+                                                                        {fieldValues.map((value, idx) => (
+                                                                            <Text 
+                                                                                key={idx}
+                                                                                style={[
+                                                                                    styles.dynamicModuleCell, 
+                                                                                    { 
+                                                                                        flex: flexPerColumn, 
+                                                                                        color: '#171725', 
+                                                                                        fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), 
+                                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                        fontWeight: 500 
+                                                                                    }
+                                                                                ]}
+                                                                            >
+                                                                                {value}&nbsp;
+                                                                            </Text>
+                                                                        ))}
+                                                                    </View>
+                                                                );
+                                                            } else {
+                                                                // V1: Original rendering
+                                                                return (
+                                                                    <View style={styles.row} key={i} wrap={false}>
+                                                                        {customModule?.content?.some((item) => item.title) && <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.title || '-'}&nbsp;</Text>}
+                                                                        {customModule?.content?.some((item) => item.notes) && <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.notes?.replace(/ /g, '\u00A0') || '-'}&nbsp;</Text>}
+                                                                    </View>
+                                                                );
+                                                            }
+                                                        })}
                                                     </View>
-                                                ))}
-                                            </View>
-                                        </View>
-                                    )
+                                                </View>
+                                            );
+                                        }
+                                    })()
                                 ) : option?.id === 17 && option?.enable === 'Y' && option?.custom_status === 'Y' && (patientBills?.length > 0 || advanceReceipts?.length > 0) ? (
                                     <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                         <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Payment:&nbsp;</Text>
