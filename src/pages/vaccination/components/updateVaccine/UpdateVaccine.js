@@ -26,7 +26,11 @@ import {
   addGivenVaccines,
 } from "../../../../redux/vaccineSlice.js";
 import { useDispatch, useSelector } from "react-redux";
-import { isVaccineModifiedRecently } from "../../VaccinationHelper.js";
+import {
+  isVaccineModifiedRecently,
+  normalizeVaccineName,
+  getVaccineNameVariants,
+} from "../../VaccinationHelper.js";
 import CommonModal from "../../../../common/CommonModal.js";
 import alertIcon from "../../../../assets/images/alertIcon.svg";
 import successIcon from "../../../../assets/images/end-visit.svg";
@@ -167,16 +171,53 @@ const UpdateVaccine = ({
     }
 
     const options = selectedVaccines.reduce((acc, vaccine) => {
-      const filteredBrands = brands?.filter((brand) =>
-        vaccine?.tvac_name === "Influenza"
-          ? brand?.tvc_default_vac === "Influenza-1"
-          : brand?.tvc_default_vac === vaccine?.tvac_name
-      );
+      if (!vaccine?.tvac_name) {
+        acc[vaccine?.tvac_name] = [];
+        return acc;
+      }
 
-      acc[vaccine.tvac_name] = filteredBrands?.map((brand) => ({
-        label: brand?.tvc_name,
-        value: brand?.tvc_id,
-      }));
+      const normalizedVaccineName = normalizeVaccineName(vaccine.tvac_name);
+      const vaccineNameVariants = getVaccineNameVariants(vaccine.tvac_name);
+      
+      const filteredBrands = brands?.filter((brand) => {
+        if (!brand?.tvc_default_vac) return false;
+        
+        const brandDefaultVac = brand.tvc_default_vac.trim();
+        const normalizedBrandVac = normalizeVaccineName(brandDefaultVac);
+        const brandVariants = getVaccineNameVariants(brandDefaultVac);
+        
+        const exactMatch = vaccineNameVariants.some(
+          (variant) => brandDefaultVac.toLowerCase() === variant.toLowerCase()
+        );
+        
+        const normalizedMatch = normalizedBrandVac.toLowerCase() === normalizedVaccineName.toLowerCase();
+        
+        const crossVariantMatch = vaccineNameVariants.some((vaccineVariant) =>
+          brandVariants.some((brandVariant) =>
+            vaccineVariant.toLowerCase() === brandVariant.toLowerCase()
+          )
+        );
+        
+        const crossNormalizedMatch = vaccineNameVariants.some(
+          (variant) => normalizedBrandVac.toLowerCase() === normalizeVaccineName(variant).toLowerCase()
+        );
+        
+        return exactMatch || normalizedMatch || crossVariantMatch || crossNormalizedMatch;
+      }) || [];
+
+      const uniqueBrandsMap = new Map();
+      
+      filteredBrands.forEach((brand) => {
+        const brandName = brand?.tvc_name?.trim();
+        if (brandName && !uniqueBrandsMap.has(brandName)) {
+          uniqueBrandsMap.set(brandName, {
+            label: brandName,
+            value: brand?.tvc_id,
+          });
+        }
+      });
+
+      acc[vaccine.tvac_name] = Array.from(uniqueBrandsMap.values());
 
       return acc;
     }, {});
@@ -612,15 +653,20 @@ const UpdateVaccine = ({
                   const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
                   
+                  // Remove frequentOptions from regularOptions to avoid duplicates
+                  const frequentValues = new Set(frequentOptions.map(opt => opt.label));
+                  const filteredRegularOptions = regularOptions.filter(
+                    opt => !frequentValues.has(opt.label)
+                  );
                   // Options for the Select component - only regular options when showing custom dropdown
                   const selectOptions = (() => {
                     if (isUserTyping) {
-                      return regularOptions;
+                      return regularOptions; // Show all options when typing
                     }
                     // When we have frequent options, we'll show them separately in dropdownRender
-                    // So only pass regular options to Select
+                    // So only pass filtered regular options (without frequent ones) to Select
                     if (frequentOptions?.length > 0) {
-                      return regularOptions;
+                      return filteredRegularOptions;
                     }
                     return regularOptions;
                   })();

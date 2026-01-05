@@ -3,7 +3,7 @@ import "./VaccineTable.scss";
 import { dateFormatter } from "../../VaccinationHelper";
 import moment from "moment";
 
-const VaccineTable = ({ dataSource, columns, isPreview }) => {
+const VaccineTable = ({ dataSource, columns, isPreview, isOtherVaccines }) => {
   const groupDataByCommonIDs = (data) => {
     const groupedData = [];
     const idSet = new Set();
@@ -68,7 +68,7 @@ const VaccineTable = ({ dataSource, columns, isPreview }) => {
               </td>
               <td className="cell">
                 <div className="dateCell">
-                  {dateFormatter(new Date(item.tvd_due_date)) || item.dueDate}
+                  {isOtherVaccines || item?.isOtherVaccines ? item.tvd_due_date ? dateFormatter(new Date(item.tvd_due_date)) : "" : dateFormatter(new Date(item.tvd_due_date)) || item.dueDate}
                   {(overDueForGivenVaccine || overDueForNotGivenVaccine) &&
                   isPreview ? (
                     <span className="overDue">Over Due</span>

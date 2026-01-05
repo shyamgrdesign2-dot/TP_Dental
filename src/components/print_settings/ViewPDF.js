@@ -718,7 +718,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, growthChartData) ||
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
             // (zydusLabData?.data?.length > 0) ||
             
             // Check smart sync data
@@ -728,7 +728,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     // Utility function to check if any custom module options are enabled and have data
-    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, growthChartData) => {
+    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) => {
         if (!printSettings?.prescription?.case_option) return false;
         
         return printSettings?.prescription?.case_option?.some(option => {
@@ -768,7 +768,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 case 9: // Follow Up Date
                     return caseManagerData?.follow_up_date;
                 case 10: // Vaccines
-                    return (transformGivenVaccines?.template?.length > 0);
+                    return (transformGivenVaccines?.template?.length > 0 || todayVaccines?.due?.length > 0 || todayVaccines?.given?.length > 0);
                 // case 11: // smartSync
                 //     return caseManagerData?.visit_advice;
                 case 12: // Growth Chart

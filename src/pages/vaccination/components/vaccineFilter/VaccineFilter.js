@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Button, Tooltip } from "antd";
 import chevron from "../../../../assets/images/arrow-box-right.svg";
 import closeFill from "../../../../assets/images/closeFill.svg";
+import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 import "./VaccineFilter.scss";
 
 const VaccineFilter = ({
@@ -10,6 +11,8 @@ const VaccineFilter = ({
   setActiveDate,
   setSelectedCards,
   setSelectAll,
+  activeVaccineTab,
+  completeData,
 }) => {
   const datesContainerRef = useRef(null);
   const hasScrolledRef = useRef(false);
@@ -39,6 +42,7 @@ const VaccineFilter = ({
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateOptions]);
 
   const [showLeft, setShowLeft] = useState(true);
@@ -80,9 +84,29 @@ const VaccineFilter = ({
     return () => clearTimeout(timer);
   }, []);
 
+  const isOtherVaccinesTab = activeVaccineTab === VaccinationCategoryEnum[1].key;
   const pendingVaccines = dateOptions.filter(
     (item) => item?.alert === "failure"
   );
+
+  // Calculate alert status for Other Vaccines tab
+  const getOtherVaccinesAlert = (item) => {
+    if (!isOtherVaccinesTab || !completeData) return null;
+    
+    const vaccines = completeData.get?.(item.label) || [];
+    if (vaccines.length === 0) return null;
+    
+    const allGiven = vaccines.every((v) => v?.tvp_given_date);
+    const anyGiven = vaccines.some((v) => v?.tvp_given_date);
+    const anyDue = vaccines.some((v) => v?.tvd_due_date);
+    
+    if (allGiven) {
+      return "success";
+    } else if (anyGiven || anyDue) {
+      return "warning";
+    }
+    return null;
+  };
 
   const dateOptionHandler = (i) => {
     setActiveDate(i);
@@ -136,6 +160,7 @@ const VaccineFilter = ({
               title={tooltipTitle}
               overlayClassName="customTooltip"
               open={
+                !isOtherVaccinesTab &&
                 showTooltip &&
                 pendingVaccines.length === 1 &&
                 item.alert === "failure"
@@ -151,13 +176,29 @@ const VaccineFilter = ({
                 style={{ margin: "0" }}
                 onClick={() => dateOptionHandler(i)}
               >
-                {item.alert ? (
-                  <span
-                    className={`alertStyle ${
-                      item.alert === "success" ? "success" : "failure"
-                    }`}
-                  />
-                ) : null}
+                {(() => {
+                  let alertStatus = null;
+                  if (isOtherVaccinesTab) {
+                    alertStatus = getOtherVaccinesAlert(item);
+                  } else {
+                    alertStatus = item.alert;
+                  }
+                  
+                  if (alertStatus) {
+                    return (
+                      <span
+                        className={`alertStyle ${
+                          alertStatus === "success"
+                            ? "success"
+                            : alertStatus === "warning"
+                            ? "warning"
+                            : "failure"
+                        }`}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
                 <span
                   className={`btnText ${
                     i === activeDate ? "activeBtnText" : ""

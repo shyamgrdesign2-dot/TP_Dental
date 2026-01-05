@@ -160,3 +160,162 @@ export const isVaccineModifiedRecently = (modifyDate) => {
   // Return true if difference is less than 24 hours
   return hoursDifference <= 24;
 };
+
+export const splitVaccinesByCategory = (vaccineData, categoryMapping) => {
+  const result = {
+    [VaccinationCategoryEnum[0].key]: [],
+    [VaccinationCategoryEnum[1].key]: [],
+  };
+
+  const iapAges = categoryMapping[VaccinationCategoryEnum[0].value] || [];
+  const otherAges = categoryMapping[VaccinationCategoryEnum[1].value] || [];
+
+  vaccineData.forEach((vaccine) => {
+    const age = vaccine.tvt_age;
+
+    if (iapAges.includes(age)) {
+      result[VaccinationCategoryEnum[0].key].push(vaccine);
+    } else if (otherAges.includes(age)) {
+      result[VaccinationCategoryEnum[1].key].push({
+        ...vaccine,
+        isOtherVaccines: true,
+      });
+    }
+  });
+
+  return result;
+};
+
+export const VaccinationCategoryEnum = 
+[
+  {
+  key: "iapVaccines",
+  value: "IAP Vaccines",
+ },
+ {
+  key: "otherVaccines",
+  value: "Other Vaccines",
+ }
+];
+
+export const normalizeVaccineName = (vaccineName) => {
+  if (!vaccineName || typeof vaccineName !== "string") {
+    return vaccineName;
+  }
+
+  const trimmed = vaccineName.trim();
+
+  const abbreviationMap = {
+    "HB": "Hepatatis B",
+    "JE": "Japanese Encephalitis (JE)",
+    "Hep A": "Hepatatis A",
+    "RV": "Rotavirus",
+    "TCV": "Thyphoid",
+  };
+
+  const exactVaccineNames = [
+    "Td",
+    "PPSV 23",
+    "Influenza",
+    "HPV",
+    "Covid",
+    "Rabies",
+    "Meningococcal",
+    "Yellow Fever",
+    "Hepatatis B",
+    "Hepatatis A",
+    "Japanese Encephalitis (JE)",
+    "MMR",
+    "Varicella",
+    "Thyphoid",
+    "Hib",
+    "Rotavirus",
+    "Cholera",
+    "Herpes Zoster",
+    "Tdap",
+  ];
+
+  if (exactVaccineNames.includes(trimmed)) {
+    return trimmed;
+  }
+
+  const hyphenDosePattern = /^(.+?)\s*-\s*\d+$/;
+  const hyphenMatch = trimmed.match(hyphenDosePattern);
+  if (hyphenMatch) {
+    const baseName = hyphenMatch[1].trim();
+    if (abbreviationMap[baseName]) {
+      return abbreviationMap[baseName];
+    }
+    if (exactVaccineNames.includes(baseName)) {
+      return baseName;
+    }
+    return baseName;
+  }
+
+  const dosePattern = /\s+Dose\s+(?:Booster|\d+)/i;
+  if (dosePattern.test(trimmed)) {
+    const baseName = trimmed.replace(dosePattern, "").trim();
+    if (abbreviationMap[baseName]) {
+      return abbreviationMap[baseName];
+    }
+    if (exactVaccineNames.includes(baseName)) {
+      return baseName;
+    }
+    return baseName;
+  }
+
+  const spaceDosePattern = /^(.+?)\s+(\d+)$/;
+  const spaceMatch = trimmed.match(spaceDosePattern);
+  if (spaceMatch) {
+    const baseName = spaceMatch[1].trim();
+    const numberedVariants = ["PPSV 23"];
+    if (numberedVariants.includes(trimmed)) {
+      return trimmed;
+    }
+    if (abbreviationMap[baseName]) {
+      return abbreviationMap[baseName];
+    }
+    if (exactVaccineNames.includes(baseName)) {
+      return baseName;
+    }
+    return baseName;
+  }
+
+  return trimmed;
+};
+
+export const getVaccineNameVariants = (vaccineName) => {
+  if (!vaccineName || typeof vaccineName !== "string") {
+    return [vaccineName];
+  }
+
+  const trimmed = vaccineName.trim();
+  const normalized = normalizeVaccineName(trimmed);
+  const variants = new Set([trimmed, normalized]);
+  
+  const withoutParentheses = trimmed.replace(/\s*\([^)]+\)\s*$/, "").trim();
+  if (withoutParentheses && withoutParentheses !== trimmed) {
+    variants.add(withoutParentheses);
+    const normalizedWithoutParens = normalizeVaccineName(withoutParentheses);
+    if (normalizedWithoutParens && normalizedWithoutParens !== normalized && normalizedWithoutParens !== withoutParentheses) {
+      variants.add(normalizedWithoutParens);
+    }
+  }
+  
+  const abbreviationToFullName = {
+    "Hepatatis B": "HB",
+    "Japanese Encephalitis (JE)": "JE",
+    "Hepatatis A": "Hep A",
+    "Rotavirus": "RV",
+    "Thyphoid": "TCV",
+  };
+
+  for (const fullName in abbreviationToFullName) {
+    if (normalized === fullName) {
+      variants.add(abbreviationToFullName[fullName]);
+      break;
+    }
+  }
+  
+  return Array.from(variants).filter(Boolean);
+};
