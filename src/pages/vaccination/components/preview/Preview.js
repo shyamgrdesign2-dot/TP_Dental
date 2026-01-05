@@ -119,6 +119,7 @@ const Preview = ({ vaccinesData, onCancel, shouldShowPreview, splitVaccineData, 
             dataSource={filteredData}
             columns={columns}
             isPreview={true}
+            isOtherVaccines={currentActiveTab === VaccinationCategoryEnum[1].key}
           />
         </div>
       </Modal>

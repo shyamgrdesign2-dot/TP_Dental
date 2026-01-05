@@ -176,7 +176,10 @@ export const splitVaccinesByCategory = (vaccineData, categoryMapping) => {
     if (iapAges.includes(age)) {
       result[VaccinationCategoryEnum[0].key].push(vaccine);
     } else if (otherAges.includes(age)) {
-      result[VaccinationCategoryEnum[1].key].push(vaccine);
+      result[VaccinationCategoryEnum[1].key].push({
+        ...vaccine,
+        isOtherVaccines: true,
+      });
     }
   });
 
