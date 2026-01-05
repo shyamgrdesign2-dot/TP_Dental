@@ -81,6 +81,7 @@ function PrescriptionPrintView() {
     const [patientBills, setPatientBills] = useState([]);
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
+    const [billsUpdateKey, setBillsUpdateKey] = useState(0);
     const {isGynaecHistoryAccessable} = useAccess();
     const {planDetails} = useSelector(state => state.subscription);
 
@@ -139,6 +140,8 @@ function PrescriptionPrintView() {
     useEffect(() => {
       if (!createBillDrawer) {
         getPatientBills();
+      } else {
+        setCurrentSessionRx(null);
       }
     }, [createBillDrawer]);
 
@@ -186,6 +189,8 @@ function PrescriptionPrintView() {
         if (patientAdvanceDeposit?.receipts?.length > 0) {
           setAdvanceReceipts(patientAdvanceDeposit?.receipts);
         }
+        // Increment key to force PDF reload
+        setBillsUpdateKey(prev => prev + 1);
     };
 
     const handleCreateBillDrawer = useCallback(() => {
@@ -202,6 +207,9 @@ function PrescriptionPrintView() {
             subscriptionStatus: planDetails?.currentPlanStatus
         })
         setCreateBillDrawer(!createBillDrawer);
+        if (createBillDrawer) {
+            setBillData(null);
+        }
         if (recentBillDrawer) {
           setRecentBillDrawer(false);
         }
@@ -610,7 +618,7 @@ function PrescriptionPrintView() {
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
                                         <Document
-                                            key={`${currentSessionRx || printUrl}-${patientBills?.length || 0}-${advanceReceipts?.length || 0}`}
+                                            key={`${currentSessionRx || printUrl}-${billsUpdateKey}`}
                                             loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                             error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                             noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}

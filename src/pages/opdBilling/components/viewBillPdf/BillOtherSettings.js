@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import config from "../../../../config";
 import QRCode from "qrcode";
 
-const BillOtherSettings = ({ printSettings, profile }) => {
+const BillOtherSettings = ({ printSettings, profile, doctorName }) => {
   const { headerFooter } = printSettings;
   const { header, otherSettings } = headerFooter || {};
   const { doctorInfo } = header || {};
@@ -73,7 +73,7 @@ const BillOtherSettings = ({ printSettings, profile }) => {
                 <Text
                   style={[styles.extraText, { fontWeight: 700, color: "#000" }]}
                 >
-                  {profile?.um_name}
+                  {profile?.um_name || doctorName}
                 </Text>
               )}
               {signature?.registrationEnabled && (

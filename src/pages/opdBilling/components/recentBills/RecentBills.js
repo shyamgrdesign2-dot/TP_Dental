@@ -76,6 +76,7 @@ const RecentBills = ({
           handleRecentBillDrawer={handleRecentBillDrawer}
           onSortChange={handleSortChange}
           totalAdvanceBalance={totalAdvanceBalance}
+          isPreviewForm3c={true}
         />
       </div>
     </div>
