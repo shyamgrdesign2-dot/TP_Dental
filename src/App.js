@@ -34,6 +34,7 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
+  TNC_VERSION,
 } from "./utils/constants";
 import { useLocalStorage } from "./utils/localStorage";
 
@@ -55,6 +56,7 @@ import AddAppointment from "./pages/addAppointment/AddAppointment";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import GetUnlimitedAccess from "./pages/monetization/GetUnlimitedAccess";
+import { useTncConsent } from "./hooks/useTncConsent";
 import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
 import Onboarding from "./pages/onBoarding/components/Onboarding";
 import FinalSetup from "./pages/FinalSetup";
@@ -140,6 +142,8 @@ function App() {
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -153,6 +157,7 @@ function App() {
       setFromNativeFlag(fromNative)
     }
   }, []);
+
   useEffect(() => {
     const checkUserStatus = async () => {
       const token = getToken();
@@ -238,26 +243,33 @@ function App() {
     if (authToken) {
       setToken(authToken);
       localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+    }
+  }, [authToken]);
 
-      // Clean up URL but preserve other params
+  useTncConsent({
+    authToken,
+    getToken,
+    setToken,
+    isLoginPage,
+    isReceptionist,
+    pathname: location.pathname,
+  });
+
+  useEffect(() => {
+    if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
-      if (!isReceptionist) {
-        params.delete("authToken");
-        // Navigate to appointment list
-        // add condition for user comming from Medeco to practice offering page
-        // Don't redirect if we're on abha-standalone page
-        if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
-          navigate(
-            {
-              pathname: "/",
-              search: params.toString(),
-            },
-            { replace: true }
-          );
-        }
+      params.delete("authToken");
+      if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
+        navigate(
+          {
+            pathname: "/",
+            search: params.toString(),
+          },
+          { replace: true }
+        );
       }
     }
-  }, [authToken, setToken, navigate, location.pathname]);
+  }, [authToken, navigate, location.pathname, isReceptionist]);
 
   useEffect(() => {
     if (uploadParams) {

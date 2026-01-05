@@ -308,26 +308,24 @@ const VerifyOTP = ({
             {isLoginFlow ? "Login" : "Submit OTP"}
           </Button>
 
-          {!isLoginFlow && (
-            <div className="terms-text" style={{ paddingTop: "1rem" }}>
-              By continuing I accept for the{" "}
-              <a
-                href="https://www.tatvacare.in/terms-conditions/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                T&C
-              </a>{" "}
-              and{" "}
-              <a
-                href="https://www.tatvacare.in/privacy-policy/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Privacy Policy
-              </a>
-            </div>
-          )}
+          <div className="terms-text" style={{ paddingTop: "1rem" }}>
+            By continuing I accept for the{" "}
+            <a
+              href="https://www.tatvacare.in/terms-conditions/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              T&C
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://www.tatvacare.in/privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Privacy Policy
+            </a>
+          </div>
         </Form>
         <div className="go-back" style={{ marginTop: "2rem" }} onClick={handleEditNumber}>
           Go back
