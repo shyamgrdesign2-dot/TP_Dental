@@ -137,6 +137,16 @@ const ZydusLabParams = ({
         }));
     };
 
+    const expandAllSections = () => {
+        if (organizedData.tests && Object.keys(organizedData.tests).length > 0) {
+            const allExpanded = {};
+            Object.keys(organizedData.tests).forEach(serviceName => {
+                allExpanded[serviceName] = true;
+            });
+            setExpandedSections(allExpanded);
+        }
+    };
+
     const handleDateSelection = (date, checked) => {
         setHasUserInteracted(true);
         setSelectedDates(prev => {
@@ -1042,14 +1052,24 @@ const ZydusLabParams = ({
                     />
                     <div className="modal-title">Zydus Test Reports</div>
                 </div>
-                <Button 
-                    className='btn btn-primary3 btn-41 px-4 me-20' 
-                    onClick={handleSave}
-                    disabled={organizedData.dates.length === 0 || (selectedDates.length === 0 && !labReportID)}
-                >
-                    <i className="icon-Save me-2"></i>
-                    Save
-                </Button>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    <Button 
+                        className='btn btn-primary3 btn-41 px-4' 
+                        onClick={expandAllSections}
+                        disabled={organizedData.dates.length === 0 || Object.keys(organizedData.tests || {}).length === 0}
+                    >
+                        <i className="icon-eye me-2"></i>
+                        View All
+                    </Button>
+                    <Button 
+                        className='btn btn-primary3 btn-41 px-4 me-20' 
+                        onClick={handleSave}
+                        disabled={organizedData.dates.length === 0 || (selectedDates.length === 0 && !labReportID)}
+                    >
+                        <i className="icon-Save me-2"></i>
+                        Save
+                    </Button>
+                </div>
             </div>
             {organizedData.dates.length > 0 && !loading && selectedDates.length >= 5 && (
                 <div style={{ 
