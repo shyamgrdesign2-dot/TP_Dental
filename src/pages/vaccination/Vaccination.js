@@ -677,7 +677,7 @@ function Vaccination({ handleDrawerVaccination }) {
               <h2>Vaccination</h2>
               <p>
                 {activeVaccineTab === VaccinationCategoryEnum[1].key ? (
-                  "Other Vaccines"
+                  "Non-Scheduled Vaccinations"
                 ) : (
                   <>
                     Immunisation schedule recommended by <b>IAP</b>
@@ -802,7 +802,11 @@ function Vaccination({ handleDrawerVaccination }) {
             patientDetails={patientDetails}
             getVaccineDetails={(updatedVaccine) => {
               // Store the vaccine identifier and current filter before updating
-              if (updatedVaccine && selectedCards.length > 0 && vaccinesData[selectedCards[0]]) {
+              if (
+                updatedVaccine &&
+                selectedCards.length > 0 &&
+                vaccinesData[selectedCards[0]]
+              ) {
                 const vaccine = vaccinesData[selectedCards[0]];
                 lastUpdatedVaccineRef.current = {
                   tvt_id: vaccine?.tvt_id,
