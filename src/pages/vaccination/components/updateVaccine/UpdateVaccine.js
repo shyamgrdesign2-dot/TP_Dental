@@ -45,6 +45,15 @@ const vaccineSites = [
   { label: "Right Thigh", value: "Right Thigh" },
 ];
 
+const otherVaccineSites = [
+  { label: "Intramuscular", value: "Intramuscular" },
+  { label: "Subcutaneous", value: "Subcutaneous" },
+  { label: "Oral", value: "Oral" },
+  { label: "Intranasal", value: "Intranasal" },
+  { label: "Intradermal", value: "Intradermal" },
+  { label: "Others", value: "Others" },
+];
+
 const UpdateVaccine = ({
   show,
   setShow,
@@ -848,7 +857,7 @@ const UpdateVaccine = ({
                               vaccine?.tvpv_site ||
                               undefined
                             }
-                            options={vaccineSites}
+                            options={vaccine?.isOtherVaccines ? otherVaccineSites : vaccineSites}
                             defaultValue={vaccine?.tvpv_site || undefined}
                             onChange={(value) =>
                               handleDetails(
