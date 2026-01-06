@@ -40,9 +40,10 @@ const VaccineTable = ({ dataSource, columns, isPreview, isOtherVaccines }) => {
   const renderTableData = () => {
     const groupedData = groupDataByCommonIDs(dataSource);
 
-    return groupedData.map((group, groupIndex) => (
-      <React.Fragment key={groupIndex}>
-        {group.map((item, itemIndex) => {
+    return groupedData.map((group, groupIndex) => {
+      return (
+        <React.Fragment key={groupIndex}>
+          {group.map((item, itemIndex) => {
           const updatedDueDate = item.tvd_due_date
             ? moment(item.tvd_due_date)
             : null;
@@ -88,9 +89,10 @@ const VaccineTable = ({ dataSource, columns, isPreview, isOtherVaccines }) => {
               <td className="cell">{item.tvp_remarks || item.tvd_remarks}</td>
             </tr>
           );
-        })}
-      </React.Fragment>
-    ));
+          })}
+        </React.Fragment>
+      );
+    });
   };
 
   return (
