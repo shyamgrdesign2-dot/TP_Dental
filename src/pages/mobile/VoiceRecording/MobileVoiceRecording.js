@@ -43,6 +43,8 @@ function MobileVoiceRecording() {
   const mode = location.state?.mode || '';
   const isFromTabView = location.state?.isFromTabView || false;
   const consent = location.state?.consent || null;
+  const existingPrescriptionData = location.state?.existingPrescriptionData || null;
+  const existingGenRxDetails = location.state?.existingGenRxDetails || null;
 
   const mediaRecorderRef = useRef(null);
   const audioStreamRef = useRef(null);
@@ -378,7 +380,10 @@ function MobileVoiceRecording() {
           mode: activeMode,
           noStayClickCount: noStayClickCountRef.current,
           crossButtonClickCount: crossButtonClickCountRef.current,
-          mutePauseButtonClickCount: mutePauseButtonClickCountRef.current
+          mutePauseButtonClickCount: mutePauseButtonClickCountRef.current,
+          existingPrescriptionData, // Pass existing data for merging (matches web version)
+          existingGenRxDetails, // Pass existing Rx details for update logic
+          mobileQueries: location.state?.mobileQueries || [], // Persist queries from previous state
         }
       });
     } catch (err) {

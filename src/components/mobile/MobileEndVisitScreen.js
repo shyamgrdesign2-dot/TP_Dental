@@ -1,0 +1,468 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Drawer, Spin } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { isChrome, isSafari } from 'react-device-detect';
+import axios from 'axios';
+import { saveAs } from 'file-saver';
+import { jwtDecode } from 'jwt-decode';
+import api from '../../api/services/axiosService';
+import { env } from '../../EnvironmentConfig';
+import { getClinicName, errorMessage, sendMessageToParent, trackEvent } from '../../utils/utils';
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../../utils/constants';
+import { EVENTS } from '../../utils/events';
+import { viewCaseManager } from '../../redux/caseManagerSlice';
+import { Document, Page } from 'react-pdf';
+import { pdfjs } from 'react-pdf';
+import editIcon from '../../assets/mobile/edit.svg';
+import downloadIcon from '../../assets/mobile/Arrow Download (1).svg';
+import whatsappIcon from '../../assets/mobile/WhatsApp.svg';
+import printIcon from '../../assets/mobile/printer.svg';
+import loadingImg from '../../assets/images/loading.png';
+import './MobileEndVisitScreen.scss';
+
+// Set up PDF.js worker (same as web version)
+const worker = require('pdfjs-dist/build/pdf.worker.min.js');
+pdfjs.GlobalWorkerOptions.workerSrc = worker;
+
+// Build URL with params (same as web version)
+const buildUrlWithParams = (baseUrl, isAmbient) => {
+  if (!baseUrl) return null;
+  const url = new URL(baseUrl);
+  url.searchParams.delete('voiceRxDigitize');
+  url.searchParams.delete('ambientVoiceRxDigitize');
+  if (isAmbient) {
+    url.searchParams.set('ambientVoiceRxDigitize', 'true');
+    url.searchParams.set('rxDigitize', 'false');
+  } else {
+    url.searchParams.set('voiceRxDigitize', 'true');
+  }
+  return url.toString();
+};
+
+function MobileEndVisitScreen({
+  visible,
+  onClose,
+  prescriptionData,
+  genRxDetails,
+  patient_data,
+  tcm_id,
+  print_url,
+  isAmbientRx = false,
+  caseManagerData,
+}) {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { profile, userId } = useSelector((state) => state.doctors);
+  const { loading: caseManagerLoading } = useSelector((state) => state.caseManager);
+  const pdfContainerRef = useRef(null);
+  const printRef = useRef(null);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [whatsAppButtonText, setWhatsAppButtonText] = useState('Share on WhatsApp');
+  const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+  const [printUrl, setPrintUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [divWidth, setDivWidth] = useState(0);
+  const [numPages, setNumPages] = useState(null);
+  const [printBlob, setPrintBlob] = useState(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [tokenData, setTokenData] = useState(null);
+
+  const baseUrl = { customBaseUrl: env.casemanager_api_url };
+
+  // Get token data (same as web version)
+  useEffect(() => {
+    const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setTokenData(decoded.result);
+      } catch (e) {
+        // Error decoding token
+      }
+    }
+  }, []);
+
+  // Initialize viewCaseManagerData and print URL
+  useEffect(() => {
+    const initializeData = async () => {
+      let finalCaseManagerData = null;
+      let finalPrintUrl = null;
+
+      if (caseManagerData && caseManagerData.tcm_id) {
+        finalCaseManagerData = caseManagerData;
+        finalPrintUrl = caseManagerData.print_url || caseManagerData.print_rx_url || print_url;
+      } else if (tcm_id && patient_data?.patient_unique_id && visible) {
+        // Fetch caseManagerData if we have tcm_id but no caseManagerData
+        setIsFetchingData(true);
+        try {
+          const sendData = {
+            patient_unique_id: patient_data.patient_unique_id,
+            tcm_id: tcm_id,
+          };
+          const action = await dispatch(viewCaseManager(sendData));
+          if (action.meta.requestStatus === 'fulfilled' && action.payload) {
+            finalCaseManagerData = action.payload;
+            finalPrintUrl = action.payload.print_url || action.payload.print_rx_url || print_url;
+          } else {
+            finalPrintUrl = print_url;
+          }
+        } catch (error) {
+          finalPrintUrl = print_url;
+        } finally {
+          setIsFetchingData(false);
+        }
+      } else {
+        finalPrintUrl = print_url;
+      }
+
+      // Set state
+      if (finalCaseManagerData) {
+        setViewCaseManagerData(finalCaseManagerData);
+      }
+
+      // Build URL with params (same as web version)
+      if (finalPrintUrl) {
+        const urlWithParams = buildUrlWithParams(finalPrintUrl, isAmbientRx);
+        setPrintUrl(urlWithParams);
+        setPreviewUrl(urlWithParams);
+      }
+    };
+
+    if (visible) {
+      initializeData();
+    }
+  }, [caseManagerData, tcm_id, print_url, genRxDetails, profile, patient_data, visible, dispatch, isAmbientRx]);
+
+  // Update div width (same as web version)
+  useEffect(() => {
+    if (pdfContainerRef.current) {
+      setDivWidth(pdfContainerRef.current.offsetWidth);
+    }
+  }, [visible]);
+
+  // PDF load success handler (same as web version)
+  async function onDocumentLoadSuccess(successEvent) {
+    setNumPages(successEvent?.numPages);
+    const data = await successEvent.getData();
+    const blob = new Blob([data], { type: 'application/pdf' });
+    setPrintBlob(blob);
+  }
+
+  // Edit handler (same as web version)
+  const handleEdit = async () => {
+    if (!viewCaseManagerData && tcm_id && patient_data?.patient_unique_id) {
+      // Fetch caseManagerData if not available
+      try {
+        const sendData = {
+          patient_unique_id: patient_data.patient_unique_id,
+          tcm_id: tcm_id,
+        };
+        const action = await dispatch(viewCaseManager(sendData));
+        if (action.meta.requestStatus === 'fulfilled' && action.payload) {
+          // Set active voice service (same as web version)
+          if (isAmbientRx) {
+            window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+          } else {
+            window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+          }
+          
+          navigate('/prescription', {
+            state: {
+              patient_data,
+              caseManagerData: action.payload,
+            },
+          });
+          onClose();
+        }
+      } catch (error) {
+        errorMessage('Failed to load prescription for editing');
+      }
+    } else if (viewCaseManagerData) {
+      // Set active voice service (same as web version)
+      if (isAmbientRx) {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+      } else {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+      }
+      
+      navigate('/prescription', {
+        state: {
+          patient_data,
+          caseManagerData: viewCaseManagerData,
+        },
+      });
+      onClose();
+    }
+  };
+
+  // Download handler (same as web version)
+  const handleDownload = async () => {
+    if (!printUrl) {
+      errorMessage('Download URL is missing.');
+      return;
+    }
+
+    setDownloadLoading(true);
+    try {
+      if (!isChrome && !isSafari) {
+        // In-app download
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+      } else {
+        // Browser download (same as web version)
+        const response = await axios({
+          url: printUrl,
+          method: 'GET',
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], {
+          type: response.headers['content-type'],
+        });
+        saveAs(blob, `${Date.now()}.pdf`);
+      }
+    } catch (error) {
+      errorMessage('Failed to download prescription');
+    } finally {
+      setDownloadLoading(false);
+    }
+  };
+
+  // WhatsApp handler (same as web version)
+  const handleWhatsAppShare = async () => {
+    if (!tcm_id || !patient_data) {
+      errorMessage('Prescription data is missing.');
+      return;
+    }
+
+    const clinic_name = getClinicName(profile?.hospital_data);
+    const rxId = genRxDetails?._id || tcm_id;
+
+    trackEvent('TP_VoiceRx_SendtoWhatsapp', {
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+      rx_id: rxId,
+    });
+
+    const body = {
+      tcm_id: viewCaseManagerData?.tcm_id || tcm_id,
+      pm_contact_no: patient_data?.pm_contact_no,
+      change_mobile_number: false,
+      patient_unique_id: patient_data?.patient_unique_id,
+      hospital_business_id: tokenData?.hospital_business_id,
+      um_id: tokenData?.user_id || userId,
+      isVoiceRxDigitize: true,
+    };
+
+    setIsLoading(true);
+    setWhatsAppButtonText('Sending...');
+    try {
+      const response = await api.post(WHATS_APP_API, body, baseUrl);
+      if (response.message) {
+        setWhatsAppButtonText('Successfully Sent');
+        setTimeout(() => {
+          setWhatsAppButtonText('Share on WhatsApp');
+        }, 3000);
+      } else {
+        setWhatsAppButtonText('Share on WhatsApp');
+      }
+    } catch (error) {
+      errorMessage(WTSAP_ERR_MESSAGE);
+      setWhatsAppButtonText('Share on WhatsApp');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Print handler (same as web version)
+  const handlePrint = async () => {
+    if (!printUrl) {
+      errorMessage('Print URL is missing.');
+      return;
+    }
+
+    if (!isChrome && !isSafari) {
+      // In-app print
+      sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    } else {
+      // Browser print using blob (same as web version)
+      try {
+        if (!printBlob) {
+          errorMessage('Print content is not available.');
+          return;
+        }
+
+        const blobURL = URL.createObjectURL(printBlob);
+
+        // Clean up existing iframes (same as web version)
+        document.querySelectorAll('iframe').forEach((iframe) => iframe.remove());
+
+        // Create and configure iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = blobURL;
+
+        iframe.onerror = () => {
+          URL.revokeObjectURL(blobURL);
+          errorMessage('Failed to load print content');
+        };
+
+        iframe.onload = () => {
+          try {
+            // Small delay to ensure content loads (same as web version)
+            requestAnimationFrame(() => {
+              iframe.focus();
+              iframe.contentWindow.print();
+              URL.revokeObjectURL(blobURL);
+            });
+          } catch (error) {
+            URL.revokeObjectURL(blobURL);
+            errorMessage('Failed to print prescription');
+          }
+        };
+
+        document.body.appendChild(iframe);
+      } catch (error) {
+        errorMessage('Failed to print prescription');
+      }
+    }
+  };
+
+  const handleGoHome = () => {
+    navigate('/');
+    onClose();
+  };
+
+  return (
+    <Drawer
+      placement="bottom"
+      onClose={onClose}
+      open={visible}
+      height="100%"
+      className="mobile-end-visit-drawer"
+      closable={false}
+      maskClosable={false}
+      destroyOnClose={false}
+    >
+      <div className="mobile-end-visit-container">
+        {/* Header */}
+        <div className="end-visit-header">
+          <div className="header-title">
+            <span>Rx Preview</span>
+          </div>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="action-icon-btn"
+              onClick={handleEdit}
+              aria-label="Edit"
+              disabled={caseManagerLoading}
+            >
+              <img src={editIcon} alt="Edit" />
+            </button>
+            <button
+              type="button"
+              className="action-icon-btn"
+              onClick={handleDownload}
+              aria-label="Download"
+              disabled={downloadLoading}
+            >
+              {downloadLoading ? (
+                <img src={loadingImg} alt="Loading" width="24" height="24" />
+              ) : (
+                <img src={downloadIcon} alt="Download" />
+              )}
+            </button>
+            <button
+              type="button"
+              className="action-icon-btn"
+              onClick={handleWhatsAppShare}
+              disabled={isLoading}
+              aria-label="Share on WhatsApp"
+            >
+              {isLoading ? (
+                <img src={loadingImg} alt="Loading" width="24" height="24" />
+              ) : (
+                <img src={whatsappIcon} alt="WhatsApp" />
+              )}
+            </button>
+            <button
+              type="button"
+              className="action-icon-btn"
+              onClick={handlePrint}
+              aria-label="Print"
+            >
+              <img src={printIcon} alt="Print" />
+            </button>
+          </div>
+        </div>
+
+        {/* PDF Preview Area - Same as web version (right side) */}
+        <div className="end-visit-pdf-preview" ref={pdfContainerRef}>
+          {isFetchingData || !previewUrl ? (
+            <div className="pdf-loading">
+              <Spin size="small" />
+              <p>Loading prescription preview...</p>
+            </div>
+          ) 
+          : (
+            <div className="pdf-container">
+              <div className="pdf-content" ref={printRef}>
+                <Document
+                  loading={
+                    <div className="pdf-loading">
+                      <Spin size="small" />
+                    </div>
+                  }
+                  error={
+                    <div className="pdf-error">
+                      Failed to load PDF file.
+                    </div>
+                  }
+                  noData={
+                    <div className="pdf-error">
+                      No PDF file specified.
+                    </div>
+                  }
+                  file={previewUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                >
+                  {Array.apply(null, Array(numPages))
+                    .map((x, i) => i + 1)
+                    .map((page) => (
+                      <Page
+                        key={page}
+                        className={printBlob ? 'pdf-page-loaded' : ''}
+                        loading={null}
+                        width={divWidth || 362}
+                        pageNumber={page}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    ))}
+                </Document>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Sheet with Go Home Button */}
+        <div className="end-visit-bottom-sheet">
+          <button
+            type="button"
+            className="go-home-button"
+            onClick={handleGoHome}
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    </Drawer>
+  );
+}
+
+export default MobileEndVisitScreen;

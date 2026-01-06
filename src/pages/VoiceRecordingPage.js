@@ -46,6 +46,8 @@ const VoiceRecordingPage = () => {
   const mode = location.state?.mode || '';
   const isFromTabView = location.state?.isFromTabView || false;
   const consent = location.state?.consent || null;
+  const existingPrescriptionData = location.state?.existingPrescriptionData || null;
+  const existingGenRxDetails = location.state?.existingGenRxDetails || null;
 
   const mediaRecorderRef = useRef(null);
   const audioStreamRef = useRef(null);
@@ -401,7 +403,9 @@ const VoiceRecordingPage = () => {
             mode: activeMode,
             noStayClickCount: noStayClickCountRef.current,
             crossButtonClickCount: crossButtonClickCountRef.current,
-            mutePauseButtonClickCount: mutePauseButtonClickCountRef.current
+            mutePauseButtonClickCount: mutePauseButtonClickCountRef.current,
+            existingPrescriptionData, // Pass existing data for merging
+            existingGenRxDetails, // Pass existing Rx details
           }
         });
     } catch (err) {

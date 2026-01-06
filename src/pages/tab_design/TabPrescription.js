@@ -101,6 +101,9 @@ import TabCustomModule from "../../components/tab_design/TabCustomModule";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
+import MobileRxPad from "../../components/mobile/MobileRxPad";
+import MobileConsultationSummary from "../../components/mobile/MobileConsultationSummary";
+import { useDeviceType } from "../../utils/deviceDetection";
 import Carousel from "react-multi-carousel";
 import GenRxBanner from "../../components/GenRxBanner";
 import TatvaAiBanner from "../../components/TatvaAiBanner";
@@ -119,6 +122,7 @@ import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
 
 function TabPrescription() {
+  const { isMobile: isMobileDevice } = useDeviceType();
   const {
     customizedPadLeftList,
     customizedPadRightList,
@@ -174,7 +178,9 @@ function TabPrescription() {
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
 
-  const { state } = useLocation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { state } = location;
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
@@ -306,6 +312,65 @@ function TabPrescription() {
   );
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
+  const [mobileRxData, setMobileRxData] = useState(null);
+  
+  // Initialize mobileQueries from location.state to persist across navigation
+  // IMPORTANT: This only runs on component MOUNT, not on re-renders
+  const [mobileQueries, setMobileQueries] = useState(() => {
+    const stateQueries = location.state?.mobileQueries;
+    
+    if (stateQueries && Array.isArray(stateQueries) && stateQueries.length > 0) {
+      return stateQueries;
+    }
+    return [];
+  });
+
+  // Helper function to check if two queries are equal (for deduplication)
+  const areQueriesEqual = useCallback((q1, q2) => {
+    if (typeof q1 === 'string' && typeof q2 === 'string') {
+      return q1.trim() === q2.trim();
+    }
+    if (typeof q1 === 'object' && typeof q2 === 'object') {
+      // Compare text content
+      const text1 = (q1?.text || '').trim();
+      const text2 = (q2?.text || '').trim();
+      if (text1 !== text2) return false;
+      
+      // Compare isAudio flag
+      if (q1?.isAudio !== q2?.isAudio) return false;
+      
+      // For audio queries, compare duration as well (with tolerance)
+      if (q1?.isAudio && q2?.isAudio) {
+        const dur1 = q1?.duration || 0;
+        const dur2 = q2?.duration || 0;
+        if (Math.abs(dur1 - dur2) > 1) return false; // Allow 1 second tolerance
+      }
+      
+      // For ambient mode, compare conversations
+      if (q1?.conversations && q2?.conversations) {
+        if (q1.conversations.length !== q2.conversations.length) return false;
+        const convs1 = JSON.stringify(q1.conversations.map(c => ({
+          speaker: c.speaker,
+          text: c.text || c.message || c.content
+        })));
+        const convs2 = JSON.stringify(q2.conversations.map(c => ({
+          speaker: c.speaker,
+          text: c.text || c.message || c.content
+        })));
+        if (convs1 !== convs2) return false;
+      }
+      
+      return true;
+    }
+    return false;
+  }, []);
+
+  // SIMPLIFIED SYNC: Only restore from location.state on mount/navigation, don't create circular syncs
+  // Like web version: queries are managed in component state, not synced back and forth
+  
+  useEffect(() => {
+    // Track mobileQueries changes if needed
+  }, [mobileQueries]);
 
   const getAllObstetricDetails = async () => {
     const obstetricResponse = await fetchObstetricDetails(patient_data.patient_unique_id);
@@ -615,7 +680,7 @@ function TabPrescription() {
       });
       setLabParamsData(response.data?.data?.results || []);
     } catch (error) {
-      console.error("Error fetching lab params:", error);
+      // Error fetching lab params
     }
   };
 
@@ -888,7 +953,7 @@ function TabPrescription() {
 
       setUpdatedGynecHistory(updatedData);
     } catch (error) {
-      console.error('Error fetching gynec history:', error);
+      // Error fetching gynec history
     }
   };
 
@@ -1033,7 +1098,7 @@ function TabPrescription() {
         // The CarePlanDropdown component handles its own data fetching
       }
     } catch (error) {
-      console.error("Error fetching care plan names:", error);
+      // Error fetching care plan names
     }
   };
   
@@ -1087,20 +1152,129 @@ function TabPrescription() {
     });
   };
 
-  // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
-  const showOnlyDrawer = isGenRxDrawerVisible && (
+  // Check if we are in Voice Rx flow (regardless of drawer visibility)
+  const isInVoiceRxFlow = 
     // Typed input from Voice Rx
     (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
     // Audio recording from Voice Rx (dictation or ambient mode)
     (fromVoiceRecording && audioBlob) ||
     // Coming from edit prescription (print view)
-    caseManagerData?.smart_prescription_filename
-  );
+    caseManagerData?.smart_prescription_filename ||
+    // Has mobile queries (already in Voice RX flow)
+    (mobileQueries && mobileQueries.length > 0) ||
+    // Has mobile Rx data (already processed some Voice RX)
+    (mobileRxData?.prescriptionData || mobileRxData?.genRxDetails);
+
+  // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
+  const showOnlyDrawer = isGenRxDrawerVisible && isInVoiceRxFlow;
+
+  // Handle Rx Pad data ready callback for mobile
+  const handleMobileRxDataReady = (data) => {
+    setMobileRxData(data);
+    
+    // Add new query to queries array if provided
+    if (data?.query) {
+      setMobileQueries((prevQueries) => {
+        // If editing, replace last query
+        const isEditing = data.isEditing;
+        
+        if (isEditing) {
+          const newQueries = [...prevQueries.slice(0, -1), data.query];
+          return newQueries;
+        }
+        
+        // Check for duplicates before adding new query
+        const isDuplicate = prevQueries.some(existingQuery => 
+          areQueriesEqual(existingQuery, data.query)
+        );
+        
+        if (isDuplicate) {
+          return prevQueries; // Don't add duplicate
+        }
+        
+        // Add new query
+        const newQueries = [...prevQueries, data.query];
+        return newQueries;
+      });
+    }
+  };
+
+  // On mobile, when in Voice Rx flow, show RX Pad (if open) or Consultation Summary (if closed)
+  // This ensures we never show the tab view when in Voice Rx flow
+  if (isMobileDevice && isInVoiceRxFlow) {
+    return (
+      <CashManagerContext.Provider value={contextApi}>
+        {isGenRxDrawerVisible ? (
+          <MobileRxPad
+            visible={isGenRxDrawerVisible}
+            onClose={() => {
+              setIsGenRxDrawerVisible(false);
+            }}
+            onDataReady={handleMobileRxDataReady}
+            queries={mobileQueries}
+            existingData={mobileRxData}
+          />
+        ) : (
+          <MobileConsultationSummary
+            onOpenRxPad={() => {
+              setIsGenRxDrawerVisible(true);
+            }}
+            onTypedInputSubmit={(inputText) => {
+              // Update location.state with typed input and open Rx Pad
+              // CRITICAL: Explicitly preserve mode, patient_data, caseManagerData to maintain context
+              navigate('/prescription', {
+                state: {
+                  ...location.state,
+                  inputText,
+                  fromVoiceRecording: false,
+                  mode: mode || location.state?.mode || 'dictation', // Preserve mode!
+                  patient_data: patient_data || location.state?.patient_data,
+                  caseManagerData: caseManagerData || location.state?.caseManagerData,
+                  consent: location.state?.consent, // For ambient mode
+                  existingPrescriptionData: mobileRxData?.prescriptionData,
+                  existingGenRxDetails: mobileRxData?.genRxDetails,
+                  mobileQueries: mobileQueries, // Pass current queries
+                },
+                replace: true,
+              });
+              setIsGenRxDrawerVisible(true);
+            }}
+            onVoiceRxClick={() => {
+              // Navigate for voice recording with existing data
+              // CRITICAL: Preserve all context
+              navigate('/voice-recording', {
+                state: {
+                  patient_data: patient_data || location.state?.patient_data,
+                  mode: mode || location.state?.mode || 'dictation', // Preserve mode!
+                  isFromTabView: true,
+                  caseManagerData: caseManagerData || location.state?.caseManagerData,
+                  consent: location.state?.consent,
+                  existingPrescriptionData: mobileRxData?.prescriptionData,
+                  existingGenRxDetails: mobileRxData?.genRxDetails,
+                  mobileQueries: mobileQueries, // Persist current queries
+                }
+              });
+            }}
+            mobileRxData={mobileRxData}
+            queries={mobileQueries}
+          />
+        )}
+      </CashManagerContext.Provider>
+    );
+  }
 
   return (
     <CashManagerContext.Provider value={contextApi}>
       <>
         {isGenRxDrawerVisible && (
+          isMobileDevice ? (
+            <MobileRxPad
+              visible={isGenRxDrawerVisible}
+              onClose={() => setIsGenRxDrawerVisible(false)}
+              onDataReady={handleMobileRxDataReady}
+              queries={mobileQueries}
+            />
+          ) : (
           <ConsultationDrawer
             visible={isGenRxDrawerVisible}
             onClose={() => setIsGenRxDrawerVisible(false)}
@@ -1110,6 +1284,7 @@ function TabPrescription() {
             typedInputText={inputText}
             mode={mode}
           />
+          )
         )}
         {!showOnlyDrawer && (
       <>
