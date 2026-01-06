@@ -43,6 +43,7 @@ import {
   searchModule,
   userPreModulesRX,
 } from "../redux/customModuleSlice";
+import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import editIcon from "../assets/images/edit-icon-blue.svg";
@@ -58,13 +59,23 @@ function CustomModule({ module }) {
   const { customModules, searchModuleResults, loading } = useSelector(
     (state) => state.customModules
   );
-  const { userId } = useSelector((state) => state.doctors);
+  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
 
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
 
   const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
     useContext(CashManagerContext);
+
+  // Check if module is disabled (used or cloned by the user)
+  const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
+  
+  // Tooltip content for disabled items
+  const disabledTooltipContent = (
+    <div>
+      <strong>Note:</strong> This module is used in an Rx and can't be <strong>edited/deleted</strong>. Create a new one if you need a different version
+    </div>
+  );
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -428,6 +439,72 @@ function CustomModule({ module }) {
       }
     } catch (error) {
       message.error(error || "Failed to delete module.");
+    }
+  };
+
+  const handleRemoveFromRxPad = async () => {
+    try {
+      message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
+
+      // Step 1: Remove from print settings
+      if (defaultPrintSettings?.prescription?.case_option) {
+        const caseOptions = defaultPrintSettings.prescription.case_option;
+        
+        // Filter out the current module from case_option
+        const updatedCaseOptions = caseOptions.filter(
+          (option) => !(option.id === module.module_id && option.is_custom_module)
+        );
+
+        const rxPrescription = {
+          ...defaultPrintSettings.prescription,
+          case_option: updatedCaseOptions,
+        };
+
+        const printSettingsData = {
+          ...defaultPrintSettings,
+          prescription: JSON.stringify(rxPrescription),
+          header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+          page_format: JSON.stringify(defaultPrintSettings.page_format),
+        };
+
+        await dispatch(savePrintsettings(printSettingsData)).unwrap();
+      }
+
+      // Step 2: Remove from customized pad right list
+      const updatedRightList = customizedPadRightList.filter(
+        (item) => item.tmdpm_id !== module.module_id
+      );
+      
+      const sendData = {
+        data: {
+          default: false,
+          reset: false,
+          left: customizedPadLeftList,  // Keep left side as-is
+          right: updatedRightList,       // Remove module from right side
+        }
+      };
+      
+      await dispatch(customizedPad(sendData)).unwrap();
+      
+      // Step 3: Remove from customModuleContents if present
+      setCustomModuleContents((prev) => {
+        return prev.filter(
+          (item) => item.module_id !== module.module_id
+        );
+      });
+
+      message.success({
+        content: `"${module.name}" removed from Rx pad successfully`,
+        key: "removeFromRx",
+        duration: 3
+      });
+    } catch (error) {
+      console.error("Error removing module from Rx pad:", error);
+      message.error({
+        content: error?.message || "Failed to remove module from Rx pad. Please try again.",
+        key: "removeFromRx",
+        duration: 3
+      });
     }
   };
 
@@ -959,8 +1036,8 @@ function CustomModule({ module }) {
   const menu = (
     <Menu>
       <Menu.Item
-        key="edit"
-        onClick={() => setCanEditName(true)}
+        key="remove"
+        onClick={handleRemoveFromRxPad}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -976,14 +1053,15 @@ function CustomModule({ module }) {
           src={editIcon}
           width={16}
           height={16}
-          alt="edit"
+          alt="remove"
           style={{ margin: "0 8px 3px 0" }}
         />
-        Edit Module Name
+        Remove From Rx Pad
       </Menu.Item>
       <Menu.Item
-        key="delete"
-        onClick={toggleDeleteModuleModal}
+        key="edit"
+        onClick={isModuleDisabled ? undefined : () => setCanEditName(true)}
+        disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -991,18 +1069,90 @@ function CustomModule({ module }) {
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          color: "#ff4d4f",
+          color: isModuleDisabled ? "#a2a2a8" : "#4a4a4a",
           padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
         }}
       >
-        <img
-          src={deleteIcon}
-          width={16}
-          height={16}
-          alt="edit"
-          style={{ margin: "0 8px 3px 0" }}
-        />
-        Delete Module
+        {isModuleDisabled ? (
+          <Tooltip 
+            title={disabledTooltipContent}
+            placement="left"
+            overlayStyle={{ maxWidth: 350 }}
+            overlayClassName="module-disabled-tooltip"
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={editIcon}
+                width={16}
+                height={16}
+                alt="edit"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Edit Module Name
+            </span>
+          </Tooltip>
+        ) : (
+          <>
+            <img
+              src={editIcon}
+              width={16}
+              height={16}
+              alt="edit"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Edit Module Name
+          </>
+        )}
+      </Menu.Item>
+      <Menu.Item
+        key="delete"
+        onClick={isModuleDisabled ? undefined : toggleDeleteModuleModal}
+        disabled={isModuleDisabled}
+        style={{
+          fontFamily: "Poppins, sans-serif",
+          fontSize: "14px",
+          fontWeight: "500",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: isModuleDisabled ? "#a2a2a8" : "#ff4d4f",
+          padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
+        }}
+      >
+        {isModuleDisabled ? (
+          <Tooltip 
+            title={disabledTooltipContent}
+            placement="left"
+            overlayStyle={{ maxWidth: 350 }}
+            overlayClassName="module-disabled-tooltip"
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={deleteIcon}
+                width={16}
+                height={16}
+                alt="delete"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Delete Module
+            </span>
+          </Tooltip>
+        ) : (
+          <>
+            <img
+              src={deleteIcon}
+              width={16}
+              height={16}
+              alt="delete"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Delete Module
+          </>
+        )}
       </Menu.Item>
     </Menu>
   );

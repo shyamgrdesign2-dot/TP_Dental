@@ -184,8 +184,14 @@ function Prescription() {
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
   const allAvailableModules = React.useMemo(() => {
-    const combined = [...customModules];
-    const existingIds = new Set(customModules.map((m) => m.module_id));
+    // Add userId to each module in customModules
+    const modulesWithUserId = customModules.map((module) => ({
+      ...module,
+      userId: userId || module.userId, // Use existing userId if available, otherwise add from Redux
+    }));
+    
+    const combined = [...modulesWithUserId];
+    const existingIds = new Set(modulesWithUserId.map((m) => m.module_id));
     
     // Add hospital modules that aren't already in the user's list
     if (hospitalSearchResults?.modules) {
@@ -197,7 +203,7 @@ function Prescription() {
     }
     
     return combined;
-  }, [customModules, hospitalSearchResults]);
+  }, [customModules, hospitalSearchResults, userId]);
 
   // Update local customizedPadRightList when Redux state changes
   useEffect(() => {
@@ -279,10 +285,6 @@ function Prescription() {
         const updatedRightList = [...originalCustomizedPadRightList, ...missingModuleEntries];
         setCustomizedPadRightList(updatedRightList);
 
-        console.log(
-          `Added ${missingModules.length} deleted module(s) back to prescription pad for editing:`,
-          missingModules
-        );
       }
     }
   }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList]);
@@ -726,7 +728,6 @@ function Prescription() {
       if (caseManagerData?.moduleContents?.length) {
         // Don't filter out modules - they should all be rendered even if deleted
         // The allAvailableModules list will include deleted modules from hospital search
-        console.log(caseManagerData.moduleContents,"caseManagerData.moduleContents")
         setCustomModuleContents(caseManagerData.moduleContents);
       }
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false);
@@ -1859,7 +1860,7 @@ function Prescription() {
                   let customModule = allAvailableModules?.find(
                     (m) => m.module_id === e.tmdpm_id
                   );
-                  
+
                   // If module not found in allAvailableModules, create fallback from moduleContents
                   if (!customModule && e.is_custom_module && customModuleContents?.length > 0) {
                     const moduleContent = customModuleContents.find(

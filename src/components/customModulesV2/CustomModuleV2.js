@@ -6,6 +6,8 @@ import {
   DeleteOutlined,
   PlusOutlined,
   LoadingOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
@@ -54,6 +56,10 @@ const CustomModuleV2 = ({ module }) => {
   const [inputTemplateName, setInputTemplateName] = useState(null);
   const [tabChange, setTabChange] = useState(1); // 1 = Add Template, 2 = Update Template
   
+  // Edit Module Name
+  const [canEditName, setCanEditName] = useState(false);
+  const [newModuleName, setNewModuleName] = useState(module?.name || "");
+  
   const TAB_ADD_TEMPLATE = 1;
   const TAB_UPDATE_TEMPLATE = 2;
   const ADD_EDIT_TEMPLATE_TABS = [
@@ -62,7 +68,6 @@ const CustomModuleV2 = ({ module }) => {
   ];
   
   const decodedToken = getDecodedToken();
-
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
   // Tooltip content for disabled items
@@ -474,26 +479,77 @@ const CustomModuleV2 = ({ module }) => {
   // Handle delete module
   const handleDeleteModule = async () => {
     try {
-      // Filter out the current module from customModules
+      message.loading({ content: "Deleting module...", key: "deleteModule" });
+
+      // Step 1: Remove module from user modules
       const modules = customModules.filter((cm) => cm.module_id !== module.module_id);
-      
-      // Call addModule API with remaining modules (upsert)
       const action = await dispatch(addModule({ userId, modules }));
       
       if (action.meta.requestStatus === "fulfilled") {
-        message.success(`Module "${module.name}" deleted successfully`);
-        
-        // Also remove from customModuleContents if present
+        // Step 2: Remove from print settings
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+          
+          const updatedCaseOptions = caseOptions.filter(
+            (option) => !(option.id === module.module_id && option.is_custom_module)
+          );
+
+          const rxPrescription = {
+            ...defaultPrintSettings.prescription,
+            case_option: updatedCaseOptions,
+          };
+
+          const printSettingsData = {
+            ...defaultPrintSettings,
+            prescription: JSON.stringify(rxPrescription),
+            header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+            page_format: JSON.stringify(defaultPrintSettings.page_format),
+          };
+
+          await dispatch(savePrintsettings(printSettingsData)).unwrap();
+        }
+
+        // Step 3: Remove from customized pad
+        const updatedRightPad = customizedPadRightList.filter(
+          (item) => item.tmdpm_id !== module.module_id
+        );
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+
+        // Step 4: Remove from customModuleContents if present
         const updatedContents = customModuleContents.filter(
           (mc) => mc.module_id !== module.module_id
         );
         setCustomModuleContents(updatedContents);
+
+        message.success({
+          content: `Module "${module.name}" deleted successfully`,
+          key: "deleteModule",
+          duration: 3
+        });
       } else {
-        message.error("Failed to delete module");
+        message.error({
+          content: "Failed to delete module",
+          key: "deleteModule",
+          duration: 3
+        });
       }
     } catch (error) {
       console.error("Error deleting module:", error);
-      message.error("Failed to delete module. Please try again.");
+      message.error({
+        content: "Failed to delete module. Please try again.",
+        key: "deleteModule",
+        duration: 3
+      });
     }
   };
 
@@ -563,6 +619,112 @@ const CustomModuleV2 = ({ module }) => {
     }
   };
 
+  // Handle edit module name
+  const handleEditModuleName = async () => {
+    if (!newModuleName.trim()) {
+      message.error("Module name cannot be empty.");
+      return;
+    }
+    if (customModules.some((cm) => cm.module_id !== module.module_id && cm.name === newModuleName.trim())) {
+      message.error("Module name already exists.");
+      return;
+    }
+
+    try {
+      message.loading({ content: "Updating module name...", key: "editModule" });
+
+      // Step 1: Update module name in user modules
+      const action = await dispatch(
+        addModule({
+          userId,
+          modules: customModules.map((cm) => {
+            if (cm.module_id === module.module_id) {
+              return {
+                ...cm,
+                name: newModuleName.trim(),
+              };
+            }
+            return cm;
+          }),
+        })
+      );
+      
+      if (action.meta.requestStatus === "fulfilled") {
+        // Step 2: Update module name in print settings
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+          
+          const updatedCaseOptions = caseOptions.map((option) => {
+            if (option.id === module.module_id && option.is_custom_module) {
+              return {
+                ...option,
+                title: newModuleName.trim(),
+              };
+            }
+            return option;
+          });
+
+          const rxPrescription = {
+            ...defaultPrintSettings.prescription,
+            case_option: updatedCaseOptions,
+          };
+
+          const printSettingsData = {
+            ...defaultPrintSettings,
+            prescription: JSON.stringify(rxPrescription),
+            header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+            page_format: JSON.stringify(defaultPrintSettings.page_format),
+          };
+
+          await dispatch(savePrintsettings(printSettingsData)).unwrap();
+        }
+
+        // Step 3: Update module name in customized pad
+        const updatedRightPad = customizedPadRightList.map((item) => {
+          if (item.tmdpm_id === module.module_id && item.is_custom_module) {
+            return {
+              ...item,
+              tmdpm_name: newModuleName.trim(),
+              tmdpm_short_name: newModuleName.trim(),
+            };
+          }
+          return item;
+        });
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+
+        setCanEditName(false);
+        message.success({
+          content: "Module name updated successfully",
+          key: "editModule",
+          duration: 3
+        });
+      }
+    } catch (error) {
+      console.error("Error updating module name:", error);
+      message.error({
+        content: error?.message || "Failed to update module name.",
+        key: "editModule",
+        duration: 3
+      });
+    }
+  };
+
+  // Handle cancel edit module name
+  const handleCancel = () => {
+    setCanEditName(false);
+    setNewModuleName(module?.name || "");
+  };
+
   // More options menu
   const moreMenu = (
     <Menu>
@@ -591,7 +753,7 @@ const CustomModuleV2 = ({ module }) => {
       </Menu.Item>
       <Menu.Item
         key="edit"
-        onClick={() => message.info("Edit module")}
+        onClick={isModuleDisabled ? undefined : () => setCanEditName(true)}
         disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
@@ -928,83 +1090,107 @@ const CustomModuleV2 = ({ module }) => {
     <div className="prescription-box-sm">
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
-        <div className="d-flex align-items-center">
-          <img className="me-2" src={ModuleIcon} alt={module?.name} />
-          <div className="title-common">{module.name}</div>
-        </div>
-
-        <div className="d-flex align-items-center">
-          {/* <button
-            className="btn d-flex align-items-center btn-text"
-            onClick={loadPreviousClick}
-          >
-            <i className="icon-reload me-2"></i>
-            <span>Load Prev. data</span>
-          </button> */}
-          <Popover
-            open={popOver1}
-            onOpenChange={showHideTemplatesListPopover}
-            content={TEMPLATE_CONTENT}
-            trigger="click"
-            overlayClassName="pop-350 pp-0"
-            placement="bottom"
-          >
-            <button className="btn d-flex align-items-center btn-text">
-              <i className="icon-template me-2"></i> <span>Templates</span>
-            </button>
-          </Popover>
-          <Tooltip
-            placement="bottom"
-            title={
-              hasDataToSave
-                ? ""
-                : `Please enter some ${module?.name} to save a template`
-            }
-          >
-            <Popover
-              open={popOver2}
-              onOpenChange={() =>
-                hasDataToSave &&
-                showHideSaveTemplatePopOver()
-              }
-              content={SAVE_CONTENT}
-              trigger="click"
-              overlayClassName="pop-450 pp-0"
-              placement="bottom"
-            >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-save me-2"></i> <span>Save</span>
-              </button>
-            </Popover>
-          </Tooltip>
-          <button
-            onClick={handleClear}
-            className="btn btn-text clear-text d-flex align-items-center"
-            disabled={!hasDataToSave}
-          >
-            <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-          </button>
-          <Dropdown
-            overlay={moreMenu}
-            trigger={["click"]}
-            placement="bottomRight"
-          >
-            <Button
-              type="text"
-              icon={
-                <MoreOutlined
-                  style={{
-                    fontSize: "18px",
-                    color: "#4a4a4a",
-                    fontWeight: "bold",
-                  }}
-                />
-              }
-              className="more-options-btn"
+        {canEditName ? (
+          <div className="d-flex w-100">
+            <img className="me-2" src={ModuleIcon} alt={module?.name} />
+            <Input
+              placeholder="Enter custom module name"
+              value={newModuleName}
+              onChange={(e) => setNewModuleName(e.target.value)}
+              className="custom-module-input"
             />
-          </Dropdown>
-        </div>
+            <>
+              <CheckOutlined
+                className="input-action-icon tick-icon"
+                onClick={handleEditModuleName}
+              />
+              <CloseOutlined
+                className="input-action-icon cross-icon"
+                onClick={handleCancel}
+              />
+            </>
+          </div>
+        ) : (
+          <>
+            <div className="d-flex align-items-center">
+              <img className="me-2" src={ModuleIcon} alt={module?.name} />
+              <div className="title-common">{module.name}</div>
+            </div>
+
+            <div className="d-flex align-items-center">
+              <button
+                className="btn d-flex align-items-center btn-text"
+                onClick={loadPreviousClick}
+              >
+                <i className="icon-reload me-2"></i>
+                <span>Load Prev. data</span>
+              </button>
+              <Popover
+                open={popOver1}
+                onOpenChange={showHideTemplatesListPopover}
+                content={TEMPLATE_CONTENT}
+                trigger="click"
+                overlayClassName="pop-350 pp-0"
+                placement="bottom"
+              >
+                <button className="btn d-flex align-items-center btn-text">
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              </Popover>
+              <Tooltip
+                placement="bottom"
+                title={
+                  hasDataToSave
+                    ? ""
+                    : `Please enter some ${module?.name} to save a template`
+                }
+              >
+                <Popover
+                  open={popOver2}
+                  onOpenChange={() =>
+                    hasDataToSave &&
+                    showHideSaveTemplatePopOver()
+                  }
+                  content={SAVE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-450 pp-0"
+                  placement="bottom"
+                >
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                </Popover>
+              </Tooltip>
+              <button
+                onClick={handleClear}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={!hasDataToSave}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+              <Dropdown
+                overlay={moreMenu}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Button
+                  type="text"
+                  icon={
+                    <MoreOutlined
+                      style={{
+                        fontSize: "18px",
+                        color: "#4a4a4a",
+                        fontWeight: "bold",
+                      }}
+                    />
+                  }
+                  className="more-options-btn"
+                />
+              </Dropdown>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Delete Template Modal */}

@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Button, Tooltip, message } from "antd";
-import { PlusOutlined, MoreOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Tooltip, message, Input } from "antd";
+import { PlusOutlined, MoreOutlined, UserOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import { Dropdown } from "antd";
 import "./ModuleListItem.scss";
 import { useSelector, useDispatch } from "react-redux";
 import { addModule } from "../../redux/customModuleSlice";
+import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
 
@@ -23,7 +24,9 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const dispatch = useDispatch();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const [canEditName, setCanEditName] = useState(false);
+  const [newModuleName, setNewModuleName] = useState(module?.name || "");
+  const { profile, userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
   const { customModules } = useSelector((state) => state.customModules);
   // Calculate column count based on module version
   const getColumnCount = () => {
@@ -145,26 +148,188 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   // Handle delete module
   const handleDeleteModule = async () => {
     try {
-      // Filter out the current module from customModules
+      message.loading({ content: "Deleting module...", key: "deleteModule" });
+
+      // Step 1: Remove module from user modules
       const modules = customModules.filter((cm) => cm.module_id !== module.module_id);
-      
-      // Call addModule API with remaining modules (upsert)
       const action = await dispatch(addModule({ userId, modules }));
       
       if (action.meta.requestStatus === "fulfilled") {
-        message.success(`Module "${module.name}" deleted successfully`);
+        // Step 2: Remove from print settings
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+          
+          const updatedCaseOptions = caseOptions.filter(
+            (option) => !(option.id === module.module_id && option.is_custom_module)
+          );
+
+          const rxPrescription = {
+            ...defaultPrintSettings.prescription,
+            case_option: updatedCaseOptions,
+          };
+
+          const printSettingsData = {
+            ...defaultPrintSettings,
+            prescription: JSON.stringify(rxPrescription),
+            header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+            page_format: JSON.stringify(defaultPrintSettings.page_format),
+          };
+
+          await dispatch(savePrintsettings(printSettingsData)).unwrap();
+        }
+
+        // Step 3: Remove from customized pad
+        const updatedRightPad = customizedPadRightList.filter(
+          (item) => item.tmdpm_id !== module.module_id
+        );
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+
+        message.success({
+          content: `Module "${module.name}" deleted successfully`,
+          key: "deleteModule",
+          duration: 3
+        });
         
         // Call onDelete callback to refresh the list if provided
         if (onDelete) {
           onDelete(module.module_id);
         }
       } else {
-        message.error("Failed to delete module");
+        message.error({
+          content: "Failed to delete module",
+          key: "deleteModule",
+          duration: 3
+        });
       }
     } catch (error) {
       console.error("Error deleting module:", error);
-      message.error("Failed to delete module. Please try again.");
+      message.error({
+        content: "Failed to delete module. Please try again.",
+        key: "deleteModule",
+        duration: 3
+      });
     }
+  };
+
+  // Handle edit module name
+  const handleEditModuleName = async () => {
+    if (!newModuleName.trim()) {
+      message.error("Module name cannot be empty.");
+      return;
+    }
+    if (customModules.some((cm) => cm.module_id !== module.module_id && cm.name === newModuleName.trim())) {
+      message.error("Module name already exists.");
+      return;
+    }
+
+    try {
+      message.loading({ content: "Updating module name...", key: "editModule" });
+
+      // Step 1: Update module name in user modules
+      const action = await dispatch(
+        addModule({
+          userId,
+          modules: customModules.map((cm) => {
+            if (cm.module_id === module.module_id) {
+              return {
+                ...cm,
+                name: newModuleName.trim(),
+              };
+            }
+            return cm;
+          }),
+        })
+      );
+      
+      if (action.meta.requestStatus === "fulfilled") {
+        // Step 2: Update module name in print settings
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+          
+          const updatedCaseOptions = caseOptions.map((option) => {
+            if (option.id === module.module_id && option.is_custom_module) {
+              return {
+                ...option,
+                title: newModuleName.trim(),
+              };
+            }
+            return option;
+          });
+
+          const rxPrescription = {
+            ...defaultPrintSettings.prescription,
+            case_option: updatedCaseOptions,
+          };
+
+          const printSettingsData = {
+            ...defaultPrintSettings,
+            prescription: JSON.stringify(rxPrescription),
+            header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+            page_format: JSON.stringify(defaultPrintSettings.page_format),
+          };
+
+          await dispatch(savePrintsettings(printSettingsData)).unwrap();
+        }
+
+        // Step 3: Update module name in customized pad
+        const updatedRightPad = customizedPadRightList.map((item) => {
+          if (item.tmdpm_id === module.module_id && item.is_custom_module) {
+            return {
+              ...item,
+              tmdpm_name: newModuleName.trim(),
+              tmdpm_short_name: newModuleName.trim(),
+            };
+          }
+          return item;
+        });
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+
+        await dispatch(customizedPad(sendData)).unwrap();
+
+        setCanEditName(false);
+        message.success({
+          content: "Module name updated successfully",
+          key: "editModule",
+          duration: 3
+        });
+        
+        // Call onDelete callback to refresh the list if provided
+        if (onDelete) {
+          onDelete();
+        }
+      }
+    } catch (error) {
+      console.error("Error updating module name:", error);
+      message.error({
+        content: error?.message || "Failed to update module name.",
+        key: "editModule",
+        duration: 3
+      });
+    }
+  };
+
+  // Handle cancel edit module name
+  const handleCancelEdit = () => {
+    setCanEditName(false);
+    setNewModuleName(module?.name || "");
   };
 
   const handleMenuClick = ({ key }) => {
@@ -172,9 +337,8 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     
     if (key === "delete" && !isModuleDisabled) {
       handleDeleteModule();
-    } else if (key === "edit") {
-      // Handle edit - will be implemented later
-      console.log(`Edit module ${module.module_id}`);
+    } else if (key === "edit" && !isModuleDisabled) {
+      setCanEditName(true);
     }
   };
 
@@ -202,50 +366,74 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     <div className="module-list-item">
       <div className="module-list-item__content" style={gridStyle}>
         <div className="module-list-item__container">
-          <div className="module-list-item__header">
-            <h3 className="module-list-item__name">{module.name}</h3>
-            <div className="module-list-item__details">
-              <div className="module-list-item__tags">
-                <span className="module-list-item__tag module-list-item__tag--creator">
-                  <UserOutlined className="module-list-item__tag-icon" />
-                  <span>{creatorName}</span>
-                </span>
-                <span className="module-list-item__tag module-list-item__tag--columns">
-                  {String(columnCount).padStart(2, "0")} columns
-                </span>
-              </div>
-              <a className="module-list-item__view-more" onClick={handleViewMore}>
-                {isExpanded ? "View less" : "View more"}
-              </a>
-            </div>
-          </div>
-          <div className="module-list-item__actions">
-            <Button
-              type="default"
-              icon={<PlusOutlined />}
-              onClick={handleAddToRx}
-              className="module-list-item__add-button"
-            >
-              Add to Rx
-            </Button>
-            <Dropdown
-              menu={{
-                items: menuItems,
-                onClick: handleMenuClick,
-              }}
-              trigger={["click"]}
-              open={dropdownVisible}
-              onOpenChange={setDropdownVisible}
-              placement="bottomRight"
-              getPopupContainer={(trigger) => document.body}
-            >
-              <Button
-                type="text"
-                icon={<MoreOutlined />}
-                className="module-list-item__more-button"
+          {canEditName ? (
+            <div className="module-list-item__edit-container">
+              <Input
+                placeholder="Enter custom module name"
+                value={newModuleName}
+                onChange={(e) => setNewModuleName(e.target.value)}
+                className="module-list-item__edit-input"
+                autoFocus
               />
-            </Dropdown>
-          </div>
+              <div className="module-list-item__edit-actions">
+                <CheckOutlined
+                  className="module-list-item__edit-icon module-list-item__edit-icon--check"
+                  onClick={handleEditModuleName}
+                />
+                <CloseOutlined
+                  className="module-list-item__edit-icon module-list-item__edit-icon--close"
+                  onClick={handleCancelEdit}
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="module-list-item__header">
+                <h3 className="module-list-item__name">{module.name}</h3>
+                <div className="module-list-item__details">
+                  <div className="module-list-item__tags">
+                    <span className="module-list-item__tag module-list-item__tag--creator">
+                      <UserOutlined className="module-list-item__tag-icon" />
+                      <span>{creatorName}</span>
+                    </span>
+                    <span className="module-list-item__tag module-list-item__tag--columns">
+                      {String(columnCount).padStart(2, "0")} columns
+                    </span>
+                  </div>
+                  <a className="module-list-item__view-more" onClick={handleViewMore}>
+                    {isExpanded ? "View less" : "View more"}
+                  </a>
+                </div>
+              </div>
+              <div className="module-list-item__actions">
+                <Button
+                  type="default"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddToRx}
+                  className="module-list-item__add-button"
+                >
+                  Add to Rx
+                </Button>
+                <Dropdown
+                  menu={{
+                    items: menuItems,
+                    onClick: handleMenuClick,
+                  }}
+                  trigger={["click"]}
+                  open={dropdownVisible}
+                  onOpenChange={setDropdownVisible}
+                  placement="bottomRight"
+                  getPopupContainer={(trigger) => document.body}
+                >
+                  <Button
+                    type="text"
+                    icon={<MoreOutlined />}
+                    className="module-list-item__more-button"
+                  />
+                </Dropdown>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Expanded Preview Table */}
