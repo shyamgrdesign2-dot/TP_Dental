@@ -47,6 +47,7 @@
     width: 50px;
     min-width: 50px;
     // padding: 8px 0;
+    gap: 12px;
   }
 }
 
@@ -120,5 +121,100 @@
   .custom-module-v2__table-header,
   .custom-module-v2__table-row {
     min-width: 600px;
+  }
+}
+
+.custom-module-v2-drawer {
+  .ant-drawer-body {
+    padding: 0;
+    background: #fafafb;
+  }
+
+  .custom-module-v2-drawer__header {
+    display: flex;
+    align-items: center;
+    height: 60px;
+    padding: 0 20px;
+    border-bottom: 1px solid #e2e2ea;
+    background: #ffffff;
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-right: 10px;
+    cursor: pointer;
+  }
+
+  .custom-module-v2-drawer__title {
+    font-family: "Poppins", sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #454551;
+    line-height: 36px;
+  }
+
+  .custom-module-v2-drawer__save {
+    margin-left: auto;
+    height: 39px;
+    min-width: 82px;
+    border-radius: 10px;
+    background: #4b4ad5;
+    border-color: #4b4ad5;
+    font-family: "Poppins", sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: none;
+
+    &:hover,
+    &:focus {
+      background: #3d3cc0;
+      border-color: #3d3cc0;
+    }
+  }
+
+  .custom-module-v2-drawer__body {
+    padding: 20px;
+    background: #fafafb;
+  }
+
+  .custom-module-v2-drawer__field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 24px;
+  }
+
+  .custom-module-v2-drawer__label {
+    font-family: "Poppins", sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #454551;
+    margin-bottom: 8px;
+  }
+
+  .custom-module-v2-drawer__input {
+    height: 42px;
+    border: 1px solid #e2e2ea;
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-family: "Roboto", sans-serif;
+    font-size: 14px;
+    color: #454551;
+
+    &::placeholder {
+      color: #a2a2a8;
+    }
+
+    &:focus,
+    &:hover {
+      border-color: #4b4ad5;
+      box-shadow: none;
+    }
   }
 }

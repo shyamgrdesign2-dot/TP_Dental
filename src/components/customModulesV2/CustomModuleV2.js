@@ -1,5 +1,24 @@
-import React, { useState, useEffect, useCallback, useContext, useMemo } from "react";
-import { Input, Button, Dropdown, Menu, Tooltip, message, Popover, Tabs, Select, Spin } from "antd";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
+import {
+  Input,
+  Button,
+  Dropdown,
+  Menu,
+  Tooltip,
+  message,
+  Popover,
+  Tabs,
+  Select,
+  Spin,
+  Drawer,
+} from "antd";
+import TextArea from "antd/es/input/TextArea";
 import {
   InfoCircleOutlined,
   MoreOutlined,
@@ -16,12 +35,18 @@ import ModuleIcon from "../../assets/images/custom-module.svg";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
 import alertIcon from "../../assets/images/alertIcon.svg";
+import DisabledModuleTooltip from "./DisabledModuleTooltip";
 import CommonModal from "../../common/CommonModal";
 import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
 import "./CustomModuleV2.scss";
+import { isMobile } from "react-device-detect";
+import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
+import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
+import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAutoComplete";
+import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 
 /**
  * CustomModuleV2 Component
@@ -36,47 +61,76 @@ import "./CustomModuleV2.scss";
  */
 const CustomModuleV2 = ({ module }) => {
   const dispatch = useDispatch();
-  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
-  const { customModules, loading } = useSelector((state) => state.customModules);
-  const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
+  const {
+    userId,
+    customizedPadLeftList,
+    customizedPadRightList,
+    defaultPrintSettings,
+  } = useSelector((state) => state.doctors);
+  const { customModules, loading, hospitalSearchResults } = useSelector(
+    (state) => state.customModules
+  );
+  const { customModuleContents, setCustomModuleContents, patient_data, tcmId, markModuleAsRemoved } =
     useContext(CashManagerContext);
 
   const [moduleData, setModuleData] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
-  
-  // Templates List Popover (popOver1)
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState("add");
+  const [activeRowId, setActiveRowId] = useState(null);
+  const [drawerValues, setDrawerValues] = useState({});
+  const [focusedFieldId, setFocusedFieldId] = useState(null); // Track which field is focused
+
+  // Templates List Popover (popOver1) / Drawer (templateDrawer)
   const [popOver1, setPopOver1] = useState(false);
+  const [templateDrawer, setTemplateDrawer] = useState(false);
   const [allTemplates, setAllTemplates] = useState([]);
   const [matchedTemplates, setMatchedTemplates] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [removeTemplateId, setRemoveTemplateId] = useState(null);
-  
-  // Save Template Popover (popOver2)
+
+  // Save Template Popover (popOver2) / Drawer (saveDrawer)
   const [popOver2, setPopOver2] = useState(false);
+  const [saveDrawer, setSaveDrawer] = useState(false);
   const [inputTemplateName, setInputTemplateName] = useState(null);
   const [tabChange, setTabChange] = useState(1); // 1 = Add Template, 2 = Update Template
-  
-  // Edit Module Name
+
+  // Edit Module Name (kept for backward compatibility, but will use drawer for full edit)
   const [canEditName, setCanEditName] = useState(false);
   const [newModuleName, setNewModuleName] = useState(module?.name || "");
   
+  // Edit Module Drawer
+  const [isEditModuleDrawerOpen, setIsEditModuleDrawerOpen] = useState(false);
+
   const TAB_ADD_TEMPLATE = 1;
   const TAB_UPDATE_TEMPLATE = 2;
   const ADD_EDIT_TEMPLATE_TABS = [
     { key: TAB_ADD_TEMPLATE, label: "New Template" },
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
-  
+
   const decodedToken = getDecodedToken();
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
-  // Tooltip content for disabled items
-  const disabledTooltipContent = (
-    <div>
-      <strong>Note:</strong> This module is used in an Rx and can't be <strong>edited/deleted</strong>. Create a new one if you need a different version
-    </div>
-  );
   const templates = module?.templates;
+
+  // Resolve creator/doctor name using module itself or hospitalSearchResults fallback
+  const creatorName = useMemo(() => {
+    if (module?.creator_name || module?.doctor_name) {
+      return module.creator_name || module.doctor_name;
+    }
+
+    const hospitalModules = hospitalSearchResults?.modules || [];
+    const matched = hospitalModules.find(
+      (m) => m.module_id === (module.origin_id || module.module_id)
+    );
+
+    return (
+      matched?.creator_name ||
+      matched?.doctor_name ||
+      "Unknown"
+    );
+  }, [module, hospitalSearchResults]);
 
   // Initialize module data and templates from context
   useEffect(() => {
@@ -85,14 +139,35 @@ const CustomModuleV2 = ({ module }) => {
     );
 
     if (existingContent && existingContent.content?.length > 0) {
-      setModuleData(existingContent.content);
+      // Ensure each row has a unique id - fix for case manager data
+      const normalizedData = existingContent.content.map((row) => {
+        // If row already has an id, use it; otherwise create a new one
+        if (row.id) {
+          // Ensure all named fields exist
+          const normalizedRow = { ...row };
+          module.namedFields?.forEach((field) => {
+            if (!(field.fieldName in normalizedRow)) {
+              normalizedRow[field.fieldName] = "";
+            }
+          });
+          return normalizedRow;
+        } else {
+          // Create new row with id and all named fields
+          const newRow = { id: uuidv4() };
+          module.namedFields?.forEach((field) => {
+            newRow[field.fieldName] = row[field.fieldName] || "";
+          });
+          return newRow;
+        }
+      });
+      setModuleData(normalizedData);
     } else {
       // Initialize with one empty row
       const emptyRow = createEmptyRow();
       setModuleData([emptyRow]);
       updateCustomModuleContents([emptyRow]);
     }
-    
+
     setAllTemplates(templates || []);
     setMatchedTemplates(templates || []);
   }, [module, customModuleContents]);
@@ -143,9 +218,20 @@ const CustomModuleV2 = ({ module }) => {
 
   // Handle field value change
   const handleFieldChange = (rowId, fieldName, value) => {
-    const updatedData = moduleData.map((row) =>
-      row.id === rowId ? { ...row, [fieldName]: value } : row
-    );
+    // Ensure rowId exists and is valid
+    if (!rowId) {
+      console.warn("handleFieldChange: rowId is missing");
+      return;
+    }
+    
+    const updatedData = moduleData.map((row) => {
+      // Use strict equality and ensure we're matching the correct row
+      if (row.id === rowId) {
+        return { ...row, [fieldName]: value };
+      }
+      return row; // Return unchanged row
+    });
+    
     setModuleData(updatedData);
     updateCustomModuleContents(updatedData);
     setHasChanges(true);
@@ -153,6 +239,16 @@ const CustomModuleV2 = ({ module }) => {
 
   // Handle adding a new row
   const handleAddRow = () => {
+    if (isMobile) {
+      const newRow = createEmptyRow();
+      const { id, ...rest } = newRow;
+      setDrawerMode("add");
+      setActiveRowId(null);
+      setDrawerValues(rest);
+      setDrawerOpen(true);
+      return;
+    }
+
     const newRow = createEmptyRow();
     const updatedData = [...moduleData, newRow];
     setModuleData(updatedData);
@@ -202,10 +298,18 @@ const CustomModuleV2 = ({ module }) => {
     message.success("Module data cleared");
   };
 
-  // Templates List Popover functions
+  // Templates List Popover/Drawer functions
   const showHideTemplatesListPopover = useCallback(() => {
-    setPopOver1(!popOver1);
-  }, [popOver1]);
+    if (isMobile) {
+      setTemplateDrawer(!templateDrawer);
+    } else {
+      setPopOver1(!popOver1);
+    }
+  }, [popOver1, templateDrawer, isMobile]);
+
+  const handleDrawerTemplate = useCallback(() => {
+    setTemplateDrawer(!templateDrawer);
+  }, [templateDrawer]);
 
   const onSearch = (e) => {
     const searchQuery = e.target.value;
@@ -234,7 +338,7 @@ const CustomModuleV2 = ({ module }) => {
     const action = await dispatch(userPreModulesRX(sendData));
     if (action.meta.requestStatus === "fulfilled") {
       const prevContent = action.payload?.moduleContents[0]?.content || [];
-      
+
       // Map previous content and ensure all named fields exist
       const updatedData = prevContent
         .map((item) => {
@@ -242,12 +346,12 @@ const CustomModuleV2 = ({ module }) => {
           const hasContent = module.namedFields?.some(
             (field) => item[field.fieldName]?.trim?.().length > 0
           );
-          
+
           // Skip empty items
           if (!hasContent) {
             return null;
           }
-          
+
           // Create a new row with id and all named fields
           const row = { id: uuidv4() };
           module.namedFields?.forEach((field) => {
@@ -288,12 +392,12 @@ const CustomModuleV2 = ({ module }) => {
         const hasContent = module.namedFields?.some(
           (field) => item[field.fieldName]?.trim?.().length > 0
         );
-        
+
         // Skip empty items
         if (!hasContent) {
           return null;
         }
-        
+
         // Create a new row with id and all named fields
         const row = { id: uuidv4() };
         module.namedFields?.forEach((field) => {
@@ -332,7 +436,9 @@ const CustomModuleV2 = ({ module }) => {
       if (cm.module_id === module.module_id) {
         return {
           ...cm,
-          templates: (cm.templates || []).filter((t) => t.template_id !== templateId),
+          templates: (cm.templates || []).filter(
+            (t) => t.template_id !== templateId
+          ),
         };
       }
       return cm;
@@ -358,8 +464,17 @@ const CustomModuleV2 = ({ module }) => {
   // Save template functions
   const showHideSaveTemplatePopOver = useCallback(() => {
     setInputTemplateName(null);
-    setPopOver2(!popOver2);
-  }, [popOver2]);
+    if (isMobile) {
+      setSaveDrawer(!saveDrawer);
+    } else {
+      setPopOver2(!popOver2);
+    }
+  }, [popOver2, saveDrawer, isMobile]);
+
+  const handleSaveTemplateDrawer = useCallback(() => {
+    setInputTemplateName(null);
+    setSaveDrawer(!saveDrawer);
+  }, [saveDrawer]);
 
   const onTabChange = useCallback(
     (key) => {
@@ -386,9 +501,7 @@ const CustomModuleV2 = ({ module }) => {
     });
 
     if (!nonEmptyData || nonEmptyData.length === 0) {
-      errorMessage(
-        `At least 1 ${module.name} should be added`
-      );
+      errorMessage(`At least 1 ${module.name} should be added`);
     } else {
       // Strip the 'id' field from content before saving
       const contentToSave = nonEmptyData.map((row) => {
@@ -482,16 +595,19 @@ const CustomModuleV2 = ({ module }) => {
       message.loading({ content: "Deleting module...", key: "deleteModule" });
 
       // Step 1: Remove module from user modules
-      const modules = customModules.filter((cm) => cm.module_id !== module.module_id);
+      const modules = customModules.filter(
+        (cm) => cm.module_id !== module.module_id
+      );
       const action = await dispatch(addModule({ userId, modules }));
-      
+
       if (action.meta.requestStatus === "fulfilled") {
         // Step 2: Remove from print settings
         if (defaultPrintSettings?.prescription?.case_option) {
           const caseOptions = defaultPrintSettings.prescription.case_option;
-          
+
           const updatedCaseOptions = caseOptions.filter(
-            (option) => !(option.id === module.module_id && option.is_custom_module)
+            (option) =>
+              !(option.id === module.module_id && option.is_custom_module)
           );
 
           const rxPrescription = {
@@ -534,13 +650,13 @@ const CustomModuleV2 = ({ module }) => {
         message.success({
           content: `Module "${module.name}" deleted successfully`,
           key: "deleteModule",
-          duration: 3
+          duration: 3,
         });
       } else {
         message.error({
           content: "Failed to delete module",
           key: "deleteModule",
-          duration: 3
+          duration: 3,
         });
       }
     } catch (error) {
@@ -548,73 +664,134 @@ const CustomModuleV2 = ({ module }) => {
       message.error({
         content: "Failed to delete module. Please try again.",
         key: "deleteModule",
-        duration: 3
+        duration: 3,
       });
     }
+  };
+
+  // Handle edit row
+  const handleEditRow = (rowId) => {
+    if (!isMobile) {
+      return;
+    }
+
+    const rowToEdit = moduleData.find((row) => row.id === rowId);
+    if (rowToEdit) {
+      const { id, ...rest } = rowToEdit;
+      setDrawerMode("edit");
+      setActiveRowId(rowId);
+      setDrawerValues(rest);
+      setDrawerOpen(true);
+    }
+  };
+
+  const handleDrawerFieldChange = (fieldName, value) => {
+    setDrawerValues((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setActiveRowId(null);
+  };
+
+  const handleDrawerSave = () => {
+    const normalizedRow = {};
+    module.namedFields?.forEach((field) => {
+      normalizedRow[field.fieldName] = drawerValues[field.fieldName] || "";
+    });
+
+    let updatedData = [];
+    if (drawerMode === "edit" && activeRowId) {
+      updatedData = moduleData.map((row) =>
+        row.id === activeRowId ? { ...row, ...normalizedRow } : row
+      );
+    } else {
+      const newRow = { id: uuidv4(), ...normalizedRow };
+      updatedData = [...moduleData, newRow];
+    }
+
+    setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
+    setHasChanges(true);
+    closeDrawer();
   };
 
   // Handle remove module from Rx pad
   const handleRemoveFromRxPad = async () => {
     try {
-      message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
+      message.loading({
+        content: "Removing module from Rx pad...",
+        key: "removeFromRx",
+      });
 
-      // Step 1: Remove from print settings
-      if (defaultPrintSettings?.prescription?.case_option) {
-        const caseOptions = defaultPrintSettings.prescription.case_option;
-        
-        // Filter out the current module from case_option
-        const updatedCaseOptions = caseOptions.filter(
-          (option) => !(option.id === module.module_id && option.is_custom_module)
-        );
+      // // Step 1: Remove from print settings
+      // if (defaultPrintSettings?.prescription?.case_option) {
+      //   const caseOptions = defaultPrintSettings.prescription.case_option;
 
-        const rxPrescription = {
-          ...defaultPrintSettings.prescription,
-          case_option: updatedCaseOptions,
-        };
+      //   // Filter out the current module from case_option
+      //   const updatedCaseOptions = caseOptions.filter(
+      //     (option) =>
+      //       !(option.id === module.module_id && option.is_custom_module)
+      //   );
 
-        const printSettingsData = {
-          ...defaultPrintSettings,
-          prescription: JSON.stringify(rxPrescription),
-          header_footer: JSON.stringify(defaultPrintSettings.header_footer),
-          page_format: JSON.stringify(defaultPrintSettings.page_format),
-        };
+      //   const rxPrescription = {
+      //     ...defaultPrintSettings.prescription,
+      //     case_option: updatedCaseOptions,
+      //   };
 
-        await dispatch(savePrintsettings(printSettingsData)).unwrap();
-      }
+      //   const printSettingsData = {
+      //     ...defaultPrintSettings,
+      //     prescription: JSON.stringify(rxPrescription),
+      //     header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+      //     page_format: JSON.stringify(defaultPrintSettings.page_format),
+      //   };
+
+      //   await dispatch(savePrintsettings(printSettingsData)).unwrap();
+      // }
 
       // Step 2: Remove from customized pad right list
       const updatedRightList = customizedPadRightList.filter(
         (item) => item.tmdpm_id !== module.module_id
       );
-      
+
       const sendData = {
         data: {
           default: false,
           reset: false,
-          left: customizedPadLeftList,  // Keep left side as-is
-          right: updatedRightList,       // Remove module from right side
-        }
+          left: customizedPadLeftList, // Keep left side as-is
+          right: updatedRightList, // Remove module from right side
+        },
       };
-      
+
       await dispatch(customizedPad(sendData)).unwrap();
-      
+
       // Step 3: Remove from customModuleContents if present
       const updatedContents = customModuleContents.filter(
         (mc) => mc.module_id !== module.module_id
       );
       setCustomModuleContents(updatedContents);
 
+      // Step 4: Mark module as removed to prevent re-adding from caseManagerData
+      if (markModuleAsRemoved) {
+        markModuleAsRemoved(module.module_id);
+      }
+
       message.success({
         content: `"${module.name}" removed from Rx pad successfully`,
         key: "removeFromRx",
-        duration: 3
+        duration: 3,
       });
     } catch (error) {
       console.error("Error removing module from Rx pad:", error);
       message.error({
-        content: error?.message || "Failed to remove module from Rx pad. Please try again.",
+        content:
+          error?.message ||
+          "Failed to remove module from Rx pad. Please try again.",
         key: "removeFromRx",
-        duration: 3
+        duration: 3,
       });
     }
   };
@@ -625,13 +802,21 @@ const CustomModuleV2 = ({ module }) => {
       message.error("Module name cannot be empty.");
       return;
     }
-    if (customModules.some((cm) => cm.module_id !== module.module_id && cm.name === newModuleName.trim())) {
+    if (
+      customModules.some(
+        (cm) =>
+          cm.module_id !== module.module_id && cm.name === newModuleName.trim()
+      )
+    ) {
       message.error("Module name already exists.");
       return;
     }
 
     try {
-      message.loading({ content: "Updating module name...", key: "editModule" });
+      message.loading({
+        content: "Updating module name...",
+        key: "editModule",
+      });
 
       // Step 1: Update module name in user modules
       const action = await dispatch(
@@ -648,12 +833,12 @@ const CustomModuleV2 = ({ module }) => {
           }),
         })
       );
-      
+
       if (action.meta.requestStatus === "fulfilled") {
         // Step 2: Update module name in print settings
         if (defaultPrintSettings?.prescription?.case_option) {
           const caseOptions = defaultPrintSettings.prescription.case_option;
-          
+
           const updatedCaseOptions = caseOptions.map((option) => {
             if (option.id === module.module_id && option.is_custom_module) {
               return {
@@ -706,7 +891,7 @@ const CustomModuleV2 = ({ module }) => {
         message.success({
           content: "Module name updated successfully",
           key: "editModule",
-          duration: 3
+          duration: 3,
         });
       }
     } catch (error) {
@@ -714,7 +899,7 @@ const CustomModuleV2 = ({ module }) => {
       message.error({
         content: error?.message || "Failed to update module name.",
         key: "editModule",
-        duration: 3
+        duration: 3,
       });
     }
   };
@@ -742,18 +927,12 @@ const CustomModuleV2 = ({ module }) => {
           padding: "8px 12px",
         }}
       >
-        <img
-          src={editIcon}
-          width={16}
-          height={16}
-          alt="remove"
-          style={{ margin: "0 8px 3px 0" }}
-        />
+        <i className="icon-exit color-blue" style={{ margin: "0 4px 3px 0" }}></i>
           Remove From Rx Pad
       </Menu.Item>
       <Menu.Item
         key="edit"
-        onClick={isModuleDisabled ? undefined : () => setCanEditName(true)}
+        onClick={isModuleDisabled ? undefined : () => setIsEditModuleDrawerOpen(true)}
         disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
@@ -769,33 +948,31 @@ const CustomModuleV2 = ({ module }) => {
         }}
       >
         {isModuleDisabled ? (
-          <Tooltip 
-            title={disabledTooltipContent}
-            placement="left"
-            overlayStyle={{ maxWidth: 350 }}
-            overlayClassName="module-disabled-tooltip"
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
           >
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
                 src={editIcon}
-                width={16}
-                height={16}
+                width={18}
+                height={18}
                 alt="edit"
                 style={{ margin: "0 8px 3px 0" }}
               />
-              Edit Module Name
+              Edit Module
             </span>
-          </Tooltip>
+          </DisabledModuleTooltip>
         ) : (
           <>
             <img
               src={editIcon}
-              width={16}
-              height={16}
+              width={18}
+              height={18}
               alt="edit"
               style={{ margin: "0 8px 3px 0" }}
             />
-            Edit Module Name
+            Edit Module
           </>
         )}
       </Menu.Item>
@@ -817,29 +994,27 @@ const CustomModuleV2 = ({ module }) => {
         }}
       >
         {isModuleDisabled ? (
-          <Tooltip 
-            title={disabledTooltipContent}
-            placement="left"
-            overlayStyle={{ maxWidth: 350 }}
-            overlayClassName="module-disabled-tooltip"
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
           >
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
                 src={deleteIcon}
-                width={16}
-                height={16}
+                width={18}
+                height={18}
                 alt="delete"
                 style={{ margin: "0 8px 3px 0" }}
               />
               Delete Module
             </span>
-          </Tooltip>
+          </DisabledModuleTooltip>
         ) : (
           <>
             <img
               src={deleteIcon}
-              width={16}
-              height={16}
+              width={18}
+              height={18}
               alt="delete"
               style={{ margin: "0 8px 3px 0" }}
             />
@@ -854,17 +1029,25 @@ const CustomModuleV2 = ({ module }) => {
   const TEMPLATE_CONTENT = useCallback(() => {
     return (
       <>
-        <div className="pop-header" key={`${module.name}-template`}>
-          <div className="align-items-center d-flex justify-content-between">
-            <div className="title-common">{module?.name} Templates</div>
-            <Button
-              className="btn btn-delete-prescription p-0"
-              onClick={showHideTemplatesListPopover}
-            >
-              <i className="icon-Cross" />
-            </Button>
-          </div>
-          <div className="mt-3" key={`${module.name}-template-search`}>
+        <div
+          className={`${isMobile ? "medicine-templates" : "pop-header"}`}
+          key={`${module.name}-template`}
+        >
+          {!isMobile && (
+            <div className="align-items-center d-flex justify-content-between">
+              <div className="title-common">{module?.name} Templates</div>
+              <Button
+                className="btn btn-delete-prescription p-0"
+                onClick={showHideTemplatesListPopover}
+              >
+                <i className="icon-Cross" />
+              </Button>
+            </div>
+          )}
+          <div
+            className={`${!isMobile && "mt-3"}`}
+            key={`${module.name}-template-search`}
+          >
             <Input
               allowClear
               className="popinput"
@@ -874,7 +1057,7 @@ const CustomModuleV2 = ({ module }) => {
             />
           </div>
         </div>
-        <div className="pop-body">
+        <div className={`${isMobile ? "tab-template-height" : "pop-body"}`}>
           {matchedTemplates.length > 0 &&
             matchedTemplates.map((template, i) => {
               return (
@@ -987,15 +1170,21 @@ const CustomModuleV2 = ({ module }) => {
             onChange={onTabChange}
             className="w-100"
           />
-          <Button
-            className="btn btn-delete-prescription"
-            onClick={showHideSaveTemplatePopOver}
-          >
-            <i className="icon-Cross"></i>
-          </Button>
+          {!isMobile && (
+            <Button
+              className="btn btn-delete-prescription"
+              onClick={showHideSaveTemplatePopOver}
+            >
+              <i className="icon-Cross"></i>
+            </Button>
+          )}
         </div>
         {tabChange === TAB_ADD_TEMPLATE ? (
-          <div className="pop-header d-flex">
+          <div
+            className={`pop-header d-flex ${
+              isMobile ? "medicine-templates" : ""
+            }`}
+          >
             <Input
               allowClear
               value={inputTemplateName && inputTemplateName}
@@ -1013,7 +1202,11 @@ const CustomModuleV2 = ({ module }) => {
             </Button>
           </div>
         ) : (
-          <div className="pop-header d-flex">
+          <div
+            className={`pop-header d-flex ${
+              isMobile ? "medicine-templates" : ""
+            }`}
+          >
             <Select
               showSearch
               value={
@@ -1044,7 +1237,10 @@ const CustomModuleV2 = ({ module }) => {
                     <div className="title text-main2">{option.data.value}</div>
                     <div className="text-truncate">
                       {JSON.parse(option.data.key).content.map((item, ii) => {
-                        const fieldValues = module.namedFields?.map(field => item[field.fieldName]).filter(Boolean).join(", ");
+                        const fieldValues = module.namedFields
+                          ?.map((field) => item[field.fieldName])
+                          .filter(Boolean)
+                          .join(", ");
                         return (
                           <span key={ii}>{`${fieldValues}${
                             JSON.parse(option.data.key).content.length - 1 != ii
@@ -1070,20 +1266,33 @@ const CustomModuleV2 = ({ module }) => {
         )}
       </>
     );
-  }, [tabChange, popOver2, inputTemplateName, loading, allTemplates, moduleData]);
+  }, [
+    tabChange,
+    popOver2,
+    inputTemplateName,
+    loading,
+    allTemplates,
+    moduleData,
+  ]);
 
   // Determine the number of columns for grid layout
   const columnCount = module.namedFields?.length || 2;
   const columnClass =
-    columnCount > 2 ? `custom-module-v2--${columnCount}-cols` : "";
+    columnCount === 1
+      ? "custom-module-v2--1-cols"
+      : columnCount > 2
+      ? `custom-module-v2--${columnCount}-cols`
+      : "";
 
   // Check if there's any data to save
   const hasDataToSave = useMemo(() => {
-    return moduleData?.filter((row) => {
-      return module.namedFields?.some(
-        (field) => row[field.fieldName]?.trim().length > 0
-      );
-    }).length > 0;
+    return (
+      moduleData?.filter((row) => {
+        return module.namedFields?.some(
+          (field) => row[field.fieldName]?.trim().length > 0
+        );
+      }).length > 0
+    );
   }, [moduleData, module.namedFields]);
 
   return (
@@ -1114,7 +1323,19 @@ const CustomModuleV2 = ({ module }) => {
           <>
             <div className="d-flex align-items-center">
               <img className="me-2" src={ModuleIcon} alt={module?.name} />
-              <div className="title-common">{module.name}</div>
+              <div className="title-common d-flex align-items-center">
+                {module?.name}
+                <DisabledModuleTooltip
+                  module={module}
+                  hospitalSearchResults={hospitalSearchResults}
+                  placement="bottom"
+                  type="title"
+                >
+                  <InfoCircleOutlined
+                    style={{ marginLeft: 8, color: "#a1a1aa", fontSize: 16 }}
+                  />
+                </DisabledModuleTooltip>
+              </div>
             </div>
 
             <div className="d-flex align-items-center">
@@ -1125,18 +1346,28 @@ const CustomModuleV2 = ({ module }) => {
                 <i className="icon-reload me-2"></i>
                 <span>Load Prev. data</span>
               </button>
-              <Popover
-                open={popOver1}
-                onOpenChange={showHideTemplatesListPopover}
-                content={TEMPLATE_CONTENT}
-                trigger="click"
-                overlayClassName="pop-350 pp-0"
-                placement="bottom"
-              >
-                <button className="btn d-flex align-items-center btn-text">
+              {isMobile ? (
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={handleDrawerTemplate}
+                >
                   <i className="icon-template me-2"></i> <span>Templates</span>
                 </button>
-              </Popover>
+              ) : (
+                <Popover
+                  open={popOver1}
+                  onOpenChange={showHideTemplatesListPopover}
+                  content={TEMPLATE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-350 pp-0"
+                  placement="bottom"
+                >
+                  <button className="btn d-flex align-items-center btn-text">
+                    <i className="icon-template me-2"></i>{" "}
+                    <span>Templates</span>
+                  </button>
+                </Popover>
+              )}
               <Tooltip
                 placement="bottom"
                 title={
@@ -1145,22 +1376,32 @@ const CustomModuleV2 = ({ module }) => {
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
-                <Popover
-                  open={popOver2}
-                  onOpenChange={() =>
-                    hasDataToSave &&
-                    showHideSaveTemplatePopOver()
-                  }
-                  content={SAVE_CONTENT}
-                  trigger="click"
-                  overlayClassName="pop-450 pp-0"
-                  placement="bottom"
-                >
-                  <button className="btn d-flex align-items-center btn-text">
-                    {" "}
+                {isMobile ? (
+                  <button
+                    className="btn d-flex align-items-center btn-text"
+                    style= {{border: "none"}}
+                    onClick={() => hasDataToSave && handleSaveTemplateDrawer()}
+                    disabled={!hasDataToSave}
+                  >
                     <i className="icon-save me-2"></i> <span>Save</span>
                   </button>
-                </Popover>
+                ) : (
+                  <Popover
+                    open={popOver2}
+                    onOpenChange={() =>
+                      hasDataToSave && showHideSaveTemplatePopOver()
+                    }
+                    content={SAVE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-450 pp-0"
+                    placement="bottom"
+                  >
+                    <button className="btn d-flex align-items-center btn-text">
+                      {" "}
+                      <i className="icon-save me-2"></i> <span>Save</span>
+                    </button>
+                  </Popover>
+                )}
               </Tooltip>
               <button
                 onClick={handleClear}
@@ -1203,7 +1444,7 @@ const CustomModuleV2 = ({ module }) => {
           {module.namedFields?.map((field, index) => (
             <div
               key={field.fieldName}
-              className="custom-module-v2__table-header-cell border-end"
+              className="custom-module-v2__table-header-cell"
             >
               {field.fieldLabel.toUpperCase()}
             </div>
@@ -1215,25 +1456,66 @@ const CustomModuleV2 = ({ module }) => {
 
         {/* Table Body */}
         <div className="custom-module-v2__table-body">
-          {moduleData.map((row, rowIndex) => (
-            <div key={row.id} className="custom-module-v2__table-row border-bottom">
+          {moduleData.map((row, rowIndex) => {
+            // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
+            const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
+            return (
+            <div
+              key={rowKey}
+              className="custom-module-v2__table-row border-bottom"
+            >
               {module.namedFields?.map((field, fieldIndex) => (
                 <div
                   key={field.fieldName}
-                  className="custom-module-v2__table-cell border-end"
+                  className="custom-module-v2__table-cell"
                 >
-                  <Input
-                    placeholder={`Enter ${field.fieldLabel}`}
-                    value={row[field.fieldName] || ""}
-                    onChange={(e) =>
-                      handleFieldChange(row.id, field.fieldName, e.target.value)
-                    }
-                    className="custom-module-v2__input"
-                    bordered={false}
-                  />
+                  {isMobile ? (
+                    <div
+                      onClick={() => handleEditRow(row.id)}
+                      style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
+                    >
+                      <TextArea
+                        placeholder={`Enter ${field.fieldLabel}`}
+                        value={row[field.fieldName] || ""}
+                        className="custom-module-v2__input"
+                        bordered={false}
+                        disabled={true}
+                        autoSize={{ minRows: 1, maxRows: 10 }}
+                        style={{ 
+                          pointerEvents: "none",
+                          color: "#000000",
+                          WebkitTextFillColor: "#000000",
+                          opacity: 1
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <CustomModuleFieldTextAreaAutoComplete
+                      fieldName={field.fieldName}
+                      fieldLabel={field.fieldLabel}
+                      value={row[field.fieldName] || ""}
+                      onChange={(value) =>
+                        handleFieldChange(row.id, field.fieldName, value)
+                      }
+                      moduleId={module.module_id}
+                      templates={templates || []}
+                      className="custom-module-v2__input w-100"
+                      fieldId={`${row.id}-${field.fieldName}`}
+                      focusedFieldId={focusedFieldId}
+                      onFocusChange={setFocusedFieldId}
+                    />
+                  )}
                 </div>
               ))}
               <div className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
+                {isMobile && (
+                  <Button
+                    className="btn py-0 btn-delete-prescription px-0"
+                    onClick={() => handleEditRow(row.id)}
+                  >
+                    <i className="icon-Edit"></i>
+                  </Button>
+                )}
                 <Button
                   className="btn py-0 btn-delete-prescription px-0"
                   onClick={() => handleDeleteRow(row.id)}
@@ -1242,7 +1524,8 @@ const CustomModuleV2 = ({ module }) => {
                 </Button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 
@@ -1257,9 +1540,54 @@ const CustomModuleV2 = ({ module }) => {
           Add New Line
         </Button>
       </div>
+
+      {/* Template Drawer for Tablet/Mobile */}
+      {isMobile && (
+        <Drawer
+          title={`${module?.name} Templates`}
+          placement="right"
+          onClose={handleDrawerTemplate}
+          open={templateDrawer}
+          className="modalWidth-563"
+          width="auto"
+        >
+          {TEMPLATE_CONTENT()}
+        </Drawer>
+      )}
+
+      {/* Save Template Drawer for Tablet/Mobile */}
+      {isMobile && (
+        <Drawer
+          title="Save Template"
+          placement="right"
+          onClose={handleSaveTemplateDrawer}
+          open={saveDrawer}
+          className="modalWidth-563"
+          width="auto"
+        >
+          {SAVE_CONTENT()}
+        </Drawer>
+      )}
+
+      <CustomModuleV2Drawer
+        open={drawerOpen}
+        moduleName={module?.name}
+        fields={module?.namedFields}
+        values={drawerValues}
+        onFieldChange={handleDrawerFieldChange}
+        onClose={closeDrawer}
+        onSave={handleDrawerSave}
+        moduleId={module?.module_id}
+        templates={templates || []}
+      />
+
+      <EditCustomModuleDrawer
+        open={isEditModuleDrawerOpen}
+        onClose={() => setIsEditModuleDrawerOpen(false)}
+        module={module}
+      />
     </div>
   );
 };
 
 export default CustomModuleV2;
-

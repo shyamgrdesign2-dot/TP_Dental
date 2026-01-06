@@ -117,6 +117,8 @@ import { getCarePlanNames, getCarePlanAssignments } from "../smartSync/services/
 import TabCarePlanList from "../../components/tab_design/TabCarePlanList";
 import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
+import { AddCustomModuleDrawer, AddCustomModuleV2, CustomModuleV2 } from "../../components/customModulesV2";
+import { getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
 
 function TabPrescription() {
   const {
@@ -224,6 +226,15 @@ function TabPrescription() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
+  const [videoConsultUrl, setVideoConsultUrl] = useState(null);
+  const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
+
+  // Check if video consultation is available for this patient
+  const isVideoConsultAvailable = isVideoConsultAccessible && 
+                                   videoConsultData?.pam_status_type_appointment === 1;
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object)
@@ -338,6 +349,34 @@ function TabPrescription() {
     const response = await fetchAllDocumentCategories();
     dispatch(setUploadDocCategories(response));
   };
+
+  // Fetch custom modules on component mount
+  useEffect(() => {
+    const fetchModules = async () => {
+      if (userId) {
+        // Always fetch user's own modules
+        await dispatch(getModules(userId));
+        
+        // If editing a case with custom modules, also fetch hospital-wide modules
+        // This ensures deleted modules are still available for rendering
+        if (caseManagerData?.moduleContents?.length > 0) {
+          const hospitalId = decodedToken?.result?.clinic_id;
+          if (hospitalId) {
+            await dispatch(
+              searchModulesByHospital({
+                hospitalId,
+                moduleName: "",
+                page: 1,
+                limit: 100,
+              })
+            );
+          }
+        }
+      }
+    };
+
+    fetchModules();
+  }, [userId, dispatch]);
 
   useEffect(() => {
     if (isAutofillSelected) {
@@ -1721,11 +1760,18 @@ function TabPrescription() {
                     </div>
                     ): e.is_custom_module && e.tmdpm_status === 0 && customModule && (
                       <div className="prescription-box-sm">
-                        <TabCustomModule module={customModule} />
+                        {/* <TabCustomModule module={customModule} /> */}
+                        <CustomModuleV2 module={customModule} />
                       </div>
                     )
                 })}
-                <TabAddCustomModule />
+                {/* <TabAddCustomModule /> */}
+                {/* <AddCustomModule /> */}
+                <AddCustomModuleV2 onOpenDrawer={() => setIsAddCustomModuleDrawerVisible(true)} />
+                <AddCustomModuleDrawer
+                  open={isAddCustomModuleDrawerVisible}
+                  onClose={() => setIsAddCustomModuleDrawerVisible(false)}
+                />
               </Content>
             </div>
           </Layout>
