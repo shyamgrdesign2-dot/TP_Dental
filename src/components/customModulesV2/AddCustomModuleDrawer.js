@@ -31,6 +31,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
   const [activeTab, setActiveTab] = useState("select"); // "select" | "create"
   const [createModuleFormData, setCreateModuleFormData] = useState(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  // Used to force reset of CreateNewModuleTab internal state after successful creation
+  const [createTabKey, setCreateTabKey] = useState(0);
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
 
@@ -428,13 +430,15 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           limit: 100
         })).unwrap();
 
-        setConfirmModalOpen(false);
-        // Close drawer after creation
-        onClose();
-        // Reset form data
-        setCreateModuleFormData(null);
+    setConfirmModalOpen(false);
+    // Close drawer after creation
+    onClose();
+    // Reset form data
+    setCreateModuleFormData(null);
         // Reset to select tab
         setActiveTab("select");
+        // Force remount of CreateNewModuleTab so its internal state (inputs) is cleared
+        setCreateTabKey((prev) => prev + 1);
       } catch (error) {
         console.error("Error creating module:", error);
         const errorMessage =
@@ -508,6 +512,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             className="add-custom-module-drawer__tab-pane"
           >
             <CreateNewModuleTab
+              key={createTabKey}
               onCreateModule={handleCreateModule}
               onFormChange={handleFormChange}
             />
