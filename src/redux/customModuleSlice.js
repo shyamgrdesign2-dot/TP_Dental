@@ -47,9 +47,9 @@ export const getModuleContents = createAsyncThunk(
 
 export const searchModule = createAsyncThunk(
   "modules/searchModuleContents",
-  async ({ moduleId, keyword }, { rejectWithValue }) => {
+  async ({ moduleId, keyword, fieldName }, { rejectWithValue }) => {
     try {
-      const response = await ApiCustomModule.searchModule(moduleId, keyword);
+      const response = await ApiCustomModule.searchModule(moduleId, keyword, fieldName);
       return response;
     } catch (error) {
       return rejectWithValue(
@@ -207,44 +207,22 @@ const customModuleSlice = createSlice({
         state.loading = false;
         let uniqueResults = [];
 
-        // First try to get results from API response
-        if (action.payload?.length) {
-          uniqueResults = action.payload
-            .flatMap((item) =>
-              item.moduleContents
-                .filter((module) => module.content?.title)
-                .map((module) => module.content)
-            )
-            .reduce((acc, content) => {
-              const titleSet = new Set(acc.map((entry) => entry.title));
-              if (!titleSet.has(content.title)) {
-                acc.push(content);
-              }
-              return acc;
-            }, []);
-        }
-        // If API response is empty, search through customModules
-        else if (action.meta?.arg?.moduleId) {
-          const { moduleId, keyword } = action.meta.arg;
-          const targetModule = state.customModules.find(
-            (module) => module.module_id === moduleId
-          );
-
-          if (targetModule?.templates?.length) {
-            uniqueResults = targetModule.templates
-              .flatMap((template) =>
-                template.content.filter((item) => {
-                  // If keyword is provided, search in both title and notes
-                  if (keyword) {
-                    const searchTerm = keyword.toLowerCase();
-                    return (
-                      item.title?.toLowerCase().includes(searchTerm) ||
-                      item.notes?.toLowerCase().includes(searchTerm)
-                    );
-                  }
-                  // If no keyword, return all items with titles
-                  return item.title;
-                })
+        // Check if this is a field-specific search (V2 modules)
+        const { fieldName } = action.meta?.arg || {};
+        
+        if (fieldName) {
+          // For V2 modules with field-specific search, store raw API response
+          // Component will extract field-specific values
+          state.searchModuleResults = action.payload || [];
+        } else {
+          // V1 module search (legacy - title/notes based)
+          // First try to get results from API response
+          if (action.payload?.length) {
+            uniqueResults = action.payload
+              .flatMap((item) =>
+                item.moduleContents
+                  .filter((module) => module.content?.title)
+                  .map((module) => module.content)
               )
               .reduce((acc, content) => {
                 const titleSet = new Set(acc.map((entry) => entry.title));
@@ -254,17 +232,49 @@ const customModuleSlice = createSlice({
                 return acc;
               }, []);
           }
-        }
+          // If API response is empty, search through customModules
+          else if (action.meta?.arg?.moduleId) {
+            const { moduleId, keyword } = action.meta.arg;
+            const targetModule = state.customModules.find(
+              (module) => module.module_id === moduleId
+            );
 
-        state.searchModuleResults = uniqueResults;
+            if (targetModule?.templates?.length) {
+              uniqueResults = targetModule.templates
+                .flatMap((template) =>
+                  template.content.filter((item) => {
+                    // If keyword is provided, search in both title and notes
+                    if (keyword) {
+                      const searchTerm = keyword.toLowerCase();
+                      return (
+                        item.title?.toLowerCase().includes(searchTerm) ||
+                        item.notes?.toLowerCase().includes(searchTerm)
+                      );
+                    }
+                    // If no keyword, return all items with titles
+                    return item.title;
+                  })
+                )
+                .reduce((acc, content) => {
+                  const titleSet = new Set(acc.map((entry) => entry.title));
+                  if (!titleSet.has(content.title)) {
+                    acc.push(content);
+                  }
+                  return acc;
+                }, []);
+            }
+          }
 
-        // Update latest searched modules if moduleId is provided and no keyword
-        if (action.meta?.arg?.moduleId && !action.meta?.arg?.keyword) {
-          const { moduleId } = action.meta.arg;
-          state.latestSearchedModules = {
-            ...state.latestSearchedModules,
-            [moduleId]: uniqueResults,
-          };
+          state.searchModuleResults = uniqueResults;
+
+          // Update latest searched modules if moduleId is provided and no keyword
+          if (action.meta?.arg?.moduleId && !action.meta?.arg?.keyword) {
+            const { moduleId } = action.meta.arg;
+            state.latestSearchedModules = {
+              ...state.latestSearchedModules,
+              [moduleId]: uniqueResults,
+            };
+          }
         }
       })
       .addCase(searchModule.rejected, (state, action) => {

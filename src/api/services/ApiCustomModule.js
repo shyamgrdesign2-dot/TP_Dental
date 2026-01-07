@@ -17,10 +17,12 @@ ApiCustomModule.getModuleContents = function (tcmId) {
   return api.get(`/dynamicmodules/user_modules_rx/${tcmId}`, baseUrl);
 };
 
-ApiCustomModule.searchModule = function (moduleId, keyword) {
+ApiCustomModule.searchModule = function (moduleId, keyword, fieldName) {
   return api.get(
     `/dynamicmodules/user_modules_rx/search?module_id=${moduleId}${
       keyword ? `&keyword=${keyword}` : ""
+    }${
+      fieldName ? `&field_name=${fieldName}` : ""
     }`,
     baseUrl
   );

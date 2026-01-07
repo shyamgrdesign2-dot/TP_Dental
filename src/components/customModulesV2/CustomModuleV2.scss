@@ -8,7 +8,7 @@
   display: grid;
   gap: 0;
 //   padding: 12px 12px;
-  background: #fafafa;
+  // background: #fafafa;
 }
 
 .custom-module-v2__table-header-cell {
@@ -40,13 +40,13 @@
 .custom-module-v2__table-cell {
   display: flex;
   align-items: center;
-  padding: 8px 14px;
-  min-height: 48px;
+  // padding: 8px 14px;
+  min-height: 58px;
 
   &--action {
     width: 50px;
     min-width: 50px;
-    // padding: 8px 0;
+    padding: 0 12px;
     gap: 12px;
   }
 }
@@ -223,22 +223,16 @@
   }
 
   .custom-module-v2-drawer__input {
-    height: 42px;
+    height: 42px !important;
     border: 1px solid #e2e2ea;
     border-radius: 10px;
-    padding: 9px 13px;
-    font-family: "Roboto", sans-serif;
     font-size: 14px;
-    color: #454551;
-
-    &::placeholder {
-      color: #a2a2a8;
-    }
+    color: #454551 !important;
 
     &:focus,
     &:hover {
-      border-color: #4b4ad5;
-      box-shadow: none;
+      border-color: #4b4ad5 !important;
+      box-shadow: none !important;
     }
   }
 }

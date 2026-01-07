@@ -1,5 +1,6 @@
 import React from "react";
-import { Drawer, Button, Input } from "antd";
+import { Drawer, Button } from "antd";
+import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
 
 /**
  * Drawer view for tablet/mobile editing of Custom Module rows.
@@ -14,6 +15,8 @@ const CustomModuleV2Drawer = ({
   onFieldChange,
   onClose,
   onSave,
+  moduleId,
+  templates = [],
 }) => {
   return (
     <Drawer
@@ -52,12 +55,15 @@ const CustomModuleV2Drawer = ({
             <label className="custom-module-v2-drawer__label">
               {field.fieldLabel}
             </label>
-            <Input
-              autoFocus={idx === 0}
+            <CustomModuleFieldAutoComplete
+              fieldName={field.fieldName}
+              fieldLabel={field.fieldLabel}
               value={values?.[field.fieldName] || ""}
-              placeholder={`Enter ${field.fieldLabel}`}
-              onChange={(e) => onFieldChange(field.fieldName, e.target.value)}
-              className="custom-module-v2-drawer__input"
+              onChange={(value) => onFieldChange(field.fieldName, value)}
+              moduleId={moduleId}
+              templates={templates}
+              className="custom-module-v2-drawer__input autocomplete-custom w-100"
+              autoFocus={idx === 0}
             />
           </div>
         ))}
