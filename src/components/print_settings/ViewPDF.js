@@ -5841,7 +5841,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
                                                     {customModule?.content?.map((item, i) => {
                                                         if (isV2) {
-                                                            // V2: Render all named fields with labels
+                                                            // V2: Render all named fields with labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                                             const fieldEntries = namedFields
                                                                 .map(field => ({
                                                                     label: field.fieldLabel,
@@ -5853,6 +5853,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
                                                             return (
                                                                 <Text key={i}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>(</Text>
                                                                     {fieldEntries.map((entry, idx) => (
                                                                         <Text key={idx}>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
@@ -5864,7 +5865,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                             {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
                                                                         </Text>
                                                                     ))}
-                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{i < customModule?.content.length - 1 ? '; ' : ''}&nbsp;</Text>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>)</Text>
+                                                                    {i < customModule?.content.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}> | </Text>}
                                                                 </Text>
                                                             );
                                                         } else {
@@ -5892,7 +5894,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
                                                     {customModule?.content.map((item, i) => {
                                                         if (isV2) {
-                                                            // V2: Render all named fields
+                                                            // V2: Render all named fields in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                                             const fieldEntries = namedFields
                                                                 .map(field => ({
                                                                     label: field.fieldLabel,
@@ -5904,7 +5906,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
                                                             return (
                                                                 <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
-                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;&nbsp;&nbsp;{i + 1}.</Text>
                                                                     {fieldEntries.map((entry, idx) => (
                                                                         <Text key={idx}>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
