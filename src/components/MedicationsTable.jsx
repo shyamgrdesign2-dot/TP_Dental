@@ -1041,7 +1041,7 @@ const MedicationsTable = ({
                 ) : (
                     <div className={styles['medicine-content']}>
                       <div className={styles['medicine-name']} style={{ display: 'flex', alignItems: 'center' }}>
-                        {capitalize((item?.groundingMedicineName || "").trim() || item.name || '-', true)}
+                        {capitalize((item.name || item?.groundingMedicineName || "").trim() || '-', true)}
                         {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2) && item?.metadata?.um_id === 0) && (
                           <span
                             className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
@@ -1060,8 +1060,10 @@ const MedicationsTable = ({
                           </span>
                         )}
                       </div>                                                       
-                      {item.corrected_name && (
-                        <div className={styles['medicine-subtitle']}>{item.corrected_name}</div>
+                      {(item.corrected_name || item.metadata?.tmm_generic || item.metadata?.generic_name) && (
+                        <div className={styles['medicine-subtitle']}>
+                          {item.corrected_name || item.metadata?.tmm_generic || item.metadata?.generic_name || ''}
+                        </div>
                       )}
                     </div>
                   )}
