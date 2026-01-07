@@ -1041,7 +1041,19 @@ const MedicationsTable = ({
                 ) : (
                     <div className={styles['medicine-content']}>
                       <div className={styles['medicine-name']} style={{ display: 'flex', alignItems: 'center' }}>
-                        {capitalize((item.name || item?.groundingMedicineName || "").trim() || '-', true)}
+                        {capitalize(
+                          (() => {
+                            if (isGroundingAccessable) {
+                              const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                              if (isFuzzySearchEmpty) {
+                                return item?.groundingMedicineName || item.name || "";
+                              }
+                              return item.name || item?.groundingMedicineName || "";
+                            }
+                            return item?.groundingMedicineName || item.name || "";
+                          })().trim() || '-', 
+                          true
+                        )}
                         {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2) && item?.metadata?.um_id === 0) && (
                           <span
                             className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white ms-2"
