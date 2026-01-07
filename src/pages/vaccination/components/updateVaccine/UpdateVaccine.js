@@ -20,7 +20,7 @@ import SuccessPopup from "../SuccessPopup.js";
 import { updateDueDate, updateVaccine, fetchFrequentlyUsedVaccines } from "../../service.js";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
-import { errorMessage, getClinicName } from "../../../../utils/utils.js";
+import { errorMessage, getClinicName, trackEvent } from "../../../../utils/utils.js";
 import {
   addDueVaccines,
   addGivenVaccines,
@@ -65,6 +65,7 @@ const UpdateVaccine = ({
   setSelectAll,
   setCardClicked,
   setLoading,
+  source,
 }) => {
   const dispatch = useDispatch();
   const { TextArea } = Input;
@@ -315,6 +316,17 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_Update_Given", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines ? "Other Vaccines" : "IAP Vaccines",
+          vaccineCompanyId: vaccineDetails?.map((vaccine) => vaccine?.vaccine_company_id),
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }
@@ -428,6 +440,18 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_DueDate", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines
+            ? "Other Vaccines"
+            : "IAP Vaccines",
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }

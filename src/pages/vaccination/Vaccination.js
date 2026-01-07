@@ -33,10 +33,10 @@ import CashManagerContext from "../../context/CashManagerContext";
 import { useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import FullPageLoader from "./components/Loader.js";
-import { getTokenData, handlePrintClick } from "../../utils/utils.js";
+import { handlePrintClick, trackEvent } from "../../utils/utils.js";
 import { getDecodedToken } from "../../utils/localStorage.js";
 
-function Vaccination({ handleDrawerVaccination }) {
+function Vaccination({ handleDrawerVaccination, source }) {
   const [isFixed, setIsFixed] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
   const [selectedCards, setSelectedCards] = useState([]);
@@ -724,6 +724,7 @@ function Vaccination({ handleDrawerVaccination }) {
             setActiveVaccineTab={setActiveVaccineTab}
             printVaccineCategory={printVaccineCategory}
             setPrintVaccineCategory={setPrintVaccineCategory}
+            source={source}
           />
         )}
         <div
@@ -761,7 +762,21 @@ function Vaccination({ handleDrawerVaccination }) {
                   className={`vaccine-tab-btn ${
                     activeVaccineTab === category.key ? "active" : ""
                   }`}
-                  onClick={() => setActiveVaccineTab(category.key)}
+                  onClick={() => {
+                    setActiveVaccineTab(category.key);
+                    trackEvent("TP_Vac_Type", {
+                      patientName: patient_data?.pm_fullname || "",
+                      patientId: patient_data?.patient_unique_id || "",
+                      doctorSpeciality: profile?.dp_name,
+                      doctorId: profile?.doctor_unique_id,
+                      doctorContact: profile?.um_contact,
+                      doctorName: profile?.um_name,
+                      source: source,
+                      type: VaccinationCategoryEnum.find(
+                        (item) => item.key === category.key
+                      )?.value,
+                    });
+                  }}
                 >
                   {category.value}
                 </button>
@@ -881,6 +896,7 @@ function Vaccination({ handleDrawerVaccination }) {
             setSelectAll={setSelectAll}
             setCardClicked={setCardClicked}
             setLoading={setLoading}
+            source={source}
           />
         )}
         {vaccinesData?.length && (
