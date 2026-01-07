@@ -12,7 +12,7 @@ import jsPDF from "jspdf";
 import {
   getClinic,
   getTokenData,
-  trackEvent
+  trackEvent,
 } from "../utils/utils";
 
 import {
