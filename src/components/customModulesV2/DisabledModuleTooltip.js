@@ -21,6 +21,7 @@ const DisabledModuleTooltip = ({
   hospitalSearchResults,
   children,
   placement = "left",
+  type = ""
 }) => {
   const creatorName = useMemo(() => {
     if (module?.creator_name || module?.doctor_name) {
@@ -41,14 +42,16 @@ const DisabledModuleTooltip = ({
 
   const content = (
     <div className="module-disabled-tooltip__content">
-      <div className="module-disabled-tooltip__header">
-        <span className="module-disabled-tooltip__header-label">
-          Module Created by:
-        </span>{" "}
-        <span className="module-disabled-tooltip__header-name">
-          {creatorName}
-        </span>
-      </div>
+      { type === "title" &&
+        <div className="module-disabled-tooltip__header">
+          <span className="module-disabled-tooltip__header-label">
+            Module Created by:
+          </span>{" "}
+          <span className="module-disabled-tooltip__header-name">
+            {creatorName}
+          </span>
+        </div>
+      }
       <div className="module-disabled-tooltip__note">
         <img
           src={alertIcon}

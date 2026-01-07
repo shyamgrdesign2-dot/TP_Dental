@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Input, Radio, Tooltip, Alert, message } from "antd";
+import { Input, Radio, Tooltip, Alert, message, Divider } from "antd";
 import {
   InfoCircleOutlined,
   ExclamationCircleOutlined,
@@ -173,7 +173,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
         <div className="create-new-module-tab__section">
           <div className="create-new-module-tab__label">
             <span>
-              Module Name <span className="required">*</span>
+              Module Name <span className="required color-red">*</span>
             </span>
             <Tooltip title="Enter a unique name for your custom module">
               <InfoCircleOutlined className="create-new-module-tab__info-icon" />
@@ -316,7 +316,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
         <div className="create-new-module-tab__section">
           <div className="create-new-module-tab__label">
             <span>
-              Configure Columns <span className="required">*</span>
+              Configure Columns <span className="required color-red">*</span>
             </span>
             <Tooltip title="Select the number of columns for your module">
               <InfoCircleOutlined className="create-new-module-tab__info-icon" />
@@ -336,7 +336,10 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
           {/* Set Column Labels */}
           <div className="create-new-module-tab__column-labels-section">
             <h4 className="create-new-module-tab__column-labels-title">
-              Set Column Labels
+            <Divider plain>Set Column Labels</Divider>
+              {/* <Divider style={{ margin: "0 30px", width: "630px" }} />
+                Set Column Labels
+              <Divider style={{ margin: "0 30px", width: "630px" }} /> */}
             </h4>
             <div className="create-new-module-tab__column-labels-grid">
               {columnLabels.map((label, index) => (
@@ -346,7 +349,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
                 >
                   <div className="create-new-module-tab__column-label-header">
                     <span>
-                      Column {index + 1} <span className="required">*</span>
+                      Column {index + 1} <span className="required color-red">*</span>
                     </span>
                   </div>
                   <Input

@@ -351,15 +351,19 @@
         color: #4b4ad5;
       }
 
+      &::before {
+        display: none;
+      }
+
       &.ant-radio-button-wrapper-checked {
         border-color: #4b4ad5;
         background: #ffffff;
         color: #4b4ad5;
         font-weight: 500;
 
-        &::before {
-          display: none;
-        }
+        // &::before {
+        //   display: none;
+        // }
 
         // Add radio indicator
         &::after {
@@ -427,6 +431,13 @@
     text-align: center;
     margin: 0;
     font-family: "Poppins", sans-serif;
+    .ant-divider {
+      padding: 0 7rem;
+      margin: 0;
+        .ant-divider-inner-text {
+          color: rgba(162, 162, 168, 0.90) !important;
+      }
+    }
   }
 
   &__column-labels-grid {
@@ -451,7 +462,7 @@
     font-family: "Poppins", sans-serif;
 
     .required {
-      color: #ff4d4f;
+      color: #ff4d4f !important;
     }
   }
 

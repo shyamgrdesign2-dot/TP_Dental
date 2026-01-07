@@ -37,6 +37,7 @@ import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
 import ModuleIcon from "../assets/images/custom-module.svg";
 import { MenuOutlined } from "@ant-design/icons";
+import DisabledModuleTooltip from "./customModulesV2/DisabledModuleTooltip";
 import {
   addModule,
   clearSearchResults,
@@ -56,7 +57,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
 
 function CustomModule({ module }) {
-  const { customModules, searchModuleResults, loading } = useSelector(
+  const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
   const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -69,13 +70,6 @@ function CustomModule({ module }) {
 
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
-  
-  // Tooltip content for disabled items
-  const disabledTooltipContent = (
-    <div>
-      <strong>Note:</strong> This module is used in an Rx and can't be <strong>edited/deleted</strong>. Create a new one if you need a different version
-    </div>
-  );
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -1076,11 +1070,9 @@ function CustomModule({ module }) {
         }}
       >
         {isModuleDisabled ? (
-          <Tooltip 
-            title={disabledTooltipContent}
-            placement="left"
-            overlayStyle={{ maxWidth: 350 }}
-            overlayClassName="module-disabled-tooltip"
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
           >
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
@@ -1092,7 +1084,7 @@ function CustomModule({ module }) {
               />
               Edit Module Name
             </span>
-          </Tooltip>
+          </DisabledModuleTooltip>
         ) : (
           <>
             <img
@@ -1124,11 +1116,9 @@ function CustomModule({ module }) {
         }}
       >
         {isModuleDisabled ? (
-          <Tooltip 
-            title={disabledTooltipContent}
-            placement="left"
-            overlayStyle={{ maxWidth: 350 }}
-            overlayClassName="module-disabled-tooltip"
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
           >
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
@@ -1140,7 +1130,7 @@ function CustomModule({ module }) {
               />
               Delete Module
             </span>
-          </Tooltip>
+          </DisabledModuleTooltip>
         ) : (
           <>
             <img
