@@ -368,6 +368,7 @@ function TabPrescription() {
                 moduleName: "",
                 page: 1,
                 limit: 100,
+                departmentId: profile?.dp_id
               })
             );
           }

@@ -38,13 +38,15 @@ ApiCustomModule.userPreModulesRX = function (data) {
  * @param {String} moduleName - Keyword to filter modules by name (optional)
  * @param {Number} page - Page number for pagination (optional, default: 1)
  * @param {Number} limit - Number of results per page (optional, default: 20, max: 100)
+ * @param {Number} departmentId - Department ID to filter modules (optional)
  * @returns {Promise} Returns paginated modules with pagination metadata
  */
 ApiCustomModule.searchModulesByHospital = function (
   hospitalId,
   moduleName,
   page,
-  limit
+  limit,
+  departmentId
 ) {
   const params = new URLSearchParams();
   params.append("hospitalId", hospitalId);
@@ -56,6 +58,9 @@ ApiCustomModule.searchModulesByHospital = function (
   }
   if (limit) {
     params.append("limit", limit.toString());
+  }
+  if (departmentId) {
+    params.append("departmentId", departmentId.toString());
   }
   return api.get(
     `/dynamicmodules/user_modules/search?${params.toString()}`,

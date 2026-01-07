@@ -73,13 +73,14 @@ export const userPreModulesRX = createAsyncThunk(
 
 export const searchModulesByHospital = createAsyncThunk(
   "customModules/searchModulesByHospital",
-  async ({ hospitalId, moduleName, page, limit }, { rejectWithValue }) => {
+  async ({ hospitalId, moduleName, page, limit, departmentId }, { rejectWithValue }) => {
     try {
       const response = await ApiCustomModule.searchModulesByHospital(
         hospitalId,
         moduleName,
         page,
-        limit
+        limit,
+        departmentId
       );
       return response; // Returns paginated modules with pagination metadata
     } catch (error) {

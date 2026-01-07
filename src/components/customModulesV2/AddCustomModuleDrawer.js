@@ -23,7 +23,7 @@ const { TabPane } = Tabs;
  */
 const AddCustomModuleDrawer = ({ open, onClose }) => {
   const dispatch = useDispatch();
-  const { userId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings } =
+  const { userId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings, profile } =
     useSelector((state) => state.doctors);
   const { loading, customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules
@@ -48,7 +48,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         hospitalId,
         moduleName: "",
         page: 1,
-        limit: 100
+        limit: 100,
+        departmentId: profile?.dp_id
       }));
     }
   }, [open, userId, hospitalId, dispatch]);
@@ -427,7 +428,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           hospitalId,
           moduleName: "",
           page: 1,
-          limit: 100
+          limit: 100,
+          departmentId: profile?.dp_id
         })).unwrap();
 
     setConfirmModalOpen(false);

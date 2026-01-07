@@ -21,7 +21,7 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   const { customModules: reduxModules, hospitalSearchResults, loading } = useSelector(
     (state) => state.customModules
   );
-  const { userId } = useSelector((state) => state.doctors);
+  const { userId, profile } = useSelector((state) => state.doctors);
   const [modules, setModules] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const decodedToken = getDecodedToken();
@@ -37,7 +37,8 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
         hospitalId,
         moduleName: "",
         page: 1,
-        limit: 100
+        limit: 100,
+        departmentId: profile?.dp_id
       }));
     }
   }, [hospitalId, userId, dispatch]);
@@ -59,7 +60,8 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
       hospitalId,
       moduleName: searchQuery || "",
       page: 1,
-      limit: 100
+      limit: 100,
+      departmentId: profile?.dp_id
     }));
   };
 
