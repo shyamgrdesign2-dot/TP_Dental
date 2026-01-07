@@ -1020,7 +1020,7 @@ function Cardiology(props) {
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {item?.name || 'N/A'}
+                  {(item?.groundingMedicineName || "").trim() || item?.name || 'N/A'}
                 </td>
                 <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}

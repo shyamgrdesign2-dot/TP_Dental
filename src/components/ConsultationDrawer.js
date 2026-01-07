@@ -413,7 +413,10 @@ const ConsultationDrawer = ({
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
-    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    const namesSignature = meds.map((m) => {
+      const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+      return nameToUse;
+    }).join("|");
     if (!namesSignature || namesSignature === lastFuzzyNamesRef.current) return;
 
     const now = Date.now();
@@ -470,24 +473,28 @@ const ConsultationDrawer = ({
 
       const correctedResults = await Promise.all(
         meds.map(async (med) => {
-          const currentName = (med?.name || "").trim();
-          if (!currentName)
-            return { correctedName: currentName, fullData: null };
+          const nameToUse = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+          if (!nameToUse)
+            return { correctedName: nameToUse, fullData: null };
           try {
-            const result = await ApiMedication.getFuzzySearch(currentName);
+            const searchName = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+            const result = await ApiMedication.getFuzzySearch(searchName);
             const corrected = result?.[0]?.tmm_medicine_name?.trim();
             return {
-              correctedName: corrected || currentName,
+              correctedName: corrected || nameToUse,
               fullData: {...result?.[0]} || null,
             };
           } catch (e) {
-            return { correctedName: currentName, fullData: null };
+            return { correctedName: nameToUse, fullData: null };
           }
         })
       );
 
       const anyChanged = meds.some(
-        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        (m, i) => {
+          const currentDisplayName = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+          return currentDisplayName !== correctedResults[i].correctedName;
+        }
       );
       if (!anyChanged) return;
 
@@ -505,7 +512,7 @@ const ConsultationDrawer = ({
           metadata: {
             ...m.metadata,
             fuzzyCorrectedName: correctedResults[idx].correctedName,
-            originalName: m.name,
+            originalName: (m?.groundingMedicineName || "").trim() || m.name,
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
@@ -1717,9 +1724,12 @@ const ConsultationDrawer = ({
             
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             newFormData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
@@ -1749,9 +1759,12 @@ const ConsultationDrawer = ({
           } else {
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             formData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
