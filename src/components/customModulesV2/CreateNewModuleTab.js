@@ -7,6 +7,7 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { customizedPad } from "../../redux/doctorsSlice";
+import alertIcon from '../../assets/images/alertIcon.svg';
 import ModuleListItem from "./ModuleListItem";
 import "./CreateNewModuleTab.scss";
 
@@ -202,7 +203,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
                   </div>
                 }
                 type="warning"
-                icon={<ExclamationCircleOutlined />}
+                icon={<img className='me-3' src={alertIcon} alt="Warning" />}
                 showIcon
                 className="create-new-module-tab__alert"
               />

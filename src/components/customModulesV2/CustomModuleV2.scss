@@ -112,6 +112,30 @@
   }
 }
 
+.info-tooltip {
+  &.ant-tooltip {
+    .ant-tooltip-inner {
+      background: #ffffff !important;
+      color: #f1f1f1 !important;
+      font-family: "Poppins", sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 22px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
+      min-width: 0;
+    }
+
+    .ant-tooltip-arrow {
+      &::before {
+        background: #ffffff !important;
+        box-shadow: none !important;
+      }
+    }
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .custom-module-v2__table {

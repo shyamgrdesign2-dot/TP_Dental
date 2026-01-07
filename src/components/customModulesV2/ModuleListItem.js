@@ -8,6 +8,7 @@ import { addModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
+import DisabledModuleTooltip from "./DisabledModuleTooltip";
 
 /**
  * ModuleListItem Component
@@ -26,8 +27,16 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [canEditName, setCanEditName] = useState(false);
   const [newModuleName, setNewModuleName] = useState(module?.name || "");
-  const { profile, userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
-  const { customModules } = useSelector((state) => state.customModules);
+  const {
+    profile,
+    userId,
+    customizedPadLeftList,
+    customizedPadRightList,
+    defaultPrintSettings,
+  } = useSelector((state) => state.doctors);
+  const { customModules, hospitalSearchResults } = useSelector(
+    (state) => state.customModules
+  );
   // Calculate column count based on module version
   const getColumnCount = () => {
     if (module.version === "v2" && module.namedFields) {
@@ -51,29 +60,33 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
 
   const columnLabels = getColumnLabels();
 
-  // Get creator name (comes from API response)
-  const creatorName = module.doctor_name || "Unknown Creator";
+  // Get creator name (from module or hospitalSearchResults)
+  const creatorName = (() => {
+    if (module.creator_name || module.doctor_name) {
+      return module.creator_name || module.doctor_name;
+    }
+    const hospitalModules = hospitalSearchResults?.modules || [];
+    const matched = hospitalModules.find(
+      (m) => m.module_id === (module.origin_id || module.module_id)
+    );
+    return (
+      matched?.creator_name ||
+      matched?.doctor_name ||
+      "Unknown"
+    );
+  })();
 
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned  || module.userId != userId);
-  
-  // Tooltip content for disabled items
-  const disabledTooltipContent = (
-    <div>
-      <strong>Note:</strong> This module is used in an Rx and can't be <strong>edited/deleted</strong>. Create a new one if you need a different version
-    </div>
-  );
 
   // More options menu items
   const menuItems = [
     {
       key: "edit",
       label: isModuleDisabled ? (
-        <Tooltip 
-          title={disabledTooltipContent}
-          placement="left"
-          overlayStyle={{ maxWidth: 350 }}
-          overlayClassName="module-disabled-tooltip"
+        <DisabledModuleTooltip
+          module={module}
+          hospitalSearchResults={hospitalSearchResults}
         >
           <span>
             <img
@@ -85,7 +98,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
             />
             Edit Module Name
           </span>
-        </Tooltip>
+        </DisabledModuleTooltip>
       ) : (
         <span>
           <img
@@ -112,11 +125,9 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     {
       key: "delete",
       label: isModuleDisabled ? (
-        <Tooltip 
-          title={disabledTooltipContent}
-          placement="left"
-          overlayStyle={{ maxWidth: 350 }}
-          overlayClassName="module-disabled-tooltip"
+        <DisabledModuleTooltip
+          module={module}
+          hospitalSearchResults={hospitalSearchResults}
         >
           <span>
             <img
@@ -128,7 +139,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
             />
             Delete Module
           </span>
-        </Tooltip>
+        </DisabledModuleTooltip>
       ) : (
         <span>
           <img
@@ -388,50 +399,50 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
             </div>
           ) : (
             <>
-              <div className="module-list-item__header">
-                <h3 className="module-list-item__name">{module.name}</h3>
-                <div className="module-list-item__details">
-                  <div className="module-list-item__tags">
-                    <span className="module-list-item__tag module-list-item__tag--creator">
-                      <UserOutlined className="module-list-item__tag-icon" />
-                      <span>{creatorName}</span>
-                    </span>
-                    <span className="module-list-item__tag module-list-item__tag--columns">
-                      {String(columnCount).padStart(2, "0")} columns
-                    </span>
-                  </div>
-                  <a className="module-list-item__view-more" onClick={handleViewMore}>
-                    {isExpanded ? "View less" : "View more"}
-                  </a>
-                </div>
+          <div className="module-list-item__header">
+            <h3 className="module-list-item__name">{module.name}</h3>
+            <div className="module-list-item__details">
+              <div className="module-list-item__tags">
+                <span className="module-list-item__tag module-list-item__tag--creator">
+                  <UserOutlined className="module-list-item__tag-icon" />
+                  <span>{creatorName}</span>
+                </span>
+                <span className="module-list-item__tag module-list-item__tag--columns">
+                  {String(columnCount).padStart(2, "0")} columns
+                </span>
               </div>
-              <div className="module-list-item__actions">
-                <Button
-                  type="default"
-                  icon={<PlusOutlined />}
-                  onClick={handleAddToRx}
-                  className="module-list-item__add-button"
-                >
-                  Add to Rx
-                </Button>
-                <Dropdown
-                  menu={{
-                    items: menuItems,
-                    onClick: handleMenuClick,
-                  }}
-                  trigger={["click"]}
-                  open={dropdownVisible}
-                  onOpenChange={setDropdownVisible}
-                  placement="bottomRight"
+              <a className="module-list-item__view-more" onClick={handleViewMore}>
+                {isExpanded ? "View less" : "View more"}
+              </a>
+            </div>
+          </div>
+          <div className="module-list-item__actions">
+            <Button
+              type="default"
+              icon={<PlusOutlined />}
+              onClick={handleAddToRx}
+              className="module-list-item__add-button"
+            >
+              Add to Rx
+            </Button>
+            <Dropdown
+              menu={{
+                items: menuItems,
+                onClick: handleMenuClick,
+              }}
+              trigger={["click"]}
+              open={dropdownVisible}
+              onOpenChange={setDropdownVisible}
+              placement="bottomRight"
                   getPopupContainer={(trigger) => document.body}
-                >
-                  <Button
-                    type="text"
-                    icon={<MoreOutlined />}
-                    className="module-list-item__more-button"
-                  />
-                </Dropdown>
-              </div>
+            >
+              <Button
+                type="text"
+                icon={<MoreOutlined />}
+                className="module-list-item__more-button"
+              />
+            </Dropdown>
+          </div>
             </>
           )}
         </div>

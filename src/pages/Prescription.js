@@ -530,14 +530,18 @@ function Prescription() {
   useEffect(() => {
     const fetchModules = async () => {
       if (userId) {
+        console.log(userId,"userId")
         // Always fetch user's own modules
         await dispatch(getModules(userId));
         
+
         // If editing a case with custom modules, also fetch hospital-wide modules
         // This ensures deleted modules are still available for rendering
-        if (caseManagerData?.moduleContents?.length > 0) {
+        // if (caseManagerData?.moduleContents?.length > 0) {
           const hospitalId = decodedToken?.result?.clinic_id;
+          console.log(hospitalId,"hospitalId")
           if (hospitalId) {
+            console.log("this is getting called")
             await dispatch(
               searchModulesByHospital({
                 hospitalId,
@@ -547,7 +551,7 @@ function Prescription() {
               })
             );
           }
-        }
+        // }
       }
     };
 
