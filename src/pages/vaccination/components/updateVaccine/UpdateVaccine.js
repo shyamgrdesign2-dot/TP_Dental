@@ -649,17 +649,17 @@ const UpdateVaccine = ({
             {selectedDate === "given" ? (
               <>
                 {selectedVaccines?.map((vaccine, i) => {
+                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
+                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const selectedBrand = vaccineDetails?.[vaccine?.tvac_name]
                     ?.vaccine_company_id
-                    ? vaccineOptions?.[vaccine?.tvac_name]?.find(
+                    ? [...regularOptions, ...frequentOptions]?.find(
                         (item) =>
                           item.value ===
                           vaccineDetails?.[vaccine?.tvac_name]
                             ?.vaccine_company_id
                       )?.label
                     : undefined;
-                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
-                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
                   
                   // Remove frequentOptions from regularOptions to avoid duplicates
