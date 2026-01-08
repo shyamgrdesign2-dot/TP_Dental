@@ -127,11 +127,11 @@ Font.register({
 
 // Gujarati
 Font.register({
-    family: 'AnekGujarati',
+    family: 'BalooBhai2',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Regular.ttf'), fontWeight: 400 }, // Regular
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Medium.ttf'), fontWeight: 500 }, // Medium
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Bold.ttf'), fontWeight: 700 }, // Bold
     ],
 });
 
@@ -396,7 +396,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const getFont = () => {
         var value = printSettings?.page_format?.font_family;
         if (selectedLang == 2) {
-        value = "AnekGujarati";
+        value = "BalooBhai2";
         } else if (selectedLang == 3 || selectedLang == 4) {
         value = "AnekDevanagari";
         } else if (selectedLang == 5) {
