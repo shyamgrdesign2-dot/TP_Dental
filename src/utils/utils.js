@@ -917,7 +917,7 @@ export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
 
   // Gujarati
   if (/[\u0A80-\u0AFF]/.test(text)) {
-    return "AnekGujarati";
+    return "BalooBhai2";
   }
 
   // Punjabi/Gurmukhi
