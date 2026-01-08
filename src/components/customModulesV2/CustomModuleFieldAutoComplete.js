@@ -99,7 +99,7 @@ const CustomModuleFieldAutoComplete = ({
             fieldName,
           })
         );
-      }, 500);
+      }, 1000);
       return () => {
         clearTimeout(timeOutId);
       };
