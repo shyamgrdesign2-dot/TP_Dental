@@ -317,22 +317,26 @@
       font-weight: 600;
       margin-right: 4px;
     }
-    span{
-      color: #4b4ad5 !important;
-      font-weight: 600;
-      margin-right: 4px;
+
+    .main-text{
+        color: #4b4ad5 !important;
+        font-weight: 600;
+        margin-right: 4px;
     }
 
+    .secondary-text{
+      color: rgba(162, 162, 168, 0.9) !important;
+    }
   }
 
   &__column-radio-group {
     width: 100%;
     display: flex;
     gap: 8px;
-
+  
     .ant-radio-button-wrapper {
       flex: 1;
-      text-align: center;
+      text-align: left;
       height: 40px;
       line-height: 38px;
       border: 1px solid #e2e2ea;
@@ -342,80 +346,80 @@
       font-size: 14px;
       font-weight: 400;
       font-family: "Poppins", sans-serif;
-      transition: all 0.2s ease-in-out;
+      // transition: all 0.2s ease-in-out;
       position: relative;
-      padding: 0 16px;
-
+      padding: 0 2rem; // space for radio
+  
+      /* Kill AntD divider */
+      &::before {
+        display: none !important;
+      }
+  
       &:hover {
         border-color: #4b4ad5;
         color: #4b4ad5;
       }
-
-      &::before {
-        display: none;
+  
+      /* UNCHECKED RADIO */
+      &::after {
+        content: "";
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border: 2px solid #a2a2a8;
+        border-radius: 50%;
+        background: #ffffff;
+        // transition: all 0.2s ease;
       }
-
+  
+      /* CHECKED STATE */
       &.ant-radio-button-wrapper-checked {
         border-color: #4b4ad5;
-        background: #ffffff;
         color: #4b4ad5;
         font-weight: 500;
-
-        // &::before {
-        //   display: none;
-        // }
-
-        // Add radio indicator
-        &::after {
+  
+        /* OUTER RING */
+        &::before {
           content: "";
           position: absolute;
-          left: 12px;
+          left: 11px;
           top: 50%;
           transform: translateY(-50%);
-          width: 16px;
-          height: 16px;
+          width: 12px;
+          height: 10px;
           border: 2px solid #4b4ad5;
           border-radius: 50%;
-          background: #ffffff;
+          background: transparent;
+          display: block !important;
         }
 
-        // Add filled circle inside radio
-        .ant-radio-button {
-          &::after {
-            content: "";
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4b4ad5;
-          }
-        }
-      }
-
-      // Unchecked state - show empty radio
-      &:not(.ant-radio-button-wrapper-checked) {
-        &::after {
-          content: "";
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
+         /* 👇 First child override */
+        &:first-child::before {
+          left: 11px;
           width: 16px;
           height: 16px;
-          border: 2px solid #a2a2a8;
-          border-radius: 50%;
-          background: #ffffff;
+        }
+  
+        /* INNER DOT */
+        &::after {
+          width: 8px;
+          height: 8px;
+          background: #4b4ad5;
+          border: none;
+          left: 15px;
         }
       }
-
+  
+      /* Hide native radio */
       .ant-radio-button {
         display: none;
       }
     }
   }
+  
 
   &__column-labels-section {
     margin-top: 24px;

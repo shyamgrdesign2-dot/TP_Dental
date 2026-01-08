@@ -107,12 +107,6 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
                 throw new Error("Failed to retrieve cloned module information");
               }
 
-              console.log("Cloned module found:", {
-                clonedModuleId: clonedModule.module_id,
-                clonedModuleName: clonedModule.name,
-                originId: clonedModule.origin_id,
-              });
-
               // Update the target module ID to the newly cloned module's ID
               targetModuleId = clonedModule.module_id;
               targetModuleName = clonedModule.name;
@@ -273,7 +267,6 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
   const handleViewMore = useCallback((module) => {
     // TODO: Implement view more functionality - could open a modal with module details
-    // console.log("View more:", module);
     message.info(`View more details for: ${module.name}`);
   }, []);
 
@@ -487,7 +480,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             loading={loading}
             onClick={handleCreateModule}
           >
-            Create Module
+            Create & Add To Rx
           </Button>
         )}
       </div>

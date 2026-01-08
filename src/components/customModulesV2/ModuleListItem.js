@@ -8,6 +8,7 @@ import { addModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
+import stethoscopeIcon from '../../assets/images/stethoscope.svg';
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
 
 /**
@@ -404,7 +405,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
             <div className="module-list-item__details">
               <div className="module-list-item__tags">
                 <span className="module-list-item__tag module-list-item__tag--creator">
-                  <UserOutlined className="module-list-item__tag-icon" />
+                  <img src={stethoscopeIcon} alt="stethoscope" className="create-new-module-tab__similar-tag-icon" />
                   <span>{creatorName}</span>
                 </span>
                 <span className="module-list-item__tag module-list-item__tag--columns">

@@ -71,18 +71,23 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
       return modules || [];
     }
 
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     return (modules || []).filter((module) => {
       // Search by module name
       const nameMatch = module.name?.toLowerCase().includes(query);
 
-      // Search by creator (if available in API response)
-      const creatorMatch = module.creator_name?.toLowerCase().includes(query);
+      // Search by creator name (check both creator_name and doctor_name)
+      const creatorMatch = 
+        module.creator_name?.toLowerCase().includes(query) ||
+        module.doctor_name?.toLowerCase().includes(query);
 
       // Search by column labels (for V2 modules)
-      const columnLabelsMatch = module.namedFields?.some((field) =>
-        field.fieldLabel?.toLowerCase().includes(query)
-      );
+      // Check both fieldLabel and fieldName
+      const columnLabelsMatch = module.namedFields?.some((field) => {
+        const fieldLabelMatch = field.fieldLabel?.toLowerCase().includes(query);
+        const fieldNameMatch = field.fieldName?.toLowerCase().includes(query);
+        return fieldLabelMatch || fieldNameMatch;
+      });
 
       return nameMatch || creatorMatch || columnLabelsMatch;
     });

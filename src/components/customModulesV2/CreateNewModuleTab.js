@@ -3,11 +3,12 @@ import { Input, Radio, Tooltip, Alert, message, Divider } from "antd";
 import {
   InfoCircleOutlined,
   ExclamationCircleOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { customizedPad } from "../../redux/doctorsSlice";
 import alertIcon from '../../assets/images/alertIcon.svg';
+import stethoscopeIcon from '../../assets/images/stethoscope.svg';
+import Plus from '../../assets/images/website-images/plus.svg'
 import ModuleListItem from "./ModuleListItem";
 import "./CreateNewModuleTab.scss";
 
@@ -25,7 +26,7 @@ const MAX_COLUMN_LABEL_LENGTH = 15;
  */
 const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   const dispatch = useDispatch();
-  const { customModules } = useSelector((state) => state.customModules);
+  const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
   const { customizedPadRightList, customizedPadLeftList } = useSelector(
     (state) => state.doctors
   );
@@ -166,6 +167,24 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
     }));
   };
 
+  // Resolve creator name for a module (similar to DisabledModuleTooltip logic)
+  const getCreatorName = useCallback((module) => {
+    if (module?.creator_name || module?.doctor_name) {
+      return module.creator_name || module.doctor_name;
+    }
+
+    const hospitalModules = hospitalSearchResults?.modules || [];
+    const matched = hospitalModules.find(
+      (m) => m.module_id === (module.origin_id || module.module_id)
+    );
+
+    return (
+      matched?.creator_name ||
+      matched?.doctor_name ||
+      "Unknown"
+    );
+  }, [hospitalSearchResults]);
+
   return (
     <div className="create-new-module-tab">
       <div className="create-new-module-tab__content">
@@ -232,8 +251,8 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
                           <div className="create-new-module-tab__similar-details">
                             <div className="create-new-module-tab__similar-tags">
                               <span className="create-new-module-tab__similar-tag">
-                                <UserOutlined className="create-new-module-tab__similar-tag-icon" />
-                                <span>Dr. {module.creator_name || "Unknown"}</span>
+                                <img src={stethoscopeIcon} alt="stethoscope" className="create-new-module-tab__similar-tag-icon" />
+                                <span>Dr. {getCreatorName(module)}</span>
                               </span>
                               <span className="create-new-module-tab__similar-tag">
                                 {String(moduleColumnCount).padStart(2, "0")}{" "}
@@ -301,9 +320,11 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
                   onClick={handleAddAsNew}
                 >
                   <span>
-                    (or){" "}
-                    <span className="create-new-module-tab__add-icon">+</span>{" "}
-                    Add "{moduleName}" as new Custom module
+                    <span className="secondary-text">(or){" "}</span>
+                    <span className="create-new-module-tab__add-icon">
+                      <img src={Plus} alt="plus"/>
+                    </span>
+                    <span className="main-text">Add "{moduleName}" as new Custom module</span>
                   </span>
                 </div>
               </div>
@@ -336,10 +357,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
           {/* Set Column Labels */}
           <div className="create-new-module-tab__column-labels-section">
             <h4 className="create-new-module-tab__column-labels-title">
-            <Divider plain>Set Column Labels</Divider>
-              {/* <Divider style={{ margin: "0 30px", width: "630px" }} />
-                Set Column Labels
-              <Divider style={{ margin: "0 30px", width: "630px" }} /> */}
+              <Divider plain>Set Column Labels</Divider>
             </h4>
             <div className="create-new-module-tab__column-labels-grid">
               {columnLabels.map((label, index) => (
