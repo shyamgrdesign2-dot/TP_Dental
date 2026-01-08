@@ -5836,9 +5836,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
                                         // Render based on format
                                         if (option?.format === 'inline') {
+                                            const moduleName = customModule?.name || customModule?.module_name;
                                             return (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content?.map((item, i) => {
                                                         if (isV2) {
                                                             // V2: Render all named fields with labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
@@ -5889,9 +5890,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </Text>
                                             );
                                         } else if (option?.format === 'listview') {
+                                            const moduleName = customModule?.name || customModule?.module_name;
                                             return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content.map((item, i) => {
                                                         if (isV2) {
                                                             // V2: Render all named fields in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
@@ -5941,9 +5943,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             );
                                         } else {
                                             // Table format
+                                            const moduleName = customModule?.name || customModule?.module_name;
                                             return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.name || customModule?.module_name}:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{moduleName}:&nbsp;</Text>
                                                     <View style={styles.table}>
                                                         <View style={styles.headerRowFixed} fixed/>
                                                         {isV2 && (
