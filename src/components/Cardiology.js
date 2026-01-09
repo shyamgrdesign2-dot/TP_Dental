@@ -2711,38 +2711,68 @@ function Cardiology(props) {
                                 src={customModuleIcon}
                                 alt={item.module_name}
                               />
-                              <div>
+                              <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
                                 <div className="title">{item.module_name}</div>
                                 {item.module_version === "v2" ? (
-                                  // V2 Module Rendering
-                                  item.content
-                                    .filter((row) => {
+                                  // V2 Module Rendering - Ant Design Table Format
+                                  (() => {
+                                    const namedFields = moduleDefinition?.namedFields || [];
+                                    const filteredContent = item.content.filter((row) => {
                                       const { id, ...fields } = row;
                                       return Object.values(fields).some(
                                         (value) => value && value.toString().trim().length > 0
                                       );
-                                    })
-                                    .map((row, rowIndex) => {
+                                    });
+
+                                    if (filteredContent.length === 0) return null;
+
+                                    // Get all field names from namedFields or from first row
+                                    const fieldNames = namedFields.length > 0
+                                      ? namedFields.map(f => f.fieldName)
+                                      : Object.keys(filteredContent[0] || {}).filter(k => k !== 'id');
+
+                                    // Create columns for Ant Design Table
+                                    const tableColumns = fieldNames.map((fieldName, idx) => {
+                                      const field = namedFields.find(f => f.fieldName === fieldName);
+                                      const headerLabel = field?.fieldLabel || fieldName;
+                                      return {
+                                        title: headerLabel.toUpperCase(),
+                                        dataIndex: fieldName,
+                                        key: fieldName,
+                                        render: (text) => text || '-',
+                                        onHeaderCell: () => ({
+                                          style: {
+                                            backgroundColor: '#f5f5f5',
+                                            fontWeight: 600,
+                                          },
+                                        }),
+                                      };
+                                    });
+
+                                    // Transform data for table (remove id field)
+                                    const tableData = filteredContent.map((row, index) => {
                                       const { id, ...fields } = row;
-                                      const fieldEntries = Object.entries(fields).filter(
-                                        ([key, value]) => value && value.toString().trim().length > 0
-                                      );
-                                      
-                                      return (
-                                        <span key={rowIndex}>
-                                          {fieldEntries.map(([fieldName, value], fieldIndex) => (
-                                            <React.Fragment key={fieldIndex}>
-                                              {fieldIndex > 0 && " | "}
-                                              <span className="fw-medium">{fieldName}:</span> {value}
-                                            </React.Fragment>
-                                          ))}
-                                          {rowIndex < item.content.filter((r) => {
-                                            const { id, ...f } = r;
-                                            return Object.values(f).some(v => v && v.toString().trim().length > 0);
-                                          }).length - 1 && <br />}
-                                        </span>
-                                      );
-                                    })
+                                      return {
+                                        key: `row-${index}`,
+                                        ...fields,
+                                      };
+                                    });
+
+                                    return (
+                                      <div className="mt-2">
+                                        <div className="border-top border-bottom border-start border-end" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                                          <Table
+                                            className="table-border"
+                                            columns={tableColumns}
+                                            dataSource={tableData}
+                                            pagination={false}
+                                            size="small"
+                                            style={{ width: '100%' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
                                 ) : (
                                   // V1 Module Rendering (Original)
                                   item.content

@@ -10,6 +10,8 @@ import alertIcon from '../../assets/images/alertIcon.svg';
 import stethoscopeIcon from '../../assets/images/stethoscope.svg';
 import Plus from '../../assets/images/website-images/plus.svg'
 import ModuleListItem from "./ModuleListItem";
+import { getDecodedToken } from "../../utils/localStorage";
+import config from "../../config";
 import "./CreateNewModuleTab.scss";
 
 const MAX_MODULE_NAME_LENGTH = 30;
@@ -27,7 +29,7 @@ const MAX_COLUMN_LABEL_LENGTH = 15;
 const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   const dispatch = useDispatch();
   const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
-  const { customizedPadRightList, customizedPadLeftList } = useSelector(
+  const { customizedPadRightList, customizedPadLeftList, userId } = useSelector(
     (state) => state.doctors
   );
   const [moduleName, setModuleName] = useState("");
@@ -36,19 +38,29 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   const [similarModules, setSimilarModules] = useState([]);
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [expandedModules, setExpandedModules] = useState({});
+  
+  const decodedToken = getDecodedToken();
+  const hospital_business_id = decodedToken?.result?.hospital_business_id;
+  const isApollo = config.APOLLO_BUSINESS_IDS?.includes(hospital_business_id);
 
   // Check for similar module names
   useEffect(() => {
     if (moduleName.trim().length >= 2) {
       const query = moduleName.toLowerCase().trim();
-      const similar = (customModules || []).filter((module) =>
+      let similar = (hospitalSearchResults?.modules || []).filter((module) =>
         module.name?.toLowerCase().includes(query)
       );
+      
+      // For Apollo users, filter to show only modules created by the logged-in user
+      if (isApollo) {
+        similar = similar.filter((module) => module.userId === userId);
+      }
+      
       setSimilarModules(similar);
     } else {
       setSimilarModules([]);
     }
-  }, [moduleName, customModules]);
+  }, [moduleName, hospitalSearchResults, isApollo, userId]);
 
   // Update column labels when column count changes
   useEffect(() => {

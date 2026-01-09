@@ -170,7 +170,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
                 {
                   id: targetModuleId,
                   title: targetModuleName,
-                  format: "inline",
+                  format: "table",
                   enable: "Y",
                   custom_status: "Y",
                   is_custom_module: true,
@@ -356,7 +356,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
                 {
                   id: newlyCreatedModule.module_id,
                   title: newlyCreatedModule.name,
-                  format: "inline",
+                  format: "table",
                   enable: "Y",
                   custom_status: "Y",
                   is_custom_module: true,

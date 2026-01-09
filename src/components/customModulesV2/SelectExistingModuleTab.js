@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import ModuleListItem from "./ModuleListItem";
 import { getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
 import { getDecodedToken } from "../../utils/localStorage";
+import config from "../../config";
 import "./SelectExistingModuleTab.scss";
 
 /**
@@ -26,6 +27,8 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
+  const hospital_business_id = decodedToken?.result?.hospital_business_id;
+  const isApollo = config.APOLLO_BUSINESS_IDS?.includes(hospital_business_id);
 
   // Fetch modules by hospital on mount
   useEffect(() => {
@@ -46,11 +49,23 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   // Update local modules when Redux state changes
   useEffect(() => {
     if (hospitalSearchResults?.modules && hospitalSearchResults.modules.length > 0) {
-      setModules(hospitalSearchResults.modules);
+      let filteredModules = hospitalSearchResults.modules;
+      console.log(isApollo,"isApollo")
+      // For Apollo users, filter to show only modules created by the logged-in user
+      if (isApollo) {
+        filteredModules = hospitalSearchResults.modules.filter(
+          (module) => {
+            console.log(module.userId,"-",userId)
+            return module.userId == userId
+          }
+        );
+      }
+      
+      setModules(filteredModules);
     } else {
       setModules([]);
     }
-  }, [hospitalSearchResults]);
+  }, [hospitalSearchResults, isApollo, userId]);
 
   // Handle module deletion - refresh the list
   const handleModuleDeleted = () => {
