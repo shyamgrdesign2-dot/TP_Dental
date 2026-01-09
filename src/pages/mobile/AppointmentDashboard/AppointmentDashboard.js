@@ -382,6 +382,9 @@ function AppointmentDashboard() {
       await dispatch(
         cancelAppointments({
           pam_id: selectedAppointment.pam_id,
+          patient_unique_id: selectedAppointment.patient_unique_id,
+          pm_id: selectedAppointment.pm_id,
+          pm_pid: selectedAppointment.pm_pid,
         })
       ).unwrap();
       
