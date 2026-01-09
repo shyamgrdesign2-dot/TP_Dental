@@ -209,7 +209,7 @@ export const normalizeVaccineName = (vaccineName) => {
     "HB": "Hepatatis B",
     "JE": "Japanese Encephalitis (JE)",
     "Hep A": "Hepatatis A",
-    "RV": "Rotavirus",
+    // "RV": "Rotavirus",
     "TCV": "Thyphoid",
   };
 
