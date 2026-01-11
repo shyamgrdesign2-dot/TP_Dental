@@ -11,6 +11,7 @@ import {
   cancelAppointments,
   endVisit,
 } from '../../../redux/appointmentsSlice';
+import { getProfile } from '../../../redux/doctorsSlice';
 import {
   TAB_QUEUE,
   TAB_FINISHED,
@@ -45,7 +46,7 @@ function AppointmentDashboard() {
   const scrollContainerRef = useRef(null);
   const lastPostElementRef = useRef(null);
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   const {
     queueCount,
     finishedCount,
@@ -89,6 +90,12 @@ function AppointmentDashboard() {
     { value: 5, label: 'Last 30 Days' },
     { value: 6, label: 'Till Date' },
   ];
+
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
 
   // Fetch appointments
   useEffect(() => {
@@ -579,6 +586,7 @@ function AppointmentDashboard() {
       {showProfile && (
         <ProfileSection
           doctorName={profile?.um_name}
+          specialty={profile?.dp_name}
           clinicName={clinicName}
           profileImage={profile?.um_image}
         />
