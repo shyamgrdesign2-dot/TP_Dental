@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from 'antd';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { getProfile } from '../../../redux/doctorsSlice';
 import { isMobile } from 'react-device-detect';
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
 import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from '../../../utils/constants';
@@ -20,7 +21,8 @@ import './MobileVoiceRxConsult.scss';
 function MobileVoiceRxConsult() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const dispatch = useDispatch();
+  const { profile, userId, servicesList, loading: profileLoading } = useSelector((state) => state.doctors);
   
   const { patient_data, isFromTabView } = location.state || {};
   
@@ -29,12 +31,23 @@ function MobileVoiceRxConsult() {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [showPatientSummary, setShowPatientSummary] = useState(true);
 
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
+
+  // Use useMemo to recalculate clinic/clinicName when profile changes
+  // This ensures values update when profile loads (critical on real mobile devices)
+  const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
+  const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
+
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
   );
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tokenData = getTokenData();
-  const clinic = getClinic(profile?.hospital_data);
 
   const isVoiceRxCreditExpired =
     !isFreeVoiceRxUser &&
@@ -57,19 +70,20 @@ function MobileVoiceRxConsult() {
 
   const showHideSubModal = useCallback(() => {
     setIsSubModalOpen((prev) => !prev);
-    const clinic_name = getClinicName(profile?.hospital_data);
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event('TP_voiceRx_FreeTrailInfo', {
-      doctor_name: profile?.um_name,
-      doctor_number: profile?.um_contact,
-      doctor_unique_id: profile?.doctor_unique_id,
-      doctor_specialty: profile?.dp_name,
-      clinic_id: tokenData?.clinic_id,
-      um_id: tokenData?.user_id,
-      clinic_Name: clinic_name,
-      ...deviceSdkData,
-    });
-  }, [profile, tokenData]);
+    if (window.Moengage && profile && clinicName) {
+      window.Moengage.track_event('TP_voiceRx_FreeTrailInfo', {
+        doctor_name: profile?.um_name,
+        doctor_number: profile?.um_contact,
+        doctor_unique_id: profile?.doctor_unique_id,
+        doctor_specialty: profile?.dp_name,
+        clinic_id: tokenData?.clinic_id,
+        um_id: tokenData?.user_id,
+        clinic_Name: clinicName,
+        ...deviceSdkData,
+      });
+    }
+  }, [profile, tokenData, clinicName]);
 
   const handleBack = () => {
     if (isFromTabView) {
@@ -92,18 +106,20 @@ function MobileVoiceRxConsult() {
   };
 
   const handleDictationMode = () => {
-    window.Moengage.track_event('TP_AV_StartDictate', {
-      patient_id: patient_data?.patient_unique_id || '',
-      patient_name: patient_data?.pm_fullname || '',
-      patient_mobile_number: patient_data?.pm_contact_no || '',
-      doctor_id: profile?.doctor_unique_id,
-      user_id: userId,
-      doctor_name: profile?.um_name,
-      doctor_specialty: profile?.dp_name,
-      doctor_mobile_number: profile?.um_contact,
-      hm_id: clinic?.hm_id,
-      clinic_name: clinic?.hm_name,
-    });
+    if (window.Moengage && profile && clinic) {
+      window.Moengage.track_event('TP_AV_StartDictate', {
+        patient_id: patient_data?.patient_unique_id || '',
+        patient_name: patient_data?.pm_fullname || '',
+        patient_mobile_number: patient_data?.pm_contact_no || '',
+        doctor_id: profile?.doctor_unique_id,
+        user_id: userId,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        doctor_mobile_number: profile?.um_contact,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+      });
+    }
     navigate('/voice-recording', {
       state: {
         patient_data,
@@ -119,18 +135,20 @@ function MobileVoiceRxConsult() {
       alert('Please confirm patient consent before proceeding');
       return;
     }
-    window.Moengage.track_event('TP_AV_StartConversation', {
-      patient_id: patient_data?.patient_unique_id || '',
-      patient_name: patient_data?.pm_fullname || '',
-      patient_mobile_number: patient_data?.pm_contact_no || '',
-      doctor_id: profile?.doctor_unique_id,
-      user_id: userId,
-      doctor_name: profile?.um_name,
-      doctor_specialty: profile?.dp_name,
-      doctor_mobile_number: profile?.um_contact,
-      hm_id: clinic?.hm_id,
-      clinic_name: clinic?.hm_name,
-    });
+    if (window.Moengage && profile && clinic) {
+      window.Moengage.track_event('TP_AV_StartConversation', {
+        patient_id: patient_data?.patient_unique_id || '',
+        patient_name: patient_data?.pm_fullname || '',
+        patient_mobile_number: patient_data?.pm_contact_no || '',
+        doctor_id: profile?.doctor_unique_id,
+        user_id: userId,
+        doctor_name: profile?.um_name,
+        doctor_specialty: profile?.dp_name,
+        doctor_mobile_number: profile?.um_contact,
+        hm_id: clinic?.hm_id,
+        clinic_name: clinic?.hm_name,
+      });
+    }
 
     let userIp = '';
     try {
@@ -312,19 +330,21 @@ function MobileVoiceRxConsult() {
                     className={`checkbox ${consentChecked ? 'checked' : ''}`}
                     onClick={() => {
                       setConsentChecked(!consentChecked);
-                      window.Moengage.track_event('TP_AV_StartDictate', {
-                        patient_id: patient_data?.patient_unique_id || '',
-                        patient_name: patient_data?.pm_fullname || '',
-                        patient_mobile_number: patient_data?.pm_contact_no || '',
-                        doctor_id: profile?.doctor_unique_id,
-                        user_id: userId,
-                        doctor_name: profile?.um_name,
-                        doctor_specialty: profile?.dp_name,
-                        doctor_mobile_number: profile?.um_contact,
-                        hm_id: clinic?.hm_id,
-                        clinic_name: clinic?.hm_name,
-                        status: consentChecked ? 'enabled' : 'disabled',
-                      });
+                      if (window.Moengage && profile && clinic) {
+                        window.Moengage.track_event('TP_AV_StartDictate', {
+                          patient_id: patient_data?.patient_unique_id || '',
+                          patient_name: patient_data?.pm_fullname || '',
+                          patient_mobile_number: patient_data?.pm_contact_no || '',
+                          doctor_id: profile?.doctor_unique_id,
+                          user_id: userId,
+                          doctor_name: profile?.um_name,
+                          doctor_specialty: profile?.dp_name,
+                          doctor_mobile_number: profile?.um_contact,
+                          hm_id: clinic?.hm_id,
+                          clinic_name: clinic?.hm_name,
+                          status: consentChecked ? 'enabled' : 'disabled',
+                        });
+                      }
                     }}
                     role="checkbox"
                     aria-checked={consentChecked}

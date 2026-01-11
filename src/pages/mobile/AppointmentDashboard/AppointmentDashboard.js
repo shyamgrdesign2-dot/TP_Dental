@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import moment from 'moment';
@@ -11,6 +11,7 @@ import {
   cancelAppointments,
   endVisit,
 } from '../../../redux/appointmentsSlice';
+import { getProfile } from '../../../redux/doctorsSlice';
 import {
   TAB_QUEUE,
   TAB_FINISHED,
@@ -45,7 +46,7 @@ function AppointmentDashboard() {
   const scrollContainerRef = useRef(null);
   const lastPostElementRef = useRef(null);
 
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   const {
     queueCount,
     finishedCount,
@@ -89,6 +90,13 @@ function AppointmentDashboard() {
     { value: 5, label: 'Last 30 Days' },
     { value: 6, label: 'Till Date' },
   ];
+
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
 
   // Fetch appointments
   useEffect(() => {
@@ -568,8 +576,10 @@ function AppointmentDashboard() {
     }
   };
 
-  const clinic = getClinic(profile?.hospital_data);
-  const clinicName = getClinicName(profile?.hospital_data);
+  // Use useMemo to recalculate clinic/clinicName when profile changes
+  // This ensures values update when profile loads (critical on real mobile devices)
+  const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
+  const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
 
   return (
     <div className="mobile-appointment-dashboard">

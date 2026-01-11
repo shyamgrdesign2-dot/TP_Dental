@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { Spin, Drawer, Button } from 'antd';
@@ -6,6 +6,7 @@ import moment from 'moment';
 
 import { useDeviceType } from '../../../utils/deviceDetection';
 import { viewCaseManager } from '../../../redux/caseManagerSlice';
+import { getProfile } from '../../../redux/doctorsSlice';
 import { setAllUploadedDocs, setPatientUploadedDocs } from '../../../redux/uploadDocSlice';
 import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRecords/service';
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
@@ -63,7 +64,7 @@ function PatientDetails() {
   const { state } = useLocation();
   const { patient_data, sidebarKey: initialSidebarKey } = state || {};
 
-  const { profile, userId } = useSelector((state) => state.doctors);
+  const { profile, userId, loading: profileLoading } = useSelector((state) => state.doctors);
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const {
     viewCaseManagerData,
@@ -100,23 +101,37 @@ function PatientDetails() {
   const isTransitioningRef = useRef(false);
   const scrollIgnoreRef = useRef(false);
 
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
+
+  // Use useMemo to recalculate clinic/clinicName when profile changes
+  // This ensures values update when profile loads (critical on real mobile devices)
+  const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
+  const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
+
   // Fetch case manager data
   useEffect(() => {
     if (!patient_data?.patient_unique_id) return;
 
-    const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage?.track_event('TP_Patient_detail_landing', {
-      clinic_name,
-      patient_number: patient_data?.pm_contact_no,
-      patient_id: patient_data?.patient_unique_id,
-    });
+    // Use memoized clinicName for analytics tracking
+    if (window.Moengage && clinicName) {
+      window.Moengage.track_event('TP_Patient_detail_landing', {
+        clinic_name: clinicName,
+        patient_number: patient_data?.pm_contact_no,
+        patient_id: patient_data?.patient_unique_id,
+      });
+    }
 
     const sendData = {
       patient_unique_id: patient_data.patient_unique_id,
       tcm_id: tcmData.tcm_id,
     };
     dispatch(viewCaseManager(sendData));
-  }, [tcmData, patient_data, dispatch, profile]);
+  }, [tcmData, patient_data, dispatch, clinicName]);
 
   // Fetch patient documents
   useEffect(() => {
@@ -338,8 +353,7 @@ function PatientDetails() {
   };
 
   const handleVoiceRxClick = useCallback(() => {
-    if (profile && window.Moengage) {
-      const clinic = getClinic(profile?.hospital_data);
+    if (profile && window.Moengage && clinic) {
       window.Moengage.track_event("TP_AV_Entry", {
         patient_id: patient_data?.patient_unique_id || patient_data?.pm_pid || "",
         patient_name: patient_data?.pm_fullname || "",

@@ -23,19 +23,29 @@ function WalkInConsultation() {
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
   
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   const { patients, loading, error } = useSelector((state) => state.records);
   
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
+
+  // Use useMemo to recalculate clinicName when profile changes
+  const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
+
   const doctorDetails = useMemo(() => ({
-    clinic_name: getClinicName(profile?.hospital_data),
+    clinic_name: clinicName,
     clinic_id: decodedToken?.result?.clinic_id,
     doctor_id: profile?.doctor_unique_id,
     doctor_name: profile?.um_name,
     doctor_mobile_no: profile?.um_contact,
     device_details: "Mobile",
-  }), [profile, decodedToken]);
+  }), [clinicName, decodedToken?.result?.clinic_id, profile?.doctor_unique_id, profile?.um_name, profile?.um_contact]);
 
   // Reset all states on mount (same as web version)
   useEffect(() => {
@@ -62,14 +72,13 @@ function WalkInConsultation() {
 
   const handleSearchChange = useCallback((value) => {
     // Track search event (same as web version)
-    if (window.Moengage && profile) {
-      const clinic_name = getClinicName(profile?.hospital_data);
+    if (window.Moengage && profile && clinicName) {
       window.Moengage.track_event("TP_Patient_searched", {
-        clinic_name,
+        clinic_name: clinicName,
       });
     }
     setSearchQuery(value);
-  }, [profile]);
+  }, [profile, clinicName]);
 
   const handleSearchClear = useCallback(() => {
     setSearchQuery('');

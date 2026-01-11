@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { message, Input } from 'antd';
@@ -18,6 +18,7 @@ import {
   errorMessage 
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
+import { getProfile } from '../../../redux/doctorsSlice';
 import successIcon from '../../../assets/images/end-visit.svg';
 import closeIcon from '../../../assets/images/close-visit.svg';
 import profileAddIcon from '../../../assets/mobile/profile-add.svg';
@@ -28,7 +29,7 @@ function AllPatients() {
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
   
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [patients, setPatients] = useState([]);
@@ -40,14 +41,25 @@ function AllPatients() {
   const observer = useRef();
   const MESSAGE_KEY = "patient_update_message";
   
-  const doctorDetails = {
-    clinic_name: getClinicName(profile?.hospital_data),
-    clinic_id: decodedToken?.result?.clinic_id,
-    doctor_id: profile?.doctor_unique_id,
-    doctor_name: profile?.um_name,
-    doctor_mobile_no: profile?.um_contact,
-    device_details: "Mobile",
-  };
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
+  
+  // Use useMemo to recalculate doctorDetails when profile or token changes
+  // This prevents API errors from missing clinic_id and ensures data is always current
+  const doctorDetails = useMemo(() => {
+    return {
+      clinic_name: getClinicName(profile?.hospital_data),
+      clinic_id: decodedToken?.result?.clinic_id,
+      doctor_id: profile?.doctor_unique_id,
+      doctor_name: profile?.um_name,
+      doctor_mobile_no: profile?.um_contact,
+      device_details: "Mobile",
+    };
+  }, [profile?.hospital_data, profile?.doctor_unique_id, profile?.um_name, profile?.um_contact, decodedToken?.result?.clinic_id]);
 
   const loadPatients = useCallback(async (page, search) => {
     try {
@@ -92,9 +104,12 @@ function AllPatients() {
     [loadPatients]
   );
 
+  // Load patients after profile is loaded to prevent API errors
   useEffect(() => {
-    loadPatients(1, '');
-  }, [loadPatients]);
+    if (profile && !profileLoading) {
+      loadPatients(1, '');
+    }
+  }, [loadPatients, profile, profileLoading]);
 
   useEffect(() => {
     debouncedSearch(searchQuery);

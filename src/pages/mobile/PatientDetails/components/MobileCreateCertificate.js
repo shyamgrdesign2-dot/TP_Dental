@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button, Drawer, Input, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import JoditEditor from 'jodit-react';
@@ -14,7 +14,7 @@ import imgCloseVisit from '../../../../assets/images/close-visit.svg';
 import closeIcon from '../../../../assets/mobile/close 2.svg';
 import fontSizeIcon from '../../../../assets/images/fontSizeIcon.svg';
 import MobileCertificateTemplateSelector from './MobileCertificateTemplateSelector';
-import { addPatientCertificate, editPatientCertificate } from "../../../../redux/doctorsSlice";
+import { addPatientCertificate, editPatientCertificate, getProfile } from "../../../../redux/doctorsSlice";
 
 import { errorMessage, getClinicName, removeBeforeWhiteSpace } from "../../../../utils/utils";
 import './MobileCreateCertificate.scss';
@@ -26,8 +26,18 @@ function MobileCreateCertificate({
   certificate_data,
 }) {
   const navigate = useNavigate();
-  const { profile, loading } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
+
+  // Ensure profile is loaded - dispatch getProfile if missing
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
+
+  // Use useMemo to recalculate clinicName when profile changes
+  const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
 
   const editor = useRef(null);
 
@@ -278,13 +288,14 @@ function MobileCreateCertificate({
   }, [showHideBackModal]);
 
   const onPatientCertificateClick = async () => {
-    const clinic_name = getClinicName(profile?.hospital_data);
-    window.Moengage.track_event("TP_Certificate_created", {
-      clinic_name,
-      patient_number: patient_data?.pm_contact_no,
-      patient_id: patient_data?.patient_unique_id,
-      certificate_type: title,
-    });
+    if (window.Moengage && clinicName) {
+      window.Moengage.track_event("TP_Certificate_created", {
+        clinic_name: clinicName,
+        patient_number: patient_data?.pm_contact_no,
+        patient_id: patient_data?.patient_unique_id,
+        certificate_type: title,
+      });
+    }
     var sendData = {
       patient_unique_id: patient_data?.patient_unique_id !== undefined ? patient_data?.patient_unique_id : 0,
       pam_id: patient_data?.pam_id !== undefined ? patient_data?.pam_id : 0,
