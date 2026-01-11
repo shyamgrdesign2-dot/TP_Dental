@@ -22,14 +22,10 @@ function ProfileSection({ doctorName, specialty, clinicName, profileImage }) {
           <img src={AvatarImage} alt={doctorName || 'Doctor'} />
         </div>
          <div className="profile-info">
-           <div className="doctor-name">
-            {doctorName ? `Hi, ${doctorName}` : 'Hi, Doctor'} <span className="wavy-icon">👋</span>
-           </div>
-           <div className="doctor-specialty">
-            {specialty || 'Specialty'}
-           </div>
+           <div className="doctor-name">Hi, {doctorName} <span className="wavy-icon">👋</span></div>
+           <div className="doctor-specialty">{profile?.dp_name || specialty || 'Specialty'}</div>
            {clinicName && (
-            <div className="clinic-name">{clinicName || 'Clinic'}</div>
+             <div className="clinic-name">{clinicName}</div>
            )}
          </div>
       </div>
