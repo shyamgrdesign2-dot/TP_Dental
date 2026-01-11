@@ -16,6 +16,7 @@ import {
   isAlphabet 
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
+import { getProfile } from '../../../redux/doctorsSlice';
 import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
 
 function WalkInConsultation() {

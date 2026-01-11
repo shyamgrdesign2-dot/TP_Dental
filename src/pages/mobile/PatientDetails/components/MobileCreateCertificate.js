@@ -434,7 +434,6 @@ function MobileCreateCertificate({
             <Button
               className="mobile-create-certificate-save-btn"
               onClick={onPatientCertificateClick}
-              loading={loading}
               disabled={!title?.length}
             >
               Save
