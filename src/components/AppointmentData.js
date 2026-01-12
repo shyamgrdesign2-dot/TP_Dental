@@ -3012,7 +3012,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {true && (
+            {isAppointmentAgentEnable && (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
