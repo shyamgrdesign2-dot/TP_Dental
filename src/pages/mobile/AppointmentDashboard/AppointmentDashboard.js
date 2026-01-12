@@ -11,15 +11,19 @@ import {
   cancelAppointments,
   endVisit,
 } from '../../../redux/appointmentsSlice';
-import { getProfile } from '../../../redux/doctorsSlice';
+import { getProfile, changeHospital } from '../../../redux/doctorsSlice';
 import {
   TAB_QUEUE,
   TAB_FINISHED,
   TAB_CANCELLED,
+  PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
+  PERSISTANT_STORAGE_KEY_BILL_TOKEN,
 } from '../../../utils/constants';
-import { getClinic, getClinicName, getTokenData } from '../../../utils/utils';
-import { getDecodedToken } from '../../../utils/localStorage';
+import { getClinic, getClinicName, getTokenData, errorMessage } from '../../../utils/utils';
+import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
 import { env } from '../../../EnvironmentConfig';
+import { jwtDecode } from 'jwt-decode';
+import { generateBillToken } from '../../opdBilling/service';
 
 import ProfileSection from './components/ProfileSection';
 import AppointmentTabs from './components/AppointmentTabs';
@@ -81,6 +85,12 @@ function AppointmentDashboard() {
   const [dateDisplayText, setDateDisplayText] = useState('Today');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [endVisitLoading, setEndVisitLoading] = useState(false);
+  
+  // Clinic selection state (like web version)
+  const [clinicOptions, setClinicOptions] = useState([]);
+  const [selectedHospital, setSelectedHospital] = useState(null);
+  const [getToken, setToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  const [getBillToken, setBillToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
 
   const calanderOptions = [
     { value: 1, label: 'Today' },
@@ -97,6 +107,36 @@ function AppointmentDashboard() {
       dispatch(getProfile());
     }
   }, [dispatch, profile, profileLoading]);
+
+  // Map hospital_data to clinicOptions (like web version)
+  useEffect(() => {
+    if (profile?.hospital_data) {
+      const clinics = profile.hospital_data.map((e) => ({
+        value: e.hm_id,
+        label: e.hm_name,
+      }));
+      setClinicOptions(clinics);
+    }
+  }, [profile]);
+
+  // Sync selectedHospital from token (like web version)
+  useEffect(() => {
+    if (clinicOptions?.length > 0) {
+      const getStorageData = async () => {
+        const token = await getToken();
+        if (token !== undefined) {
+          try {
+            const decoded = jwtDecode(token);
+            const index = clinicOptions.findIndex((e) => e.value == decoded.result.clinic_id);
+            setSelectedHospital(index !== -1 ? parseInt(decoded.result.clinic_id) : null);
+          } catch (e) {
+            console.error('Error decoding token:', e);
+          }
+        }
+      };
+      getStorageData();
+    }
+  }, [clinicOptions, getToken]);
 
   // Fetch appointments
   useEffect(() => {
@@ -581,6 +621,29 @@ function AppointmentDashboard() {
   const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
   const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
 
+  // Handle clinic selection change (like web version)
+  const handleClinicChange = useCallback(async (value) => {
+    const sendData = {
+      clinic_id: value,
+    };
+    const action = await dispatch(changeHospital(sendData));
+    if (action.meta.requestStatus === "fulfilled") {
+      await setToken(action.payload.token);
+      try {
+        const decoded = jwtDecode(action.payload.token);
+        const billToken = await generateBillToken();
+        setBillToken(billToken);
+      } catch (e) {
+        console.error('Error updating token:', e);
+      }
+      // Refresh the page to ensure all data is updated
+      navigate(0, { replace: true });
+    } else {
+      // Handle error case - show error message to user
+      errorMessage(action.error || 'Failed to change clinic. Please try again.');
+    }
+  }, [dispatch, setToken, setBillToken, navigate]);
+
   return (
     <div className="mobile-appointment-dashboard">
       {/* Header Wrapper with Profile Section and Tabs */}
@@ -591,6 +654,9 @@ function AppointmentDashboard() {
           doctorName={profile?.um_name}
           clinicName={clinicName}
           profileImage={profile?.um_image}
+          clinicOptions={clinicOptions}
+          selectedHospital={selectedHospital}
+          onClinicChange={handleClinicChange}
         />
       )}
 

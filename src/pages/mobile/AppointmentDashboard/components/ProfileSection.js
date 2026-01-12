@@ -1,9 +1,10 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
+import { Select } from 'antd';
 import './ProfileSection.scss';
 import AvatarImage from '../../../../assets/mobile/image.svg';
 
-function ProfileSection({ doctorName, specialty, clinicName, profileImage }) {
+function ProfileSection({ doctorName, specialty, clinicName, profileImage, clinicOptions, selectedHospital, onClinicChange }) {
   const { profile } = useSelector((state) => state.doctors);
   // Get initials for avatar
   const getInitials = (name) => {
@@ -15,6 +16,9 @@ function ProfileSection({ doctorName, specialty, clinicName, profileImage }) {
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Show Select dropdown if multiple clinics, otherwise show clinic name
+  const showClinicSelector = clinicOptions && clinicOptions.length > 1;
+
   return (
     <div className="profile-section">
       <div className="profile-content">
@@ -24,8 +28,19 @@ function ProfileSection({ doctorName, specialty, clinicName, profileImage }) {
          <div className="profile-info">
            <div className="doctor-name">Hi, {doctorName} <span className="wavy-icon">👋</span></div>
            <div className="doctor-specialty">{profile?.dp_name || specialty || 'Specialty'}</div>
-           {clinicName && (
-             <div className="clinic-name">{clinicName}</div>
+           {showClinicSelector ? (
+             <Select
+               className="mobile-clinic-selector"
+               placeholder="Select Clinic"
+               value={selectedHospital || undefined}
+               onChange={onClinicChange}
+               options={clinicOptions}
+               size="small"
+             />
+           ) : (
+             clinicName && (
+               <div className="clinic-name">{clinicName}</div>
+             )
            )}
          </div>
       </div>
