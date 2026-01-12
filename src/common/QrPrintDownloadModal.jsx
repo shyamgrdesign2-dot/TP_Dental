@@ -17,6 +17,7 @@ export default function QrPrintDownloadModal({
   title,
   byName,
   logoSrc,
+  hospitalLogo,
   qrValue,
   qrSize = 180,
   scanText,
@@ -43,28 +44,49 @@ export default function QrPrintDownloadModal({
         </button>
 
         <div ref={contentRef} className="opd-plans-inner-contianer">
-          <div
-            className="opd-title"
-            style={{
-              fontWeight: "700",
-              fontSize: "2rem",
-              color: "#1F2933 !important",
-            }}
-          >
-            {title}
-          </div>
+          {hospitalLogo ? (
+            <div
+              className="opd-title"
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <img
+                src={hospitalLogo}
+                alt="Hospital Logo"
+                style={{
+                  maxHeight: "60px",
+                  maxWidth: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            </div>
+          ) : (
+            <div
+              className="opd-title"
+              style={{
+                fontWeight: "700",
+                fontSize: "1.7rem",
+                color: "#1F2933 !important",
+              }}
+            >
+              {title}
+            </div>
+          )}
 
           {byName ? (
             <div
               className="opd-byline"
-              style={{ marginBottom: "2rem", marginTop: "0.4rem" }}
+              style={{ marginBottom: "1rem", marginTop: "0.4rem" }}
             >
               by <strong>{byName}</strong>
             </div>
           ) : null}
 
           <div className="d-flex align-items-center justify-content-center">
-            {logoSrc ? (
+            {logoSrc && title !== "Appointment Booking Link" ? (
               <div className="opd-logo log-holder">
                 <img
                   src={logoSrc}
@@ -88,9 +110,10 @@ export default function QrPrintDownloadModal({
             <div
               className="opd-scan-text"
               style={{
-                marginTop: "2rem",
-                fontSize: "1.2rem",
+                marginTop: "1.5rem",
+                fontSize: "1rem",
                 color: "#454551 !important",
+                textAlign: "center",
               }}
             >
               {scanText}

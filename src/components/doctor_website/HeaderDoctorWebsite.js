@@ -1,14 +1,18 @@
 import React, { useEffect, useContext, useState, useRef, useCallback } from 'react';
-import { Button, Dropdown, Modal, Progress, Space, Input, Drawer } from 'antd';
+import { Button, Dropdown, Modal, Progress, Space, Input, Drawer, message } from 'antd';
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from "react-redux";
 import axios from 'axios';
 import { isChrome, isSafari, deviceDetect } from 'react-device-detect';
+import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 import Homepage from '../../website/Homepage';
 import stopPublishing from '../../assets/images/stop-publishing.svg';
 import LinkIcon from '../../assets/images/Link.svg';
+import './HeaderDoctorWebsite.scss';
 
 import DoctorWebsiteSettingsContext from '../../context/DoctorWebsiteSettingsContext';
 
@@ -16,7 +20,12 @@ import { saveDoctorWebsite, publishDoctorWebsite } from "../../redux/doctorWebsi
 import { updateWebsitePublish } from "../../redux/doctorsSlice";
 import { errorMessage, handleCopy, validateEmail, trackEvent, getTokenData, sendMessageToParent } from '../../utils/utils';
 import CommonModal from '../../common/CommonModal';
+import QrPrintDownloadModal from '../../common/QrPrintDownloadModal';
 import alertIcon from '../../assets/images/alertIcon.svg';
+import logoIcom from '../../assets/images/text-logo.svg';
+import ShareIcon from "../../assets/images/share.svg";
+import CopyIcon from "../../assets/images/copy.svg";
+import { ReactComponent as QrIcon } from '../../assets/images/qr-icon.svg';
 import { EVENTS } from '../../utils/events';
 
 function HeaderDoctorWebsite() {
@@ -47,7 +56,9 @@ function HeaderDoctorWebsite() {
     const [progress, setProgress] = useState(0);
     const [publishUrl, setPublishUrl] = useState(null);
     const [unpublishStatus, setUnpublishStatus] = useState(null);
+    const [isQRCodeVisible, setQRCodeVisible] = useState(false);
     const cancelTokenSource = useRef(null);
+    const printRef = useRef();
 
 
     async function onSaveWebsiteClick() {
@@ -241,6 +252,135 @@ function HeaderDoctorWebsite() {
         }
     }
 
+    const handleShareUrl = async () => {
+        if (!publishUrl) {
+            message.warning("No website URL available.");
+            return;
+        }
+
+        const tokenData = getTokenData();
+        trackEvent("TP_MS_ShareURL", {
+            clinic_id: tokenData?.clinic_id || "",
+            clinic_name: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_name || "",
+            um_id: tokenData?.user_id || "",
+            doctor_name: `${personalDetails?.first_name || ""} ${personalDetails?.last_name || ""}`.trim(),
+            specialty: personalDetails?.specialty || "",
+            plan_type: planDetails?.currentPlanStatus === "PAID" ? "Paid" : "Unpaid",
+        });
+
+        if (navigator.share && publishUrl) {
+            try {
+                await navigator.share({
+                    title: 'Doctor Website',
+                    text: 'Visit my doctor website',
+                    url: publishUrl,
+                });
+            } catch (error) {
+                console.error("error while sharing the link", error);
+            }
+        } else {
+            navigator.clipboard.writeText(publishUrl)
+                .then(() => {
+                    message.success("Link copied to clipboard! You can now share it manually.");
+                })
+                .catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
+        }
+    };
+
+    const handleCopyUrl = async () => {
+        if (!publishUrl) {
+            message.warning("No website URL available.");
+            return;
+        }
+
+        const tokenData = getTokenData();
+        trackEvent("TP_MS_CopyURL", {
+            clinic_id: tokenData?.clinic_id || "",
+            clinic_name: profile?.hospital_data?.find((e) => e.hm_id == tokenData?.clinic_id)?.hm_name || "",
+            um_id: tokenData?.user_id || "",
+            doctor_name: `${personalDetails?.first_name || ""} ${personalDetails?.last_name || ""}`.trim(),
+            specialty: personalDetails?.specialty || "",
+            plan_type: planDetails?.currentPlanStatus === "PAID" ? "Paid" : "Unpaid",
+        });
+
+        try {
+            await navigator.clipboard.writeText(publishUrl);
+            message.success("Link copied to clipboard!");
+        } catch (error) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = publishUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            message.success("Link copied to clipboard!");
+        }
+    };
+
+    const showHideQRModal = useCallback(() => {
+        setQRCodeVisible(!isQRCodeVisible);
+    }, [isQRCodeVisible]);
+
+    const handlePrint = useReactToPrint({
+        content: () => printRef.current,
+        pageStyle: `
+      @media print {
+        .opd-plans-inner-contianer {
+          font-size: 2.5rem;
+          padding: 40px;
+        }
+        .opd-title {
+          font-size: 3rem;
+        }
+        .opd-byline {
+          font-size: 2rem;
+        }
+        .opd-logo img {
+          height: 3rem;
+        }
+        .opd-qr-image {
+          width: 300px !important;
+          height: 300px !important;
+        }
+        .opd-scan-text {
+          font-size: 1.8rem;
+        }
+      }
+    `
+    });
+
+    const handleDownload = async () => {
+        const element = printRef.current;
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save('Doctor-Website-URL.pdf');
+    };
+
+    const handleShowQRCode = () => {
+        if (!publishUrl) {
+            message.warning("No website URL available.");
+            return;
+        }
+        setQRCodeVisible(true);
+    };
+
+    const truncateUrl = (url, maxLength = 20) => {
+        if (!url) return "";
+        return url.length > maxLength
+          ? `${url.slice(0, maxLength)}…`
+          : url;
+      };
+      
+
     return (
         <>
             <Navbar className="justify-content-between headerprescription p-0">
@@ -380,10 +520,37 @@ function HeaderDoctorWebsite() {
                                     <>
                                         <div className='text-start mt-4'>
                                             <label className='fw-medium mb-1'>Live website URL</label>
-                                            <Space.Compact className='h-45' style={{ width: '100%' }}>
-                                                <Input className='fontroboto' defaultValue={publishUrl} />
-                                                <Button onClick={() => handleCopy(publishUrl)} className='h-45 bg-selected border'><img className='me-2' src={LinkIcon} alt="Warning" /> Copy</Button>
-                                            </Space.Compact>
+                                            <div className="link-box">
+                                                <span className="link-text">
+                                                    {truncateUrl(publishUrl, 35)}
+                                                </span>
+                                                <div className="action-buttons-success">
+                                                    <button 
+                                                        className="share-button" 
+                                                        onClick={handleShareUrl}
+                                                    >
+                                                        <img
+                                                            src={ShareIcon}
+                                                        />
+                                                    </button>
+                                                    <button 
+                                                        className="copy-button" 
+                                                        onClick={handleCopyUrl}
+                                                    >
+                                                        <img
+                                                            src={CopyIcon}
+                                                        />
+                                                    </button>
+                                                    <button 
+                                                        className="copy-button" 
+                                                        onClick={handleShowQRCode}
+                                                    >
+                                                        <QrIcon
+                                                            style={{ color:"#4b4ad5", filter:"invert(22%) sepia(79%) saturate(2418%) hue-rotate(228deg) brightness(90%) contrast(100%)"}}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="d-flex align-items-center mt-4">
@@ -842,6 +1009,20 @@ function HeaderDoctorWebsite() {
                     />
                 </div>
             </Drawer>
+            <QrPrintDownloadModal
+                open={!!isQRCodeVisible && !!publishUrl}
+                onClose={showHideQRModal}
+                contentRef={printRef}
+                title="Doctor Website URL"
+                byName={`${personalDetails?.first_name || ""} ${personalDetails?.last_name || ""}`.trim()}
+                logoSrc={logoIcom}
+                qrValue={publishUrl}
+                qrSize={180}
+                scanText="Scan the above QR to visit the website"
+                onPrint={handlePrint}
+                onDownload={handleDownload}
+                className="opd-plan-qr"
+            />
         </>
     );
 }

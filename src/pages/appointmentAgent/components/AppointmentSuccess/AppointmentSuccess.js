@@ -1,7 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Drawer, message, Popover, Tooltip } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import "./AppointmentSuccess.scss";
 import SummaryPreview from "../preview/SummaryPreview";
 import ShareIcon from "../../../../assets/images/share.svg";
@@ -15,6 +18,9 @@ import alertIcon from "../../../../assets/images/alertIcon.svg";
 import tutorial from "../../../../assets/images/tutorial.svg";
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import VideoModal from "../../../../common/VideoModal";
+import QrPrintDownloadModal from "../../../../common/QrPrintDownloadModal";
+import { ReactComponent as QrIcon } from '../../../../assets/images/qr-icon.svg';
+import logoIcom from '../../../../assets/images/text-logo.svg';
 import { getDecodedToken } from "../../../../utils/localStorage";
 import { fetchAgents } from "../../service";
 import { getClinic } from "../../../../utils/utils";
@@ -25,10 +31,12 @@ const AppointmentSuccess = () => {
   const [isBookingLinkDrawer, setIsBookingLinkDrawer] = useState(false);
   const [videoLink, setVideoLink] = useState(null);
   const [popOverVideo, setPopOverVideo] = useState(false);
+  const [isQRCodeVisible, setQRCodeVisible] = useState(false);
   const { profile, videoList } = useSelector((state) => state.doctors);
   const [agentsData, setAgentsData] = useState(null);
   const decodedToken = getDecodedToken();
   const clinic = getClinic(profile?.hospital_data);
+  const printRef = useRef();
 
   const setupData = location.state?.setupData;
   const appointment_booking_link = location.state?.appointment_booking_link;
@@ -139,6 +147,59 @@ const AppointmentSuccess = () => {
     });
     navigate('/create-campaign', { state: { category: "ai-receptionist", setupData } })
   }
+
+  const showHideQRModal = useCallback(() => {
+    setQRCodeVisible(!isQRCodeVisible);
+  }, [isQRCodeVisible]);
+
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    pageStyle: `
+      @media print {
+        .opd-plans-inner-contianer {
+          font-size: 2.5rem;
+          padding: 40px;
+        }
+        .opd-title {
+          font-size: 3rem;
+        }
+        .opd-byline {
+          font-size: 2rem;
+        }
+        .opd-logo img {
+          height: 3rem;
+        }
+        .opd-qr-image {
+          width: 300px !important;
+          height: 300px !important;
+        }
+        .opd-scan-text {
+          font-size: 1.8rem;
+        }
+      }
+    `
+  });
+
+  const handleDownload = async () => {
+    const element = printRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('Appointment-Booking-Link.pdf');
+  };
+
+  const handleShowQRCode = () => {
+    if (!appointment_booking_link) {
+      message.warning("No booking link available.");
+      return;
+    }
+    setQRCodeVisible(true);
+  };
 
   //PopOverVideo function
   const showHideVideoListPopover = useCallback(() => {
@@ -301,6 +362,11 @@ const AppointmentSuccess = () => {
                     style={{ width: "1.5rem", height: "1.5rem" }}
                   />
                 </button>
+                <button className="copy-button" onClick={handleShowQRCode}>
+                  <QrIcon
+                    style={{ width: "1.5rem", height: "1.5rem", color:"#4b4ad5", filter:"invert(22%) sepia(79%) saturate(2418%) hue-rotate(228deg) brightness(90%) contrast(100%)"}}
+                  />
+                </button>
               </div>
             </div>
 
@@ -357,6 +423,21 @@ const AppointmentSuccess = () => {
           <BookingLinkKnowMore handleDDxKnowMore={handleBookingLinkKnowMore} />
         </Drawer>
       )}
+      <QrPrintDownloadModal
+        open={!!isQRCodeVisible && !!appointment_booking_link}
+        onClose={showHideQRModal}
+        contentRef={printRef}
+        title="Appointment Booking Link"
+        byName={profile?.um_name}
+        hospitalLogo={setupData?.logo}
+        logoSrc={logoIcom}
+        qrValue={appointment_booking_link}
+        qrSize={180}
+        scanText="Scan the above QR to Book Appointment & Share Symptoms"
+        onPrint={handlePrint}
+        onDownload={handleDownload}
+        className="opd-plan-qr"
+      />
     </>
   );
 };
