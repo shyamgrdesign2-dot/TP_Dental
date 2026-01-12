@@ -248,10 +248,8 @@ function SnapRxPreview() {
       
       // Always remove rxDigitize first, then set it based on showDigitalRx
       urlObj.searchParams.delete('rxDigitize');
-      if (!showDigitalRx) {
-        urlObj.searchParams.delete('rx');
-        urlObj.searchParams.set('rx', '0');
-      }
+      // Set rx=1 for both written and digitised prescriptions
+      urlObj.searchParams.set('rx', '1');
       
       urlObj.searchParams.set('pam_id', pam_id.toString());
       urlObj.searchParams.set('lg', encodedData);
@@ -269,10 +267,9 @@ function SnapRxPreview() {
       let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
       // Remove rxDigitize parameter completely
       url = url.replace(/[?&]rxDigitize=[^&]*/g, '');
-      if (!showDigitalRx) {
-        url = url.replace(/[?&]rx=[^&]*/g, '');
-        url += (url.includes('?') ? '&' : '?') + "rx=0";
-      }
+      // Set rx=1 for both written and digitised prescriptions
+      url = url.replace(/[?&]rx=[^&]*/g, '');
+      url += (url.includes('?') ? '&' : '?') + "rx=1";
       // Only add rxDigitize=true for digital Rx
       if (showDigitalRx) {
         url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
@@ -378,19 +375,16 @@ function SnapRxPreview() {
       const baseUrl = currentSessionRx || (state?.print_rx_url || state?.print_url);
       try {
         const urlObj = new URL(baseUrl);
-        if (!showDigitalRx) {
-          urlObj.searchParams.delete('rx');
-          urlObj.searchParams.set('rx', '0');
-        }
+        // Set rx=1 for both written and digitised prescriptions
+        urlObj.searchParams.set('rx', '1');
         urlObj.searchParams.set('pam_id', pam_id.toString());
         urlObj.searchParams.set('lg', encodedData);
         setPrintUrl(urlObj.toString());
       } catch (error) {
         let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
-        if (!showDigitalRx) {
-          url = url.replace(/[?&]rx=[^&]*/g, '');
-          url += (url.includes('?') ? '&' : '?') + "rx=0";
-        }
+        // Set rx=1 for both written and digitised prescriptions
+        url = url.replace(/[?&]rx=[^&]*/g, '');
+        url += (url.includes('?') ? '&' : '?') + "rx=1";
         setPrintUrl(url);
       }
       
