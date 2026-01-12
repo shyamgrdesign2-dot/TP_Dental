@@ -120,6 +120,7 @@ function AppointmentDashboard() {
   }, [profile]);
 
   // Sync selectedHospital from token (like web version)
+  // If token's clinic_id doesn't match, update token with first clinic to prevent API errors
   useEffect(() => {
     if (clinicOptions?.length > 0) {
       const getStorageData = async () => {
@@ -128,7 +129,23 @@ function AppointmentDashboard() {
           try {
             const decoded = jwtDecode(token);
             const index = clinicOptions.findIndex((e) => e.value == decoded.result.clinic_id);
-            setSelectedHospital(index !== -1 ? parseInt(decoded.result.clinic_id) : null);
+            if (index !== -1) {
+              setSelectedHospital(parseInt(decoded.result.clinic_id));
+            } else {
+              // Token's clinic_id doesn't match - update token with first clinic (minimal fix)
+              const firstClinicId = clinicOptions[0].value;
+              const action = await dispatch(changeHospital({ clinic_id: firstClinicId }));
+              if (action.meta.requestStatus === "fulfilled") {
+                await setToken(action.payload.token);
+                try {
+                  const billToken = await generateBillToken();
+                  setBillToken(billToken);
+                } catch (e) {
+                  console.error('Error generating bill token:', e);
+                }
+                setSelectedHospital(parseInt(firstClinicId));
+              }
+            }
           } catch (e) {
             console.error('Error decoding token:', e);
           }
@@ -136,7 +153,7 @@ function AppointmentDashboard() {
       };
       getStorageData();
     }
-  }, [clinicOptions, getToken]);
+  }, [clinicOptions, getToken, dispatch, setToken, setBillToken]);
 
   // Fetch appointments
   useEffect(() => {
