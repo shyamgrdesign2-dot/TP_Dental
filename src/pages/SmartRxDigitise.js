@@ -50,7 +50,7 @@ function SmartRxDigitise() {
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
   const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
   
@@ -189,10 +189,20 @@ function SmartRxDigitise() {
 
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state.type === "new") {
-      uploadFiles();
+    if (smartRxFile?.length > 0 && state.type === "new") {
+      if (token) {
+        uploadFiles();
+      } else {
+        setIsLoading(true);
+      }
     } else if (state.type === "edit" && digitisedData) {
-      uploadFiles();
+      if (token) {
+        uploadFiles();
+      } else {
+        setIsLoading(true);
+      }
+    } else {
+      setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, smartRxFile, digitisedData]);
@@ -811,10 +821,11 @@ function SmartRxDigitise() {
         }
         
         setData(refinedData);
-        setIsLoading(false);
       }
     } catch (error) {
-      console.error("Error uploading files:", error);
+      console.error("🟢 SmartRx uploadFiles: Error uploading files:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -899,6 +910,7 @@ function SmartRxDigitise() {
                     data={data}
                     setData={setData}
                     loading={isLoading}
+                    isProcessing={isLoading}
                     showAbsHeaderInsideLoader={isLoading}
                     enableInstructionBanner={false}
                     showHeader={false}

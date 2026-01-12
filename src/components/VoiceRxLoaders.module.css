@@ -19,7 +19,7 @@
   justify-content: center;
   align-items: center;
   overflow: hidden; /* Prevent pseudo-element overflow */
-  z-index: 1;
+  z-index: 1000;
   box-shadow: none; /* No shadow */
   top: 0;
   left: 0;

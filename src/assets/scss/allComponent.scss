@@ -3151,8 +3151,13 @@ body {
 
   .snap-smart-right-body {
     flex: 1 1 auto;
-    overflow-y: auto;
+    overflow: hidden;
     padding-right: 4px;
+    position: relative;
+    min-height: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 }
 

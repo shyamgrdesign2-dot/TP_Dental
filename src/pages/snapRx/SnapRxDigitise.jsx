@@ -52,7 +52,7 @@ function SnapRxDigitise() {
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
   const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const smartRxFile = smartRxFilesData;
   
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
@@ -204,13 +204,19 @@ function SnapRxDigitise() {
 
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state?.type === "new") {
-      digitizeRx();
+    if (smartRxFile?.length > 0 && state?.type === "new") {
+      if (token) {
+        digitizeRx();
+      } else {
+        setIsLoading(true);
+      }
     } else if (state?.type === "edit" && digitisedData) {
       setData(normalizeEditedFlag(digitisedData?.editedData));
       setIsLoading(false);
     } else if (state?.type === "review" && digitisedData) {
       setData(normalizeEditedFlag(digitisedData?.refinedData));
+      setIsLoading(false);
+    } else {
       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -705,10 +711,11 @@ function SnapRxDigitise() {
       // Update the digitized data
       if (response?.data?.data) {
         setData(normalizeEditedFlag(response.data.data.refinedData));
-        setIsLoading(false);
       }
     } catch (error) {
-      console.error("Error uploading files:", error);
+      console.error("🔵 SnapRx digitizeRx: Error uploading files:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -795,6 +802,7 @@ function SnapRxDigitise() {
                     data={data}
                     setData={setData}
                     loading={isLoading}
+                    isProcessing={isLoading}
                     showAbsHeaderInsideLoader={isLoading}
                     enableInstructionBanner={false}
                     showHeader={false}
