@@ -419,7 +419,12 @@ function AppointmentDashboard() {
         patient_id: record?.patient_unique_id,
       });
     }
-    navigate('/prescription', { state: { patient_data: record } });
+    navigate('/voice-rx-consult', { 
+      state: { 
+        patient_data: record,
+        isFromTabView: true 
+      } 
+    });
   }, [navigate, profile]);
 
   // Handle patient details click
