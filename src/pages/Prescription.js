@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "react-router-dom";
-import { Drawer, Tabs } from "antd";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Drawer, Tabs, message } from "antd";
 import moment from "moment";
 import { v4 as uuidv4 } from "uuid";
 
@@ -1453,8 +1453,9 @@ function Prescription() {
     return modules;
   };
 
+  const navigate = useNavigate();
+  
   const handleGenRx = () => {
-    setIsGenRxDrawerVisible(true);
     const clinic_name = getClinicName(profile?.hospital_data);
     trackEvent("TP_VoiceRx_Start", {
       patient_contact: patient_data?.pm_contact_no || "",
@@ -1478,6 +1479,15 @@ function Prescription() {
         ...deviceSdkData,
       });
     }
+    
+    // Navigate to VoiceRxConsult page with auto-open modal
+    navigate("/voice-rx-consult", {
+      state: {
+        patient_data,
+        autoOpenModal: true,
+        fromPrescription: true,
+      },
+    });
   }
   // Auto-fetch Zydus lab params when labReportID is available (for ZydusLabParametersList display)
   useEffect(() => {
@@ -1556,7 +1566,7 @@ function Prescription() {
   return (
     <CashManagerContext.Provider value={contextApi}>
       <>
-        {isGenRxDrawerVisible && (
+        {showOnlyDrawer && (
           <ConsultationDrawer
             visible={isGenRxDrawerVisible}
             onClose={() => setIsGenRxDrawerVisible(false)}
