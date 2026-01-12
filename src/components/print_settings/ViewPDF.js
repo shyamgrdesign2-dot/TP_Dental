@@ -1848,9 +1848,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             ['ofc', item.ofc ? `OFC: ${item.ofc}cms` : ''],
                                                             ['height', item.height ? `Height: ${item.height}cms` : ''],
                                                             ['weight', item.weight ? `Weight: ${item.weight}kgs` : ''],
-                                                            ['bmi', item.bmi ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²` : ''],
-                                                            ['bmr', item.bmr ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
-                                                            ['bsa', item.bsa ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
+                                                            ['bmi', item.bmi && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmi')) ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²` : ''],
+                                                            ['bmr', item.bmr && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmr')) ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
+                                                            ['bsa', item.bsa && (option?.vitals_option === undefined || option?.vitals_option?.includes('bsa')) ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
                                                         ];
                                                         const priorityOrder = ['weight', 'height', 'ofc'];
                                                         const orderedVitals = isPediatricAccessable
@@ -1934,9 +1934,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ofc: ofc ? `OFC: ${ofc}cms` : '',
                                                                 height: height ? `Height: ${height}cms` : '',
                                                                 weight: weight ? `Weight: ${weight}kgs` : '',
-                                                                bmi: bmi ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
-                                                                bmr: bmr ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
-                                                                bsa: bsa ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
+                                                                bmi: bmi && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmi')) ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
+                                                                bmr: bmr && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmr')) ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
+                                                                bsa: bsa && (option?.vitals_option === undefined || option?.vitals_option?.includes('bsa')) ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
                                                             }))(item)
                                                         ).filter(([_, value]) => value);
 
@@ -1996,6 +1996,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             })}
                                                         </View>
                                                         {initialRows.map((item, i) => {
+                                                            const requiredNames = ['BMI (kg/m²)', 'BMR (kcals)', 'BSA (m²)'];
+                                                            
+                                                            if (requiredNames.includes(item?.name)) {
+                                                                const nameToVitalsKey = {
+                                                                    'BMI (kg/m²)': 'bmi',
+                                                                    'BMR (kcals)': 'bmr',
+                                                                    'BSA (m²)': 'bsa'
+                                                                };
+                                                                const vitalsKey = nameToVitalsKey[item?.name];
+                                                                // Only filter if vitals_option is defined, if undefined show all
+                                                                if (option?.vitals_option !== undefined && (!vitalsKey || !option?.vitals_option?.includes(vitalsKey))) {
+                                                                    return null;
+                                                                }
+                                                            }
+                                                            
                                                             return (
                                                                 (item['0'] != '-' || (item.hasOwnProperty('1') && item['1'] != '-') || (item.hasOwnProperty('2') && item['2'] != '-')) && (
                                                                     <View style={styles.row} key={i} wrap={false}>

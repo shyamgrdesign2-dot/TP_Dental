@@ -177,6 +177,21 @@ const obsHistoryCheckboxOptions = [
   },
 ];
 
+const vitalsCheckboxOptions = [
+  {
+    label: "BMI",
+    value: "bmi",
+  },
+  {
+    label: "BMR",
+    value: "bmr",
+  },
+  {
+    label: "BSA",
+    value: "bsa",
+  },
+];
+
 const diagnosisCheckboxOptions = [
   {
     label: "ICD Code",
@@ -333,6 +348,15 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     });
   };
 
+  const onVitalsOptionChange = (checkedValues, i) => {
+    setPrintSettings((prev) => {
+      prev.prescription.case_option[i].vitals_option = checkedValues;
+      return {
+        ...prev,
+      };
+    });
+  };
+
   const onDiagnosisOptionChange = (checkedValues, i) => {
     setPrintSettings((prev) => {
       prev.prescription.case_option[i].show_icd_code = checkedValues.includes("show_icd_code");
@@ -437,6 +461,32 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       ),
     },
   ];
+
+   const vitalsAccordionItems = (record, i) => [
+     {
+       key: "1",
+       label: (
+         <div className="text-start">
+           <div className="fw-semibold">Customise Options</div>
+           <div className="subtitle-customize">
+             Select/deselect the parameters need to be printed
+           </div>
+         </div>
+       ),
+       children: (
+         <div className="d-flex align-items-center">
+           <Checkbox.Group
+             style={{ columnGap: "4px" }}
+             options={vitalsCheckboxOptions}
+             value={record?.vitals_option ? record?.vitals_option : ["bmi", "bmr", "bsa"]}
+             onChange={(checkedValues) =>
+               onVitalsOptionChange(checkedValues, i)
+             }
+           />
+         </div>
+       ),
+     },
+   ];
 
   const accordionItemsFollowUp = (record, i) => [
     {
@@ -653,6 +703,20 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 <div className="border mt-3 rounded-4 p-3 bg-white ">
                   <Collapse
                     items={accordionItemsFollowUp(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          {record.id === 7 && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={vitalsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
                     defaultActiveKey={["1"]}
                     className="prescriptiontab-accordian"
                     expandIconPosition={"end"}
