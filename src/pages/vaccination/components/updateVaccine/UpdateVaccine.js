@@ -325,7 +325,7 @@ const UpdateVaccine = ({
           doctorName: profile?.um_name,
           source: source,
           Type: selectedVaccines?.[0]?.isOtherVaccines ? "Other Vaccines" : "IAP Vaccines",
-          vaccineCompanyId: vaccineDetails?.map((vaccine) => vaccine?.vaccine_company_id),
+          vaccineCompanyId: selectedVaccines?.map((vaccine) => vaccineDetails?.[vaccine?.tvac_name]?.vaccine_company_id)?.join(","),
         });
       } else {
         errorMessage({ name: "TypeError" });
@@ -847,7 +847,7 @@ const UpdateVaccine = ({
                             i
                           );
                         }}
-                        defaultValue={vaccine?.brandId}
+                        defaultValue={vaccine?.brandName || vaccine?.brandId}
                         ref={(ref) => {
                           if (ref) selectRefs.current[i] = ref;
                         }}
