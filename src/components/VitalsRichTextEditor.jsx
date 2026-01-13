@@ -64,7 +64,12 @@ const VitalsRichTextEditor = ({
             });
             
             if (todayVitals) {
-              setApiVitals(formatApiVitals(todayVitals));
+              const formatted = formatApiVitals(todayVitals);
+              setApiVitals(formatted);
+              // Auto-update RX pad if no existing vitals
+              if (onUpdate && (!vitalsAndBodyComposition || Object.keys(vitalsAndBodyComposition).length === 0)) {
+                onUpdate(formatted);
+              }
             } else {
               setApiVitals(null);
             }

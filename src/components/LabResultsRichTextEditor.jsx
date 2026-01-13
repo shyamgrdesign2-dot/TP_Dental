@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useContext } from 'react';
+import React, { useCallback, useMemo, useState, useContext, useEffect } from 'react';
 import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
@@ -8,6 +8,9 @@ import addEditIcon from '../assets/images/Icon.svg';
 import LabParams from './LabParams';
 import CashManagerContext from '../context/CashManagerContext';
 import styles from './ConsultationDrawer.module.css';
+import moment from 'moment';
+import { env } from '../EnvironmentConfig';
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
 
 /**
  * LabResultsRichTextEditor - Rich text editor specifically for Lab Results section
@@ -25,6 +28,76 @@ const LabResultsRichTextEditor = ({
   const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const { patient_data } = useContext(CashManagerContext);
+
+  // Auto-fetch and load today's lab results
+  useEffect(() => {
+    const fetchTodayLabResults = async () => {
+      if (!patient_data?.patient_unique_id || !onUpdate || (labResults && labResults.length > 0)) return;
+      
+      const today = moment().format('YYYY-MM-DD');
+      try {
+        const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
+        const baseUrl = env.lab_params_api_url;
+        
+        if (cleanedToken && baseUrl) {
+          const response = await fetch(
+            `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${cleanedToken}`,
+              },
+            }
+          );
+          
+          const labData = await response.json();
+          const allResults = labData?.data?.results || [];
+          
+          if (allResults.length > 0) {
+            const todayResults = allResults.filter(result => {
+              const resultDate = result.createdAt || result.created_at || result.createdDate || result.date;
+              if (!resultDate) return false;
+              return moment(resultDate).format('YYYY-MM-DD') === today;
+            });
+            
+            if (todayResults.length > 0) {
+              const formattedResults = [];
+              const seenTests = new Set();
+              
+              todayResults.forEach(result => {
+                (result.inputs || []).forEach(input => {
+                  if (!input?.testName || input.testName === "Remarks") return;
+                  
+                  const testKey = `${input.testName}`.toLowerCase().trim();
+                  if (seenTests.has(testKey)) return;
+                  
+                  const value = input.value !== undefined ? String(input.value).trim() : "";
+                  if (!value) return;
+                  
+                  const units = input.units?.trim();
+                  const displayValue = units ? `${value} ${units}`.trim() : value;
+                  formattedResults.push({
+                    testname: input.testName,
+                    value: displayValue,
+                  });
+                  seenTests.add(testKey);
+                });
+              });
+              
+              if (formattedResults.length > 0) {
+                onUpdate(formattedResults);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching lab results:', error);
+      }
+    };
+    
+    fetchTodayLabResults();
+  }, [patient_data?.patient_unique_id, onUpdate, labResults]);
+
   const editorSignature = useMemo(() => {
     if (!Array.isArray(labResults)) {
       return 'empty';

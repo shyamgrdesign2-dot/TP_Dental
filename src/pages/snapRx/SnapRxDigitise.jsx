@@ -24,6 +24,7 @@ import { addPatientLabReports } from "../../api/services/ApiLabParams";
 import { mapLabResultsToStandardized } from "../../utils/mapLabResults";
 import moment from "moment";
 import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
+import { loadTodayVitalsAndLabResults } from "../../utils/loadTodayVitalsAndLabResults";
 import CashManagerContext from "../../context/CashManagerContext";
 
 function SnapRxDigitise() {
@@ -235,6 +236,12 @@ function SnapRxDigitise() {
       }
     }
   }, []);
+
+  // Auto-load today's vitals and lab results
+  useEffect(() => {
+    if (!patient_data?.patient_unique_id || !data) return;
+    loadTodayVitalsAndLabResults({ patient_data, setState: setData });
+  }, [patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   const handleSave = async () => {
     try {
