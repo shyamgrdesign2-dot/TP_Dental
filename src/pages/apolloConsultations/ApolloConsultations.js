@@ -200,29 +200,36 @@ const ConsultationDetailsPage = () => {
       title: "Investigations",
       dataIndex: "investigations",
       key: "investigations",
-      render: (investigations) =>
-        investigations && investigations.length > 0 ? (
-          <Button
-            type="link"
-            onClick={() => {
-              setModalContent({
-                title: "Investigations",
-                list: investigations,
-              });
-              setVisibleModal(true);
-            }}
-            className="show-more-link"
-          >
-            View
-          </Button>
-        ) : (
-          ""
-        ),
+      align: "center",
+      render: (investigations, record) => {
+        let investigationList = investigations || [];
+        if (record?.voiceRx?.labInvestigation?.length > 0) {
+          investigationList = record?.voiceRx?.labInvestigation?.map((item) => item?.lineItem) || [];
+        }
+          return investigationList.length > 0 ? (
+            <Button
+              type="link"
+              onClick={() => {
+                setModalContent({
+                  title: "Investigations",
+                  list: investigationList,
+                });
+                setVisibleModal(true);
+              }}
+              className="show-more-link"
+            >
+              View {record?.voiceRx?.labInvestigation?.length > 0 ? `(voice)` : ""}
+            </Button>
+          ) : (
+            ""
+          );
+      },
     },
     {
       title: "Additional Investigations",
       dataIndex: "dynamicModules",
       key: "additionalInvestigations",
+      align: "center",
       render: (dynamicModules) => {
         const crossConsultData = dynamicModules?.find(
           (item) =>
@@ -253,6 +260,7 @@ const ConsultationDetailsPage = () => {
       title: "Surgeries",
       dataIndex: "surgeries",
       key: "surgeries",
+      align: "center",
       render: (surgeries) =>
         surgeries && surgeries.length > 0 ? (
           <Button
@@ -277,6 +285,7 @@ const ConsultationDetailsPage = () => {
       title: "Cross Consult",
       dataIndex: "dynamicModules",
       key: "crossConsult",
+      align: "center",
       render: (dynamicModules) => {
         const crossConsultData = dynamicModules?.find(
           (item) => item?.name === "Cross Consult / Referred to"
@@ -305,6 +314,7 @@ const ConsultationDetailsPage = () => {
       title: "Vaccinations",
       dataIndex: "vaccinations",
       key: "vaccinations",
+      align: "center",
       render: (vaccinations) =>
         vaccinations && vaccinations.length > 0 ? (
           <Button
@@ -328,6 +338,7 @@ const ConsultationDetailsPage = () => {
       title: "Vaccination Packages",
       dataIndex: "dynamicModules",
       key: "vaccinePackages",
+      align: "center",
       render: (dynamicModules) => {
         const vaccinationPackageData = dynamicModules?.find(
           (item) => item?.name === "Vaccination Packages"
@@ -799,7 +810,7 @@ const ConsultationDetailsPage = () => {
                       onScroll={handleTableScroll}
                       onChange={handleChange}
                       bordered
-                      className="customize-table"
+                      className="customize-table apollo-consultations-table"
                       tableLayout="fixed"
                     />
                   </Space>

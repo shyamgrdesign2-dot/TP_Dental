@@ -575,9 +575,20 @@ function TabPrescription() {
   }, [privateNotesDrawer, selectPrivateNotes]);
 
   // Drawer Vaccination
-  const handleDrawerVaccination = () => {
+  const handleDrawerVaccination = (chartType) => {
     setCollapsedFlag(3);
     setVaccinationDrawer(!vaccinationDrawer);
+    if (!vaccinationDrawer) {
+      trackEvent("TP_Vac_Module", {
+        patientName: patient_data?.pm_fullname || "",
+        patientId: patient_data?.patient_unique_id || "",
+        doctorSpeciality: profile?.dp_name,
+        doctorId: profile?.doctor_unique_id,
+        doctorContact: profile?.um_contact,
+        doctorName: profile?.um_name,
+        source: chartType ? "Patient Details" : "Consult",
+      });
+    }
   };
 
   // Drawer Growth Chart
@@ -691,7 +702,7 @@ function TabPrescription() {
 
   useEffect(() => {
     if (chartType === "vaccination") {
-      handleDrawerVaccination();
+      handleDrawerVaccination(chartType);
     } else if (chartType === "growthChart") {
       handleDrawerGrowth();
     }
@@ -1773,7 +1784,7 @@ function TabPrescription() {
             open={vaccinationDrawer}
             width="100%"
           >
-            <Vaccination handleDrawerVaccination={handleDrawerVaccination} />
+            <Vaccination handleDrawerVaccination={handleDrawerVaccination} source={chartType ? "Patient Details" : "Consult"} />
           </Drawer>
         )}
         {growthDrawer && (

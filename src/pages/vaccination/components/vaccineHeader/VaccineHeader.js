@@ -17,6 +17,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import DemoExpirationBanner from "../../../../common/DemoExpirationBanner";
 import PlanExpirationBanner from "../../../../common/PlanExpirationBanner";
+import { trackEvent } from "../../../../utils/utils";
 
 function VaccineHeader({
   handleDrawerVaccination,
@@ -38,6 +39,7 @@ function VaccineHeader({
   setActiveVaccineTab,
   printVaccineCategory,
   setPrintVaccineCategory,
+  source,
 }) {
   const vaccinationVideo = {
     link: "https://www.youtube.com/embed/o6ALwX9hPMM",
@@ -65,6 +67,7 @@ function VaccineHeader({
   const navigate = useNavigate();
   const location = useLocation();
   let { patient_data } = useContext(CashManagerContext);
+  const { profile } = useSelector((state) => state.doctors);
   const { isPatientDiagnosisUpdated } = useSelector((state) => state.obstetric);
 
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
@@ -93,6 +96,26 @@ function VaccineHeader({
     setPrintType(e?.key);
   }
 
+  const getPrintChoice = () => {
+    let choice = "";
+    switch (currentPrintCategory) {
+      case "iap":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "IAP - All" : "IAP - Given";
+        break;
+      case "other":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "Other - All" : "Other - Given";
+        break;
+      case "both":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "Both - All" : "Both - Given";
+        break;
+
+      default:
+        choice = "All";
+        break;
+    }
+    return choice;
+  };
+
   const handleDownload = () => {
     // Set print type based on status selection
     if (printStatusGiven && !printStatusAll) {
@@ -100,10 +123,31 @@ function VaccineHeader({
     } else {
       setPrintType("1"); // All
     }
+    trackEvent("TP_Vac_Print", {
+      patientName: patient_data?.pm_fullname || "",
+      patientId: patient_data?.patient_unique_id || "",
+      doctorSpeciality: profile?.dp_name,
+      doctorId: profile?.doctor_unique_id,
+      doctorContact: profile?.um_contact,
+      doctorName: profile?.um_name,
+      source: source,
+      choice: getPrintChoice(),
+    });
   };
 
   function previewBtnHandler() {
     setShowPreview((prevState) => !prevState);
+    if (!shouldShowPreview) {
+      trackEvent("TP_Vac_preview", {
+        patientName: patient_data?.pm_fullname || "",
+        patientId: patient_data?.patient_unique_id || "",
+        doctorSpeciality: profile?.dp_name,
+        doctorId: profile?.doctor_unique_id,
+        doctorContact: profile?.um_contact,
+        doctorName: profile?.um_name,
+        source: source,
+      });
+    }
   }
 
   const showHideVideoListPopover = useCallback(() => {

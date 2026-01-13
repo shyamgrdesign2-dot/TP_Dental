@@ -1,16 +1,82 @@
+.vaccination-chart {
+  width: 100%;
+}
+
+.vaccination-header {
+  margin-bottom: 20px;
+}
+
+.vaccine-table-section {
+  margin-top: 20px;
+}
+
+.vaccine-footer-note {
+  color: #A2A2A8 !important;
+  font-size: 10px;
+  margin-top: 20px;
+}
+
 @media print {
   @page {
     size: A4;
+    margin: 0.5in;
+    margin-bottom: 0.75in; /* Extra bottom margin to prevent cutting */
   }
 
   body {
     font-size: 12pt;
     color: #000;
   }
-}
 
-.print-template {
-  page-break-after: always; /* Ensure each print page starts a new page */
+  .vaccination-chart {
+    width: 100%;
+    padding-bottom: 20px; /* Extra padding at bottom of each page */
+  }
+  
+  .vaccine-table-section {
+    padding-bottom: 20px; /* Extra padding for table section */
+  }
+
+  .vaccination-header {
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+
+  .vaccine-table-section {
+    page-break-inside: auto;
+    margin-top: 20px;
+    padding-bottom: 20px; /* Extra padding for table section */
+    
+    .vaccine-table-wrapper {
+      width: 100%;
+      padding-bottom: 10px; /* Padding for table wrapper */
+      
+      table {
+        page-break-inside: auto;
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 100%;
+        
+        thead {
+          display: table-header-group;
+        }
+        
+        tbody {
+          display: table-row-group;
+        }
+        
+        tr {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        
+        td, th {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+      }
+    }
+  }
 }
 
 .nameStyle {
@@ -29,12 +95,11 @@
   border: 2px solid #eaecf0;
   display: flex;
   font-size: 12px;
-  margin-top: 30;
+  margin-top: 30px;
 }
 
 .vaccine-table-wrapper {
-  margin-top: 20px;
-  width: 90%;
+  width: 100%;
 }
 
 .header {

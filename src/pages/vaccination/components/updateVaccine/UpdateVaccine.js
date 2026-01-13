@@ -20,7 +20,7 @@ import SuccessPopup from "../SuccessPopup.js";
 import { updateDueDate, updateVaccine, fetchFrequentlyUsedVaccines } from "../../service.js";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
-import { errorMessage, getClinicName } from "../../../../utils/utils.js";
+import { errorMessage, getClinicName, trackEvent } from "../../../../utils/utils.js";
 import {
   addDueVaccines,
   addGivenVaccines,
@@ -45,6 +45,15 @@ const vaccineSites = [
   { label: "Right Thigh", value: "Right Thigh" },
 ];
 
+const otherVaccineSites = [
+  { label: "Intramuscular", value: "Intramuscular" },
+  { label: "Subcutaneous", value: "Subcutaneous" },
+  { label: "Oral", value: "Oral" },
+  { label: "Intranasal", value: "Intranasal" },
+  { label: "Intradermal", value: "Intradermal" },
+  { label: "Others", value: "Others" },
+];
+
 const UpdateVaccine = ({
   show,
   setShow,
@@ -56,6 +65,7 @@ const UpdateVaccine = ({
   setSelectAll,
   setCardClicked,
   setLoading,
+  source,
 }) => {
   const dispatch = useDispatch();
   const { TextArea } = Input;
@@ -306,6 +316,17 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_Update_Given", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines ? "Other Vaccines" : "IAP Vaccines",
+          vaccineCompanyId: selectedVaccines?.map((vaccine) => vaccineDetails?.[vaccine?.tvac_name]?.vaccine_company_id)?.join(","),
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }
@@ -419,6 +440,18 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_DueDate", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines
+            ? "Other Vaccines"
+            : "IAP Vaccines",
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }
@@ -640,17 +673,17 @@ const UpdateVaccine = ({
             {selectedDate === "given" ? (
               <>
                 {selectedVaccines?.map((vaccine, i) => {
+                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
+                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const selectedBrand = vaccineDetails?.[vaccine?.tvac_name]
                     ?.vaccine_company_id
-                    ? vaccineOptions?.[vaccine?.tvac_name]?.find(
+                    ? [...regularOptions, ...frequentOptions]?.find(
                         (item) =>
                           item.value ===
                           vaccineDetails?.[vaccine?.tvac_name]
                             ?.vaccine_company_id
                       )?.label
                     : undefined;
-                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
-                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
                   
                   // Remove frequentOptions from regularOptions to avoid duplicates
@@ -814,7 +847,7 @@ const UpdateVaccine = ({
                             i
                           );
                         }}
-                        defaultValue={vaccine?.brandId}
+                        defaultValue={vaccine?.brandName || vaccine?.brandId}
                         ref={(ref) => {
                           if (ref) selectRefs.current[i] = ref;
                         }}
@@ -848,7 +881,7 @@ const UpdateVaccine = ({
                               vaccine?.tvpv_site ||
                               undefined
                             }
-                            options={vaccineSites}
+                            options={vaccine?.isOtherVaccines ? otherVaccineSites : vaccineSites}
                             defaultValue={vaccine?.tvpv_site || undefined}
                             onChange={(value) =>
                               handleDetails(
