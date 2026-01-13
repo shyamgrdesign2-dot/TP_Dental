@@ -712,7 +712,7 @@ function Vaccination({ handleDrawerVaccination, source }) {
   return (
     <CashManagerContext.Provider value={contextApi}>
       <div className="vaccinationWrapper">
-        {vaccinesData?.length && previewData?.length && (
+        {vaccinesData?.length > 0 && previewData?.length > 0 && (
           <VaccineHeader
             handleDrawerVaccination={handleDrawerVaccination}
             vaccinesData={previewData}
