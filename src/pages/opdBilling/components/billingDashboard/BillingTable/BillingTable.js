@@ -393,6 +393,11 @@ export default function BillingTable({
           }
           
           // Content is ready, generate PDF with optimized settings for large data
+          const dataSize = allBills?.length || 0;
+          const renderedRowCount = tableRows?.length || 0;
+          // Use the larger of the two to determine if it's a large dataset
+          const actualDataSize = Math.max(dataSize, renderedRowCount);
+          const isLargeDataset = actualDataSize > 500;
           const options = {
             filename: `billing_patient_level_${userId || "report"}.pdf`,
             image: { 
@@ -400,22 +405,27 @@ export default function BillingTable({
               quality: 0.8
             },
             html2canvas: { 
-              scale: 1,
+              scale: isLargeDataset ? 0.8 : 1, // Lower scale for large datasets to reduce canvas size
               useCORS: true, 
               letterRendering: true,
               logging: false,
-              windowWidth: element.scrollWidth,
-              windowHeight: element.scrollHeight,
-              allowTaint: true
+              scrollY: 0,
+              allowTaint: true,
+              // Only set dimensions for smaller datasets to avoid canvas size limits
+              ...(isLargeDataset ? {} : {
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight
+              })
             },
             margin: [0.3, 0.3, 0.2, 0.3],
             jsPDF: { 
               unit: "in", 
               format: "letter", 
-              orientation: "portrait" 
+              orientation: "portrait",
+              compress: true // Enable compression for large PDFs
             },
             pagebreak: { 
-              mode: ['avoid-all', 'css', 'legacy'] 
+              mode: isLargeDataset ? ['css', 'legacy'] : ['avoid-all', 'css', 'legacy']
             }
           };
 
