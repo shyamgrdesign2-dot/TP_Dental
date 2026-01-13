@@ -9,6 +9,7 @@ import {
   Dropdown,
   message,
   Radio,
+  Spin,
 } from "antd";
 import moment from "moment";
 import dayjs from "dayjs";
@@ -109,8 +110,10 @@ export default function BillingTable({
     useState("patient-level");
   const [downloadData, setDownloadData] = useState([]);
   const [itemizedBillData, setItemizedBillData] = useState(null);
+  const [patientLevelBillData, setPatientLevelBillData] = useState(null);
   const printableRef = useRef(null);
   const [tabLoader, setTabLoader] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const [sortConfig, setSortConfig] = useState({ field: null, order: null });
   const [data, setData] = useState(null);
@@ -239,7 +242,7 @@ export default function BillingTable({
     if (selectedSummaryType === "item-level") {
       // Call fetchItemizedBillData API for Item-Level Bill Summary
       try {
-        setStartLoader();
+        setDownloading(true);
         const response = await fetchItemizedBillData(
           dateRange.startDate,
           dateRange.endDate,
@@ -274,10 +277,11 @@ export default function BillingTable({
                   setStartLoader,
                   !patientData
                 );
+                setDownloading(false);
               })
               .catch((err) => {
                 console.error("Error generating PDF:", err);
-                dispatch(setLoadingStatus(false));
+                setDownloading(false);
               });
           }, 100);
         } else {
@@ -300,40 +304,150 @@ export default function BillingTable({
             ),
             duration: 5,
           });
-          dispatch(setLoadingStatus(false));
+          setDownloading(false);
         }
       } catch (error) {
         console.error("Error fetching itemized bill data:", error);
-        dispatch(setLoadingStatus(false));
+        setDownloading(false);
       }
     } else {
-      // Handle Patient-Level Bill Summary (existing logic)
-      const element = printableRef.current;
-      const options = {
-        filename: `billing_patient_level_${userId || "report"}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 3, useCORS: true, letterRendering: true },
-        margin: [0.3, 0.3, 0.1, 0.3],
-        jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
-      };
+      // Handle Patient-Level Bill Summary - Fetch all data before generating PDF
+      try {
+        setDownloading(true);
+        
+        // Prepare selected options - include "CarriedForward" if "Due" is selected
+        let optionsToFetch = [...selectedOptions];
+        if (optionsToFetch.includes("Due")) {
+          optionsToFetch = ["CarriedForward", ...optionsToFetch];
+        }
+        
+        // Fetch all data for the selected options
+        const allBills = await fetchAllData(optionsToFetch);
+        
+        if (!allBills || allBills.length === 0) {
+          message.open({
+            key: MESSAGE_KEY,
+            type: "",
+            className: "message-appointment",
+            content: (
+              <div className="d-flex align-items-center">
+                <div className="title-common text-start fontroboto">
+                  {"No Data available"}
+                </div>
+                <img
+                  src={imgCloseVisit}
+                  alt="close-visit"
+                  className="ms-3"
+                  onClick={() => message.destroy()}
+                />
+              </div>
+            ),
+            duration: 5,
+          });
+          setDownloading(false);
+          return;
+        }
+        
+        // Set patient level bill data (similar to itemizedBillData)
+        setPatientLevelBillData([...allBills]);
+        
+        // Wait for component to render with polling to ensure content is ready
+        let attempts = 0;
+        const maxAttempts = 60; // 6 seconds max wait (60 * 100ms)
+        
+        const checkAndGeneratePDF = () => {
+          const element = printableRef.current;
+          
+          if (!element) {
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(checkAndGeneratePDF, 100);
+            } else {
+              console.error("PDF element not found");
+              setDownloading(false);
+              message.error("Failed to generate PDF. Please try again.");
+            }
+            return;
+          }
+          
+          // Check if table is rendered with actual data rows
+          const tableElement = element.querySelector('.print-bill-table, .ant-table, table');
+          const tableRows = tableElement?.querySelectorAll('tbody tr, .ant-table-tbody tr');
+          const hasTableContent = tableElement && tableRows && tableRows.length > 0;
+          
+          // Also check for meaningful text content
+          const hasTextContent = element.textContent && 
+            element.textContent.trim().length > 200 && 
+            (element.textContent.includes('Bill') || element.textContent.includes('Patient'));
+          
+          if (!hasTableContent && !hasTextContent) {
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(checkAndGeneratePDF, 1000);
+            } else {
+              console.error("PDF content not ready after multiple attempts");
+              setDownloading(false);
+              message.error("Failed to generate PDF. Content not ready.");
+            }
+            return;
+          }
+          
+          // Content is ready, generate PDF with optimized settings for large data
+          const options = {
+            filename: `billing_patient_level_${userId || "report"}.pdf`,
+            image: { 
+              type: "jpeg", 
+              quality: 0.8
+            },
+            html2canvas: { 
+              scale: 1,
+              useCORS: true, 
+              letterRendering: true,
+              logging: false,
+              windowWidth: element.scrollWidth,
+              windowHeight: element.scrollHeight,
+              allowTaint: true
+            },
+            margin: [0.3, 0.3, 0.2, 0.3],
+            jsPDF: { 
+              unit: "in", 
+              format: "letter", 
+              orientation: "portrait" 
+            },
+            pagebreak: { 
+              mode: ['avoid-all', 'css', 'legacy'] 
+            }
+          };
 
-      html2pdf()
-        ?.from(element)
-        ?.set(options)
-        ?.output("blob")
-        ?.then((blob) => {
-          const url = URL.createObjectURL(blob);
-          handleDownload(
-            url,
-            blob,
-            patientData ? patientData.patient_unique_id : userId,
-            setStartLoader,
-            !patientData
-          );
-        })
-        .catch((err) => {
-          console.error("Error generating PDF:", err);
-        });
+          html2pdf()
+            ?.from(element)
+            ?.set(options)
+            ?.output("blob")
+            ?.then((blob) => {
+              const url = URL.createObjectURL(blob);
+              handleDownload(
+                url,
+                blob,
+                patientData ? patientData.patient_unique_id : userId,
+                setStartLoader,
+                !patientData
+              );
+              setDownloading(false);
+            })
+            .catch((err) => {
+              console.error("Error generating PDF:", err);
+              setDownloading(false);
+              message.error("Failed to generate PDF. Please try again.");
+            });
+        };
+        
+        // Start checking after initial delay to allow React to render
+        setTimeout(checkAndGeneratePDF, 500);
+      } catch (error) {
+        console.error("Error fetching all bills for download:", error);
+        message.error("Failed to prepare download data. Please try again.");
+        setDownloading(false);
+      }
     }
   };
 
@@ -534,22 +648,25 @@ export default function BillingTable({
       </div>
 
       {/* Download Button */}
-      <Button
-        type="primary"
-        className="ant-btn-download"
-        style={{
-          width: "100%",
-          display: `${
-            selectedSummaryType === "item-level" || selectedOptions.length > 0
-              ? ""
-              : "none"
-          }`,
-        }}
-        onClick={handleDownloadData}
-      >
-        Download
-        <i className="icon-download fs-18" style={{ paddingLeft: "8px" }} />
-      </Button>
+      <Spin spinning={downloading}>
+        <Button
+          type="primary"
+          className="ant-btn-download"
+          style={{
+            width: "100%",
+            display: `${
+              selectedSummaryType === "item-level" || selectedOptions.length > 0
+                ? ""
+                : "none"
+            }`,
+          }}
+          onClick={handleDownloadData}
+          disabled={downloading}
+        >
+          Download
+          <i className="icon-download fs-18" style={{ paddingLeft: "8px" }} />
+        </Button>
+      </Spin>
     </div>
   );
 
@@ -1034,11 +1151,12 @@ export default function BillingTable({
           />
         </Row>
 
-        {
+        {/* Patient-Level Bill Summary PDF generation */}
+        {selectedSummaryType === "patient-level" && patientLevelBillData && (
           <div style={{ display: "none" }}>
             <div ref={printableRef}>
               <DownloadBill
-                downloadData={downloadData}
+                downloadData={patientLevelBillData}
                 parent={"billing"}
                 dateRange={dateRange}
                 isDoctorDashboard={!patientData}
@@ -1046,7 +1164,7 @@ export default function BillingTable({
               />
             </div>
           </div>
-        }
+        )}
 
         {/* Hidden div for Itemized Bill Chart PDF generation */}
         {selectedSummaryType === "item-level" && itemizedBillData && (
