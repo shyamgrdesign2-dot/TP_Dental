@@ -23,6 +23,7 @@ import {
 import {
   CheckOutlined,
   CloseOutlined,
+  InfoCircleOutlined,
   LoadingOutlined,
   MoreOutlined,
   PlusOutlined,
@@ -1043,13 +1044,7 @@ function CustomModule({ module }) {
           padding: "8px 12px",
         }}
       >
-        <img
-          src={editIcon}
-          width={16}
-          height={16}
-          alt="remove"
-          style={{ margin: "0 8px 3px 0" }}
-        />
+        <i className="icon-exit color-blue" style={{ margin: "0 4px 3px 0" }}></i>
         Remove From Rx Pad
       </Menu.Item>
       <Menu.Item
@@ -1077,8 +1072,8 @@ function CustomModule({ module }) {
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
                 src={editIcon}
-                width={16}
-                height={16}
+                width={18}
+                height={18}
                 alt="edit"
                 style={{ margin: "0 8px 3px 0" }}
               />
@@ -1089,8 +1084,8 @@ function CustomModule({ module }) {
           <>
             <img
               src={editIcon}
-              width={16}
-              height={16}
+              width={18}
+              height={18}
               alt="edit"
               style={{ margin: "0 8px 3px 0" }}
             />
@@ -1123,8 +1118,8 @@ function CustomModule({ module }) {
             <span style={{ display: "flex", alignItems: "center" }}>
               <img
                 src={deleteIcon}
-                width={16}
-                height={16}
+                width={18}
+                height={18}
                 alt="delete"
                 style={{ margin: "0 8px 3px 0" }}
               />
@@ -1135,8 +1130,8 @@ function CustomModule({ module }) {
           <>
             <img
               src={deleteIcon}
-              width={16}
-              height={16}
+              width={18}
+              height={18}
               alt="delete"
               style={{ margin: "0 8px 3px 0" }}
             />
@@ -1236,7 +1231,19 @@ function CustomModule({ module }) {
           <>
             <div className="d-flex align-items-center">
               <img className="me-2" src={ModuleIcon} alt={module?.name} />
-              <div className="title-common">{module?.name}</div>
+              <div className="title-common d-flex align-items-center">
+                {module?.name}
+                <DisabledModuleTooltip
+                  module={module}
+                  hospitalSearchResults={hospitalSearchResults}
+                  placement="bottom"
+                  type="title"
+                >
+                  <InfoCircleOutlined
+                    style={{ marginLeft: 8, color: "#a1a1aa", fontSize: 16 }}
+                  />
+                </DisabledModuleTooltip>
+              </div>
             </div>
 
             <div className="d-flex align-items-center">

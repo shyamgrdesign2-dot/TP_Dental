@@ -140,6 +140,8 @@ function Prescription() {
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
+  // Track modules that have been explicitly removed from Rx pad to prevent re-adding
+  const [removedModuleIds, setRemovedModuleIds] = useState(new Set());
 
   const { planDetails } = useSelector((state) => state.subscription);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
@@ -226,8 +228,9 @@ function Prescription() {
       );
 
       // Find modules that are in the prescription but not in the right list (deleted modules)
+      // Exclude modules that have been explicitly removed from Rx pad
       const missingModules = moduleIdsInPrescription.filter(
-        (moduleId) => !existingModuleIds.has(moduleId)
+        (moduleId) => !existingModuleIds.has(moduleId) && !removedModuleIds.has(moduleId)
       );
 
       if (missingModules.length > 0) {
@@ -287,7 +290,7 @@ function Prescription() {
 
       }
     }
-  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList]);
+  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList, removedModuleIds]);
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -393,6 +396,13 @@ function Prescription() {
     setCustomModuleContents,
     pillupSwitch,
     setPillupSwitch,
+    markModuleAsRemoved: (moduleId) => {
+      setRemovedModuleIds((prev) => new Set([...prev, moduleId]));
+      // Also remove from local customModuleContents
+      setCustomModuleContents((prev) => 
+        prev.filter((content) => content.module_id !== moduleId)
+      );
+    },
     showHideSubModal,
     useVoiceRx,
     setUseVoiceRx,

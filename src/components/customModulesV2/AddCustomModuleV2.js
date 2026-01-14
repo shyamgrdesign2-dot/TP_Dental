@@ -4,7 +4,7 @@ import { PlusOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import "./AddCustomModuleV2.scss";
 
-const MAX_MODULES = 15;
+const MAX_MODULES = 10;
 
 /**
  * AddCustomModuleV2 Component
@@ -19,14 +19,15 @@ const AddCustomModuleV2 = ({ onOpenDrawer }) => {
   const isDisabled = moduleCount >= MAX_MODULES;
 
   const handleClick = () => {
-    if (!isDisabled && onOpenDrawer) {
+    if (onOpenDrawer) {
       onOpenDrawer();
     }
   };
 
   return (
     <div
-      className={`add-custom-module-v2 ${isDisabled ? "disabled" : ""}`}
+      // className={`add-custom-module-v2 ${isDisabled ? "disabled" : ""}`}
+      className={`add-custom-module-v2`}
       onClick={handleClick}
     >
       <div className="add-custom-module-v2__left">
@@ -38,7 +39,7 @@ const AddCustomModuleV2 = ({ onOpenDrawer }) => {
           {moduleCount}/{MAX_MODULES} modules added
         </span>
         <Tooltip
-          title="You can create up to 15 custom modules. If you've reached the limit, delete an existing custom module to add a new one."
+          title="You can create up to 10 custom modules. If you've reached the limit, delete an existing custom module to add a new one."
           placement="top"
           overlayClassName="add-custom-module-v2__tooltip"
         >

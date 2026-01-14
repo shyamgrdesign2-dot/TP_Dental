@@ -22,6 +22,8 @@
   &--action {
     width: 50px;
     min-width: 50px;
+    max-width: 50px;
+    flex-shrink: 0;
   }
 }
 
@@ -46,8 +48,10 @@
   &--action {
     width: 50px;
     min-width: 50px;
+    max-width: 50px;
     padding: 0 12px;
     gap: 12px;
+    flex-shrink: 0;
   }
 }
 
@@ -91,6 +95,13 @@
 }
 
 // Support for different column counts
+.custom-module-v2--1-cols {
+  .custom-module-v2__table-header,
+  .custom-module-v2__table-row {
+    @include grid-columns(1);
+  }
+}
+
 .custom-module-v2--3-cols {
   .custom-module-v2__table-header,
   .custom-module-v2__table-row {
