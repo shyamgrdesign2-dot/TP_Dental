@@ -28,6 +28,7 @@ function AppointmentCard({
     const gender = appointment.pm_gender || '';
     const contact = appointment.pm_contact_no || '';
     const pid = appointment.pm_pid || appointment.pm_reference_id || '';
+    const shortGender = gender ? (gender.charAt(0).toUpperCase()) : '';
     
     let ageStr = '';
     if (appointment.ageYears != 0) {
@@ -39,7 +40,7 @@ function AppointmentCard({
     }
     
     const parts = [];
-    if (gender) parts.push(gender);
+    if (shortGender) parts.push(shortGender);
     if (ageStr) parts.push(ageStr);
     if (contact) parts.push(contact);
     if (pid) parts.push(pid);

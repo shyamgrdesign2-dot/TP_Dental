@@ -20,7 +20,7 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    background: #FFFFFF;
+    background: #FAF8FD !important;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
   }
@@ -317,11 +317,11 @@
     border: none;
     padding: 0;
 
-    &::before {
-      content: '+';
-      font-size: 32px;
-      font-weight: 300;
-      color: #292D32;
+    .walk-in-button-icon {
+      width: 32px;
+      height: 32px;
+      display: block;
+      object-fit: contain;
     }
 
     &:active {

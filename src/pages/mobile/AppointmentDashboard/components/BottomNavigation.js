@@ -55,25 +55,26 @@ function BottomNavigation({ activeTab = 'appointments' }) {
   return (
     <div className="bottom-navigation">
       <div className="nav-content">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const isActive = activeTab === item.key;
           const iconSrc = isActive && item.iconActive ? item.iconActive : item.icon;
           
           return (
-            <button
-              key={item.key}
-              className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => handleNavClick(item)}
-              data-tab={item.key}
-            >
-              <img src={iconSrc} alt={item.label} className="nav-icon" />
-              <span className="nav-label">{item.label}</span>
-            </button>
+            <React.Fragment key={item.key}>
+              <button
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => handleNavClick(item)}
+                data-tab={item.key}
+              >
+                <img src={iconSrc} alt={item.label} className="nav-icon" />
+                <span className="nav-label">{item.label}</span>
+              </button>
+              {index === 0 && (
+                <div className="nav-divider" />
+              )}
+            </React.Fragment>
           );
         })}
-      </div>
-      <div className="nav-indicator">
-        <div className="indicator-bar" />
       </div>
     </div>
   );

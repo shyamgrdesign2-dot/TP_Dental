@@ -1,12 +1,14 @@
 import React from 'react';
-import noData from '../../../../assets/images/nodata-found.svg';
+import emptyIllustration from '../../../../assets/mobile/empty_illustration.svg';
 import './EmptyState.scss';
 
 function EmptyState({ message }) {
   return (
-    <div className="empty-state">
-      <img src={noData} alt="No data" className="empty-icon" />
-      <div className="empty-message">{message}</div>
+    <div className="empty-state-wrapper">
+      <div className="empty-state">
+        <img src={emptyIllustration} alt="No data" className="empty-icon" />
+        <div className="empty-message">{message}</div>
+      </div>
     </div>
   );
 }

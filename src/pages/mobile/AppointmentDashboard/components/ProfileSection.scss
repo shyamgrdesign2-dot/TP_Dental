@@ -156,7 +156,9 @@
       // Dropdown styles for mobile clinic selector (global styles for portal-rendered dropdown)
       // Scoped ONLY to this mobile dropdown - will not affect other dropdowns
       :global(.mobile-clinic-selector-dropdown) {
+        min-width: 158px !important;
         max-width: 158px !important;
+        width: 158px !important;
         .ant-select-item {
           font-size: 14px;
           font-family: 'Poppins', sans-serif;

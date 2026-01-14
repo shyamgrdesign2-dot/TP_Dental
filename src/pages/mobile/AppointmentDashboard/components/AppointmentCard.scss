@@ -65,7 +65,7 @@
           align-items: center;
 
           span {
-            color: #a2a2a8;
+            color: #a2a2a8 !important;
           }
         }
       }
@@ -114,14 +114,14 @@
       .chip-text {
         font-size: 12px;
         font-weight: 400;
-        color: rgba(69, 69, 81, 0.8);
+        color: rgba(69, 69, 81, 0.70);
         font-family: 'Poppins', sans-serif;
         line-height: 14px;
       }
 
       &.time-chip {
         .chip-text {
-          font-weight: 500;
+          font-weight: 400;
         }
       }
 
@@ -129,14 +129,14 @@
         &.unbilled {
           .chip-text {
             color: #ed8a00;
-            font-weight: 500;
+            font-weight: 400;
           }
         }
 
         &.billed {
           .chip-text {
             color: #3d8c40;
-            font-weight: 500;
+            font-weight: 400;
           }
         }
       }
@@ -164,6 +164,10 @@
       font-family: 'Poppins', sans-serif;
       transition: all 0.2s ease;
       letter-spacing: 0.25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
 
       &.btn-outline {
         border: 1.5px solid #4B4AD5;

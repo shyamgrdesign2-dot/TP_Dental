@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal } from 'antd';
+import { Drawer } from 'antd';
 import moment from 'moment';
 import { TAB_QUEUE } from '../../../../utils/constants';
+import closeIcon from '../../../../assets/mobile/close 2.svg';
 import './DateSelectorModal.scss';
 
 function DateSelectorModal({ 
@@ -120,18 +121,29 @@ function DateSelectorModal({
   const currentMonthYear = moment().year(selectedYear).month(selectedMonth).format('MMMM YYYY');
 
   return (
-    <Modal
+    <Drawer
+      placement="bottom"
+      onClose={onClose}
       open={visible}
-      onCancel={onClose}
-      footer={null}
-      closeIcon={
-        <div className="close-icon">✕</div>
-      }
+      height="auto"
       className="date-selector-modal"
-      centered
+      closable={false}
+      maskClosable={true}
+      destroyOnClose={true}
+      maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
     >
       <div className="date-selector-content">
-        <h3 className="modal-title">Select Date</h3>
+        <div className="modal-header">
+          <h3 className="modal-title">Select Date</h3>
+          <button 
+            className="close-btn" 
+            onClick={onClose} 
+            type="button"
+            aria-label="Close modal"
+          >
+            <img src={closeIcon} alt="Close" className="close-icon" />
+          </button>
+        </div>
 
         {/* Calendar */}
         <div className="calendar-container">
@@ -142,7 +154,7 @@ function DateSelectorModal({
             >
               ‹
             </button>
-            <div className="month-year">{currentMonthYear} ›</div>
+            <div className="month-year">{currentMonthYear}</div>
             <button 
               className="month-nav-btn"
               onClick={() => handleMonthChange('next')}
@@ -190,7 +202,7 @@ function DateSelectorModal({
           ))}
         </div>
       </div>
-    </Modal>
+    </Drawer>
   );
 }
 

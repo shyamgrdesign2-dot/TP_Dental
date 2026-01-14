@@ -37,6 +37,7 @@ import WalkInConsultationModal from './components/WalkInConsultationModal';
 import MoreOptionsModal from './components/MoreOptionsModal';
 import EndVisitModal from './components/EndVisitModal';
 import RxPreviewModal from './components/RxPreviewModal';
+import PlusIcon from '../../../assets/mobile/Plus_Icon.svg';
 
 import './AppointmentDashboard.scss';
 
@@ -705,34 +706,36 @@ function AppointmentDashboard() {
         ref={scrollContainerRef}
         className="appointment-content"
       >
-        {/* Search Bar */}
-        <div className="search-container">
-          {loading && pageNo === 0 ? (
-            <div className="search-shimmer">
-              <div className="shimmer-search-bar">
-                <i className="icon-search shimmer-search-icon"></i>
-                <div className="shimmer-search-input"></div>
+        {/* Search Bar - Hide when no data available */}
+        {(loading && pageNo === 0) || appointmentsData.length > 0 ? (
+          <div className="search-container">
+            {loading && pageNo === 0 ? (
+              <div className="search-shimmer">
+                <div className="shimmer-search-bar">
+                  <i className="icon-search shimmer-search-icon"></i>
+                  <div className="shimmer-search-input"></div>
+                </div>
               </div>
-            </div>
-          ) : (
-          <Input
-            value={searchQuery}
-            placeholder="Search by Name/ID/Mobile Number"
-            prefix={<i className="icon-search" />}
-            suffix={
-              searchQuery.length > 0 && (
-                <i
-                  className="icon-Cross"
-                  onClick={() => handleSearch('')}
-                  style={{ cursor: 'pointer' }}
-                />
-              )
-            }
-            onChange={(e) => handleSearch(e.target.value)}
-            className="search-input"
-          />
-          )}
-        </div>
+            ) : (
+            <Input
+              value={searchQuery}
+              placeholder="Search by Name/ID/Mobile Number"
+              prefix={<i className="icon-search" />}
+              suffix={
+                searchQuery.length > 0 && (
+                  <i
+                    className="icon-Cross"
+                    onClick={() => handleSearch('')}
+                    style={{ cursor: 'pointer' }}
+                  />
+                )
+              }
+              onChange={(e) => handleSearch(e.target.value)}
+              className="search-input"
+            />
+            )}
+          </div>
+        ) : null}
 
         {/* Date Filter - Hidden for now, can be shown when DateBanner is clicked */}
         {selectedTab === TAB_QUEUE && false && (
@@ -827,7 +830,9 @@ function AppointmentDashboard() {
           <button
             className="walk-in-button"
             onClick={handleWalkInConsultation}
-          />
+          >
+            <img src={PlusIcon} alt="Add" className="walk-in-button-icon" />
+          </button>
         )}
       </div>
 
