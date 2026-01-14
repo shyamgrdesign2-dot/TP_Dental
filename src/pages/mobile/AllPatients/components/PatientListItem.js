@@ -84,7 +84,14 @@ function PatientListItem({
       parts.push(patientId);
     }
     
-    return parts.join(' | ');
+    if (parts.length === 0) return 'N/A';
+    
+    return parts.map((part, index) => (
+      <React.Fragment key={index}>
+        {part}
+        {index < parts.length - 1 && <span className="separator"> | </span>}
+      </React.Fragment>
+    ));
   };
 
   // Format last visit date

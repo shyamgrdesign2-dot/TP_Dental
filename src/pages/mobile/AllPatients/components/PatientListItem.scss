@@ -71,7 +71,6 @@
             width: 24px;
             height: 24px;
             flex-shrink: 0;
-            transform: rotate(90deg);
             transition: all 0.2s ease;
 
             &:hover {
@@ -99,16 +98,12 @@
             font-weight: 400;
             font-size: 12px;
             line-height: 18px;
-            color: #3d4854;
+            color: #3d4854 !important;
             margin: 0 0 4px 0;
             word-break: break-word;
 
-            // Style the separators
-            span {
-              &:nth-child(even) {
-                color: #a2a2a8;
-                margin: 0 2px;
-              }
+            .separator {
+              color: #A2A2A8 !important;
             }
           }
 
@@ -123,7 +118,7 @@
           }
 
           .last-visit {
-            color: #059669 !important;
+            color: #3d4854 !important;
           }
 
           .patient-category {

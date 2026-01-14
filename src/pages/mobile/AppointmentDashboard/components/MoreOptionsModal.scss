@@ -24,8 +24,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-  padding: 12px 24px 16px;
-  border-bottom: none;
+      padding: 14px;
+      border-bottom: none;
 }
 
 .more-options-modal-title {
@@ -74,6 +74,8 @@
 .more-options-option-item {
   cursor: pointer;
   transition: background-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
 
   &:active {
     background-color: rgba(0, 0, 0, 0.04);
@@ -129,8 +131,18 @@
 }
 
 .more-options-option-divider {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  align-self: stretch;
   height: 1px;
-  background: rgba(238, 238, 238, 1);
-  margin: 0 16px;
+  background: linear-gradient(
+    to right,
+    rgba(238, 238, 238, 0) 0%,
+    rgba(238, 238, 238, 1) 50%,
+    rgba(238, 238, 238, 0) 100%
+  );
+  margin: 0;
 }
 

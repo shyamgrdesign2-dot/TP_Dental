@@ -1,6 +1,6 @@
 import React from 'react';
 import './PatientOptionsModal.scss';
-import CloseIcon from '../../../../assets/mobile/close.svg';
+import CloseIcon from '../../../../assets/mobile/close 2.svg';
 import UserIcon from '../../../../assets/mobile/user.svg';
 import LoginIcon from '../../../../assets/mobile/login.svg';
 import CalendarIcon from '../../../../assets/mobile/calendar-2.svg';
@@ -72,6 +72,7 @@ function PatientOptionsModal({
               </div>
               <span>Patient Details</span>
             </button>
+            <div className="option-divider" />
             <button 
               className="option-item"
               onClick={() => handleOptionClick('walkIn')}
@@ -81,6 +82,7 @@ function PatientOptionsModal({
               </div>
               <span>Start Walk-in Consultation</span>
             </button>
+            <div className="option-divider" />
             <button 
               className="option-item"
               onClick={() => handleOptionClick('appointment')}
@@ -91,10 +93,6 @@ function PatientOptionsModal({
               <span>Book Appointment</span>
             </button>
           </div>
-        </div>
-        
-        <div className="modal-bottom-bar">
-          <div className="bottom-indicator" />
         </div>
       </div>
     </div>

@@ -24,6 +24,8 @@ import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
 import { env } from '../../../EnvironmentConfig';
 import { jwtDecode } from 'jwt-decode';
 import { generateBillToken } from '../../opdBilling/service';
+import { fetchPatientDefaultLanguage } from '../../../api/services/DefaultLanguageService';
+import { getSnapRxDigitization } from '../../snapRx/services/snapRxService';
 
 import ProfileSection from './components/ProfileSection';
 import AppointmentTabs from './components/AppointmentTabs';
@@ -51,7 +53,7 @@ function AppointmentDashboard() {
   const scrollContainerRef = useRef(null);
   const lastPostElementRef = useRef(null);
 
-  const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
+  const { profile, loading: profileLoading, defaultPrintSettings } = useSelector((state) => state.doctors);
   const {
     queueCount,
     finishedCount,
@@ -505,20 +507,67 @@ function AppointmentDashboard() {
     }
   }, [dispatch, selectedAppointment]);
 
-  // Handle print Rx
-  const handlePrintRx = useCallback((record) => {
-    if (record.print_rx_url) {
-      navigate('/prescription_print_view', {
-        state: {
-          print_url: record.print_rx_url,
-          patient_data: record,
-          tcm_id: record.tcm_id,
-        },
-      });
-    } else {
+  // Handle print Rx (same as web version)
+  const handlePrintRx = useCallback(async (record) => {
+    if (!record.print_rx_url) {
       message.warning('Prescription not available for printing');
+      return;
     }
-  }, [navigate]);
+
+    try {
+      // Get patient default language (same as web version)
+      const getPatientDefaultLanguage = async () => {
+        try {
+          const res = await fetchPatientDefaultLanguage(record?.patient_unique_id);
+          if (res?.settings?.defaultLanguage) {
+            return res.settings.defaultLanguage;
+          }
+        } catch (error) {
+          console.error('Error fetching patient default language:', error);
+        }
+        return defaultPrintSettings?.default_language;
+      };
+
+      // Update RxDigitize in URL (same as web version)
+      const updateRxDigitizeInUrl = async () => {
+        try {
+          if (!record.patient_unique_id || !record.tcm_id) {
+            return record.print_rx_url;
+          }
+
+          const urlObj = new URL(record.print_rx_url);
+          urlObj.searchParams.delete("rxDigitize");
+
+          const snapRxDigitisedData = await getSnapRxDigitization(
+            record.patient_unique_id,
+            record.tcm_id
+          );
+
+          const isSnapRxdigitised = snapRxDigitisedData?.digitization?.isVerified && snapRxDigitisedData?.digitization?.isDigitize;
+          if (isSnapRxdigitised) {
+            urlObj.searchParams.set("rxDigitize", "true");
+          }
+
+          return urlObj.toString();
+        } catch (error) {
+          console.error('Error updating rxDigitize in URL:', error);
+          return record.print_rx_url;
+        }
+      };
+
+      const patientDefaultLanguage = await getPatientDefaultLanguage();
+      const encodedData = patientDefaultLanguage && patientDefaultLanguage !== "English" 
+        ? btoa(patientDefaultLanguage.toString()) 
+        : "";
+      const printUrl = await updateRxDigitizeInUrl();
+      
+      // Open URL directly (same as web version)
+      window.open(`${printUrl}&lg=${encodedData}`, '_blank');
+    } catch (error) {
+      console.error('Error printing prescription:', error);
+      message.error('Failed to open prescription');
+    }
+  }, [defaultPrintSettings]);
 
   // Handle download Rx
   const handleDownloadRx = useCallback(async (record) => {
