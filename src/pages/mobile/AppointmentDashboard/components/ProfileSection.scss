@@ -66,51 +66,109 @@
         font-family: 'Poppins', sans-serif;
       }
 
-      .mobile-clinic-selector {
-        width: 50%;
+      .clinic-selector-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
         margin-top: 4px;
+        max-width: 158px;
+        width: auto;
+        cursor: pointer;
 
-        .ant-select-selector {
-          background: rgba(255, 255, 255, 0.15) !important;
-          border: 1px solid rgba(255, 255, 255, 0.3) !important;
-          border-radius: 6px !important;
-          height: 28px !important;
-          min-height: 28px !important;
+        .mobile-clinic-selector {
+          width: auto;
+          max-width: calc(158px - 20px);
+          flex: 1;
+          min-width: 0;
 
-          .ant-select-selection-item {
-            color: #ffffff !important;
-            font-size: 12px !important;
-            line-height: 26px !important;
-            font-family: 'Poppins', sans-serif !important;
-            opacity: 0.9;
+          .ant-select-selector {
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            height: auto !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            max-width: 100%;
+
+            .ant-select-selection-item {
+              color: #ffffff !important;
+              font-size: 14px !important;
+              line-height: 18px !important;
+              font-family: 'Poppins', sans-serif !important;
+              opacity: 0.8;
+              padding: 0 !important;
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
+              white-space: nowrap !important;
+            }
+
+            .ant-select-selection-placeholder {
+              color: rgba(255, 255, 255, 0.6) !important;
+              font-size: 14px !important;
+              line-height: 18px !important;
+              font-family: 'Poppins', sans-serif !important;
+              padding: 0 !important;
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
+              white-space: nowrap !important;
+            }
+
+            .ant-select-selection-search {
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+
+            .ant-select-selection-search-input {
+              margin: 0 !important;
+              padding: 0 !important;
+            }
           }
 
-          .ant-select-selection-placeholder {
-            color: rgba(255, 255, 255, 0.6) !important;
-            font-size: 12px !important;
-            line-height: 26px !important;
-            font-family: 'Poppins', sans-serif !important;
+          .ant-select-selection__rendered {
+            margin: 0 !important;
+            overflow: hidden !important;
+          }
+
+          &.ant-select-focused .ant-select-selector {
+            box-shadow: none !important;
           }
 
           .ant-select-arrow {
-            color: rgba(255, 255, 255, 0.7) !important;
+            display: none !important;
           }
         }
 
-        &.ant-select-focused .ant-select-selector {
-          border-color: rgba(255, 255, 255, 0.5) !important;
-          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1) !important;
+        .clinic-dropdown-icon {
+          width: 16px;
+          height: 16px;
+          margin-left: 4px;
+          opacity: 0.8;
+          transition: transform 0.2s ease;
+          flex-shrink: 0;
         }
 
-        &:hover .ant-select-selector {
-          border-color: rgba(255, 255, 255, 0.4) !important;
+        .mobile-clinic-selector.ant-select-open ~ .clinic-dropdown-icon {
+          transform: rotate(180deg);
         }
       }
 
-      .ant-select-dropdown {
+      // Dropdown styles for mobile clinic selector (global styles for portal-rendered dropdown)
+      // Scoped ONLY to this mobile dropdown - will not affect other dropdowns
+      :global(.mobile-clinic-selector-dropdown) {
+        max-width: 158px !important;
         .ant-select-item {
           font-size: 14px;
           font-family: 'Poppins', sans-serif;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+
+          .ant-select-item-option-content {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
         }
       }
 

@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { Select } from 'antd';
 import './ProfileSection.scss';
 import AvatarImage from '../../../../assets/mobile/image.svg';
+import ArrowIcon from '../../../../assets/mobile/Arrow.svg';
 
 function ProfileSection({ doctorName, specialty, clinicName, profileImage, clinicOptions, selectedHospital, onClinicChange }) {
   const { profile } = useSelector((state) => state.doctors);
@@ -27,16 +28,18 @@ function ProfileSection({ doctorName, specialty, clinicName, profileImage, clini
         </div>
          <div className="profile-info">
            <div className="doctor-name">Hi, {doctorName} <span className="wavy-icon">👋</span></div>
-           <div className="doctor-specialty">{profile?.dp_name || specialty || 'Specialty'}</div>
            {showClinicSelector ? (
-             <Select
-               className="mobile-clinic-selector"
-               placeholder="Select Clinic"
-               value={selectedHospital || undefined}
-               onChange={onClinicChange}
-               options={clinicOptions}
-               size="small"
-             />
+             <div className="clinic-selector-wrapper">
+               <Select
+                 className="mobile-clinic-selector"
+                 placeholder="Select Clinic"
+                 value={selectedHospital || undefined}
+                 onChange={onClinicChange}
+                 options= {clinicOptions}
+                 size="medium"
+               />
+               <img src={ArrowIcon} alt="dropdown" className="clinic-dropdown-icon" />
+             </div>
            ) : (
              clinicName && (
                <div className="clinic-name">{clinicName}</div>
