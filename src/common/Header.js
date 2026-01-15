@@ -1275,10 +1275,20 @@ function Header({ locationPath }) {
                         fontWeight: "700",
                         color: "#1F2933",
                         textAlign: "center",
-                        wordBreak: "break-word",
                         marginBottom: "0.5rem",
-                        marginTop: "0", 
+                        marginTop: "0",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: "100%",
+                        fontSize: (() => {
+                          const name = getClinicName(profile?.hospital_data) || "Clinic";
+                          if (name.length > 50) return "1.3rem";
+                          if (name.length > 30) return "1.5rem";
+                          return "1.5rem";
+                        })(),
                       }}
+                      title={getClinicName(profile?.hospital_data) || "Clinic"}
                     >
                       {getClinicName(profile?.hospital_data) || "Clinic"}
                     </div>
