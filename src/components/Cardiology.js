@@ -72,10 +72,6 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
 import { Document, Page, pdfjs } from "react-pdf";
 
-// Set up PDF.js worker for react-pdf (reuse pattern from other viewers)
-// const worker = require("pdfjs-dist/build/pdf.worker.min.js");
-// pdfjs.GlobalWorkerOptions.workerSrc = worker;
-
 function Cardiology(props) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
