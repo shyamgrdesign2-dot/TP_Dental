@@ -123,9 +123,9 @@ export const updateCredits = createAsyncThunk(
 
 export const extendFreeTrial = createAsyncThunk(
     "monetization/extendFreeTrial",
-    async (b2c_id, { dispatch, rejectWithValue }) => {
+    async (_, { dispatch, rejectWithValue }) => {
         try {
-            const result = await ApiMonetization.extendFreeTrial(b2c_id);
+            const result = await ApiMonetization.extendFreeTrial();
             dispatch(fetchSubscriptionDetails())
             return result;
         } catch (error) {
@@ -201,7 +201,11 @@ export const discountCodeValidate = createAsyncThunk(
             const result = await ApiMonetization.discountCodeValidate(data);
             return result;
         } catch (error) {
-            return rejectWithValue({ visible: false, message: error.response.data.message });
+            const errorMessage = error?.response?.data?.errorMessage || 
+                                 error?.response?.data?.message || 
+                                 error?.message || 
+                                 "Something went wrong";
+            return rejectWithValue({ visible: false, message: errorMessage });
         }
     }
 );

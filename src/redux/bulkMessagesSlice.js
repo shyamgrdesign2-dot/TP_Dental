@@ -207,9 +207,9 @@ export const paymentHistory = createAsyncThunk(
 
 export const states = createAsyncThunk(
     "bulkMessages/states",
-    async (data, { rejectWithValue }) => {
+    async (_, { rejectWithValue }) => {
         try {
-            const result = await ApiBulkMessages.states(data);
+            const result = await ApiBulkMessages.states();
             return result;
         } catch (error) {
             return rejectWithValue({ visible: false, message: error.response.data.message });

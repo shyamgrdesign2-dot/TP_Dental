@@ -8,7 +8,6 @@ import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsof
 import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
 import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
 import { verifyAccessToken } from "../../auth/authService";
-import { setPassword } from "../../auth/authService";
 import { loginWithPassword } from "../../auth/authService";
 import { useNavigate } from "react-router-dom";
 import { detectOperatingSystem } from "../../../utils/utils";
@@ -117,8 +116,7 @@ const VerifyOTP = ({
               const { message, type } = data;
 
               if (isPasswordSetFlow) {
-                const verifyResponse = await verifyAccessToken(mobileNumber, message);
-                await setPassword(verifyResponse.doctor_unique_id, tempPassword);
+                const verifyResponse = await verifyAccessToken(mobileNumber, message, tempPassword);
                 const loginResponse = await loginWithPassword(mobileNumber, tempPassword);
 
                 window.Moengage.track_event('TP_NewLoginFlow_Set_Password_OTP_Submit', {
