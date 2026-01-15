@@ -70,6 +70,11 @@ import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageServ
 import AbhaSyncButton from "./AbhaSyncButton";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
+import { Document, Page, pdfjs } from "react-pdf";
+
+// Set up PDF.js worker for react-pdf (reuse pattern from other viewers)
+const worker = require("pdfjs-dist/build/pdf.worker.min.js");
+pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -122,6 +127,7 @@ function Cardiology(props) {
   const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
   const [isPdfLoading, setIsPdfLoading] = useState(true);
+  const [mobilePdfNumPages, setMobilePdfNumPages] = useState(0);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -1924,7 +1930,7 @@ function Cardiology(props) {
                 handleCollapsed={(flag) => handleCollapsed(flag)}
               />
             </Drawer>
-            {/* Mobile view: Show PDF in iframe */}
+            {/* Mobile view: Show prescription PDF inline using react-pdf */}
             {isMobile && !loading && viewCaseManagerData && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 {(() => {
@@ -1961,19 +1967,37 @@ function Cardiology(props) {
                             </div>
                           </>
                         )}
-                        <iframe
-                          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                        <div
                           style={{
                             width: '100%',
                             height: '100%',
-                            border: 'none',
-                            display: isPdfLoading ? 'none' : 'block',
+                            overflowY: 'auto',
+                            padding: '8px 0',
                           }}
-                          title="Prescription PDF"
-                          type="application/pdf"
-                          onLoad={() => setIsPdfLoading(false)}
-                          onError={() => setIsPdfLoading(false)}
-                        />
+                        >
+                          <Document
+                            file={pdfUrl}
+                            loading={null}
+                            onLoadSuccess={({ numPages }) => {
+                              setMobilePdfNumPages(numPages);
+                              setIsPdfLoading(false);
+                            }}
+                            onLoadError={(err) => {
+                              console.error("Error rendering mobile prescription PDF:", err);
+                              setIsPdfLoading(false);
+                            }}
+                          >
+                            {Array.from({ length: mobilePdfNumPages || 1 }).map((_, index) => (
+                              <Page
+                                key={index}
+                                pageNumber={index + 1}
+                                width={window.innerWidth}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                              />
+                            ))}
+                          </Document>
+                        </div>
                       </>
                     );
                   }
