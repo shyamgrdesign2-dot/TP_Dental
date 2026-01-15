@@ -78,6 +78,7 @@ function Header({ locationPath }) {
     "opd-plans"
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isAbhaQRAccessableFromGB = useFeatureIsOn("abha-qr");
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const decodedToken = getDecodedToken();
@@ -858,7 +859,7 @@ function Header({ locationPath }) {
         ),
         key: "6",
       },
-      ...(profile?.abhaEnable ? [{
+      ...(profile?.abhaEnable && isAbhaQRAccessableFromGB ? [{
         label: (
           <a onClick={handleShowAbhaQRCode}>
             <div className="title-common me-4 d-flex align-items-center">
