@@ -21,7 +21,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, carePlanAssignments } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, hospitalSearchResults, carePlanAssignments } = useContext(PrintSettingsContext);
 
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
@@ -209,7 +209,7 @@ function Quixote({ mode = NORMAL, ...props }) {
                 isGynaecHistoryAccessable = {isGynaecHistoryAccessable}
                 obsHistoryData={props.obstetricDetails}
                 labParamsData={labParamsData}
-                customModules={customModules}
+                customModules={hospitalSearchResults?.modules}
                 patientBills={props.patientBills}
                 advanceReceipts={props.advanceReceipts}
                 patientWalletBalance={props.patientWalletBalance}
@@ -237,7 +237,17 @@ function Quixote({ mode = NORMAL, ...props }) {
         props.todayVaccines,
         props.growthChartDetails,
         props.obstetricDetails,
-        printSettings?.default_language
+        printSettings?.default_language,
+        caseManagerData,
+        frequencyList,
+        timingList,
+        labParamsData,
+        hospitalSearchResults,
+        carePlanAssignments,
+        smartRxFile,
+        props.patientBills,
+        props.advanceReceipts,
+        props.patientWalletBalance
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

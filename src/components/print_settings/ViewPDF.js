@@ -699,10 +699,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             ?.forEach(module => {
                 printSettings?.prescription?.case_option?.push({
                     id: module?.module_id,
+                    title: module?.module_name,
                     format: 'inline',
                     showDefault: true,
                     enable: 'Y',
-                    custom_status: 'Y'
+                    custom_status: 'Y',
+                    is_custom_module: true,
                 });
             });
     }
@@ -1178,8 +1180,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             return false;
                         };
-                        console.log(printSettings?.prescription?.case_option,"printSettings?.prescription?.case_option?")
-                        console.log(caseManagerData?.moduleContents,"caseManagerData?.moduleContents")
                         return printSettings?.prescription?.case_option?.map((option, index) => {
                             let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
                             if(customModule) {
@@ -1218,8 +1218,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 }
                                 
                                 // Find module definition to check version
-                                const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
-                                console.log(moduleDefinition,"moduleDefinition")
+                                const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id || m.module_id === customModule.origin_id) );
                                 const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
                                 
                                 if (isV2) {

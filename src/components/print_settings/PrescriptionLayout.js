@@ -201,7 +201,8 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules,carePlanAssignments } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, hospitalSearchResults, carePlanAssignments, isVoiceAmbientRx, smartRxFile } = contextValue || {};
+  
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
@@ -216,7 +217,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   }
 
   const customModulesMap = new Map(
-    customModules.map((module) => [module.module_id, module.name])
+    hospitalSearchResults?.modules.map((module) => [module.module_id, module.name])
   );
 
   const customModulesRxData = caseManagerData?.moduleContents?.filter((module) => module.content.length).map((content) => ({

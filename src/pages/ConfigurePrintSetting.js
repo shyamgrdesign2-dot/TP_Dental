@@ -22,17 +22,24 @@ import "cropperjs/dist/cropper.css";
 import { useTodayVaccines } from "./vaccination/useTodayVaccines";
 import { useGrowthChart } from "./growthChart/useGrowthChart";
 import useObstetric from "./obstetric/useObstetric";
-import { getModules } from "../redux/customModuleSlice";
+import { getModules, searchModulesByHospital } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
+import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
+import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
+import { env } from "../EnvironmentConfig";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { getFormattedDate } from "../utils/utils";
+import { viewCaseManager } from "../redux/caseManagerSlice";
+import { getDecodedToken } from "../utils/localStorage";
 
 function ConfigurePrintSetting() {
 
     const divRef = useRef(null);
 
-    const { defaultPrintSettings, userId } = useSelector((state) => state.doctors);
+    const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
     const { caseManagerData, certificateData, smartRxFile, pam_id } = state;
@@ -56,13 +63,37 @@ function ConfigurePrintSetting() {
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
 
-    const {customModules} = useSelector((state) => state.customModules);
+    const {customModules,hospitalSearchResults} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
 
     // Extract lab params data that was passed from PrescriptionPrintView
     const labParamsData = caseManagerData?.labParamsData || [];
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
 
+
+      // Fetch custom modules on component mount
+  useEffect(() => {
+    const fetchModules = async () => {
+      if (userId) {
+        const decodedToken = getDecodedToken();
+          const hospitalId = decodedToken?.result?.clinic_id;
+          if (hospitalId) {
+            await dispatch(
+              searchModulesByHospital({
+                hospitalId,
+                moduleName: "",
+                page: 1,
+                limit: 100,
+                departmentId: profile?.dp_id
+              })
+            );
+          }
+        // }
+      }
+    };
+
+    fetchModules();
+  }, [dispatch]);
 
     useEffect(() => {
         setDivWidth(divRef.current?.offsetWidth);
@@ -89,10 +120,39 @@ function ConfigurePrintSetting() {
     }, [caseManagerData?.patient_data?.patient_unique_id]);
 
     useEffect(() => {
-        dispatch(getModules(userId));
       }, [userId]);
-
-    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments };
+    const isVoiceAmbientModeCheck = mergedCaseManagerData?.isVoiceAmbientRx || 
+                                     isAmbientRx || 
+                                     window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || 
+                                     (rxId && !smartRxFile) ||
+                                     isAfterDigitization; 
+    const smartRxFileForContext = isVoiceAmbientModeCheck ? null : smartRxFile;
+    
+    const contextApi = { 
+        smartRxFile: smartRxFileForContext, 
+        divWidth, 
+        caseManagerData: mergedCaseManagerData, 
+        certificateData, 
+        printSettings, 
+        setPrintSettings, 
+        fileHeader, 
+        setFileHeader, 
+        fileFooter, 
+        setFileFooter, 
+        fileLogo, 
+        setFileLogo, 
+        fileWatermark, 
+        setFileWatermark, 
+        fileSignature, 
+        setFileSignature, 
+        medicalHistoryCheckboxOptions, 
+        labParamsData, 
+        zydusSelectedLabParams, 
+        hospitalSearchResults,
+        customModules,
+        carePlanAssignments,
+        isVoiceAmbientRx: mergedCaseManagerData?.isVoiceAmbientRx || false
+    };
 
     const TabsPrintSetting = [
         {
