@@ -208,9 +208,13 @@ function Prescription() {
   }, [customModules, hospitalSearchResults, userId]);
 
   // Update local customizedPadRightList when Redux state changes
+  // Filter out any modules that are in removedModuleIds to prevent them from reappearing
   useEffect(() => {
-    setCustomizedPadRightList(originalCustomizedPadRightList);
-  }, [originalCustomizedPadRightList]);
+    const filteredList = originalCustomizedPadRightList.filter(
+      (item) => !item.is_custom_module || !removedModuleIds.has(item.tmdpm_id)
+    );
+    setCustomizedPadRightList(filteredList);
+  }, [originalCustomizedPadRightList, removedModuleIds]);
 
   // Reconstruct customizedPadRightList to include deleted modules when editing a prescription
   useEffect(() => {
@@ -220,12 +224,19 @@ function Prescription() {
         (content) => content.module_id
       );
 
-      // Get module IDs already in the right list
-      const existingModuleIds = new Set(
+      // Get module IDs already in the right list (check both Redux and local state)
+      const existingModuleIdsInRedux = new Set(
         originalCustomizedPadRightList
           .filter((item) => item.is_custom_module)
           .map((item) => item.tmdpm_id)
       );
+      const existingModuleIdsInLocal = new Set(
+        customizedPadRightList
+          .filter((item) => item.is_custom_module)
+          .map((item) => item.tmdpm_id)
+      );
+      // Combine both sets to get all existing module IDs
+      const existingModuleIds = new Set([...existingModuleIdsInRedux, ...existingModuleIdsInLocal]);
 
       // Find modules that are in the prescription but not in the right list (deleted modules)
       // Exclude modules that have been explicitly removed from Rx pad
@@ -285,12 +296,23 @@ function Prescription() {
           .filter(Boolean);
 
         // Add missing modules to the right list
-        const updatedRightList = [...originalCustomizedPadRightList, ...missingModuleEntries];
-        setCustomizedPadRightList(updatedRightList);
-
+        // Merge with current local state to preserve any modules already added
+        const currentModuleIds = new Set(
+          customizedPadRightList
+            .filter((item) => item.is_custom_module)
+            .map((item) => item.tmdpm_id)
+        );
+        // Only add modules that aren't already in the local state
+        const newModuleEntries = missingModuleEntries.filter(
+          (entry) => !currentModuleIds.has(entry.tmdpm_id)
+        );
+        if (newModuleEntries.length > 0) {
+          const updatedRightList = [...customizedPadRightList, ...newModuleEntries];
+          setCustomizedPadRightList(updatedRightList);
+        }
       }
     }
-  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList, removedModuleIds]);
+  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList, removedModuleIds, customizedPadRightList]);
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -398,10 +420,8 @@ function Prescription() {
     setPillupSwitch,
     markModuleAsRemoved: (moduleId) => {
       setRemovedModuleIds((prev) => new Set([...prev, moduleId]));
-      // Also remove from local customModuleContents
-      setCustomModuleContents((prev) => 
-        prev.filter((content) => content.module_id !== moduleId)
-      );
+      // Note: customModuleContents is already updated in the component's handleRemoveFromRxPad
+      // We don't need to update it here to avoid double removal
     },
     showHideSubModal,
     useVoiceRx,

@@ -4,7 +4,7 @@ import { PlusOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import "./AddCustomModuleV2.scss";
 
-const MAX_MODULES = 10;
+const MAX_MODULES = 15;
 
 /**
  * AddCustomModuleV2 Component
@@ -15,7 +15,9 @@ const MAX_MODULES = 10;
  */
 const AddCustomModuleV2 = ({ onOpenDrawer }) => {
   const { customModules } = useSelector((state) => state.customModules);
-  const moduleCount = customModules?.length || 0;
+  // Filter out cloned modules (modules with origin_id) - only count user-created modules
+  const userCreatedModules = customModules?.filter((module) => !module.origin_id) || [];
+  const moduleCount = userCreatedModules.length;
   const isDisabled = moduleCount >= MAX_MODULES;
 
   const handleClick = () => {

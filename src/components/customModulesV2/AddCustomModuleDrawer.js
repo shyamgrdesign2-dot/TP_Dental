@@ -10,7 +10,7 @@ import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
 import "./AddCustomModuleDrawer.scss";
 
-const MAX_MODULES = 10;
+const MAX_MODULES = 15;
 
 const { TabPane } = Tabs;
 
@@ -38,7 +38,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
 
-  const moduleCount = customModules?.length || 0;
+  const userCreatedModules = customModules?.filter((module) => !module.origin_id) || [];
+  const moduleCount = userCreatedModules.length;
   const isDisabled = moduleCount >= MAX_MODULES;
   // Fetch modules when drawer opens
   useEffect(() => {

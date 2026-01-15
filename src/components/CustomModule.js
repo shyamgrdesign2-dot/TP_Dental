@@ -66,7 +66,7 @@ function CustomModule({ module }) {
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
 
-  const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
+  const { customModuleContents, setCustomModuleContents, patient_data, tcmId, markModuleAsRemoved } =
     useContext(CashManagerContext);
 
   // Check if module is disabled (used or cloned by the user)
@@ -441,29 +441,29 @@ function CustomModule({ module }) {
     try {
       message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
 
-      // Step 1: Remove from print settings
-      if (defaultPrintSettings?.prescription?.case_option) {
-        const caseOptions = defaultPrintSettings.prescription.case_option;
+      // // Step 1: Remove from print settings
+      // if (defaultPrintSettings?.prescription?.case_option) {
+      //   const caseOptions = defaultPrintSettings.prescription.case_option;
         
-        // Filter out the current module from case_option
-        const updatedCaseOptions = caseOptions.filter(
-          (option) => !(option.id === module.module_id && option.is_custom_module)
-        );
+      //   // Filter out the current module from case_option
+      //   const updatedCaseOptions = caseOptions.filter(
+      //     (option) => !(option.id === module.module_id && option.is_custom_module)
+      //   );
 
-        const rxPrescription = {
-          ...defaultPrintSettings.prescription,
-          case_option: updatedCaseOptions,
-        };
+      //   const rxPrescription = {
+      //     ...defaultPrintSettings.prescription,
+      //     case_option: updatedCaseOptions,
+      //   };
 
-        const printSettingsData = {
-          ...defaultPrintSettings,
-          prescription: JSON.stringify(rxPrescription),
-          header_footer: JSON.stringify(defaultPrintSettings.header_footer),
-          page_format: JSON.stringify(defaultPrintSettings.page_format),
-        };
+      //   const printSettingsData = {
+      //     ...defaultPrintSettings,
+      //     prescription: JSON.stringify(rxPrescription),
+      //     header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+      //     page_format: JSON.stringify(defaultPrintSettings.page_format),
+      //   };
 
-        await dispatch(savePrintsettings(printSettingsData)).unwrap();
-      }
+      //   await dispatch(savePrintsettings(printSettingsData)).unwrap();
+      // }
 
       // Step 2: Remove from customized pad right list
       const updatedRightList = customizedPadRightList.filter(
@@ -487,6 +487,11 @@ function CustomModule({ module }) {
           (item) => item.module_id !== module.module_id
         );
       });
+
+      // Step 4: Mark module as removed to prevent re-adding from caseManagerData
+      if (markModuleAsRemoved) {
+        markModuleAsRemoved(module.module_id);
+      }
 
       message.success({
         content: `"${module.name}" removed from Rx pad successfully`,
