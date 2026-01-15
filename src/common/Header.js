@@ -10,6 +10,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button as ButtonOPD } from "antd";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import jsQR from 'jsqr';
+import { useReactToPrint } from 'react-to-print';
 
 import Slider from "react-slick";
 
@@ -32,21 +34,27 @@ import iconMobile from "../assets/images/icon-mobile.svg";
 
 import config from "../config";
 import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns } from "../redux/doctorsSlice";
+import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
 import defaultprofile from "../assets/images/default-profile.svg";
 import logoSm from "../assets/images/logo-sm.svg";
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
 import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP } from "../utils/constants";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
+import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
 import alertIcon from '../assets/images/alertIcon.svg';
+import abhaMainIcon from '../assets/images/abha-main.svg';
+import abhaCenterLogo from '../assets/images/abha-svg.svg';
+import qrOuterFrame from '../assets/images/qr-outer-frame.svg';
+import poweredByLogo from '../assets/images/Powered by.svg';
+import tatvaPracticeLogo from '../assets/images/TatvaPractice Log.svg';
 import PremiumUser from "./PremiumUser";
 import { openModal } from "../redux/doctorModalSlice";
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { env } from "../EnvironmentConfig";
 import CommonModal from "./CommonModal";
-import { useReactToPrint } from 'react-to-print';
 import { useOpdBilling } from "../pages/opdBilling/useOpdBilling";
 import moment from "moment";
 import AiSuite from "../pages/monetization/components/AiSuite";
@@ -70,6 +78,7 @@ function Header({ locationPath }) {
     "opd-plans"
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isAbhaQRAccessableFromGB = useFeatureIsOn("abha-qr");
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const decodedToken = getDecodedToken();
@@ -78,6 +87,10 @@ function Header({ locationPath }) {
   const [isQRCodeVisible, setQRCodeVisible] = useState(false);
   const [opdPlansUrl, setOpdPlansUrl] = useState(null);
   const printRef = useRef();
+  const [isAbhaQRCodeVisible, setAbhaQRCodeVisible] = useState(false);
+  const [abhaQRCodeData, setAbhaQRCodeData] = useState(null);
+  const [isLoadingAbhaQR, setIsLoadingAbhaQR] = useState(false);
+  const abhaQRCodeRef = useRef();
 
   const sliderSettings = {
     className: "center",
@@ -562,6 +575,88 @@ function Header({ locationPath }) {
     setQRCodeVisible(true);
   }
 
+  const decodeQRFromImage = async (base64Image) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code) {
+          resolve(code.data);
+        } else {
+          reject(new Error('Failed to decode QR code'));
+        }
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = base64Image;
+    });
+  };
+
+  const fetchAbhaQRCode = async () => {
+    setIsLoadingAbhaQR(true);
+    try {
+      const response = await ApiAbha.getPHRQrScannerData();
+      const qrCodeData = response.data || response;
+      
+      if (qrCodeData?.qrCode) {
+        const base64Image = `data:image/png;base64,${qrCodeData.qrCode}`;
+        
+        try {
+          const decodedQRValue = await decodeQRFromImage(base64Image);
+          setAbhaQRCodeData({
+            qrValue: decodedQRValue, 
+            abhaNumber: profile?.um_contact || "N/A",
+            clinicName: getClinicName(profile?.hospital_data) || "Clinic"
+          });
+          setAbhaQRCodeVisible(true);
+        } catch (decodeError) {
+          console.error("Error decoding QR code:", decodeError);
+          errorMessage("Failed to decode QR code. Please try again.");
+        }
+      } else {
+        errorMessage("Failed to fetch ABHA QR Code: Invalid response");
+      }
+    } catch (error) {
+      console.error("Error fetching ABHA QR Code:", error);
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
+        errorMessage("CORS error: Please check if the API endpoint allows cross-origin requests.");
+      } else {
+        errorMessage(error?.response?.data?.error || error?.response?.data?.message || error?.message || "Failed to fetch ABHA QR Code. Please try again.");
+      }
+      setAbhaQRCodeVisible(false);
+    } finally {
+      setIsLoadingAbhaQR(false);
+    }
+  };
+
+  const handleShowAbhaQRCode = async () => {
+    if (!abhaQRCodeData) {
+      await fetchAbhaQRCode();
+    } else {
+      setAbhaQRCodeVisible(true);
+    }
+  };
+
+  const handleCloseAbhaQRCode = () => {
+    setAbhaQRCodeVisible(false);
+  };
+
+  const handlePrintAbhaQRCode = useReactToPrint(createAbhaPrintHandlerConfig(abhaQRCodeRef));
+
+  const handleDownloadAbhaQRCode = createAbhaDownloadHandler({
+    contentRef: abhaQRCodeRef,
+    abhaCenterLogo,
+    profile,
+    errorMessage
+  });
+
   const iframeRef = useRef(null);
 
   const openUrlsSilently = async (urls) => {
@@ -764,6 +859,18 @@ function Header({ locationPath }) {
         ),
         key: "6",
       },
+      ...(profile?.abhaEnable && isAbhaQRAccessableFromGB ? [{
+        label: (
+          <a onClick={handleShowAbhaQRCode}>
+            <div className="title-common me-4 d-flex align-items-center">
+              <img src={qrIcon} className="me-3" alt="QR Icon" />
+              Download ABHA QR Code
+            </div>
+            <i className="icon-right iconrotate180"></i>
+          </a>
+        ),
+        key: "abha-qr",
+      }] : []),
       // {
       //   label:
       //     <a onClick={() => ["TRIAL", "EXPIRED"].includes(planDetails?.currentPlanStatus) ? handleClick() : setUpWebsiteUrl(1)}>
@@ -1105,6 +1212,232 @@ function Header({ locationPath }) {
                 </div>
               </div>
             </Modal>
+
+            {/* ABHA QR Code Modal */}
+            {isLoadingAbhaQR ? (
+              <Modal
+                open={true}
+                centered
+                closeIcon={false}
+                footer={null}
+                title={null}
+                maskClosable={false}
+              >
+                <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "300px" }}>
+                  <Spin size="large" />
+                </div>
+              </Modal>
+            ) : (
+              <Modal
+                open={isAbhaQRCodeVisible && !!abhaQRCodeData?.qrValue}
+                centered
+                closeIcon={false}
+                onCancel={handleCloseAbhaQRCode}
+                footer={null}
+                title={null}
+                destroyOnClose
+                className="abha-qr-modal"
+              >
+                <div className="opd-qr">
+                  <button className="qr-close-btn" onClick={handleCloseAbhaQRCode}>
+                    <i style={{ fontSize: "2rem" }} className="icon-Cross"></i>
+                  </button>
+
+                  <div ref={abhaQRCodeRef} className="opd-plans-inner-contianer">
+                    {/* Header Icon - abha-main.svg - Visible in modal and download */}
+                    {abhaMainIcon ? (
+                      <div
+                        className="abha-main-icon-download"
+                        style={{
+                          display: "flex", 
+                          justifyContent: "center",
+                          marginTop: "-0.5rem",
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        <img
+                          src={abhaMainIcon}
+                          alt="ABHA Icon"
+                          draggable="false"
+                          style={{
+                            maxHeight: "40px",
+                            maxWidth: "100%",
+                            objectFit: "contain",
+                          }}
+                        />
+                      </div>
+                    ) : null}
+
+                    {/* Clinic Name as Title */}
+                    <div
+                      className="opd-title abha-clinic-name"
+                      style={{
+                        fontWeight: "700",
+                        color: "#1F2933",
+                        textAlign: "center",
+                        wordBreak: "break-word",
+                        marginBottom: "0.5rem",
+                        marginTop: "0", 
+                      }}
+                    >
+                      {getClinicName(profile?.hospital_data) || "Clinic"}
+                    </div>
+
+                    {/* QR Code with Frame */}
+                    {abhaQRCodeData?.qrValue ? (
+                      <div
+                        className="abha-qr-container"
+                        style={{
+                          position: "relative",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: `${180 + 50}px`,
+                          height: `${180 + 50}px`,
+                        }}
+                      >
+                        {/* QR Frame Background */}
+                        {qrOuterFrame ? (
+                          <img
+                            src={qrOuterFrame}
+                            alt="QR Frame"
+                            draggable="false"
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              height: "100%",
+                              zIndex: 0,
+                            }}
+                          />
+                        ) : null}
+                        {/* QR Code */}
+                        <div
+                          className="abha-qr-code-wrapper"
+                          style={{
+                            position: "relative",
+                            zIndex: 1,
+                          }}
+                        >
+                          <QRCodeSVG
+                            className="opd-qr-image abha-qr-image"
+                            value={abhaQRCodeData.qrValue}
+                            size={180}
+                            imageSettings={
+                              abhaCenterLogo
+                                ? {
+                                    src: abhaCenterLogo,
+                                    height: 180 * 0.15,
+                                    width: 180 * 0.15,
+                                    excavate: true,
+                                  }
+                                : undefined
+                            }
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Scan Text - Hidden in print */}
+                    <div
+                      className="opd-scan-text abha-scan-text-screen"
+                      style={{
+                        fontSize: "1rem",
+                        color: "#454551 !important",
+                        textAlign: "center",
+                      }}
+                    >
+                      Scan the above QR to create or link your ABHA account
+                    </div>
+
+                    {/* Print-only text - Hidden on screen, visible in print */}
+                    <div className="abha-print-text" style={{ display: "none" }}>
+                      <div
+                        className="opd-scan-text"
+                        style={{
+                          marginTop: "0.75rem",
+                          fontSize: "1rem",
+                          color: "#454551 !important",
+                          textAlign: "center",
+                        }}
+                      >
+                        Scan the above QR to create or link your ABHA account in three easy steps
+                      </div>
+                      <div
+                        className="opd-scan-text abha-go-digital-text"
+                        style={{
+                          marginTop: "0.5rem",
+                          fontSize: "1rem",
+                          color: "#454551 !important",
+                          textAlign: "center",
+                        }}
+                      >
+                        Get Your ABHA. Go Digital.
+                      </div>
+                    </div>
+
+                    {/* Powered by section */}
+                    {poweredByLogo && tatvaPracticeLogo ? (
+                      <div
+                        className="abha-powered-by"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
+                          marginTop: "1.5rem",
+                        }}
+                      >
+                        <img
+                          src={poweredByLogo}
+                          alt="Powered by"
+                          draggable="false"
+                          style={{
+                            height: "10px",
+                            objectFit: "contain",
+                          }}
+                        />
+                        <img
+                          src={tatvaPracticeLogo}
+                          alt="TatvaPractice"
+                          draggable="false"
+                          style={{
+                            height: "20px",
+                            objectFit: "contain",
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Print and Download Buttons */}
+                  <div className="d-flex align-items-center justify-content-between gap-2 mt-4">
+                    <Button
+                      onClick={handlePrintAbhaQRCode}
+                      className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
+                      style={{ width: "12rem", height: "3rem" }}
+                    >
+                      <span className="fs-18 align-items-center d-flex ">
+                        <i className="icon-Print me-2"></i>
+                        Print
+                      </span>
+                    </Button>
+
+                    <Button
+                      onClick={handleDownloadAbhaQRCode}
+                      className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
+                      style={{ width: "12rem", height: "3rem" }}
+                    >
+                      <span className="fs-18 align-items-center d-flex">
+                        <i className="icon-download me-2"></i>
+                        Download
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+              </Modal>
+            )}
 
             {locationPath == "/" || locationPath == "/bulk_messages" ? (
               <div onClick={handleDrawervideo} className="cursor-pointer me-2 video-animat">

@@ -154,6 +154,21 @@ ApiAbha.downloadAbhaCard = function (data) {
   );
 }
 
+ApiAbha.getPHRQrScannerData = function () {
+  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  const authToken = token ? JSON.parse(token) : null;
+  
+  return axios.get(
+    `${config.abha_api_url}/api/v1/abha/getPHRQrScannerData`,
+    {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
 export const getAbhaConsentList = async function (payload = {}) {
   const body = {
     search: payload.search !== undefined ? payload.search : "",

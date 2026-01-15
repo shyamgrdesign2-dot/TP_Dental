@@ -353,6 +353,74 @@ body {
     }
 }
 
+.abha-qr-modal {
+    width: 45rem;
+    .ant-modal-content {
+        display: inline-flex;
+        padding: 2.5rem;
+        justify-content: center;
+        align-items: center;
+        border-radius: 2rem;
+        background: linear-gradient(180deg, #5958F8 0%, #0D0D66 100%);
+        position: relative;
+        height: 35rem;
+        left: -8%;
+    }
+    
+    /* Clinic name font size for modal view */
+    .abha-clinic-name {
+        font-size: 1.7rem;
+    }
+}
+
+/* ABHA QR Code Print Styles */
+@media print {
+    .abha-clinic-name {
+        font-size: 3.5rem !important;
+    }
+    
+    .abha-scan-text-screen {
+        display: none !important;
+    }
+    
+    .abha-print-text {
+        display: block !important;
+        margin-top: 3rem !important;
+    }
+    
+    .abha-print-text .opd-scan-text:first-child {
+        font-size: 1.8rem !important;
+    }
+    
+    .abha-print-text .opd-scan-text:last-child {
+        font-size: 2rem !important;
+        font-style: italic !important;
+    }
+    
+    .qr-close-btn {
+        display: none !important;
+    }
+    
+    /* Container needs relative positioning and full height */
+    .opd-plans-inner-contianer {
+        position: relative !important;
+        min-height: calc(100vh - 40px) !important;
+        padding-bottom: 80px !important;
+    }
+    
+    /* Position Powered by section at bottom of page */
+    .abha-powered-by {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+        margin-top: 0 !important;
+        padding: 0 !important;
+    }
+}
+
 .expired-model {
     .ant-modal-content {
         padding: 0;
