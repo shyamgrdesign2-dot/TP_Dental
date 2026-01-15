@@ -62,15 +62,9 @@
       overflow: clip;
     }
 
-    i {
-      font-size: 16px;
-      color: #ffffff;
+    .tab-icon {
       width: 16px;
       height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 1;
       flex-shrink: 0;
     }
 
@@ -95,10 +89,6 @@
     &.active {
       .tab-content {
         background: rgba(255, 255, 255, 0.08);
-      }
-
-      i {
-        opacity: 1;
       }
 
       .tab-label {

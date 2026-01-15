@@ -24,6 +24,10 @@ import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import DetailsHeader from './components/DetailsHeader';
 import PatientTabs from './components/PatientTabs';
 import PatientProfileSection from './components/PatientProfileSection';
+import PastVisitTabIcon from '../../../assets/mobile/past_visit_tab_icon.svg';
+import PatientHistoryTabIcon from '../../../assets/mobile/patient_history_tab_icon.svg';
+import CertificateTabIcon from '../../../assets/mobile/certificat_tab_icon.svg';
+import MedicalRecordsTabIcon from '../../../assets/mobile/medical_records_tab_icon.svg';
 import VisitDateSelector from './components/VisitDateSelector';
 import VisitSummaryTab from './components/VisitSummaryTab';
 import PatientHistoryTab from './components/PatientHistoryTab';
@@ -508,29 +512,29 @@ function PatientDetails() {
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
       label: 'Past Visits',
-      icon: 'icon-Visit-Summary-Fill',
+      icon: PastVisitTabIcon,
     },
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY,
       label: 'Patient History',
-      icon: 'icon-Heart',
+      icon: PatientHistoryTabIcon,
     },
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE,
       label: 'Certificate',
-      icon: 'icon-Medical-Certificate',
+      icon: CertificateTabIcon,
     },
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS,
       label: `Medical Records${allUploadedDocs?.length > 0 ? ` (${allUploadedDocs.length})` : ''}`,
-      icon: 'icon-Report',
+      icon: MedicalRecordsTabIcon,
     },
     ...(isOpdBillingAccessable || isMobile
       ? [
           {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
             label: 'Add Bill/Payment',
-            icon: 'icon-Visit-Summary-Fill',
+            icon: MedicalRecordsTabIcon,
           },
         ]
       : []),

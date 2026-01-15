@@ -22,7 +22,7 @@ function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = true }) {
   }, [selectedTab, tabs]);
 
   return (
-    <div 
+    <div
       ref={tabsContainerRef}
       className={`patient-tabs ${!showProfile ? 'tabs-sticky' : ''}`}
     >
@@ -36,7 +36,13 @@ function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = true }) {
             type="button"
           >
             <div className="tab-content">
-              {isActive && <i className={tab.icon} />}
+              {tab.icon && (
+                <img
+                  src={tab.icon}
+                  alt=""
+                  className="tab-icon"
+                />
+              )}
               <span className="tab-label">{tab.label}</span>
             </div>
             {isActive && <img src={indicatorIcon} alt="" className="tab-indicator" />}

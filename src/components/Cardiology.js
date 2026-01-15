@@ -73,8 +73,8 @@ import { message } from "antd";
 import { Document, Page, pdfjs } from "react-pdf";
 
 // Set up PDF.js worker for react-pdf (reuse pattern from other viewers)
-const worker = require("pdfjs-dist/build/pdf.worker.min.js");
-pdfjs.GlobalWorkerOptions.workerSrc = worker;
+// const worker = require("pdfjs-dist/build/pdf.worker.min.js");
+// pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -1777,7 +1777,7 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                rxDigitisedData?.ocrData && (
+                rxDigitisedData?.ocrData && !isMobile && (
                   <div className="digitise-info-cardiology">
                     <img
                       src={successIcon}
@@ -1846,42 +1846,44 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                <div className="digitise-info-cardiology">
-                  <img
-                    src={successIcon}
-                    alt="success"
-                    width="40px"
-                    height="40px"
-                  />
-                  <p>
-                    <span className="digitise-info-header-cardiology">
-                      {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
-                    </span>
-                    Digitise Rx to enhance patient care, workflow efficiency,
-                    and revenue.
-                    <button
-                      className="know-more-btn"
-                      onClick={handleDrawerCvtKnowMore}
-                    >
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          paddingLeft: "4px",
-                          textDecoration: "underline",
-                          textDecorationColor: "#454551",
-                        }}
-                      >
-                        Know More
+                !isMobile && (
+                  <div className="digitise-info-cardiology">
+                    <img
+                      src={successIcon}
+                      alt="success"
+                      width="40px"
+                      height="40px"
+                    />
+                    <p>
+                      <span className="digitise-info-header-cardiology">
+                        {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
                       </span>
+                      Digitise Rx to enhance patient care, workflow efficiency,
+                      and revenue.
+                      <button
+                        className="know-more-btn"
+                        onClick={handleDrawerCvtKnowMore}
+                      >
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            paddingLeft: "4px",
+                            textDecoration: "underline",
+                            textDecorationColor: "#454551",
+                          }}
+                        >
+                          Know More
+                        </span>
+                      </button>
+                    </p>
+                    <button
+                      className="digitise-info-btn-cardiology"
+                      onClick={handleDigitiseSnapRx}
+                    >
+                      Digitise Rx Now
                     </button>
-                  </p>
-                  <button
-                    className="digitise-info-btn-cardiology"
-                    onClick={handleDigitiseSnapRx}
-                  >
-                    Digitise Rx Now
-                  </button>
-                </div>
+                  </div>
+                )
               ))
             }
 
@@ -1946,7 +1948,6 @@ function Cardiology(props) {
                               left: 0,
                               right: 0,
                               bottom: 0,
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
                               pointerEvents: 'none',
                             }} />
                             <div style={{
