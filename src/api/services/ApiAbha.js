@@ -265,4 +265,12 @@ export const viewConsentRecord = async function (consentId, recordId) {
   }
 };
 
+ApiAbha.generateLinkCareContextToken = function (data) {
+  return api.post(
+    `/api/v1/abdm/m2/linkCareContext/generate-token`,
+    data,
+    baseUrl
+  );
+};
+
 export default ApiAbha;

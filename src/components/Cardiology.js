@@ -65,6 +65,9 @@ import {
   getSnapRxFiles,
 } from "../pages/snapRx/services/snapRxService";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
+import AbhaSyncButton from "./AbhaSyncButton";
+import { viewCaseManager } from "../redux/caseManagerSlice";
+import { message } from "antd";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -1423,8 +1426,49 @@ function Cardiology(props) {
               <div className="d-flex align-items-center justify-content-between">
                 <div>
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
-      
+                  <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
+                    {(() => {
+                      const isSnapRx = viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx");
+                      const isSmartRx = viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg");
+                      const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
+                      
+                      if (!isVoiceRx && 
+                          viewCaseManagerData?.abha_context_link !== undefined && 
+                          viewCaseManagerData?.abhaSync !== undefined) {
+                        return (
+                          <AbhaSyncButton
+                            abhaContextLink={viewCaseManagerData.abha_context_link}
+                            abhaSync={viewCaseManagerData.abhaSync}
+                            patientUniqueId={patient_data?.patient_unique_id}
+                            caseId={viewCaseManagerData?.tcm_id}
+                            onSyncComplete={async (data) => {
+                              // Check if sync was successful or had an error
+                              if (data?.error) {
+                                // Show error message (including duplicate error message)
+                                message.warning(data.error);
+                                return;
+                              }
+                              
+                              // Refresh the case manager data after sync to get updated abha_context_link
+                              try {
+                                const sendData = {
+                                  patient_unique_id: patient_data?.patient_unique_id || 0,
+                                  tcm_id: viewCaseManagerData?.tcm_id
+                                };
+                                await dispatch(viewCaseManager(sendData));
+                                message.success('Prescription synced successfully');
+                              } catch (error) {
+                                console.error('Error refreshing case manager data:', error);
+                                message.error('Sync completed but failed to refresh data');
+                              }
+                            }}
+                          />
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
                 <div className="align-items-center d-flex">
                   <Button
