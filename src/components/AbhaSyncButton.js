@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import config from '../config';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
 import syncNormalIcon from '../assets/images/sync-normal.svg';
 import syncingIcon from '../assets/images/syncing.svg';
@@ -49,7 +50,7 @@ const AbhaSyncButton = ({
       }
 
       const response = await axios.post(
-        'https://pm-abha-uat.tatvacare.in/api/v1/abdm/m2/linkCareContext/generate-token',
+        `${config.abha_api_url}/api/v1/abdm/m2/linkCareContext/generate-token`,
         {
           patientUniqueId: patientUniqueId,
           caseID: caseId,
