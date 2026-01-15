@@ -1429,14 +1429,11 @@ function Cardiology(props) {
                   <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
                     {(() => {
-                      // Check if it's a normal consult flow (not snaprx, smart rx, or voice rx)
                       const isSnapRx = viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx");
                       const isSmartRx = viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg");
                       const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
-                      const isNormalConsult = !isSnapRx && !isSmartRx && !isVoiceRx;
                       
-                      // Show button only if normal consult and conditions are met
-                      if (isNormalConsult && 
+                      if (!isVoiceRx && 
                           viewCaseManagerData?.abha_context_link !== undefined && 
                           viewCaseManagerData?.abhaSync !== undefined) {
                         return (
