@@ -1283,8 +1283,8 @@ function Header({ locationPath }) {
                         maxWidth: "100%",
                         fontSize: (() => {
                           const name = getClinicName(profile?.hospital_data) || "Clinic";
-                          if (name.length > 50) return "1.3rem";
-                          if (name.length > 30) return "1.5rem";
+                          if (name.length > 30) return "1.1rem";
+                          if (name.length > 20) return "1.5rem";
                           return "1.5rem";
                         })(),
                       }}

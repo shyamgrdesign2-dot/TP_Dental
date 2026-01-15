@@ -51,6 +51,12 @@ export const ABHA_PRINT_PAGE_STYLE = `
     .abha-clinic-name {
       font-size: 3.5rem !important;
       margin-bottom: 1rem !important;
+      /* Override truncation styles to show full text */
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: nowrap !important;
+      max-width: 100% !important;
+      transform-origin: center top !important;
     }
     
     /* QR Code container spacing - reduced */
@@ -215,6 +221,11 @@ export const createAbhaDownloadHandler = ({ contentRef, abhaCenterLogo, profile,
           clinicName.style.marginBottom = '0.5rem';
           clinicName.style.fontSize = '2.5rem';
           clinicName.style.fontWeight = '700';
+          clinicName.style.overflow = 'visible';
+          clinicName.style.textOverflow = 'clip';
+          clinicName.style.whiteSpace = 'normal';
+          clinicName.style.wordWrap = 'break-word';
+          clinicName.style.maxWidth = '100%';
         }
         
         const originalQrSize = 180;
@@ -252,8 +263,8 @@ export const createAbhaDownloadHandler = ({ contentRef, abhaCenterLogo, profile,
         const poweredBySection = clonedElement.querySelector('.abha-powered-by');
         if (poweredBySection) {
           clonedElement.style.position = 'relative';
-          clonedElement.style.minHeight = '700px';
-          clonedElement.style.paddingBottom = '60px';
+          clonedElement.style.minHeight = '600px';
+          clonedElement.style.paddingBottom = '30px';
           
           poweredBySection.style.position = 'absolute';
           poweredBySection.style.bottom = '0';
