@@ -12,7 +12,6 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import jsQR from 'jsqr';
 import { useReactToPrint } from 'react-to-print';
-import { QRCodeSVG } from 'qrcode.react';
 
 import Slider from "react-slick";
 
