@@ -256,12 +256,49 @@ export default function BillingTable({
           // Wait for state update and then generate PDF
           setTimeout(() => {
             const element = printableRef.current;
+            const tableElement = element.querySelector(
+              ".print-bill-table, .ant-table, table"
+            );
+            const tableRows = tableElement?.querySelectorAll(
+              "tbody tr, .ant-table-tbody tr"
+            );
+
+            const renderedRowCount = tableRows?.length || 0;
+            // Use the larger of the two to determine if it's a large dataset
+            const isLargeDataset = renderedRowCount > 500;
             const options = {
               filename: `billing_item_level_${userId || "report"}.pdf`,
-              image: { type: "jpeg", quality: 0.98 },
-              html2canvas: { scale: 3, useCORS: true, letterRendering: true },
-              margin: [0.3, 0.3, 0.1, 0.3],
-              jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+              image: {
+                type: "jpeg",
+                quality: 0.8,
+              },
+              html2canvas: {
+                scale: isLargeDataset ? 0.8 : 1, // Lower scale for large datasets to reduce canvas size
+                useCORS: true,
+                letterRendering: true,
+                logging: false,
+                scrollY: 0,
+                allowTaint: true,
+                // Only set dimensions for smaller datasets to avoid canvas size limits
+                ...(isLargeDataset
+                  ? {}
+                  : {
+                      windowWidth: element.scrollWidth,
+                      windowHeight: element.scrollHeight,
+                    }),
+              },
+              margin: [0.3, 0.3, 0.2, 0.3],
+              jsPDF: {
+                unit: "in",
+                format: "letter",
+                orientation: "portrait",
+                compress: true, // Enable compression for large PDFs
+              },
+              pagebreak: {
+                mode: isLargeDataset
+                  ? ["css", "legacy"]
+                  : ["avoid-all", "css", "legacy"],
+              },
             };
 
             html2pdf()
@@ -283,7 +320,7 @@ export default function BillingTable({
                 console.error("Error generating PDF:", err);
                 setDownloading(false);
               });
-          }, 100);
+          }, 500);
         } else {
           message.open({
             key: MESSAGE_KEY,
@@ -322,7 +359,7 @@ export default function BillingTable({
         }
         
         // Fetch all data for the selected options
-        const allBills = await fetchAllData(optionsToFetch);
+        const allBills = await fetchAllData(optionsToFetch, 1000);
         
         if (!allBills || allBills.length === 0) {
           message.open({
@@ -383,7 +420,7 @@ export default function BillingTable({
           if (!hasTableContent && !hasTextContent) {
             attempts++;
             if (attempts < maxAttempts) {
-              setTimeout(checkAndGeneratePDF, 1000);
+              setTimeout(checkAndGeneratePDF, 100);
             } else {
               console.error("PDF content not ready after multiple attempts");
               setDownloading(false);
@@ -835,7 +872,7 @@ export default function BillingTable({
   };
 
   // Add this new function to fetch all data
-  const fetchAllData = async (selectedOptions) => {
+  const fetchAllData = async (selectedOptions, limit=100) => {
     let allBills = [];
     let currentPage = 1;
     let hasMoreData = true;
@@ -846,7 +883,7 @@ export default function BillingTable({
         sortBy: sortConfig?.field || "date",
         sortOrder: sortConfig?.order || "desc",
         page: currentPage,
-        limit: 100, // Maximum limit per page
+        limit: limit, // Maximum limit per page
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
         doctorIds:
@@ -867,7 +904,7 @@ export default function BillingTable({
         if (response?.bills?.length > 0) {
           allBills = [...allBills, ...response.bills];
           currentPage += 1;
-          hasMoreData = response.bills.length === 100; // Check if we got maximum records
+          hasMoreData = response.bills.length === 1000; // Check if we got maximum records
         } else {
           hasMoreData = false;
         }
