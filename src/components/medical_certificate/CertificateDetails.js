@@ -8,6 +8,7 @@ import { isChrome, isSafari, isMobile } from "react-device-detect";
 import { useSelector, useDispatch } from "react-redux";
 
 import notcertificate from '../../assets/images/not-certificate.svg';
+import emptyIllustration from '../../assets/mobile/empty_illustration.svg';
 import CreateCertificate from "./CreateCertificate";
 import PdfThumbnail from "../../common/PdfThumbnail";
 import { listPatientCertificate, deletePatientCertificate } from "../../redux/doctorsSlice";
@@ -145,13 +146,47 @@ function CertificateDetails({ patient_data }) {
                                 })}
                             </div>
                         ) : (
-                            <div className="certificate-not d-flex justify-content-center flex-column align-items-center my-5 py-5">
-                                <img src={notcertificate} alt="not certificate" />
-                                <div className="text-center fs-14 text-main lh-base fw-normal fontroboto mb-20 mt-20">
-                                    Certificate Not Found! <br />No certificate created for this patient.
+                            isMobile ? (
+                                // Mobile Empty State
+                                <div className="certificate-empty-state-mobile">
+                                    <div className="certificate-empty-state">
+                                        <img
+                                            src={emptyIllustration}
+                                            alt="No certificate"
+                                            className="certificate-empty-icon"
+                                        />
+                                        <div className="certificate-empty-message">
+                                            No certificate created for this patient.
+                                        </div>
+                                        <Button
+                                            type="primary"
+                                            onClick={handleCreateCertificateDrawer}
+                                            className="btn btn-primary3 btn-text-white px-4 btn-41 certificate-empty-create-btn"
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                                gap: "8px",
+                                                width: "100%",
+                                                maxWidth: "343px",
+                                                marginTop: "24px",
+                                            }}
+                                        >
+                                            <i className="icon-Add" style={{ fontSize: "18px" }} />
+                                            Create New Certificate
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Button type="primary" onClick={handleCreateCertificateDrawer} className="btn px-4 btn-41">Create Certificate</Button>
-                            </div>
+                            ) : (
+                                // Desktop Empty State
+                                <div className="certificate-not d-flex justify-content-center flex-column align-items-center my-5 py-5">
+                                    <img src={notcertificate} alt="not certificate" />
+                                    <div className="text-center fs-14 text-main lh-base fw-normal fontroboto mb-20 mt-20">
+                                        Certificate Not Found! <br />No certificate created for this patient.
+                                    </div>
+                                    <Button type="primary" onClick={handleCreateCertificateDrawer} className="btn px-4 btn-41">Create Certificate</Button>
+                                </div>
+                            )
                         )
                     )}
 
