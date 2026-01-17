@@ -23,7 +23,6 @@ import { useFeatureIsOn } from '@growthbook/growthbook-react';
 // Components
 import DetailsHeader from './components/DetailsHeader';
 import PatientTabs from './components/PatientTabs';
-import PatientProfileSection from './components/PatientProfileSection';
 import PastVisitTabIcon from '../../../assets/mobile/past_visit_tab_icon.svg';
 import PatientHistoryTabIcon from '../../../assets/mobile/patient_history_tab_icon.svg';
 import CertificateTabIcon from '../../../assets/mobile/certificat_tab_icon.svg';
@@ -100,10 +99,6 @@ function PatientDetails() {
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isEditDocument, setIsEditDocument] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
-  const [showProfile, setShowProfile] = useState(true);
-  const lastScrollYRef = useRef(0);
-  const isTransitioningRef = useRef(false);
-  const scrollIgnoreRef = useRef(false);
 
   // Ensure profile is loaded - dispatch getProfile if missing
   useEffect(() => {
@@ -150,110 +145,6 @@ function PatientDetails() {
       getBillPrintSettings();
     }
   }, []);
-
-  // Scroll handler for profile visibility
-  useEffect(() => {
-    let rafId = null;
-    
-    const handleScroll = () => {
-      // Ignore scroll during transitions or if already processing
-      if (isTransitioningRef.current || scrollIgnoreRef.current) {
-        return;
-      }
-
-      // Cancel any pending animation frame
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-
-      // Use requestAnimationFrame for smooth handling
-      rafId = requestAnimationFrame(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        const currentScrollY = container.scrollTop || 0;
-        const lastScrollY = lastScrollYRef.current;
-        const scrollDifference = currentScrollY - lastScrollY;
-        
-        // Always show profile when near top (regardless of content height)
-        if (currentScrollY <= 50) {
-          if (!showProfile) {
-            isTransitioningRef.current = true;
-            scrollIgnoreRef.current = true;
-            setShowProfile(true);
-            
-            setTimeout(() => {
-              isTransitioningRef.current = false;
-              scrollIgnoreRef.current = false;
-              lastScrollYRef.current = container.scrollTop || 0;
-            }, 350);
-          }
-          lastScrollYRef.current = currentScrollY;
-          rafId = null;
-          return;
-        }
-        
-        // Only process if scroll difference is significant (prevents flickering from small movements)
-        if (Math.abs(scrollDifference) > 15) {
-          // Check if we have enough content to scroll
-          const scrollHeight = container.scrollHeight;
-          const clientHeight = container.clientHeight;
-          const hasEnoughContent = scrollHeight > clientHeight + 30;
-          
-          // Process scroll if we have enough content OR if scrolling up significantly
-          if (hasEnoughContent || scrollDifference < -20) {
-            if (scrollDifference > 0 && currentScrollY > 80) {
-              // Scrolling down - hide profile
-              if (showProfile) {
-                isTransitioningRef.current = true;
-                scrollIgnoreRef.current = true;
-                setShowProfile(false);
-                
-                // Re-enable scroll handling after transition
-                setTimeout(() => {
-                  isTransitioningRef.current = false;
-                  scrollIgnoreRef.current = false;
-                  lastScrollYRef.current = container.scrollTop || 0;
-                }, 350);
-              }
-            } else if (scrollDifference < -10) {
-              // Scrolling up - show profile (need significant upward scroll)
-              if (!showProfile) {
-                isTransitioningRef.current = true;
-                scrollIgnoreRef.current = true;
-                setShowProfile(true);
-                
-                // Re-enable scroll handling after transition
-                setTimeout(() => {
-                  isTransitioningRef.current = false;
-                  scrollIgnoreRef.current = false;
-                  lastScrollYRef.current = container.scrollTop || 0;
-                }, 350);
-              }
-            }
-          }
-          
-          // Update last scroll position only if we processed the scroll
-          if (Math.abs(scrollDifference) > 15) {
-            lastScrollYRef.current = currentScrollY;
-          }
-        }
-        
-        rafId = null;
-      });
-    };
-
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => {
-        container.removeEventListener('scroll', handleScroll);
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-        }
-      };
-    }
-  }, [showProfile]);
 
   const getBillPrintSettings = async () => {
     const printSettingsResponse = await fetchPrintSetting();
@@ -542,24 +433,22 @@ function PatientDetails() {
 
   return (
     <div className="mobile-patient-details">
-      {/* Header Wrapper with Background, Header, Profile Section and Tabs */}
+      {/* Header Wrapper with Background, Header and Tabs */}
       <div className="patient-header-wrapper">
         <DetailsHeader
-        onBack={handleBack}
-          title={showProfile ? null : patient_data?.pm_fullname || "Patient Details"}
+          onBack={handleBack}
+          title={patient_data?.pm_fullname || "Patient Details"}
           onEdit={handleOpenOptionsModal}
-          profileSection={
-            showProfile ? <PatientProfileSection patient_data={patient_data} /> : null
-          }
+          profileSection={null}
           patient_data={patient_data}
           onVoiceRxClick={handleVoiceRxClick}
         />
 
-      <PatientTabs
-        tabs={tabs}
-        selectedTab={selectedTab}
-        onTabChange={handleTabChange}
-          showProfile={showProfile}
+        <PatientTabs
+          tabs={tabs}
+          selectedTab={selectedTab}
+          onTabChange={handleTabChange}
+          showProfile={false}
         />
       </div>
 

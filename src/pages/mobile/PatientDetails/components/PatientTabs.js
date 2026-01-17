@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import indicatorIcon from '../../../../assets/mobile/indicator.svg';
 import './PatientTabs.scss';
 
-function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = true }) {
+function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = false }) {
   const tabsContainerRef = useRef(null);
 
   // Auto-scroll to active tab when it changes
@@ -24,7 +24,7 @@ function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = true }) {
   return (
     <div
       ref={tabsContainerRef}
-      className={`patient-tabs ${!showProfile ? 'tabs-sticky' : ''}`}
+      className="patient-tabs tabs-sticky"
     >
       {tabs.map((tab) => {
         const isActive = selectedTab === tab.key;
