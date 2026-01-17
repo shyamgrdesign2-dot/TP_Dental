@@ -578,8 +578,8 @@ function PatientDetails() {
         />
       )}
 
-      {/* File Error Modal */}
-      {(isFileSizeError || isFileLimitError || isFileTypeError) && (
+      {/* File Error Modal - Commented out: Mobile version handles all errors with bottom sheets in MobileUploadMedicalRecord component */}
+      {/* {(isFileSizeError || isFileLimitError || isFileTypeError) && (
         <CommonModal
           isModalOpen={isFileSizeError || isFileLimitError || isFileTypeError}
           onCancel={handleRetryBtn}
@@ -637,7 +637,7 @@ function PatientDetails() {
             </>
           }
         />
-      )}
+      )} */}
 
       {/* Loading Spinner */}
       {isLoading && (

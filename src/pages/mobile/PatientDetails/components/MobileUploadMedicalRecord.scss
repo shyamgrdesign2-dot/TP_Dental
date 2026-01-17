@@ -339,3 +339,295 @@
   }
 }
 
+// Delete Confirmation Bottom Sheet Styles
+.ant-drawer-content-wrapper:has(.upload-delete-confirmation-bottom-sheet),
+.ant-drawer-content-wrapper .upload-delete-confirmation-bottom-sheet {
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.ant-drawer-content.upload-delete-confirmation-bottom-sheet {
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.upload-delete-confirmation-bottom-sheet {
+  .ant-drawer-body {
+    padding: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  .upload-delete-confirmation-sheet-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+
+    .upload-delete-confirmation-sheet-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+
+      .upload-delete-confirmation-sheet-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 26px;
+        color: #1a1c1e;
+        margin: 0;
+        flex: 1;
+      }
+
+      .upload-delete-confirmation-sheet-close-btn {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+
+        .upload-delete-confirmation-close-icon {
+          width: 24px;
+          height: 24px;
+          display: block;
+          object-fit: contain;
+        }
+
+        &:active {
+          opacity: 0.7;
+        }
+      }
+    }
+
+    .upload-delete-confirmation-sheet-body {
+      width: 100%;
+
+      .alert-warning {
+        background: #FFF3CD;
+        border: 1px solid #FFE69C;
+        border-radius: 8px;
+        padding: 12px;
+
+        .d-flex {
+          display: flex;
+          align-items: center;
+
+          img {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+          }
+
+          span {
+            font-size: 14px;
+            color: #856404;
+            font-family: 'Poppins', sans-serif;
+          }
+        }
+      }
+    }
+
+    .upload-delete-confirmation-sheet-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 19px;
+      width: 100%;
+
+      .upload-delete-confirmation-actions-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+      }
+
+      .upload-delete-confirmation-sheet-btn {
+        height: 56px;
+        border-radius: 12px;
+        font-family: 'Roboto', sans-serif;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 26px;
+        letter-spacing: 0.1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        box-sizing: border-box;
+        border: 1px solid;
+        flex: 1;
+
+        &.upload-delete-confirmation-btn-yes {
+          border-color: #FC5A5A;
+          background: #FFFFFF;
+          color: #FC5A5A;
+
+          &:active {
+            background: #FFF5F5;
+            opacity: 0.8;
+          }
+        }
+
+        &.upload-delete-confirmation-btn-no {
+          border-color: #4B4AD5;
+          background: #4B4AD5;
+          color: #ffffff;
+
+          &:active {
+            background: #3d3cc4;
+          }
+        }
+      }
+    }
+  }
+}
+
+// File Error Bottom Sheet Styles
+.ant-drawer-content-wrapper:has(.upload-file-error-bottom-sheet),
+.ant-drawer-content-wrapper .upload-file-error-bottom-sheet {
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.ant-drawer-content.upload-file-error-bottom-sheet {
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+  overflow: hidden !important;
+}
+
+.upload-file-error-bottom-sheet {
+  .ant-drawer-body {
+    padding: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  .upload-file-error-sheet-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+
+    .upload-file-error-sheet-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+
+      .upload-file-error-sheet-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 26px;
+        color: #1a1c1e;
+        margin: 0;
+        flex: 1;
+      }
+
+      .upload-file-error-sheet-close-btn {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+
+        .upload-file-error-close-icon {
+          width: 24px;
+          height: 24px;
+          display: block;
+          object-fit: contain;
+        }
+
+        &:active {
+          opacity: 0.7;
+        }
+      }
+    }
+
+    .upload-file-error-sheet-body {
+      width: 100%;
+
+      .alert-warning {
+        background: #FFF3CD;
+        border: 1px solid #FFE69C;
+        border-radius: 8px;
+        padding: 12px;
+
+        .d-flex {
+          display: flex;
+          align-items: center;
+
+          img {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+          }
+
+          span {
+            font-size: 14px;
+            color: #856404;
+            font-family: 'Poppins', sans-serif;
+          }
+        }
+      }
+    }
+
+    .upload-file-error-sheet-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 19px;
+      width: 100%;
+
+      .upload-file-error-sheet-btn {
+        height: 56px;
+        border-radius: 12px;
+        font-family: 'Roboto', sans-serif;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 26px;
+        letter-spacing: 0.1px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid;
+
+        &.upload-file-error-btn-primary {
+          border-color: #4B4AD5;
+          background: #4B4AD5;
+          color: #ffffff;
+
+          &:active {
+            background: #3d3cc4;
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -8,11 +8,12 @@ import download from "./../../../../assets/images/document-download.svg";
 import edit from "./../../../../assets/images/document-edit.svg";
 import trash from "./../../../../assets/images/trash.svg";
 import alertIcon from "./../../../../assets/images/alertIcon.svg";
+import closeIcon from "./../../../../assets/mobile/close 2.svg";
 import { deleteDocById, fetchAllPatientDocs } from "../../service";
 import { setAllUploadedDocs } from "../../../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { isBrowser } from "react-device-detect";
+import { isBrowser, isMobile } from "react-device-detect";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import CommonModal from "../../../../common/CommonModal";
@@ -379,7 +380,79 @@ const RecordCard = ({
           </Dropdown>
         </div>
       </div>
-      {shouldShowDeletePopup || shouldShowReadOnlyPopup ? (
+      {/* Delete Confirmation - Bottom Sheet for Mobile, Modal for Desktop */}
+      {isMobile && (shouldShowDeletePopup || shouldShowReadOnlyPopup) ? (
+        <Drawer
+          placement="bottom"
+          onClose={toggleDeletePopup}
+          open={shouldShowDeletePopup || shouldShowReadOnlyPopup}
+          height="auto"
+          className="delete-record-bottom-sheet"
+          closable={false}
+          maskClosable={true}
+          destroyOnClose={true}
+        >
+          <div className="delete-record-sheet-content">
+            <div className="delete-record-sheet-header">
+              <h3 className="delete-record-sheet-title">
+                {shouldShowReadOnlyPopup
+                  ? "This document cannot be edit or deleted."
+                  : "You may lose your data"}
+              </h3>
+              <button
+                className="delete-record-sheet-close-btn"
+                onClick={toggleDeletePopup}
+                type="button"
+                aria-label="Close"
+              >
+                <img src={closeIcon} alt="Close" className="delete-record-close-icon" />
+              </button>
+            </div>
+
+            <div className="delete-record-sheet-body">
+              <div className="alert-warning rounded-10px p-2 patient-details">
+                <div className="d-flex align-items-center">
+                  <img className="me-3" src={alertIcon} alt="Warning" />
+                  <span>
+                    {shouldShowReadOnlyPopup
+                      ? "This document was uploaded by the patient and cannot be modified."
+                      : "Are you sure you want to delete ?"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="delete-record-sheet-actions">
+              {shouldShowReadOnlyPopup ? (
+                <button
+                  onClick={toggleDeletePopup}
+                  className="delete-record-sheet-btn delete-record-btn-primary"
+                  type="button"
+                >
+                  Got it
+                </button>
+              ) : (
+                <div className="delete-record-actions-row">
+                  <button
+                    onClick={handleDelete}
+                    className="delete-record-sheet-btn delete-record-btn-yes"
+                    type="button"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    onClick={toggleDeletePopup}
+                    className="delete-record-sheet-btn delete-record-btn-no"
+                    type="button"
+                  >
+                    No
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </Drawer>
+      ) : !isMobile && (shouldShowDeletePopup || shouldShowReadOnlyPopup) ? (
         <CommonModal
           isModalOpen={shouldShowDeletePopup || shouldShowReadOnlyPopup}
           onCancel={toggleDeletePopup}

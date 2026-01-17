@@ -13,7 +13,6 @@ import emptyBg from '../../../../assets/images/empty-bg.svg';
 import emptyFile from '../../../../assets/images/empty-file.svg';
 import closeIcon from '../../../../assets/mobile/close 2.svg';
 import alertIcon from '../../../../assets/images/alertIcon.svg';
-import CommonModal from '../../../../common/CommonModal';
 import { shortenText, isPdfFile, isVideoFile, isImageFile, loadPdf, loadVideoThumbnail, uploadDocURLtoFile } from '../../../medicalRecords/utils/helper';
 import {
   SUPPORTED_IMAGE_TYPES,
@@ -322,6 +321,13 @@ function MobileUploadMedicalRecord({
     setIsFileSizeError(false);
     setIsFileLimitError(false);
     setIsFileTypeError(null);
+  };
+
+  const handleErrorClose = () => {
+    setIsFileSizeError(false);
+    setIsFileLimitError(false);
+    setIsFileTypeError(null);
+    handleDrawerUploadDoc();
   };
 
   const handleLeaveBtn = () => {
@@ -686,93 +692,218 @@ function MobileUploadMedicalRecord({
         </div>
       </Drawer>
 
-    {/* Error & Confirmation Modals */}
-    {(shouldShowDeletePopup || isFileSizeError || isFileLimitError || isFileTypeError) && (
-      <CommonModal
-        isModalOpen={
-          shouldShowDeletePopup ||
-          isFileSizeError ||
-          isFileLimitError ||
-          isFileTypeError
-        }
-        onCancel={
-          isFileSizeError || isFileLimitError || isFileTypeError
-            ? handleDrawerUploadDoc
-            : toggleDeletePopup
-        }
-        modalWidth={500}
-        title={
-          isFileSizeError
-            ? "Exceeded File Size"
-            : isFileLimitError
-            ? "Exceeded File Upload Limit"
-            : isFileTypeError
-            ? "File format not supported"
-            : "You may lose your data"
-        }
-        modalBody={
-          <>
+    {/* Error & Confirmation Bottom Sheets */}
+    {/* Delete Confirmation Bottom Sheet */}
+    {shouldShowDeletePopup && (
+      <Drawer
+        placement="bottom"
+        onClose={toggleDeletePopup}
+        open={shouldShowDeletePopup}
+        height="auto"
+        className="upload-delete-confirmation-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="upload-delete-confirmation-sheet-content">
+          <div className="upload-delete-confirmation-sheet-header">
+            <h3 className="upload-delete-confirmation-sheet-title">You may lose your data</h3>
+            <button
+              className="upload-delete-confirmation-sheet-close-btn"
+              onClick={toggleDeletePopup}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="upload-delete-confirmation-close-icon" />
+            </button>
+          </div>
+
+          <div className="upload-delete-confirmation-sheet-body">
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>Are you sure you want to leave? Your changes will be lost.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="upload-delete-confirmation-sheet-actions">
+            <div className="upload-delete-confirmation-actions-row">
+              <button
+                onClick={handleLeaveBtn}
+                className="upload-delete-confirmation-sheet-btn upload-delete-confirmation-btn-yes"
+                type="button"
+              >
+                Yes, Leave
+              </button>
+              <button
+                onClick={toggleDeletePopup}
+                className="upload-delete-confirmation-sheet-btn upload-delete-confirmation-btn-no"
+                type="button"
+              >
+                No, Stay
+              </button>
+            </div>
+          </div>
+        </div>
+      </Drawer>
+    )}
+
+    {/* File Size Error Bottom Sheet */}
+    {isFileSizeError && (
+      <Drawer
+        placement="bottom"
+        onClose={handleErrorClose}
+        open={isFileSizeError}
+        height="auto"
+        className="upload-file-error-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="upload-file-error-sheet-content">
+          <div className="upload-file-error-sheet-header">
+            <h3 className="upload-file-error-sheet-title">Exceeded File Size</h3>
+            <button
+              className="upload-file-error-sheet-close-btn"
+              onClick={handleErrorClose}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="upload-file-error-close-icon" />
+            </button>
+          </div>
+
+          <div className="upload-file-error-sheet-body">
             <div className="alert-warning rounded-10px p-2 patient-details">
               <div className="d-flex align-items-center">
                 <img className="me-3" src={alertIcon} alt="Warning" />
                 <span>
-                  {isFileSizeError ? (
-                    <>
-                      The file size exceeded the limit.{" "}
-                      <span style={{ fontWeight: 700 }}>
-                        Please upload documents smaller than 15MB or videos smaller than 30MB.
-                      </span>
-                    </>
-                  ) : isFileLimitError ? (
-                    <>
-                      You can only upload up to
-                      <span style={{ fontWeight: 700 }}> 5 files.</span>{" "}
-                      Please reduce the number of files and try again.
-                    </>
-                  ) : isFileTypeError ? (
-                    <>
-                      You can't upload
-                      <span style={{ fontWeight: 700 }}>
-                        {" "}
-                        {isFileTypeError}
-                      </span>{" "}
-                      file. Only PDF, JPG, JPEG, PNG, GIF, MP4, MOV, and AVI formats are accepted.
-                    </>
-                  ) : (
-                    "Are you sure you want to leave? Your changes will be lost."
-                  )}
+                  The file size exceeded the limit.{" "}
+                  <span style={{ fontWeight: 700 }}>
+                    Please upload documents smaller than 15MB or videos smaller than 30MB.
+                  </span>
                 </span>
               </div>
             </div>
-            <div className="mt-4">
-              {isFileSizeError || isFileLimitError || isFileTypeError ? (
-                <Button
-                  onClick={handleRetryBtn}
-                  className="w-100 btn btn-primary3 btn-41 px-4"
-                >
-                  Retry
-                </Button>
-              ) : (
-                <div className="d-flex align-items-center mt-2 justify-content-end">
-                  <div
-                    onClick={handleLeaveBtn}
-                    className="me-4 text-decoration-underline btn p-0 text-main"
-                    style={{ cursor: 'pointer' }}
-                  >
-                    Yes, Leave
-                  </div>
-                  <Button
-                    onClick={toggleDeletePopup}
-                    className="lh-lg btn btn-primary3 btn-41 px-4"
-                  >
-                    <span>No, Stay</span>
-                  </Button>
-                </div>
-              )}
+          </div>
+
+          <div className="upload-file-error-sheet-actions">
+            <button
+              onClick={handleRetryBtn}
+              className="upload-file-error-sheet-btn upload-file-error-btn-primary"
+              type="button"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </Drawer>
+    )}
+
+    {/* File Limit Error Bottom Sheet */}
+    {isFileLimitError && (
+      <Drawer
+        placement="bottom"
+        onClose={handleErrorClose}
+        open={isFileLimitError}
+        height="auto"
+        className="upload-file-error-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="upload-file-error-sheet-content">
+          <div className="upload-file-error-sheet-header">
+            <h3 className="upload-file-error-sheet-title">Exceeded File Upload Limit</h3>
+            <button
+              className="upload-file-error-sheet-close-btn"
+              onClick={handleErrorClose}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="upload-file-error-close-icon" />
+            </button>
+          </div>
+
+          <div className="upload-file-error-sheet-body">
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  You can only upload up to
+                  <span style={{ fontWeight: 700 }}> 5 files.</span>{" "}
+                  Please reduce the number of files and try again.
+                </span>
+              </div>
             </div>
-          </>
-        }
-      />
+          </div>
+
+          <div className="upload-file-error-sheet-actions">
+            <button
+              onClick={handleRetryBtn}
+              className="upload-file-error-sheet-btn upload-file-error-btn-primary"
+              type="button"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </Drawer>
+    )}
+
+    {/* File Type Error Bottom Sheet */}
+    {isFileTypeError && (
+      <Drawer
+        placement="bottom"
+        onClose={handleErrorClose}
+        open={!!isFileTypeError}
+        height="auto"
+        className="upload-file-error-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="upload-file-error-sheet-content">
+          <div className="upload-file-error-sheet-header">
+            <h3 className="upload-file-error-sheet-title">File format not supported</h3>
+            <button
+              className="upload-file-error-sheet-close-btn"
+              onClick={handleErrorClose}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="upload-file-error-close-icon" />
+            </button>
+          </div>
+
+          <div className="upload-file-error-sheet-body">
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  You can't upload
+                  <span style={{ fontWeight: 700 }}>
+                    {" "}
+                    {isFileTypeError}
+                  </span>{" "}
+                  file. Only PDF, JPG, JPEG, PNG, GIF, MP4, MOV, and AVI formats are accepted.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="upload-file-error-sheet-actions">
+            <button
+              onClick={handleRetryBtn}
+              className="upload-file-error-sheet-btn upload-file-error-btn-primary"
+              type="button"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </Drawer>
     )}
   </>
   );
