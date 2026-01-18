@@ -157,6 +157,7 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
           </p>
         </div>
 
+        {/* Patient summary section - commented out
         {patient_data && (
           <div className="patient-summary-card">
             <div className="summary-header">
@@ -187,6 +188,7 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
             </button>
           </div>
         )}
+        */}
 
         {/* Render all queries with proper handling for ambient mode conversations */}
         {queries.length > 0 && queries.map((query, idx) => {

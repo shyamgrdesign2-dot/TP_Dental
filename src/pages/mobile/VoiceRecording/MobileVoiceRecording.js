@@ -469,6 +469,7 @@ function MobileVoiceRecording() {
           </p>
         </div>
 
+        {/* Patient summary section - commented out
         <div className="patient-summary-card">
           <div className="summary-header">
             <div className="summary-title-section">
@@ -491,6 +492,7 @@ function MobileVoiceRecording() {
             <i className={`icon-right ${showPatientSummary ? 'rotated' : ''}`} />
           </button>
         </div>
+        */}
       </div>
 
       {isRecording && (

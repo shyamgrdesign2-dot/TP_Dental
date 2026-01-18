@@ -232,6 +232,7 @@ function MobileVoiceRxConsult() {
           </p>
         </div>
 
+        {/* Patient summary section - commented out
         <div className="patient-summary-card">
           <div className="summary-header">
             <div className="summary-title-section">
@@ -254,6 +255,7 @@ function MobileVoiceRxConsult() {
             <i className={`icon-right ${showPatientSummary ? 'rotated' : ''}`} />
           </button>
         </div>
+        */}
       </div>
 
       <div className="mobile-voice-rx-footer">
