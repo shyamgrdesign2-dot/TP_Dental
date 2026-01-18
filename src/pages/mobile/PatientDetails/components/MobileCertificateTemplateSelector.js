@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useMemo } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { Button, Spin, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -7,7 +7,6 @@ import { Drawer } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import { MESSAGE_KEY } from "../../../../utils/constants";
 
-import CommonModal from '../../../../common/CommonModal';
 import alertIcon from '../../../../assets/images/alertIcon.svg';
 import visitEnd from '../../../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../../../assets/images/close-visit.svg';
@@ -94,44 +93,6 @@ function MobileCertificateTemplateSelector({
     }
   }, [onClose, navigate, replace, patient_data, onCustomCertificateClick]);
 
-  const DELETE_MODAL = useMemo(() => {
-    return (
-      <CommonModal
-        isModalOpen={isModalOpen}
-        onCancel={showHideModal}
-        modalWidth={357}
-        title={"Delete Certificate"}
-        modalBody={
-          <>
-            <div className="alert-warning rounded-10px p-2 patient-details">
-              <div className="d-flex align-items-center">
-                <img className='me-3' src={alertIcon} alt="Warning" />
-                <span>
-                  Are you sure you want to delete this certificate?
-                </span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="d-flex align-items-center mt-2 justify-content-end">
-                <div
-                  onClick={() => {
-                    onDeleteClicked(removeId);
-                    showHideModal();
-                  }}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
-                >
-                  Yes, Delete
-                </div>
-                <Button onClick={showHideModal} className="lh-lg btn btn-primary3 btn-41 px-4">
-                  <span>No, Keep</span>
-                </Button>
-              </div>
-            </div>
-          </>
-        }
-      />
-    );
-  }, [isModalOpen, removeId, showHideModal]);
 
   const getInitials = (title) => {
     if (!title) return '';
@@ -145,13 +106,14 @@ function MobileCertificateTemplateSelector({
   return (
     <>
       <Drawer
-        placement="right"
+        placement="bottom"
         onClose={onClose}
         open={visible}
-        width="100%"
+        height="auto"
         className="mobile-certificate-template-drawer"
         closable={false}
         maskClosable={true}
+        destroyOnClose={true}
       >
         <div className="mobile-certificate-template-content">
           <div className="mobile-certificate-template-header">
@@ -227,7 +189,63 @@ function MobileCertificateTemplateSelector({
           </div>
         </div>
       </Drawer>
-      {DELETE_MODAL}
+      <Drawer
+        placement="bottom"
+        onClose={showHideModal}
+        open={isModalOpen}
+        height="auto"
+        className="delete-certificate-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="delete-certificate-sheet-content">
+          <div className="delete-certificate-sheet-header">
+            <h3 className="delete-certificate-sheet-title">Delete Certificate</h3>
+            <button
+              className="delete-certificate-sheet-close-btn"
+              onClick={showHideModal}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="delete-certificate-close-icon" />
+            </button>
+          </div>
+
+          <div className="delete-certificate-sheet-body">
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Are you sure you want to delete this certificate?
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="delete-certificate-sheet-actions">
+            <div className="delete-certificate-actions-row">
+              <button
+                onClick={() => {
+                  onDeleteClicked(removeId);
+                  showHideModal();
+                }}
+                className="delete-certificate-sheet-btn delete-certificate-btn-yes"
+                type="button"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={showHideModal}
+                className="delete-certificate-sheet-btn delete-certificate-btn-no"
+                type="button"
+              >
+                No, Keep
+              </button>
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </>
   );
 }

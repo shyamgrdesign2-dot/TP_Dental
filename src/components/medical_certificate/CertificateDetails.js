@@ -20,7 +20,7 @@ import visitEnd from '../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../assets/images/close-visit.svg';
 import { EVENTS } from "../../utils/events";
 
-function CertificateDetails({ patient_data }) {
+function CertificateDetails({ patient_data, onCreateCertificateClick }) {
 
     const navigate = useNavigate();
 
@@ -160,7 +160,7 @@ function CertificateDetails({ patient_data }) {
                                         </div>
                                         <Button
                                             type="primary"
-                                            onClick={handleCreateCertificateDrawer}
+                                            onClick={onCreateCertificateClick || handleCreateCertificateDrawer}
                                             className="btn btn-primary3 btn-text-white px-4 btn-41 certificate-empty-create-btn"
                                             style={{
                                                 display: "flex",
@@ -190,16 +190,19 @@ function CertificateDetails({ patient_data }) {
                         )
                     )}
 
-                    <Drawer
-                        className="modalWidth-563" width="auto"
-                        title="Create Certificate"
-                        placement="right"
-                        closable
-                        open={createCertificateDrawer}
-                        onClose={handleCreateCertificateDrawer}
-                    >
-                        <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
-                    </Drawer>
+                    {/* Desktop Create Certificate Drawer - Only show when not using mobile handlers */}
+                    {!onCreateCertificateClick && (
+                        <Drawer
+                            className="modalWidth-563" width="auto"
+                            title="Create Certificate"
+                            placement="right"
+                            closable
+                            open={createCertificateDrawer}
+                            onClose={handleCreateCertificateDrawer}
+                        >
+                            <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
+                        </Drawer>
+                    )}
                 </div>
             </Card>
         </div>

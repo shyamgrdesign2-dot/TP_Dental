@@ -7,7 +7,6 @@ import moment from "moment";
 import { useSelector, useDispatch } from "react-redux";
 import { MESSAGE_KEY } from "../../../../utils/constants";
 
-import CommonModal from '../../../../common/CommonModal';
 import alertIcon from '../../../../assets/images/alertIcon.svg';
 import visitEnd from '../../../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../../../assets/images/close-visit.svg';
@@ -299,7 +298,7 @@ function MobileCreateCertificate({
     var sendData = {
       patient_unique_id: patient_data?.patient_unique_id !== undefined ? patient_data?.patient_unique_id : 0,
       pam_id: patient_data?.pam_id !== undefined ? patient_data?.pam_id : 0,
-      tcu_content_id: certificate_data !== undefined ? certificate_data?.id : 0,
+      tcu_content_id: certificate_data !== undefined && certificate_data !== null ? certificate_data?.id : 0,
       tcu_title: title,
       tcu_content: editor.current?.value
     };
@@ -333,10 +332,11 @@ function MobileCreateCertificate({
         state: {
           ...action.payload,
           patient_data: patient_data,
-          tcu_content_id: certificate_data !== undefined ? certificate_data?.id : 0,
-          pms_default: certificate_data !== undefined ? certificate_data?.pms_default : 0,
+          tcu_content_id: certificate_data !== undefined && certificate_data !== null ? certificate_data?.id : 0,
+          pms_default: certificate_data !== undefined && certificate_data !== null ? certificate_data?.pms_default : 0,
           tcu_title: sendData?.tcu_title,
-          tcu_content: sendData?.tcu_content
+          tcu_content: sendData?.tcu_content,
+          fromPath: '/patient_details'
         }
       });
     } else {
@@ -389,21 +389,21 @@ function MobileCreateCertificate({
   return (
     <>
       <Drawer
-        placement="right"
+        placement="bottom"
         onClose={handleBackClick}
         open={visible}
-        width="100%"
-        height="100vh"
+        height="90vh"
         className="mobile-create-certificate-drawer"
         closable={false}
         maskClosable={false}
+        destroyOnClose={true}
       >
         <div className="mobile-create-certificate-content">
           <div className="mobile-create-certificate-header">
             <p className="mobile-create-certificate-title">Create Certificate</p>
             <button
               className="mobile-create-certificate-close-btn"
-              onClick={onClose}
+              onClick={handleBackClick}
               type="button"
               aria-label="Close"
             >
@@ -442,40 +442,63 @@ function MobileCreateCertificate({
         </div>
       </Drawer>
 
-      <CommonModal
-        isModalOpen={isBackModalOpen}
-        onCancel={showHideBackModal}
-        modalWidth={357}
-        title={"Discard Changes"}
-        modalBody={
-          <>
+      <Drawer
+        placement="bottom"
+        onClose={showHideBackModal}
+        open={isBackModalOpen}
+        height="auto"
+        className="discard-changes-bottom-sheet"
+        closable={false}
+        maskClosable={true}
+        destroyOnClose={true}
+      >
+        <div className="discard-changes-sheet-content">
+          <div className="discard-changes-sheet-header">
+            <h3 className="discard-changes-sheet-title">Discard Changes</h3>
+            <button
+              className="discard-changes-sheet-close-btn"
+              onClick={showHideBackModal}
+              type="button"
+              aria-label="Close"
+            >
+              <img src={closeIcon} alt="Close" className="discard-changes-close-icon" />
+            </button>
+          </div>
+
+          <div className="discard-changes-sheet-body">
             <div className="alert-warning rounded-10px p-2 patient-details">
               <div className="d-flex align-items-center">
-                <img className='me-3' src={alertIcon} alt="Warning" />
+                <img className="me-3" src={alertIcon} alt="Warning" />
                 <span>
                   Are you sure you want to discard the changes you made?
                 </span>
               </div>
             </div>
-            <div className="mt-4">
-              <div className="d-flex align-items-center mt-2 justify-content-end">
-                <div
-                  onClick={() => {
-                    onClose();
-                    showHideBackModal();
-                  }}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
-                >
-                  <span>Yes, Discard</span>
-                </div>
-                <Button onClick={showHideBackModal} className="lh-lg btn btn-primary3 btn-41 px-4">
-                  <span>No, Stay</span>
-                </Button>
-              </div>
+          </div>
+
+          <div className="discard-changes-sheet-actions">
+            <div className="discard-changes-actions-row">
+              <button
+                onClick={() => {
+                  onClose();
+                  showHideBackModal();
+                }}
+                className="discard-changes-sheet-btn discard-changes-btn-yes"
+                type="button"
+              >
+                Yes, Discard
+              </button>
+              <button
+                onClick={showHideBackModal}
+                className="discard-changes-sheet-btn discard-changes-btn-no"
+                type="button"
+              >
+                No, Stay
+              </button>
             </div>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </Drawer>
 
       <MobileCertificateTemplateSelector
         visible={createCertificateDrawer}

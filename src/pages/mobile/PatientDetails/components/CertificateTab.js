@@ -36,9 +36,16 @@ function CertificateTab({ patient_data }) {
     setSelectedCertificateData(null);
   };
 
+  const handleCreateCertificateFromEmpty = () => {
+    setShowTemplateSelector(true);
+  };
+
   return (
     <div className="certificate-tab">
-      <CertificateDetails patient_data={patient_data} />
+      <CertificateDetails 
+        patient_data={patient_data} 
+        onCreateCertificateClick={handleCreateCertificateFromEmpty}
+      />
       {patientCertificateList?.length > 0 && (
         <button
           className="certificate-fab"
