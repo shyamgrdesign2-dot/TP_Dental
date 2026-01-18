@@ -1,11 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import './PatientListItem.scss';
 import KebabIcon from '../../../../assets/mobile/more-vertical.svg';
 import PatientOptionsModal from './PatientOptionsModal';
 import { trackEvent } from '../../../../utils/utils';
 import moment from 'moment';
 
-function PatientListItem({ 
+const getInitials = (name) => {
+  if (!name) return 'P';
+  const parts = name.trim().split(' ').filter(part => part.length > 0);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  } else if (parts.length === 1) {
+    return parts[0].substring(0, 2).toUpperCase();
+  }
+  return 'P';
+};
+
+const calculateAge = (dob) => {
+  if (!dob) return '';
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+};
+
+const AVATAR_BG_COLOR = '#F6EFFB';
+const AVATAR_TEXT_COLOR = '#A461D8';
+
+const PatientListItem = React.memo(({ 
   patient, 
   onClick, 
   onEdit, 
@@ -13,73 +41,49 @@ function PatientListItem({
   onBookAppointment,
   onWalkInConsultation,
   doctorDetails 
-}) {
+}) => {
   const [showOptions, setShowOptions] = useState(false);
 
-  // Generate initials from patient name (first character of first name + first character of last name)
-  const getInitials = (name) => {
-    if (!name) return 'P';
-    const parts = name.trim().split(' ').filter(part => part.length > 0);
-    if (parts.length >= 2) {
-      // First character of first name + first character of last name
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    } else if (parts.length === 1) {
-      // If only one name, take first two characters
-      return parts[0].substring(0, 2).toUpperCase();
-    }
-    return 'P';
-  };
+  const patientName = useMemo(() => 
+    patient.pm_fullname || patient.pm_name, 
+    [patient.pm_fullname, patient.pm_name]
+  );
 
-  // Avatar colors (constants)
-  const AVATAR_BG_COLOR = '#F6EFFB';
-  const AVATAR_TEXT_COLOR = '#A461D8';
+  const initials = useMemo(() => 
+    getInitials(patientName), 
+    [patientName]
+  );
 
-  const handleKebabClick = (e) => {
-    e.stopPropagation();
-    setShowOptions(true);
-    
-    // Track kebab menu click
-    if (doctorDetails) {
-      trackEvent("TP_AllPatients_Actionitemkebabmenu", {
-        ...doctorDetails,
-        patient_id: patient?.pm_pid,
-        patient_name: patient?.pm_fullname || patient?.pm_name,
-        patient_number: patient?.pm_contact_no || patient?.pm_mobile,
-      });
-    }
-  };
+  const patientAge = useMemo(() => 
+    patient.pm_age || calculateAge(patient.pm_dob),
+    [patient.pm_age, patient.pm_dob]
+  );
 
-  const handleCloseOptions = () => {
-    setShowOptions(false);
-  };
+  const contactNumber = useMemo(() => 
+    patient.pm_contact_no || patient.pm_mobile,
+    [patient.pm_contact_no, patient.pm_mobile]
+  );
 
-  const handlePatientClick = () => {
-    onClick(patient);
-  };
+  const patientId = useMemo(() => 
+    patient.tpml_refrence_id || patient.pm_pid || patient.pm_patient_id,
+    [patient.tpml_refrence_id, patient.pm_pid, patient.pm_patient_id]
+  );
 
-  // Format patient details (matching desktop format)
-  const formatPatientInfo = () => {
+  const formattedPatientInfo = useMemo(() => {
     const parts = [];
     
-    // Gender
     if (patient.pm_gender) {
       parts.push(patient.pm_gender.charAt(0).toUpperCase());
     }
     
-    // Age
-    if (patient.pm_age || patient.pm_dob) {
-      const age = patient.pm_age || calculateAge(patient.pm_dob);
-      parts.push(`${age}y`);
+    if (patientAge) {
+      parts.push(`${patientAge}y`);
     }
     
-    // Mobile/Contact
-    const contact = patient.pm_contact_no || patient.pm_mobile;
-    if (contact) {
-      parts.push(contact);
+    if (contactNumber) {
+      parts.push(contactNumber);
     }
     
-    // Patient ID
-    const patientId = patient.tpml_refrence_id || patient.pm_pid || patient.pm_patient_id;
     if (patientId) {
       parts.push(patientId);
     }
@@ -92,31 +96,56 @@ function PatientListItem({
         {index < parts.length - 1 && <span className="separator"> | </span>}
       </React.Fragment>
     ));
-  };
+  }, [patient.pm_gender, patientAge, contactNumber, patientId]);
 
-  // Format last visit date
-  const formatLastVisit = () => {
+  const lastVisitFormatted = useMemo(() => {
     if (patient.lastVisitDate) {
       return moment(patient.lastVisitDate).format("DD-MM-YYYY");
     }
     return null;
-  };
+  }, [patient.lastVisitDate]);
 
-  const calculateAge = (dob) => {
-    if (!dob) return '';
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
+  const handleKebabClick = useCallback((e) => {
+    e.stopPropagation();
+    setShowOptions(true);
     
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+    if (doctorDetails) {
+      trackEvent("TP_AllPatients_Actionitemkebabmenu", {
+        ...doctorDetails,
+        patient_id: patient?.pm_pid,
+        patient_name: patientName,
+        patient_number: contactNumber,
+      });
     }
-    
-    return age;
-  };
+  }, [doctorDetails, patient?.pm_pid, patientName, contactNumber]);
 
-  const patientName = patient.pm_fullname || patient.pm_name;
+  const handleCloseOptions = useCallback(() => {
+    setShowOptions(false);
+  }, []);
+
+  const handlePatientClick = useCallback(() => {
+    onClick(patient);
+  }, [onClick, patient]);
+
+  const handleViewDetails = useCallback(() => {
+    onClick(patient);
+  }, [onClick, patient]);
+
+  const handleEdit = useCallback(() => {
+    onEdit(patient);
+  }, [onEdit, patient]);
+
+  const handleCreatePrescription = useCallback(() => {
+    onCreatePrescription(patient);
+  }, [onCreatePrescription, patient]);
+
+  const handleBookAppointment = useCallback(() => {
+    onBookAppointment(patient);
+  }, [onBookAppointment, patient]);
+
+  const handleWalkInConsultation = useCallback(() => {
+    onWalkInConsultation(patient);
+  }, [onWalkInConsultation, patient]);
 
   return (
     <>
@@ -130,7 +159,7 @@ function PatientListItem({
                 color: AVATAR_TEXT_COLOR 
               }}
             >
-              {getInitials(patientName)}
+              {initials}
             </div>
             <div className="patient-info">
               <div className="patient-header">
@@ -141,17 +170,18 @@ function PatientListItem({
                   className="kebab-button"
                   onClick={handleKebabClick}
                   type="button"
+                  aria-label="Patient options"
                 >
                   <img src={KebabIcon} alt="Options" className="kebab-icon" />
                 </button>
               </div>
               <div className="patient-details">
                 <p className="details-text">
-                  {formatPatientInfo()}
+                  {formattedPatientInfo}
                 </p>
-                {formatLastVisit() && (
+                {lastVisitFormatted && (
                   <p className="last-visit">
-                    Last visit: {formatLastVisit()}
+                    Last visit: {lastVisitFormatted}
                   </p>
                 )}
                 {patient.category && (
@@ -169,16 +199,34 @@ function PatientListItem({
         <PatientOptionsModal
           patient={patient}
           onClose={handleCloseOptions}
-          onViewDetails={onClick}
-          onEdit={onEdit}
-          onCreatePrescription={onCreatePrescription}
-          onBookAppointment={onBookAppointment}
-          onWalkInConsultation={onWalkInConsultation}
+          onViewDetails={handleViewDetails}
+          onEdit={handleEdit}
+          onCreatePrescription={handleCreatePrescription}
+          onBookAppointment={handleBookAppointment}
+          onWalkInConsultation={handleWalkInConsultation}
           doctorDetails={doctorDetails}
         />
       )}
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.patient.pm_pid === nextProps.patient.pm_pid &&
+    prevProps.patient.pm_fullname === nextProps.patient.pm_fullname &&
+    prevProps.patient.pm_name === nextProps.patient.pm_name &&
+    prevProps.patient.pm_gender === nextProps.patient.pm_gender &&
+    prevProps.patient.pm_age === nextProps.patient.pm_age &&
+    prevProps.patient.pm_contact_no === nextProps.patient.pm_contact_no &&
+    prevProps.patient.pm_mobile === nextProps.patient.pm_mobile &&
+    prevProps.patient.lastVisitDate === nextProps.patient.lastVisitDate &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.onEdit === nextProps.onEdit &&
+    prevProps.onCreatePrescription === nextProps.onCreatePrescription &&
+    prevProps.onBookAppointment === nextProps.onBookAppointment &&
+    prevProps.onWalkInConsultation === nextProps.onWalkInConsultation
+  );
+});
+
+PatientListItem.displayName = 'PatientListItem';
 
 export default PatientListItem;

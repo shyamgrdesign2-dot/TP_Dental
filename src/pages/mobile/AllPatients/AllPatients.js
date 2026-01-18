@@ -23,11 +23,12 @@ import successIcon from '../../../assets/images/end-visit.svg';
 import closeIcon from '../../../assets/images/close-visit.svg';
 import profileAddIcon from '../../../assets/mobile/profile-add.svg';
 
+const SHIMMER_ITEMS = [0, 1, 2, 3, 4];
+
 function AllPatients() {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const decodedToken = getDecodedToken();
   
   const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
   
@@ -40,29 +41,36 @@ function AllPatients() {
   
   const observer = useRef();
   const MESSAGE_KEY = "patient_update_message";
-  
-  // Ensure profile is loaded - dispatch getProfile if missing
+  const isInitialLoadRef = useRef(true);
+  const hasInitializedRef = useRef(false);
+  const decodedTokenRef = useRef(getDecodedToken());
+  const isLoadingRef = useRef(false);
+
   useEffect(() => {
     if (!profile && !profileLoading) {
       dispatch(getProfile());
     }
   }, [dispatch, profile, profileLoading]);
   
-  // Use useMemo to recalculate doctorDetails when profile or token changes
-  // This prevents API errors from missing clinic_id and ensures data is always current
   const doctorDetails = useMemo(() => {
     return {
       clinic_name: getClinicName(profile?.hospital_data),
-      clinic_id: decodedToken?.result?.clinic_id,
+      clinic_id: decodedTokenRef.current?.result?.clinic_id,
       doctor_id: profile?.doctor_unique_id,
       doctor_name: profile?.um_name,
       doctor_mobile_no: profile?.um_contact,
       device_details: "Mobile",
     };
-  }, [profile?.hospital_data, profile?.doctor_unique_id, profile?.um_name, profile?.um_contact, decodedToken?.result?.clinic_id]);
+  }, [profile?.hospital_data, profile?.doctor_unique_id, profile?.um_name, profile?.um_contact]);
 
   const loadPatients = useCallback(async (page, search) => {
+    if (isLoadingRef.current) {
+      return;
+    }
+    
     try {
+      isLoadingRef.current = true;
+      
       if (page === 1) {
         setLoading(true);
       }
@@ -83,47 +91,52 @@ function AllPatients() {
         }
         
         setTotalPatients(response.total || 0);
-        setHasMore(response.patients.length === 25);
+        const hasMorePages = response.patients.length === 25;
+        setHasMore(hasMorePages);
         setPageNo(page);
       }
-    } catch (error) {
-      console.error('Error loading patients:', error);
+    } catch (_error) {
       errorMessage('Failed to load patients');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, []);
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (query) => {
+  const debouncedSearch = useMemo(
+    () => debounce(async (query) => {
       setPageNo(1);
       setPatients([]);
+      setHasMore(true);
       await loadPatients(1, query);
     }, 500),
     [loadPatients]
   );
 
-  // Load patients after profile is loaded to prevent API errors
   useEffect(() => {
-    if (profile && !profileLoading) {
+    if (profile && !profileLoading && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
+      isInitialLoadRef.current = true;
       loadPatients(1, '');
     }
   }, [loadPatients, profile, profileLoading]);
 
   useEffect(() => {
+    if (isInitialLoadRef.current && searchQuery === '') {
+      isInitialLoadRef.current = false;
+      return;
+    }
+    
     debouncedSearch(searchQuery);
     return () => {
       debouncedSearch.cancel();
     };
   }, [searchQuery, debouncedSearch]);
 
-  // Show success message if redirected from patient form
   useEffect(() => {
     if (location.state?.showMessage) {
       const messageType = location.state.messageType;
       
-      // Destroy any existing message first to prevent duplicates
       message.destroy(MESSAGE_KEY);
       
       message.open({
@@ -151,24 +164,22 @@ function AllPatients() {
         duration: 5,
       });
 
-      // Clear the message from location state immediately
       navigate(location.pathname, {
         replace: true,
         state: {},
       });
     }
-  }, [location.state?.showMessage, navigate, location.pathname]);
+  }, [location.state?.showMessage, navigate, location.pathname, location.state?.messageType]);
 
-  const handleSearchChange = (value) => {
+  const handleSearchChange = useCallback((value) => {
     setSearchQuery(value);
-  };
+  }, []);
 
-  const handleSearchClear = () => {
+  const handleSearchClear = useCallback(() => {
     setSearchQuery('');
-  };
+  }, []);
 
-  const handlePatientClick = (patient) => {
-    // Reset all states before navigation (same as desktop)
+  const handlePatientClick = useCallback((patient) => {
     dispatch(resetVaccineState());
     dispatch(resetGrowthChartState());
     dispatch(resetObstetricState());
@@ -191,9 +202,9 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  };
+  }, [dispatch, navigate, doctorDetails]);
 
-  const handleEditPatient = (patient) => {
+  const handleEditPatient = useCallback((patient) => {
     navigate('/edit_patient', {
       state: { 
         patient_data: patient, 
@@ -207,10 +218,9 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  };
+  }, [navigate, doctorDetails]);
 
-  const handleCreatePrescription = (patient) => {
-    // Navigate to prescription creation
+  const handleCreatePrescription = useCallback((patient) => {
     navigate('/prescription', {
       state: { 
         patient_data: patient,
@@ -224,10 +234,9 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  };
+  }, [navigate, doctorDetails]);
 
-  const handleBookAppointment = (patient) => {
-    // Navigate to appointment booking
+  const handleBookAppointment = useCallback((patient) => {
     navigate('/add_appointment', {
       state: { 
         patient_data: patient,
@@ -241,10 +250,9 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  };
+  }, [navigate, doctorDetails]);
 
-  const handleWalkInConsultation = (patient) => {
-    // Navigate to walk-in consultation
+  const handleWalkInConsultation = useCallback((patient) => {
     navigate('/walk_in_consultation', {
       state: { 
         patient_data: patient,
@@ -258,31 +266,55 @@ function AllPatients() {
       patient_name: patient?.pm_fullname || patient?.pm_name,
       patient_number: patient?.pm_contact_no || patient?.pm_mobile,
     });
-  };
+  }, [navigate, doctorDetails]);
 
-  const handleAddNewPatient = () => {
+  const handleAddNewPatient = useCallback(() => {
     navigate('/add_patient', {
       state: { from: '/all_patients' }
     });
     
     trackEvent("TP_AllPatients_AddNewPatient", doctorDetails);
-  };
+  }, [navigate, doctorDetails]);
 
-  // Infinite scroll callback
   const lastPatientElementRef = useCallback(node => {
+    if (observer.current) {
+      observer.current.disconnect();
+    }
+    
     if (loading) return;
-    if (observer.current) observer.current.disconnect();
+    
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !searchQuery) {
+      const entry = entries[0];
+      
+      if (entry.isIntersecting && hasMore && !isLoadingRef.current) {
         loadPatients(pageNo + 1, searchQuery);
       }
+    }, {
+      threshold: 0.1,
+      rootMargin: '100px'
     });
-    if (node) observer.current.observe(node);
+    
+    if (node) {
+      observer.current.observe(node);
+    }
   }, [loading, hasMore, pageNo, searchQuery, loadPatients]);
+
+  useEffect(() => {
+    return () => {
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
+  const patientCountText = useMemo(() => {
+    if (patients.length === 0) return null;
+    return `Showing ${patients.length}${totalPatients > patients.length ? ` of ${totalPatients}` : ''} patients`;
+  }, [patients.length, totalPatients]);
 
   return (
     <div className="mobile-all-patients">
-      {/* Header */}
       <div className="header-container">
         <div className="page-header">
           <div className="title-bar">
@@ -310,26 +342,21 @@ function AllPatients() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="content-container">
-        {/* Patient count */}
         {loading && pageNo === 1 ? (
           <div className="patient-count-shimmer">
             <div className="shimmer-count-line"></div>
           </div>
-        ) : !loading && patients.length > 0 && (
+        ) : patientCountText && (
           <div className="patient-count">
-            <p>
-              Showing {patients.length} 
-              {totalPatients > patients.length && ` of ${totalPatients}`} patients
-            </p>
+            <p>{patientCountText}</p>
           </div>
         )}
 
         <div className="patients-list">
           {loading && pageNo === 1 ? (
             <div className="patients-shimmer">
-              {[...Array(5)].map((_, index) => (
+              {SHIMMER_ITEMS.map((index) => (
                 <div key={index} className="patient-shimmer-item">
                   <div className="shimmer-avatar-section">
                     <div className="shimmer-avatar"></div>
@@ -347,30 +374,37 @@ function AllPatients() {
           ) : patients.length > 0 ? (
             <>
               {patients.map((patient, index) => {
-                const isLast = patients.length === index + 1;
+                const isLast = index === patients.length - 1;
+                const key = patient.pm_pid || patient.pm_patient_id || `patient-${index}`;
+                
                 return (
                   <div
-                    key={patient.pm_pid || patient.pm_patient_id || index}
+                    key={key}
                     ref={isLast ? lastPatientElementRef : null}
                   >
                     <PatientListItem
                       patient={patient}
-                      onClick={() => handlePatientClick(patient)}
-                      onEdit={() => handleEditPatient(patient)}
-                      onCreatePrescription={() => handleCreatePrescription(patient)}
-                      onBookAppointment={() => handleBookAppointment(patient)}
-                      onWalkInConsultation={() => handleWalkInConsultation(patient)}
+                      onClick={handlePatientClick}
+                      onEdit={handleEditPatient}
+                      onCreatePrescription={handleCreatePrescription}
+                      onBookAppointment={handleBookAppointment}
+                      onWalkInConsultation={handleWalkInConsultation}
                       doctorDetails={doctorDetails}
                     />
                   </div>
                 );
               })}
               
-              {/* Loading more indicator */}
               {loading && pageNo > 1 && (
                 <div className="loading-more">
                   <div className="loading-spinner small"></div>
                   <p>Loading more patients...</p>
+                </div>
+              )}
+              
+              {!hasMore && patients.length > 0 && (
+                <div className="end-of-list">
+                  <p>You've reached the end of the list</p>
                 </div>
               )}
             </>
@@ -398,16 +432,15 @@ function AllPatients() {
         </div>
       </div>
 
-      {/* Floating Add Button */}
       <button 
         className="floating-add-button"
         onClick={handleAddNewPatient}
         title="Add New Patient"
+        aria-label="Add New Patient"
       >
         <img src={profileAddIcon} alt="Add Patient" className="floating-add-icon" />
       </button>
 
-      {/* Bottom Navigation */}
       <BottomNavigation activeTab="patients" />
     </div>
   );
