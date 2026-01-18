@@ -16,6 +16,7 @@ import checkIcon from '../../../assets/images/check.svg';
 import closeIcon from '../../../assets/images/close.svg';
 import voiceModeDictation from '../../../assets/images/voice-mode-dictation.svg';
 import voiceMode2 from '../../../assets/images/voice-mode-2.svg';
+import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRxConsult.scss';
 
 function MobileVoiceRxConsult() {
@@ -31,6 +32,7 @@ function MobileVoiceRxConsult() {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [showPatientSummary, setShowPatientSummary] = useState(true);
   const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+  const [patientSheetOpen, setPatientSheetOpen] = useState(false);
 
   const contentRef = useRef(null);
   const lastScrollTopRef = useRef(0);
@@ -226,6 +228,10 @@ function MobileVoiceRxConsult() {
       {patient_data && (
         <div
           className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+          onClick={() => setPatientSheetOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPatientSheetOpen(true); } }}
+          role="button"
+          tabIndex={0}
         >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
@@ -400,6 +406,14 @@ function MobileVoiceRxConsult() {
           <div className="drawer-home-indicator" />
         </div>
       </Drawer>
+
+      {patient_data && (
+        <PatientDetailsBottomSheet
+          visible={patientSheetOpen}
+          onClose={() => setPatientSheetOpen(false)}
+          patient_data={patient_data}
+        />
+      )}
 
       {!isFreeVoiceRxUser && (
         <ExpiredSubModal

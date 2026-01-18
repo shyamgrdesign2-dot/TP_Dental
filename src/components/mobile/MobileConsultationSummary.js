@@ -12,6 +12,7 @@ import doctorAvatar from '../../assets/images/doctor-avatar.png';
 import genRxSendCta from '../../assets/images/genRxSendCta.svg';
 import fullScreenIcon from '../../assets/mobile/Full Screen.svg';
 import { S_AMBIENT_VOICE_RX } from '../../utils/constants';
+import PatientDetailsBottomSheet from './PatientDetailsBottomSheet';
 import './MobileConsultationSummary.scss';
 
 function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxClick, mobileRxData, queries = [] }) {
@@ -43,6 +44,7 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
   const [typedInput, setTypedInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+  const [patientSheetOpen, setPatientSheetOpen] = useState(false);
 
   const contentRef = useRef(null);
   const lastScrollTopRef = useRef(0);
@@ -152,6 +154,10 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
       {patient_data && (
         <div
           className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+          onClick={() => setPatientSheetOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPatientSheetOpen(true); } }}
+          role="button"
+          tabIndex={0}
         >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
@@ -338,6 +344,14 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
           <div className="home-indicator" />
         </div>
       </div>
+
+      {patient_data && (
+        <PatientDetailsBottomSheet
+          visible={patientSheetOpen}
+          onClose={() => setPatientSheetOpen(false)}
+          patient_data={patient_data}
+        />
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '..
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION } from '../../../utils/constants';
 import { checkCredits } from '../../../redux/monetizationSlice';
 import { services } from '../../../redux/doctorsSlice';
+import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRecording.scss';
 
 function MobileVoiceRecording() {
@@ -39,6 +40,7 @@ function MobileVoiceRecording() {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [showPatientSummary, setShowPatientSummary] = useState(true);
   const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+  const [patientSheetOpen, setPatientSheetOpen] = useState(false);
 
   const contentRef = useRef(null);
   const lastScrollTopRef = useRef(0);
@@ -461,9 +463,13 @@ function MobileVoiceRecording() {
         </div>
       </div>
 
-      {patient_data && (
+      {patient_data && Object.keys(patient_data).length > 0 && (
         <div
           className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+          onClick={() => setPatientSheetOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPatientSheetOpen(true); } }}
+          role="button"
+          tabIndex={0}
         >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
@@ -601,6 +607,15 @@ function MobileVoiceRecording() {
           </div>
         </div>
       </Drawer>
+
+      {patient_data && Object.keys(patient_data).length > 0 && (
+        <PatientDetailsBottomSheet
+          visible={patientSheetOpen}
+          onClose={() => setPatientSheetOpen(false)}
+          patient_data={patient_data}
+          onBeforeNavigate={cleanupRecording}
+        />
+      )}
 
       {!isFreeVoiceRxUser && (
         <ExpiredSubModal

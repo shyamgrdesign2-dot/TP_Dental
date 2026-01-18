@@ -71,12 +71,13 @@ function PatientForm({ mode = ADD, patient_data }) {
 
     useEffect(() => {
         const getEditData = async () => {
+            if (!patient_data?.patient_unique_id) return;
             var sendData = {
                 patient_unique_id: patient_data.patient_unique_id
             };
             await dispatch(viewPatient(sendData));
         }
-        mode === EDIT && getEditData()
+        mode === EDIT && getEditData();
     }, []);
 
     useEffect(() => {
@@ -132,7 +133,11 @@ function PatientForm({ mode = ADD, patient_data }) {
             delete finalValues['pm_dob_show'];
 
             if (mode === EDIT) {
-                finalValues['patient_unique_id'] = patient_data.patient_unique_id
+                if (!patient_data?.patient_unique_id) {
+                    errorMessage('Unable to update: invalid context.');
+                    return;
+                }
+                finalValues['patient_unique_id'] = patient_data.patient_unique_id;
             }
 
             const action = mode === EDIT ? await dispatch(editPatient(finalValues)) : await dispatch(addPatient(finalValues));
@@ -185,7 +190,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                 }
                 if (
                     mode === EDIT &&
-                    patient_data.pm_dob !== finalValues.pm_dob
+                    patient_data?.pm_dob !== finalValues.pm_dob
                 ) {
                     const payload = {
                         patient_uid: patient_data?.patient_unique_id,
@@ -218,15 +223,24 @@ function PatientForm({ mode = ADD, patient_data }) {
                         }
                     });
                 } else {
+                    // For EDIT → patient_details: preserve pm_blood_group when API returns empty (RCA: overwrite was losing it)
+                    let mergedPatientForDetails = null;
+                    if (mode === EDIT) {
+                        mergedPatientForDetails = { ...patient_data, ...action.payload };
+                        const fromPayload = action.payload?.pm_blood_group || action.payload?.patient_blood_group;
+                        const fromPatient = patient_data?.pm_blood_group || patient_data?.patient_blood_group;
+                        if ((!fromPayload || fromPayload === '') && fromPatient) {
+                            mergedPatientForDetails.pm_blood_group = patient_data?.pm_blood_group || patient_data?.patient_blood_group;
+                        }
+                    }
+
                     // Show modal if any of SmartRx, SnapRx, or VoiceRx is enabled (and not mobile)
                     const hasRxOptions = isSmartSyncAccessableFromGB || isSnapRxAccessable || isFreeVoiceRxUser || tp_monetization_enable;
                     if (isMobile || !hasRxOptions) {
                         mode === EDIT ?
                             navigate("/patient_details", {
                                 replace: true,
-                                state: {
-                                    patient_data: { ...patient_data, ...action.payload }
-                                }
+                                state: { patient_data: mergedPatientForDetails }
                             }) :
                             navigate("/prescription", {
                                 replace: true,
@@ -240,9 +254,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                         if (mode === EDIT) {
                             navigate("/patient_details", {
                                 replace: true,
-                                state: {
-                                    patient_data: { ...patient_data, ...action.payload }
-                                }
+                                state: { patient_data: mergedPatientForDetails }
                             });
                         }
                     }
