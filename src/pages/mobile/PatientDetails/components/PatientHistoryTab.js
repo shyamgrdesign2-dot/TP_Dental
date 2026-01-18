@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import VitalsBodyComposition from '../../../../components/VitalsBodyComposition';
 import MedicalHistory from '../../../../components/MedicalHistory';
@@ -41,7 +41,9 @@ function PatientHistoryTab({
     }
   };
 
-  const historySections = [
+  // MOBILE OPTIMIZATION: Memoize historySections array to prevent recreation on every render
+  // This prevents unnecessary re-renders of child components (MedicalHistory, VitalsBodyComposition, etc.)
+  const historySections = useMemo(() => [
     {
       id: 'medical-history',
       label: 'Medical History',
@@ -136,7 +138,18 @@ function PatientHistoryTab({
         />
       ),
     },
-  ].filter(section => section.visible);
+  ].filter(section => section.visible), [
+    loading,
+    viewCaseManagerData?.medical_history,
+    viewCaseManagerData?.doctor_data?.um_id,
+    viewCaseManagerData?.vitals,
+    viewCaseManagerData?.patient_birth_weight,
+    isVaccinationAccessable,
+    isGrowthChartAccessable,
+    patient_data?.patient_unique_id,
+    userId,
+    tcmData?.tcm_id,
+  ]);
 
   if (!historySections || historySections.length === 0) {
     return (

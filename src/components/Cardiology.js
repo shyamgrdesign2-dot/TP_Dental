@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { saveAs } from "file-saver";
@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { isChrome, isMobile, isSafari } from "react-device-detect";
 import { useSelector } from "react-redux";
 import api from "../api/services/axiosService";
+import PrescriptionSkeleton from "./mobile/PrescriptionSkeleton";
 
 import Symptomsicon from "../assets/images/Symptoms.svg";
 import Examinationsicon from "../assets/images/Examination.svg";
@@ -221,18 +222,97 @@ function Cardiology(props) {
     }
   }, [defaultPrintSettings]);
 
-  // Reset PDF loading state when PDF URL changes (e.g., switching between Digital Rx and Written Rx)
-  useEffect(() => {
-    if (isMobile && viewCaseManagerData) {
-      const pdfUrl = getMobilePdfUrl();
-      if (pdfUrl) {
-        setIsPdfLoading(true);
-      } else {
-        // If URL is not available yet, keep loading state as true to show spinner
-        setIsPdfLoading(true);
+  // MOBILE OPTIMIZATION: Memoize PDF URL calculation to prevent expensive recalculations on every render
+  // This function is called in render and useEffect, so memoization prevents redundant work
+  // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
+  const getMobilePdfUrl = useCallback(() => {
+    // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
+      return showDigitalRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSnapRx && isSnapRxdigitised) {
+      return showDigitalSnapRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
+    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      if (!viewCaseManagerData?.print_url) return null;
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        return `${urlObj.toString()}&lg=${selectedLang}`;
+      } catch (error) {
+        console.error("Invalid URL:", error);
+        return null;
       }
     }
-  }, [showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isMobile, viewCaseManagerData, selectedLang, isRxdigitised, isSnapRxdigitised, printUrl]);
+    
+    // Default: use print_rx_url for regular prescriptions
+    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
+  }, [isSmartRxFile, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
+
+  // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
+  // This prevents the effect from running unnecessarily when unrelated dependencies change
+  const mobilePdfUrl = useMemo(() => {
+    if (!isMobile || !viewCaseManagerData) return null;
+    return getMobilePdfUrl();
+  }, [isMobile, viewCaseManagerData, getMobilePdfUrl]);
+
+  // MOBILE OPTIMIZATION: Memoize PDF pages array to prevent recreation on every render
+  // Only calculate when number of pages actually changes
+  const pdfPages = useMemo(() => 
+    mobilePdfNumPages > 0 
+      ? Array.from({ length: mobilePdfNumPages }, (_, index) => index + 1)
+      : [1], // Default to 1 page during initial load
+    [mobilePdfNumPages]
+  );
+
+  // MOBILE OPTIMIZATION: Cache window width to avoid accessing window object in render
+  // Only update on mount and when window actually resizes
+  const [pdfWidth, setPdfWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth || 340;
+    }
+    return 340;
+  });
+
+  // MOBILE OPTIMIZATION: Update PDF width on window resize (debounced for performance)
+  useEffect(() => {
+    if (!isMobile) return;
+
+    let resizeTimer;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setPdfWidth(window.innerWidth || 340);
+      }, 150); // Debounce resize events
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isMobile]);
+
+  // Reset PDF loading state when PDF URL changes (e.g., switching between Digital Rx and Written Rx)
+  // MOBILE OPTIMIZATION: Use memoized pdfUrl instead of calling function inside effect
+  useEffect(() => {
+    if (isMobile && mobilePdfUrl !== null) {
+      setIsPdfLoading(true);
+    }
+  }, [isMobile, mobilePdfUrl]);
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
@@ -772,44 +852,6 @@ function Cardiology(props) {
       return;
     }
     sendMessageToParent(EVENTS.DOWNLOAD, { url: `${finalDownloadUrl}&lg=${selectedLang}` });
-  };
-
-  // Get PDF URL for mobile iframe
-  const getMobilePdfUrl = () => {
-    // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
-    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
-      return showDigitalRx 
-        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
-        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
-    }
-    
-    // For SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
-    if (isSnapRx && isSnapRxdigitised) {
-      return showDigitalSnapRx 
-        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
-        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
-    }
-    
-    // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
-    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
-      if (!viewCaseManagerData?.print_url) return null;
-      try {
-        const urlObj = new URL(viewCaseManagerData.print_url);
-        if (isAmbientRx) {
-          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-          urlObj.searchParams.set("rxDigitize", "false");
-        } else {
-          urlObj.searchParams.set("voiceRxDigitize", "true");
-        }
-        return `${urlObj.toString()}&lg=${selectedLang}`;
-      } catch (error) {
-        console.error("Invalid URL:", error);
-        return null;
-      }
-    }
-    
-    // Default: use print_rx_url for regular prescriptions
-    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
   };
 
   useEffect(() => {
@@ -1928,90 +1970,58 @@ function Cardiology(props) {
                 handleCollapsed={(flag) => handleCollapsed(flag)}
               />
             </Drawer>
-            {/* Mobile view: Show prescription PDF inline using react-pdf */}
-            {isMobile && !loading && viewCaseManagerData && (
+            {/* Mobile view: Show shimmer skeleton when loading */}
+            {isMobile && loading && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
-                {(() => {
-                  const pdfUrl = getMobilePdfUrl();
-                  if (pdfUrl) {
-                    return (
-                      <>
-                        {isPdfLoading && (
-                          <>
-                            <div style={{
-                              position: 'fixed',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              pointerEvents: 'none',
-                            }} />
-                            <div style={{
-                              position: 'fixed',
-                              top: '50%',
-                              left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              flexDirection: 'column',
-                              gap: '16px',
-                              zIndex: 9999,
-                              pointerEvents: 'none',
-                            }}>
-                              <Spin size="small" />
-                              <div style={{ fontSize: '14px', color: '#666' }}>Loading Prescription ...</div>
-                            </div>
-                          </>
-                        )}
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            overflowY: 'auto',
-                            padding: '8px 0',
-                          }}
-                        >
-                          <Document
-                            file={pdfUrl}
-                            loading={null}
-                            onLoadSuccess={({ numPages }) => {
-                              setMobilePdfNumPages(numPages);
-                              setIsPdfLoading(false);
-                            }}
-                            onLoadError={(err) => {
-                              console.error("Error rendering mobile prescription PDF:", err);
-                              setIsPdfLoading(false);
-                            }}
-                          >
-                            {Array.from({ length: mobilePdfNumPages || 1 }).map((_, index) => (
-                              <Page
-                                key={index}
-                                pageNumber={index + 1}
-                                width={window.innerWidth}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                              />
-                            ))}
-                          </Document>
-                        </div>
-                      </>
-                    );
-                  }
-                  return (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      height: '100%',
-                      flexDirection: 'column',
-                      gap: '16px',
-                    }}>
-                      <Spin size="small" />
-                      <div style={{ fontSize: '14px', color: '#666' }}>Loading Prescription ...</div>
-                    </div>
-                  );
-                })()}
+                <PrescriptionSkeleton />
+              </Card.Body>
+            )}
+            {/* Mobile view: Show prescription PDF inline using react-pdf */}
+            {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
+            {isMobile && !loading && viewCaseManagerData && !mobilePdfUrl && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                <PrescriptionSkeleton />
+              </Card.Body>
+            )}
+            {isMobile && !loading && viewCaseManagerData && mobilePdfUrl && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                {isPdfLoading && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
+                    <PrescriptionSkeleton />
+                  </div>
+                )}
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflowY: 'auto',
+                    padding: '8px 0',
+                    opacity: isPdfLoading ? 0 : 1,
+                  }}
+                >
+                  <Document
+                    file={mobilePdfUrl}
+                    loading={null}
+                    onLoadSuccess={({ numPages }) => {
+                      setMobilePdfNumPages(numPages);
+                      setIsPdfLoading(false);
+                    }}
+                    onLoadError={(err) => {
+                      console.error("Error rendering mobile prescription PDF:", err);
+                      setIsPdfLoading(false);
+                    }}
+                  >
+                    {pdfPages.map((pageNumber) => (
+                      <Page
+                        key={pageNumber}
+                        pageNumber={pageNumber}
+                        width={pdfWidth}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    ))}
+                  </Document>
+                </div>
               </Card.Body>
             )}
             {/* Web/Tablet view: Show original content */}

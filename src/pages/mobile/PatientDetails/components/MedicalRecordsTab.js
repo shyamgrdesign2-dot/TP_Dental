@@ -6,7 +6,9 @@ import { generateUniqueFileName, getCorrectedFileName } from '../../../medicalRe
 import addMedRecordIcon from '../../../../assets/mobile/add_medRecord.svg';
 import './MedicalRecordsTab.scss';
 
-function MedicalRecordsTab({
+// MOBILE OPTIMIZATION: Memoize component to prevent re-renders when props haven't changed
+// Parent now provides memoized handlers, so this component can safely skip re-renders
+const MedicalRecordsTab = React.memo(function MedicalRecordsTab({
   filesData,
   setUploadDocDrawer,
   setFilesData,
@@ -92,6 +94,6 @@ function MedicalRecordsTab({
       )}
     </div>
   );
-}
+});
 
 export default MedicalRecordsTab;

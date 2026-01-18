@@ -112,32 +112,62 @@ function PatientDetails() {
   const clinic = useMemo(() => getClinic(profile?.hospital_data), [profile?.hospital_data]);
   const clinicName = useMemo(() => getClinicName(profile?.hospital_data), [profile?.hospital_data]);
 
-  // Fetch case manager data
+  // Track initial page load analytics (only once per patient, not on every tcmData change)
+  const hasTrackedLanding = useRef(false);
+  const lastTrackedPatientId = useRef(null);
+  
   useEffect(() => {
-    if (!patient_data?.patient_unique_id) return;
-
-    // Use memoized clinicName for analytics tracking
-    if (window.Moengage && clinicName) {
+    // Reset tracking when patient changes
+    if (patient_data?.patient_unique_id !== lastTrackedPatientId.current) {
+      hasTrackedLanding.current = false;
+      lastTrackedPatientId.current = patient_data?.patient_unique_id;
+    }
+    
+    if (!patient_data?.patient_unique_id || hasTrackedLanding.current) return;
+    
+    // Track landing event only on initial mount or patient change (when tcm_id is 0)
+    if (window.Moengage && clinicName && tcmData.tcm_id === 0) {
       window.Moengage.track_event('TP_Patient_detail_landing', {
         clinic_name: clinicName,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
       });
+      hasTrackedLanding.current = true;
     }
+  }, [patient_data?.patient_unique_id, clinicName, tcmData.tcm_id]);
+
+  // Fetch case manager data (separated from analytics to avoid unnecessary re-fetches)
+  useEffect(() => {
+    if (!patient_data?.patient_unique_id) return;
 
     const sendData = {
       patient_unique_id: patient_data.patient_unique_id,
       tcm_id: tcmData.tcm_id,
     };
     dispatch(viewCaseManager(sendData));
-  }, [tcmData, patient_data, dispatch, clinicName]);
+  }, [tcmData, patient_data?.patient_unique_id, dispatch]);
 
-  // Fetch patient documents
+  // Fetch patient documents - memoize function to avoid stale closures
+  const getAllPatientDocs = useCallback(async () => {
+    if (!patient_data?.patient_unique_id) return;
+    const doctorUploadedDocs = await fetchAllPatientDocs(patient_data.patient_unique_id);
+    const patientUploadedDocs = await fetchDocsUploadedByPatient(
+      patient_data.patient_unique_id
+    );
+    dispatch(setPatientUploadedDocs(patientUploadedDocs));
+    dispatch(
+      setAllUploadedDocs(
+        mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
+      )
+    );
+  }, [patient_data?.patient_unique_id, dispatch]);
+
+  // Fetch patient documents - fixed dependencies
   useEffect(() => {
     if (patient_data?.patient_unique_id && allUploadedDocs.length === 0) {
       getAllPatientDocs();
     }
-  }, [patient_data]);
+  }, [patient_data?.patient_unique_id, allUploadedDocs.length, getAllPatientDocs]);
 
   // Fetch billing print settings
   useEffect(() => {
@@ -153,42 +183,44 @@ function PatientDetails() {
     }
   };
 
-  const getAllPatientDocs = async () => {
-    const doctorUploadedDocs = await fetchAllPatientDocs(patient_data.patient_unique_id);
-    const patientUploadedDocs = await fetchDocsUploadedByPatient(
-      patient_data.patient_unique_id
-    );
-    dispatch(setPatientUploadedDocs(patientUploadedDocs));
-    dispatch(
-      setAllUploadedDocs(
-        mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
-      )
-    );
-  };
 
-  const nextPress = () => {
+  // Memoize navigation callbacks to prevent unnecessary child re-renders
+  const nextPress = useCallback(() => {
     window.Moengage?.track_event('patient_detail_prev', {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
     });
-    setTcmData({ tcm_id: viewCaseManagerData?.next_tcm_id, page: tcmData.page - 1 });
-  };
+    setTcmData((prevTcmData) => ({ 
+      tcm_id: viewCaseManagerData?.next_tcm_id, 
+      page: prevTcmData.page - 1 
+    }));
+  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.next_tcm_id]);
 
-  const prevPress = () => {
+  const prevPress = useCallback(() => {
     window.Moengage?.track_event('patient_detail_next', {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
     });
-    setTcmData({ tcm_id: viewCaseManagerData?.prev_tcm_id, page: tcmData.page + 1 });
-  };
+    setTcmData((prevTcmData) => ({ 
+      tcm_id: viewCaseManagerData?.prev_tcm_id, 
+      page: prevTcmData.page + 1 
+    }));
+  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.prev_tcm_id]);
 
   const handleTabChange = useCallback((tabKey) => {
     setSelectedTab(tabKey);
   }, []);
 
-  const handleUploadDocPopup = () => {
+  // MOBILE OPTIMIZATION: Memoize onSectionClick callback to prevent PatientHistoryTab re-renders
+  const handleHistorySectionClick = useCallback((sectionId) => {
+    // Section click is handled internally by PatientHistoryTab accordion
+    // This callback can be used for analytics or future navigation if needed
+  }, []);
+
+  // MOBILE OPTIMIZATION: Memoize handler to prevent MedicalRecordsTab re-renders
+  const handleUploadDocPopup = useCallback(() => {
     setShowUploadDocPopup((prev) => !prev);
-  };
+  }, []);
 
   const handleRetryBtn = () => {
     setFilesData([]);
@@ -201,9 +233,10 @@ function PatientDetails() {
     setShowDeletePopup(true);
   };
 
-  const handleDrawerUploadDoc = () => {
-    setUploadDocDrawer(!uploadDocDrawer);
-  };
+  // MOBILE OPTIMIZATION: Memoize handler to prevent MedicalRecordsTab re-renders
+  const handleDrawerUploadDoc = useCallback(() => {
+    setUploadDocDrawer((prev) => !prev);
+  }, []);
 
   const handleBack = () => {
     navigate(-1);
@@ -268,9 +301,10 @@ function PatientDetails() {
         isFromTabView: true
       },
     });
-  }, [navigate, profile, patient_data]);
+  }, [navigate, profile, patient_data, clinic]);
 
-  const handleEditRx = async () => {
+  // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handleEditRx = useCallback(async () => {
     if (!viewCaseManagerData?.tcm_id) return;
     
     if (cardiologyPrintHandlerRef.current?.editRx) {
@@ -312,9 +346,10 @@ function PatientDetails() {
         },
       });
     }
-  };
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, isSnapRx, isSnapRxAccessableFromGB, isSmartRxFile, navigate]);
 
-  const handleDownloadRx = () => {
+  // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handleDownloadRx = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.downloadContent) {
         cardiologyPrintHandlerRef.current.downloadContent();
       } else {
@@ -334,13 +369,14 @@ function PatientDetails() {
         errorMessage('Failed to download prescription');
       }
     }
-  };
+  }, [viewCaseManagerData?.print_rx_url, viewCaseManagerData?.consultation_date]);
 
   const handleCardiologyPrintHandlersReady = useCallback((handlers) => {
     cardiologyPrintHandlerRef.current = handlers;
   }, []);
 
-  const handlePrintRx = () => {
+  // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handlePrintRx = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.printContent) {
         cardiologyPrintHandlerRef.current.printContent();
       } else {
@@ -351,9 +387,10 @@ function PatientDetails() {
         window.open(viewCaseManagerData.print_rx_url, '_blank');
       }
     }
-  };
+  }, [viewCaseManagerData?.print_rx_url]);
 
-  const handlePrintMedicinesOnly = () => {
+  // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handlePrintMedicinesOnly = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.printRxContent) {
         cardiologyPrintHandlerRef.current.printRxContent();
       } else {
@@ -364,9 +401,10 @@ function PatientDetails() {
         window.open(viewCaseManagerData.print_rx_url, '_blank');
       }
     }
-  };
+  }, [viewCaseManagerData?.print_rx_url]);
 
-  const handleRepeatRx = () => {
+  // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handleRepeatRx = useCallback(() => {
     if (!viewCaseManagerData) return;
 
     window.Moengage?.track_event('repeat_rx_click', {
@@ -386,20 +424,11 @@ function PatientDetails() {
         },
       },
     });
-  };
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate]);
 
-  if (!patient_data) {
-    return (
-      <div className="mobile-patient-details">
-        <DetailsHeader onBack={handleBack} title="Patient Details" />
-        <div className="patient-content">
-          <EmptyState message="Patient data not found" />
-        </div>
-      </div>
-    );
-  }
-
-  const tabs = [
+  // Memoize tabs array to prevent PatientTabs re-renders
+  // MUST be called before any conditional returns to follow React hooks rules
+  const tabs = useMemo(() => [
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
       label: 'Past Visits',
@@ -429,7 +458,7 @@ function PatientDetails() {
           },
         ]
       : []),
-  ];
+  ], [allUploadedDocs?.length, isOpdBillingAccessable, isMobile]);
 
   return (
     <div className="mobile-patient-details">
@@ -464,8 +493,9 @@ function PatientDetails() {
       )}
 
       <div className="patient-content" ref={scrollContainerRef}>
-
-        {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY && (
+        {/* MOBILE OPTIMIZATION: Keep tabs mounted but hidden to prevent expensive remounts */}
+        {/* This prevents Cardiology and other heavy components from unmounting on tab switch */}
+        <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? 'block' : 'none' }}>
           <VisitSummaryTab
             patient_data={patient_data}
             viewCaseManagerData={viewCaseManagerData}
@@ -483,9 +513,9 @@ function PatientDetails() {
             onPrintMedicinesOnly={handlePrintMedicinesOnly}
             onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}
           />
-        )}
+        </div>
 
-        {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY && (
+        <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY ? 'block' : 'none' }}>
           <PatientHistoryTab
             patient_data={patient_data}
             viewCaseManagerData={viewCaseManagerData}
@@ -494,18 +524,15 @@ function PatientDetails() {
             isVaccinationAccessable={isVaccinationAccessable}
             isGrowthChartAccessable={isGrowthChartAccessable}
             userId={userId}
-            onSectionClick={(sectionId) => {
-              // Section click is handled internally by PatientHistoryTab accordion
-              // This callback can be used for analytics or future navigation if needed
-            }}
+            onSectionClick={handleHistorySectionClick}
           />
-        )}
+        </div>
 
-        {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE && (
+        <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE ? 'block' : 'none' }}>
           <CertificateTab patient_data={patient_data} />
-        )}
+        </div>
 
-        {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS && (
+        <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS ? 'block' : 'none' }}>
           <MedicalRecordsTab
             filesData={filesData}
             setUploadDocDrawer={setUploadDocDrawer}
@@ -514,11 +541,11 @@ function PatientDetails() {
             setIsEditDocument={setIsEditDocument}
             handleDrawerUploadDoc={handleDrawerUploadDoc}
           />
-        )}
+        </div>
 
-        {selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT && (
+        <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT ? 'block' : 'none' }}>
           <BillingTab patientData={patient_data} fromPath="patientDetails" />
-        )}
+        </div>
       </div>
 
       {/* Upload Document Drawer */}

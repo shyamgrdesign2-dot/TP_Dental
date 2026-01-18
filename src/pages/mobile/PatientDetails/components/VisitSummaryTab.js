@@ -3,7 +3,9 @@ import Cardiology from '../../../../components/Cardiology';
 import VisitActionButtons from './VisitActionButtons';
 import './VisitSummaryTab.scss';
 
-function VisitSummaryTab({
+// MOBILE OPTIMIZATION: Memoize component to prevent re-renders when props haven't changed
+// Parent now provides memoized handlers, so this component can safely skip re-renders
+const VisitSummaryTab = React.memo(function VisitSummaryTab({
   patient_data,
   viewCaseManagerData,
   loading,
@@ -49,6 +51,6 @@ function VisitSummaryTab({
       )}
     </div>
   );
-}
+});
 
 export default VisitSummaryTab;

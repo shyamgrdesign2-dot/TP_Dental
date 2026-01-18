@@ -50,5 +50,7 @@ function VisitDateSelector({
   );
 }
 
-export default VisitDateSelector;
+// MOBILE OPTIMIZATION: Memoize component to prevent re-renders when props haven't changed
+// This component receives memoized callbacks (nextPress, prevPress) from parent
+export default React.memo(VisitDateSelector);
 

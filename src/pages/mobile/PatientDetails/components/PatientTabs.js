@@ -53,4 +53,6 @@ function PatientTabs({ tabs, selectedTab, onTabChange, showProfile = false }) {
   );
 }
 
-export default PatientTabs;
+// MOBILE OPTIMIZATION: Memoize component to prevent re-renders when props haven't changed
+// This component receives memoized tabs array and handleTabChange callback from parent
+export default React.memo(PatientTabs);
