@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import arrowLeftIcon from '../../assets/mobile/arrow-left.svg';
@@ -42,6 +42,10 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
   const [showPatientSummary, setShowPatientSummary] = useState(true);
   const [typedInput, setTypedInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+
+  const contentRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
 
   const isAmbientMode = mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
 
@@ -108,6 +112,21 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
     }
   };
 
+  const handleScroll = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const st = el.scrollTop;
+    const last = lastScrollTopRef.current;
+    if (st <= 10) {
+      setFloatingBadgeVisible(true);
+    } else if (st > last && st - last > 5) {
+      setFloatingBadgeVisible(false);
+    } else if (st < last && last - st > 5) {
+      setFloatingBadgeVisible(true);
+    }
+    lastScrollTopRef.current = st;
+  }, []);
+
   return (
     <div className="mobile-consultation-summary">
       <div className="mobile-voice-recording-header">
@@ -130,8 +149,10 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
         </div>
       </div>
 
-      <div className="mobile-voice-recording-content">
-        {patient_data && (
+      {patient_data && (
+        <div
+          className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+        >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
             <div className="patient-info-text">
@@ -143,8 +164,10 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
               </span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="mobile-voice-recording-content" ref={contentRef} onScroll={handleScroll}>
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             <img src={imageBackground} alt="AI" className="ai-icon" />

@@ -56,13 +56,39 @@
   }
 }
 
+.patient-info-badge-floating-wrapper {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 0;
+  pointer-events: auto;
+
+  &--hidden {
+    pointer-events: none;
+
+    .patient-info-badge {
+      transform: translateY(-100%);
+    }
+  }
+
+  .patient-info-badge {
+    transition: transform 0.25s ease-out;
+  }
+}
+
 .mobile-voice-rx-content {
   flex: 1;
+  min-height: 0;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 120px;
   width: 100%;
   max-width: 100vw;

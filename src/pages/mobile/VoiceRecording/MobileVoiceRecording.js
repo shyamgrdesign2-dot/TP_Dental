@@ -38,6 +38,10 @@ function MobileVoiceRecording() {
   const [showQuitRecordingModal, setShowQuitRecordingModal] = useState(false);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [showPatientSummary, setShowPatientSummary] = useState(true);
+  const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+
+  const contentRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
 
   const patient_data = location.state?.patient_data || {};
   const mode = location.state?.mode || '';
@@ -420,6 +424,21 @@ function MobileVoiceRecording() {
     setShowPatientSummary(!showPatientSummary);
   };
 
+  const handleScroll = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const st = el.scrollTop;
+    const last = lastScrollTopRef.current;
+    if (st <= 10) {
+      setFloatingBadgeVisible(true);
+    } else if (st > last && st - last > 5) {
+      setFloatingBadgeVisible(false);
+    } else if (st < last && last - st > 5) {
+      setFloatingBadgeVisible(true);
+    }
+    lastScrollTopRef.current = st;
+  }, []);
+
   return (
     <div className="mobile-voice-recording">
       <div className="mobile-voice-recording-header">
@@ -442,8 +461,10 @@ function MobileVoiceRecording() {
         </div>
       </div>
 
-      <div className="mobile-voice-recording-content">
-        {patient_data && (
+      {patient_data && (
+        <div
+          className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+        >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
             <div className="patient-info-text">
@@ -455,8 +476,10 @@ function MobileVoiceRecording() {
               </span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="mobile-voice-recording-content" ref={contentRef} onScroll={handleScroll}>
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             <img src={imageBackground} alt="AI" className="ai-icon" />

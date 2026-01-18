@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
@@ -30,6 +30,10 @@ function MobileVoiceRxConsult() {
   const [consentChecked, setConsentChecked] = useState(true);
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [showPatientSummary, setShowPatientSummary] = useState(true);
+  const [floatingBadgeVisible, setFloatingBadgeVisible] = useState(true);
+
+  const contentRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
 
   // Ensure profile is loaded - dispatch getProfile if missing
   useEffect(() => {
@@ -195,6 +199,21 @@ function MobileVoiceRxConsult() {
     return patient_data.pm_gender;
   };
 
+  const handleScroll = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const st = el.scrollTop;
+    const last = lastScrollTopRef.current;
+    if (st <= 10) {
+      setFloatingBadgeVisible(true);
+    } else if (st > last && st - last > 5) {
+      setFloatingBadgeVisible(false);
+    } else if (st < last && last - st > 5) {
+      setFloatingBadgeVisible(true);
+    }
+    lastScrollTopRef.current = st;
+  }, []);
+
   return (
     <div className="mobile-voice-rx-consult">
       <div className="mobile-voice-rx-header">
@@ -204,8 +223,10 @@ function MobileVoiceRxConsult() {
         <h1 className="header-title">Consultation</h1>
       </div>
 
-      <div className="mobile-voice-rx-content">
-        {patient_data && (
+      {patient_data && (
+        <div
+          className={`patient-info-badge-floating-wrapper ${!floatingBadgeVisible ? 'patient-info-badge-floating-wrapper--hidden' : ''}`}
+        >
           <div className="patient-info-badge">
             <img src={userGrayIcon} alt="User" className="user-icon" />
             <div className="patient-info-text">
@@ -217,8 +238,10 @@ function MobileVoiceRxConsult() {
               </span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+      <div className="mobile-voice-rx-content" ref={contentRef} onScroll={handleScroll}>
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             {/* <i className="icon-ddx" /> */}
