@@ -4,7 +4,6 @@ import { Input, AutoComplete } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
 import { removeBeforeWhiteSpace } from '../../utils/utils';
-import symptomsIcon from '../../assets/images/Symptoms.svg';
 import examinationIcon from '../../assets/images/Examination.svg';
 import diagnosisIcon from '../../assets/images/Diagnosis.svg';
 import vitalsIcon from '../../assets/images/Vitals.svg';
@@ -25,7 +24,6 @@ import logoutIcon from '../../assets/mobile/logout.svg';
 // Rich Text Editor Components
 import VitalsRichTextEditor from '../VitalsRichTextEditor';
 import MedicalHistoryRichTextEditor from '../MedicalHistoryRichTextEditor';
-import SymptomsRichTextEditor from '../SymptomsRichTextEditor';
 import ExaminationRichTextEditor from '../ExaminationRichTextEditor';
 import DiagnosisRichTextEditor from '../DiagnosisRichTextEditor';
 import LabResultsRichTextEditor from '../LabResultsRichTextEditor';
@@ -35,6 +33,7 @@ import FollowUpRichTextEditor from '../FollowUpRichTextEditor';
 import AdditionalNotesRichTextEditor from '../AdditionalNotesRichTextEditor';
 import CustomModuleRichTextEditor from '../CustomModuleRichTextEditor';
 import LabInvestigationEditSheet from './LabInvestigationEditSheet';
+import SymptomsRichTextEditor from '../SymptomsRichTextEditor';
 import './MobileRxPadContent.scss';
 
 const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false }) => {
@@ -126,12 +125,13 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
   };
 
-  // Handle edit: opens section-specific edit sheet/modal (Phase 1: labInvestigation)
+  // Handle edit: opens section-specific edit sheet (Phase 1: labInvestigation)
+  // Symptoms: edited inline via SymptomsRichTextEditor (same as web)
   const handleEdit = (section, index) => {
     if (section === 'labInvestigation') {
       setLabInvestigationEdit({ visible: true, index });
     }
-    // TODO: symptoms, medications, medicalHistory, others in Phase 1
+    // TODO: medications, medicalHistory, others in Phase 1
   };
 
   const handleLabInvestigationSave = (value) => {
@@ -208,49 +208,6 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             </div>
           )}
         </div>
-      </div>
-    );
-  };
-
-  // Render Symptoms - Format: "Name (Severity, Duration, Notes)" with Delete
-  const renderSymptoms = (symptoms) => {
-    if (!Array.isArray(symptoms) || symptoms.length === 0) return null;
-    
-    return (
-      <div className="symptoms-list">
-        {symptoms.map((symptom, index) => {
-          const name = symptom?.name || symptom?.lineItem || symptom;
-          const severity = symptom?.severity;
-          const duration = symptom?.duration;
-          const notes = symptom?.notes;
-          
-          const metaParts = [severity, duration, notes].filter(Boolean);
-          const displayText = metaParts.length > 0 
-            ? `${name} (${metaParts.join(', ')})`
-            : name;
-          
-          return (
-            <div key={index} className="symptom-item-with-actions">
-              <span className="symptom-text">{displayText}</span>
-              <div className="item-actions">
-                <button 
-                  type="button"
-                  className="action-btn edit-btn"
-                  onClick={() => handleEdit('symptoms', index)}
-                >
-                  <img src={editIcon} alt="Edit" />
-                </button>
-                <button 
-                  type="button"
-                  className="action-btn delete-btn"
-                  onClick={() => handleDelete('symptoms', index)}
-                >
-                  <img src={deleteIcon} alt="Delete" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
       </div>
     );
   };
@@ -730,11 +687,12 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         />
       )}
 
-      {(prescriptionData?.symptoms && 
-        Array.isArray(prescriptionData.symptoms) && 
+      {/* Symptoms - inline rich text editor (same as web, no bottom sheet). Visibility matches DigitisedPrescription: only when has content. */}
+      {(prescriptionData?.symptoms &&
+        Array.isArray(prescriptionData.symptoms) &&
         prescriptionData.symptoms.length > 0) && (
         <SymptomsRichTextEditor
-          symptoms={prescriptionData?.symptoms || []}
+          symptoms={prescriptionData.symptoms}
           onUpdate={handleSymptomsUpdate}
           isProcessing={isProcessing}
         />

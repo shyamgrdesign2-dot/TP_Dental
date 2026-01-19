@@ -51,10 +51,16 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     consent,
     existingPrescriptionData, // For merging with new data
     existingGenRxDetails, // To check if updating existing Rx
+    fromEndVisitEdit, // Edit from End Visit: always re-fetch getGenRx, never use stale existingData
   } = state || {};
 
-  // Check if we're in "review mode" (just viewing existing data, no new input)
-  const isReviewMode = !audioBlobFromLocation && !inputTextFromLocation && existingData?.prescriptionData;
+  // Check if we're in "review mode" (just viewing existing data, no new input).
+  // When fromEndVisitEdit: never use existingData (it can be stale); we will re-fetch via load-on-edit.
+  const isReviewMode =
+    !audioBlobFromLocation &&
+    !inputTextFromLocation &&
+    existingData?.prescriptionData &&
+    !fromEndVisitEdit;
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(false);
@@ -142,14 +148,15 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   // Load existing Voice RX when opening for Edit or Repeat (caseManagerData.smart_prescription_filename, no new audio/input).
   // Matches web ConsultationDrawer getGenRxDetails: getGenRx -> optionally getAmbientRx -> parse -> setPrescriptionData, genRxDetails.
   // For Repeat (tcm_id 0): web also loads the old Rx; we match that behavior.
+  // When fromEndVisitEdit: always re-fetch (do not skip) so we get the latest saved data (e.g. updated symptoms/lab) from getGenRx.
   useEffect(() => {
     if (!visible) return;
     const id = caseManagerData?.smart_prescription_filename;
     if (!id || typeof id !== 'string' || !String(id).trim()) return;
     if (audioBlobFromLocation) return;
     if (inputTextFromLocation && typeof inputTextFromLocation === 'string' && inputTextFromLocation.trim().length > 0) return;
-    if (existingData?.prescriptionData) return; // review mode: already have data
-    if (hasLoadedForEditRef.current === id) return;
+    if (existingData?.prescriptionData && !fromEndVisitEdit) return; // review mode: already have data; fromEndVisitEdit: always re-fetch
+    if (hasLoadedForEditRef.current === id && !fromEndVisitEdit) return; // avoid duplicate fetch; fromEndVisitEdit: always re-fetch
 
     let cancelled = false;
     const run = async () => {
@@ -292,6 +299,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     audioBlobFromLocation,
     inputTextFromLocation,
     existingData?.prescriptionData,
+    fromEndVisitEdit,
   ]);
 
   // Auto-submit effect - matches web version: allows subsequent inputs (no prescriptionData check)
