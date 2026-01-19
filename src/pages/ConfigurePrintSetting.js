@@ -146,10 +146,10 @@ function ConfigurePrintSetting() {
         fileSignature, 
         setFileSignature, 
         medicalHistoryCheckboxOptions, 
-        labParamsData, 
-        zydusSelectedLabParams, 
-        hospitalSearchResults,
+        labParamsData,
+        zydusSelectedLabParams,
         customModules,
+        hospitalSearchResults, 
         carePlanAssignments,
         isVoiceAmbientRx: mergedCaseManagerData?.isVoiceAmbientRx || false
     };

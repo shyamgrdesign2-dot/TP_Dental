@@ -1132,7 +1132,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }
                                         
                                         // Find module definition to check version
-                                        const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
+                                        const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id) || (m.origin_id === customModule.module_id) );
                                         const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
                                         
                                         if (isV2) {
@@ -1181,10 +1181,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             return false;
                         };
                         return printSettings?.prescription?.case_option?.map((option, index) => {
-                            let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                            if(customModule) {
-                                customModule = { ...customModule, name: getCustomModuleName(option?.id) };
-                            }
+                            const customModule = caseManagerData?.moduleContents?.find(e => {
+                                return e.module_id === option?.id
+                            });
+
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
                                 if (isLastPageBreak) {
@@ -1211,32 +1211,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             
                             const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
                             
-                            // Check if this is a custom module and if it has data
-                            const hasCustomModuleData = (() => {
-                                if (option?.is_custom_module !== true || !customModule?.content) {
-                                    return false;
-                                }
+                            // // Check if this is a custom module and if it has data
+                            // const hasCustomModuleData = (() => {
+                            //     if (option?.is_custom_module !== true || !customModule?.content) {
+                            //         return false;
+                            //     }
                                 
-                                // Find module definition to check version
-                                const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id || m.module_id === customModule.origin_id) );
-                                const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                            //     // Find module definition to check version
+                            //     const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id || m.origin_id === customModule.origin_id) );
+                            //     const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
                                 
-                                if (isV2) {
-                                    // V2: Check if any named field has content
-                                    const namedFields = moduleDefinition.namedFields;
-                                    return customModule.content.some((item) => 
-                                        namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
-                                    );
-                                } else {
-                                    // V1: Check for title or notes
-                                    return customModule.content.some((item) => item?.title || item?.notes);
-                                }
-                            })();
+                            //     if (isV2) {
+                            //         // V2: Check if any named field has content
+                            //         const namedFields = moduleDefinition.namedFields;
+                            //         return customModule.content.some((item) => 
+                            //             namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
+                            //         );
+                            //     } else {
+                            //         // V1: Check for title or notes
+                            //         return customModule.content.some((item) => item?.title || item?.notes);
+                            //     }
+                            // })();
                             
-                            // Skip rendering if it's a custom module with no data
-                            if (option?.is_custom_module === true && !hasCustomModuleData) {
-                                return null;
-                            }
+                            // // Skip rendering if it's a custom module with no data
+                            // if (option?.is_custom_module === true && !hasCustomModuleData) {
+                            //     return null;
+                            // }
                             
                             return (
                                 <View key={option.id} style={{
@@ -5810,28 +5810,31 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.length > 0 ? (
                                     (() => {
-                                        // Find module definition to check if it's V2
-                                        const moduleDefinition = customModules?.find(m => m.module_id === customModule.module_id);
-                                        const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
-                                        const namedFields = moduleDefinition?.namedFields || [];
+                                        // Check if this is V2 module directly from customModule
+                                        const isV2 = customModule?.module_version === 'v2';
+                                        
+                                        // Get field names directly from the first content item (if v2)
+                                        const getFieldKeys = (item) => {
+                                            if (!item || typeof item !== 'object') return [];
+                                            // Exclude 'id' and any other non-field keys
+                                            return Object.keys(item).filter(key => key !== 'id');
+                                        };
+                                        
+                                        // Get field keys from first content item (for v2)
+                                        const fieldKeys = isV2 && customModule?.content?.length > 0 
+                                            ? getFieldKeys(customModule.content[0]) 
+                                            : [];
 
                                         // Helper to check if V2 content has any data
                                         const hasV2Content = (item) => {
                                             if (!isV2) return false;
-                                            return namedFields.some(field => item[field.fieldName]?.trim?.().length > 0);
+                                            return fieldKeys.some(fieldKey => item[fieldKey]?.trim?.().length > 0);
                                         };
 
                                         // Helper to check if V1 content has any data
                                         const hasV1Content = (item) => {
                                             return item.title || item.notes;
                                         };
-
-                                        // Check if content has data
-                                        const hasContent = isV2 
-                                            ? customModule?.content?.some(hasV2Content)
-                                            : customModule?.content?.some(hasV1Content);
-
-                                        if (!hasContent) return null;
 
                                         // Render based on format
                                         if (option?.format === 'inline') {
@@ -5841,11 +5844,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content?.map((item, i) => {
                                                         if (isV2) {
-                                                            // V2: Render all named fields with labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
-                                                            const fieldEntries = namedFields
-                                                                .map(field => ({
-                                                                    label: field.fieldLabel,
-                                                                    value: item[field.fieldName]
+                                                            // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
+                                                            const fieldEntries = fieldKeys
+                                                                .map(fieldKey => ({
+                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
                                                             
@@ -5895,11 +5898,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
                                                     {customModule?.content.map((item, i) => {
                                                         if (isV2) {
-                                                            // V2: Render all named fields in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
-                                                            const fieldEntries = namedFields
-                                                                .map(field => ({
-                                                                    label: field.fieldLabel,
-                                                                    value: item[field.fieldName]
+                                                            // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
+                                                            const fieldEntries = fieldKeys
+                                                                .map(fieldKey => ({
+                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
                                                             
@@ -5948,11 +5951,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{moduleName}:&nbsp;</Text>
                                                     <View style={styles.table}>
                                                         <View style={styles.headerRowFixed} fixed/>
-                                                        {isV2 && (
-                                                            // V2: Render column headers with field labels
+                                                        {customModule.module_version === "v2" && (
+                                                            // V2: Render column headers with field keys
                                                             <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                {namedFields.map((field, idx) => {
-                                                                    const flexPerColumn = 1 / namedFields.length;
+                                                                {fieldKeys.map((fieldKey, idx) => {
+                                                                    const flexPerColumn = 1 / fieldKeys.length;
                                                                     return (
                                                                         <Text 
                                                                             key={idx}
@@ -5961,24 +5964,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                 { 
                                                                                     flex: flexPerColumn, 
                                                                                     color: '#171725', 
-                                                                                    fontFamily: getIndianLanguageFont(field.fieldLabel, printSettings?.page_format?.font_family), 
+                                                                                    fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
                                                                                     fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
                                                                                     fontWeight: 700,
                                                                                     textTransform: 'uppercase'
                                                                                 }
                                                                             ]}
                                                                         >
-                                                                            {field.fieldLabel.toUpperCase()}&nbsp;
+                                                                            {fieldKey.toUpperCase()}&nbsp;
                                                                         </Text>
                                                                     );
                                                                 })}
                                                             </View>
                                                         )}
                                                         {customModule?.content.map((item, i) => {
-                                                            if (isV2) {
-                                                                // V2: Render all named fields in columns
-                                                                const fieldValues = namedFields.map(field => item[field.fieldName] || '-');
-                                                                const flexPerColumn = 1 / namedFields.length;
+                                                            if (customModule.module_version === "v2") {
+
+                                                                // V2: Render all fields in columns using fieldKeys from content
+                                                                const fieldValues = fieldKeys.map(fieldKey => item[fieldKey] || '-');
+                                                                const flexPerColumn = 1 / fieldKeys.length;
                                                                 
                                                                 return (
                                                                     <View style={styles.row} key={i} wrap={false}>
