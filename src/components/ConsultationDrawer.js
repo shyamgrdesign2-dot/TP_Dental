@@ -5021,8 +5021,8 @@ const ConsultationDrawer = ({
                   <div className={styles.modeIndicator}>
                     {isAmbientMode ? (
                       <>
-                        <img src={ambientActiveIcon} alt="Ambient mode" className={styles.modeIcon} />
-                        <span className={styles.modeText}>Ambient Mode</span>
+                        <img src={ambientActiveIcon} alt="Conversation mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Coversation Mode</span>
                       </>
                     ) : (
                       <>
