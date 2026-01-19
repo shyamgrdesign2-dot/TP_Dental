@@ -11,7 +11,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
 Sentry.init({
-  dsn: "https://e217b496cfe26ddc7d834f74ad8ff89c@o4509909105508352.ingest.us.sentry.io/4509910041231360",
+  dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
   sendDefaultPii: true,
   environment: process.env.REACT_APP_ENV,
   beforeSend(event) {
