@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Input, AutoComplete } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
+import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
 import { removeBeforeWhiteSpace } from '../../utils/utils';
 import examinationIcon from '../../assets/images/Examination.svg';
 import diagnosisIcon from '../../assets/images/Diagnosis.svg';
@@ -33,18 +34,24 @@ import FollowUpRichTextEditor from '../FollowUpRichTextEditor';
 import AdditionalNotesRichTextEditor from '../AdditionalNotesRichTextEditor';
 import CustomModuleRichTextEditor from '../CustomModuleRichTextEditor';
 import LabInvestigationEditSheet from './LabInvestigationEditSheet';
+import MedicationEditSheet from './MedicationEditSheet';
+import AddCustomMedicineSheet from './AddCustomMedicineSheet';
 import SymptomsRichTextEditor from '../SymptomsRichTextEditor';
 import './MobileRxPadContent.scss';
 
 const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false }) => {
   const dispatch = useDispatch();
   const { parentOptionsList = [] } = useSelector((state) => state.investigation);
+  const { parentOptionsList: medicationParentList = [] } = useSelector((state) => state.medication);
   const labSearchDebounceRef = useRef(null);
+  const medicationSearchDebounceRef = useRef(null);
 
   const [expandedGroups, setExpandedGroups] = useState(new Set(['MEDICAL CONDITIONS', 'ALLERGY', 'FAMILY HISTORY', 'LIFESTYLE', 'ADDITIONAL NOTES']));
   const [medicationSearch, setMedicationSearch] = useState('');
   const [labInvestigationSearch, setLabInvestigationSearch] = useState('');
   const [labInvestigationEdit, setLabInvestigationEdit] = useState({ visible: false, index: -1 });
+  const [medicationEdit, setMedicationEdit] = useState({ visible: false, index: -1, prefillName: null, prefillMetadata: null });
+  const [addCustomMedicine, setAddCustomMedicine] = useState({ visible: false, initialName: '' });
 
   // Web-like: empty -> FREQUENTLY USED; typing -> debounced searchInvestigation
   useEffect(() => {
@@ -59,6 +66,20 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }, 500);
     return () => { if (labSearchDebounceRef.current) clearTimeout(labSearchDebounceRef.current); };
   }, [labInvestigationSearch, dispatch]);
+
+  // Medication: empty -> getFrequentlySearchedMedication; typing -> debounced searchMedication (same as web)
+  useEffect(() => {
+    if (medicationSearchDebounceRef.current) clearTimeout(medicationSearchDebounceRef.current);
+    const q = (medicationSearch || '').trim();
+    if (!q) {
+      dispatch(getFrequentlySearchedMedication());
+      return;
+    }
+    medicationSearchDebounceRef.current = setTimeout(() => {
+      dispatch(searchMedication({ searchQuery: q, type: 'parent' }));
+    }, 500);
+    return () => { if (medicationSearchDebounceRef.current) clearTimeout(medicationSearchDebounceRef.current); };
+  }, [medicationSearch, dispatch]);
 
   // Options: parentOptionsList + "FREQUENTLY USED" when empty + "Add as custom" when no match (match web)
   const labInvestigationOptions = useMemo(() => {
@@ -79,6 +100,28 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
     return opts;
   }, [parentOptionsList, labInvestigationSearch]);
+
+  const medicationOptions = useMemo(() => {
+    const list = Array.isArray(medicationParentList) ? medicationParentList : [];
+    const q = (medicationSearch || '').trim();
+    const opts = [];
+    if (q.length === 0) {
+      opts.push({ key: -1, value: '', label: 'SUGGESTED', disabled: true });
+    }
+    list.filter((m) => m && (m.tmm_medicine_name || m.medicine_name)).forEach((m) => {
+      const nm = m.tmm_medicine_name || m.medicine_name;
+      opts.push({ key: JSON.stringify(m), value: nm, label: nm });
+    });
+    if (q.length > 0) {
+      const exact = list.some(
+        (m) => (m.tmm_medicine_name || m.medicine_name || '').toLowerCase().trim() === q.toLowerCase()
+      );
+      if (!exact) {
+        opts.push({ key: JSON.stringify({ tmm_id: 0, tmm_medicine_name: q }), value: q, label: `Add "${q}" as custom` });
+      }
+    }
+    return opts;
+  }, [medicationParentList, medicationSearch]);
 
   // Toggle medical history group expansion
   const toggleGroup = (groupName) => {
@@ -125,13 +168,14 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
   };
 
-  // Handle edit: opens section-specific edit sheet (Phase 1: labInvestigation)
-  // Symptoms: edited inline via SymptomsRichTextEditor (same as web)
+  // Handle edit: opens section-specific edit sheet (labInvestigation, medications)
   const handleEdit = (section, index) => {
     if (section === 'labInvestigation') {
       setLabInvestigationEdit({ visible: true, index });
     }
-    // TODO: medications, medicalHistory, others in Phase 1
+    if (section === 'medications') {
+      setMedicationEdit({ visible: true, index, prefillName: null, prefillMetadata: null });
+    }
   };
 
   const handleLabInvestigationSave = (value) => {
@@ -152,6 +196,38 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     onUpdate({ ...prescriptionData, labInvestigation: arr });
     setLabInvestigationEdit({ visible: false, index: -1 });
   };
+
+  const handleMedicationSave = (value) => {
+    if (!onUpdate) return;
+    const arr = [...(prescriptionData?.medications || [])];
+    const i = medicationEdit.index;
+    if (i >= 0 && i < arr.length) {
+      arr[i] = { ...arr[i], ...value };
+    } else {
+      arr.push(value);
+    }
+    onUpdate({ ...prescriptionData, medications: arr });
+    setMedicationEdit({ visible: false, index: -1, prefillName: null, prefillMetadata: null });
+    setMedicationSearch('');
+  };
+
+  const handleMedicationAddFromSearch = useCallback((value, option) => {
+    if (!option?.key || option.key === -1 || option.key === '-1') return;
+    try {
+      const parsed = JSON.parse(option.key);
+      const name = parsed?.tmm_medicine_name || parsed?.medicine_name || value;
+      if (parsed?.tmm_id === 0) {
+        setAddCustomMedicine({ visible: true, initialName: name });
+        setMedicationSearch('');
+        return;
+      }
+      setMedicationEdit({ visible: true, index: -1, prefillName: name, prefillMetadata: parsed });
+      setMedicationSearch('');
+    } catch {
+      setMedicationEdit({ visible: true, index: -1, prefillName: value, prefillMetadata: null });
+      setMedicationSearch('');
+    }
+  }, []);
 
   // Web-like: onSelect from search adds to list inline (no Add sheet)
   const handleLabInvestigationAddFromSearch = useCallback((value, option) => {
@@ -277,38 +353,36 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     );
   };
 
-  // Render Medications with Edit/Delete
+  // Render Medications: card list (Edit/Delete) + AutoComplete to add via bottom sheet. UX like Lab Investigation; functionality matches web.
   const renderMedications = (medications) => {
-    if (!Array.isArray(medications) || medications.length === 0) return null;
-    
+    const list = Array.isArray(medications) ? medications : [];
     return (
       <div className="medications-list">
-        {medications.map((med, index) => {
+        {list.map((med, index) => {
           const name = med?.name || med?.lineItem;
           const dosage = med?.dosage;
           const frequency = med?.frequency;
+          const schedule = med?.schedule;
           const duration = med?.duration;
-          const route = med?.route;
-          const instructions = med?.instructions;
-          
-          const details = [dosage, frequency, duration, route].filter(Boolean).join(' | ');
-          
+          const quantity = med?.quantity;
+          const notes = med?.notes || med?.instructions;
+          const details = [dosage, frequency, schedule, duration, quantity != null && quantity !== '' ? `Qty: ${quantity}` : null].filter(Boolean).join(' | ');
           return (
-            <div key={index} className="medication-card">
+            <div key={med?.id || index} className="medication-card">
               <div className="med-content">
                 <div className="med-name">{name}</div>
                 {details && <div className="med-details">{details}</div>}
-                {instructions && <div className="med-instructions">{instructions}</div>}
+                {notes && <div className="med-instructions">{notes}</div>}
               </div>
               <div className="med-actions">
-                <button 
+                <button
                   type="button"
                   className="action-btn edit-btn"
                   onClick={() => handleEdit('medications', index)}
                 >
                   <img src={editIcon} alt="Edit" />
                 </button>
-                <button 
+                <button
                   type="button"
                   className="action-btn delete-btn"
                   onClick={() => handleDelete('medications', index)}
@@ -319,16 +393,21 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             </div>
           );
         })}
-        <Input.Search
-          placeholder="Search & Add Medicine"
-          allowClear
+        <AutoComplete
           value={medicationSearch}
-          onChange={(e) => setMedicationSearch(e.target.value)}
-          onSearch={(value) => {
-            // TODO: Handle medication search/add
-          }}
-          className="search-input"
-        />
+          onSearch={(v) => setMedicationSearch(removeBeforeWhiteSpace(v))}
+          onSelect={handleMedicationAddFromSearch}
+          options={medicationOptions}
+          defaultActiveFirstOption
+          getPopupContainer={() => document.body}
+          className="search-input medication-autocomplete"
+        >
+          <Input
+            placeholder="Search by Medication Name"
+            prefix={<SearchOutlined className="lab-search-icon" />}
+            allowClear
+          />
+        </AutoComplete>
       </div>
     );
   };
@@ -719,7 +798,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
       )}
 
       {/* Table Sections - Keep Current Implementation */}
-      {renderSection('Medication [Rx]', medicationIcon, prescriptionData?.medications, renderMedications)}
+      {renderSection('Medication [Rx]', medicationIcon, prescriptionData?.medications, renderMedications, null, true)}
       {renderSection('Lab Investigation', labIcon, prescriptionData?.labInvestigation, renderLabInvestigation, null, true)}
 
       {/* Rich Text Editor Sections - Continued */}
@@ -845,6 +924,30 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         onClose={() => setLabInvestigationEdit({ visible: false, index: -1 })}
         item={labInvestigationEdit.index >= 0 ? prescriptionData?.labInvestigation?.[labInvestigationEdit.index] : undefined}
         onSave={handleLabInvestigationSave}
+      />
+
+      <MedicationEditSheet
+        visible={medicationEdit.visible}
+        onClose={() => setMedicationEdit({ visible: false, index: -1, prefillName: null, prefillMetadata: null })}
+        item={medicationEdit.index >= 0 ? prescriptionData?.medications?.[medicationEdit.index] : undefined}
+        prefillName={medicationEdit.prefillName}
+        prefillMetadata={medicationEdit.prefillMetadata}
+        onSave={handleMedicationSave}
+      />
+
+      <AddCustomMedicineSheet
+        visible={addCustomMedicine.visible}
+        onClose={() => setAddCustomMedicine({ visible: false, initialName: '' })}
+        initialData={addCustomMedicine.initialName ? { tmm_medicine_name: addCustomMedicine.initialName } : null}
+        onSuccess={(added) => {
+          setAddCustomMedicine({ visible: false, initialName: '' });
+          setMedicationEdit({
+            visible: true,
+            index: -1,
+            prefillName: added?.tmm_medicine_name || added?.medicine_name || '',
+            prefillMetadata: added || null,
+          });
+        }}
       />
     </div>
   );
