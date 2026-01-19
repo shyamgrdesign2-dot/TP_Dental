@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Input } from 'antd';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Input, AutoComplete } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
+import { removeBeforeWhiteSpace } from '../../utils/utils';
 import symptomsIcon from '../../assets/images/Symptoms.svg';
 import examinationIcon from '../../assets/images/Examination.svg';
 import diagnosisIcon from '../../assets/images/Diagnosis.svg';
@@ -13,8 +17,9 @@ import gynecHistoryIcon from '../../assets/images/obstetric-dark.svg';
 import obstetricHistoryIcon from '../../assets/images/obstetric-dark.svg';
 import surgeryIcon from '../../assets/images/surgery.svg';
 import vaccinationIcon from '../../assets/images/Vaccination.svg';
-import editIcon from '../../assets/images/edit-icon-blue.svg';
-import deleteIcon from '../../assets/images/delete-icon-blue.svg';
+// import editIcon from '../../assets/images/edit-icon-blue.svg';
+import editIcon from '../../assets/mobile/edit.svg';
+import deleteIcon from '../../assets/images/Delete.svg';
 import frameIcon from '../../assets/mobile/Frame_3.svg';
 import logoutIcon from '../../assets/mobile/logout.svg';
 // Rich Text Editor Components
@@ -29,14 +34,52 @@ import VaccinationsRichTextEditor from '../VaccinationsRichTextEditor';
 import FollowUpRichTextEditor from '../FollowUpRichTextEditor';
 import AdditionalNotesRichTextEditor from '../AdditionalNotesRichTextEditor';
 import CustomModuleRichTextEditor from '../CustomModuleRichTextEditor';
+import LabInvestigationEditSheet from './LabInvestigationEditSheet';
 import './MobileRxPadContent.scss';
 
-const { Search } = Input;
-
 const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false }) => {
+  const dispatch = useDispatch();
+  const { parentOptionsList = [] } = useSelector((state) => state.investigation);
+  const labSearchDebounceRef = useRef(null);
+
   const [expandedGroups, setExpandedGroups] = useState(new Set(['MEDICAL CONDITIONS', 'ALLERGY', 'FAMILY HISTORY', 'LIFESTYLE', 'ADDITIONAL NOTES']));
   const [medicationSearch, setMedicationSearch] = useState('');
   const [labInvestigationSearch, setLabInvestigationSearch] = useState('');
+  const [labInvestigationEdit, setLabInvestigationEdit] = useState({ visible: false, index: -1 });
+
+  // Web-like: empty -> FREQUENTLY USED; typing -> debounced searchInvestigation
+  useEffect(() => {
+    if (labSearchDebounceRef.current) clearTimeout(labSearchDebounceRef.current);
+    const q = (labInvestigationSearch || '').trim();
+    if (!q) {
+      dispatch(getFrequentlySearchedInvestigation());
+      return;
+    }
+    labSearchDebounceRef.current = setTimeout(() => {
+      dispatch(searchInvestigation({ searchQuery: q, type: 'parent' }));
+    }, 500);
+    return () => { if (labSearchDebounceRef.current) clearTimeout(labSearchDebounceRef.current); };
+  }, [labInvestigationSearch, dispatch]);
+
+  // Options: parentOptionsList + "FREQUENTLY USED" when empty + "Add as custom" when no match (match web)
+  const labInvestigationOptions = useMemo(() => {
+    const list = Array.isArray(parentOptionsList) ? parentOptionsList : [];
+    const q = (labInvestigationSearch || '').trim();
+    const opts = [];
+    if (q.length === 0) {
+      opts.push({ key: -1, value: '', label: 'FREQUENTLY USED', disabled: true });
+    }
+    list.filter((inv) => inv && inv.investigation_name).forEach((inv, idx) => {
+      opts.push({ key: JSON.stringify({ ...inv, _i: idx }), value: inv.investigation_name, label: inv.investigation_name });
+    });
+    if (q.length > 0) {
+      const exact = list.some((inv) => (inv.investigation_name || '').toLowerCase().trim() === q.toLowerCase());
+      if (!exact) {
+        opts.push({ key: JSON.stringify({ change: 1, investigation_name: q }), value: q, label: `Add "${q}" as custom` });
+      }
+    }
+    return opts;
+  }, [parentOptionsList, labInvestigationSearch]);
 
   // Toggle medical history group expansion
   const toggleGroup = (groupName) => {
@@ -83,18 +126,71 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
   };
 
-  // Handle edit (quirk edit)
+  // Handle edit: opens section-specific edit sheet/modal (Phase 1: labInvestigation)
   const handleEdit = (section, index) => {
-    // TODO: Open edit modal/bottom sheet
+    if (section === 'labInvestigation') {
+      setLabInvestigationEdit({ visible: true, index });
+    }
+    // TODO: symptoms, medications, medicalHistory, others in Phase 1
   };
 
-  // Render Section Component
-  const renderSection = (title, icon, data, renderContent, headerActions = null) => {
-    if (!data || (Array.isArray(data) && data.length === 0) || 
-        (typeof data === 'object' && Object.keys(data).length === 0) ||
-        (typeof data === 'string' && !data.trim())) {
-      return null;
+  const handleLabInvestigationSave = (value) => {
+    if (!onUpdate) return;
+    const arr = [...(prescriptionData?.labInvestigation || [])];
+    const i = labInvestigationEdit.index;
+    if (i < 0 || i >= arr.length) return;
+    const existing = arr[i] && typeof arr[i] === 'object' ? arr[i] : { name: arr[i], lineItem: arr[i] };
+    arr[i] = {
+      ...existing,
+      name: value.name,
+      lineItem: value.name,
+      notes: value.notes || '',
+      instruction: value.notes || '',
+      ...(value.hm_type !== undefined && { hm_type: value.hm_type }),
+      ...(value.um_id !== undefined && { um_id: value.um_id }),
+    };
+    onUpdate({ ...prescriptionData, labInvestigation: arr });
+    setLabInvestigationEdit({ visible: false, index: -1 });
+  };
+
+  // Web-like: onSelect from search adds to list inline (no Add sheet)
+  const handleLabInvestigationAddFromSearch = useCallback((value, option) => {
+    if (!onUpdate || !option?.key || option.key === -1 || option.key === '-1' || option.key === '-2') return;
+    try {
+      const parsed = JSON.parse(option.key);
+      const name = parsed?.change === 1 ? (parsed.investigation_name || value) : (parsed?.investigation_name || value);
+      const newItem = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name,
+        lineItem: name,
+        notes: '',
+        instruction: '',
+        ...(parsed?.change !== 1 && parsed?.hm_type !== undefined && { hm_type: parsed.hm_type }),
+        ...(parsed?.change !== 1 && parsed?.um_id !== undefined && { um_id: parsed.um_id }),
+      };
+      const arr = [...(prescriptionData?.labInvestigation || []), newItem];
+      onUpdate({ ...prescriptionData, labInvestigation: arr });
+      setLabInvestigationSearch('');
+    } catch {
+      const newItem = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        name: value,
+        lineItem: value,
+        notes: '',
+        instruction: '',
+      };
+      const arr = [...(prescriptionData?.labInvestigation || []), newItem];
+      onUpdate({ ...prescriptionData, labInvestigation: arr });
+      setLabInvestigationSearch('');
     }
+  }, [onUpdate, prescriptionData]);
+
+  // Render Section Component. showWhenEmpty: when true, still render (e.g. Lab Investigation with Add)
+  const renderSection = (title, icon, data, renderContent, headerActions = null, showWhenEmpty = false) => {
+    const isEmpty = !data || (Array.isArray(data) && data.length === 0) ||
+      (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0) ||
+      (typeof data === 'string' && !data.trim());
+    if (isEmpty && !showWhenEmpty) return null;
 
     return (
       <div className="rx-section-card">
@@ -266,7 +362,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             </div>
           );
         })}
-        <Search
+        <Input.Search
           placeholder="Search & Add Medicine"
           allowClear
           value={medicationSearch}
@@ -280,31 +376,32 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     );
   };
 
-  // Render Lab Investigation with Edit/Delete
+  // Render Lab Investigation: list (Edit/Delete) + search. Web-like: type → FREQUENTLY USED / results → onSelect adds inline.
   const renderLabInvestigation = (labInvestigation) => {
-    if (!Array.isArray(labInvestigation) || labInvestigation.length === 0) return null;
-    
+    const list = Array.isArray(labInvestigation) ? labInvestigation : [];
+
     return (
       <div className="lab-investigation-list">
-        {labInvestigation.map((item, index) => {
+        {list.map((item, index) => {
           const name = typeof item === 'string' ? item : item?.name || item?.lineItem;
           const notes = item?.notes;
-          
+
           return (
-            <div key={index} className="lab-investigation-card">
+            <div key={item?.id || index} className="lab-investigation-card">
               <div className="lab-content">
                 <div className="lab-name">{name}</div>
                 {notes && <div className="lab-notes">Note: {notes}</div>}
               </div>
+              <span className="lab-actions-divider" aria-hidden />
               <div className="lab-actions">
-                <button 
+                <button
                   type="button"
                   className="action-btn edit-btn"
                   onClick={() => handleEdit('labInvestigation', index)}
                 >
                   <img src={editIcon} alt="Edit" />
                 </button>
-                <button 
+                <button
                   type="button"
                   className="action-btn delete-btn"
                   onClick={() => handleDelete('labInvestigation', index)}
@@ -315,16 +412,21 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             </div>
           );
         })}
-        <Search
-          placeholder="Search & Add Lab Investigation"
-          allowClear
+        <AutoComplete
           value={labInvestigationSearch}
-          onChange={(e) => setLabInvestigationSearch(e.target.value)}
-          onSearch={(value) => {
-            // TODO: Handle lab investigation search/add
-          }}
-          className="search-input"
-        />
+          onSearch={(v) => setLabInvestigationSearch(removeBeforeWhiteSpace(v))}
+          onSelect={handleLabInvestigationAddFromSearch}
+          options={labInvestigationOptions}
+          defaultActiveFirstOption
+          getPopupContainer={() => document.body}
+          className="search-input lab-investigation-autocomplete"
+        >
+          <Input
+            placeholder="Search by Investigation Name"
+            prefix={<SearchOutlined className="lab-search-icon" />}
+            allowClear
+          />
+        </AutoComplete>
       </div>
     );
   };
@@ -660,7 +762,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
 
       {/* Table Sections - Keep Current Implementation */}
       {renderSection('Medication [Rx]', medicationIcon, prescriptionData?.medications, renderMedications)}
-      {renderSection('Lab Investigation', labIcon, prescriptionData?.labInvestigation, renderLabInvestigation)}
+      {renderSection('Lab Investigation', labIcon, prescriptionData?.labInvestigation, renderLabInvestigation, null, true)}
 
       {/* Rich Text Editor Sections - Continued */}
       {(prescriptionData?.labResults && 
@@ -778,6 +880,14 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
           <span>End Visit</span>
         </button>
       </div>
+
+      {/* Phase 1: Lab Investigation Edit Sheet */}
+      <LabInvestigationEditSheet
+        visible={labInvestigationEdit.visible}
+        onClose={() => setLabInvestigationEdit({ visible: false, index: -1 })}
+        item={labInvestigationEdit.index >= 0 ? prescriptionData?.labInvestigation?.[labInvestigationEdit.index] : undefined}
+        onSave={handleLabInvestigationSave}
+      />
     </div>
   );
 };

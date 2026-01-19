@@ -151,6 +151,13 @@ function MobileEndVisitScreen({
     setPrintBlob(blob);
   }
 
+  // Build caseManagerData for navigate: ensure smart_prescription_filename is set so
+  // load-on-edit in MobileRxPad can fetch the correct Gen Rx (getGenRx(id)) and show updated data.
+  const buildCaseManagerForEdit = (cm) => ({
+    ...cm,
+    smart_prescription_filename: cm?.smart_prescription_filename || genRxDetails?._id,
+  });
+
   // Edit handler (same as web version)
   const handleEdit = async () => {
     if (!viewCaseManagerData && tcm_id && patient_data?.patient_unique_id) {
@@ -162,17 +169,16 @@ function MobileEndVisitScreen({
         };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === 'fulfilled' && action.payload) {
-          // Set active voice service (same as web version)
           if (isAmbientRx) {
             window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
           } else {
             window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
           }
-          
           navigate('/prescription', {
             state: {
               patient_data,
-              caseManagerData: action.payload,
+              caseManagerData: buildCaseManagerForEdit(action.payload),
+              fromEndVisitEdit: true,
             },
           });
           onClose();
@@ -181,17 +187,16 @@ function MobileEndVisitScreen({
         errorMessage('Failed to load prescription for editing');
       }
     } else if (viewCaseManagerData) {
-      // Set active voice service (same as web version)
       if (isAmbientRx) {
         window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
       } else {
         window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
       }
-      
       navigate('/prescription', {
         state: {
           patient_data,
-          caseManagerData: viewCaseManagerData,
+          caseManagerData: buildCaseManagerForEdit(viewCaseManagerData),
+          fromEndVisitEdit: true,
         },
       });
       onClose();

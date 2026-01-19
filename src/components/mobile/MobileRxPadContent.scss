@@ -77,6 +77,7 @@
       font-size: 14px;
       line-height: 22px;
       color: #454551;
+      padding-bottom: 12px;
     }
   }
 
@@ -277,12 +278,12 @@
 
     .lab-investigation-card {
       padding: 12px;
-      background: #F9FAFB;
-      border-radius: 8px;
-      border: 1px solid #E5E7EB;
+      background: #F1F1F5;
+      border-radius: 10px;
+      border: 1px solid #F1F1F5;
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
 
       .lab-content {
@@ -295,8 +296,9 @@
           font-family: 'Poppins', sans-serif;
           font-size: 14px;
           font-weight: 500;
-          color: #1F2937;
+          color: #454551;
           line-height: 20px;
+          opacity: 0.9;
         }
 
         .lab-notes {
@@ -306,6 +308,14 @@
           color: #6B7280;
           line-height: 16px;
         }
+      }
+
+      .lab-actions-divider {
+        width: 1px;
+        height: 20px;
+        flex-shrink: 0;
+        opacity: 0.3;
+        background: linear-gradient(90deg, rgba(69, 69, 81, 0.00) 0%, #454551 50%, rgba(69, 69, 81, 0.00) 100%);
       }
 
       .lab-actions {
@@ -318,11 +328,17 @@
 
     .search-input {
       margin-top: 8px;
-      
+      width: 100%;
+
       .ant-input {
         border-radius: 8px;
         font-family: 'Poppins', sans-serif;
       }
+    }
+
+    .lab-search-icon {
+      color: #9ca3af;
+      font-size: 16px;
     }
   }
 

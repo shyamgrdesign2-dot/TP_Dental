@@ -304,12 +304,17 @@ function TabPrescription() {
   const [isFileTypeError, setIsFileTypeError] = useState(null);
   const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
   const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
-  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
-    caseManagerData?.smart_prescription_filename || 
-    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
-    (fromVoiceRecording && audioBlob) ||
-    false
-  );
+  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(() => {
+    const s = location?.state || {};
+    // From End Visit Edit: show Consultation Summary and "Your Rx is ready" card first, not RX pad
+    if (s.fromEndVisitEdit) return false;
+    return (
+      s.caseManagerData?.smart_prescription_filename ||
+      (s.inputText && typeof s.inputText === 'string' && s.inputText.trim().length > 0) ||
+      (s.fromVoiceRecording && s.audioBlob) ||
+      false
+    );
+  });
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
   const [mobileRxData, setMobileRxData] = useState(null);
@@ -1199,6 +1204,18 @@ function TabPrescription() {
     }
   };
 
+  // Sync Rx Pad state to parent and close when Quick Edit is tapped (preserves data for Consultation Summary and merge on typed/voice)
+  const handleQuickEditFromRxPad = useCallback((state) => {
+    setMobileRxData({
+      prescriptionData: state.prescriptionData,
+      genRxDetails: state.genRxDetails,
+      fullTranscript: state.fullTranscript,
+      conversations: state.conversations,
+    });
+    setMobileQueries(state.queries || []);
+    setIsGenRxDrawerVisible(false);
+  }, []);
+
   // On mobile, when in Voice Rx flow, show RX Pad (if open) or Consultation Summary (if closed)
   // This ensures we never show the tab view when in Voice Rx flow
   if (isMobileDevice && isInVoiceRxFlow) {
@@ -1211,6 +1228,7 @@ function TabPrescription() {
               setIsGenRxDrawerVisible(false);
             }}
             onDataReady={handleMobileRxDataReady}
+            onQuickEdit={handleQuickEditFromRxPad}
             queries={mobileQueries}
             existingData={mobileRxData}
           />
@@ -1272,6 +1290,7 @@ function TabPrescription() {
               visible={isGenRxDrawerVisible}
               onClose={() => setIsGenRxDrawerVisible(false)}
               onDataReady={handleMobileRxDataReady}
+              onQuickEdit={handleQuickEditFromRxPad}
               queries={mobileQueries}
             />
           ) : (

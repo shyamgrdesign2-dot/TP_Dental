@@ -1,17 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getDecodedToken } from '../../utils/localStorage';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, MESSAGE_KEY } from '../../utils/constants';
-import { generateAmbientRx, updateAmbientRx, generateRx, updateGenRx } from '../../api/services/ApiGenRx';
-import { editGenRxDetails, editAmbientRxDetails } from '../../api/services/ApiGenRx';
+import {
+  generateAmbientRx,
+  updateAmbientRx,
+  generateRx,
+  updateGenRx,
+  getGenRx,
+  getAmbientRx,
+  editGenRxDetails,
+  editAmbientRxDetails,
+} from '../../api/services/ApiGenRx';
 import ApiMedication from '../../api/services/ApiMedication';
+import { addPatientLabReports } from '../../api/services/ApiLabParams';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
 import { addUpdateVitals } from '../../redux/vitalsSlice';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { errorMessage } from '../../utils/utils';
+import { loadTodayVitalsAndLabResults } from '../../utils/loadTodayVitalsAndLabResults';
+import { mapLabResultsToStandardized } from '../../utils/mapLabResults';
+import CashManagerContext from '../../context/CashManagerContext';
 import MobileRxPadProcessing from './MobileRxPadProcessing';
 import MobileRxPadSkeleton from './MobileRxPadSkeleton';
 import MobileRxPadContent from './MobileRxPadContent';
@@ -23,11 +35,12 @@ import visitEndIcon from '../../assets/images/end-visit.svg';
 import closeVisitIcon from '../../assets/images/close-visit.svg';
 import './MobileRxPad.scss';
 
-function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData = null }) {
+function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [], existingData = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { profile } = useSelector((state) => state.doctors);
+  const { medicalHistoryData } = useContext(CashManagerContext) || {};
 
   const { state } = location;
   const {
@@ -80,6 +93,7 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
   const lastLocationKeyRef = useRef(location.key); // Track location.key for state changes
   const processedInputRef = useRef(null); // Track which input we've already processed (prevents duplicates)
   const onDataReadyCalledRef = useRef(false); // Track if onDataReady was called for current input
+  const hasLoadedForEditRef = useRef(null); // Track loaded smart_prescription_filename for edit to avoid duplicate fetch
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
 
@@ -123,8 +137,170 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
       hasAutoSubmittedRef.current = false;
       processedInputRef.current = null;
       onDataReadyCalledRef.current = false;
+      hasLoadedForEditRef.current = null; // Reset so edit-load can run again on next open
     }
   }, [visible]); // Only depend on visible, not input values
+
+  // Match web ConsultationDrawer: auto-load today's vitals and lab results into RX pad when drawer opens
+  useEffect(() => {
+    if (!visible || !patient_data?.patient_unique_id) return;
+    loadTodayVitalsAndLabResults({ patient_data, setState: setPrescriptionData });
+  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
+
+  // Load existing Voice RX when opening for Edit or Repeat (caseManagerData.smart_prescription_filename, no new audio/input).
+  // Matches web ConsultationDrawer getGenRxDetails: getGenRx -> optionally getAmbientRx -> parse -> setPrescriptionData, genRxDetails.
+  // For Repeat (tcm_id 0): web also loads the old Rx; we match that behavior.
+  useEffect(() => {
+    if (!visible) return;
+    const id = caseManagerData?.smart_prescription_filename;
+    if (!id || typeof id !== 'string' || !String(id).trim()) return;
+    if (audioBlobFromLocation) return;
+    if (inputTextFromLocation && typeof inputTextFromLocation === 'string' && inputTextFromLocation.trim().length > 0) return;
+    if (existingData?.prescriptionData) return; // review mode: already have data
+    if (hasLoadedForEditRef.current === id) return;
+
+    let cancelled = false;
+    const run = async () => {
+      setIsProcessing(true);
+      try {
+        const initialResponse = await getGenRx(id);
+        if (cancelled) return;
+        if (!initialResponse?.success || !initialResponse?.data) {
+          throw new Error(initialResponse?.error || initialResponse?.data?.message || 'Failed to load prescription');
+        }
+
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+
+        if (hasConversation) {
+          setIsAmbientMode(true);
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          setIsAmbientMode(false);
+          if (window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
+            window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+          }
+        }
+
+        let response = initialResponse;
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(id);
+          if (cancelled) return;
+          if (ambientResponse?.success) {
+            response = ambientResponse;
+          }
+        }
+
+        if (!response?.success || !response?.data) {
+          throw new Error(response?.error || 'Failed to load prescription');
+        }
+
+        const hasAmbientType =
+          (response.data?.rxDigitizationHistory || []).some((h) => h?.category === 'ambient-rx') || hasConversation;
+
+        if (hasAmbientType) {
+          let parsed = null;
+          if (response.data.editedData) {
+            parsed = response.data.editedData;
+          } else if (response.data.digitizeData) {
+            parsed = response.data.digitizeData;
+          } else if (response.data.digitize) {
+            const d = response.data.digitize;
+            if (d && typeof d === 'object' && !Array.isArray(d)) {
+              const numeric = Object.keys(d).filter((k) => /^\d+$/.test(k));
+              if (numeric.length > 0) parsed = d[numeric[0]];
+              else if (d.symptoms || d.medications || d.vitalsAndBodyComposition) parsed = d;
+              else parsed = d;
+            } else {
+              parsed = d;
+            }
+          } else {
+            const amb = (response.data.rxDigitizationHistory || []).filter((h) => h?.category === 'ambient-rx');
+            const last = amb[amb.length - 1];
+            parsed = last?.response || last?.payload?.response || last?.payload || null;
+          }
+
+          if (parsed?.vitalsAndBodyComposition) {
+            const raw = parsed.vitalsAndBodyComposition;
+            const actual = raw._doc || raw;
+            const cleaned = {};
+            Object.keys(actual || {}).forEach((k) => {
+              if (actual[k] !== undefined && actual[k] !== null) cleaned[k] = actual[k];
+            });
+            parsed.vitalsAndBodyComposition = cleaned;
+          }
+
+          if (parsed) {
+            const validated = validatePrescriptionData(parsed);
+            if (cancelled) return;
+            const toSet = (validated && typeof validated === 'object') ? validated : (parsed && typeof parsed === 'object' ? parsed : null);
+            if (toSet != null) setPrescriptionData(toSet);
+          }
+
+          setGenRxDetails({
+            _id: response.data._id || id,
+            source: response.data.source || '',
+            source_duration: response.data.source_duration,
+            timeRequiredInMs: response.data.timeRequiredInMs,
+            type: 'ambient',
+          });
+          if (response.data?.source) {
+            setFullTranscript(response.data.source);
+          }
+          const hist = (response.data?.history || []).filter(
+            (h) => h?.conversation && Array.isArray(h.conversation) && h.conversation.length > 0
+          );
+          if (hist.length > 0) {
+            const all = hist.flatMap((h) => h.conversation || []);
+            setConversations(all);
+          }
+        } else {
+          // Dictate
+          const fromResponse = response.data?.editedData || response.data?.digitizeData;
+          if (fromResponse) {
+            const validated = validatePrescriptionData(fromResponse);
+            if (cancelled) return;
+            const toSet = (validated && typeof validated === 'object') ? validated : (fromResponse && typeof fromResponse === 'object' ? fromResponse : null);
+            if (toSet != null) setPrescriptionData(toSet);
+          }
+          let transcriptSource = response.data?.source;
+          if (!transcriptSource && (response.data?.history || []).length > 0) {
+            const t = (response.data.history || [])
+              .map((h) => h?.transcription)
+              .filter((x) => x && x !== 'null' && String(x).trim());
+            if (t.length > 0) transcriptSource = t.join(' ');
+          }
+          setGenRxDetails({
+            _id: response.data._id || id,
+            source: transcriptSource || response.data?.source || '',
+            source_duration: response.data?.source_duration,
+            timeRequiredInMs: response.data?.timeRequiredInMs,
+            type: response.data?.type || 'dictate',
+          });
+          if (transcriptSource) {
+            setFullTranscript(transcriptSource);
+          }
+        }
+
+        hasLoadedForEditRef.current = id;
+      } catch (e) {
+        if (!cancelled) {
+          message.error(e?.message || 'Failed to load prescription');
+          hasLoadedForEditRef.current = null;
+        }
+      } finally {
+        if (!cancelled) setIsProcessing(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [
+    visible,
+    caseManagerData?.smart_prescription_filename,
+    audioBlobFromLocation,
+    inputTextFromLocation,
+    existingData?.prescriptionData,
+  ]);
 
   // Auto-submit effect - matches web version: allows subsequent inputs (no prescriptionData check)
   useEffect(() => {
@@ -241,7 +417,9 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
     if (!data || typeof data !== 'object') {
       return false;
     }
-
+    const mappedLabResults = Array.isArray(data.labResults)
+      ? mapLabResultsToStandardized(data.labResults)
+      : [];
     const cleanedData = {
       symptoms: Array.isArray(data.symptoms) ? data.symptoms : [],
       medications: Array.isArray(data.medications) ? data.medications : [],
@@ -251,13 +429,64 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
       examinations: Array.isArray(data.examinations) ? data.examinations : [],
       followUp: typeof data.followUp === 'string' ? data.followUp : "",
       labInvestigation: Array.isArray(data.labInvestigation) ? data.labInvestigation : [],
+      labResults: mappedLabResults,
       medicalHistory: Array.isArray(data.medicalHistory) ? data.medicalHistory : [],
       vaccinations: Array.isArray(data.vaccinations) ? data.vaccinations : [],
       others: Array.isArray(data.others) ? data.others : [],
       dynamicFields: data.dynamicFields || {},
     };
-
     return cleanedData;
+  };
+
+  // Match web ConsultationDrawer: format lab results for case manager API
+  const formatLabResultsForApi = (labResults = []) => {
+    if (!Array.isArray(labResults) || labResults.length === 0) return [];
+    const today = moment().format('YYYY-MM-DD');
+    const groupedByDate = {};
+    labResults.forEach((result = {}) => {
+      const dateKey = result.date || today;
+      const testname = result.testname || result.name || 'Result';
+      const value = result.value || '';
+      const units = result.units || '';
+      if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
+      let cleanValue = value;
+      let cleanUnits = units;
+      if (value && !units) {
+        const parts = String(value).trim().split(/\s+/);
+        if (parts.length > 1) {
+          cleanValue = parts.slice(0, -1).join(' ');
+          cleanUnits = parts[parts.length - 1];
+        }
+      }
+      groupedByDate[dateKey].push({
+        reportName: result.reportName || '',
+        testName: testname,
+        value: cleanValue,
+        units: cleanUnits,
+        refRange: result.refRange || '',
+        arrowDirection: result.arrowDirection || '',
+      });
+    });
+    return Object.entries(groupedByDate)
+      .map(([date, inputs]) => ({ date, inputs: inputs.filter((i) => i.value && String(i.value).trim() !== '') }))
+      .filter((r) => r.inputs.length > 0);
+  };
+
+  const persistLabResultsToApi = async (labResultsDataForApi = []) => {
+    if (!Array.isArray(labResultsDataForApi) || labResultsDataForApi.length === 0 || !patient_data?.patient_unique_id) return;
+    const decodedToken = getDecodedToken();
+    const fallbackDoctorId = decodedToken?.result?.user_id;
+    const doctorId = profile?.doctor_unique_id || fallbackDoctorId;
+    if (!doctorId) return; // Avoid API call that would fail; labParamsData still sent to case manager
+    try {
+      await addPatientLabReports({
+        patientId: patient_data.patient_unique_id,
+        doctorId,
+        results: labResultsDataForApi,
+      });
+    } catch (err) {
+      console.error('Error saving lab results to API:', err);
+    }
   };
 
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
@@ -554,8 +783,11 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
         }
 
         if (prescriptionData) {
-          const validatedData = validatePrescriptionData(prescriptionData);
-          
+          const validated = validatePrescriptionData(prescriptionData);
+          const validatedData = (validated && typeof validated === 'object')
+            ? validated
+            : (prescriptionData && typeof prescriptionData === 'object' ? prescriptionData : {});
+
           const genRxDetailsData = {
             _id: responseData?._id || actualData?._id,
             source: responseData?.source || actualData?.source || '',
@@ -1083,6 +1315,32 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
         }
       }
 
+      // Match web: persist lab results to API and include in case manager payload
+      const labResultsDataForApi = formatLabResultsForApi(updatedPrescriptionData?.labResults || prescriptionData?.labResults || []);
+      await persistLabResultsToApi(labResultsDataForApi);
+
+      // Match web: format medical history from context for case manager
+      let formattedMedicalHistory = [];
+      if (medicalHistoryData && Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) {
+        formattedMedicalHistory = medicalHistoryData.map((section) => ({
+          title: section?.title || section?.section_name || '',
+          tmmhs_id: section?.tmmhs_id || 0,
+          no_know_history: section?.no_know_history !== undefined ? section?.no_know_history : false,
+          tags: !section?.no_know_history && Array.isArray(section?.tags)
+            ? section.tags.filter((t) => t?.enable === 'Y' || t?.enable === 'N').map((t) => ({
+                tmmhst_id: t?.tmmhst_id || 0,
+                title: t?.title || '',
+                pms_default: t?.pms_default || 0,
+                since: t?.since || '',
+                status: t?.status || '',
+                medication: t?.medication || '',
+                note: t?.note || '',
+                enable: t?.enable || 'Y',
+              }))
+            : [],
+        }));
+      }
+
       const sendData = {
         action: tcmId === 0 ? "add" : "edit",
         tcm_id: tcmId,
@@ -1092,7 +1350,9 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
         consultation_date: consultationDate,
         smart_prescription_filename: genRxDetails?._id,
         labReportID: labReportID,
-        vitals: finalVitalsArray, // Include vitals
+        ...(finalVitalsArray.length > 0 && { vitals: finalVitalsArray }),
+        ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
+        ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
       };
 
       const action =
@@ -1128,20 +1388,27 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
           duration: 5,
         });
         
-        // Fetch updated data with vitals
+        // Fetch updated case (viewCaseManager) then set endVisitCaseManagerData.
+        // Ensure smart_prescription_filename is always set so "Edit prescription" from End Visit
+        // can load the correct Gen Rx via getGenRx(id). Backend may not return it in payload.
         setTimeout(async () => {
           try {
             const viewAction = await dispatch(viewCaseManager({
               patient_unique_id: patient_data?.patient_unique_id || 0,
               tcm_id: generatedTcmId,
             }));
-            if (viewAction.meta.requestStatus === 'fulfilled' && viewAction.payload) {
-              setEndVisitCaseManagerData(viewAction.payload);
-            } else {
-              setEndVisitCaseManagerData(action.payload);
-            }
+            const base = (viewAction.meta.requestStatus === 'fulfilled' && viewAction.payload)
+              ? viewAction.payload
+              : action.payload;
+            setEndVisitCaseManagerData({
+              ...base,
+              smart_prescription_filename: base?.smart_prescription_filename || genRxDetails?._id,
+            });
           } catch (error) {
-            setEndVisitCaseManagerData(action.payload);
+            setEndVisitCaseManagerData({
+              ...(action.payload || {}),
+              smart_prescription_filename: action.payload?.smart_prescription_filename || genRxDetails?._id,
+            });
           }
           setShowEndVisitScreen(true);
         }, 2000);
@@ -1216,7 +1483,17 @@ function MobileRxPad({ visible, onClose, onDataReady, queries = [], existingData
                 setPrescriptionData(updatedData);
               }}
               onEditWithVoice={(section) => {
-                onClose();
+                if (onQuickEdit) {
+                  onQuickEdit({
+                    prescriptionData,
+                    genRxDetails,
+                    fullTranscript,
+                    conversations,
+                    queries,
+                  });
+                } else {
+                  onClose();
+                }
               }}
               onEndVisit={handleEndVisit}
               isProcessing={isProcessing}

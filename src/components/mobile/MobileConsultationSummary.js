@@ -76,7 +76,15 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
     setShowPatientSummary(!showPatientSummary);
   };
 
-  const hasTranscript = queries.length > 0 || fullTranscript || (conversations && conversations.length > 0) || prescriptionData;
+  // Include saved-Rx signals so "Your Rx is ready" card shows when landing from End Visit Edit
+  // (mobileRxData/state may not have prescriptionData yet; caseManagerData is always passed)
+  const hasTranscript =
+    queries.length > 0 ||
+    fullTranscript ||
+    (conversations && conversations.length > 0) ||
+    prescriptionData ||
+    !!caseManagerData?.smart_prescription_filename ||
+    !!caseManagerData?.tcm_id;
 
   const handleTypedInputSend = () => {
     if (!typedInput || typedInput.trim().length === 0) {

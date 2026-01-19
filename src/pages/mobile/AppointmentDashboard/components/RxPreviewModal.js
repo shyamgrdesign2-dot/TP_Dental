@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Drawer, Spin } from 'antd';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { viewCaseManager } from '../../../../redux/caseManagerSlice';
-import { S_VOICE_RX } from '../../../../utils/constants';
+import { S_VOICE_RX, GB_SNAP_RX } from '../../../../utils/constants';
 import Cardiology from '../../../../components/Cardiology';
 import VisitActionButtons from '../../PatientDetails/components/VisitActionButtons';
 import closeIcon from '../../../../assets/mobile/close 2.svg';
@@ -18,10 +19,15 @@ function RxPreviewModal({
   const dispatch = useDispatch();
   const { profile, userId } = useSelector((state) => state.doctors);
   const { loading: caseManagerLoading } = useSelector((state) => state.caseManager);
-  
+  const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
+
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [loading, setLoading] = useState(false);
   const cardiologyPrintHandlerRef = useRef(null);
+
+  const smartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
+  const isSnapRx = smartPrescriptionFilename?.includes('snap_rx');
+  const isSmartRxFile = smartPrescriptionFilename?.includes('.jpeg');
 
   useEffect(() => {
     if (visible && appointment?.tcm_id && appointment?.patient_unique_id) {
@@ -57,11 +63,29 @@ function RxPreviewModal({
 
   const handleEditRx = async () => {
     if (!viewCaseManagerData?.tcm_id) return;
-    
+
     if (cardiologyPrintHandlerRef.current?.editRx) {
       cardiologyPrintHandlerRef.current.editRx();
       onClose();
+      return;
     }
+
+    // Fallback when Cardiology has not yet exposed editRx (e.g. still loading) – match web/PatientDetails Edit flow
+    window.Moengage?.track_event('edit_rx_click', {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: appointment?.patient_unique_id || 0,
+      rx_date: viewCaseManagerData?.consultation_date,
+    });
+    const pd = appointment ? { ...appointment, patient_unique_id: appointment.patient_unique_id } : null;
+    if (isSnapRx && isSnapRxAccessableFromGB) {
+      navigate('/snap-rx', { state: { patient_data: pd, caseManagerData: viewCaseManagerData } });
+    } else if (isSmartRxFile) {
+      navigate('/smart-prescription', { state: { patient_data: pd, caseManagerData: viewCaseManagerData, smartRxFilesData: [] } });
+    } else {
+      window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+      navigate('/prescription', { state: { patient_data: pd, send_path: 'appointment_dashboard', caseManagerData: viewCaseManagerData } });
+    }
+    onClose();
   };
 
   const handleDownloadRx = () => {
