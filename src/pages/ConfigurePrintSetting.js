@@ -33,7 +33,7 @@ import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { getFormattedDate } from "../utils/utils";
 import { viewCaseManager } from "../redux/caseManagerSlice";
-import { getDecodedToken } from "../utils/localStorage";
+// import { getDecodedToken } from "../utils/localStorage";
 
 function ConfigurePrintSetting() {
 
@@ -71,29 +71,29 @@ function ConfigurePrintSetting() {
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
 
 
-      // Fetch custom modules on component mount
-  useEffect(() => {
-    const fetchModules = async () => {
-      if (userId) {
-        const decodedToken = getDecodedToken();
-          const hospitalId = decodedToken?.result?.clinic_id;
-          if (hospitalId) {
-            await dispatch(
-              searchModulesByHospital({
-                hospitalId,
-                moduleName: "",
-                page: 1,
-                limit: 100,
-                departmentId: profile?.dp_id
-              })
-            );
-          }
-        // }
-      }
-    };
+    //       // Fetch custom modules on component mount
+    //   useEffect(() => {
+    //     const fetchModules = async () => {
+    //       if (userId) {
+    //         const decodedToken = getDecodedToken();
+    //           const hospitalId = decodedToken?.result?.clinic_id;
+    //           if (hospitalId) {
+    //             await dispatch(
+    //               searchModulesByHospital({
+    //                 hospitalId,
+    //                 moduleName: "",
+    //                 page: 1,
+    //                 limit: 100,
+    //                 departmentId: profile?.dp_id
+    //               })
+    //             );
+    //           }
+    //         // }
+    //       }
+    //     };
 
-    fetchModules();
-  }, [dispatch]);
+    //     fetchModules();
+    //   }, [dispatch]);
 
     useEffect(() => {
         setDivWidth(divRef.current?.offsetWidth);
