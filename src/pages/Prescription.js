@@ -18,6 +18,7 @@ import CashManagerContext from "../context/CashManagerContext";
 import HeaderPrescription from "../common/HeaderPrescription";
 import SymptomsBox from "../components/SymptomsBox";
 import ExaminationBox from "../components/ExaminationBox";
+import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
@@ -1711,6 +1712,9 @@ function Prescription() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
+                <div className="prescription-box-sm">
+                  <OphthalmologyExamPanel />
+                </div>
                 {customizedPadRightList?.map((e, i) => {
                   const customModule = customModules?.find(
                     (m) => m.module_id === e.tmdpm_id
