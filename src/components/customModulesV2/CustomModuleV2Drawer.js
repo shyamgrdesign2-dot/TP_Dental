@@ -63,7 +63,7 @@ const CustomModuleV2Drawer = ({
               onChange={(value) => onFieldChange(field.fieldName, value)}
               moduleId={moduleId}
               templates={templates}
-              className="custom-module-v2-drawer__input customnotesinput w-100"
+              className="custom-module-v2-drawer__input w-100"
               autoFocus={idx === 0}
               fieldId={`drawer-${field.fieldName}`}
               focusedFieldId={focusedFieldId}

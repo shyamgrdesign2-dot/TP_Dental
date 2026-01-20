@@ -262,17 +262,9 @@ const CustomModuleFieldTextAreaAutoComplete = ({
 
   const onSelect = useCallback(
     (selectedValue, option) => {
-      // selectedValue is already the parsed value from onClick handler
-      // Get current value and replace the last line with selected text
-      const currentValue = value || "";
-      const lines = currentValue.split('\n');
-      const lastLineIndex = lines.length > 0 ? lines.length - 1 : 0;
-      
-      // Replace the last line with the selected value
-      lines[lastLineIndex] = selectedValue || "";
-      
-      // If there was only one empty line, keep it; otherwise join with newlines
-      const newValue = lines.join('\n');
+      // When selecting from dropdown, replace the ENTIRE field value with the selected value
+      // This ensures multi-line values are properly set and previous values are cleared
+      const newValue = selectedValue || "";
       onChange(newValue);
       
       setSearchQuery("");
@@ -289,10 +281,16 @@ const CustomModuleFieldTextAreaAutoComplete = ({
       if (textAreaRef.current) {
         setTimeout(() => {
           textAreaRef.current?.focus();
+          // Set cursor to end of text after selection
+          const textarea = textAreaRef.current?.resizableTextArea?.textArea;
+          if (textarea) {
+            const length = textarea.value.length;
+            textarea.setSelectionRange(length, length);
+          }
         }, 150);
       }
     },
-    [onChange, value, fieldId, onFocusChange]
+    [onChange, fieldId, onFocusChange]
   );
 
   // Get the current line for searching
@@ -347,14 +345,8 @@ const CustomModuleFieldTextAreaAutoComplete = ({
             top: '100%',
             left: 0,
             right: 0,
-            zIndex: 1000,
-            backgroundColor: '#fff',
-            border: '1px solid #d9d9d9',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            maxHeight: '200px',
-            overflowY: 'auto',
-            marginTop: '4px',
+            width: '100%',
+            boxSizing: 'border-box',
           }}
           onMouseDown={(e) => {
             // Prevent blur when clicking dropdown
@@ -386,30 +378,14 @@ const CustomModuleFieldTextAreaAutoComplete = ({
                     onSelect(optionValue, option);
                   }
                 }}
-                style={{
-                  padding: '8px 12px',
-                  cursor: option.key === "-1" ? 'default' : 'pointer',
-                  backgroundColor: option.key === "-1" ? '#f5f5f5' : 'transparent',
-                  fontWeight: option.key === "-1" ? 600 : 'normal',
-                  fontSize: option.key === "-1" ? '12px' : '14px',
-                }}
-                onMouseEnter={(e) => {
-                  if (option.key !== "-1") {
-                    e.currentTarget.style.backgroundColor = '#f5f5f5';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (option.key !== "-1") {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }
-                }}
+                className={option.key === "-1" ? "custom-module-dropdown-header" : "custom-module-dropdown-item"}
               >
                 {option.label}
               </div>
             );
           })}
           {loading && (
-            <div style={{ padding: '8px 12px', textAlign: 'center' }}>
+            <div className="custom-module-dropdown-loading" style={{ padding: '8px 12px', textAlign: 'center' }}>
               <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
             </div>
           )}

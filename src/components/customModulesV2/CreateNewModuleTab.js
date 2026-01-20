@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Input, Radio, Tooltip, Alert, message, Divider } from "antd";
 import {
   InfoCircleOutlined,
@@ -20,31 +20,79 @@ const MAX_COLUMN_LABEL_LENGTH = 15;
 /**
  * CreateNewModuleTab Component
  *
- * Tab content for creating a new custom module.
+ * Tab content for creating a new custom module or editing an existing one.
  * Includes module name input, column configuration, and column labels.
  *
- * @param {Function} onCreateModule - Callback when module is created
+ * @param {Function} onCreateModule - Callback when module is created/updated
  * @param {Function} onFormChange - Callback when form data changes (for button state)
+ * @param {Boolean} editMode - Whether in edit mode
+ * @param {Object} initialData - Initial data for edit mode {moduleName, columnCount, columnLabels}
  */
-const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
+const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, initialData = null }) => {
   const dispatch = useDispatch();
   const { customModules, hospitalSearchResults } = useSelector((state) => state.customModules);
   const { customizedPadRightList, customizedPadLeftList, userId } = useSelector(
     (state) => state.doctors
   );
-  const [moduleName, setModuleName] = useState("");
-  const [columnCount, setColumnCount] = useState(2);
-  const [columnLabels, setColumnLabels] = useState(["", ""]);
+  const [moduleName, setModuleName] = useState(initialData?.moduleName || "");
+  const [columnCount, setColumnCount] = useState(initialData?.columnCount || 2);
+  const [columnLabels, setColumnLabels] = useState(
+    initialData?.columnLabels && initialData.columnLabels.length > 0
+      ? initialData.columnLabels
+      : ["", ""]
+  );
   const [similarModules, setSimilarModules] = useState([]);
-  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [showColumnConfig, setShowColumnConfig] = useState(editMode || false);
   const [expandedModules, setExpandedModules] = useState({});
   
   const decodedToken = getDecodedToken();
   const hospital_business_id = decodedToken?.result?.hospital_business_id;
   const isApollo = config.APOLLO_BUSINESS_IDS?.includes(hospital_business_id);
 
-  // Check for similar module names
+  // Initialize form data when initialData changes (for edit mode)
+  // Use a ref to track if we've already initialized to prevent infinite loops
+  const hasInitialized = useRef(false);
+  const prevInitialDataRef = useRef(null);
+  const prevColumnCountRef = useRef(columnCount);
+  
   useEffect(() => {
+    // Check if initialData actually changed
+    const initialDataChanged = 
+      !prevInitialDataRef.current ||
+      prevInitialDataRef.current.moduleName !== initialData?.moduleName ||
+      prevInitialDataRef.current.columnCount !== initialData?.columnCount ||
+      JSON.stringify(prevInitialDataRef.current.columnLabels) !== JSON.stringify(initialData?.columnLabels);
+    
+    if (initialData && editMode && (!hasInitialized.current || initialDataChanged)) {
+      const initColumnCount = initialData.columnCount || 2;
+      setModuleName(initialData.moduleName || "");
+      setColumnCount(initColumnCount);
+      setColumnLabels(
+        initialData.columnLabels && initialData.columnLabels.length > 0
+          ? initialData.columnLabels
+          : Array(initColumnCount).fill("")
+      );
+      setShowColumnConfig(true);
+      hasInitialized.current = true;
+      prevInitialDataRef.current = initialData;
+      prevColumnCountRef.current = initColumnCount;
+    }
+    
+    // Reset when drawer closes (when editMode becomes false)
+    if (!editMode) {
+      hasInitialized.current = false;
+      prevInitialDataRef.current = null;
+      prevColumnCountRef.current = columnCount;
+    }
+  }, [initialData, editMode]);
+
+  // Check for similar module names (skip in edit mode)
+  useEffect(() => {
+    if (editMode) {
+      setSimilarModules([]);
+      return;
+    }
+    
     if (moduleName.trim().length >= 2) {
       const query = moduleName.toLowerCase().trim();
       let similar = (hospitalSearchResults?.modules || []).filter((module) =>
@@ -60,16 +108,30 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
     } else {
       setSimilarModules([]);
     }
-  }, [moduleName, hospitalSearchResults, isApollo, userId]);
+  }, [moduleName, hospitalSearchResults, isApollo, userId, editMode]);
 
   // Update column labels when column count changes
+  // In edit mode, preserve existing labels and add empty ones for new columns
   useEffect(() => {
-    const newLabels = Array(columnCount)
-      .fill("")
-      .map((_, index) => columnLabels[index] || "");
-    setColumnLabels(newLabels);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnCount]);
+    // Skip if we're still initializing from initialData
+    if (editMode && initialData && !hasInitialized.current) {
+      prevColumnCountRef.current = columnCount;
+      return;
+    }
+    
+    // Only update if column count actually changed (not just on mount)
+    if (prevColumnCountRef.current !== columnCount) {
+      // Update column labels based on new column count
+      // Use functional update to get latest columnLabels state
+      setColumnLabels((prevLabels) => {
+        const newLabels = Array(columnCount)
+          .fill("")
+          .map((_, index) => prevLabels[index] || "");
+        return newLabels;
+      });
+      prevColumnCountRef.current = columnCount;
+    }
+  }, [columnCount, editMode, initialData]);
 
   const handleModuleNameChange = (e) => {
     const value = e.target.value;
@@ -102,14 +164,30 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
   }, [moduleName, columnLabels]);
 
   // Notify parent of form state changes
+  // Use a ref to store previous values to prevent unnecessary updates
+  const prevFormDataRef = useRef(null);
+  
   useEffect(() => {
     if (onFormChange) {
-      onFormChange({
+      const currentFormData = {
         isValid: isFormValid,
         moduleName,
         columnCount,
         columnLabels,
-      });
+      };
+      
+      // Only call onFormChange if data actually changed
+      const prevData = prevFormDataRef.current;
+      if (
+        !prevData ||
+        prevData.isValid !== currentFormData.isValid ||
+        prevData.moduleName !== currentFormData.moduleName ||
+        prevData.columnCount !== currentFormData.columnCount ||
+        JSON.stringify(prevData.columnLabels) !== JSON.stringify(currentFormData.columnLabels)
+      ) {
+        prevFormDataRef.current = currentFormData;
+        onFormChange(currentFormData);
+      }
     }
   }, [isFormValid, moduleName, columnCount, columnLabels, onFormChange]);
 
@@ -223,8 +301,8 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
             </span>
           </div>
 
-          {/* Similar Modules Warning */}
-          {similarModules.length > 0 && (
+          {/* Similar Modules Warning - Only show in create mode */}
+          {!editMode && similarModules.length > 0 && (
             <div className="create-new-module-tab__warning">
               <Alert
                 message={
@@ -344,8 +422,8 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange }) => {
           )}
         </div>
 
-        {/* Configure Columns Section - Show when user clicks "Add as new" or no similar modules */}
-        {(showColumnConfig || (moduleName.trim().length > 0 && similarModules.length === 0)) && (
+        {/* Configure Columns Section - Show when user clicks "Add as new" or no similar modules, or in edit mode */}
+        {(showColumnConfig || (moduleName.trim().length > 0 && similarModules.length === 0) || editMode) && (
         <div className="create-new-module-tab__section">
           <div className="create-new-module-tab__label">
             <span>

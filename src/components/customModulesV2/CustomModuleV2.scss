@@ -110,6 +110,8 @@
   // Ensure it doesn't cover the border pseudo-element
   position: relative;
   z-index: 0;
+  // Force black text color even when disabled
+  // color: #454551 !important;
 
   &:hover,
   &:focus,
@@ -120,7 +122,23 @@
   }
 
   &::placeholder {
-    color: #bfbfbf;
+    color: #bfbfbf !important;
+  }
+
+  // Override disabled state text color - but keep placeholder gray
+  &:disabled {
+    opacity: 1 !important;
+    
+    // Keep placeholder gray even when disabled - this must come first
+    &::placeholder {
+      color: #bfbfbf !important;
+      -webkit-text-fill-color: #bfbfbf !important;
+      opacity: 1 !important;
+    }
+    
+    // Apply black color for actual text content
+    color: #454551 !important;
+    -webkit-text-fill-color: #454551 !important;
   }
 
   .ant-input {
@@ -130,6 +148,25 @@
     padding: 0;
     margin: 0;
     box-sizing: border-box;
+    
+    &::placeholder {
+      color: #bfbfbf !important;
+    }
+    
+    &:disabled {
+      opacity: 1 !important;
+      
+      // Keep placeholder gray even when disabled - this must come first
+      &::placeholder {
+        color: #bfbfbf !important;
+        -webkit-text-fill-color: #bfbfbf !important;
+        opacity: 1 !important;
+      }
+      
+      // Apply black color for actual text content
+      color: #454551 !important;
+      -webkit-text-fill-color: #454551 !important;
+    }
   }
   
   // TextArea specific
@@ -137,6 +174,13 @@
     border: none !important;
     margin: 0 !important;
     box-sizing: border-box;
+    color: #454551 !important;
+    
+    &:disabled {
+      color: #454551 !important;
+      -webkit-text-fill-color: #454551 !important;
+      opacity: 1 !important;
+    }
   }
 }
 
@@ -152,12 +196,32 @@
     width: 100% !important;
     max-width: 100% !important;
     
+    &::placeholder {
+      color: #bfbfbf !important;
+    }
+    
     &:hover,
     &:focus,
     &:focus-within {
       border: none !important;
       box-shadow: none !important;
       outline: none !important;
+    }
+    
+    // Override disabled state text color - but keep placeholder gray
+    &:disabled {
+      opacity: 1 !important;
+      
+      // Keep placeholder gray even when disabled - this must come first
+      &::placeholder {
+        color: #bfbfbf !important;
+        -webkit-text-fill-color: #bfbfbf !important;
+        opacity: 1 !important;
+      }
+      
+      // Apply black color for actual text content
+      color: #454551 !important;
+      -webkit-text-fill-color: #454551 !important;
     }
   }
   
@@ -168,12 +232,32 @@
     outline: none !important;
     max-width: 100% !important;
     
+    &::placeholder {
+      color: #bfbfbf !important;
+    }
+    
     &:hover,
     &:focus,
     &:focus-within {
       border: none !important;
       box-shadow: none !important;
       outline: none !important;
+    }
+    
+    // Override disabled state text color - but keep placeholder gray
+    &:disabled {
+      opacity: 1 !important;
+      
+      // Keep placeholder gray even when disabled - this must come first
+      &::placeholder {
+        color: #bfbfbf !important;
+        -webkit-text-fill-color: #bfbfbf !important;
+        opacity: 1 !important;
+      }
+      
+      // Apply black color for actual text content
+      color: #454551 !important;
+      -webkit-text-fill-color: #454551 !important;
     }
   }
   
@@ -184,6 +268,26 @@
     // Ensure input doesn't cover the border pseudo-element
     position: relative;
     z-index: 0;
+    
+    &::placeholder {
+      color: #bfbfbf !important;
+    }
+    
+    // Override disabled state text color - but keep placeholder gray
+    &:disabled {
+      opacity: 1 !important;
+      
+      // Keep placeholder gray even when disabled - this must come first
+      &::placeholder {
+        color: #bfbfbf !important;
+        -webkit-text-fill-color: #bfbfbf !important;
+        opacity: 1 !important;
+      }
+      
+      // Apply black color for actual text content
+      color: #454551 !important;
+      -webkit-text-fill-color: #454551 !important;
+    }
   }
   
   // Dropdown container styling
@@ -193,6 +297,86 @@
     
     .custom-module-dropdown {
       z-index: 1050 !important; // Higher than other elements
+      // Match Ant Design AutoComplete dropdown styling
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+      background: #ffffff !important;
+      border: 1px solid #d9d9d9 !important;
+      border-radius: 8px !important;
+      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1) !important;
+      padding: 4px 0 !important;
+      font-family: "Poppins", sans-serif;
+      max-height: 256px !important;
+      overflow-y: auto !important;
+      margin-top: 4px !important;
+      box-sizing: border-box !important;
+      
+      // Header item (FREQUENTLY USED)
+      .custom-module-dropdown-header {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #454551 !important;
+        background-color: #fafafa !important;
+        cursor: default !important;
+        line-height: 22px !important;
+        transition: all 0.2s ease-in-out !important;
+        
+        &:hover {
+          background-color: #fafafa !important;
+        }
+      }
+      
+      // Regular dropdown items
+      .custom-module-dropdown-item {
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        color: #454551 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease-in-out !important;
+        line-height: 22px !important;
+        
+        &:hover {
+          background-color: #f5f5f5 !important;
+        }
+        
+        // Custom value item styling
+        .text-primary {
+          color: #4b4ad5 !important;
+        }
+        
+        .fw-medium {
+          font-weight: 600 !important;
+        }
+        
+        .text-decoration-underline {
+          text-decoration: underline !important;
+        }
+      }
+    }
+    
+    // Ensure TextArea inside dropdown container has black text
+    textarea.ant-input {
+      &::placeholder {
+        color: #bfbfbf !important;
+      }
+      
+      &:disabled {
+        opacity: 1 !important;
+        
+        // Keep placeholder gray even when disabled - this must come first
+        &::placeholder {
+          color: #bfbfbf !important;
+          -webkit-text-fill-color: #bfbfbf !important;
+          opacity: 1 !important;
+        }
+        
+        // Apply black color for actual text content
+        color: #454551 !important;
+        -webkit-text-fill-color: #454551 !important;
+      }
     }
   }
 }
@@ -418,6 +602,109 @@
     // TextArea specific styling
     &.ant-input {
       min-height: 42px !important;
+    }
+    
+    // TextArea inside drawer input
+    textarea.ant-input {
+      min-height: 42px !important;
+    }
+  }
+  
+  // Tablet view - increase textarea height in drawer only
+  @media (min-width: 769px) and (max-width: 1366px) {
+    .custom-module-v2-drawer__input {
+      min-height: 60px !important;
+      padding: 12px 16px !important;
+      
+      // TextArea specific styling for tablet
+      &.ant-input {
+        min-height: 60px !important;
+        padding: 12px 16px !important;
+      }
+      
+      // TextArea inside drawer input for tablet
+      textarea.ant-input {
+        min-height: 60px !important;
+        padding: 12px 16px !important;
+        line-height: 1.5;
+      }
+      
+      // Override autoSize minRows for tablet - ensure proper height
+      .ant-input {
+        min-height: 60px !important;
+      }
+    }
+  }
+  
+  // Dropdown styling specific to drawer context
+  .custom-module-v2-drawer__field {
+    .custom-module-dropdown-container {
+      width: 100% !important;
+      position: relative !important;
+      
+      .custom-module-dropdown {
+        // Ensure dropdown works properly in drawer
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        // Ensure dropdown appears above drawer content
+        z-index: 1051 !important;
+        // Match Ant Design AutoComplete dropdown styling
+        background: #ffffff !important;
+        border: 1px solid #d9d9d9 !important;
+        border-radius: 8px !important;
+        box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1) !important;
+        padding: 4px 0 !important;
+        font-family: "Poppins", sans-serif;
+        max-height: 256px !important;
+        overflow-y: auto !important;
+        margin-top: 4px !important;
+        
+        // Header item (FREQUENTLY USED) in drawer
+        .custom-module-dropdown-header {
+          padding: 8px 12px !important;
+          font-size: 12px !important;
+          font-weight: 600 !important;
+          color: #454551 !important;
+          background-color: #fafafa !important;
+          cursor: default !important;
+          line-height: 22px !important;
+          transition: all 0.2s ease-in-out !important;
+          
+          &:hover {
+            background-color: #fafafa !important;
+          }
+        }
+        
+        // Regular dropdown items in drawer
+        .custom-module-dropdown-item {
+          padding: 8px 12px !important;
+          font-size: 14px !important;
+          font-weight: 400 !important;
+          color: #454551 !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease-in-out !important;
+          line-height: 22px !important;
+          
+          &:hover {
+            background-color: #f5f5f5 !important;
+          }
+          
+          // Custom value item styling
+          .text-primary {
+            color: #4b4ad5 !important;
+          }
+          
+          .fw-medium {
+            font-weight: 600 !important;
+          }
+          
+          .text-decoration-underline {
+            text-decoration: underline !important;
+          }
+        }
+      }
     }
   }
 }

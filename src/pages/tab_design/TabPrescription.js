@@ -119,6 +119,7 @@ import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
 import { AddCustomModuleDrawer, AddCustomModuleV2, CustomModuleV2 } from "../../components/customModulesV2";
 import { getModules, searchModulesByHospital } from "../../redux/customModuleSlice";
+import CustomModule from "../../components/CustomModule";
 
 function TabPrescription() {
   const {
@@ -1760,10 +1761,13 @@ function TabPrescription() {
                       <TabFollowUpBox />
                     </div>
                     ): e.is_custom_module && e.tmdpm_status === 0 && customModule && (
-                      <div className="prescription-box-sm">
-                        {/* <TabCustomModule module={customModule} /> */}
+                      // <div className="prescription-box-sm">
+                      (customModule.version === "v2" ? (
                         <CustomModuleV2 module={customModule} />
-                      </div>
+                      ) : (
+                        <CustomModule module={customModule} />
+                      ))
+                      // </div>
                     )
                 })}
                 {/* <TabAddCustomModule /> */}

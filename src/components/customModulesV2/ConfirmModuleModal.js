@@ -6,7 +6,7 @@ import "./ConfirmModuleModal.scss";
 /**
  * ConfirmModuleModal Component
  *
- * Modal for confirming custom module creation with preview.
+ * Modal for confirming custom module creation/editing with preview.
  *
  * @param {Boolean} open - Controls modal visibility
  * @param {Function} onClose - Callback to close the modal
@@ -16,6 +16,7 @@ import "./ConfirmModuleModal.scss";
  * @param {Number} moduleData.columnCount - Number of columns
  * @param {Array} moduleData.columnLabels - Array of column labels
  * @param {Boolean} loading - Loading state for the confirm action
+ * @param {Boolean} isEditMode - Whether in edit mode
  */
 const ConfirmModuleModal = ({
   open,
@@ -23,6 +24,7 @@ const ConfirmModuleModal = ({
   onConfirm,
   moduleData,
   loading = false,
+  isEditMode = false,
 }) => {
   const {
     moduleName = "",
@@ -49,7 +51,9 @@ const ConfirmModuleModal = ({
       <div className="confirm-module-modal__content">
         {/* Header */}
         <div className="confirm-module-modal__header">
-          <h2 className="confirm-module-modal__title">Confirm Custom Module</h2>
+          <h2 className="confirm-module-modal__title">
+            {isEditMode ? "Confirm Module Changes" : "Confirm Custom Module"}
+          </h2>
           <CloseOutlined
             className="confirm-module-modal__close-icon"
             onClick={onClose}
@@ -95,10 +99,21 @@ const ConfirmModuleModal = ({
           <ExclamationCircleOutlined className="confirm-module-modal__warning-icon" />
           <div className="confirm-module-modal__warning-content">
             <p>
-              Note: You can <strong>edit or delete</strong> this module only
-              until it's used in a <strong>Rx</strong>. Once it's used, it will
-              be locked for <strong>edit/delete</strong> permanently. Please
-              review the column names and structure before creating.
+              {isEditMode ? (
+                <>
+                  Note: You can <strong>edit or delete</strong> this module only
+                  until it's used in a <strong>Rx</strong>. Once it's used, it will
+                  be locked for <strong>edit/delete</strong> permanently. Please
+                  review the column names and structure before saving changes.
+                </>
+              ) : (
+                <>
+                  Note: You can <strong>edit or delete</strong> this module only
+                  until it's used in a <strong>Rx</strong>. Once it's used, it will
+                  be locked for <strong>edit/delete</strong> permanently. Please
+                  review the column names and structure before creating.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -116,7 +131,10 @@ const ConfirmModuleModal = ({
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? "Creating..." : "Yes, Create Module"}
+            {loading 
+              ? (isEditMode ? "Saving..." : "Creating...") 
+              : (isEditMode ? "Yes, Save Changes" : "Yes, Create Module")
+            }
           </button>
         </div>
       </div>
