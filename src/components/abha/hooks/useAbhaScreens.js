@@ -9,6 +9,8 @@ export const ABHA_SCREENS = {
   SUCCESS: "success",
   CREATE_ADDRESS: "create_address",
   ABHA_ADDRESS: "abha_address",
+  BIOMETRIC_AADHAAR_ENTRY: "biometric_aadhaar_entry",
+  BIOMETRIC_VERIFICATION: "biometric_verification",
 };
 
 const useAbhaScreens = () => {
@@ -60,6 +62,16 @@ const useAbhaScreens = () => {
     setScreenData(data);
   }, []);
 
+  const goToBiometricAadhaarEntry = useCallback((data) => {
+    setCurrentScreen(ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY);
+    setScreenData(data);
+  }, []);
+
+  const goToBiometricVerification = useCallback((data) => {
+    setCurrentScreen(ABHA_SCREENS.BIOMETRIC_VERIFICATION);
+    setScreenData(data);
+  }, []);
+
   const resetScreens = useCallback(() => {
     setCurrentScreen(ABHA_SCREENS.CREATE);
     setScreenData({});
@@ -68,6 +80,7 @@ const useAbhaScreens = () => {
   return {
     currentScreen,
     screenData,
+    setScreenData,
     navigateToScreen,
     goToCreate,
     goToVerifyOtp,
@@ -77,6 +90,8 @@ const useAbhaScreens = () => {
     goToAbhaAddress,
     goToOtpVerificationCode,
     goToMobileVerifyOtp,
+    goToBiometricAadhaarEntry,
+    goToBiometricVerification,
     resetScreens,
   };
 };

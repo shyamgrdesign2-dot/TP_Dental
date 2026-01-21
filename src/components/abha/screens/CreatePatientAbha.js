@@ -4,12 +4,15 @@ import AbhaNavigationCard from "../common/AbhaNavigationCard";
 import LinkMobileIcon from "../../../assets/images/link-mobile-icon.svg";
 import GlobalIcon from "../../../assets/images/global-icon.svg";
 import PersonalCardIcon from "../../../assets/images/personal-card-icon.svg";
+import FingerScanIcon from "../../../assets/images/finger-scan.svg";
+import LeftArrow from "../../../assets/images/left-arrow.svg";
 import ErrorText from "../common/ErrorText";
 import ApiAbha from "../../../api/services/ApiAbha";
 
 const CreatePatientAbha = ({
   onLinkOptionSelect = () => {},
   onOtpSent = () => {},
+  onBiometricSelect = () => {},
   patientUniqueId,
 }) => {
   const [segments, setSegments] = useState(["", "", ""]);
@@ -162,6 +165,25 @@ const CreatePatientAbha = ({
           icon={PersonalCardIcon}
           onClick={() => onLinkOptionSelect("number")}
         />
+      </div>
+
+      <div className="abha_link_divider">
+        <span className="right_line_divider"></span>
+        <div className="divider_text">Or create ABHA</div>
+        <span className="left_line_divider"></span>
+      </div>
+
+      <div className="abha_biometric_section">
+        <button
+          className="abha_biometric_button"
+          onClick={onBiometricSelect}
+        >
+          <div className="abha_biometric_button_content">
+            <img src={FingerScanIcon} alt="finger scan" className="abha_biometric_icon" />
+            <span>Create ABHA using Aadhaar Biometric</span>
+          </div>
+          <img src={LeftArrow} alt="arrow" className="abha_biometric_arrow" />
+        </button>
       </div>
     </div>
   );
