@@ -69,7 +69,6 @@ import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
 import AppointmentAgent from "./pages/appointmentAgent/AppointmentAgent";
 import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess";
 import VoiceRxConsult from "./pages/VoiceRxConsult";
-import VoiceRecordingPage from "./pages/VoiceRecordingPage";
 import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
@@ -501,7 +500,6 @@ function App() {
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
                 <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
-                <Route path="voice-recording" element={<VoiceRecordingPage />} />
                 <Route
                   path="get-unlimited-access"
                   element={<GetUnlimitedAccess />}

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
-import { errorMessage, makeDefaultLogo } from "../utils/utils";
+import { errorMessage, makeDefaultLogo, stopAllActiveRecorders } from "../utils/utils";
 import {
     sendCashsheetWhatsapp,
 } from "../redux/caseManagerSlice";
@@ -28,8 +28,13 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const isReceptionist = urlParams.has("receptionist");
 
     const onEndVisitClick = async () => {
+        stopAllActiveRecorders();
+        
         if (handleGoToAppointment) {
             handleGoToAppointment();
+            setTimeout(() => {
+                window.location.reload();
+            }, 100);
         } else {
             var sendData = {
               patient_unique_id:
@@ -68,6 +73,10 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               dispatch(resetUploadDocState());
               dispatch(resetDDxState());
               navigate("/", { replace: true });
+              // Reload page after navigation to ensure recorder cleanup
+              setTimeout(() => {
+                window.location.reload();
+              }, 100);
             } else {
               errorMessage(action.error);
             }

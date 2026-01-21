@@ -1,6 +1,5 @@
 import { Button, Checkbox, Divider, message, Modal } from "antd";
 import { useContext, useState } from "react";
-import autoFill from "../assets/images/autofill-white.svg";
 import scHeaderBg from "../assets/images/sc-header-bg.png";
 import autoFillRx from "../assets/images/sc-rx.svg";
 import autoFillRxDark from "../assets/images/sc-voice-rx.svg";
@@ -19,7 +18,6 @@ import {
   setSelectAutofill,
   setSelectedSymptomsCollector,
 } from "../redux/ddxSlice";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
@@ -166,7 +164,12 @@ const formatMedicalHistoryForDisplay = (data) => {
     }));
 };
 
-const SCPopup = ({ handlePopup, handleGenRx }) => {
+const SCPopup = ({
+  handlePopup,
+  handleGenRx,
+  onVoiceAutofill,
+  onAmbientAutofill,
+}) => {
   const dispatch = useDispatch();
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -253,38 +256,107 @@ const SCPopup = ({ handlePopup, handleGenRx }) => {
     symptomCollector?.medicalHistory
   );
 
-  const handleAutofill = () => {
+  const hasVoiceAutofill = typeof onVoiceAutofill === "function";
+  const hasAmbientAutofill = typeof onAmbientAutofill === "function";
+  const shouldShowVoiceOptions =
+    !isSmartPrescription &&
+    (tp_monetization_enable || isFreeVoiceRxUser) &&
+    (hasVoiceAutofill || hasAmbientAutofill);
+
+  const buildSelectedData = () => {
+    if (!symptomCollector) return null;
+    const allSymptoms = symptomCollector?.symptoms || [];
+    const allMedicalHistory = symptomCollector?.medicalHistory || [];
+
     // Filter and format selected symptoms
-    const selectedSymptomData = symptomCollector.symptoms.filter((symptom) =>
+    const selectedSymptomData = allSymptoms.filter((symptom) =>
       selectedSymptoms.includes(symptom.name)
     );
 
     // Filter and format selected medical history
-    const selectedMedicalHistoryData = symptomCollector.medicalHistory.filter(
+    const selectedMedicalHistoryData = allMedicalHistory.filter(
       (item) => selectedMedicalHistory.includes(item.name)
     );
 
+    const medicalHistoryPayload = selectedMedicalHistoryData.map((item) => ({
+      type: item.type,
+      name: item.name,
+      duration: item.duration,
+      relation: item.relation,
+      notes: item.notes,
+      status: item.status,
+      lineItem: item.lineItem,
+    }));
+
     // Combine and segregate the data
-    const formattedData = segregateDataByType([
-      ...selectedMedicalHistoryData.map((item) => ({
-        type: item.type,
-        name: item.name,
-        duration: item.duration,
-        relation: item.relation,
-        notes: item.notes,
-        lineItem: item.lineItem,
-      })),
-    ]);
+    const formattedData = segregateDataByType(medicalHistoryPayload);
 
     // Add selected symptoms to the formatted data
     formattedData.symptoms = selectedSymptomData;
     formattedData.notes = selectedNotes ? symptomCollector.notes : "";
-    // Dispatch the selected data
+
+    const voicePayload = {
+      symptoms: selectedSymptomData.map((symptom) => {
+        const payload = {
+          name: symptom.name,
+          duration: symptom.duration || symptom.since || "",
+          severity: symptom.severity || "",
+          notes: symptom.notes || "",
+          lineItem: symptom.lineItem || "",
+        };
+        if (symptom.since) {
+          payload.since = symptom.since;
+        }
+        return payload;
+      }),
+      medicalHistory: medicalHistoryPayload,
+      others: selectedNotes && symptomCollector.notes ? symptomCollector.notes : "",
+    };
+
+    return { formattedData, voicePayload };
+  };
+
+  const applySelectionToRxPad = (formattedData) => {
     dispatch(setSelectedSymptomsCollector(formattedData));
     dispatch(setSelectAutofill(true));
     handlePopup();
     toastMessage();
     trackEvent("SC_Doctor_SentoRxPad", moengageData);
+  };
+
+  const handleAutofill = () => {
+    const payloads = buildSelectedData();
+    if (!payloads) return;
+    applySelectionToRxPad(payloads.formattedData);
+  };
+
+  const handleVoiceAutofillClick = () => {
+    const supportsVoiceAutofill = typeof onVoiceAutofill === "function";
+    if (!supportsVoiceAutofill) {
+      handleGenRx();
+      handleAutofill();
+      return;
+    }
+    const payloads = buildSelectedData();
+    if (!payloads) return;
+    handlePopup();
+    toastMessage();
+    trackEvent("SC_Doctor_SentToVoiceRx", moengageData);
+    onVoiceAutofill(payloads.voicePayload);
+  };
+
+  const handleAmbientAutofillClick = () => {
+    const supportsAmbientAutofill = typeof onAmbientAutofill === "function";
+    if (!supportsAmbientAutofill) {
+      handleAutofill();
+      return;
+    }
+    const payloads = buildSelectedData();
+    if (!payloads) return;
+    handlePopup();
+    toastMessage();
+    trackEvent("SC_Doctor_SentToAmbientVoiceRx", moengageData);
+    onAmbientAutofill(payloads.voicePayload);
   };
 
   const toastMessage = () => {
@@ -734,50 +806,45 @@ const SCPopup = ({ handlePopup, handleGenRx }) => {
           gap: 32,
         }}
       >
-        {!(tp_monetization_enable || isFreeVoiceRxUser) || isSmartPrescription ? (
+         {!shouldShowVoiceOptions ? (
           <Button
             className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
             style={{ gap: "8px", width: (tp_monetization_enable || isFreeVoiceRxUser) ? "80%" : "100%" }}
             onClick={handleAutofill}
           >
-            <img src={autoFill} alt="auto-fill" />
-            <span>{"Autofill details"}</span>
+             <img src={autoFillRx} alt="auto-fill" />
+             <span>{"Autofill to Rx Pad"}</span>
           </Button>
         ) : (
           <>
-            <Button
-              type="button"
-              className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-center sc-popup-btn"
-              style={{
-                width: "50%",
-                gap: "8px",
-              }}
-              onClick={() => {
-                handleGenRx();
-                handleAutofill();
-              }}
-            >
-              <img src={autoFillRxDark} alt="auto-fill" />
-              <span>{"Autofill to Voice Rx"}</span>
-            </Button>
-            <Button
-              className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
-              style={{
-                gap: "8px",
-                width: (tp_monetization_enable || isFreeVoiceRxUser) ? "50%" : "100%",
-              }}
-              onClick={handleAutofill}
-            >
-              <img
-                src={(tp_monetization_enable || isFreeVoiceRxUser) ? autoFillRx : autoFill}
-                alt="auto-fill"
-              />
-              <span>
-                {(tp_monetization_enable || isFreeVoiceRxUser)
-                  ? "Autofill to Rx Pad"
-                  : "Autofill details"}
-              </span>
-            </Button>
+             {hasVoiceAutofill && (
+               <Button
+                 type="button"
+                 className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-center sc-popup-btn"
+                 style={{
+                   width: hasAmbientAutofill ? "50%" : "100%",
+                   gap: "8px",
+                 }}
+                 onClick={handleVoiceAutofillClick}
+               >
+                 <img src={autoFillRxDark} alt="auto-fill" />
+                 <span>{"Autofill to Voice Rx"}</span>
+               </Button>
+             )}
+             {hasAmbientAutofill && (
+               <Button
+                 type="button"
+                 className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-center sc-popup-btn"
+                 style={{
+                   gap: "8px",
+                   width: hasVoiceAutofill ? "50%" : "100%",
+                 }}
+                 onClick={handleAmbientAutofillClick}
+               >
+                 <img src={autoFillRxDark} alt="auto-fill" />
+                 <span>{"Autofill to Ambient Voice Rx"}</span>
+               </Button>
+             )}
           </>
         )}
       </div>

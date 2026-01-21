@@ -62,6 +62,9 @@ const MedicalHistoryRichTextEditor = ({
   const formatHistoryItem = useCallback((item) => {
     const name = item.name || '';
     const details = [];
+    if (item.enable === 'N') {
+      return `No ${name}`;
+    }
     
     if (item.duration) details.push(`Since: ${item.duration}`);
     if (item.relation) details.push(`Relation: ${item.relation}`);
@@ -153,7 +156,7 @@ const MedicalHistoryRichTextEditor = ({
       
       if (groupedHistory[type] && groupedHistory[type].length > 0) {
         newValues[type] = groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n');
-      } else if (localTextareaValues[type] === undefined) {
+      } else {
         newValues[type] = '';
       }
     });
@@ -359,17 +362,17 @@ const MedicalHistoryRichTextEditor = ({
               )
             );
             const isExpanded = expandedSections[type];
-            const hasLocalValue = localTextareaValues[type] !== undefined && localTextareaValues[type] !== '';
-            const wasInitiallyPopulated = initiallyPopulatedTypes.includes(type);
-            if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated) {
-              return null;
-            }
             const isEditableType = type === 'others';
             const textareaValue = localTextareaValues[type] !== undefined 
               ? localTextareaValues[type] 
               : (groupedHistory[type] && groupedHistory[type].length > 0
                 ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
                 : '');
+            const cleanedTextareaValue = textareaValue ? textareaValue.replace(/•/g, '').trim() : '';
+            const hasActualContent = cleanedTextareaValue !== '';
+            if (!hasContent && !hasTextContent && !hasActualContent) {
+              return null;
+            }
             const lineCount = textareaValue ? textareaValue.split('\n').length : 1;
             const calculatedRows = Math.max(1, Math.min(10, lineCount));
             
@@ -473,33 +476,39 @@ const MedicalHistoryRichTextEditor = ({
           onSave={(savedData) => {
             if (savedData && Array.isArray(savedData)) {
               const convertedMedicalHistory = [];
+              const idToTypeMap = {
+                1: 'Lifestyle',
+                2: 'Medical Condition',
+                3: 'Family History',
+                4: 'Allergies',
+                5: 'Surgical History'
+              };
               
               savedData.forEach(section => {
+                const sectionType = idToTypeMap[section.tmmhs_id] || 'Lifestyle';
+                
                 if (section.tags && section.tags.length > 0) {
                   section.tags.forEach(tag => {
-                    if (tag.enable === 'Y' && tag.title && tag.title.trim() !== '') {
-                      const idToTypeMap = {
-                        1: 'Lifestyle',
-                        2: 'Medical Condition',
-                        3: 'Family History',
-                        4: 'Allergies',
-                        5: 'Surgical History'
-                      };
-                      
+                    if ((tag.enable === 'Y' || tag.enable === 'N') && tag.title && tag.title.trim() !== '') {
                       const historyItem = {
-                        type: idToTypeMap[section.tmmhs_id] || 'Lifestyle',
+                        type: sectionType,
                         name: tag.title.trim(),
                         duration: tag.since || '',
                         relation: tag.relationship || '',
                         notes: tag.note || '',
-                        status: tag.status || 'Active'
+                        status: tag.status || 'Active',
+                        enable: tag.enable || 'Y'
                       };
                       
-                      const lineParts = [tag.title.trim()];
-                      if (tag.since) lineParts.push(tag.since);
-                      if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
-                      if (tag.note) lineParts.push(tag.note);
-                      historyItem.lineItem = lineParts.join(', ');
+                      if (tag.enable === 'N') {
+                        historyItem.lineItem = `No ${tag.title.trim()}`;
+                      } else {
+                        const lineParts = [tag.title.trim()];
+                        if (tag.since) lineParts.push(tag.since);
+                        if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
+                        if (tag.note) lineParts.push(tag.note);
+                        historyItem.lineItem = lineParts.join(', ');
+                      }
                       
                       convertedMedicalHistory.push(historyItem);
                     }

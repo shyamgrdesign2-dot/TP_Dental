@@ -242,6 +242,42 @@ const ConsultationDrawer = ({
     thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
     title: "Voice Rx Tutorial"
   };
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+  const isFirstTranscriptJSON = useMemo(() => {
+    if (Array.isArray(queries) && queries.length > 0) {
+      const firstQuery = queries[0];
+      const firstText = typeof firstQuery === 'string' 
+        ? firstQuery 
+        : (firstQuery?.text || '');
+      return isSymptomCollectorJSON(firstText);
+    }
+    if (fullTranscript) {
+      return isSymptomCollectorJSON(fullTranscript);
+    }
+    if (genRxDetails?.source) {
+      return isSymptomCollectorJSON(genRxDetails.source);
+    }
+    if (typedInputText) {
+      return isSymptomCollectorJSON(typedInputText);
+    }
+    return false;
+  }, [queries, fullTranscript, genRxDetails?.source, typedInputText, isSymptomCollectorJSON]);
 
 
   useEffect(() => {
@@ -341,7 +377,8 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (hasAutoSubmittedRef.current) return;
     
-    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
+    const shouldSubmitTyped =
+      visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
@@ -376,7 +413,10 @@ const ConsultationDrawer = ({
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
-    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    const namesSignature = meds.map((m) => {
+      const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+      return nameToUse;
+    }).join("|");
     if (!namesSignature || namesSignature === lastFuzzyNamesRef.current) return;
 
     const now = Date.now();
@@ -433,24 +473,28 @@ const ConsultationDrawer = ({
 
       const correctedResults = await Promise.all(
         meds.map(async (med) => {
-          const currentName = (med?.name || "").trim();
-          if (!currentName)
-            return { correctedName: currentName, fullData: null };
+          const nameToUse = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+          if (!nameToUse)
+            return { correctedName: nameToUse, fullData: null };
           try {
-            const result = await ApiMedication.getFuzzySearch(currentName);
+            const searchName = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+            const result = await ApiMedication.getFuzzySearch(searchName);
             const corrected = result?.[0]?.tmm_medicine_name?.trim();
             return {
-              correctedName: corrected || currentName,
+              correctedName: corrected || nameToUse,
               fullData: {...result?.[0]} || null,
             };
           } catch (e) {
-            return { correctedName: currentName, fullData: null };
+            return { correctedName: nameToUse, fullData: null };
           }
         })
       );
 
       const anyChanged = meds.some(
-        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        (m, i) => {
+          const currentDisplayName = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+          return currentDisplayName !== correctedResults[i].correctedName;
+        }
       );
       if (!anyChanged) return;
 
@@ -468,7 +512,7 @@ const ConsultationDrawer = ({
           metadata: {
             ...m.metadata,
             fuzzyCorrectedName: correctedResults[idx].correctedName,
-            originalName: m.name,
+            originalName: (m?.groundingMedicineName || "").trim() || m.name,
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
@@ -835,10 +879,13 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     if (
-      isAutofillSelected &&
-      selectedSymptomsCollector &&
-      Object.keys(selectedSymptomsCollector)?.length > 0
+      typedInputText ||
+      !isAutofillSelected ||
+      !selectedSymptomsCollector ||
+      Object.keys(selectedSymptomsCollector)?.length === 0
     ) {
+      return;
+    }
       const formattedSymptomsCollectorData = getFormattedSymptomsCollectorData(
         selectedSymptomsCollector
       );
@@ -849,8 +896,7 @@ const ConsultationDrawer = ({
       if (!caseManagerData?.smart_prescription_filename) {
         handleVoiceDigitize(null, null, true);
       }
-    }
-  }, [selectedSymptomsCollector, isAutofillSelected]);
+  }, [selectedSymptomsCollector, isAutofillSelected, typedInputText]);
 
   useEffect(() => {
     let interval;
@@ -906,7 +952,19 @@ const ConsultationDrawer = ({
           } else if (response.data.digitizeData) {
             prescriptionData = response.data.digitizeData;
           } else if (response.data.digitize) {
-            prescriptionData = response.data.digitize;
+            const digitizeObj = response.data.digitize;
+            if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+              const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+              if (numericKeys.length > 0) {
+                prescriptionData = digitizeObj[numericKeys[0]];
+              } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                prescriptionData = digitizeObj;
+              } else {
+                prescriptionData = digitizeObj;
+              }
+            } else {
+              prescriptionData = digitizeObj;
+            }
           } else {
             const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
             const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
@@ -1666,9 +1724,12 @@ const ConsultationDrawer = ({
             
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             newFormData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
@@ -1698,9 +1759,12 @@ const ConsultationDrawer = ({
           } else {
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             formData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
@@ -1809,7 +1873,19 @@ const ConsultationDrawer = ({
               // Priority 3: Check for digitize object (single digitization)
               else if (finalResponseData.digitize || actualData?.digitize || responseData?.digitize) {
                 // Extract prescription data from digitize object
-                prescriptionData = finalResponseData.digitize || actualData?.digitize || responseData.digitize;
+                const digitizeObj = finalResponseData.digitize || actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
                 // Find the latest ambient entry (for get/edit operations)
                 const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
@@ -1879,12 +1955,21 @@ const ConsultationDrawer = ({
                        responseData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                           
               prescriptionData = responseData.rxDigitizationHistory[0].payload;
             }
-              else if (actualData?.digitize) {
-                prescriptionData = actualData.digitize;
+              else if (actualData?.digitize || responseData?.digitize) {
+                const digitizeObj = actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               }
-              else if (responseData?.digitize) {
-              prescriptionData = responseData.digitize;
-            }
               else if (actualData?.prescription) {
                 prescriptionData = actualData.prescription;
               }
@@ -4849,12 +4934,21 @@ const ConsultationDrawer = ({
           tags: []
         };
       }
+      let tagTitle = item.name || '';
+      let tagEnable = item.enable || 'Y';
+      if (!item.enable) {
+        const nameToCheck = item.name || item.lineItem || '';
+        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
+          tagTitle = nameToCheck.trim().substring(3); 
+          tagEnable = 'N';
+        }
+      }
       
       // Create tag object
       const tag = {
-        tmmhst_id: Date.now() + Math.random(), // Generate unique ID
-        title: item.name || '',
-        enable: 'Y',
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
         note: item.notes || '',
         since: item.duration || '',
         status: 'Active',
@@ -4927,8 +5021,8 @@ const ConsultationDrawer = ({
                   <div className={styles.modeIndicator}>
                     {isAmbientMode ? (
                       <>
-                        <img src={ambientActiveIcon} alt="Ambient mode" className={styles.modeIcon} />
-                        <span className={styles.modeText}>Ambient Mode</span>
+                        <img src={ambientActiveIcon} alt="Conversation mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Coversation Mode</span>
                       </>
                     ) : (
                       <>
@@ -5140,7 +5234,7 @@ const ConsultationDrawer = ({
                         
                                                 {/* Transcript Cards */}
                         {/* First transcript card - show initial transcript */}
-                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
+                        {!isFirstTranscriptJSON && ((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
                           const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
                           const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations
@@ -5250,7 +5344,7 @@ const ConsultationDrawer = ({
                         })()}
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
-                        {!isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
+                        {!isFirstTranscriptJSON && !isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
                             <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
