@@ -1,10 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { AutoComplete, Input } from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./OphthalmologyExamPanel.module.scss";
 import {
   OPHTHALMOLOGY_OPTIONS,
   OPHTHALMOLOGY_SECTIONS,
 } from "../../utils/ophthalmologyExamConstants";
+import {
+  resetVisualAcuity,
+  updateVisualAcuityField,
+} from "../../redux/ophthalmologyExamSlice";
 
 const resolveOptionsKey = (optionsKey) => {
   if (!optionsKey) {
@@ -95,7 +101,7 @@ const InlineField = ({ field }) => {
   );
 };
 
-const OphthalmologyTable = ({ table }) => {
+const OphthalmologyTable = ({ table, values: externalValues, onChange }) => {
   const { columns, rows } = table;
   const inputColumnKeys = useMemo(
     () => columns.filter((column) => column.type !== "label").map((c) => c.key),
@@ -127,6 +133,10 @@ const OphthalmologyTable = ({ table }) => {
   const [values, setValues] = useState(initialValues);
 
   const handleChange = (rowKey, columnKey, nextValue) => {
+    if (onChange) {
+      onChange(rowKey, columnKey, nextValue);
+      return;
+    }
     setValues((prev) => ({
       ...prev,
       [`${rowKey}-${columnKey}`]: nextValue,
@@ -181,10 +191,13 @@ const OphthalmologyTable = ({ table }) => {
                   );
                 }
                 const cellKey = `${row.key}-${column.key}`;
+                const cellValue = externalValues
+                  ? externalValues[cellKey] ?? ""
+                  : values[cellKey];
                 return (
                   <td key={column.key}>
                     <DropdownInput
-                      value={values[cellKey]}
+                      value={cellValue}
                       placeholder={column.placeholder}
                       options={getOptions(row, column)}
                       onChange={(nextValue) =>
@@ -204,7 +217,11 @@ const OphthalmologyTable = ({ table }) => {
   );
 };
 
-const OphthalmologySectionCard = ({ section }) => {
+const OphthalmologySectionCard = ({
+  section,
+  onAction,
+  getTableProps,
+}) => {
   return (
     <div className={styles.sectionCard}>
       <div className={styles.sectionHeader}>
@@ -229,6 +246,7 @@ const OphthalmologySectionCard = ({ section }) => {
               key={action}
               type="button"
               className={styles.headerAction}
+              onClick={() => onAction?.(section, action)}
             >
               <span className={styles.actionIcon} />
               {action}
@@ -247,7 +265,11 @@ const OphthalmologySectionCard = ({ section }) => {
 
       <div className={styles.tablesStack}>
         {section.tables.map((table) => (
-          <OphthalmologyTable key={table.id} table={table} />
+          <OphthalmologyTable
+            key={table.id}
+            table={table}
+            {...(getTableProps ? getTableProps(section, table) : {})}
+          />
         ))}
       </div>
 
@@ -262,11 +284,71 @@ const OphthalmologySectionCard = ({ section }) => {
   );
 };
 
-const OphthalmologyExamPanel = () => {
+const OphthalmologyExamPanel = ({ patientData }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { visualAcuity } = useSelector((state) => state.ophthalmologyExam);
+
+  const visualAcuityValues = useMemo(() => {
+    const map = {};
+    const rows = [
+      { key: "od", data: visualAcuity?.od || {} },
+      { key: "os", data: visualAcuity?.os || {} },
+    ];
+    rows.forEach((row) => {
+      Object.entries(row.data).forEach(([columnKey, value]) => {
+        map[`${row.key}-${columnKey}`] = value ?? "";
+      });
+    });
+    return map;
+  }, [visualAcuity]);
+
+  const handleAction = (section, action) => {
+    if (section.id === "visualAcuity" && action === "SnapRx") {
+      navigate("/ophthal-snap-rx", {
+        state: {
+          ...location.state,
+          patient_data: patientData || location.state?.patient_data,
+          returnPath: location.pathname,
+          snapRxSchemaKey: "VISUAL_ACUITY_TEST",
+        },
+      });
+      return;
+    }
+
+    if (section.id === "visualAcuity" && action === "Clear") {
+      dispatch(resetVisualAcuity());
+    }
+  };
+
+  const getTableProps = (section, table) => {
+    if (section.id !== "visualAcuity" || table.id !== "visualAcuityTable") {
+      return {};
+    }
+    return {
+      values: visualAcuityValues,
+      onChange: (rowKey, columnKey, nextValue) => {
+        dispatch(
+          updateVisualAcuityField({
+            eye: rowKey,
+            field: columnKey,
+            value: nextValue,
+          })
+        );
+      },
+    };
+  };
+
   return (
     <div className={styles.panel}>
       {OPHTHALMOLOGY_SECTIONS.map((section) => (
-        <OphthalmologySectionCard key={section.id} section={section} />
+        <OphthalmologySectionCard
+          key={section.id}
+          section={section}
+          onAction={handleAction}
+          getTableProps={getTableProps}
+        />
       ))}
     </div>
   );

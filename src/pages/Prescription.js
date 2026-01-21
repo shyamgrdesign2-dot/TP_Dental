@@ -1713,7 +1713,7 @@ function Prescription() {
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
                 <div className="prescription-box-sm">
-                  <OphthalmologyExamPanel />
+                  <OphthalmologyExamPanel patientData={patient_data} />
                 </div>
                 {customizedPadRightList?.map((e, i) => {
                   const customModule = customModules?.find(

@@ -325,7 +325,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "visualAcuity",
     title: "Visual Acuity Test",
     iconSize: 28,
-    actions: ["Load Prev", "Clear"],
+    actions: ["Load Prev", "SnapRx", "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "visualAcuityTestTypes" },
       { label: "Correction Used", optionsKey: "correctionUsedOptions" },
