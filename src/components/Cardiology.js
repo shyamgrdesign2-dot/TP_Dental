@@ -68,6 +68,7 @@ import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageServ
 import AbhaSyncButton from "./AbhaSyncButton";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
+import { useGrounding } from "../hooks/useGrounding";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -128,6 +129,7 @@ function Cardiology(props) {
   );
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const isGroundingAccessable = useGrounding();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -1020,7 +1022,19 @@ function Cardiology(props) {
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {(item?.groundingMedicineName || "").trim() || item?.name || 'N/A'}
+                  {capitalize(
+                    (() => {
+                      if (isGroundingAccessable) {
+                        const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                        if (isFuzzySearchEmpty) {
+                          return item?.groundingMedicineName || item.name || "";
+                        }
+                        return item.name || item?.groundingMedicineName || "";
+                      }
+                      return item?.groundingMedicineName || item.name || "";
+                    })().trim() || '-', 
+                    true
+                  )}
                 </td>
                 <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}
@@ -1240,7 +1254,16 @@ function Cardiology(props) {
               item.name &&
               detailText.trim().toLowerCase().startsWith(item.name.trim().toLowerCase());
 
-            const baseName = item.name || "N/A";
+            const baseName = (() => {
+              if (isGroundingAccessable) {
+                const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                if (isFuzzySearchEmpty) {
+                  return item?.groundingMedicineName || item.name || "N/A";
+                }
+                return item.name || item?.groundingMedicineName || "N/A";
+              }
+              return item?.groundingMedicineName || item.name || "N/A";
+            })();
 
             let formattedMain = baseName;
             if (detailText) {

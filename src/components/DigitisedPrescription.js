@@ -116,6 +116,8 @@ const DigitisedPrescription = ({
   // Fuzzy search run-once guards for meds and tests
   const hasFuzzyRunMedsRef = useRef(false);
   const hasFuzzyRunTestsRef = useRef(false);
+  const lastFuzzyNamesRef = useRef("");
+  const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE

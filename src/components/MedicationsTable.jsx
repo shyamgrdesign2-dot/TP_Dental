@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button, Select } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
@@ -13,7 +13,7 @@ import {
   searchMedication,
   getFrequentlySearchedMedication
 } from "../redux/medicationSlice";
-import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator, getClinic } from '../utils/utils';
+import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, hasNumber, frequencyFormat, frequencyCombination, getHmTypeIndicator, getClinic, onlyDecimalFormat, isAlphabetExit } from '../utils/utils';
 import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
@@ -65,6 +65,9 @@ const MedicationsTable = ({
   const [sinceOptions, setSinceOptions] = useState(EXTRA_OPTIONS);
   const [frequencyQuery, setFrequencyQuery] = useState('');
   
+  // Unit per dose dropdown state
+  const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
+  
   // Helper function to extract medicine name from value (which may include unique ID)
   const extractMedicineName = useCallback((value) => {
     if (!value) return '';
@@ -81,6 +84,19 @@ const MedicationsTable = ({
     { value: "Month(s)", label: "Months" },
     { value: "Year(s)", label: "Years" },
   ];
+  
+  // Default unit options if medicineUnit is not available
+  const DEFAULT_UNIT_OPTIONS = useMemo(() => [
+    { tmu_id: 1, tmu_title: 'Tablet' },
+    { tmu_id: 2, tmu_title: 'Tablets' },
+    { tmu_id: 3, tmu_title: 'units' },
+    { tmu_id: 4, tmu_title: 'unit' },
+    { tmu_id: 5, tmu_title: 'ml' },
+    { tmu_id: 6, tmu_title: 'mg' },
+    { tmu_id: 7, tmu_title: 'g' },
+    { tmu_id: 8, tmu_title: 'capsule' },
+    { tmu_id: 9, tmu_title: 'capsules' },
+  ], []);
   
   const filteredTitles = frequencyList ? frequencyList.filter((item) => item.tmf_block !== 0) : [];
 
@@ -424,6 +440,14 @@ const MedicationsTable = ({
       setOriginalEditValue(value);
       await performFuzzySearch(value);
       return;
+    }
+    
+    if (field === 'dosage') {
+      // Initialize unit per dose options when clicking on dosage field
+      const item = medications.find(med => med.id === itemId);
+      if (item) {
+        onSearchUnitPerDoseChild(value || '', itemId);
+      }
     }
   };
 
@@ -868,11 +892,79 @@ const MedicationsTable = ({
   const onSelectSinceChild = useCallback(
     (data, e, itemId) => {
       setSinceOptions(EXTRA_OPTIONS);
-      const objParse = JSON.parse(e.key);
       const updatedMedications = medications.map(item => {
         if (item.id === itemId) {
           const updated = { ...item, duration: data };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          return updated;
+        }
+        return item;
+      });
+      onUpdate(updatedMedications);
+    },
+    [medications, onUpdate]
+  );
+
+  const onSearchUnitPerDoseChild = useCallback(
+    (query, itemId) => {
+      const item = medications.find(med => med.id === itemId);
+      if (!item) return;
+      
+      const updateQuery = onlyDecimalFormat(query);
+      const updatedMedications = medications.map(med => {
+        if (med.id === itemId) {
+          const updated = { ...med, dosage: updateQuery };
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          return updated;
+        }
+        return med;
+      });
+      onUpdate(updatedMedications);
+      const medicineUnit = item?.metadata?.medicineUnit || item?.medicineUnit || DEFAULT_UNIT_OPTIONS;
+      if (updateQuery && medicineUnit.length > 0) {
+        const options = medicineUnit.map((e) => {
+          return {
+            key: JSON.stringify({ ...e, tmm_dosage: updateQuery, unique_id: uuidv4() }),
+            value: `${updateQuery} ${e.tmu_title}`,
+            label: <>{`${updateQuery} ${e.tmu_title}`}</>,
+          };
+        });
+        setUnitPerDoseOptions(options);
+      } else {
+        setUnitPerDoseOptions([]);
+      }
+    },
+    [medications, onUpdate, DEFAULT_UNIT_OPTIONS]
+  );
+
+  const onBlurUnitPerDoseChild = useCallback(
+    async (itemId) => {
+      const item = medications.find(med => med.id === itemId);
+      if (!item) return;      
+      const dosageValue = item.dosage || '';
+      if (!isAlphabetExit(dosageValue)) {
+        setUnitPerDoseOptions([]);
+        const updatedMedications = medications.map(med => {
+          if (med.id === itemId) {
+            const updated = { ...med, dosage: "" };
+            updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+            return updated;
+          }
+          return med;
+        });
+        onUpdate(updatedMedications);
+      }
+    },
+    [medications, onUpdate]
+  );
+
+  const onSelectUnitPerDoseChild = useCallback(
+    (data, e, itemId) => {
+      setUnitPerDoseOptions([]);
+      const updatedMedications = medications.map(item => {
+        if (item.id === itemId) {
+          const updated = { ...item, dosage: data };
+          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
         return item;
@@ -1082,22 +1174,75 @@ const MedicationsTable = ({
                 </td>
                 <td 
                   className={styles['unit-dose-cell']}
-                  onClick={!isTablet ? () => handleCellClick(item.id, 'dosage', item.dosage) : undefined}
-                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                  style={{ cursor: 'default' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'dosage') || (isTablet && editingRow === item.id) ? (
-                    <input
-                      type="text"
-                      value={isTablet && editingRow === item.id ? rowEditValues.dosage : editValue}
-                      onChange={(e) => isTablet && editingRow === item.id ? handleRowFieldChange('dosage', e.target.value) : setEditValue(e.target.value)}
-                      onBlur={isTablet && editingRow === item.id ? undefined : handleCellSave}
-                      onKeyDown={isTablet && editingRow === item.id ? (e) => handleRowFieldKeyDown(e, item.id) : handleCellKeyDown}
-                      className={styles['edit-input']}
+                    <AutoComplete
+                      value={isTablet && editingRow === item.id ? (rowEditValues.dosage || '') : (editValue || '')}
                       placeholder="e.g., 1 Tablet"
-                      autoFocus={!isTablet}
+                      bordered={false}
+                      defaultOpen={false}
+                      onSearch={(query) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('dosage', query);
+                        } else {
+                          setEditValue(query);
+                          onSearchUnitPerDoseChild(query, item.id);
+                        }
+                      }}
+                      options={unitPerDoseOptions}
+                      className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
+                      popupClassName="option-truncate"
+                      defaultActiveFirstOption={true}
+                      onSelect={(data, e) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('dosage', data);
+                        } else {
+                          setEditValue(data);
+                          onSelectUnitPerDoseChild(data, e, item.id);
+                          setTimeout(() => {
+                            setEditingCell(null);
+                            setEditValue('');
+                          }, 100);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (!isTablet) {
+                          const currentDosage = item.dosage || '';
+                          setEditValue(currentDosage);
+                          onSearchUnitPerDoseChild(currentDosage, item.id);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!isTablet) {
+                          onBlurUnitPerDoseChild(item.id);
+                          handleCellSave();
+                        }
+                      }}
+                      onClear={() => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('dosage', '');
+                        } else {
+                          setEditValue('');
+                          const updatedMedications = medications.map(med => {
+                            if (med.id === item.id) {
+                              const updated = { ...med, dosage: "" };
+                              updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+                              return updated;
+                            }
+                            return med;
+                          });
+                          onUpdate(updatedMedications);
+                        }
+                      }}
+                      allowClear
                     />
                   ) : (
-                    <span className={styles['unit-dose-text']}>
+                    <span 
+                      className={styles['unit-dose-text']}
+                      onClick={!isTablet ? () => handleCellClick(item.id, 'dosage', item.dosage) : undefined}
+                      style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                    >
                       {item.dosage || '-'}
                     </span>
                   )}
