@@ -6,31 +6,8 @@ import styles from './ConsultationDrawer.module.css';
 import vitalsIcon from '../assets/images/Vitals.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import VitalsBox from './VitalsBox';
-import ApiVitals from '../api/services/ApiVitals';
+import { getTodayVitals } from '../utils/getTodayVitals';
 import CashManagerContext from '../context/CashManagerContext';
-
-const formatApiVitals = (apiVitalsData) => {
-  if (!apiVitalsData) return null;
-  return {
-    date: apiVitalsData.date || moment().format('YYYY-MM-DD'),
-    temperature: apiVitalsData.temp || '',
-    pulse: apiVitalsData.pres || '',
-    respRate: apiVitalsData.resp_rate || '',
-    Systolic: apiVitalsData.systolic || '',
-    Diastolic: apiVitalsData.diastolic || '',
-    spo2: apiVitalsData.spo2 || '',
-    'General RBS': apiVitalsData.general_rbs || '',
-    FIB4: apiVitalsData.fib4 || '',
-    'Waist Circumference': apiVitalsData.waist_circumference || '',
-    ofc: apiVitalsData.ofc || '',
-    height: apiVitalsData.height || '',
-    weight: apiVitalsData.weight || '',
-    BMI: apiVitalsData.bmi || '',
-    BMR: apiVitalsData.bmr || '',
-    BSA: apiVitalsData.bsa || '',
-    bloodPressure: apiVitalsData.blood_press || ''
-  };
-};
 
 const VitalsRichTextEditor = ({
   vitalsAndBodyComposition = {},
@@ -46,33 +23,15 @@ const VitalsRichTextEditor = ({
     const fetchApiVitals = async () => {
       if (patient_data?.patient_unique_id) {
         try {
-          const sendData = {
-            patient_unique_id: patient_data.patient_unique_id,
-            pam_id: patient_data.pam_id || 0,
-            mode: 'ADD',
-            pm_pid: patient_data.pm_pid || '',
-            pm_id: patient_data.pm_id || 0
-          };
-          const response = await ApiVitals.getVitals(sendData);
-          if (response?.status && response?.data?.length > 0) {
-            const today = moment().format('YYYY-MM-DD');
-            // Only use vitals that are for today's date (check createdAt or date)
-            const todayVitals = response.data.find(v => {
-              const vitalDate = v.createdAt || v.created_at || v.createdDate || v.date;
-              if (!vitalDate) return false;
-              return moment(vitalDate).format('YYYY-MM-DD') === today;
-            });
-            
-            if (todayVitals) {
-              const formatted = formatApiVitals(todayVitals);
-              setApiVitals(formatted);
-              // Auto-update RX pad if no existing vitals
-              if (onUpdate && (!vitalsAndBodyComposition || Object.keys(vitalsAndBodyComposition).length === 0)) {
-                onUpdate(formatted);
-              }
-            } else {
-              setApiVitals(null);
+          const todayVitals = await getTodayVitals(patient_data);
+          if (todayVitals) {
+            setApiVitals(todayVitals);
+            // Auto-update RX pad if no existing vitals
+            if (onUpdate && (!vitalsAndBodyComposition || Object.keys(vitalsAndBodyComposition).length === 0)) {
+              onUpdate(todayVitals);
             }
+          } else {
+            setApiVitals(null);
           }
         } catch (error) {
           console.error('Error fetching vitals:', error);
@@ -80,6 +39,7 @@ const VitalsRichTextEditor = ({
       }
     };
     fetchApiVitals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   const mergedVitals = useMemo(() => {
@@ -148,7 +108,7 @@ const VitalsRichTextEditor = ({
         return cleaned;
       }
       // strip all non-numeric/non-dot characters to drop backend units; keep minus for temps
-      const cleaned = str.replace(/[^0-9.\-]/g, '');
+      const cleaned = str.replace(/[^0-9.-]/g, '');
       return cleaned;
     };
 
@@ -392,7 +352,11 @@ const VitalsRichTextEditor = ({
         <VitalsBox
           key={`vitals-drawer-${vitalsDrawer}`}
           handleDrawerVital={() => setVitalsDrawer(false)}
-          handleCollapsed={() => {}}
+          handleCollapsed={(flag) => {
+            if (flag === 1) {
+              setVitalsDrawer(false);
+            }
+          }}
           initialVitals={mergedVitals}
           onVitalsUpdate={handleVitalsUpdate}
           onVitalsSave={handleVitalsSave}

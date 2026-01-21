@@ -21,10 +21,8 @@ import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 import ApiVitals from "../../api/services/ApiVitals";
 import { addPatientLabReports } from "../../api/services/ApiLabParams";
-import { mapLabResultsToStandardized } from "../../utils/mapLabResults";
 import moment from "moment";
 import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
-import { loadTodayVitalsAndLabResults } from "../../utils/loadTodayVitalsAndLabResults";
 import CashManagerContext from "../../context/CashManagerContext";
 
 function SnapRxDigitise() {
@@ -108,11 +106,6 @@ function SnapRxDigitise() {
     }
     if (!normalized.examinations && Array.isArray(normalized.examination)) {
       normalized.examinations = normalized.examination;
-    }
-    
-    // Map lab results to standardized names (matching sidebar)
-    if (Array.isArray(normalized.labResults) && normalized.labResults.length > 0) {
-      normalized.labResults = mapLabResultsToStandardized(normalized.labResults);
     }
     
     return normalized;
@@ -237,11 +230,6 @@ function SnapRxDigitise() {
     }
   }, []);
 
-  // Auto-load today's vitals and lab results
-  useEffect(() => {
-    if (!patient_data?.patient_unique_id || !data) return;
-    loadTodayVitalsAndLabResults({ patient_data, setState: setData });
-  }, [patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   const handleSave = async () => {
     try {
@@ -717,7 +705,58 @@ function SnapRxDigitise() {
 
       // Update the digitized data
       if (response?.data?.data) {
-        setData(normalizeEditedFlag(response.data.data.refinedData));
+        let refinedData = normalizeEditedFlag(response.data.data.refinedData);
+        
+        const hasResponseVitals = refinedData?.vitalsAndBodyComposition && 
+          Object.keys(refinedData.vitalsAndBodyComposition).length > 0 &&
+          Object.values(refinedData.vitalsAndBodyComposition).some(v => {
+            const strValue = String(v || '').trim();
+            return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
+          });
+        
+        if (!hasResponseVitals && patient_data?.patient_unique_id) {
+          try {
+            const { getTodayVitals } = await import('../../utils/getTodayVitals');
+            const todayVitals = await getTodayVitals(patient_data);
+            if (todayVitals) {
+              refinedData.vitalsAndBodyComposition = todayVitals;
+            }
+          } catch (error) {
+            console.error('Error loading vitals from listVitals API:', error);
+          }
+        }
+        
+        const hasResponseLabResults = refinedData?.labResults && 
+          Array.isArray(refinedData.labResults) && 
+          refinedData.labResults.length > 0 &&
+          refinedData.labResults.some(r => {
+            const testname = (r.testname || r.testName || r.name || '').trim();
+            const value = (r.value || '').trim();
+            return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
+          });
+        
+        if (!hasResponseLabResults && patient_data?.patient_unique_id) {
+          try {
+            const { getTodayLabResults } = await import('../../utils/getTodayLabResults');
+            const todayLabResults = await getTodayLabResults(patient_data);
+            if (todayLabResults && todayLabResults.length > 0) {
+              refinedData.labResults = todayLabResults;
+            }
+          } catch (error) {
+            console.error('Error loading lab results from lab parameters API:', error);
+          }
+        }
+        
+        if (refinedData?.labResults && Array.isArray(refinedData.labResults) && refinedData.labResults.length > 0) {
+          try {
+            const { matchLabResultsWithApi } = await import('../../utils/matchLabResultsWithApi');
+            refinedData.labResults = await matchLabResultsWithApi(refinedData.labResults, patient_data);
+          } catch (error) {
+            console.error('Error matching lab results with API:', error);
+          }
+        }
+        
+        setData(refinedData);
       }
     } catch (error) {
       console.error("🔵 SnapRx digitizeRx: Error uploading files:", error);
