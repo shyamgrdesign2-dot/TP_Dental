@@ -280,17 +280,6 @@ const AbhaStandalone = () => {
         patient_unique_id: patient_unique_id || patientUniqueId,
       };
 
-      const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const authToken = token ? JSON.parse(token) : null;
-      const apiUrl = `${config.abha_api_url || 'https://pm-abha-uat.tatvacare.in'}/api/v1/abdm/m1/enrollmentByAadhaar/verify-fingerPrint`;
-      
-      console.log("=== API Request Curl ===");
-      console.log(`curl --location '${apiUrl}' \\`);
-      console.log(`--header 'Authorization: Bearer ${authToken}' \\`);
-      console.log(`--header 'Content-Type: application/json' \\`);
-      console.log(`--data '${JSON.stringify(requestData)}'`);
-      console.log("========================");
-
       const response = await ApiAbha.verifyFingerPrintForAadhaar(requestData);
 
       if (response?.success) {
