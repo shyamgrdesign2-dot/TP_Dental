@@ -17,6 +17,9 @@ const initialState = {
       cNear: "",
     },
   },
+  tables: {},
+  extraFields: {},
+  opthalPrescriptionId: null,
 };
 
 const ophthalmologyExamSlice = createSlice({
@@ -40,6 +43,37 @@ const ophthalmologyExamSlice = createSlice({
     resetVisualAcuity: (state) => {
       state.visualAcuity = initialState.visualAcuity;
     },
+    setTableValue: (state, action) => {
+      const { tableId, cellKey, value } = action.payload || {};
+      if (!tableId || !cellKey) return;
+      if (!state.tables[tableId]) {
+        state.tables[tableId] = {};
+      }
+      state.tables[tableId][cellKey] = value;
+    },
+    setTableValues: (state, action) => {
+      const { tableId, values } = action.payload || {};
+      if (!tableId || !values) return;
+      state.tables[tableId] = { ...values };
+    },
+    resetTable: (state, action) => {
+      const { tableId } = action.payload || {};
+      if (!tableId) return;
+      state.tables[tableId] = {};
+    },
+    setExtraField: (state, action) => {
+      const { key, value } = action.payload || {};
+      if (!key) return;
+      state.extraFields[key] = value;
+    },
+    resetExtraField: (state, action) => {
+      const { key } = action.payload || {};
+      if (!key) return;
+      delete state.extraFields[key];
+    },
+    setOpthalPrescriptionId: (state, action) => {
+      state.opthalPrescriptionId = action.payload || null;
+    },
   },
 });
 
@@ -47,6 +81,12 @@ export const {
   setVisualAcuityData,
   updateVisualAcuityField,
   resetVisualAcuity,
+  setTableValue,
+  setTableValues,
+  resetTable,
+  setExtraField,
+  resetExtraField,
+  setOpthalPrescriptionId,
 } = ophthalmologyExamSlice.actions;
 
 export default ophthalmologyExamSlice.reducer;

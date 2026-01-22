@@ -49,6 +49,11 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
+import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
+import {
+    createOpthalPrescription,
+    updateOpthalPrescription,
+} from "../pages/ophthalmology/service";
 
 var oneClickCosultationTemplateId = 0
 
@@ -76,6 +81,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
+    const ophthalmologyExam = useSelector((state) => state.ophthalmologyExam);
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
 
@@ -990,7 +996,64 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [customizeDrawer]);
 
+    const hasOpthalValues = useCallback(() => {
+        return (
+            Object.values(ophthalmologyExam?.visualAcuity || {}).some((eye) =>
+                Object.values(eye || {}).some((value) => value)
+            ) ||
+            Object.values(ophthalmologyExam?.tables || {}).some((table) =>
+                Object.values(table || {}).some((value) => value)
+            ) ||
+            Object.values(ophthalmologyExam?.extraFields || {}).some((value) => value)
+        );
+    }, [ophthalmologyExam]);
+
+    const opthalTablesById = useMemo(() => {
+        return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
+            section.tables.forEach((table) => {
+                acc[table.id] = table;
+            });
+            return acc;
+        }, {});
+    }, []);
+
+    const buildEyeRowsPayload = useCallback((tableId, tableValues) => {
+        const table = opthalTablesById[tableId];
+        if (!table) return [];
+        return table.rows.map((row) => {
+            const rowData = { eye: row.label };
+            table.columns.forEach((column) => {
+                if (column.type === "label") return;
+                const cellKey = `${row.key}-${column.key}`;
+                rowData[column.key] = tableValues?.[cellKey] ?? "";
+            });
+            return rowData;
+        });
+    }, [opthalTablesById]);
+
+    const buildSectionRowsPayload = useCallback((tableId, tableValues) => {
+        const table = opthalTablesById[tableId];
+        if (!table) return [];
+        return table.rows.map((row) => {
+            const rowData = { section: row.label };
+            table.columns.forEach((column) => {
+                if (column.type === "label") return;
+                const cellKey = `${row.key}-${column.key}`;
+                const value = tableValues?.[cellKey] ?? "";
+                if (column.key === "od") {
+                    rowData.OD = value;
+                } else if (column.key === "os") {
+                    rowData.OS = value;
+                } else {
+                    rowData[column.key] = value;
+                }
+            });
+            return rowData;
+        });
+    }, [opthalTablesById]);
+
     async function onEndVisitClick() {
+        console.log('INTEL ==> onEndVisitClick')
         if (symptomsData.length > 0 && symptomsData.filter(e => e.symptom_name == "").length > 0) {
             errorMessage('Please fillup symptom name')
         } else if (examinationData.length > 0 && examinationData.filter(e => e.examination_name == "").length > 0) {
@@ -1006,6 +1069,81 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
+            const opthalTables = ophthalmologyExam?.tables || {};
+            const opthalExtraFields = ophthalmologyExam?.extraFields || {};
+            const visualAcuityPayload = [
+                {
+                    eye: "OD",
+                    ...(ophthalmologyExam?.visualAcuity?.od || {}),
+                },
+                {
+                    eye: "OS",
+                    ...(ophthalmologyExam?.visualAcuity?.os || {}),
+                },
+            ];
+
+            const undilated = buildEyeRowsPayload(
+                "autoRefractionUndilated",
+                opthalTables["autoRefractionUndilated"]
+            ).map((row) => ({ ...row, type: "Undilated" }));
+            const dilated = buildEyeRowsPayload(
+                "autoRefractionDilated",
+                opthalTables["autoRefractionDilated"]
+            ).map((row) => ({ ...row, type: "Dilated" }));
+
+            const lensometerValues = buildEyeRowsPayload(
+                "lensometerTable",
+                opthalTables["lensometerTable"]
+            );
+
+            const glassPrescription = buildEyeRowsPayload(
+                "glassPrescriptionTable",
+                opthalTables["glassPrescriptionTable"]
+            );
+
+            const intraOcularPressure = buildEyeRowsPayload(
+                "iopTable",
+                opthalTables["iopTable"]
+            ).map(({ cct, ...rest }) => ({
+                ...rest,
+                cc: cct ?? "",
+            }));
+
+            const slitLampExamination = buildSectionRowsPayload(
+                "slitLampTable",
+                opthalTables["slitLampTable"]
+            );
+
+            const fundusExamination = buildSectionRowsPayload(
+                "fundusTable",
+                opthalTables["fundusTable"]
+            );
+
+            const opthalPayload = {
+                tcm_id: tcmId,
+                visualAcuity: visualAcuityPayload,
+                autoRefraction: [...undilated, ...dilated],
+                lensometerValues,
+                glassPrescription,
+                pd: opthalExtraFields?.pd || "",
+                intraOcularPressure,
+                slitLampExamination,
+                fundusExamination,
+            };
+
+            const opthalId = ophthalmologyExam?.opthalPrescriptionId;
+            const opthalAction = opthalId ? "update" : "create";
+
+            console.log("Opthal prescription payload:", opthalPayload);
+            console.log("Opthal prescription action:", opthalAction, opthalId);
+            // TODO: enable API call once payload is verified
+            // if (opthalId) {
+            //     await updateOpthalPrescription(opthalId, opthalPayload);
+            // } else {
+            //     await createOpthalPrescription(opthalPayload);
+            // }
+            return;
+
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1459,7 +1597,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 <GenRxButton onClick={handleGenRx} />
                             )}
                             <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) && onEndVisitClick()} loading={loading}>
+                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues()) && onEndVisitClick()} loading={loading}>
                                     <i className='icon-exit me-2'></i>
                                     End Visit
                                 </Button>

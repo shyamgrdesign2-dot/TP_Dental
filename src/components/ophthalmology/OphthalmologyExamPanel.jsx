@@ -21,6 +21,11 @@ import autofillArrowIcon from "../../assets/images/down-arrow-blue.svg";
 import {
   resetVisualAcuity,
   updateVisualAcuityField,
+  setTableValue,
+  setTableValues as setOpthalTableValues,
+  resetTable,
+  setExtraField,
+  resetExtraField,
 } from "../../redux/ophthalmologyExamSlice";
 
 const SECTION_ICONS = {
@@ -103,8 +108,7 @@ const DropdownInput = ({
   );
 };
 
-const InlineField = ({ field }) => {
-  const [value, setValue] = useState("");
+const InlineField = ({ field, value, onChange }) => {
   const options = field.optionsKey
     ? resolveOptionsKey(field.optionsKey)
     : field.options || [];
@@ -120,7 +124,7 @@ const InlineField = ({ field }) => {
             value={value}
             placeholder={field.placeholder}
             options={options}
-            onChange={setValue}
+            onChange={onChange}
           />
         </div>
       </div>
@@ -134,7 +138,7 @@ const InlineField = ({ field }) => {
         value={value}
         placeholder={field.placeholder}
         options={options}
-        onChange={setValue}
+        onChange={onChange}
       />
     </div>
   );
@@ -270,6 +274,8 @@ const OphthalmologySectionCard = ({
   onAction,
   getTableProps,
   autofillMenu,
+  extraFieldValues,
+  onExtraFieldChange,
 }) => {
   const iconSrc = SECTION_ICONS[section.id];
 
@@ -382,7 +388,14 @@ const OphthalmologySectionCard = ({
       {section.extraFields && (
         <div className={styles.extraFields}>
           {section.extraFields.map((field) => (
-            <InlineField key={field.label} field={field} />
+            <InlineField
+              key={field.label}
+              field={field}
+              value={extraFieldValues?.[field.key] || ""}
+              onChange={(nextValue) =>
+                onExtraFieldChange?.(field.key, nextValue)
+              }
+            />
           ))}
         </div>
       )}
@@ -398,7 +411,9 @@ const OphthalmologyExamPanel = ({
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { visualAcuity } = useSelector((state) => state.ophthalmologyExam);
+  const { visualAcuity, tables, extraFields } = useSelector(
+    (state) => state.ophthalmologyExam
+  );
   const [tableResets, setTableResets] = useState({});
   const [isExpanded, setIsExpanded] = useState(true);
   const glassPrescriptionTableId = "glassPrescriptionTable";
@@ -437,7 +452,7 @@ const OphthalmologyExamPanel = ({
     return values;
   }, [buildEmptyTableValues]);
 
-  const [tableValues, setTableValues] = useState(initialTableValues);
+  const [tableValues, setLocalTableValues] = useState(initialTableValues);
 
   const visualAcuityValues = useMemo(() => {
     const map = {};
@@ -472,7 +487,7 @@ const OphthalmologyExamPanel = ({
 
     if (action === "Clear") {
       if (section.tables?.length) {
-        setTableValues((prev) => {
+        setLocalTableValues((prev) => {
           const next = { ...prev };
           section.tables.forEach((table) => {
             if (initialTableValues[table.id]) {
@@ -480,6 +495,16 @@ const OphthalmologyExamPanel = ({
             }
           });
           return next;
+        });
+        section.tables.forEach((table) => {
+          dispatch(resetTable({ tableId: table.id }));
+        });
+      }
+      if (section.extraFields?.length) {
+        section.extraFields.forEach((field) => {
+          if (field.key) {
+            dispatch(resetExtraField({ key: field.key }));
+          }
         });
       }
       setTableResets((prev) => ({
@@ -499,13 +524,20 @@ const OphthalmologyExamPanel = ({
           ...baseProps,
           values: tableValues[table.id],
           onChange: (rowKey, columnKey, nextValue) => {
-            setTableValues((prev) => ({
+            setLocalTableValues((prev) => ({
               ...prev,
               [table.id]: {
                 ...prev[table.id],
                 [`${rowKey}-${columnKey}`]: nextValue,
               },
             }));
+            dispatch(
+              setTableValue({
+                tableId: table.id,
+                cellKey: `${rowKey}-${columnKey}`,
+                value: nextValue,
+              })
+            );
           },
         };
       }
@@ -546,10 +578,16 @@ const OphthalmologyExamPanel = ({
         nextGlassValues[cellKey] = value || "";
       }
     });
-    setTableValues((prev) => ({
+    setLocalTableValues((prev) => ({
       ...prev,
       [glassPrescriptionTableId]: nextGlassValues,
     }));
+    dispatch(
+      setOpthalTableValues({
+        tableId: glassPrescriptionTableId,
+        values: nextGlassValues,
+      })
+    );
   };
 
   const autofillMenu = {
@@ -579,6 +617,10 @@ const OphthalmologyExamPanel = ({
           onAction={handleAction}
           getTableProps={getTableProps}
           autofillMenu={autofillMenu}
+          extraFieldValues={extraFields}
+          onExtraFieldChange={(fieldKey, nextValue) =>
+            dispatch(setExtraField({ key: fieldKey, value: nextValue }))
+          }
         />
       ))}
     </div>

@@ -495,6 +495,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     ],
     extraFields: [
       {
+        key: "pd",
         label: "Pupillary Distance (PD)",
         shortLabel: "PD",
         placeholder: "Eg: 32 mm",
@@ -617,6 +618,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     ],
     extraFields: [
       {
+        key: "pd",
         label: "Pupillary Distance (PD)",
         shortLabel: "PD",
         placeholder: "Eg: 32 mm",
