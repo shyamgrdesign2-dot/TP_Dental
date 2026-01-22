@@ -2118,7 +2118,24 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             setPageNo(0);
             dispatch(changeSortOrder(sortOrder));
           }
+        } else if (selectedTab === TAB_FINISHED) {
+          // Sort by finishedTime when finished tab is selected
+          const lhsDateTime = `${a.apDate} ${a.finishedTime}`;
+          const lhsLongTime = moment(
+            lhsDateTime,
+            "Do MMM YYYY HH:mm A"
+          ).valueOf();
+
+          const rhsDateTime = `${b.apDate} ${b.finishedTime}`;
+          const rhsLongTime = moment(
+            rhsDateTime,
+            "Do MMM YYYY HH:mm A"
+          ).valueOf();
+
+          const result = lhsLongTime - rhsLongTime;
+          return sortOrder === "ascend" ? result : -result;
         } else {
+          // ZYDUS tabs sorting
           const lhsDateTime = `${a.apDate} ${a.apTime}`;
           const lhsLongTime = moment(
             lhsDateTime,
