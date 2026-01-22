@@ -1712,8 +1712,8 @@ function Prescription() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                <div className="prescription-box-sm">
-                  <OphthalmologyExamPanel patientData={patient_data} />
+                <div className="opthal-panel-wrapper">
+                  <OphthalmologyExamPanel patientData={patient_data} showHeader headerTitle="Ophthal" />
                 </div>
                 {customizedPadRightList?.map((e, i) => {
                   const customModule = customModules?.find(

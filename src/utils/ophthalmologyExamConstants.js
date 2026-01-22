@@ -325,7 +325,9 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "visualAcuity",
     title: "Visual Acuity Test",
     iconSize: 28,
-    actions: ["Load Prev", "SnapRx", "Clear"],
+    actions: ["Load from Prev", 
+      // "SnapRx", 
+      "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "visualAcuityTestTypes" },
       { label: "Correction Used", optionsKey: "correctionUsedOptions" },
@@ -378,7 +380,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "autoRefraction",
     title: "Auto Refraction Test",
     iconSize: 28,
-    actions: ["Load Prev", "Clear"],
+    actions: ["Load from Prev", "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "autoRefractionTestTypes" },
       { label: "Reading Confidence", optionsKey: "readingConfidenceOptions" },
@@ -494,8 +496,10 @@ export const OPHTHALMOLOGY_SECTIONS = [
     extraFields: [
       {
         label: "Pupillary Distance (PD)",
+        shortLabel: "PD",
         placeholder: "Eg: 32 mm",
         optionsKey: "pupillaryDistanceOptions",
+        variant: "inlineRow",
       },
     ],
   },
@@ -503,7 +507,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "lensometerValues",
     title: "Lensometer Values",
     iconSize: 28,
-    actions: ["Load Prev", "Clear"],
+    actions: ["Load from Prev", "Clear"],
     tables: [
       {
         id: "lensometerTable",
@@ -557,7 +561,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "glassPrescription",
     title: "Glass Prescription",
     iconSize: 28,
-    actions: ["Load Prev", "Clear"],
+    actions: ["Load from Prev", "Clear"],
     chips: ["Autofill"],
     topFields: [
       { label: "Prescription Type", optionsKey: "prescriptionTypeOptions" },
@@ -614,8 +618,10 @@ export const OPHTHALMOLOGY_SECTIONS = [
     extraFields: [
       {
         label: "Pupillary Distance (PD)",
+        shortLabel: "PD",
         placeholder: "Eg: 32 mm",
         optionsKey: "pupillaryDistanceOptions",
+        variant: "inlineRow",
       },
     ],
   },
@@ -623,7 +629,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "iop",
     title: "Intra Ocular Pressure (IOP)",
     iconSize: 28,
-    actions: ["Load Prev", "Clear"],
+    actions: ["Load from Prev", "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "iopTestTypes" },
       { label: "Measurement Time", optionsKey: "measurementTimeOptions" },
@@ -657,58 +663,6 @@ export const OPHTHALMOLOGY_SECTIONS = [
             label: "CIOP",
             placeholder: "Eg: 1 mmHg",
             optionsKey: "iopOptions",
-          },
-        ],
-        rows: [
-          { key: "od", label: "OD" },
-          { key: "os", label: "OS" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "keratometry",
-    title: "Keratometry Readings",
-    iconSize: 28,
-    actions: ["Load Prev", "Clear"],
-    topFields: [
-      { label: "Test Type", optionsKey: "keratometryTestTypes" },
-      { label: "Corneal Shape", optionsKey: "cornealShapeOptions" },
-    ],
-    tables: [
-      {
-        id: "keratometryTable",
-        columns: [
-          { key: "eye", label: "Eye", type: "label" },
-          {
-            key: "k1",
-            label: "K1 (Flat)",
-            placeholder: "Eg: 43.25",
-            optionsKey: "keratometryOptions",
-          },
-          {
-            key: "k1Axis",
-            label: "K1 Axis",
-            placeholder: "Eg: 180",
-            optionsKey: "keratometryAxisOptions",
-          },
-          {
-            key: "k2",
-            label: "K2 (Steep)",
-            placeholder: "Eg: 44.50",
-            optionsKey: "keratometryOptions",
-          },
-          {
-            key: "k2Axis",
-            label: "K2 Axis",
-            placeholder: "Eg: 90",
-            optionsKey: "keratometryAxisOptions",
-          },
-          {
-            key: "astigmatism",
-            label: "Astigmatism",
-            placeholder: "Eg: 1.25",
-            options: [],
           },
         ],
         rows: [
@@ -797,7 +751,9 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "fundus",
     title: "Fundus Examination",
     iconSize: 28,
-    actions: ["AI Snap", "Temp", "Save", "Clear"],
+    actions: [
+      // "AI Snap",
+       "Templates", "Save", "Clear"],
     tables: [
       {
         id: "fundusTable",

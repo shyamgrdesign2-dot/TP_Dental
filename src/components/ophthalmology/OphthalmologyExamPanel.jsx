@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { AutoComplete, Input } from "antd";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AutoComplete, Collapse, Dropdown, Input } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./OphthalmologyExamPanel.module.scss";
@@ -7,10 +7,31 @@ import {
   OPHTHALMOLOGY_OPTIONS,
   OPHTHALMOLOGY_SECTIONS,
 } from "../../utils/ophthalmologyExamConstants";
+import visualAcuityIcon from "../../assets/images/visual-acuity-test.svg";
+import autoRefractionIcon from "../../assets/images/auto-refraction-test.svg";
+import lensometerIcon from "../../assets/images/lensometer-values.svg";
+import glassPrescriptionIcon from "../../assets/images/glass-prescription.svg";
+import iopIcon from "../../assets/images/intra-ocular-pressure.svg";
+import slitLampIcon from "../../assets/images/slit-lamp-examination.svg";
+import fundusIcon from "../../assets/images/fundus-examination.svg";
+import autoFillBlueIcon from "../../assets/images/autoFillBlue.svg";
+import opthalIcon from "../../assets/images/opthalIcon.svg";
+import arrowDownIcon from "../../assets/images/arrow-box-down.svg";
+import autofillArrowIcon from "../../assets/images/down-arrow-blue.svg";
 import {
   resetVisualAcuity,
   updateVisualAcuityField,
 } from "../../redux/ophthalmologyExamSlice";
+
+const SECTION_ICONS = {
+  visualAcuity: visualAcuityIcon,
+  autoRefraction: autoRefractionIcon,
+  lensometerValues: lensometerIcon,
+  glassPrescription: glassPrescriptionIcon,
+  iop: iopIcon,
+  slitLamp: slitLampIcon,
+  fundus: fundusIcon,
+};
 
 const resolveOptionsKey = (optionsKey) => {
   if (!optionsKey) {
@@ -88,6 +109,24 @@ const InlineField = ({ field }) => {
     ? resolveOptionsKey(field.optionsKey)
     : field.options || [];
 
+  if (field.variant === "inlineRow") {
+    return (
+      <div className={styles.inlineRowField}>
+        <div className={styles.inlineRowLabel}>
+          {field.shortLabel || field.label}
+        </div>
+        <div className={styles.inlineRowInput}>
+          <DropdownInput
+            value={value}
+            placeholder={field.placeholder}
+            options={options}
+            onChange={setValue}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.inlineField}>
       <div className={styles.inlineLabel}>{field.label}</div>
@@ -101,7 +140,12 @@ const InlineField = ({ field }) => {
   );
 };
 
-const OphthalmologyTable = ({ table, values: externalValues, onChange }) => {
+const OphthalmologyTable = ({
+  table,
+  values: externalValues,
+  onChange,
+  resetKey,
+}) => {
   const { columns, rows } = table;
   const inputColumnKeys = useMemo(
     () => columns.filter((column) => column.type !== "label").map((c) => c.key),
@@ -131,6 +175,10 @@ const OphthalmologyTable = ({ table, values: externalValues, onChange }) => {
   }, [columns, rows]);
 
   const [values, setValues] = useState(initialValues);
+
+  useEffect(() => {
+    setValues(initialValues);
+  }, [initialValues, resetKey]);
 
   const handleChange = (rowKey, columnKey, nextValue) => {
     if (onChange) {
@@ -221,7 +269,10 @@ const OphthalmologySectionCard = ({
   section,
   onAction,
   getTableProps,
+  autofillMenu,
 }) => {
+  const iconSrc = SECTION_ICONS[section.id];
+
   return (
     <div className={styles.sectionCard}>
       <div className={styles.sectionHeader}>
@@ -230,16 +281,47 @@ const OphthalmologySectionCard = ({
             className={styles.headerIcon}
             style={{ width: section.iconSize, height: section.iconSize }}
           >
-            <div className={styles.iconPlaceholder} />
+            {iconSrc ? (
+              <img
+                src={iconSrc}
+                alt={`${section.title} icon`}
+                className={styles.headerIconImage}
+              />
+            ) : (
+              <div className={styles.iconPlaceholder} />
+            )}
           </div>
           <div className={styles.headerTitle}>{section.title}</div>
         </div>
         <div className={styles.headerActions}>
           {section.chips?.map((chip) => (
-            <div key={chip} className={styles.headerChip}>
-              <span className={styles.chipIcon} />
-              {chip}
-            </div>
+            chip === "Autofill" ? (
+              <Dropdown
+                key={chip}
+                menu={autofillMenu}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <button type="button" className={styles.headerChipButton}>
+                  <img
+                    src={autoFillBlueIcon}
+                    alt=""
+                    className={styles.chipIconImage}
+                  />
+                  <span>{chip}</span>
+                  <img
+                    src={autofillArrowIcon}
+                    alt=""
+                    className={styles.chipArrowIcon}
+                  />
+                </button>
+              </Dropdown>
+            ) : (
+              <div key={chip} className={styles.headerChip}>
+                <span className={styles.chipIcon} />
+                {chip}
+              </div>
+            )
           ))}
           {section.actions?.map((action) => (
             <button
@@ -248,8 +330,32 @@ const OphthalmologySectionCard = ({
               className={styles.headerAction}
               onClick={() => onAction?.(section, action)}
             >
-              <span className={styles.actionIcon} />
-              {action}
+              {action === "Load from Prev" ? (
+                <>
+                  <i className="icon-reload"></i>
+                  <span>Load from Prev</span>
+                </>
+              ) : action === "Clear" ? (
+                <>
+                  <i className="icon-eraser1"></i>
+                  <span>Clear</span>
+                </>
+              ) : action === "Templates" ? (
+                <>
+                  <i className="icon-template"></i>
+                  <span>Templates</span>
+                </>
+              ) : action === "Save" ? (
+                <>
+                  <i className="icon-save"></i>
+                  <span>Save</span>
+                </>
+              ) : (
+                <>
+                  <span className={styles.actionIcon} />
+                  {action}
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -284,11 +390,54 @@ const OphthalmologySectionCard = ({
   );
 };
 
-const OphthalmologyExamPanel = ({ patientData }) => {
+const OphthalmologyExamPanel = ({
+  patientData,
+  showHeader = false,
+  headerTitle = "Opthal",
+}) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { visualAcuity } = useSelector((state) => state.ophthalmologyExam);
+  const [tableResets, setTableResets] = useState({});
+  const [isExpanded, setIsExpanded] = useState(true);
+  const glassPrescriptionTableId = "glassPrescriptionTable";
+  const sourceTableIds = useMemo(
+    () => ({
+      undilated: "autoRefractionUndilated",
+      dilated: "autoRefractionDilated",
+      lensometer: "lensometerTable",
+    }),
+    []
+  );
+
+  const buildEmptyTableValues = useCallback((table) => {
+    const nextValues = {};
+    table.rows.forEach((row) => {
+      table.columns.forEach((column) => {
+        if (column.type === "label") {
+          return;
+        }
+        nextValues[`${row.key}-${column.key}`] = "";
+      });
+    });
+    return nextValues;
+  }, []);
+
+  const initialTableValues = useMemo(() => {
+    const values = {};
+    OPHTHALMOLOGY_SECTIONS.forEach((section) => {
+      section.tables.forEach((table) => {
+        if (table.id === "visualAcuityTable") {
+          return;
+        }
+        values[table.id] = buildEmptyTableValues(table);
+      });
+    });
+    return values;
+  }, [buildEmptyTableValues]);
+
+  const [tableValues, setTableValues] = useState(initialTableValues);
 
   const visualAcuityValues = useMemo(() => {
     const map = {};
@@ -320,13 +469,50 @@ const OphthalmologyExamPanel = ({ patientData }) => {
     if (section.id === "visualAcuity" && action === "Clear") {
       dispatch(resetVisualAcuity());
     }
+
+    if (action === "Clear") {
+      if (section.tables?.length) {
+        setTableValues((prev) => {
+          const next = { ...prev };
+          section.tables.forEach((table) => {
+            if (initialTableValues[table.id]) {
+              next[table.id] = { ...initialTableValues[table.id] };
+            }
+          });
+          return next;
+        });
+      }
+      setTableResets((prev) => ({
+        ...prev,
+        [section.id]: (prev[section.id] || 0) + 1,
+      }));
+    }
   };
 
   const getTableProps = (section, table) => {
+    const baseProps = {
+      resetKey: tableResets[section.id] || 0,
+    };
     if (section.id !== "visualAcuity" || table.id !== "visualAcuityTable") {
-      return {};
+      if (tableValues[table.id]) {
+        return {
+          ...baseProps,
+          values: tableValues[table.id],
+          onChange: (rowKey, columnKey, nextValue) => {
+            setTableValues((prev) => ({
+              ...prev,
+              [table.id]: {
+                ...prev[table.id],
+                [`${rowKey}-${columnKey}`]: nextValue,
+              },
+            }));
+          },
+        };
+      }
+      return baseProps;
     }
     return {
+      ...baseProps,
       values: visualAcuityValues,
       onChange: (rowKey, columnKey, nextValue) => {
         dispatch(
@@ -340,7 +526,51 @@ const OphthalmologyExamPanel = ({ patientData }) => {
     };
   };
 
-  return (
+  const handleAutofill = (sourceTableId) => {
+    const sourceValues = tableValues[sourceTableId];
+    if (!sourceValues || !tableValues[glassPrescriptionTableId]) {
+      return;
+    }
+    const allowedKeys = new Set([
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+    const nextGlassValues = { ...tableValues[glassPrescriptionTableId] };
+    Object.entries(sourceValues).forEach(([cellKey, value]) => {
+      const columnKey = cellKey.split("-")[1];
+      if (allowedKeys.has(columnKey)) {
+        nextGlassValues[cellKey] = value || "";
+      }
+    });
+    setTableValues((prev) => ({
+      ...prev,
+      [glassPrescriptionTableId]: nextGlassValues,
+    }));
+  };
+
+  const autofillMenu = {
+    items: [
+      {
+        key: sourceTableIds.undilated,
+        label: "Auto Refraction Test - Undilated",
+      },
+      {
+        key: sourceTableIds.dilated,
+        label: "Auto Refraction Test - Dilated",
+      },
+      {
+        key: sourceTableIds.lensometer,
+        label: "Lensometer Values",
+      },
+    ],
+    onClick: ({ key }) => handleAutofill(key),
+  };
+
+  const sectionsContent = (
     <div className={styles.panel}>
       {OPHTHALMOLOGY_SECTIONS.map((section) => (
         <OphthalmologySectionCard
@@ -348,9 +578,57 @@ const OphthalmologyExamPanel = ({ patientData }) => {
           section={section}
           onAction={handleAction}
           getTableProps={getTableProps}
+          autofillMenu={autofillMenu}
         />
       ))}
     </div>
+  );
+
+  if (!showHeader) {
+    return sectionsContent;
+  }
+
+  return (
+    <Collapse
+      className={styles.panelCollapse}
+      activeKey={isExpanded ? ["opthal"] : []}
+      expandIcon={() => null}
+      showArrow={false}
+      items={[
+        {
+          key: "opthal",
+          label: (
+            <div className={styles.panelHeader}>
+              <div className={styles.panelHeaderLeft}>
+                <img
+                  src={opthalIcon}
+                  alt=""
+                  className={styles.panelHeaderIcon}
+                />
+                <div className={styles.panelHeaderTitle}>{headerTitle}</div>
+              </div>
+              <button
+                type="button"
+                className={styles.panelHeaderAction}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsExpanded((prev) => !prev);
+                }}
+              >
+                <img
+                  src={arrowDownIcon}
+                  alt=""
+                  className={`${styles.panelHeaderArrow} ${
+                    isExpanded ? styles.panelHeaderArrowOpen : ""
+                  }`}
+                />
+              </button>
+            </div>
+          ),
+          children: sectionsContent,
+        },
+      ]}
+    />
   );
 };
 
