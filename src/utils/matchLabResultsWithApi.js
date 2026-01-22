@@ -1,128 +1,45 @@
-import moment from 'moment';
 import { env } from '../EnvironmentConfig';
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from './constants';
 
-const normalizeTestName = (testName) => {
-  return (testName || '').toLowerCase().trim();
-};
-
-const fetchExistingLabResults = async (patientId, cleanedToken, baseUrl) => {
-  if (!patientId || !cleanedToken || !baseUrl) return [];
-  
-  try {
-    const response = await fetch(
-      `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${cleanedToken}`,
-        },
-      }
-    );
-    
-    const labData = await response.json();
-    return labData?.data?.results || [];
-  } catch (error) {
-    return [];
+const findBestMatchFromApiResults = (searchQuery, apiResults) => {
+  if (!Array.isArray(apiResults) || apiResults.length === 0) {
+    return null;
   }
+  return apiResults[0];
 };
 
-const mergeWithExistingResults = (newResults, existingResults) => {
-  if (!Array.isArray(existingResults) || existingResults.length === 0) {
-    return newResults;
-  }
-
-  const existingMap = new Map();
-  existingResults.forEach(result => {
-    const resultDate = result.date || result.createdAt || result.created_at || result.createdDate;
-    if (!resultDate) return;
-    
-    const dateKey = moment(resultDate).format('YYYY-MM-DD');
-    (result.inputs || []).forEach(input => {
-      if (!input?.testName || input.testName === 'Remarks') return;
-      const testKey = normalizeTestName(input.testName);
-      const mapKey = `${dateKey}|${testKey}`;
-      
-      if (!existingMap.has(mapKey)) {
-        existingMap.set(mapKey, {
-          date: dateKey,
-          testName: input.testName,
-          value: input.value || '',
-          units: input.units || '',
-          reportName: result.reportName || '',
-          refRange: input.refRange || '',
-        });
-      }
-    });
-  });
-
-  const mergedResults = [];
-
-  newResults.forEach(newResult => {
-    const testName = (newResult.testname || newResult.testName || newResult.name || '').trim();
-    if (!testName) {
-      mergedResults.push(newResult);
-      return;
-    }
-
-    const dateKey = newResult.date || moment().format('YYYY-MM-DD');
-    const normalizedTestName = normalizeTestName(testName);
-    const mapKey = `${dateKey}|${normalizedTestName}`;
-    
-    if (existingMap.has(mapKey)) {
-      const existing = existingMap.get(mapKey);
-      mergedResults.push({
-        ...newResult,
-        testname: existing.testName,
-        testName: existing.testName,
-        name: existing.testName,
-        date: dateKey,
-        reportName: newResult.reportName || existing.reportName || '',
-        units: newResult.units || existing.units || '',
-        refRange: newResult.refRange || existing.refRange || '',
-      });
-    } else {
-      mergedResults.push({
-        ...newResult,
-        date: dateKey,
-      });
-    }
-  });
-
-  return mergedResults;
-};
+const apiCache = new Map();
 
 export const matchLabResultsWithApi = async (labResults = [], patient_data = null) => {
   if (!Array.isArray(labResults) || labResults.length === 0) {
-    return labResults;
+    return [];
   }
 
   try {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
     const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
     const baseUrl = env.lab_params_api_url;
-    
+
     if (!cleanedToken || !baseUrl) {
-      return labResults;
+      return [];
     }
 
-    let existingResults = [];
-    if (patient_data?.patient_unique_id) {
-      existingResults = await fetchExistingLabResults(
-        patient_data.patient_unique_id,
-        cleanedToken,
-        baseUrl
-      );
-    }
+    const matchedResults = [];
 
-    const matchedResults = await Promise.all(
-      labResults.map(async (result) => {
-        const testName = (result.testname || result.testName || result.name || '').trim();
-        if (!testName) {
-          return result;
-        }
+    for (const result of labResults) {
+      const originalTestName = (result.testname || result.testName || result.name || '').trim();
+      if (!originalTestName) {
+        continue;
+      }
 
-        try {
-          const searchQuery = encodeURIComponent(testName);
+      try {
+        let matchedTest = null;
+        const cacheKey = originalTestName.toLowerCase();
+
+        if (apiCache.has(cacheKey)) {
+          matchedTest = apiCache.get(cacheKey);
+        } else {
+          const searchQuery = encodeURIComponent(originalTestName);
           const response = await fetch(
             `${baseUrl}/api/v1/lab-parameters?search=${searchQuery}`,
             {
@@ -132,32 +49,41 @@ export const matchLabResultsWithApi = async (labResults = [], patient_data = nul
             }
           );
 
-          const searchData = await response.json();
-          
-          if (searchData?.data && Array.isArray(searchData.data) && searchData.data.length > 0) {
-            const matchedTest = searchData.data[0];
-            return {
-              ...result,
-              testname: matchedTest.testName || matchedTest.name || testName,
-              name: matchedTest.testName || matchedTest.name || testName,
-              reportName: matchedTest.reportName || result.reportName || '',
-              units: matchedTest.units || result.units || '',
-              refRange: matchedTest.refRange || result.refRange || null,
-            };
+          if (response.ok) {
+            const searchData = await response.json();
+            const apiResults = Array.isArray(searchData) ? searchData : (searchData?.data || []);
+
+            if (Array.isArray(apiResults) && apiResults.length > 0) {
+              matchedTest = findBestMatchFromApiResults(originalTestName, apiResults);
+              if (matchedTest) {
+                apiCache.set(cacheKey, matchedTest);
+              }
+            }
           }
-        } catch (error) {
         }
 
-        return result;
-      })
-    );
+        if (matchedTest && matchedTest.testName && matchedTest.reportName) {
+          const apiTestName = matchedTest.testName.trim();
+          const apiReportName = matchedTest.reportName.trim();
+          const originalValue = result.value || result.testValue || '';
 
-    if (existingResults.length > 0) {
-      return mergeWithExistingResults(matchedResults, existingResults);
+          matchedResults.push({
+            ...result,
+            testname: apiTestName,
+            testName: apiTestName,
+            name: apiTestName,
+            reportName: apiReportName,
+            value: originalValue,
+            units: matchedTest.units || result.units || '',
+            refRange: matchedTest.refRange || result.refRange || null,
+          });
+        }
+      } catch (error) {
+      }
     }
 
     return matchedResults;
   } catch (error) {
-    return labResults;
+    return [];
   }
 };

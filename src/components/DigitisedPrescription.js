@@ -1130,7 +1130,7 @@ const DigitisedPrescription = ({
         </div>
       )}
 
-      {hasVitalsContent && (
+      {(hasVitalsContent || context?.patient_data?.patient_unique_id) && (
         <VitalsRichTextEditor
           vitalsAndBodyComposition={data?.vitalsAndBodyComposition || {}}
           onUpdate={vitalsUpdater}
@@ -1201,7 +1201,7 @@ const DigitisedPrescription = ({
         );
       })()}
 
-      {shouldRenderSection("labResults", hasArrayContent(data?.labResults)) && (
+      {(shouldRenderSection("labResults", hasArrayContent(data?.labResults)) || context?.patient_data?.patient_unique_id) && (
         <LabResultsRichTextEditor
           labResults={data?.labResults || []}
           onUpdate={labResultsUpdater}

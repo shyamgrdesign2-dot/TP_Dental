@@ -325,15 +325,30 @@ const LabResultsTable = ({
     // Helper function to group data by reportName
     const groupByReportName = (data) => {
         const grouped = {};
+        const seenKeys = new Set(); 
+        
         data.forEach((result) => {
             result.inputs.forEach((input) => {
-                if (!grouped[input.reportName]) {
-                    grouped[input.reportName] = {};
+                const reportName = input.reportName?.trim();
+                const testName = input.testName?.trim();
+                
+                if (!reportName || !testName) {
+                    return;
                 }
-                if (!grouped[input.reportName][input.testName]) {
-                    grouped[input.reportName][input.testName] = {};
+                const uniqueKey = `${reportName}|${testName}|${result.date}`;
+                if (seenKeys.has(uniqueKey)) {
+                    return;
                 }
-                grouped[input.reportName][input.testName][result.date] = input;
+                
+                seenKeys.add(uniqueKey);
+                
+                if (!grouped[reportName]) {
+                    grouped[reportName] = {};
+                }
+                if (!grouped[reportName][testName]) {
+                    grouped[reportName][testName] = {};
+                }
+                grouped[reportName][testName][result.date] = input;
             });
         });
         return grouped;
@@ -363,42 +378,38 @@ const LabResultsTable = ({
 
     const mapLabResultToInput = useCallback(
         (result = {}) => {
-            const rawTestName = (result?.testname || result?.testName || result?.name || "").trim();
-            if (!rawTestName) {
+            // Use testName from API match directly (already matched by matchLabResultsWithApi)
+            // This ensures we use the exact testName returned by the API (e.g., "Total Cholesterol/ HDL Ratio")
+            const apiMatchedTestName = (result?.testName || result?.testname || result?.name || "").trim();
+            if (!apiMatchedTestName) {
                 return null;
             }
 
-            // First try exact match with variants
-            const variants = Array.from(getNormalizedVariants(rawTestName));
-            let matchedTest = variants
-                .map((variantKey) => testLookup[variantKey])
-                .find(Boolean);
-            
-            // If no exact match, try fuzzy matching
-            if (!matchedTest) {
-                matchedTest = findBestMatch(rawTestName, testLookup, defaultTestData);
-            }
-            
             const rawValue = result?.value !== undefined ? String(result.value).trim() : "";
-
-            if (!rawValue || !matchedTest) {
+            if (!rawValue) {
                 return null;
+            }
+
+            // Ensure reportName is present - if not, skip this result
+            const reportName = (result?.reportName || "").trim();
+            if (!reportName) {
+                return null; // Skip results without a reportName
             }
 
             const derivedUnits = extractUnitsFromValue(rawValue);
             const normalizedValue = extractNumericValue(rawValue);
 
             return {
-                reportName: matchedTest.reportName,
-                testName: matchedTest.testName,
+                reportName: reportName,
+                testName: apiMatchedTestName, // Use exact testName from API
                 value: normalizedValue,
-                units: matchedTest.units || derivedUnits || "",
+                units: result?.units || derivedUnits || "",
                 arrowDirection: "",
-                refRange: matchedTest.refRange || "",
+                refRange: result?.refRange || "",
                 recentlyUpdated: true,
             };
         },
-        [testLookup, defaultTestData]
+        []
     );
 
     const applyPrefillLabResults = useCallback(
@@ -407,9 +418,27 @@ const LabResultsTable = ({
                 return;
             }
 
+            const seenKeys = new Set();
+            const validResults = [];
+            
+            labResultsArray.forEach((result = {}) => {
+                const reportName = (result?.reportName || "").trim();
+                const testName = (result?.testName || result?.testname || result?.name || "").trim();
+                if (!reportName || !testName) {
+                    return;
+                }
+                const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                const uniqueKey = `${reportName}|${testName}|${dateKey}`;
+                if (seenKeys.has(uniqueKey)) {
+                    return;
+                }
+                seenKeys.add(uniqueKey);
+                validResults.push(result);
+            });
+
             setDates((prevDates) => {
                 const nextDates = new Set(prevDates);
-                labResultsArray.forEach((result = {}) => {
+                validResults.forEach((result = {}) => {
                     const normalizedDate = sanitizeDateValue(result?.date) || currentDate;
                     nextDates.add(normalizedDate);
                 });
@@ -418,25 +447,27 @@ const LabResultsTable = ({
 
             setInputValues((prev) => {
                 const updated = { ...prev };
-                labResultsArray.forEach((result = {}) => {
+                validResults.forEach((result = {}) => {
                     const mappedInput = mapLabResultToInput(result);
-                    if (!mappedInput) {
+                    if (!mappedInput || !mappedInput.reportName?.trim()) {
                         return;
                     }
+                    
                     const dateKey = sanitizeDateValue(result?.date) || currentDate;
-                    const reportName = mappedInput.reportName;
-                    const testName = mappedInput.testName;
+                    const reportName = mappedInput.reportName.trim();
+                    const testName = mappedInput.testName.trim();
 
-                    const reportBlock = { ...(updated[reportName] || {}) };
-                    const testBlock = { ...(reportBlock[testName] || {}) };
-
-                    testBlock[dateKey] = {
-                        ...(testBlock[dateKey] || {}),
+                    if (!updated[reportName]) {
+                        updated[reportName] = {};
+                    }
+                    if (!updated[reportName][testName]) {
+                        updated[reportName][testName] = {};
+                    }
+                    
+                    updated[reportName][testName][dateKey] = {
                         ...mappedInput,
+                        reportName: reportName,
                     };
-
-                    reportBlock[testName] = testBlock;
-                    updated[reportName] = reportBlock;
                 });
                 return updated;
             });
@@ -575,50 +606,83 @@ const LabResultsTable = ({
     }, [labParamsResults, existingResults, searchQuery, dates]);
 
     const combineData = (currentFilledData, filledData) => {
-        const combinedResults = [...filledData];
+        const filteredFilledData = filledData.map((entry) => ({
+            ...entry,
+            inputs: entry.inputs.filter((input) => input.reportName?.trim() && input.testName?.trim()),
+        })).filter((entry) => entry.inputs.length > 0);
+        
+        const combinedResults = [...filteredFilledData];
       
         currentFilledData.forEach((currentEntry) => {
+            const validInputs = currentEntry.inputs.filter((input) => 
+                input.reportName?.trim() && input.testName?.trim()
+            );
+            if (validInputs.length === 0) {
+                return;
+            }     
             // Check if the date already exists in the filledData
             const filledEntry = combinedResults.find((entry) => entry.date === currentEntry.date);
     
             if (filledEntry) {
-                // If date exists, loop through the inputs of currentFilledData
-                currentEntry.inputs.forEach((currentInput) => {
+                validInputs.forEach((currentInput) => {
+                    const currentReportName = currentInput.reportName.trim();
+                    const currentTestName = currentInput.testName.trim();
                     const matchingInput = filledEntry.inputs.find(
                         (filledInput) =>
-                            filledInput.reportName === currentInput.reportName &&
-                            filledInput.testName === currentInput.testName
+                            filledInput.reportName?.trim() === currentReportName &&
+                            filledInput.testName?.trim() === currentTestName
                     );
     
                     if (matchingInput) {
-                        // Update input if match is found
+                        // Update existing input
                         matchingInput.value = currentInput.value;
                         matchingInput.arrowDirection = currentInput.arrowDirection;
                         matchingInput.units = currentInput.units;
-
-                        // Mark the input as recently updated by adding a `recentlyUpdated` flag
+                        matchingInput.reportName = currentReportName;
+                        matchingInput.testName = currentTestName;
+                        matchingInput.refRange = currentInput.refRange || matchingInput.refRange;
                         matchingInput.recentlyUpdated = true;
                     } else {
-                        // If no match, add the new input and mark it as recently added
+                        // If no match, add the new input
                         filledEntry.inputs.push({
                             ...currentInput,
+                            reportName: currentReportName,
+                            testName: currentTestName, // Use testName from lab search API
                             recentlyUpdated: true
                         });
-                        }
+                    }
                 });
             } else {
-                // If date doesn't exist, push the new entry and mark it as recently added
+                // If date doesn't exist, push the new entry
                 combinedResults.push({
                     ...currentEntry,
-                    inputs: currentEntry.inputs.map(input => ({
+                    inputs: validInputs.map(input => ({
                         ...input,
+                        reportName: input.reportName.trim(),
+                        testName: input.testName.trim(), // Use testName from lab search API
                         recentlyUpdated: true
                     }))
                 });
-                }
+            }
         });
     
-        // Sort results by recently updated entries first, then by date
+        combinedResults.forEach(entry => {
+            const seenKeys = new Set();
+            entry.inputs = entry.inputs.filter((input) => {
+                const reportName = input.reportName?.trim();
+                const testName = input.testName?.trim();
+                if (!reportName || !testName) return false;
+                
+                const uniqueKey = `${reportName}|${testName}|${entry.date}`;
+                
+                if (seenKeys.has(uniqueKey)) {
+                    return false; // Duplicate, remove it
+                }
+                
+                seenKeys.add(uniqueKey);
+                return true;
+            });
+        });
         combinedResults.forEach(entry => {
             entry.inputs.sort((a, b) => {
                 if (a.recentlyUpdated && !b.recentlyUpdated) return -1;
@@ -631,12 +695,20 @@ const LabResultsTable = ({
     };
 
     const addRemarksToUniqueReportNames = (inputs) => {
-        const uniqueReportNames = [...new Set(inputs.map(input => input.reportName))];
+        // Only process inputs with valid reportNames
+        const validInputs = inputs.filter((input) => input.reportName?.trim());
+        const uniqueReportNames = [...new Set(validInputs.map(input => input.reportName.trim()))];
         uniqueReportNames.forEach(reportName => {
-            const hasRemarks = inputs.some(input => input.testName === "Remarks" && input.reportName === reportName);
+            const trimmedReportName = reportName.trim();
+            if (!trimmedReportName) return; // Skip empty reportNames
+            
+            const hasRemarks = inputs.some(input => 
+                input.testName === "Remarks" && 
+                input.reportName?.trim() === trimmedReportName
+            );
             if (!hasRemarks) {
                 inputs.push({
-                    reportName: reportName,
+                    reportName: trimmedReportName,
                     testName: "Remarks",
                     value: "",  // Default value for Remarks
                     units: "",
@@ -730,9 +802,11 @@ const LabResultsTable = ({
               const allDates = dates.length > 0 ? dates : [new Date().toISOString().split('T')[0]];
               
               allDates.forEach((date) => {
+                  // Filter defaultTestData to only include entries with valid reportName
+                  const validDefaultTests = defaultTestData.filter((lab) => lab.reportName?.trim());
                   const newEntry = {
                       date,
-                      inputs: [...defaultTestData],
+                      inputs: [...validDefaultTests],
                   };
 
                   // Add 'Remarks' to each entry
@@ -745,16 +819,21 @@ const LabResultsTable = ({
               const allDates = dates.length > 0 ? dates : [new Date().toISOString().split('T')[0]];
               
               allDates.forEach((date) => {
-                  const newEntry = {
-                      date,
-                      inputs: labParamsResults.map((lab) => ({
-                          reportName: lab.reportName || "",
+                  // Filter labParamsResults to only include entries with valid reportName
+                  const validLabResults = labParamsResults
+                      .filter((lab) => lab.reportName?.trim())
+                      .map((lab) => ({
+                          reportName: lab.reportName.trim(),
                           testName: lab.testName || "",
                           value: "",
                           units: lab.units || "",
                           arrowDirection: "",
                           refRange: lab.refRange || "",
-                      })),
+                      }));
+                  
+                  const newEntry = {
+                      date,
+                      inputs: validLabResults,
                   };
 
                   // Add 'Remarks' to each entry
@@ -774,9 +853,12 @@ const LabResultsTable = ({
               dates.forEach((currentDate) => {
                   const existingEntry = existingResults.find((entry) => entry.date === currentDate);
 
+                  // Filter labParamsResults to only include entries with valid reportName
+                  const validLabResults = labParamsResults.filter((lab) => lab.reportName?.trim());
+                  
                   const newEntry = {
                       date: currentDate, // Use the current date from the loop
-                      inputs: labParamsResults.map((lab) => {
+                      inputs: validLabResults.map((lab) => {
                           const existingInput = existingEntry?.inputs.find(
                               (input) =>
                                   input.testName === lab.testName &&
@@ -784,7 +866,7 @@ const LabResultsTable = ({
                           );
 
                           return {
-                              reportName: lab.reportName || "",
+                              reportName: lab.reportName.trim(),
                               testName: lab.testName || "",
                               value: existingInput ? existingInput.value : "", // Retain value if exists
                               units: lab.units || "",
@@ -809,10 +891,13 @@ const LabResultsTable = ({
 
                   const newEntry = {
                       date: currentDate,
-                      inputs: existingEntry ? [...existingEntry.inputs] : [],
+                      inputs: existingEntry ? [...existingEntry.inputs.filter((input) => input.reportName?.trim())] : [],
                   };
 
-                  defaultTestData.forEach((lab) => {
+                  // Filter defaultTestData to only include entries with valid reportName
+                  const validDefaultTests = defaultTestData.filter((lab) => lab.reportName?.trim());
+                  
+                  validDefaultTests.forEach((lab) => {
                       const existingInput = newEntry.inputs.find(
                           (input) =>
                               input.testName === lab.testName &&
@@ -821,7 +906,7 @@ const LabResultsTable = ({
 
                       if (!existingInput) {
                           newEntry.inputs.push({
-                              reportName: lab.reportName || "",
+                              reportName: lab.reportName.trim(),
                               testName: lab.testName || "",
                               value: "",
                               units: lab.units || "",
@@ -842,7 +927,13 @@ const LabResultsTable = ({
           }
         }
 
-        return existingResults; // Fallback: return existing results if nothing changes
+        // Filter existing results to only include those with valid reportName
+        const filteredExistingResults = existingResults.map((result) => ({
+            ...result,
+            inputs: result.inputs.filter((input) => input.reportName?.trim()),
+        })).filter((result) => result.inputs.length > 0);
+
+        return filteredExistingResults; // Fallback: return filtered existing results if nothing changes
     };
 
     // Function to get the unique count of testNames for each reportName
@@ -956,38 +1047,45 @@ const LabResultsTable = ({
     };
 
     const handleInputChange = (reportName, testName, date, value) => {
+      // Ensure reportName is valid before proceeding
+      const validReportName = reportName?.trim();
+      if (!validReportName) {
+          return; // Don't allow creating entries without a reportName
+      }
+      
       setInputValues((prev) => {
           const updatedData = { ...prev };
   
-          if (!updatedData[reportName]) {
-              updatedData[reportName] = {};
+          if (!updatedData[validReportName]) {
+              updatedData[validReportName] = {};
           }
   
-          if (!updatedData[reportName][testName]) {
-              updatedData[reportName][testName] = {};
+          if (!updatedData[validReportName][testName]) {
+              updatedData[validReportName][testName] = {};
           }
   
-          if (!updatedData[reportName][testName][date]) {
-              updatedData[reportName][testName][date] = {
-                  reportName,
+          if (!updatedData[validReportName][testName][date]) {
+              updatedData[validReportName][testName][date] = {
+                  reportName: validReportName,
                   testName,
                   value: "",
                   arrowDirection: "",
                   refRange: "",
-                  units: getUnitForTest(reportName, testName),
+                  units: getUnitForTest(validReportName, testName),
               };
           }
   
           // Update value and calculate arrow direction using existing refRange if available
-          const existingRefRange = updatedData[reportName][testName][date].refRange;
+          const existingRefRange = updatedData[validReportName][testName][date].refRange;
           const gender = patientGender || "Male"; // Assuming `patientGender` is available globally or passed in
   
-          updatedData[reportName][testName][date].value = value;
-          updatedData[reportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender);
+          updatedData[validReportName][testName][date].value = value;
+          updatedData[validReportName][testName][date].arrowDirection = calculateArrowDirection(value, existingRefRange, gender);
+          updatedData[validReportName][testName][date].reportName = validReportName; // Ensure reportName is always set
   
           // Fetch refRange if not already available
           if (!existingRefRange) {
-              fetchRefRange(reportName, testName, date);
+              fetchRefRange(validReportName, testName, date);
           }
   
           return updatedData;
@@ -1028,13 +1126,14 @@ const LabResultsTable = ({
     const assemblePayload = () => {
         const results = dates.map((date) => {
                 const inputs = Object.keys(inputValues)
+                    .filter((reportName) => reportName?.trim()) // Only process valid reportNames
                     .flatMap((reportName) =>
                         Object.keys(inputValues[reportName])
                             .map((testName) => {
                                 const testValue = inputValues[reportName][testName][date]?.value || "";
                                 if (testValue) {
                                     return {
-                                        reportName,
+                                        reportName: reportName.trim(), // Ensure reportName is trimmed
                                         testName: testName,
                                         value: testValue,
                                         arrowDirection: inputValues[reportName][testName][date]?.arrowDirection || "",
@@ -1060,9 +1159,12 @@ const LabResultsTable = ({
             return [];
         }
 
-        const sortedResults = [...results].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const seenTests = new Set();
-        const formatted = [];
+        const sortedResults = [...results].sort((a, b) => {
+            const dateA = new Date(a.date || 0);
+            const dateB = new Date(b.date || 0);
+            return dateB - dateA;
+        });
+        const testMap = new Map();
 
         sortedResults.forEach((result = {}) => {
             (result.inputs || []).forEach((input = {}) => {
@@ -1070,27 +1172,27 @@ const LabResultsTable = ({
                     return;
                 }
 
-                const key = normalizeTestName(input.testName);
-                if (seenTests.has(key)) {
-                    return;
-                }
-
+                const testName = input.testName.trim();
                 const value = input.value !== undefined ? String(input.value).trim() : "";
                 if (!value) {
                     return;
                 }
 
-                const units = input.units?.trim();
-                const displayValue = units ? `${value} ${units}`.trim() : value;
-                formatted.push({
-                    testname: input.testName,
-                    value: displayValue,
-                });
-                seenTests.add(key);
+                if (!testMap.has(testName)) {
+                    const units = input.units?.trim();
+                    const displayValue = units ? `${value} ${units}`.trim() : value;
+                    testMap.set(testName, {
+                        testname: testName, 
+                        value: displayValue,
+                    });
+                }
             });
         });
 
-        return formatted;
+        return Array.from(testMap.values()).map(item => ({
+            testname: item.testname,
+            value: item.value,
+        }));
     };
 
     const handleAddNewDate = (date) => {
@@ -1146,7 +1248,7 @@ const LabResultsTable = ({
 
         const currentFilledData = assemblePayload();
         const data = combineData(currentFilledData,filledData);
-        const formattedRxPadResults = formatResultsForRxPad(currentFilledData);
+        const formattedRxPadResults = formatResultsForRxPad(data);
         
         setFilledData([])
 
@@ -1459,7 +1561,9 @@ const LabResultsTable = ({
                     <>
                       <div style={{ height: "15px" }}></div>
                       <tbody>
-                        {Object.keys(inputValues).map((reportName) => (
+                        {Object.keys(inputValues)
+                          .filter((reportName) => reportName?.trim()) // Only show reportNames that are not empty
+                          .map((reportName) => (
                           <>
                             {/* Report Name Row */}
                             <tr

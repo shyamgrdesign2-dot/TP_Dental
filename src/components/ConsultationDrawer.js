@@ -2208,6 +2208,15 @@ const ConsultationDrawer = ({
             }
             
             if (prescriptionData) {
+              if (prescriptionData?.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
+                try {
+                  const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
+                  prescriptionData.labResults = await matchLabResultsWithApi(prescriptionData.labResults, patient_data);
+                } catch (error) {
+                  console.error('Error matching lab results with API:', error);
+                }
+              }
+              
               const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
               
               // Track which sections were initially populated from API BEFORE setting state
@@ -2505,6 +2514,7 @@ const ConsultationDrawer = ({
             }
             
             if (prescriptionData) {
+              // Always fetch today's vitals and merge with response vitals (similar to lab results)
               const hasResponseVitals = prescriptionData?.vitalsAndBodyComposition && 
                 Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0 &&
                 Object.values(prescriptionData.vitalsAndBodyComposition).some(v => {
@@ -2512,38 +2522,32 @@ const ConsultationDrawer = ({
                   return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
                 });
               
-              if (!hasResponseVitals && patient_data?.patient_unique_id) {
+              // Always fetch today's vitals to merge with response vitals
+              if (patient_data?.patient_unique_id) {
                 try {
                   const { getTodayVitals } = await import('../utils/getTodayVitals');
                   const todayVitals = await getTodayVitals(patient_data);
+                  
                   if (todayVitals) {
-                    prescriptionData.vitalsAndBodyComposition = todayVitals;
+                    if (hasResponseVitals) {
+                      const mergedVitals = { ...todayVitals };
+                      Object.entries(prescriptionData.vitalsAndBodyComposition || {}).forEach(([key, value]) => {
+                        if (key === 'date') return;
+                        const strValue = String(value || '').trim();
+                        if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null') {
+                          mergedVitals[key] = strValue;
+                        }
+                      });
+                      prescriptionData.vitalsAndBodyComposition = mergedVitals;
+                    } else {
+                      prescriptionData.vitalsAndBodyComposition = todayVitals;
+                    }
                   }
                 } catch (error) {
                   console.error('Error loading vitals from listVitals API:', error);
                 }
               }
               
-              const hasResponseLabResults = prescriptionData?.labResults && 
-                Array.isArray(prescriptionData.labResults) && 
-                prescriptionData.labResults.length > 0 &&
-                prescriptionData.labResults.some(r => {
-                  const testname = (r.testname || r.testName || r.name || '').trim();
-                  const value = (r.value || '').trim();
-                  return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
-                });
-              
-              if (!hasResponseLabResults && patient_data?.patient_unique_id) {
-                try {
-                  const { getTodayLabResults } = await import('../utils/getTodayLabResults');
-                  const todayLabResults = await getTodayLabResults(patient_data);
-                  if (todayLabResults && todayLabResults.length > 0) {
-                    prescriptionData.labResults = todayLabResults;
-                  }
-                } catch (error) {
-                  console.error('Error loading lab results from lab parameters API:', error);
-                }
-              }
               
               if (prescriptionData?.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
                 try {
