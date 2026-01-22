@@ -6,6 +6,9 @@ import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
 import ObsHistoryTableView from './obsHistory/table';
+import OphthalmologyInlineView from './ophthalmology/inline';
+import OphthalmologyListView from './ophthalmology/list';
+import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
 
 const PX_TO_PT = 0.75
@@ -258,7 +261,7 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const gynecHistoryData = caseManagerData?.gynecHistoryData
     const labParamsData = caseManagerData?.labParamsData
@@ -5225,6 +5228,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </View>
                                                     </View>
                                                 </View>
+                                            ))
+                                        }
+                                    </>
+                                ) : option?.id === 20 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {ophthalModuleData &&
+                                            Object.keys(ophthalModuleData).length > 0 &&
+                                            (option?.format === "inline" ? (
+                                                <OphthalmologyInlineView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData} 
+                                                />
+                                            ) : option?.format === "listview" ? (
+                                                <OphthalmologyListView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData} 
+                                                />
+                                            ) : (
+                                                <OphthalmologyTableView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData} 
+                                                />
                                             ))
                                         }
                                     </>
