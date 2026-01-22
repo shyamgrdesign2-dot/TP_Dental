@@ -4,11 +4,31 @@ body {
         width: 100%;
         max-width: 110px;
         height: calc(100vh - 56px);
-        padding: 20px 0;
-        overflow-y: hidden;
+        padding: 20px 0 0 0 !important;
         overflow-x: hidden;
+        overflow-y: auto;
+        position: relative;
+        display: flex;
+        flex-direction: column;
         &::-webkit-scrollbar {
             width: 0;
+        }
+        /* Shadow effect at the bottom to indicate more content */
+        &::after {
+            content: "";
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px !important;
+            background: linear-gradient(to bottom, rgb(0 0 0 / 1%) 0%, rgba(0, 0, 0, 0.25) 100%);
+            pointer-events: none;
+            z-index: 10;
+            margin-top: auto;
+            flex-shrink: 0;
+            @media only screen and (max-width: 1400px) {
+                height: 50px;
+            }
         }
         .sidebar-message {
             width: 35px;
@@ -65,8 +85,8 @@ body {
         }
         a {
             display: block;
-            padding: 4px 0;
-            margin: 0 0 30px 0;
+            padding: 8px 0;
+            margin: 0 0 12px 0;
             text-align: center;
             font-size: 12px;
             font-style: normal;
@@ -77,18 +97,22 @@ body {
                 color: $grayColor;
             }
             &:after{
-                height: 100%;
+                height: 110%;
                 width: 4px;
                 position: absolute;
                 left: 0;
-                top: 0;
+                top: -5%;
                 content: "";
                 background-color: transparent;
                 border-top-right-radius: 50px;
                 border-bottom-right-radius: 50px;
             }
-            &:hover, &:focus, &:active, &.active {
+            &:hover,
+            &:focus,
+            &:active,
+            &.active {
                 color: $theme;
+                background-color: rgba(75, 74, 213, 0.08);
                 &:after{
                     background-color: $theme;
                 }
@@ -102,9 +126,10 @@ body {
                 }
             }
         }
-        svg {
-            width: 24px;
-            height: 24px;
+        svg,
+        img {
+            width: 28px;
+            height: 28px;
         }
     }
     .ant-layout-sider {
