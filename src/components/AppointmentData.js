@@ -2176,7 +2176,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         return (
           <div>
             <span className="text-lowercase">
-              {record.apTime} {displayText}
+              {selectedTab === TAB_FINISHED ? record.finishedTime : record.apTime} {displayText}
             </span> <br />{" "}
             <small> {record.apDate}</small>
           </div>
