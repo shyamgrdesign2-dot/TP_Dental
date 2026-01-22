@@ -24,12 +24,13 @@ import qrIcon from '../assets/images/qr-icon.svg';
 import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
 import videorotate from '../assets/images/videorotate.gif';
-import billingsIcon from "../assets/images/billings.svg";
 import upgradeIcon from "../assets/images/upgrade.svg";
 import profileBg from "../assets/images/profile-bg.svg";
 import goldCrown from "../assets/images/gold-crown.svg";
 import crownIcon from "../assets/images/crown.svg";
 import AISuite from "../assets/images/ai-suite.png";
+import Notification from "../assets/images/navbar-icons/notification.svg";
+import ReceiptText from "../assets/images/navbar-icons/receipt-text.svg";
 import iconMobile from "../assets/images/icon-mobile.svg";
 
 import config from "../config";
@@ -859,6 +860,17 @@ function Header({ locationPath }) {
         ),
         key: "6",
       },
+      ...(!!tokenData?.admin && isOpdBillingAccessable ? [{
+        label: (
+          <a onClick={() => navigate("/billing-settings")}>
+            <div className="title-common me-4 d-flex align-items-center">
+            <img src={ReceiptText} alt="Billing" width={26} height={23} className="me-3" />Billing Setting
+            </div>
+            <i className="icon-right iconrotate180"></i>
+          </a>
+        ),
+        key: "billing-settings",
+      }] : []),
       ...(profile?.abhaEnable && isAbhaQRAccessableFromGB ? [{
         label: (
           <a onClick={handleShowAbhaQRCode}>
@@ -1534,35 +1546,20 @@ function Header({ locationPath }) {
               />
             )}
 
+            <div>
+              <Button
+                className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
+                onClick={() =>
+                  window.Moengage.track_event("announcement_button_clicked")
+                }
+                id="beamerButton"
+              >
+                <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
+              </Button>
+            </div>
+
             {SWITCH_TO_OLD_MODAL}
 
-            {!!tokenData?.admin && isOpdBillingAccessable &&
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      label: (
-                        <a onClick={() => navigate("/billing-settings")}>
-                          <div className="title-settings me-2 d-flex align-items-center">
-                            <img src={billingsIcon} alt="Billing" width={20} height={20} className="me-2" />
-                            Billing Settings
-                          </div>
-                          <i className="icon-right iconrotate180"></i>
-                        </a>
-                      ),
-                      key: "1",
-                    }
-                  ]
-                }}
-                trigger={['click']}
-                className="py-0 nav-link cursor-pointer"
-                overlayClassName="settings-dropdown"
-              >
-                <div className="d-flex align-items-center h-24 w-24">
-                  <i className="icon-setting me-2"></i>
-                </div>
-              </Dropdown>
-            }
 
             <Dropdown
               menu={{
