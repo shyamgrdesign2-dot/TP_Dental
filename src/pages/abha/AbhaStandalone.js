@@ -16,11 +16,12 @@ import AbhaHeadingSVG from "../../assets/images/abha-svg.svg";
 import SuccessGif from "../../assets/images/succcess-abha-animation.gif";
 import visitEnd from "../../assets/images/check-badge.svg";
 import imgCloseVisit from "../../assets/images/close-visit.svg";
-import { message } from "antd";
+import { message, notification } from "antd";
 import useAbhaScreens, { ABHA_SCREENS } from "../../components/abha/hooks/useAbhaScreens";
 import ApiAbha from "../../api/services/ApiAbha";
 import { useLocalStorage } from "../../utils/localStorage";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
+import config from "../../config";
 import { useDispatch } from "react-redux";
 import { setAbhaDetails } from "../../redux/abhaSlice";
 import "../../components/abha/AbhaDrawer.scss";
@@ -65,6 +66,7 @@ const AbhaStandalone = () => {
   const {
     currentScreen,
     screenData,
+    setScreenData,
     goToCreate,
     goToVerifyOtp,
     goToLink,
@@ -198,7 +200,12 @@ const AbhaStandalone = () => {
   };
 
   const handleGetBiometric = (data) => {
+    setScreenData({
+      ...screenData,
+      ...data,
+    });
     setBiometricPopupOpen(true);
+    return data;
   };
 
   const handleBiometricCaptureSuccess = (fingerprintData) => {
@@ -227,11 +234,96 @@ const AbhaStandalone = () => {
       ),
       duration: 5,
     });
-    // Pause here as requested - flow will continue later
+    
+    // Update screen state with captured biometric data
+    if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
+      goToBiometricVerification({
+        ...screenData,
+        fingerprintData,
+        biometricCaptured: true,
+        mobileNumber: screenData.mobileNumber || "",
+      });
+    }
   };
 
   const handleBiometricCaptureError = (error) => {
     message.error(error || "Failed to capture biometric");
+  };
+
+  const handleBiometricVerifyNext = async () => {
+    const { aadhaarNumber = "", mobileNumber = "", fingerprintData = null, patient_unique_id = "" } = screenData;
+    
+    if (!fingerprintData || !fingerprintData.fullXmlBase64) {
+      notification.error({
+        message: "Error",
+        description: "Fingerprint data not available. Please capture biometric again.",
+      });
+      return;
+    }
+
+    if (!mobileNumber || mobileNumber.length !== 10) {
+      notification.error({
+        message: "Error",
+        description: "Please enter a valid mobile number.",
+      });
+      return;
+    }
+
+    setIsNextLoading(true);
+    setIsNextDisabled(true);
+
+    try {
+      const requestData = {
+        aadhaarNumber,
+        mobile_no: mobileNumber,
+        fingerPrintAuthPid: fingerprintData.fullXmlBase64,
+        patient_unique_id: patient_unique_id || patientUniqueId,
+      };
+
+      const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+      const authToken = token ? JSON.parse(token) : null;
+      const apiUrl = `${config.abha_api_url || 'https://pm-abha-uat.tatvacare.in'}/api/v1/abdm/m1/enrollmentByAadhaar/verify-fingerPrint`;
+      
+      console.log("=== API Request Curl ===");
+      console.log(`curl --location '${apiUrl}' \\`);
+      console.log(`--header 'Authorization: Bearer ${authToken}' \\`);
+      console.log(`--header 'Content-Type: application/json' \\`);
+      console.log(`--data '${JSON.stringify(requestData)}'`);
+      console.log("========================");
+
+      const response = await ApiAbha.verifyFingerPrintForAadhaar(requestData);
+
+      if (response?.success) {
+        const apiResponseData = response.data?.data || response.data;
+        
+        const verifySuccessData = {
+          ...apiResponseData,
+          patient_unique_id: patient_unique_id || patientUniqueId,
+          mobile_no: mobileNumber,
+          aadhaarNumber,
+        };
+        
+        handleVerifySuccess(verifySuccessData);
+      } else {
+        notification.error({
+          message: "Verification Failed",
+          description: response?.message || "Failed to verify fingerprint. Please try again.",
+        });
+        setIsNextDisabled(false);
+      }
+    } catch (error) {
+      console.error("Biometric verification error:", error);
+      notification.error({
+        message: "Error",
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to verify fingerprint. Please try again.",
+      });
+      setIsNextDisabled(false);
+    } finally {
+      setIsNextLoading(false);
+    }
   };
 
   const handleOtpSent = (data) => {
@@ -390,6 +482,11 @@ const AbhaStandalone = () => {
   };
 
   const handleNextClick = async () => {
+    if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
+      await handleBiometricVerifyNext();
+      return;
+    }
+    
     if (
       currentScreen === ABHA_SCREENS.VERIFY_OTP &&
       verifyOtpFunctionRef.current
@@ -500,6 +597,8 @@ const AbhaStandalone = () => {
         return { show: true, title: "Next" };
       case ABHA_SCREENS.MOBILE_VERIFY_OTP:
         return { show: true, title: isNextLoading ? "Verifying..." : "Verify" };
+      case ABHA_SCREENS.BIOMETRIC_VERIFICATION:
+        return { show: true, title: "Next" };
       case ABHA_SCREENS.ABHA_ADDRESS:
         return { show: true, title: "Link ABHA" };
       case ABHA_SCREENS.OTP_VERIFICATION_CODE:
@@ -552,6 +651,14 @@ const AbhaStandalone = () => {
       resetAbhaVerifyState();
     };
   }, []);
+
+  // Manage next button state for biometric verification screen
+  useEffect(() => {
+    if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
+      const { biometricCaptured = false, fingerprintData = null, mobileNumber = "" } = screenData;
+      setIsNextDisabled(!biometricCaptured || !fingerprintData || mobileNumber.length !== 10);
+    }
+  }, [currentScreen, screenData]);
 
   const renderScreen = () => {
     switch (currentScreen) {
