@@ -1693,6 +1693,8 @@ const ConsultationDrawer = ({
       } else if (transcribedText) {
         // Append transcript text with proper key for API
         formData.append("voice_prescription_text", transcribedText);
+        // When data is in JSON format (text-only, no audio), source_duration should be 0
+        formData.append("source_duration", "0");
         }
         
         const patientId = patient_data?.patient_unique_id || "";
@@ -2348,9 +2350,11 @@ const ConsultationDrawer = ({
           const duration = audioBuffer.duration;
           formData.append("file", audioBlobParam);
           formData.append("voice_prescription_filename", `${uuidv4()}.webm`);
-          formData.append("source_duration", duration);
+          formData.append("source_duration", duration.toString());
         } else {
           formData.append("voice_prescription_text", transcribedText);
+          // When data is in JSON format (text-only, no audio), source_duration should be 0
+          formData.append("source_duration", "0");
         }
         if (genRxDetails?._id) {
           const data = preparePayloadForApi();
