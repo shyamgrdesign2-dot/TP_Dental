@@ -150,6 +150,36 @@
   padding: 4px 0;
 }
 
+.headerActionUnderline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sectionCollapseToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  padding: 0;
+}
+
+.sectionCollapseIcon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.sectionCollapseIconOpen {
+  transform: rotate(180deg);
+}
+
 .actionIcon {
   width: 18px;
   height: 18px;

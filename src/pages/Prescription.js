@@ -123,6 +123,12 @@ import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
 import GenRxKnowMore from "../components/GenRxKnowMore";
+import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
+import {
+  resetOpthalForm,
+  setLastOpthalPrescriptionData,
+  setOpthalPrescriptionId,
+} from "../redux/ophthalmologyExamSlice";
 
 function Prescription() {
   const {
@@ -212,12 +218,44 @@ function Prescription() {
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
 
   const { servicesList } = useSelector((state) => state.doctors);
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [subModalData, setSubModalData] = useState(null);
   const [useVoiceRx, setUseVoiceRx] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchOpthalPrescription = async () => {
+      dispatch(resetOpthalForm());
+      dispatch(setLastOpthalPrescriptionData(null));
+      dispatch(setOpthalPrescriptionId(null));
+      if (!tcmId) {
+        return;
+      }
+      try {
+        const response = await getOpthalPrescriptionDetails({ tcm_id: tcmId });
+        const data = response?.data ?? response;
+        const payload = Array.isArray(data) ? data[0] : data;
+        if (!isMounted || !payload) {
+          return;
+        }
+        dispatch(setLastOpthalPrescriptionData(payload));
+        if (payload?._id) {
+          dispatch(setOpthalPrescriptionId(payload._id));
+        }
+        setLoadPrevOpthalSignal((prev) => prev + 1);
+      } catch (error) {
+        console.error("Error fetching opthal prescription details:", error);
+      }
+    };
+    fetchOpthalPrescription();
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, tcmId]);
   const [useDDX, setUseDDX] = useState(false);
 
   const responsive = {
@@ -1712,9 +1750,6 @@ function Prescription() {
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
-                <div className="opthal-panel-wrapper">
-                  <OphthalmologyExamPanel patientData={patient_data} showHeader headerTitle="Ophthal" />
-                </div>
                 {customizedPadRightList?.map((e, i) => {
                   const customModule = customModules?.find(
                     (m) => m.module_id === e.tmdpm_id
@@ -1762,9 +1797,20 @@ function Prescription() {
                       />
                     </div>
                   ) : e.tmdpm_id === 12 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm">
-                      <MedicationsBox />
-                    </div>
+                    <React.Fragment key={i}>
+                      <div className="prescription-box-sm">
+                        <MedicationsBox />
+                      </div>
+                      <div className="opthal-panel-wrapper">
+                        <OphthalmologyExamPanel
+                          patientData={patient_data}
+                          showHeader
+                          headerTitle="Ophthal"
+                          loadPrevAllSignal={loadPrevOpthalSignal}
+                          fetchLastOnMount={false}
+                        />
+                      </div>
+                    </React.Fragment>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <AdviceBox />

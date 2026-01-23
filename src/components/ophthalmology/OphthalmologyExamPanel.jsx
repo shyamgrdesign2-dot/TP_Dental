@@ -279,6 +279,9 @@ const OphthalmologySectionCard = ({
   autofillMenu,
   extraFieldValues,
   onExtraFieldChange,
+  isCollapsed,
+  onToggleCollapse,
+  showCollapseToggle,
 }) => {
   const iconSrc = SECTION_ICONS[section.id];
 
@@ -339,10 +342,10 @@ const OphthalmologySectionCard = ({
               className={styles.headerAction}
               onClick={() => onAction?.(section, action)}
             >
-              {action === "Load from Prev" ? (
+              {action === "Load from Prev." ? (
                 <>
                   <i className="icon-reload"></i>
-                  <span>Load from Prev</span>
+                  <span className={styles.headerActionUnderline}>Load from Prev.</span>
                 </>
               ) : action === "Clear" ? (
                 <>
@@ -367,6 +370,21 @@ const OphthalmologySectionCard = ({
               )}
             </button>
           ))}
+          {showCollapseToggle && (
+            <button
+              type="button"
+              className={styles.sectionCollapseToggle}
+              onClick={() => onToggleCollapse?.(section.id)}
+            >
+                <img
+                  src={arrowDownIcon}
+                  alt=""
+                  className={`${styles.sectionCollapseIcon} ${
+                  !isCollapsed ? styles.sectionCollapseIconOpen : ""
+                }`}
+                />
+            </button>
+          )}
         </div>
       </div>
 
@@ -378,29 +396,33 @@ const OphthalmologySectionCard = ({
         </div>
       )} */}
 
-      <div className={styles.tablesStack}>
-        {section.tables.map((table) => (
-          <OphthalmologyTable
-            key={table.id}
-            table={table}
-            {...(getTableProps ? getTableProps(section, table) : {})}
-          />
-        ))}
-      </div>
+      {!isCollapsed && (
+        <>
+          <div className={styles.tablesStack}>
+            {section.tables.map((table) => (
+              <OphthalmologyTable
+                key={table.id}
+                table={table}
+                {...(getTableProps ? getTableProps(section, table) : {})}
+              />
+            ))}
+          </div>
 
-      {section.extraFields && (
-        <div className={styles.extraFields}>
-          {section.extraFields.map((field) => (
-            <InlineField
-              key={field.label}
-              field={field}
-              value={extraFieldValues?.[field.key] || ""}
-              onChange={(nextValue) =>
-                onExtraFieldChange?.(field.key, nextValue)
-              }
-            />
-          ))}
-        </div>
+          {section.extraFields && (
+            <div className={styles.extraFields}>
+              {section.extraFields.map((field) => (
+                <InlineField
+                  key={field.label}
+                  field={field}
+                  value={extraFieldValues?.[field.key] || ""}
+                  onChange={(nextValue) =>
+                    onExtraFieldChange?.(field.key, nextValue)
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -410,6 +432,10 @@ const OphthalmologyExamPanel = ({
   patientData,
   showHeader = false,
   headerTitle = "Opthal",
+  enableSectionCollapse = false,
+  loadPrevAllSignal = 0,
+  clearAllSignal = 0,
+  fetchLastOnMount = true,
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -422,6 +448,7 @@ const OphthalmologyExamPanel = ({
   );
   const [tableResets, setTableResets] = useState({});
   const [isExpanded, setIsExpanded] = useState(true);
+  const [collapsedSections, setCollapsedSections] = useState({});
   const glassPrescriptionTableId = "glassPrescriptionTable";
   const sourceTableIds = useMemo(
     () => ({
@@ -470,6 +497,9 @@ const OphthalmologyExamPanel = ({
   }, []);
 
   useEffect(() => {
+    if (!fetchLastOnMount) {
+      return () => {};
+    }
     let isMounted = true;
     const fetchLastOpthal = async () => {
       try {
@@ -485,7 +515,7 @@ const OphthalmologyExamPanel = ({
     return () => {
       isMounted = false;
     };
-  }, [dispatch]);
+  }, [dispatch, fetchLastOnMount]);
 
   const visualAcuityValues = useMemo(() => {
     const map = {};
@@ -518,161 +548,8 @@ const OphthalmologyExamPanel = ({
       dispatch(resetVisualAcuity());
     }
 
-    if (action === "Load from Prev") {
-      const lastData = lastOpthalPrescriptionData;
-      if (!lastData) {
-        return;
-      }
-
-      const updateTableValues = (tableId, values) => {
-        setLocalTableValues((prev) => ({
-          ...prev,
-          [tableId]: values,
-        }));
-        dispatch(
-          setOpthalTableValues({
-            tableId,
-            values,
-          })
-        );
-      };
-
-      const buildEyeTableValues = (tableId, rows, keyMap = {}) => {
-        const table = tableById[tableId];
-        if (!table) return {};
-        const nextValues = buildEmptyTableValues(table);
-        table.rows.forEach((row) => {
-          const entry = rows?.find(
-            (item) => String(item.eye || "").toUpperCase() === row.label
-          );
-          table.columns.forEach((column) => {
-            if (column.type === "label") return;
-            const cellKey = `${row.key}-${column.key}`;
-            const sourceKey = keyMap[column.key] || column.key;
-            nextValues[cellKey] = entry?.[sourceKey] ?? "";
-          });
-        });
-        return nextValues;
-      };
-
-      const buildSectionTableValues = (tableId, rows) => {
-        const table = tableById[tableId];
-        if (!table) return {};
-        const nextValues = buildEmptyTableValues(table);
-        table.rows.forEach((row) => {
-          const entry = rows?.find(
-            (item) =>
-              String(item.section || "").toLowerCase() ===
-              row.label.toLowerCase()
-          );
-          table.columns.forEach((column) => {
-            if (column.type === "label") return;
-            const cellKey = `${row.key}-${column.key}`;
-            if (column.key === "od") {
-              nextValues[cellKey] = entry?.OD ?? entry?.od ?? "";
-              return;
-            }
-            if (column.key === "os") {
-              nextValues[cellKey] = entry?.OS ?? entry?.os ?? "";
-              return;
-            }
-            nextValues[cellKey] = entry?.[column.key] ?? "";
-          });
-        });
-        return nextValues;
-      };
-
-      if (section.id === "visualAcuity") {
-        const visualAcuityData = {
-          od: {},
-          os: {},
-        };
-        (lastData.visualAcuity || []).forEach((entry) => {
-          const eyeKey = String(entry.eye || "").toLowerCase();
-          if (!visualAcuityData[eyeKey]) return;
-          visualAcuityData[eyeKey] = {
-            ...visualAcuityData[eyeKey],
-            ucDistance: entry.ucDistance ?? "",
-            ucNear: entry.ucNear ?? "",
-            pinhole: entry.pinhole ?? "",
-            cDistance: entry.cDistance ?? "",
-            cNear: entry.cNear ?? "",
-          };
-        });
-        dispatch(setVisualAcuityData(visualAcuityData));
-      }
-
-      if (section.id === "autoRefraction") {
-        const undilatedRows = (lastData.autoRefraction || []).filter(
-          (item) => String(item.type || "").toLowerCase() === "undilated"
-        );
-        const dilatedRows = (lastData.autoRefraction || []).filter(
-          (item) => String(item.type || "").toLowerCase() === "dilated"
-        );
-        updateTableValues(
-          "autoRefractionUndilated",
-          buildEyeTableValues("autoRefractionUndilated", undilatedRows)
-        );
-        updateTableValues(
-          "autoRefractionDilated",
-          buildEyeTableValues("autoRefractionDilated", dilatedRows)
-        );
-        if (lastData.pd !== undefined) {
-          dispatch(setExtraField({ key: "pd", value: lastData.pd || "" }));
-        }
-      }
-
-      if (section.id === "lensometerValues") {
-        updateTableValues(
-          "lensometerTable",
-          buildEyeTableValues(
-            "lensometerTable",
-            lastData.lensometerValues || []
-          )
-        );
-      }
-
-      if (section.id === "glassPrescription") {
-        updateTableValues(
-          "glassPrescriptionTable",
-          buildEyeTableValues(
-            "glassPrescriptionTable",
-            lastData.glassPrescription || []
-          )
-        );
-        if (lastData.pd !== undefined) {
-          dispatch(setExtraField({ key: "pd", value: lastData.pd || "" }));
-        }
-      }
-
-      if (section.id === "iop") {
-        updateTableValues(
-          "iopTable",
-          buildEyeTableValues("iopTable", lastData.intraOcularPressure || [], {
-            cct: "cc",
-          })
-        );
-      }
-
-      if (section.id === "slitLamp") {
-        updateTableValues(
-          "slitLampTable",
-          buildSectionTableValues(
-            "slitLampTable",
-            lastData.slitLampExamination || []
-          )
-        );
-      }
-
-      if (section.id === "fundus") {
-        updateTableValues(
-          "fundusTable",
-          buildSectionTableValues(
-            "fundusTable",
-            lastData.fundusExamination || []
-          )
-        );
-      }
+    if (action === "Load from Prev.") {
+      loadFromPrev(section);
     }
 
     if (action === "Clear") {
@@ -703,6 +580,186 @@ const OphthalmologyExamPanel = ({
       }));
     }
   };
+
+  const updateTableValues = useCallback((tableId, values) => {
+    setLocalTableValues((prev) => ({
+      ...prev,
+      [tableId]: values,
+    }));
+    dispatch(
+      setOpthalTableValues({
+        tableId,
+        values,
+      })
+    );
+  }, [dispatch]);
+
+  const buildEyeTableValues = useCallback((tableId, rows, keyMap = {}) => {
+    const table = tableById[tableId];
+    if (!table) return {};
+    const nextValues = buildEmptyTableValues(table);
+    table.rows.forEach((row) => {
+      const entry = rows?.find(
+        (item) => String(item.eye || "").toUpperCase() === row.label
+      );
+      table.columns.forEach((column) => {
+        if (column.type === "label") return;
+        const cellKey = `${row.key}-${column.key}`;
+        const sourceKey = keyMap[column.key] || column.key;
+        nextValues[cellKey] = entry?.[sourceKey] ?? "";
+      });
+    });
+    return nextValues;
+  }, [buildEmptyTableValues, tableById]);
+
+  const buildSectionTableValues = useCallback((tableId, rows) => {
+    const table = tableById[tableId];
+    if (!table) return {};
+    const nextValues = buildEmptyTableValues(table);
+    table.rows.forEach((row) => {
+      const entry = rows?.find(
+        (item) =>
+          String(item.section || "").toLowerCase() === row.label.toLowerCase()
+      );
+      table.columns.forEach((column) => {
+        if (column.type === "label") return;
+        const cellKey = `${row.key}-${column.key}`;
+        if (column.key === "od") {
+          nextValues[cellKey] = entry?.OD ?? entry?.od ?? "";
+          return;
+        }
+        if (column.key === "os") {
+          nextValues[cellKey] = entry?.OS ?? entry?.os ?? "";
+          return;
+        }
+        nextValues[cellKey] = entry?.[column.key] ?? "";
+      });
+    });
+    return nextValues;
+  }, [buildEmptyTableValues, tableById]);
+
+  const loadFromPrev = useCallback((section) => {
+    const lastData = lastOpthalPrescriptionData;
+    if (!lastData || !section) {
+      return;
+    }
+
+    if (section.id === "visualAcuity") {
+      const visualAcuityData = {
+        od: {},
+        os: {},
+      };
+      (lastData.visualAcuity || []).forEach((entry) => {
+        const eyeKey = String(entry.eye || "").toLowerCase();
+        if (!visualAcuityData[eyeKey]) return;
+        visualAcuityData[eyeKey] = {
+          ...visualAcuityData[eyeKey],
+          ucDistance: entry.ucDistance ?? "",
+          ucNear: entry.ucNear ?? "",
+          pinhole: entry.pinhole ?? "",
+          cDistance: entry.cDistance ?? "",
+          cNear: entry.cNear ?? "",
+        };
+      });
+      dispatch(setVisualAcuityData(visualAcuityData));
+    }
+
+    if (section.id === "autoRefraction") {
+      const undilatedRows = (lastData.autoRefraction || []).filter(
+        (item) => String(item.type || "").toLowerCase() === "undilated"
+      );
+      const dilatedRows = (lastData.autoRefraction || []).filter(
+        (item) => String(item.type || "").toLowerCase() === "dilated"
+      );
+      updateTableValues(
+        "autoRefractionUndilated",
+        buildEyeTableValues("autoRefractionUndilated", undilatedRows)
+      );
+      updateTableValues(
+        "autoRefractionDilated",
+        buildEyeTableValues("autoRefractionDilated", dilatedRows)
+      );
+      if (lastData.pd !== undefined) {
+        dispatch(setExtraField({ key: "pd", value: lastData.pd || "" }));
+      }
+    }
+
+    if (section.id === "lensometerValues") {
+      updateTableValues(
+        "lensometerTable",
+        buildEyeTableValues(
+          "lensometerTable",
+          lastData.lensometerValues || []
+        )
+      );
+    }
+
+    if (section.id === "glassPrescription") {
+      updateTableValues(
+        "glassPrescriptionTable",
+        buildEyeTableValues(
+          "glassPrescriptionTable",
+          lastData.glassPrescription || []
+        )
+      );
+      if (lastData.pd !== undefined) {
+        dispatch(setExtraField({ key: "pd", value: lastData.pd || "" }));
+      }
+    }
+
+    if (section.id === "iop") {
+      updateTableValues(
+        "iopTable",
+        buildEyeTableValues("iopTable", lastData.intraOcularPressure || [], {
+          cct: "cc",
+        })
+      );
+    }
+
+    if (section.id === "slitLamp") {
+      updateTableValues(
+        "slitLampTable",
+        buildSectionTableValues(
+          "slitLampTable",
+          lastData.slitLampExamination || []
+        )
+      );
+    }
+
+    if (section.id === "fundus") {
+      updateTableValues(
+        "fundusTable",
+        buildSectionTableValues(
+          "fundusTable",
+          lastData.fundusExamination || []
+        )
+      );
+    }
+  }, [
+    lastOpthalPrescriptionData,
+    updateTableValues,
+    buildEyeTableValues,
+    buildSectionTableValues,
+    dispatch,
+  ]);
+
+  const loadFromPrevAll = useCallback(() => {
+    OPHTHALMOLOGY_SECTIONS.forEach((section) => {
+      loadFromPrev(section);
+    });
+  }, [loadFromPrev]);
+
+  useEffect(() => {
+    if (loadPrevAllSignal > 0) {
+      loadFromPrevAll();
+    }
+  }, [loadPrevAllSignal, loadFromPrevAll]);
+
+  useEffect(() => {
+    if (clearAllSignal > 0) {
+      setLocalTableValues(initialTableValues);
+    }
+  }, [clearAllSignal, initialTableValues]);
 
   const getTableProps = (section, table) => {
     const baseProps = {
@@ -811,6 +868,14 @@ const OphthalmologyExamPanel = ({
           onExtraFieldChange={(fieldKey, nextValue) =>
             dispatch(setExtraField({ key: fieldKey, value: nextValue }))
           }
+          isCollapsed={!!collapsedSections[section.id]}
+          onToggleCollapse={(sectionId) =>
+            setCollapsedSections((prev) => ({
+              ...prev,
+              [sectionId]: !prev[sectionId],
+            }))
+          }
+          showCollapseToggle={enableSectionCollapse}
         />
       ))}
     </div>

@@ -78,6 +78,11 @@ const ophthalmologyExamSlice = createSlice({
     setLastOpthalPrescriptionData: (state, action) => {
       state.lastOpthalPrescriptionData = action.payload || null;
     },
+    resetOpthalForm: (state) => {
+      state.visualAcuity = initialState.visualAcuity;
+      state.tables = {};
+      state.extraFields = {};
+    },
   },
 });
 
@@ -92,6 +97,7 @@ export const {
   resetExtraField,
   setOpthalPrescriptionId,
   setLastOpthalPrescriptionData,
+  resetOpthalForm,
 } = ophthalmologyExamSlice.actions;
 
 export default ophthalmologyExamSlice.reducer;

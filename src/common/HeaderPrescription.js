@@ -1136,10 +1136,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
             console.log("Opthal prescription payload:", opthalPayload);
             console.log("Opthal prescription action:", opthalAction, opthalId);
-            const opthalPromise = opthalId
-                ? updateOpthalPrescription(opthalId, opthalPayload)
-                : createOpthalPrescription(opthalPayload);
-
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1188,8 +1184,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     clinic_name,
                     patient_number: patient_data?.pm_contact_no,
                     patient_id: patient_data?.patient_unique_id,
-                    tcm_id: tcmId,
-                })
+                tcm_id: tcmId,
+            })
                 :
                 window.Moengage.track_event("TP_Consultation_edited", {
                     clinic_name,
@@ -1201,10 +1197,29 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const caseManagerPromise = tcmId == 0
                 ? dispatch(addCaseManager(sendData))
                 : dispatch(editCaseManager(sendData));
-            const [, action] = await Promise.all([
-                opthalPromise,
-                caseManagerPromise,
-            ]);
+            let action;
+
+            if (tcmId == 0) {
+                action = await caseManagerPromise;
+                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                const opthalPayloadWithTcm = {
+                    ...opthalPayload,
+                    tcm_id: generatedTcmId,
+                };
+                if (opthalId) {
+                    await updateOpthalPrescription(opthalId, opthalPayloadWithTcm);
+                } else {
+                    await createOpthalPrescription(opthalPayloadWithTcm);
+                }
+            } else {
+                const opthalPromise = opthalId
+                    ? updateOpthalPrescription(opthalId, opthalPayload)
+                    : createOpthalPrescription(opthalPayload);
+                [action] = await Promise.all([
+                    caseManagerPromise,
+                    opthalPromise,
+                ]);
+            }
             if (action.meta.requestStatus === "fulfilled") {
                 try {
                     // Ensure care plan is linked to the definitive consultation id

@@ -325,7 +325,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "visualAcuity",
     title: "Visual Acuity Test",
     iconSize: 28,
-    actions: ["Load from Prev", 
+    actions: ["Load from Prev.",
       // "SnapRx", 
       "Clear"],
     topFields: [
@@ -380,7 +380,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "autoRefraction",
     title: "Auto Refraction Test",
     iconSize: 28,
-    actions: ["Load from Prev", "Clear"],
+    actions: ["Load from Prev.", "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "autoRefractionTestTypes" },
       { label: "Reading Confidence", optionsKey: "readingConfidenceOptions" },
@@ -508,7 +508,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "lensometerValues",
     title: "Lensometer Values",
     iconSize: 28,
-    actions: ["Load from Prev", "Clear"],
+    actions: ["Load from Prev.", "Clear"],
     tables: [
       {
         id: "lensometerTable",
@@ -562,7 +562,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "glassPrescription",
     title: "Glass Prescription",
     iconSize: 28,
-    actions: ["Load from Prev", "Clear"],
+    actions: ["Load from Prev.", "Clear"],
     chips: ["Autofill"],
     topFields: [
       { label: "Prescription Type", optionsKey: "prescriptionTypeOptions" },
@@ -631,7 +631,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
     id: "iop",
     title: "Intra Ocular Pressure (IOP)",
     iconSize: 28,
-    actions: ["Load from Prev", "Clear"],
+    actions: ["Load from Prev.", "Clear"],
     topFields: [
       { label: "Test Type", optionsKey: "iopTestTypes" },
       { label: "Measurement Time", optionsKey: "measurementTimeOptions" },
@@ -782,19 +782,9 @@ export const OPHTHALMOLOGY_SECTIONS = [
         ],
         rows: [
           {
-            key: "vitreous",
-            label: "Vitreous/Media",
-            optionsKey: "fundusOptions.vitreous",
-          },
-          {
-            key: "opticDisc",
-            label: "Optic Disc",
+            key: "disc",
+            label: "Disc",
             optionsKey: "fundusOptions.opticDisc",
-          },
-          {
-            key: "cdr",
-            label: "Cup-Disc Ratio",
-            optionsKey: "cdrOptions",
           },
           {
             key: "macula",
@@ -802,19 +792,29 @@ export const OPHTHALMOLOGY_SECTIONS = [
             optionsKey: "fundusOptions.macula",
           },
           {
-            key: "retinalVessels",
-            label: "Retinal Vessels",
-            optionsKey: "fundusOptions.retinalVessels",
+            key: "vitreous",
+            label: "Vitreous",
+            optionsKey: "fundusOptions.vitreous",
           },
           {
-            key: "retinalPeriphery",
-            label: "Retinal Periphery",
+            key: "retina",
+            label: "Retina",
             optionsKey: "fundusOptions.retinalPeriphery",
           },
           {
-            key: "choroid",
-            label: "Choroid",
-            optionsKey: "fundusOptions.choroid",
+            key: "fovealReflex",
+            label: "Foveal Reflex",
+            options: [],
+          },
+          {
+            key: "bloodVessels",
+            label: "Blood Vessels",
+            optionsKey: "fundusOptions.retinalVessels",
+          },
+          {
+            key: "periphery",
+            label: "Periphery",
+            optionsKey: "fundusOptions.retinalPeriphery",
           },
         ],
       },

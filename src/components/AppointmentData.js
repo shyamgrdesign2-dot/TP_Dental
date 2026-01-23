@@ -158,7 +158,13 @@ import { EVENTS } from "../utils/events";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
+import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
 import { clearAbhaDetails } from "../redux/abhaSlice";
+import {
+  resetOpthalForm,
+  setLastOpthalPrescriptionData,
+  setOpthalPrescriptionId,
+} from "../redux/ophthalmologyExamSlice";
 
 const { TextArea } = Input;
 
@@ -660,6 +666,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [endVisitReasonDrawer, setEndVisitReasonDrawer] = useState(false);
   const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
   const [addlabparamsDrawer, setAddlabparamsDrawer] = useState(false);
+  const [opthalDrawerOpen, setOpthalDrawerOpen] = useState(false);
   const [endVisitReason, setEndVisitReason] = useState("");
   const [noDetailsModal, setNoDetailsModal] = useState(false);
   const [shouldShowUploadDocPopup, setShowUploadDocPopup] = useState(false);
@@ -1214,6 +1221,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           </span>
         ),
         key: "labparams",
+      },
+      {
+        label: (
+          <span
+            onClick={() => {
+              setAppointmentSelectedFromMenu(record);
+              handleOpthalDrawer();
+            }}
+          >
+            Add Ophthal Details
+          </span>
+        ),
+        key: "opthalDetails",
       },
       {
         label: (
@@ -2554,6 +2574,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setAddlabparamsDrawer(!addlabparamsDrawer);
   }, [addlabparamsDrawer]);
 
+  const handleOpthalDrawer = useCallback(() => {
+    setOpthalDrawerOpen((prev) => {
+      if (prev) {
+        dispatch(resetOpthalForm());
+        dispatch(setOpthalPrescriptionId(null));
+        dispatch(setLastOpthalPrescriptionData(null));
+      }
+      return !prev;
+    });
+  }, [dispatch]);
+
   const handleCreateBillDrawer = useCallback(() => {
     setCreateBillDrawer(!createBillDrawer);
     if (recentBillDrawer && !isReceptionist) {
@@ -2894,6 +2925,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
   };
+  console.log('INTEL ==> appointmentSelectedFromMenu', appointmentSelectedFromMenu);
 
   const disabledDate = (current) => {
     // Can not select days before today and today
@@ -3497,6 +3529,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           open={createAbhaDrawer}
           patientUniqueId={appointmentSelectedFromMenu?.patient_unique_id}
           onSuccess={onSuccessAbhaCreation}
+        />
+      )}
+      {opthalDrawerOpen && (
+        <OphthalmologyExamDrawer
+          open={opthalDrawerOpen}
+          onClose={handleOpthalDrawer}
+          patientData={appointmentSelectedFromMenu}
+          tcmId={appointmentSelectedFromMenu?.tcm_id ?? appointmentSelectedFromMenu?.tcmId ?? 0}
         />
       )}
 
