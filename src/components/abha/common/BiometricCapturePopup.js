@@ -98,7 +98,9 @@ const BiometricCapturePopup = ({
       
       // Discover device
       const deviceInfo = await discoverDevice((statusMsg) => {
-        setStatus(statusMsg);
+        if (!statusMsg.includes("port:")) {
+          setStatus(statusMsg);
+        }
       });
       
       deviceInfoRef.current = deviceInfo;
@@ -109,9 +111,14 @@ const BiometricCapturePopup = ({
       }, 500);
     } catch (error) {
       setCaptureStatus("error");
-      setStatus(error.message || "Device discovery failed. Please ensure RD Service is running.");
+      const errorMsg = error.message || "Error connecting: Please check device connectivity";
+      setStatus(errorMsg);
       setIsCapturing(false);
-      onCaptureError(error.message || "Device discovery failed");
+      onCaptureError(errorMsg);
+      
+      setTimeout(() => {
+        onClose();
+      }, 3000);
     }
   };
 
@@ -146,19 +153,15 @@ const BiometricCapturePopup = ({
       }, 2000);
     } catch (error) {
       setCaptureStatus("error");
-      setStatus(error.message || "Capture failed");
+      const errorMsg = error.message || "Capture failed";
+      setStatus(errorMsg);
       setIsCapturing(false);
       
-      const errorMsg = error.message || "Capture failed";
       onCaptureError(errorMsg);
 
-      // Check if error is timeout related and close popup
-      const errorMsgLower = errorMsg.toLowerCase();
-      if (errorMsgLower.includes("timeout") || errorMsgLower.includes("timed out")) {
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      }
+      setTimeout(() => {
+        onClose();
+      }, 3000);
     }
   };
 
@@ -169,7 +172,7 @@ const BiometricCapturePopup = ({
       footer={null}
       closable={true}
       centered
-      width={635}
+      width={445}
       className="biometric_capture_modal"
       zIndex={1200}
       maskClosable={false}

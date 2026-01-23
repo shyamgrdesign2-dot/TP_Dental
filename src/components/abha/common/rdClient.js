@@ -1,12 +1,7 @@
 import CryptoJS from 'crypto-js';
 
-/**
- * RD Client module for Mantra RD Service discovery and fingerprint capture
- * Handles device discovery, WADH generation, and fingerprint capture with timeouts
- */
-
-const DISCOVERY_TIMEOUT = 30000; // 30 seconds for device discovery
-const CAPTURE_TIMEOUT = 35000; // 35 seconds for capture (30s device + 5s buffer)
+const DISCOVERY_TIMEOUT = 5000;
+const CAPTURE_TIMEOUT = 35000;
 const PORT_RANGE_START = 11100;
 const PORT_RANGE_END = 11120;
 
@@ -24,7 +19,6 @@ export const generateWadh = (deviceType = 'F') => {
 
   const text = '2.5' + ra + rc + lr + de + pfr;
   
-  // Generate WADH using exact format: Base64(SHA256(text))
   const wadh = CryptoJS.enc.Base64.stringify(CryptoJS.SHA256(text));
   
   if (!wadh || wadh === "") {
@@ -48,28 +42,29 @@ export const discoverDevice = async (onStatusUpdate = () => {}) => {
     let discovered = false;
     let portIndex = PORT_RANGE_START;
     
-    // Set overall timeout for discovery
     const discoveryTimeout = setTimeout(() => {
       if (!discovered) {
-        reject(new Error("Device discovery timeout. Please ensure RD Service is running."));
+        reject(new Error("Unable to connect to the biometric device. Please check the device connection and try again."));
       }
     }, DISCOVERY_TIMEOUT);
 
     const tryNextPort = () => {
-      if (discovered || portIndex > PORT_RANGE_END) {
+      if (discovered) {
+        clearTimeout(discoveryTimeout);
+        return;
+      }
+      
+      if (portIndex > PORT_RANGE_END) {
         clearTimeout(discoveryTimeout);
         if (!discovered) {
-          reject(new Error("Device discovery failed. Please ensure Mantra RD Service is running."));
+          reject(new Error("Unable to connect to the biometric device. Please check the device connection and try again."));
         }
         return;
       }
 
-      onStatusUpdate(`Discovering RD service on port: ${portIndex}`);
-
       const url = primaryUrl + portIndex.toString();
       
       if (window.$) {
-        // Use jQuery if available
         window.$.ajax({
           type: "RDSERVICE",
           async: true,
@@ -87,10 +82,8 @@ export const discoverDevice = async (onStatusUpdate = () => {}) => {
               if (serviceInfo && serviceInfo.indexOf('Mantra') >= 0) {
                 discovered = true;
                 clearTimeout(discoveryTimeout);
-                
-                // Detect device type from service info
                 const deviceInfo = serviceInfo.toUpperCase();
-                let deviceType = 'F'; // Default to 'F' for Mantra devices
+                let deviceType = 'F';
                 if (deviceInfo.indexOf('MFS100') >= 0 || 
                     deviceInfo.indexOf('MFS110') >= 0 || 
                     deviceInfo.indexOf('EPI1000') >= 0 || 
@@ -116,22 +109,25 @@ export const discoverDevice = async (onStatusUpdate = () => {}) => {
               } else {
                 // Try next port
                 portIndex++;
-                tryNextPort();
+                setTimeout(() => {
+                  tryNextPort();
+                }, 100);
               }
             } catch (error) {
-              // Try next port on error
               portIndex++;
-              tryNextPort();
+              setTimeout(() => {
+                tryNextPort();
+              }, 100);
             }
           },
           error: function () {
-            // Try next port on error
             portIndex++;
-            tryNextPort();
+            setTimeout(() => {
+              tryNextPort();
+            }, 100);
           }
         });
       } else {
-        // Fallback: try fetch (may not work due to CORS)
         const fetchController = new AbortController();
         const fetchTimeout = setTimeout(() => fetchController.abort(), 2000);
         
@@ -184,23 +180,27 @@ export const discoverDevice = async (onStatusUpdate = () => {}) => {
               });
             } else {
               portIndex++;
-              tryNextPort();
+              setTimeout(() => {
+                tryNextPort();
+              }, 100);
             }
           } catch (error) {
             portIndex++;
-            tryNextPort();
+            setTimeout(() => {
+              tryNextPort();
+            }, 100);
           }
         })
         .catch(() => {
           clearTimeout(fetchTimeout);
-          // Try next port on error
           portIndex++;
-          tryNextPort();
+          setTimeout(() => {
+            tryNextPort();
+          }, 100);
         });
       }
     };
 
-    // Start discovery
     tryNextPort();
   });
 };
@@ -222,12 +222,10 @@ export const captureFingerprint = async (deviceUrl, capturePath, deviceType, onS
 
     onStatusUpdate("Capturing fingerprint... Please place your thumb on the scanner.");
 
-    // Client-side timeout safety
     const captureTimeout = setTimeout(() => {
-      reject(new Error("Capture timeout - Please try again"));
+      reject(new Error("Biometric capture took too long and was not completed. Please try again."));
     }, CAPTURE_TIMEOUT);
 
-    // Generate WADH using device type
     let wadh;
     try {
       wadh = generateWadh(deviceType);
@@ -281,7 +279,8 @@ export const captureFingerprint = async (deviceUrl, capturePath, deviceType, onS
             const fingerprintData = parseCaptureResponse(data, wadh);
             resolve(fingerprintData);
           } catch (error) {
-            reject(new Error("Error parsing capture response: " + error.message));
+            const errorMessage = error.message || "Capture failed";
+            reject(new Error(errorMessage));
           }
         },
         error: function (jqXHR, ajaxOptions, thrownError) {
@@ -291,7 +290,6 @@ export const captureFingerprint = async (deviceUrl, capturePath, deviceType, onS
         }
       });
     } else {
-      // Fallback: try fetch (may not work due to CORS and custom method)
       const fetchController = new AbortController();
       const fetchTimeout = setTimeout(() => fetchController.abort(), CAPTURE_TIMEOUT);
       
@@ -313,7 +311,8 @@ export const captureFingerprint = async (deviceUrl, capturePath, deviceType, onS
           const fingerprintData = parseCaptureResponse(data, wadh);
           resolve(fingerprintData);
         } catch (error) {
-          reject(new Error("Error parsing capture response: " + error.message));
+          const errorMessage = error.message || "Capture failed";
+          reject(new Error(errorMessage));
         }
       })
       .catch(error => {
@@ -339,7 +338,19 @@ const parseCaptureResponse = (xmlResponse, wadh) => {
     const errInfo = window.$($doc).find('Resp').attr('errInfo');
     
     if (errCode !== "0") {
-      throw new Error(errInfo || "Capture failed");
+      let userFriendlyMessage = errInfo || "Capture failed";
+      
+      if (errInfo && errInfo.toLowerCase().includes("finger")) {
+        userFriendlyMessage = "Incorrect finger placement. Please place your thumb correctly on the scanner and try again.";
+      } else if (errInfo && errInfo.toLowerCase().includes("quality")) {
+        userFriendlyMessage = "Fingerprint quality is poor. Please clean your thumb and try again.";
+      } else if (errInfo && (errInfo.toLowerCase().includes("timeout") || errInfo.toLowerCase().includes("timed out"))) {
+        userFriendlyMessage = "Biometric capture took too long and was not completed. Please try again.";
+      } else if (errInfo && errInfo.toLowerCase().includes("device")) {
+        userFriendlyMessage = "Device error. Please check the scanner connection and try again.";
+      }
+      
+      throw new Error(userFriendlyMessage);
     }
 
     pidData = window.$($doc).find('Data[type="X"]').text() || window.$($doc).find('Data').text() || '';
@@ -358,7 +369,19 @@ const parseCaptureResponse = (xmlResponse, wadh) => {
     const errInfo = resp?.getAttribute('errInfo');
     
     if (errCode !== "0") {
-      throw new Error(errInfo || "Capture failed");
+      let userFriendlyMessage = errInfo || "Capture failed";
+      
+      if (errInfo && errInfo.toLowerCase().includes("finger")) {
+        userFriendlyMessage = "Incorrect finger placement. Please place your thumb correctly on the scanner and try again.";
+      } else if (errInfo && errInfo.toLowerCase().includes("quality")) {
+        userFriendlyMessage = "Fingerprint quality is poor. Please clean your thumb and try again.";
+      } else if (errInfo && (errInfo.toLowerCase().includes("timeout") || errInfo.toLowerCase().includes("timed out"))) {
+        userFriendlyMessage = "Biometric capture took too long and was not completed. Please try again.";
+      } else if (errInfo && errInfo.toLowerCase().includes("device")) {
+        userFriendlyMessage = "Device error. Please check the scanner connection and try again.";
+      }
+      
+      throw new Error(userFriendlyMessage);
     }
 
     const dataElement = xmlDoc.querySelector('Data[type="X"]') || xmlDoc.querySelector('Data');
@@ -372,7 +395,6 @@ const parseCaptureResponse = (xmlResponse, wadh) => {
     }
   }
   
-  // Base64 encode the full XML response for API
   const fullXmlBase64 = btoa(unescape(encodeURIComponent(xmlResponse)));
   
   return {
@@ -384,12 +406,11 @@ const parseCaptureResponse = (xmlResponse, wadh) => {
     timestamp: new Date().toISOString()
   };
 };
-
-/**
- * Parse capture error
- */
 const parseCaptureError = (jqXHR, thrownError) => {
   if (jqXHR) {
+    if (jqXHR.statusText === 'timeout' || (thrownError && (thrownError.toLowerCase().includes('timeout') || thrownError.toLowerCase().includes('timed out')))) {
+      return 'Biometric capture took too long and was not completed. Please try again.';
+    }
     if (jqXHR.status === 0) {
       return 'Service Unavailable - Please ensure RD Service is running';
     } else if (jqXHR.status === 404) {
@@ -397,8 +418,14 @@ const parseCaptureError = (jqXHR, thrownError) => {
     } else if (jqXHR.status === 500) {
       return 'Internal Server Error - RD Service error';
     } else {
+      if (thrownError && (thrownError.toLowerCase().includes('timeout') || thrownError.toLowerCase().includes('timed out'))) {
+        return 'Biometric capture took too long and was not completed. Please try again.';
+      }
       return 'Error: ' + (thrownError || 'Unknown error');
     }
+  }
+  if (thrownError && (thrownError.toLowerCase().includes('timeout') || thrownError.toLowerCase().includes('timed out'))) {
+    return 'Biometric capture took too long and was not completed. Please try again.';
   }
   return thrownError || 'Unknown error';
 };

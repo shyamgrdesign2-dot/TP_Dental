@@ -27,7 +27,6 @@ import { setAbhaDetails } from "../../redux/abhaSlice";
 import "../../components/abha/AbhaDrawer.scss";
 import "./AbhaStandalone.scss";
 
-// Message types for postMessage communication
 const MESSAGE_TYPES = {
   ABHA_SUCCESS: "ABHA_SUCCESS",
   ABHA_CLOSE: "ABHA_CLOSE",
@@ -35,7 +34,6 @@ const MESSAGE_TYPES = {
   ABHA_LOADED: "ABHA_LOADED",
 };
 
-// Flow types
 const FLOW_TYPES = {
   NEW_PATIENT: "new_patient",
   LINK_EXISTING: "link_existing",
@@ -47,7 +45,6 @@ const AbhaStandalone = () => {
   const [getToken, setToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const dispatch = useDispatch();
 
-  // URL Parameters
   const authToken = searchParams.get("authToken");
   const patientUniqueId = searchParams.get("patientUniqueId");
   const flow = searchParams.get("flow") || FLOW_TYPES.LINK_EXISTING; // new_patient | link_existing
@@ -56,13 +53,11 @@ const AbhaStandalone = () => {
   const callbackUrl = searchParams.get("callbackUrl");
   const origin = searchParams.get("origin");
 
-  // State management
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(null);
   const [isNextDisabled, setIsNextDisabled] = useState(true);
   const [isNextLoading, setIsNextLoading] = useState(false);
 
-  // Screen navigation hook
   const {
     currentScreen,
     screenData,
@@ -79,7 +74,6 @@ const AbhaStandalone = () => {
     resetScreens,
   } = useAbhaScreens();
 
-  // Refs for child component callbacks
   const verifyOtpFunctionRef = useRef(null);
   const abhaAddressActionRef = useRef(null);
   const createAddressActionRef = useRef(null);
@@ -87,12 +81,12 @@ const AbhaStandalone = () => {
   const mobileVerifyOtpFunctionRef = useRef(null);
   const [linkAbhaData, setLinkAbhaData] = useState(null);
   const [biometricPopupOpen, setBiometricPopupOpen] = useState(false);
+  const biometricDataRef = useRef(null); // Store data used to open biometric popup
   const abhaVerifyStateRef = useRef({
     mobile_no: "",
     otpDigits: Array(6).fill(""),
   });
 
-  // PostMessage helper for iframe communication
   const postMessageToParent = useCallback(
     (type, data) => {
       if (embedded && window.parent !== window) {
@@ -101,7 +95,6 @@ const AbhaStandalone = () => {
         if (origin) {
           window.parent.postMessage(message, origin);
         } else {
-          // Fallback to wildcard (less secure, use with caution)
           window.parent.postMessage(message, "*");
         }
       }
@@ -109,7 +102,6 @@ const AbhaStandalone = () => {
     [embedded, origin, flow]
   );
 
-  // Validate and set auth token
   useEffect(() => {
     if (authToken) {
       setToken(authToken);
@@ -128,7 +120,6 @@ const AbhaStandalone = () => {
     }
   }, [authToken, setToken, getToken, postMessageToParent]);
 
-  // Validate patient ID based on flow
   useEffect(() => {
     if (isAuthenticated) {
       if (flow === FLOW_TYPES.LINK_EXISTING && !patientUniqueId) {
@@ -138,11 +129,9 @@ const AbhaStandalone = () => {
           message: "Patient unique ID is required for link_existing flow",
         });
       }
-      // For new_patient flow, patientUniqueId can be null/undefined
     }
   }, [patientUniqueId, isAuthenticated, flow, postMessageToParent]);
 
-  // Set initial screen based on mode
   useEffect(() => {
     if (isAuthenticated && (flow === FLOW_TYPES.NEW_PATIENT || patientUniqueId)) {
       switch (mode) {
@@ -160,7 +149,6 @@ const AbhaStandalone = () => {
           goToCreate();
           break;
       }
-      // Notify parent that ABHA module is loaded
       postMessageToParent(MESSAGE_TYPES.ABHA_LOADED, { mode, flow });
     }
   }, [isAuthenticated, patientUniqueId, mode, flow, goToLink, goToCreate, postMessageToParent]);
@@ -191,8 +179,12 @@ const AbhaStandalone = () => {
     goToCreate();
   };
 
-  const handleBiometricSelect = () => {
-    goToBiometricAadhaarEntry({ patient_unique_id: patientUniqueId });
+  const handleBiometricSelect = (data) => {
+    if (data?.aadhaarNumber) {
+      goToBiometricVerification(data);
+    } else {
+      goToBiometricAadhaarEntry({ patient_unique_id: patientUniqueId });
+    }
   };
 
   const handleBiometricAadhaarNext = (data) => {
@@ -200,6 +192,7 @@ const AbhaStandalone = () => {
   };
 
   const handleGetBiometric = (data) => {
+    biometricDataRef.current = data;
     setScreenData({
       ...screenData,
       ...data,
@@ -208,42 +201,109 @@ const AbhaStandalone = () => {
     return data;
   };
 
-  const handleBiometricCaptureSuccess = (fingerprintData) => {
-    // Show success message
-    const MESSAGE_KEY = "biometric-capture-success";
-    message.open({
-      key: MESSAGE_KEY,
-      type: "success",
-      className: "message-appointment",
-      content: (
-        <div className="d-flex align-items-center">
-          <img src={visitEnd} className="me-3" alt="Success" />
-          <div>
-            <div className="fontroboto text-start fw-normal mt-1">
-              Biometric captured successfully
-            </div>
-          </div>
-          <img
-            src={imgCloseVisit}
-            className="ms-3"
-            alt="Close"
-            onClick={() => message.destroy()}
-            style={{ cursor: "pointer" }}
-          />
-        </div>
-      ),
-      duration: 5,
-    });
+  const handleBiometricCaptureSuccess = async (fingerprintData) => {
     
-    // Update screen state with captured biometric data
-    if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
-      goToBiometricVerification({
-        ...screenData,
-        fingerprintData,
-        biometricCaptured: true,
-        mobileNumber: screenData.mobileNumber || "",
-      });
-    }
+    const biometricData = biometricDataRef.current || screenData;
+    const { aadhaarNumber = "", mobileNumber = "", patient_unique_id = "" } = biometricData;
+    
+    
+    goToBiometricVerification({
+      ...screenData,
+      ...biometricData,
+      fingerprintData,
+      biometricCaptured: true,
+      mobileNumber: mobileNumber || "",
+      verificationStatus: "loading", // Set loading state
+    });
+
+    if (fingerprintData?.fullXmlBase64 && mobileNumber && mobileNumber.length === 10) {
+        try {
+          const requestData = {
+            aadhaarNumber,
+            mobile_no: mobileNumber,
+            fingerPrintAuthPid: fingerprintData.fullXmlBase64,
+            patient_unique_id: patient_unique_id || patientUniqueId,
+          };
+
+          const response = await ApiAbha.verifyFingerPrintForAadhaar(requestData);
+
+          if (response?.success) {
+            const apiResponseData = response.data?.data || response.data;
+            
+            const MESSAGE_KEY = "biometric-capture-success";
+            message.open({
+              key: MESSAGE_KEY,
+              type: "",
+              className: "message-appointment",
+              content: (
+                <div className="d-flex align-items-center">
+                  <img src={visitEnd} className="me-3" alt="Success" />
+                  <div>
+                    <div className="fontroboto text-start fw-normal mt-1">
+                      Biometric captured successfully
+                    </div>
+                  </div>
+                  <img
+                    src={imgCloseVisit}
+                    className="ms-3"
+                    alt="Close"
+                    onClick={() => message.destroy()}
+                    style={{ cursor: "pointer" }}
+                  />
+                </div>
+              ),
+              duration: 5,
+            });
+            
+            goToBiometricVerification({
+              ...screenData,
+              ...biometricData,
+              fingerprintData,
+              biometricCaptured: true,
+              mobileNumber: mobileNumber || "",
+              verificationStatus: "success",
+              verificationData: {
+                ...apiResponseData,
+                patient_unique_id: patient_unique_id || patientUniqueId,
+                mobile_no: mobileNumber,
+                aadhaarNumber,
+              },
+            });
+          } else {
+            goToBiometricVerification({
+              ...screenData,
+              ...biometricData,
+              fingerprintData,
+              biometricCaptured: true,
+              mobileNumber: mobileNumber || "",
+              verificationStatus: "error",
+              verificationError: response?.message || "Could not verify aadhaar, please try again",
+            });
+          }
+        } catch (error) {
+          console.error("Biometric verification error:", error);
+          goToBiometricVerification({
+            ...screenData,
+            ...biometricData,
+            fingerprintData,
+            biometricCaptured: true,
+            mobileNumber: mobileNumber || "",
+            verificationStatus: "error",
+            verificationError: error?.response?.data?.message || error?.message || "Could not verify aadhaar, please try again",
+          });
+        }
+      } else {
+        goToBiometricVerification({
+          ...screenData,
+          ...biometricData,
+          fingerprintData,
+          biometricCaptured: true,
+          mobileNumber: mobileNumber || "",
+          verificationStatus: "error",
+          verificationError: "Please enter a valid mobile number to verify",
+        });
+      }
+    
   };
 
   const handleBiometricCaptureError = (error) => {
@@ -251,67 +311,15 @@ const AbhaStandalone = () => {
   };
 
   const handleBiometricVerifyNext = async () => {
-    const { aadhaarNumber = "", mobileNumber = "", fingerprintData = null, patient_unique_id = "" } = screenData;
+    const { verificationStatus = "", verificationData = null } = screenData;
     
-    if (!fingerprintData || !fingerprintData.fullXmlBase64) {
+    if (verificationStatus === "success" && verificationData) {
+      handleVerifySuccess(verificationData);
+    } else {
       notification.error({
         message: "Error",
-        description: "Fingerprint data not available. Please capture biometric again.",
+        description: "Please complete verification before proceeding.",
       });
-      return;
-    }
-
-    if (!mobileNumber || mobileNumber.length !== 10) {
-      notification.error({
-        message: "Error",
-        description: "Please enter a valid mobile number.",
-      });
-      return;
-    }
-
-    setIsNextLoading(true);
-    setIsNextDisabled(true);
-
-    try {
-      const requestData = {
-        aadhaarNumber,
-        mobile_no: mobileNumber,
-        fingerPrintAuthPid: fingerprintData.fullXmlBase64,
-        patient_unique_id: patient_unique_id || patientUniqueId,
-      };
-
-      const response = await ApiAbha.verifyFingerPrintForAadhaar(requestData);
-
-      if (response?.success) {
-        const apiResponseData = response.data?.data || response.data;
-        
-        const verifySuccessData = {
-          ...apiResponseData,
-          patient_unique_id: patient_unique_id || patientUniqueId,
-          mobile_no: mobileNumber,
-          aadhaarNumber,
-        };
-        
-        handleVerifySuccess(verifySuccessData);
-      } else {
-        notification.error({
-          message: "Verification Failed",
-          description: response?.message || "Failed to verify fingerprint. Please try again.",
-        });
-        setIsNextDisabled(false);
-      }
-    } catch (error) {
-      console.error("Biometric verification error:", error);
-      notification.error({
-        message: "Error",
-        description:
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to verify fingerprint. Please try again.",
-      });
-      setIsNextDisabled(false);
-    } finally {
-      setIsNextLoading(false);
     }
   };
 
@@ -321,7 +329,6 @@ const AbhaStandalone = () => {
   };
 
   const handleMobileLinkOtpSent = (data) => {
-    // Navigate to mobile verify OTP screen for mobile/address/number linking
     const isAddressLinking = data.linkMethod === "address";
     const isNumberLinking = data.linkMethod === "number";
     goToMobileVerifyOtp({
@@ -333,7 +340,6 @@ const AbhaStandalone = () => {
   };
 
   const handleAbhaCreatedSuccess = (abhaDetails = {}) => {
-    // Dispatch to Redux if details available
     if (abhaDetails?.linkedAddress && abhaDetails?.insertId) {
       dispatch(
         setAbhaDetails({
@@ -342,9 +348,7 @@ const AbhaStandalone = () => {
       );
     }
 
-    // For new_patient flow, navigate to add_patient page
     if (flow === FLOW_TYPES.NEW_PATIENT) {
-      // Navigate to add patient page with ABHA details
       navigate("/add_patient?receptionist=true", {
         state: {
           from: "abha-standalone",
@@ -364,11 +368,9 @@ const AbhaStandalone = () => {
       return; // Don't close, let PatientForm handle it
     }
 
-    // For link_existing flow, show success and close
     if (flow === FLOW_TYPES.LINK_EXISTING) {
       const abhaAddress = abhaDetails.linkedAddress || abhaDetails.abhaAddress;
       
-      // Send success message to parent
       postMessageToParent(MESSAGE_TYPES.ABHA_SUCCESS, {
         linkedAddress: abhaAddress,
         insertId: abhaDetails.insertId || abhaDetails.abhaInsertId,
@@ -376,8 +378,6 @@ const AbhaStandalone = () => {
         message: `ABHA ID: ${abhaAddress} linked successfully`,
       });
 
-      // Show success screen briefly before closing
-      // Show success screen first with ABHA address for custom message
       goToAbhaAddress({ 
         ...abhaDetails, 
         showSuccessScreen: true,
@@ -399,41 +399,29 @@ const AbhaStandalone = () => {
   };
 
   const handleVerifySuccess = (data) => {
-    // Check mobileChanged flag
     if (data?.mobileChanged === true) {
-      // Show mobile verification OTP screen
-      goToMobileVerifyOtp(data);
+      goToMobileVerifyOtp({
+        ...data,
+        fromBiometricFlow: true,
+      });
     } else {
-      // Show success screen first, then navigate after 3 seconds
-      goToAbhaAddress({ ...data, showSuccessScreen: true });
-
-      setTimeout(() => {
-        // Check isNew flag
-        if (data?.isNew === true) {
-          // Show create new ABHA address component
-          goToCreateAddress(data);
-        } else {
-          // Show ABHA address component
-          goToAbhaAddress(data);
-        }
-      }, 3000);
+      if (data?.isNew === true) {
+        goToCreateAddress(data);
+      } else {
+        goToAbhaAddress(data);
+      }
     }
   };
 
   const handleMobileVerifySuccess = (responseData) => {
-    // After successful mobile verification, show success screen first
     const updatedData = { ...screenData, ...responseData };
 
-    // Show success screen first
     goToAbhaAddress({ ...updatedData, showSuccessScreen: true });
 
     setTimeout(() => {
-      // Check isNew flag
       if (updatedData?.isNew === true) {
-        // Show create new ABHA address component
         goToCreateAddress(updatedData);
       } else {
-        // Show ABHA address component
         goToAbhaAddress(updatedData);
       }
     }, 5000);
@@ -641,11 +629,10 @@ const AbhaStandalone = () => {
     };
   }, []);
 
-  // Manage next button state for biometric verification screen
   useEffect(() => {
     if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
-      const { biometricCaptured = false, fingerprintData = null, mobileNumber = "" } = screenData;
-      setIsNextDisabled(!biometricCaptured || !fingerprintData || mobileNumber.length !== 10);
+      const { verificationStatus = "", verificationData = null } = screenData;
+      setIsNextDisabled(verificationStatus !== "success" || !verificationData);
     }
   }, [currentScreen, screenData]);
 
@@ -658,6 +645,7 @@ const AbhaStandalone = () => {
             onOtpSent={handleOtpSent}
             onBiometricSelect={handleBiometricSelect}
             patientUniqueId={patientUniqueId || null}
+            initialAadhaar={screenData?.initialAadhaar || ""}
           />
         );
       case ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY:
@@ -674,7 +662,28 @@ const AbhaStandalone = () => {
           <BiometricVerification
             data={screenData}
             onGetBiometric={handleGetBiometric}
-            onGoBack={() => goToBiometricAadhaarEntry(screenData)}
+            onGoBack={() => {
+              if (screenData.biometricCaptured) {
+                goToBiometricVerification({
+                  ...screenData,
+                  fingerprintData: null,
+                  biometricCaptured: false,
+                  verificationStatus: "",
+                  verificationError: "",
+                  verificationData: null,
+                  mobileNumber: screenData.mobileNumber || "",
+                });
+              } else {
+                goToCreate({
+                  initialAadhaar: screenData.aadhaarNumber || "",
+                });
+              }
+            }}
+            onTryAgain={() => {
+              goToCreate({
+                initialAadhaar: screenData.aadhaarNumber || "",
+              });
+            }}
           />
         );
       case ABHA_SCREENS.VERIFY_OTP: {
@@ -691,7 +700,12 @@ const AbhaStandalone = () => {
           <AbhaVerifyOtp
             otpData={mergedOtpData}
             onVerifySuccess={handleVerifySuccess}
-            onGoBack={goToCreate}
+            onGoBack={() => {
+              const aadhaarNumber = mergedOtpData.aadhaarNumber || screenData.aadhaarNumber || "";
+              goToCreate({
+                initialAadhaar: aadhaarNumber,
+              });
+            }}
             onResendOtp={handleResendOtp}
             onVerifyOtp={handleVerifyOtpCallback}
             onStateChange={handleAbhaVerifyStateChange}
@@ -703,16 +717,28 @@ const AbhaStandalone = () => {
         const isMobileLinking = screenData?.isMobileLinking === true;
         const isAbhaAddressLinking = screenData?.isAbhaAddressLinking === true;
         const isAbhaNumberLinking = screenData?.isAbhaNumberLinking === true;
+        const fromBiometricFlow = screenData?.fromBiometricFlow === true;
         const linkMethod = screenData?.linkMethod || "mobile";
         return (
           <MobileVerifyOtp
             data={screenData}
             onVerifyOtp={handleMobileVerifyOtpCallback}
-            onGoBack={() =>
-              isMobileLinking || isAbhaAddressLinking || isAbhaNumberLinking
-                ? goToLink(linkMethod)
-                : goToVerifyOtp(screenData)
-            }
+            onGoBack={() => {
+              if (fromBiometricFlow) {
+                goToBiometricVerification({
+                  ...screenData,
+                  fingerprintData: screenData.fingerprintData,
+                  biometricCaptured: true,
+                  mobileNumber: screenData.mobile_no || screenData.mobileNumber,
+                  verificationStatus: "success",
+                  verificationData: screenData,
+                });
+              } else if (isMobileLinking || isAbhaAddressLinking || isAbhaNumberLinking) {
+                goToLink(linkMethod);
+              } else {
+                goToVerifyOtp(screenData);
+              }
+            }}
             isMobileLinking={isMobileLinking}
             isAbhaAddressLinking={isAbhaAddressLinking}
             isAbhaNumberLinking={isAbhaNumberLinking}

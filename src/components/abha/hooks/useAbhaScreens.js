@@ -22,9 +22,9 @@ const useAbhaScreens = () => {
     setScreenData(data);
   }, []);
 
-  const goToCreate = useCallback(() => {
+  const goToCreate = useCallback((data = {}) => {
     setCurrentScreen(ABHA_SCREENS.CREATE);
-    setScreenData({});
+    setScreenData(data);
   }, []);
 
   const goToVerifyOtp = useCallback((data) => {

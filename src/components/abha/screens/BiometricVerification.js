@@ -3,6 +3,7 @@ import CallIcon from "../../../assets/images/call.svg";
 import FingerScanIcon from "../../../assets/images/finger-scan.svg";
 import ReloadIcon from "../../../assets/images/ic_Reload.svg";
 import CheckIcon from "../../../assets/images/check-icon.svg";
+import RedAlertIcon from "../../../assets/images/red-alert.svg";
 import ErrorText from "../common/ErrorText";
 
 const BiometricVerification = ({
@@ -10,8 +11,17 @@ const BiometricVerification = ({
   onGetBiometric = () => {},
   onBiometricCaptureSuccess = () => {},
   onGoBack = () => {},
+  onTryAgain = () => {},
 }) => {
-  const { aadhaarNumber = "", patient_unique_id = "", fingerprintData: capturedData = null, biometricCaptured = false, mobileNumber: initialMobileNumber = "" } = data;
+  const { 
+    aadhaarNumber = "", 
+    patient_unique_id = "", 
+    fingerprintData: capturedData = null, 
+    biometricCaptured = false, 
+    mobileNumber: initialMobileNumber = "",
+    verificationStatus = "",
+    verificationError = "",
+  } = data;
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -19,11 +29,17 @@ const BiometricVerification = ({
   const [fingerprintData, setFingerprintData] = useState(capturedData);
 
   React.useEffect(() => {
-    if (biometricCaptured && capturedData) {
-      setIsBiometricCaptured(true);
+    setIsBiometricCaptured(biometricCaptured);
+    if (capturedData) {
       setFingerprintData(capturedData);
     }
   }, [biometricCaptured, capturedData]);
+
+  React.useEffect(() => {
+    if (data.mobileNumber) {
+      setMobileNumber(data.mobileNumber);
+    }
+  }, [data.mobileNumber]);
 
   const handleMobileChange = (value) => {
     const cleaned = value.replace(/\D/g, "").slice(0, 10);
@@ -46,15 +62,12 @@ const BiometricVerification = ({
     });
   };
 
-  // This will be called when popup closes with success
   React.useEffect(() => {
-    // This effect will be triggered when fingerprintData is set by parent
   }, []);
 
   const handleTryAgain = () => {
     setIsBiometricCaptured(false);
     setFingerprintData(null);
-    // Reset will allow user to capture again - don't trigger success callback to avoid toast
   };
 
   return (
@@ -73,7 +86,7 @@ const BiometricVerification = ({
         </div>
         <div className="abha_step_body_number">
           <label className="abha_step_label">
-            Enter mobile number you want to link with ABHA
+            Enter mobile number you want to link with ABHA *
           </label>
           <div className={`abha_mobile_input ${hasError ? "error" : ""}`}>
             <span className="abha_mobile_icon">
@@ -87,16 +100,25 @@ const BiometricVerification = ({
               className="abha_mobile_field"
               value={mobileNumber}
               onChange={(event) => handleMobileChange(event.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && mobileNumber.length === 10 && !isBiometricCaptured) {
+                  handleGetBiometric();
+                }
+              }}
               placeholder="Enter mobile number"
+              disabled={isBiometricCaptured}
             />
           </div>
           {hasError && <ErrorText errorText={errorMessage} />}
         </div>
       </div>
 
-      <div className="abha_step_row_number" style={{ marginTop: "20px" }}>
+      <div className="abha_step_row_number" style={{ marginTop: "40px" }}>
         <div className="abha_step_marker">
-          <span className="abha_step_number">2</span>
+          <span className={`abha_step_number ${isBiometricCaptured ? "active" : ""}`}>
+            {isBiometricCaptured ? "2" : "2"}
+          </span>
+          {isBiometricCaptured && <span className="abha_step_line"></span>}
         </div>
         <div className="abha_step_body_number">
           {!isBiometricCaptured ? (
@@ -109,25 +131,81 @@ const BiometricVerification = ({
               <span>Get Biometric</span>
             </button>
           ) : (
-            <div className="abha_biometric_success_container">
-              <button
-                className="abha_biometric_captured_button"
-                disabled
-              >
-                <img src={CheckIcon} alt="check" className="abha_biometric_check_icon" />
-                <span>Biometric Captured Successfully</span>
-              </button>
-              <button
-                className="abha_biometric_try_again_button"
-                onClick={handleTryAgain}
-              >
-                <span>Try Again</span>
-                <img src={ReloadIcon} alt="retry" className="abha_biometric_retry_icon" />
-              </button>
-            </div>
+            <button
+              className="abha_biometric_captured_button"
+              disabled
+            >
+              <img src={CheckIcon} alt="check" className="abha_biometric_check_icon" />
+              <span>Biometric Captured Successfully</span>
+            </button>
           )}
         </div>
       </div>
+
+      {/* Third step: Aadhaar verification status */}
+      {isBiometricCaptured && (
+        <div className="abha_step_row_number" style={{ marginTop: "15px" }}>
+          <div className="abha_step_marker">
+            <span className={`abha_step_number ${verificationStatus ? "active" : ""}`}>3</span>
+          </div>
+          <div className="abha_step_body_number">
+            {verificationStatus === "loading" && (
+              <div className="abha_biometric_success_container">
+                <button
+                  className="abha_biometric_captured_button"
+                  disabled
+                  style={{ opacity: 0.7 }}
+                >
+                  <span>Verifying Aadhaar...</span>
+                </button>
+              </div>
+            )}
+            {verificationStatus === "success" && (
+              <div className="abha_biometric_success_container">
+                <button
+                  className="abha_biometric_captured_button"
+                  disabled
+                >
+                  <img src={CheckIcon} alt="check" className="abha_biometric_check_icon" />
+                  <span>Aadhaar verified successfully</span>
+                </button>
+              </div>
+            )}
+            {verificationStatus === "error" && (
+              <div className="abha_biometric_success_container">
+                <button
+                  className="abha_biometric_captured_button abha_biometric_error_button"
+                  disabled
+                  style={{ 
+                    backgroundColor: "#fff1f0", 
+                    border: "none",
+                    color: "#ff4d4f"
+                  }}
+                >
+                  <img src={RedAlertIcon} alt="alert" className="abha_biometric_alert_icon" style={{ width: "20px", height: "20px" }} />
+                  <span>{verificationError || "Could not verify aadhaar, please try again"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onTryAgain}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#722ed1",
+                    cursor: "pointer",
+                    padding: "8px 0",
+                    fontSize: "14px",
+                    textDecoration: "underline",
+                    marginTop: "8px",
+                  }}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="border_top_container">
         <span className="go_back_top_border"></span>
