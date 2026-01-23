@@ -5252,13 +5252,49 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     options={option?.ophthalmology_option || option?.subSections}
                                                 />
                                             ) : (
-                                                <OphthalmologyTableView 
-                                                    PX_TO_PT={PX_TO_PT} 
-                                                    styles={styles} 
-                                                    printSettings={printSettings} 
-                                                    ophthalModuleData={ophthalModuleData}
-                                                    options={option?.ophthalmology_option || option?.subSections}
-                                                />
+                                                <>
+                                                    {(option?.ophthalmology_option || option?.subSections || []).map((section) => {
+                                                        if (section?.visible === false) {
+                                                            return null;
+                                                        }
+                                                        const sectionOptions = [section];
+                                                        const sectionView = section?.view ?? 3;
+                                                        if (sectionView === 1) {
+                                                            return (
+                                                                <OphthalmologyInlineView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        if (sectionView === 2) {
+                                                            return (
+                                                                <OphthalmologyListView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        return (
+                                                            <OphthalmologyTableView 
+                                                                key={section.id}
+                                                                PX_TO_PT={PX_TO_PT} 
+                                                                styles={styles} 
+                                                                printSettings={printSettings} 
+                                                                ophthalModuleData={ophthalModuleData}
+                                                                options={sectionOptions}
+                                                            />
+                                                        );
+                                                    })}
+                                                </>
                                             ))
                                         }
                                     </>

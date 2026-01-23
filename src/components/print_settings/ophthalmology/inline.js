@@ -18,21 +18,14 @@ function OphthalmologyInlineView({
 
   // Helper to check if a section should be visible
   const isSectionVisible = (sectionId) => {
-    if (!options || !Array.isArray(options)) return true; // Default to visible if no options
-    // Check if sectionId exists in options and is visible
-    const sectionOption = options.find(opt => {
-      if (typeof opt === 'string') return opt === sectionId;
-      if (typeof opt === 'object') return opt.id === sectionId;
+    if (!options || !Array.isArray(options)) return true;
+    const sectionOption = options.find((opt) => {
+      if (typeof opt === "string") return opt === sectionId;
+      if (typeof opt === "object") return opt.id === sectionId;
       return false;
     });
-    
-    // If not found in options, default to visible
-    if (!sectionOption) return true;
-    
-    // If found as string, it's visible
-    if (typeof sectionOption === 'string') return true;
-    
-    // If found as object, check visible property (default to true if not specified)
+    if (!sectionOption) return false;
+    if (typeof sectionOption === "string") return true;
     return sectionOption.visible !== false;
   };
 
@@ -41,24 +34,28 @@ function OphthalmologyInlineView({
     if (!options || !Array.isArray(options)) {
       return { undilated: true, dilated: true };
     }
-    const autoRefractionOption = options.find(opt => {
-      const id = typeof opt === 'object' ? opt.id : opt;
-      return id === 'autoRefraction';
+    const autoRefractionOption = options.find((opt) => {
+      const id = typeof opt === "object" ? opt.id : opt;
+      return id === "autoRefraction";
     });
-    
-    if (!autoRefractionOption || typeof autoRefractionOption !== 'object') {
-      return { undilated: true, dilated: true };
+    if (!autoRefractionOption || typeof autoRefractionOption !== "object") {
+      return { undilated: false, dilated: false };
     }
-    
     const subSections = autoRefractionOption.subSections || [];
     return {
-      undilated: subSections.some(sub => {
-        const subId = typeof sub === 'object' ? sub.id : sub;
-        return subId === 'undilated' && (typeof sub === 'string' || sub.visible !== false);
+      undilated: subSections.some((sub) => {
+        const subId = typeof sub === "object" ? sub.id : sub;
+        return (
+          subId === "undilated" &&
+          (typeof sub === "string" || sub.visible !== false)
+        );
       }),
-      dilated: subSections.some(sub => {
-        const subId = typeof sub === 'object' ? sub.id : sub;
-        return subId === 'dilated' && (typeof sub === 'string' || sub.visible !== false);
+      dilated: subSections.some((sub) => {
+        const subId = typeof sub === "object" ? sub.id : sub;
+        return (
+          subId === "dilated" &&
+          (typeof sub === "string" || sub.visible !== false)
+        );
       }),
     };
   };

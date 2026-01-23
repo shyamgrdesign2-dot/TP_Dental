@@ -178,7 +178,13 @@ function Prescription() {
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
   const chartType = state?.chartType;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
+  const rawTcmId =
+    caseManagerData?.tcm_id ??
+    caseManagerData?.tcmId ??
+    state?.tcm_id ??
+    state?.tcmId ??
+    0;
+  const tcmId = Number(rawTcmId) || 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
   const consultationDate =
     caseManagerData !== undefined

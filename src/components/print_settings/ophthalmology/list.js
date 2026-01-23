@@ -18,21 +18,14 @@ function OphthalmologyListView({
 
   // Helper to check if a section should be visible
   const isSectionVisible = (sectionId) => {
-    if (!options || !Array.isArray(options)) return true; // Default to visible if no options
-    // Check if sectionId exists in options and is visible
-    const sectionOption = options.find(opt => {
-      if (typeof opt === 'string') return opt === sectionId;
-      if (typeof opt === 'object') return opt.id === sectionId;
+    if (!options || !Array.isArray(options)) return true;
+    const sectionOption = options.find((opt) => {
+      if (typeof opt === "string") return opt === sectionId;
+      if (typeof opt === "object") return opt.id === sectionId;
       return false;
     });
-    
-    // If not found in options, default to visible
-    if (!sectionOption) return true;
-    
-    // If found as string, it's visible
-    if (typeof sectionOption === 'string') return true;
-    
-    // If found as object, check visible property (default to true if not specified)
+    if (!sectionOption) return false;
+    if (typeof sectionOption === "string") return true;
     return sectionOption.visible !== false;
   };
 
@@ -41,24 +34,28 @@ function OphthalmologyListView({
     if (!options || !Array.isArray(options)) {
       return { undilated: true, dilated: true };
     }
-    const autoRefractionOption = options.find(opt => {
-      const id = typeof opt === 'object' ? opt.id : opt;
-      return id === 'autoRefraction';
+    const autoRefractionOption = options.find((opt) => {
+      const id = typeof opt === "object" ? opt.id : opt;
+      return id === "autoRefraction";
     });
-    
-    if (!autoRefractionOption || typeof autoRefractionOption !== 'object') {
-      return { undilated: true, dilated: true };
+    if (!autoRefractionOption || typeof autoRefractionOption !== "object") {
+      return { undilated: false, dilated: false };
     }
-    
     const subSections = autoRefractionOption.subSections || [];
     return {
-      undilated: subSections.some(sub => {
-        const subId = typeof sub === 'object' ? sub.id : sub;
-        return subId === 'undilated' && (typeof sub === 'string' || sub.visible !== false);
+      undilated: subSections.some((sub) => {
+        const subId = typeof sub === "object" ? sub.id : sub;
+        return (
+          subId === "undilated" &&
+          (typeof sub === "string" || sub.visible !== false)
+        );
       }),
-      dilated: subSections.some(sub => {
-        const subId = typeof sub === 'object' ? sub.id : sub;
-        return subId === 'dilated' && (typeof sub === 'string' || sub.visible !== false);
+      dilated: subSections.some((sub) => {
+        const subId = typeof sub === "object" ? sub.id : sub;
+        return (
+          subId === "dilated" &&
+          (typeof sub === "string" || sub.visible !== false)
+        );
       }),
     };
   };
@@ -88,40 +85,35 @@ function OphthalmologyListView({
     );
   };
 
-  const renderListItem = (label, value) => {
-    return (
-      <View
+  const renderBulletItem = (content) => (
+    <View
+      style={{
+        flexDirection: "row",
+        marginBottom: PX_TO_PT * 6,
+      }}
+    >
+      <Text
         style={{
-          flexDirection: "row",
-          marginBottom: PX_TO_PT * 5,
-          paddingBottom: PX_TO_PT * 5,
-          borderBottom: "1px solid #E2E2EA",
+          fontFamily: printSettings?.page_format?.font_family,
+          fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
+          color: "#000",
+          marginRight: PX_TO_PT * 6,
         }}
       >
-        <Text
-          style={{
-            width: "40%",
-            fontFamily: printSettings?.page_format?.font_family,
-            fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-            color: "#000",
-            fontWeight: 500,
-          }}
-        >
-          {label}:
-        </Text>
-        <Text
-          style={{
-            width: "60%",
-            fontFamily: printSettings?.page_format?.font_family,
-            fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-            color: "#000",
-          }}
-        >
-          {value || "--"}
-        </Text>
-      </View>
-    );
-  };
+        •
+      </Text>
+      <Text
+        style={{
+          flex: 1,
+          fontFamily: printSettings?.page_format?.font_family,
+          fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
+          color: "#000",
+        }}
+      >
+        {content}
+      </Text>
+    </View>
+  );
 
   const renderEyeDataInline = (eyeLabel, data, fields) => {
     const values = fields
@@ -147,21 +139,12 @@ function OphthalmologyListView({
       })
       .filter(Boolean);
     
-    const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
-    
-    return (
-      <View style={{ marginBottom: PX_TO_PT * 8 }}>
-        <Text
-          style={{
-            fontFamily: printSettings?.page_format?.font_family,
-            fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-            color: "#000",
-          }}
-        >
-          <Text style={{ fontWeight: 500 }}>{eyeLabel}: </Text>
-          {formattedValue}
-        </Text>
-      </View>
+    const formattedValue = values.length > 0 ? values.join(", ") : "--";
+    return renderBulletItem(
+      <>
+        <Text style={{ fontWeight: 500 }}>{eyeLabel}</Text>
+        <Text> ({formattedValue})</Text>
+      </>
     );
   };
 
@@ -174,14 +157,14 @@ function OphthalmologyListView({
           const osData = getEyeData(visualAcuity, "OS");
           return (
             <View>
-              {renderEyeDataInline("OD (Right Eye)", odData, [
+              {renderEyeDataInline("OD", odData, [
                 { key: "ucDistance", label: "UC DISTANCE", format: "distance" },
                 { key: "ucNear", label: "UC NEAR", format: "near" },
                 { key: "pinhole", label: "PINHOLE", format: "distance" },
                 { key: "cDistance", label: "C DISTANCE", format: "distance" },
                 { key: "cNear", label: "C NEAR", format: "near" },
               ])}
-              {renderEyeDataInline("OS (Left Eye)", osData, [
+              {renderEyeDataInline("OS", osData, [
                 { key: "ucDistance", label: "UC DISTANCE", format: "distance" },
                 { key: "ucNear", label: "UC NEAR", format: "near" },
                 { key: "pinhole", label: "PINHOLE", format: "distance" },
@@ -224,7 +207,7 @@ function OphthalmologyListView({
                   >
                     Undilated:
                   </Text>
-                  {renderEyeDataInline("OD", undilatedOD, [
+                  {renderEyeDataInline("OD", undilatedOD || {}, [
                     { key: "sphere", label: "SPHERE" },
                     { key: "cylinder", label: "CYLINDER" },
                     { key: "axis", label: "AXIS", format: "axis" },
@@ -232,7 +215,7 @@ function OphthalmologyListView({
                     { key: "distance", label: "DISTANCE", format: "distance" },
                     { key: "near", label: "NEAR", format: "near" },
                   ])}
-                  {renderEyeDataInline("OS", undilatedOS, [
+                  {renderEyeDataInline("OS", undilatedOS || {}, [
                     { key: "sphere", label: "SPHERE" },
                     { key: "cylinder", label: "CYLINDER" },
                     { key: "axis", label: "AXIS", format: "axis" },
@@ -259,7 +242,7 @@ function OphthalmologyListView({
                   >
                     Dilated:
                   </Text>
-                  {renderEyeDataInline("OD", dilatedOD, [
+                  {renderEyeDataInline("OD", dilatedOD || {}, [
                     { key: "sphere", label: "SPHERE" },
                     { key: "cylinder", label: "CYLINDER" },
                     { key: "axis", label: "AXIS", format: "axis" },
@@ -267,7 +250,7 @@ function OphthalmologyListView({
                     { key: "distance", label: "DISTANCE", format: "distance" },
                     { key: "near", label: "NEAR", format: "near" },
                   ])}
-                  {renderEyeDataInline("OS", dilatedOS, [
+                  {renderEyeDataInline("OS", dilatedOS || {}, [
                     { key: "sphere", label: "SPHERE" },
                     { key: "cylinder", label: "CYLINDER" },
                     { key: "axis", label: "AXIS", format: "axis" },
@@ -288,7 +271,7 @@ function OphthalmologyListView({
           const osData = getEyeData(lensometerValues, "OS");
           return (
             <View>
-              {renderEyeDataInline("OD (Right Eye)", odData, [
+              {renderEyeDataInline("OD", odData, [
                 { key: "sphere", label: "SPHERE" },
                 { key: "cylinder", label: "CYLINDER" },
                 { key: "axis", label: "AXIS", format: "axis" },
@@ -296,7 +279,7 @@ function OphthalmologyListView({
                 { key: "distance", label: "DISTANCE", format: "distance" },
                 { key: "near", label: "NEAR", format: "near" },
               ])}
-              {renderEyeDataInline("OS (Left Eye)", osData, [
+              {renderEyeDataInline("OS", osData, [
                 { key: "sphere", label: "SPHERE" },
                 { key: "cylinder", label: "CYLINDER" },
                 { key: "axis", label: "AXIS", format: "axis" },
@@ -316,7 +299,7 @@ function OphthalmologyListView({
           const pd = ophthalModuleData?.pd;
           return (
             <View>
-              {renderEyeDataInline("OD (Right Eye)", odData, [
+              {renderEyeDataInline("OD", odData, [
                 { key: "sphere", label: "SPHERE" },
                 { key: "cylinder", label: "CYLINDER" },
                 { key: "axis", label: "AXIS", format: "axis" },
@@ -324,7 +307,7 @@ function OphthalmologyListView({
                 { key: "distance", label: "DISTANCE", format: "distance" },
                 { key: "near", label: "NEAR", format: "near" },
               ])}
-              {renderEyeDataInline("OS (Left Eye)", osData, [
+              {renderEyeDataInline("OS", osData, [
                 { key: "sphere", label: "SPHERE" },
                 { key: "cylinder", label: "CYLINDER" },
                 { key: "axis", label: "AXIS", format: "axis" },
@@ -332,20 +315,7 @@ function OphthalmologyListView({
                 { key: "distance", label: "DISTANCE", format: "distance" },
                 { key: "near", label: "NEAR", format: "near" },
               ])}
-              {pd && (
-                <View style={{ marginTop: PX_TO_PT * 8 }}>
-                  <Text
-                    style={{
-                      fontFamily: printSettings?.page_format?.font_family,
-                      fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                      color: "#000",
-                    }}
-                  >
-                    <Text style={{ fontWeight: 500 }}>PD: </Text>
-                    ({pd})
-                  </Text>
-                </View>
-              )}
+              {pd ? renderBulletItem(<Text><Text style={{ fontWeight: 500 }}>PD</Text><Text> ({pd})</Text></Text>) : null}
             </View>
           );
         })}
@@ -357,13 +327,13 @@ function OphthalmologyListView({
           const osData = getEyeData(intraOcularPressure, "OS");
           return (
             <View>
-              {renderEyeDataInline("OD (Right Eye)", odData, [
+              {renderEyeDataInline("OD", odData, [
                 { key: "nct", label: "NCT", format: "pressure" },
                 { key: "gat", label: "GAT", format: "pressure" },
                 { key: "cc", label: "CCT", format: "cct" },
                 { key: "ciop", label: "CIOP", format: "ciop" },
               ])}
-              {renderEyeDataInline("OS (Left Eye)", osData, [
+              {renderEyeDataInline("OS", osData, [
                 { key: "nct", label: "NCT", format: "pressure" },
                 { key: "gat", label: "GAT", format: "pressure" },
                 { key: "cc", label: "CCT", format: "cct" },
@@ -380,31 +350,31 @@ function OphthalmologyListView({
             <View>
               {slitLampExamination.map((item, index) => {
                 const odValue =
-                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
+                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "NIL";
                 const osValue =
-                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
-                
+                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "NIL";
+
                 const values = [];
-                if (odValue !== "--") values.push(`OD: ${odValue}`);
-                if (osValue !== "--") values.push(`OS: ${osValue}`);
+                // Only push OD/OS values if not both are "NIL"
+                if (!(odValue === "NIL" && osValue === "NIL")) {
+                  values.push(`OD: ${odValue}`);
+                  values.push(`OS: ${osValue}`);
+                }
                 if (item.remarks) values.push(`Remarks: ${item.remarks}`);
                 
-                const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
+                const formattedValue = values.length > 0 ? values.join(", ") : "NIL";
+                if (formattedValue === "NIL") {
+                  return null;
+                }
 
                 return (
-                  <View key={index} style={{ marginBottom: PX_TO_PT * 8 }}>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                      }}
-                    >
-                      <Text style={{ fontWeight: 500 }}>{item.section}: </Text>
-                      {formattedValue}
-                    </Text>
+                  <View key={index}>
+                    {renderBulletItem(
+                      <>
+                        <Text style={{ fontWeight: 500 }}>{item.section}</Text>
+                        <Text> ({formattedValue})</Text>
+                      </>
+                    )}
                   </View>
                 );
               })}
@@ -419,31 +389,30 @@ function OphthalmologyListView({
             <View>
               {fundusExamination.map((item, index) => {
                 const odValue =
-                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
+                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "NIL";
                 const osValue =
-                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "NIL";
                 
                 const values = [];
-                if (odValue !== "--") values.push(`OD: ${odValue}`);
-                if (osValue !== "--") values.push(`OS: ${osValue}`);
+                // Only push OD/OS values if not both are "NIL"
+                if (!(odValue === "NIL" && osValue === "NIL")) {
+                  values.push(`OD: ${odValue}`);
+                  values.push(`OS: ${osValue}`);
+                }
                 if (item.remarks) values.push(`Remarks: ${item.remarks}`);
                 
-                const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
-
+                const formattedValue = values.length > 0 ? values.join(", ") : "NIL";
+                if (formattedValue === "NIL") {
+                  return null;
+                }
                 return (
-                  <View key={index} style={{ marginBottom: PX_TO_PT * 8 }}>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                      }}
-                    >
-                      <Text style={{ fontWeight: 500 }}>{item.section}: </Text>
-                      {formattedValue}
-                    </Text>
+                  <View key={index}>
+                    {renderBulletItem(
+                      <>
+                        <Text style={{ fontWeight: 500 }}>{item.section}</Text>
+                        <Text> ({formattedValue})</Text>
+                      </>
+                    )}
                   </View>
                 );
               })}
