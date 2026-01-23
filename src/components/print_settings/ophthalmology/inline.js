@@ -6,6 +6,7 @@ function OphthalmologyInlineView({
   styles,
   printSettings,
   ophthalModuleData,
+  options,
 }) {
   const visualAcuity = ophthalModuleData?.visualAcuity || [];
   const autoRefraction = ophthalModuleData?.autoRefraction || [];
@@ -15,6 +16,55 @@ function OphthalmologyInlineView({
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
 
+  // Helper to check if a section should be visible
+  const isSectionVisible = (sectionId) => {
+    if (!options || !Array.isArray(options)) return true; // Default to visible if no options
+    // Check if sectionId exists in options and is visible
+    const sectionOption = options.find(opt => {
+      if (typeof opt === 'string') return opt === sectionId;
+      if (typeof opt === 'object') return opt.id === sectionId;
+      return false;
+    });
+    
+    // If not found in options, default to visible
+    if (!sectionOption) return true;
+    
+    // If found as string, it's visible
+    if (typeof sectionOption === 'string') return true;
+    
+    // If found as object, check visible property (default to true if not specified)
+    return sectionOption.visible !== false;
+  };
+
+  // Helper to get subsection options for autoRefraction
+  const getAutoRefractionSubOptions = () => {
+    if (!options || !Array.isArray(options)) {
+      return { undilated: true, dilated: true };
+    }
+    const autoRefractionOption = options.find(opt => {
+      const id = typeof opt === 'object' ? opt.id : opt;
+      return id === 'autoRefraction';
+    });
+    
+    if (!autoRefractionOption || typeof autoRefractionOption !== 'object') {
+      return { undilated: true, dilated: true };
+    }
+    
+    const subSections = autoRefractionOption.subSections || [];
+    return {
+      undilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'undilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+      dilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'dilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+    };
+  };
+
+  const autoRefractionSubOptions = getAutoRefractionSubOptions();
+
   const getEyeData = (dataArray, eye) => {
     return dataArray.find((item) => item.eye === eye) || {};
   };
@@ -23,10 +73,63 @@ function OphthalmologyInlineView({
     return `${label}: OD: ${odValue || "--"}, OS: ${osValue || "--"}`;
   };
 
+  const formatEyeDataInline = (odData, osData, fields) => {
+    const odValues = fields
+      .map((field) => {
+        const value = odData[field.key];
+        if (!value && value !== 0) return null;
+        
+        if (field.format === "distance") {
+          return `${field.label}: 6/${value}`;
+        } else if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        } else if (field.format === "axis") {
+          return `${field.label}: ${value}°`;
+        } else if (field.format === "pressure") {
+          return `${field.label}: ${value} mmhg`;
+        } else if (field.format === "cct") {
+          return `${field.label}: ${value}µm`;
+        } else if (field.format === "ciop") {
+          return `${field.label}: ${value} MmHg`;
+        } else {
+          return `${field.label}: ${value}`;
+        }
+      })
+      .filter(Boolean);
+    
+    const osValues = fields
+      .map((field) => {
+        const value = osData[field.key];
+        if (!value && value !== 0) return null;
+        
+        if (field.format === "distance") {
+          return `${field.label}: 6/${value}`;
+        } else if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        } else if (field.format === "axis") {
+          return `${field.label}: ${value}°`;
+        } else if (field.format === "pressure") {
+          return `${field.label}: ${value} mmhg`;
+        } else if (field.format === "cct") {
+          return `${field.label}: ${value}µm`;
+        } else if (field.format === "ciop") {
+          return `${field.label}: ${value} MmHg`;
+        } else {
+          return `${field.label}: ${value}`;
+        }
+      })
+      .filter(Boolean);
+    
+    const odFormatted = odValues.length > 0 ? `OD (${odValues.join(", ")})` : "OD (--)";
+    const osFormatted = osValues.length > 0 ? `OS (${osValues.join(", ")})` : "OS (--)";
+    
+    return `${odFormatted} | ${osFormatted}`;
+  };
+
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       {/* Visual Acuity Test */}
-      {visualAcuity.length > 0 && (
+      {isSectionVisible("visualAcuity") && visualAcuity.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -44,95 +147,31 @@ function OphthalmologyInlineView({
             const odData = getEyeData(visualAcuity, "OD");
             const osData = getEyeData(visualAcuity, "OS");
             return (
-              <View>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "UC DISTANCE",
-                    odData.ucDistance ? `6/${odData.ucDistance}` : "--",
-                    osData.ucDistance ? `6/${osData.ucDistance}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "UC NEAR",
-                    odData.ucNear ? `N${odData.ucNear}` : "--",
-                    osData.ucNear ? `N${osData.ucNear}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "PINHOLE",
-                    odData.pinhole ? `6/${odData.pinhole}` : "--",
-                    osData.pinhole ? `6/${osData.pinhole}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "C DISTANCE",
-                    odData.cDistance ? `6/${odData.cDistance}` : "--",
-                    osData.cDistance ? `6/${osData.cDistance}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "C NEAR",
-                    odData.cNear ? `6/${odData.cNear}` : "--",
-                    osData.cNear ? `6/${osData.cNear}` : "--"
-                  )}
-                </Text>
-              </View>
+              <Text
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {formatEyeDataInline(odData, osData, [
+                  { key: "ucDistance", label: "UC DISTANCE", format: "distance" },
+                  { key: "ucNear", label: "UC NEAR", format: "near" },
+                  { key: "pinhole", label: "PINHOLE", format: "distance" },
+                  { key: "cDistance", label: "C DISTANCE", format: "distance" },
+                  { key: "cNear", label: "C NEAR", format: "near" },
+                ])}
+              </Text>
             );
           })()}
         </View>
       )}
 
       {/* Subjective Refraction */}
-      {autoRefraction.length > 0 && (
+      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -162,235 +201,48 @@ function OphthalmologyInlineView({
 
             return (
               <View>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    fontWeight: 500,
-                    marginBottom: PX_TO_PT * 5,
-                    color: "#000",
-                  }}
-                >
-                  Undialted:
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "SPHERE",
-                    undilatedOD?.sphere || "--",
-                    undilatedOS?.sphere || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "CYLINDER",
-                    undilatedOD?.cylinder || "--",
-                    undilatedOS?.cylinder || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "AXIS",
-                    undilatedOD?.axis ? `${undilatedOD.axis}°` : "--",
-                    undilatedOS?.axis ? `${undilatedOS.axis}°` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "ADD",
-                    undilatedOD?.add || "--",
-                    undilatedOS?.add || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "DISTANCE",
-                    undilatedOD?.distance ? `6/${undilatedOD.distance}` : "--",
-                    undilatedOS?.distance
-                      ? `6/${undilatedOS.distance}`
-                      : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "NEAR",
-                    undilatedOD?.near ? `N${undilatedOD.near}` : "--",
-                    undilatedOS?.near ? `N${undilatedOS.near}` : "--"
-                  )}
-                </Text>
+                {autoRefractionSubOptions.undilated && (undilatedOD || undilatedOS) && (
+                  <Text
+                    style={{
+                      fontFamily: printSettings?.page_format?.font_family,
+                      fontSize:
+                        PX_TO_PT *
+                        (printSettings?.page_format?.font_size || 12),
+                      color: "#000",
+                      marginBottom: PX_TO_PT * 3,
+                    }}
+                  >
+                    Undilated: {formatEyeDataInline(undilatedOD || {}, undilatedOS || {}, [
+                      { key: "sphere", label: "SPHERE" },
+                      { key: "cylinder", label: "CYLINDER" },
+                      { key: "axis", label: "AXIS", format: "axis" },
+                      { key: "add", label: "C ADD" },
+                      { key: "distance", label: "DISTANCE", format: "distance" },
+                      { key: "near", label: "NEAR", format: "near" },
+                    ])}
+                  </Text>
+                )}
 
-                {(dilatedOD || dilatedOS) && (
-                  <>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        fontWeight: 500,
-                        marginTop: PX_TO_PT * 10,
-                        marginBottom: PX_TO_PT * 5,
-                        color: "#000",
-                      }}
-                    >
-                      Dialted:
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "SPHERE",
-                        dilatedOD?.sphere || "--",
-                        dilatedOS?.sphere || "--"
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "CYLINDER",
-                        dilatedOD?.cylinder || "--",
-                        dilatedOS?.cylinder || "--"
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "AXIS",
-                        dilatedOD?.axis ? `${dilatedOD.axis}°` : "--",
-                        dilatedOS?.axis ? `${dilatedOS.axis}°` : "--"
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "ADD",
-                        dilatedOD?.add || "--",
-                        dilatedOS?.add || "--"
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "DISTANCE",
-                        dilatedOD?.distance
-                          ? `6/${dilatedOD.distance}`
-                          : "--",
-                        dilatedOS?.distance
-                          ? `6/${dilatedOS.distance}`
-                          : "--"
-                      )}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: printSettings?.page_format?.font_family,
-                        fontSize:
-                          PX_TO_PT *
-                          (printSettings?.page_format?.font_size || 12),
-                        color: "#000",
-                        marginBottom: PX_TO_PT * 3,
-                      }}
-                    >
-                      {formatInlineValue(
-                        "NEAR",
-                        dilatedOD?.near ? `N${dilatedOD.near}` : "--",
-                        dilatedOS?.near ? `N${dilatedOS.near}` : "--"
-                      )}
-                    </Text>
-                  </>
+                {autoRefractionSubOptions.dilated && (dilatedOD || dilatedOS) && (
+                  <Text
+                    style={{
+                      fontFamily: printSettings?.page_format?.font_family,
+                      fontSize:
+                        PX_TO_PT *
+                        (printSettings?.page_format?.font_size || 12),
+                      color: "#000",
+                      marginBottom: PX_TO_PT * 3,
+                    }}
+                  >
+                    Dilated: {formatEyeDataInline(dilatedOD || {}, dilatedOS || {}, [
+                      { key: "sphere", label: "SPHERE" },
+                      { key: "cylinder", label: "CYLINDER" },
+                      { key: "axis", label: "AXIS", format: "axis" },
+                      { key: "add", label: "C ADD" },
+                      { key: "distance", label: "DISTANCE", format: "distance" },
+                      { key: "near", label: "NEAR", format: "near" },
+                    ])}
+                  </Text>
                 )}
               </View>
             );
@@ -399,7 +251,7 @@ function OphthalmologyInlineView({
       )}
 
       {/* Lensometer Values */}
-      {lensometerValues.length > 0 && (
+      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -417,111 +269,32 @@ function OphthalmologyInlineView({
             const odData = getEyeData(lensometerValues, "OD");
             const osData = getEyeData(lensometerValues, "OS");
             return (
-              <View>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "SPHERE",
-                    odData.sphere || "--",
-                    osData.sphere || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "CYLINDER",
-                    odData.cylinder || "--",
-                    osData.cylinder || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "AXIS",
-                    odData.axis ? `${odData.axis}°` : "--",
-                    osData.axis ? `${osData.axis}°` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "ADD",
-                    odData.add || "--",
-                    osData.add || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "DISTANCE",
-                    odData.distance ? `6/${odData.distance}` : "--",
-                    osData.distance ? `6/${osData.distance}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "NEAR",
-                    odData.near ? `N${odData.near}` : "--",
-                    osData.near ? `N${osData.near}` : "--"
-                  )}
-                </Text>
-              </View>
+              <Text
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {formatEyeDataInline(odData, osData, [
+                  { key: "sphere", label: "SPHERE" },
+                  { key: "cylinder", label: "CYLINDER" },
+                  { key: "axis", label: "AXIS", format: "axis" },
+                  { key: "add", label: "C ADD" },
+                  { key: "distance", label: "DISTANCE", format: "distance" },
+                  { key: "near", label: "NEAR", format: "near" },
+                ])}
+              </Text>
             );
           })()}
         </View>
       )}
 
       {/* Glass Prescription */}
-      {glassPrescription.length > 0 && (
+      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -539,126 +312,34 @@ function OphthalmologyInlineView({
             const odData = getEyeData(glassPrescription, "OD");
             const osData = getEyeData(glassPrescription, "OS");
             const pd = ophthalModuleData?.pd;
+            const eyeData = formatEyeDataInline(odData, osData, [
+              { key: "sphere", label: "SPHERE" },
+              { key: "cylinder", label: "CYLINDER" },
+              { key: "axis", label: "AXIS", format: "axis" },
+              { key: "add", label: "C ADD" },
+              { key: "distance", label: "DISTANCE", format: "distance" },
+              { key: "near", label: "NEAR", format: "near" },
+            ]);
             return (
-              <View>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "SPHERE",
-                    odData.sphere || "--",
-                    osData.sphere || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "CYLINDER",
-                    odData.cylinder || "--",
-                    osData.cylinder || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "AXIS",
-                    odData.axis ? `${odData.axis}°` : "--",
-                    osData.axis ? `${osData.axis}°` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "ADD",
-                    odData.add || "--",
-                    osData.add || "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "DISTANCE",
-                    odData.distance ? `6/${odData.distance}` : "--",
-                    osData.distance ? `6/${osData.distance}` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "NEAR",
-                    odData.near ? `N${odData.near}` : "--",
-                    osData.near ? `N${osData.near}` : "--"
-                  )}
-                </Text>
-                {pd && (
-                  <Text
-                    style={{
-                      fontFamily: printSettings?.page_format?.font_family,
-                      fontSize:
-                        PX_TO_PT *
-                        (printSettings?.page_format?.font_size || 12),
-                      color: "#000",
-                      marginBottom: PX_TO_PT * 3,
-                    }}
-                  >
-                    PD: {pd}
-                  </Text>
-                )}
-              </View>
+              <Text
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {eyeData}{pd ? ` | PD (${pd})` : ""}
+              </Text>
             );
           })()}
         </View>
       )}
 
       {/* Intra Ocular Pressure */}
-      {intraOcularPressure.length > 0 && (
+      {isSectionVisible("intraOcularPressure") && intraOcularPressure.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -676,79 +357,30 @@ function OphthalmologyInlineView({
             const odData = getEyeData(intraOcularPressure, "OD");
             const osData = getEyeData(intraOcularPressure, "OS");
             return (
-              <View>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "NCT",
-                    odData.nct ? `${odData.nct} mmhg` : "--",
-                    osData.nct ? `${osData.nct} mmhg` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "GAT",
-                    odData.gat ? `${odData.gat} mmhg` : "--",
-                    osData.gat ? `${osData.gat} mmhg` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "CCT",
-                    odData.cc ? `${odData.cc} µm` : "--",
-                    osData.cc ? `${osData.cc} µm` : "--"
-                  )}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {formatInlineValue(
-                    "CIOP",
-                    odData.ciop ? `${odData.ciop} mmHg` : "--",
-                    osData.ciop ? `${osData.ciop} mmHg` : "--"
-                  )}
-                </Text>
-              </View>
+              <Text
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {formatEyeDataInline(odData, osData, [
+                  { key: "nct", label: "NCT", format: "pressure" },
+                  { key: "gat", label: "GAT", format: "pressure" },
+                  { key: "cc", label: "CCT", format: "cct" },
+                  { key: "ciop", label: "CIOP", format: "ciop" },
+                ])}
+              </Text>
             );
           })()}
         </View>
       )}
 
       {/* Slit Lamp Examination */}
-      {slitLampExamination.length > 0 && (
+      {isSectionVisible("slitLampExamination") && slitLampExamination.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -767,29 +399,32 @@ function OphthalmologyInlineView({
               item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
             const osValue =
               item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+            const values = [];
+            if (odValue !== "--") values.push(`OD: ${odValue}`);
+            if (osValue !== "--") values.push(`OS: ${osValue}`);
+            if (item.remarks) values.push(`Remarks: ${item.remarks}`);
+            const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
             return (
-              <View key={index}>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {item.section}: OD: {odValue}, OS: {osValue}
-                  {item.remarks && `, REMARKS: ${item.remarks}`}
-                </Text>
-              </View>
+              <Text
+                key={index}
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {item.section}: {formattedValue}
+              </Text>
             );
           })}
         </View>
       )}
 
       {/* Fundus Examination */}
-      {fundusExamination.length > 0 && (
+      {isSectionVisible("fundusExamination") && fundusExamination.length > 0 && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -808,22 +443,25 @@ function OphthalmologyInlineView({
               item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
             const osValue =
               item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+            const values = [];
+            if (odValue !== "--") values.push(`OD: ${odValue}`);
+            if (osValue !== "--") values.push(`OS: ${osValue}`);
+            if (item.remarks) values.push(`Remarks: ${item.remarks}`);
+            const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
             return (
-              <View key={index}>
-                <Text
-                  style={{
-                    fontFamily: printSettings?.page_format?.font_family,
-                    fontSize:
-                      PX_TO_PT *
-                      (printSettings?.page_format?.font_size || 12),
-                    color: "#000",
-                    marginBottom: PX_TO_PT * 3,
-                  }}
-                >
-                  {item.section}: OD: {odValue}, OS: {osValue}
-                  {item.remarks && `, REMARKS: ${item.remarks}`}
-                </Text>
-              </View>
+              <Text
+                key={index}
+                style={{
+                  fontFamily: printSettings?.page_format?.font_family,
+                  fontSize:
+                    PX_TO_PT *
+                    (printSettings?.page_format?.font_size || 12),
+                  color: "#000",
+                  marginBottom: PX_TO_PT * 3,
+                }}
+              >
+                {item.section}: {formattedValue}
+              </Text>
             );
           })}
         </View>

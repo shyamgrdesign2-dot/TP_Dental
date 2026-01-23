@@ -5240,21 +5240,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     PX_TO_PT={PX_TO_PT} 
                                                     styles={styles} 
                                                     printSettings={printSettings} 
-                                                    ophthalModuleData={ophthalModuleData} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
                                                 />
                                             ) : option?.format === "listview" ? (
                                                 <OphthalmologyListView 
                                                     PX_TO_PT={PX_TO_PT} 
                                                     styles={styles} 
                                                     printSettings={printSettings} 
-                                                    ophthalModuleData={ophthalModuleData} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
                                                 />
                                             ) : (
                                                 <OphthalmologyTableView 
                                                     PX_TO_PT={PX_TO_PT} 
                                                     styles={styles} 
                                                     printSettings={printSettings} 
-                                                    ophthalModuleData={ophthalModuleData} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
                                                 />
                                             ))
                                         }

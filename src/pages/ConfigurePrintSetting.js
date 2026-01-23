@@ -27,6 +27,8 @@ import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
+import { ophthalmologyTestData } from "../utils/ophthalmologyTestData";
+import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 
 function ConfigurePrintSetting() {
 
@@ -92,7 +94,7 @@ function ConfigurePrintSetting() {
         dispatch(getModules(userId));
       }, [userId]);
 
-    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments };
+    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: ophthalmologyTestData };
 
     const TabsPrintSetting = [
         {
@@ -132,6 +134,28 @@ function ConfigurePrintSetting() {
                         enable: "Y",
                         custom_status: "Y"
                     });
+                }
+            }
+
+            // Add Case Option ID 20 for Ophthalmology (always add for testing)
+            if (copyPrintSettings?.prescription?.case_option) {
+                const hasOphthalmologyOption = copyPrintSettings.prescription.case_option.find(option => option.id === 20);
+                if (!hasOphthalmologyOption) {
+                    // Add Ophthalmology option with default settings
+                    copyPrintSettings.prescription.case_option.push({
+                        id: 20,
+                        title: "Ophthal Details",
+                        format: "table", // table, listview, or inline
+                        enable: "Y",
+                        custom_status: "Y",
+                        ophthalmology_option: ophthalmologyDefaultPrintSettings.subSections
+                    });
+                } else {
+                    // Ensure ophthalmology_option exists even if option already exists
+                    const ophthOption = copyPrintSettings.prescription.case_option.find(option => option.id === 20);
+                    if (ophthOption && !ophthOption.ophthalmology_option) {
+                        ophthOption.ophthalmology_option = ophthalmologyDefaultPrintSettings.subSections;
+                    }
                 }
             }
 
@@ -189,6 +213,7 @@ function ConfigurePrintSetting() {
         );
         setPatientWalletBalance(patientWalletBalanceRes?.advanceDepositBalance);
     };
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -213,7 +238,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={ophthalmologyTestData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

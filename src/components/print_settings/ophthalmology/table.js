@@ -6,6 +6,7 @@ function OphthalmologyTableView({
   styles,
   printSettings,
   ophthalModuleData,
+  options,
 }) {
   const visualAcuity = ophthalModuleData?.visualAcuity || [];
   const autoRefraction = ophthalModuleData?.autoRefraction || [];
@@ -15,9 +16,59 @@ function OphthalmologyTableView({
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
 
+  // Helper to check if a section should be visible
+  const isSectionVisible = (sectionId) => {
+    if (!options || !Array.isArray(options)) return true; // Default to visible if no options
+    // Check if sectionId exists in options and is visible
+    const sectionOption = options.find(opt => {
+      if (typeof opt === 'string') return opt === sectionId;
+      if (typeof opt === 'object') return opt.id === sectionId;
+      return false;
+    });
+    
+    // If not found in options, default to visible
+    if (!sectionOption) return true;
+    
+    // If found as string, it's visible
+    if (typeof sectionOption === 'string') return true;
+    
+    // If found as object, check visible property (default to true if not specified)
+    return sectionOption.visible !== false;
+  };
+
+  // Helper to get subsection options for autoRefraction
+  const getAutoRefractionSubOptions = () => {
+    if (!options || !Array.isArray(options)) {
+      return { undilated: true, dilated: true };
+    }
+    const autoRefractionOption = options.find(opt => {
+      const id = typeof opt === 'object' ? opt.id : opt;
+      return id === 'autoRefraction';
+    });
+    
+    if (!autoRefractionOption || typeof autoRefractionOption !== 'object') {
+      return { undilated: true, dilated: true };
+    }
+    
+    const subSections = autoRefractionOption.subSections || [];
+    return {
+      undilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'undilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+      dilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'dilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+    };
+  };
+
   const getEyeData = (dataArray, eye) => {
     return dataArray.find((item) => item.eye === eye) || {};
   };
+
+  // Get autoRefraction subsection options
+  const autoRefractionSubOptions = getAutoRefractionSubOptions();
 
   const renderSection = (title, renderContent) => {
     return (
@@ -184,7 +235,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Subjective Refraction */}
-      {autoRefraction.length > 0 &&
+      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 &&
         renderSection("Subjective Refraction", () => {
           const undilatedOD = autoRefraction.find(
             (item) => item.eye === "OD" && item.type === "Undilated"
@@ -202,7 +253,9 @@ function OphthalmologyTableView({
           return (
             <View>
               {/* Undilated */}
-              <Text
+              {autoRefractionSubOptions.undilated && (
+                <>
+                  <Text
                 style={{
                   marginTop: PX_TO_PT * 8,
                   marginBottom: PX_TO_PT * 5,
@@ -246,9 +299,11 @@ function OphthalmologyTableView({
                 undilatedOD?.near ? `N${undilatedOD.near}` : "--",
                 undilatedOS?.near ? `N${undilatedOS.near}` : "--"
               )}
+                </>
+              )}
 
               {/* Dilated */}
-              {(dilatedOD || dilatedOS) && (
+              {autoRefractionSubOptions.dilated && (dilatedOD || dilatedOS) && (
                 <>
                   <Text
                     style={{
@@ -302,7 +357,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Lensometer Values */}
-      {lensometerValues.length > 0 &&
+      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 &&
         renderSection("Lensometer Values", () => {
           const odData = getEyeData(lensometerValues, "OD");
           const osData = getEyeData(lensometerValues, "OS");
@@ -340,7 +395,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Glass Prescription */}
-      {glassPrescription.length > 0 &&
+      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 &&
         renderSection("Glass Prescription", () => {
           const odData = getEyeData(glassPrescription, "OD");
           const osData = getEyeData(glassPrescription, "OS");
@@ -418,7 +473,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Intra Ocular Pressure */}
-      {intraOcularPressure.length > 0 &&
+      {isSectionVisible("intraOcularPressure") && intraOcularPressure.length > 0 &&
         renderSection("Intra Ocular Pressure", () => {
           const odData = getEyeData(intraOcularPressure, "OD");
           const osData = getEyeData(intraOcularPressure, "OS");
@@ -450,7 +505,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Slit Lamp Examination */}
-      {slitLampExamination.length > 0 &&
+      {isSectionVisible("slitLampExamination") && slitLampExamination.length > 0 &&
         renderSection("Slit Lamp Examination", () => {
           return (
             <View>
@@ -520,7 +575,7 @@ function OphthalmologyTableView({
         })}
 
       {/* Fundus Examination */}
-      {fundusExamination.length > 0 &&
+      {isSectionVisible("fundusExamination") && fundusExamination.length > 0 &&
         renderSection("Fundus Examination", () => {
           return (
             <View>

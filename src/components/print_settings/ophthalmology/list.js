@@ -6,6 +6,7 @@ function OphthalmologyListView({
   styles,
   printSettings,
   ophthalModuleData,
+  options,
 }) {
   const visualAcuity = ophthalModuleData?.visualAcuity || [];
   const autoRefraction = ophthalModuleData?.autoRefraction || [];
@@ -14,6 +15,55 @@ function OphthalmologyListView({
   const intraOcularPressure = ophthalModuleData?.intraOcularPressure || [];
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
+
+  // Helper to check if a section should be visible
+  const isSectionVisible = (sectionId) => {
+    if (!options || !Array.isArray(options)) return true; // Default to visible if no options
+    // Check if sectionId exists in options and is visible
+    const sectionOption = options.find(opt => {
+      if (typeof opt === 'string') return opt === sectionId;
+      if (typeof opt === 'object') return opt.id === sectionId;
+      return false;
+    });
+    
+    // If not found in options, default to visible
+    if (!sectionOption) return true;
+    
+    // If found as string, it's visible
+    if (typeof sectionOption === 'string') return true;
+    
+    // If found as object, check visible property (default to true if not specified)
+    return sectionOption.visible !== false;
+  };
+
+  // Helper to get subsection options for autoRefraction
+  const getAutoRefractionSubOptions = () => {
+    if (!options || !Array.isArray(options)) {
+      return { undilated: true, dilated: true };
+    }
+    const autoRefractionOption = options.find(opt => {
+      const id = typeof opt === 'object' ? opt.id : opt;
+      return id === 'autoRefraction';
+    });
+    
+    if (!autoRefractionOption || typeof autoRefractionOption !== 'object') {
+      return { undilated: true, dilated: true };
+    }
+    
+    const subSections = autoRefractionOption.subSections || [];
+    return {
+      undilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'undilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+      dilated: subSections.some(sub => {
+        const subId = typeof sub === 'object' ? sub.id : sub;
+        return subId === 'dilated' && (typeof sub === 'string' || sub.visible !== false);
+      }),
+    };
+  };
+
+  const autoRefractionSubOptions = getAutoRefractionSubOptions();
 
   const getEyeData = (dataArray, eye) => {
     return dataArray.find((item) => item.eye === eye) || {};
@@ -73,87 +123,77 @@ function OphthalmologyListView({
     );
   };
 
+  const renderEyeDataInline = (eyeLabel, data, fields) => {
+    const values = fields
+      .map((field) => {
+        const value = data[field.key];
+        if (!value && value !== 0) return null;
+        
+        if (field.format === "distance") {
+          return `${field.label}: 6/${value}`;
+        } else if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        } else if (field.format === "axis") {
+          return `${field.label}: ${value}°`;
+        } else if (field.format === "pressure") {
+          return `${field.label}: ${value} mmhg`;
+        } else if (field.format === "cct") {
+          return `${field.label}: ${value}µm`;
+        } else if (field.format === "ciop") {
+          return `${field.label}: ${value} MmHg`;
+        } else {
+          return `${field.label}: ${value}`;
+        }
+      })
+      .filter(Boolean);
+    
+    const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
+    
+    return (
+      <View style={{ marginBottom: PX_TO_PT * 8 }}>
+        <Text
+          style={{
+            fontFamily: printSettings?.page_format?.font_family,
+            fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
+            color: "#000",
+          }}
+        >
+          <Text style={{ fontWeight: 500 }}>{eyeLabel}: </Text>
+          {formattedValue}
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       {/* Visual Acuity Test */}
-      {visualAcuity.length > 0 &&
+      {isSectionVisible("visualAcuity") && visualAcuity.length > 0 &&
         renderSection("Visual Acuity Test", () => {
           const odData = getEyeData(visualAcuity, "OD");
           const osData = getEyeData(visualAcuity, "OS");
           return (
             <View>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OD (Right Eye):
-              </Text>
-              {renderListItem(
-                "UC DISTANCE",
-                odData.ucDistance ? `6/${odData.ucDistance}` : "--"
-              )}
-              {renderListItem(
-                "UC NEAR",
-                odData.ucNear ? `N${odData.ucNear}` : "--"
-              )}
-              {renderListItem(
-                "PINHOLE",
-                odData.pinhole ? `6/${odData.pinhole}` : "--"
-              )}
-              {renderListItem(
-                "C DISTANCE",
-                odData.cDistance ? `6/${odData.cDistance}` : "--"
-              )}
-              {renderListItem(
-                "C NEAR",
-                odData.cNear ? `6/${odData.cNear}` : "--"
-              )}
-
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginTop: PX_TO_PT * 15,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OS (Left Eye):
-              </Text>
-              {renderListItem(
-                "UC DISTANCE",
-                osData.ucDistance ? `6/${osData.ucDistance}` : "--"
-              )}
-              {renderListItem(
-                "UC NEAR",
-                osData.ucNear ? `N${osData.ucNear}` : "--"
-              )}
-              {renderListItem(
-                "PINHOLE",
-                osData.pinhole ? `6/${osData.pinhole}` : "--"
-              )}
-              {renderListItem(
-                "C DISTANCE",
-                osData.cDistance ? `6/${osData.cDistance}` : "--"
-              )}
-              {renderListItem(
-                "C NEAR",
-                osData.cNear ? `6/${osData.cNear}` : "--"
-              )}
+              {renderEyeDataInline("OD (Right Eye)", odData, [
+                { key: "ucDistance", label: "UC DISTANCE", format: "distance" },
+                { key: "ucNear", label: "UC NEAR", format: "near" },
+                { key: "pinhole", label: "PINHOLE", format: "distance" },
+                { key: "cDistance", label: "C DISTANCE", format: "distance" },
+                { key: "cNear", label: "C NEAR", format: "near" },
+              ])}
+              {renderEyeDataInline("OS (Left Eye)", osData, [
+                { key: "ucDistance", label: "UC DISTANCE", format: "distance" },
+                { key: "ucNear", label: "UC NEAR", format: "near" },
+                { key: "pinhole", label: "PINHOLE", format: "distance" },
+                { key: "cDistance", label: "C DISTANCE", format: "distance" },
+                { key: "cNear", label: "C NEAR", format: "near" },
+              ])}
             </View>
           );
         })}
 
       {/* Subjective Refraction */}
-      {autoRefraction.length > 0 &&
+      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 &&
         renderSection("Subjective Refraction", () => {
           const undilatedOD = autoRefraction.find(
             (item) => item.eye === "OD" && item.type === "Undilated"
@@ -170,76 +210,40 @@ function OphthalmologyListView({
 
           return (
             <View>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                Undialted
-              </Text>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OD (Right Eye):
-              </Text>
-              {renderListItem("SPHERE", undilatedOD?.sphere || "--")}
-              {renderListItem("CYLINDER", undilatedOD?.cylinder || "--")}
-              {renderListItem(
-                "AXIS",
-                undilatedOD?.axis ? `${undilatedOD.axis}°` : "--"
-              )}
-              {renderListItem("ADD", undilatedOD?.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                undilatedOD?.distance ? `6/${undilatedOD.distance}` : "--"
-              )}
-              {renderListItem(
-                "NEAR",
-                undilatedOD?.near ? `N${undilatedOD.near}` : "--"
+              {autoRefractionSubOptions.undilated && (undilatedOD || undilatedOS) && (
+                <>
+                  <Text
+                    style={{
+                      fontFamily: printSettings?.page_format?.font_family,
+                      fontSize:
+                        PX_TO_PT * (printSettings?.page_format?.font_size || 12),
+                      fontWeight: 500,
+                      marginBottom: PX_TO_PT * 8,
+                      color: "#000",
+                    }}
+                  >
+                    Undilated:
+                  </Text>
+                  {renderEyeDataInline("OD", undilatedOD, [
+                    { key: "sphere", label: "SPHERE" },
+                    { key: "cylinder", label: "CYLINDER" },
+                    { key: "axis", label: "AXIS", format: "axis" },
+                    { key: "add", label: "C ADD" },
+                    { key: "distance", label: "DISTANCE", format: "distance" },
+                    { key: "near", label: "NEAR", format: "near" },
+                  ])}
+                  {renderEyeDataInline("OS", undilatedOS, [
+                    { key: "sphere", label: "SPHERE" },
+                    { key: "cylinder", label: "CYLINDER" },
+                    { key: "axis", label: "AXIS", format: "axis" },
+                    { key: "add", label: "C ADD" },
+                    { key: "distance", label: "DISTANCE", format: "distance" },
+                    { key: "near", label: "NEAR", format: "near" },
+                  ])}
+                </>
               )}
 
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginTop: PX_TO_PT * 15,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OS (Left Eye):
-              </Text>
-              {renderListItem("SPHERE", undilatedOS?.sphere || "--")}
-              {renderListItem("CYLINDER", undilatedOS?.cylinder || "--")}
-              {renderListItem(
-                "AXIS",
-                undilatedOS?.axis ? `${undilatedOS.axis}°` : "--"
-              )}
-              {renderListItem("ADD", undilatedOS?.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                undilatedOS?.distance ? `6/${undilatedOS.distance}` : "--"
-              )}
-              {renderListItem(
-                "NEAR",
-                undilatedOS?.near ? `N${undilatedOS.near}` : "--"
-              )}
-
-              {(dilatedOD || dilatedOS) && (
+              {autoRefractionSubOptions.dilated && (dilatedOD || dilatedOS) && (
                 <>
                   <Text
                     style={{
@@ -253,66 +257,24 @@ function OphthalmologyListView({
                       color: "#000",
                     }}
                   >
-                    Dialted
+                    Dilated:
                   </Text>
-                  <Text
-                    style={{
-                      fontFamily: printSettings?.page_format?.font_family,
-                      fontSize:
-                        PX_TO_PT *
-                        (printSettings?.page_format?.font_size || 12),
-                      fontWeight: 500,
-                      marginBottom: PX_TO_PT * 8,
-                      color: "#000",
-                    }}
-                  >
-                    OD (Right Eye):
-                  </Text>
-                  {renderListItem("SPHERE", dilatedOD?.sphere || "--")}
-                  {renderListItem("CYLINDER", dilatedOD?.cylinder || "--")}
-                  {renderListItem(
-                    "AXIS",
-                    dilatedOD?.axis ? `${dilatedOD.axis}°` : "--"
-                  )}
-                  {renderListItem("ADD", dilatedOD?.add || "--")}
-                  {renderListItem(
-                    "DISTANCE",
-                    dilatedOD?.distance ? `6/${dilatedOD.distance}` : "--"
-                  )}
-                  {renderListItem(
-                    "NEAR",
-                    dilatedOD?.near ? `N${dilatedOD.near}` : "--"
-                  )}
-
-                  <Text
-                    style={{
-                      fontFamily: printSettings?.page_format?.font_family,
-                      fontSize:
-                        PX_TO_PT *
-                        (printSettings?.page_format?.font_size || 12),
-                      fontWeight: 500,
-                      marginTop: PX_TO_PT * 15,
-                      marginBottom: PX_TO_PT * 8,
-                      color: "#000",
-                    }}
-                  >
-                    OS (Left Eye):
-                  </Text>
-                  {renderListItem("SPHERE", dilatedOS?.sphere || "--")}
-                  {renderListItem("CYLINDER", dilatedOS?.cylinder || "--")}
-                  {renderListItem(
-                    "AXIS",
-                    dilatedOS?.axis ? `${dilatedOS.axis}°` : "--"
-                  )}
-                  {renderListItem("ADD", dilatedOS?.add || "--")}
-                  {renderListItem(
-                    "DISTANCE",
-                    dilatedOS?.distance ? `6/${dilatedOS.distance}` : "--"
-                  )}
-                  {renderListItem(
-                    "NEAR",
-                    dilatedOS?.near ? `N${dilatedOS.near}` : "--"
-                  )}
+                  {renderEyeDataInline("OD", dilatedOD, [
+                    { key: "sphere", label: "SPHERE" },
+                    { key: "cylinder", label: "CYLINDER" },
+                    { key: "axis", label: "AXIS", format: "axis" },
+                    { key: "add", label: "C ADD" },
+                    { key: "distance", label: "DISTANCE", format: "distance" },
+                    { key: "near", label: "NEAR", format: "near" },
+                  ])}
+                  {renderEyeDataInline("OS", dilatedOS, [
+                    { key: "sphere", label: "SPHERE" },
+                    { key: "cylinder", label: "CYLINDER" },
+                    { key: "axis", label: "AXIS", format: "axis" },
+                    { key: "add", label: "C ADD" },
+                    { key: "distance", label: "DISTANCE", format: "distance" },
+                    { key: "near", label: "NEAR", format: "near" },
+                  ])}
                 </>
               )}
             </View>
@@ -320,191 +282,99 @@ function OphthalmologyListView({
         })}
 
       {/* Lensometer Values */}
-      {lensometerValues.length > 0 &&
+      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 &&
         renderSection("Lensometer Values", () => {
           const odData = getEyeData(lensometerValues, "OD");
           const osData = getEyeData(lensometerValues, "OS");
           return (
             <View>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OD (Right Eye):
-              </Text>
-              {renderListItem("SPHERE", odData.sphere || "--")}
-              {renderListItem("CYLINDER", odData.cylinder || "--")}
-              {renderListItem(
-                "AXIS",
-                odData.axis ? `${odData.axis}°` : "--"
-              )}
-              {renderListItem("ADD", odData.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                odData.distance ? `6/${odData.distance}` : "--"
-              )}
-              {renderListItem("NEAR", odData.near ? `N${odData.near}` : "--")}
-
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginTop: PX_TO_PT * 15,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OS (Left Eye):
-              </Text>
-              {renderListItem("SPHERE", osData.sphere || "--")}
-              {renderListItem("CYLINDER", osData.cylinder || "--")}
-              {renderListItem("AXIS", osData.axis ? `${osData.axis}°` : "--")}
-              {renderListItem("ADD", osData.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                osData.distance ? `6/${osData.distance}` : "--"
-              )}
-              {renderListItem("NEAR", osData.near ? `N${osData.near}` : "--")}
+              {renderEyeDataInline("OD (Right Eye)", odData, [
+                { key: "sphere", label: "SPHERE" },
+                { key: "cylinder", label: "CYLINDER" },
+                { key: "axis", label: "AXIS", format: "axis" },
+                { key: "add", label: "C ADD" },
+                { key: "distance", label: "DISTANCE", format: "distance" },
+                { key: "near", label: "NEAR", format: "near" },
+              ])}
+              {renderEyeDataInline("OS (Left Eye)", osData, [
+                { key: "sphere", label: "SPHERE" },
+                { key: "cylinder", label: "CYLINDER" },
+                { key: "axis", label: "AXIS", format: "axis" },
+                { key: "add", label: "C ADD" },
+                { key: "distance", label: "DISTANCE", format: "distance" },
+                { key: "near", label: "NEAR", format: "near" },
+              ])}
             </View>
           );
         })}
 
       {/* Glass Prescription */}
-      {glassPrescription.length > 0 &&
+      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 &&
         renderSection("Glass Prescription", () => {
           const odData = getEyeData(glassPrescription, "OD");
           const osData = getEyeData(glassPrescription, "OS");
           const pd = ophthalModuleData?.pd;
           return (
             <View>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OD (Right Eye):
-              </Text>
-              {renderListItem("SPHERE", odData.sphere || "--")}
-              {renderListItem("CYLINDER", odData.cylinder || "--")}
-              {renderListItem("AXIS", odData.axis ? `${odData.axis}°` : "--")}
-              {renderListItem("ADD", odData.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                odData.distance ? `6/${odData.distance}` : "--"
+              {renderEyeDataInline("OD (Right Eye)", odData, [
+                { key: "sphere", label: "SPHERE" },
+                { key: "cylinder", label: "CYLINDER" },
+                { key: "axis", label: "AXIS", format: "axis" },
+                { key: "add", label: "C ADD" },
+                { key: "distance", label: "DISTANCE", format: "distance" },
+                { key: "near", label: "NEAR", format: "near" },
+              ])}
+              {renderEyeDataInline("OS (Left Eye)", osData, [
+                { key: "sphere", label: "SPHERE" },
+                { key: "cylinder", label: "CYLINDER" },
+                { key: "axis", label: "AXIS", format: "axis" },
+                { key: "add", label: "C ADD" },
+                { key: "distance", label: "DISTANCE", format: "distance" },
+                { key: "near", label: "NEAR", format: "near" },
+              ])}
+              {pd && (
+                <View style={{ marginTop: PX_TO_PT * 8 }}>
+                  <Text
+                    style={{
+                      fontFamily: printSettings?.page_format?.font_family,
+                      fontSize: PX_TO_PT * (printSettings?.page_format?.font_size || 12),
+                      color: "#000",
+                    }}
+                  >
+                    <Text style={{ fontWeight: 500 }}>PD: </Text>
+                    ({pd})
+                  </Text>
+                </View>
               )}
-              {renderListItem("NEAR", odData.near ? `N${odData.near}` : "--")}
-
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginTop: PX_TO_PT * 15,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OS (Left Eye):
-              </Text>
-              {renderListItem("SPHERE", osData.sphere || "--")}
-              {renderListItem("CYLINDER", osData.cylinder || "--")}
-              {renderListItem("AXIS", osData.axis ? `${osData.axis}°` : "--")}
-              {renderListItem("ADD", osData.add || "--")}
-              {renderListItem(
-                "DISTANCE",
-                osData.distance ? `6/${osData.distance}` : "--"
-              )}
-              {renderListItem("NEAR", osData.near ? `N${osData.near}` : "--")}
-              {pd && renderListItem("PD", pd)}
             </View>
           );
         })}
 
       {/* Intra Ocular Pressure */}
-      {intraOcularPressure.length > 0 &&
+      {isSectionVisible("intraOcularPressure") && intraOcularPressure.length > 0 &&
         renderSection("Intra Ocular Pressure", () => {
           const odData = getEyeData(intraOcularPressure, "OD");
           const osData = getEyeData(intraOcularPressure, "OS");
           return (
             <View>
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OD (Right Eye):
-              </Text>
-              {renderListItem(
-                "NCT",
-                odData.nct ? `${odData.nct} mmhg` : "--"
-              )}
-              {renderListItem(
-                "GAT",
-                odData.gat ? `${odData.gat} mmhg` : "--"
-              )}
-              {renderListItem(
-                "CCT",
-                odData.cc ? `${odData.cc} µm` : "--"
-              )}
-              {renderListItem(
-                "CIOP",
-                odData.ciop ? `${odData.ciop} mmHg` : "--"
-              )}
-
-              <Text
-                style={{
-                  fontFamily: printSettings?.page_format?.font_family,
-                  fontSize:
-                    PX_TO_PT * (printSettings?.page_format?.font_size || 12),
-                  fontWeight: 500,
-                  marginTop: PX_TO_PT * 15,
-                  marginBottom: PX_TO_PT * 8,
-                  color: "#000",
-                }}
-              >
-                OS (Left Eye):
-              </Text>
-              {renderListItem(
-                "NCT",
-                osData.nct ? `${osData.nct} mmhg` : "--"
-              )}
-              {renderListItem(
-                "GAT",
-                osData.gat ? `${osData.gat} mmhg` : "--"
-              )}
-              {renderListItem(
-                "CCT",
-                osData.cc ? `${osData.cc} µm` : "--"
-              )}
-              {renderListItem(
-                "CIOP",
-                osData.ciop ? `${osData.ciop} mmHg` : "--"
-              )}
+              {renderEyeDataInline("OD (Right Eye)", odData, [
+                { key: "nct", label: "NCT", format: "pressure" },
+                { key: "gat", label: "GAT", format: "pressure" },
+                { key: "cc", label: "CCT", format: "cct" },
+                { key: "ciop", label: "CIOP", format: "ciop" },
+              ])}
+              {renderEyeDataInline("OS (Left Eye)", osData, [
+                { key: "nct", label: "NCT", format: "pressure" },
+                { key: "gat", label: "GAT", format: "pressure" },
+                { key: "cc", label: "CCT", format: "cct" },
+                { key: "ciop", label: "CIOP", format: "ciop" },
+              ])}
             </View>
           );
         })}
 
       {/* Slit Lamp Examination */}
-      {slitLampExamination.length > 0 &&
+      {isSectionVisible("slitLampExamination") && slitLampExamination.length > 0 &&
         renderSection("Slit Lamp Examination", () => {
           return (
             <View>
@@ -513,27 +383,28 @@ function OphthalmologyListView({
                   item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
                 const osValue =
                   item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+                
+                const values = [];
+                if (odValue !== "--") values.push(`OD: ${odValue}`);
+                if (osValue !== "--") values.push(`OS: ${osValue}`);
+                if (item.remarks) values.push(`Remarks: ${item.remarks}`);
+                
+                const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
 
                 return (
-                  <View key={index}>
+                  <View key={index} style={{ marginBottom: PX_TO_PT * 8 }}>
                     <Text
                       style={{
                         fontFamily: printSettings?.page_format?.font_family,
                         fontSize:
                           PX_TO_PT *
                           (printSettings?.page_format?.font_size || 12),
-                        fontWeight: 500,
-                        marginTop: PX_TO_PT * 10,
-                        marginBottom: PX_TO_PT * 8,
                         color: "#000",
                       }}
                     >
-                      {item.section}:
+                      <Text style={{ fontWeight: 500 }}>{item.section}: </Text>
+                      {formattedValue}
                     </Text>
-                    {renderListItem("OD", odValue)}
-                    {renderListItem("OS", osValue)}
-                    {item.remarks &&
-                      renderListItem("REMARKS", item.remarks)}
                   </View>
                 );
               })}
@@ -542,7 +413,7 @@ function OphthalmologyListView({
         })}
 
       {/* Fundus Examination */}
-      {fundusExamination.length > 0 &&
+      {isSectionVisible("fundusExamination") && fundusExamination.length > 0 &&
         renderSection("Fundus Examination", () => {
           return (
             <View>
@@ -551,27 +422,28 @@ function OphthalmologyListView({
                   item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
                 const osValue =
                   item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+                
+                const values = [];
+                if (odValue !== "--") values.push(`OD: ${odValue}`);
+                if (osValue !== "--") values.push(`OS: ${osValue}`);
+                if (item.remarks) values.push(`Remarks: ${item.remarks}`);
+                
+                const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
 
                 return (
-                  <View key={index}>
+                  <View key={index} style={{ marginBottom: PX_TO_PT * 8 }}>
                     <Text
                       style={{
                         fontFamily: printSettings?.page_format?.font_family,
                         fontSize:
                           PX_TO_PT *
                           (printSettings?.page_format?.font_size || 12),
-                        fontWeight: 500,
-                        marginTop: PX_TO_PT * 10,
-                        marginBottom: PX_TO_PT * 8,
                         color: "#000",
                       }}
                     >
-                      {item.section}:
+                      <Text style={{ fontWeight: 500 }}>{item.section}: </Text>
+                      {formattedValue}
                     </Text>
-                    {renderListItem("OD", odValue)}
-                    {renderListItem("OS", osValue)}
-                    {item.remarks &&
-                      renderListItem("REMARKS", item.remarks)}
                   </View>
                 );
               })}
