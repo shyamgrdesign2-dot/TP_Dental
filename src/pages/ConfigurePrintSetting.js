@@ -27,8 +27,8 @@ import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
-import { ophthalmologyTestData } from "../utils/ophthalmologyTestData";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
+import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 
 function ConfigurePrintSetting() {
 
@@ -57,6 +57,7 @@ function ConfigurePrintSetting() {
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
+    const [opthalModuleData, setOpthalModuleData] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -94,7 +95,30 @@ function ConfigurePrintSetting() {
         dispatch(getModules(userId));
       }, [userId]);
 
-    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: ophthalmologyTestData };
+    useEffect(() => {
+        const fetchOpthalPrescription = async () => {
+            const tcmId = caseManagerData?.tcm_id;
+            if (!tcmId) {
+                setOpthalModuleData(null);
+                return;
+            }
+            try {
+                const response = await getOpthalPrescriptionDetails({ tcm_id: tcmId });
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                setOpthalModuleData(payload || null);
+            } catch (error) {
+                console.error("Error fetching opthal prescription details:", error);
+                setOpthalModuleData(null);
+            }
+        };
+        fetchOpthalPrescription();
+        return () => {
+            setOpthalModuleData(null);
+        };
+    }, [caseManagerData?.tcm_id]);
+
+    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
 
     const TabsPrintSetting = [
         {
@@ -238,7 +262,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={ophthalmologyTestData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>
