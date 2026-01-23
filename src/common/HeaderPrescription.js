@@ -1136,13 +1136,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
             console.log("Opthal prescription payload:", opthalPayload);
             console.log("Opthal prescription action:", opthalAction, opthalId);
-            // TODO: enable API call once payload is verified
-            // if (opthalId) {
-            //     await updateOpthalPrescription(opthalId, opthalPayload);
-            // } else {
-            //     await createOpthalPrescription(opthalPayload);
-            // }
-            return;
+            const opthalPromise = opthalId
+                ? updateOpthalPrescription(opthalId, opthalPayload)
+                : createOpthalPrescription(opthalPayload);
 
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
@@ -1202,7 +1198,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     tcm_id: tcmId,
                 })
 
-            const action = tcmId == 0 ? await dispatch(addCaseManager(sendData)) : await dispatch(editCaseManager(sendData))
+            const caseManagerPromise = tcmId == 0
+                ? dispatch(addCaseManager(sendData))
+                : dispatch(editCaseManager(sendData));
+            const [, action] = await Promise.all([
+                opthalPromise,
+                caseManagerPromise,
+            ]);
             if (action.meta.requestStatus === "fulfilled") {
                 try {
                     // Ensure care plan is linked to the definitive consultation id
@@ -1596,7 +1598,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {(isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && (
                                 <GenRxButton onClick={handleGenRx} />
                             )}
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)})) ? "" : "Please fill your prescription to end visit."}>
+                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues()) ? "" : "Please fill your prescription to end visit."}>
                                 <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues()) && onEndVisitClick()} loading={loading}>
                                     <i className='icon-exit me-2'></i>
                                     End Visit

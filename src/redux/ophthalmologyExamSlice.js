@@ -20,6 +20,7 @@ const initialState = {
   tables: {},
   extraFields: {},
   opthalPrescriptionId: null,
+  lastOpthalPrescriptionData: null,
 };
 
 const ophthalmologyExamSlice = createSlice({
@@ -74,6 +75,9 @@ const ophthalmologyExamSlice = createSlice({
     setOpthalPrescriptionId: (state, action) => {
       state.opthalPrescriptionId = action.payload || null;
     },
+    setLastOpthalPrescriptionData: (state, action) => {
+      state.lastOpthalPrescriptionData = action.payload || null;
+    },
   },
 });
 
@@ -87,6 +91,7 @@ export const {
   setExtraField,
   resetExtraField,
   setOpthalPrescriptionId,
+  setLastOpthalPrescriptionData,
 } = ophthalmologyExamSlice.actions;
 
 export default ophthalmologyExamSlice.reducer;
