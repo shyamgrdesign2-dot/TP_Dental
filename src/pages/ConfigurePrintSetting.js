@@ -705,7 +705,8 @@ function ConfigurePrintSetting() {
         zydusSelectedLabParams, 
         customModules, 
         carePlanAssignments,
-        isVoiceAmbientRx: mergedCaseManagerData?.isVoiceAmbientRx || false
+        isVoiceAmbientRx: mergedCaseManagerData?.isVoiceAmbientRx || false,
+        isAfterDigitization: isAfterDigitization
     };
 
     const TabsPrintSetting = [
@@ -782,7 +783,16 @@ function ConfigurePrintSetting() {
             }
 
           
-            if (((smartRxFile && smartRxFile.length > 0) || mergedCaseManagerData?.smart_prescription_filename) && copyPrintSettings?.prescription?.case_option) {
+            // For digitized prescriptions (page === "digitise"), remove SmartRx option if it exists
+            if (isAfterDigitization && copyPrintSettings?.prescription?.case_option) {
+                const smartRxOptionIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 11);
+                if (smartRxOptionIndex !== -1) {
+                    copyPrintSettings.prescription.case_option.splice(smartRxOptionIndex, 1);
+                }
+            }
+            
+            // For written Rx (non-digitized), add SmartRx option if smartRxFile exists
+            if (!isAfterDigitization && ((smartRxFile && smartRxFile.length > 0) || mergedCaseManagerData?.smart_prescription_filename) && copyPrintSettings?.prescription?.case_option) {
                 const smartRxOption = copyPrintSettings.prescription.case_option.find(option => option.id === 11);
                 
                 if (!smartRxOption && !isVoiceAmbientFlow) {
