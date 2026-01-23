@@ -38,7 +38,7 @@ export const getAllOpthalPrescriptions = async (params = {}) => {
   let res = {};
   try {
     res = await api.get(`/api/v1/opthal-prescription${buildQueryString(params)}`, baseUrl);
-    res = res.data;
+    res = res?.data ?? res;
   } catch (e) {
     console.error("Error while fetching opthal prescriptions:", e);
   }
@@ -49,7 +49,7 @@ export const getOpthalPrescriptionDetails = async (params = {}) => {
   let res = {};
   try {
     res = await api.get(`/api/v1/opthal-prescription${buildQueryString(params)}`, baseUrl);
-    res = res.data;
+    res = res?.data ?? res;
   } catch (e) {
     console.error("Error while fetching opthal prescription details:", e);
   }
@@ -60,7 +60,7 @@ export const getLastOpthalPrescription = async () => {
   let res = {};
   try {
     res = await api.get("/api/v1/opthal-prescription/last", baseUrl);
-    res = res.data;
+    res = res?.data ?? res;
   } catch (e) {
     console.error("Error while fetching last opthal prescription:", e);
   }
