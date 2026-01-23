@@ -31,6 +31,8 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
 import config from "../config";
 import { useGrounding } from "../hooks/useGrounding";
+import { getTodayVitals } from "../utils/getTodayVitals";
+import { getTodayLabResults } from "../utils/getTodayLabResults";
 
 const ensureRefObject = (maybeRef, fallbackRef) => {
   if (!maybeRef) return fallbackRef;
@@ -101,6 +103,8 @@ const DigitisedPrescription = ({
   const [updatedModuleName, setUpdatedModuleName] = useState("");
   const [moduleToDelete, setModuleToDelete] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [hasTodayVitals, setHasTodayVitals] = useState(false);
+  const [hasTodayLabResults, setHasTodayLabResults] = useState(false);
 
   const resolvedProcessing = processingOverride ?? false;
   const showLoader = loading || resolvedProcessing;
@@ -125,7 +129,30 @@ const DigitisedPrescription = ({
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
   //const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
-  const isGroundingAccessable = useGrounding(); 
+  const isGroundingAccessable = useGrounding();
+
+  useEffect(() => {
+    const patient = context?.patient_data;
+    if (!patient?.patient_unique_id) {
+      setHasTodayVitals(false);
+      setHasTodayLabResults(false);
+      return;
+    }
+    const check = async () => {
+      try {
+        const [todayVitals, todayLabResults] = await Promise.all([
+          getTodayVitals(patient),
+          getTodayLabResults(patient),
+        ]);
+        setHasTodayVitals(!!todayVitals);
+        setHasTodayLabResults(!!(Array.isArray(todayLabResults) && todayLabResults.length > 0));
+      } catch (e) {
+        setHasTodayVitals(false);
+        setHasTodayLabResults(false);
+      }
+    };
+    check();
+  }, [context?.patient_data]);
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
     if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
@@ -146,10 +173,40 @@ const DigitisedPrescription = ({
     };
 
     const groupedByType = {};
+    const additionalNotesItems = [];
+    
     apiMedicalHistory.forEach(item => {
       const type = item.type || 'Lifestyle';
       const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
       if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
+        // Collect additional notes items - prefer lineItem which contains the full formatted text
+        // lineItem format: "Dolo (Notes: took last night for the headache he had)"
+        // or just the name if no notes: "Dolo"
+        let noteText = '';
+        if (item.lineItem && item.lineItem.trim()) {
+          // Use lineItem which contains the full formatted text
+          noteText = item.lineItem.trim();
+        } else if (item.notes && item.notes.trim()) {
+          // If lineItem is not available, combine name and notes
+          const namePart = item.name ? `${item.name}` : '';
+          const notesPart = item.notes ? ` (Notes: ${item.notes})` : '';
+          noteText = namePart + notesPart;
+        } else if (item.name && item.name.trim()) {
+          // Fallback to just name
+          noteText = item.name.trim();
+        }
+        
+        // Filter out "others" - don't include items where the text is just "others" or starts with "others,"
+        // Also clean any "others," prefix from the text
+        let trimmedNote = noteText.trim();
+        
+        // Remove "others," or "others " prefix if present (case insensitive)
+        trimmedNote = trimmedNote.replace(/^others[, ]+/i, '').trim();
+        
+        // Only add if it's not empty and not just "others"
+        if (trimmedNote && trimmedNote.toLowerCase() !== 'others') {
+          additionalNotesItems.push(trimmedNote);
+        }
         return; 
       }
       const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
@@ -211,9 +268,34 @@ const DigitisedPrescription = ({
     });
 
     const medicalHistoryDataArray = Object.values(groupedByType);
+    
+    // Combine additional notes into medical_history_remarks
+    // Join with newlines to preserve readability
+    // Filter out any remaining "others" text that might have been included
+    const filteredAdditionalNotes = additionalNotesItems
+      .map(item => {
+        // Clean the item - remove "others," prefix if present
+        let cleaned = item.trim();
+        // Remove "others," or "others " at the start (case insensitive)
+        cleaned = cleaned.replace(/^others[, ]+/i, '').trim();
+        // Remove ", others" or ",others" in the middle or at the end
+        cleaned = cleaned.replace(/[, ]+others[, ]*/gi, ',').trim();
+        // Remove leading/trailing commas and clean up
+        cleaned = cleaned.replace(/^[, ]+|[, ]+$/g, '').trim();
+        // Remove standalone "others" word
+        if (cleaned.toLowerCase() === 'others') {
+          return null;
+        }
+        return cleaned;
+      })
+      .filter(item => item && item.length > 0);
+    
+    const medicalHistoryRemarks = filteredAdditionalNotes.length > 0 
+      ? filteredAdditionalNotes.join('\n') 
+      : null;
 
     if (existingContextData && existingContextData.length > 0) {
-      const merged = existingContextData.map(existingSection => {
+      const merged = existingContextData.map((existingSection, index) => {
         const apiSection = groupedByType[existingSection.tmmhs_id];
         if (apiSection) {
           const existingTagsMap = new Map();
@@ -251,12 +333,27 @@ const DigitisedPrescription = ({
             }
           });
           
-          return {
+          const sectionToReturn = {
             ...existingSection,
             tags: updatedTags
           };
+          
+          // Add medical_history_remarks to the first section if additional notes exist
+          if (index === 0 && medicalHistoryRemarks) {
+            sectionToReturn.medical_history_remarks = medicalHistoryRemarks;
+          }
+          
+          return sectionToReturn;
         }
-        return existingSection;
+        
+        const sectionToReturn = { ...existingSection };
+        
+        // Add medical_history_remarks to the first section if additional notes exist
+        if (index === 0 && medicalHistoryRemarks) {
+          sectionToReturn.medical_history_remarks = medicalHistoryRemarks;
+        }
+        
+        return sectionToReturn;
       });
 
       Object.values(groupedByType).forEach(apiSection => {
@@ -264,9 +361,18 @@ const DigitisedPrescription = ({
           merged.push(apiSection);
         }
       });
+      
+      // Ensure medical_history_remarks is added to the first section if it doesn't exist
+      if (merged.length > 0 && medicalHistoryRemarks && !merged[0].medical_history_remarks) {
+        merged[0].medical_history_remarks = medicalHistoryRemarks;
+      }
 
       return merged;
     } else {
+      // Add medical_history_remarks to the first section if additional notes exist
+      if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
+        medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
+      }
       return medicalHistoryDataArray;
     }
   }, []);
@@ -285,8 +391,14 @@ const DigitisedPrescription = ({
     };
 
     const rxPadArray = [];
+    let medicalHistoryRemarks = null;
     
-    contextMedicalHistory.forEach(section => {
+    contextMedicalHistory.forEach((section, index) => {
+      // Extract medical_history_remarks from the first section
+      if (index === 0 && section.medical_history_remarks) {
+        medicalHistoryRemarks = section.medical_history_remarks;
+      }
+      
       if (section.no_know_history || !section.tags || section.tags.length === 0) {
         return;
       }
@@ -320,6 +432,26 @@ const DigitisedPrescription = ({
         }
       });
     });
+    
+    // Add medical_history_remarks as "others" type items in Rx pad
+    // Split by newlines first, then by semicolons as fallback
+    if (medicalHistoryRemarks) {
+      const remarksParts = medicalHistoryRemarks
+        .split('\n')
+        .map(part => part.trim())
+        .filter(part => part)
+        .flatMap(part => part.includes(';') ? part.split(';').map(p => p.trim()).filter(p => p) : [part]);
+      
+      remarksParts.forEach(remark => {
+        rxPadArray.push({
+          type: 'others',
+          name: remark,
+          enable: 'Y',
+          lineItem: remark,
+          notes: remark
+        });
+      });
+    }
 
     return rxPadArray;
   }, []);
@@ -1130,7 +1262,7 @@ const DigitisedPrescription = ({
         </div>
       )}
 
-      {(hasVitalsContent || context?.patient_data?.patient_unique_id) && (
+      {(hasVitalsContent || hasTodayVitals) && (
         <VitalsRichTextEditor
           vitalsAndBodyComposition={data?.vitalsAndBodyComposition || {}}
           onUpdate={vitalsUpdater}
@@ -1201,7 +1333,7 @@ const DigitisedPrescription = ({
         );
       })()}
 
-      {(shouldRenderSection("labResults", hasArrayContent(data?.labResults)) || context?.patient_data?.patient_unique_id) && (
+      {(shouldRenderSection("labResults", hasArrayContent(data?.labResults)) || hasTodayLabResults) && (
         <LabResultsRichTextEditor
           labResults={data?.labResults || []}
           onUpdate={labResultsUpdater}
