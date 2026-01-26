@@ -776,8 +776,8 @@ function SnapRxPreview() {
           <Col md={17} lg={17} xl={12}>
             <div className={isMobile ? "p-20" : ""}>
               <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
-                <div className="titleprint">Preview</div>
                 <div className="d-flex align-items-center flex-wrap gap-3">
+                  <div className="titleprint">Preview</div>
                   {((viewCaseManagerData?.isRxDigitize && state?.page === "digitise") ||
                     (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
                       <div>
@@ -809,19 +809,19 @@ function SnapRxPreview() {
                         </button>
                       </div>
                     )}
-                  {(state?.page === "digitise" || (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
-                    <>
-                      <label className="fontroboto">Select Language</label>
-                      <Select
-                        placeholder="English"
-                        className="ms-3 appointmentselect"
-                        value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
-                        onSelect={onSelect}
-                        options={LANGUAGE_LIST}
-                      />
-                    </>
-                  )}
                 </div>
+                {(state?.page === "digitise" || (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
+                  <>
+                    <label className="fontroboto">Select Language</label>
+                    <Select
+                      placeholder="English"
+                      className="ms-3 appointmentselect"
+                      value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
+                      onSelect={onSelect}
+                      options={LANGUAGE_LIST}
+                    />
+                  </>
+                )}
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">

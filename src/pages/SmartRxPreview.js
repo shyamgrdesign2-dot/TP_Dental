@@ -730,15 +730,16 @@ function SmartRxPreview() {
                     <Col md={17} lg={17} xl={12}>
                         <div className={isMobile ? 'p-20' : ''}>
                             <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
-                                <div className="titleprint">Preview</div>
                                 <div className="d-flex align-items-center flex-wrap gap-3">
+                                    <div className="titleprint">Preview</div>
                                     { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
                                         <div>
                                             <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
                                             <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
                                         </div>
                                     }
-                                    {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
+                                </div>
+                                {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
                                     <Select
                                         placeholder=""
                                         className="appointmentselect"
@@ -746,8 +747,7 @@ function SmartRxPreview() {
                                         onSelect={handleLanguageSelect}
                                         options={LANGUAGE_LIST}
                                     />
-                                    )}
-                                </div>
+                                )}
                             </div>
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
 

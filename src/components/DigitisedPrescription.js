@@ -156,7 +156,7 @@ const DigitisedPrescription = ({
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
     if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
-      return existingContextData || [];
+      return [];
     }
 
     const typeToIdMap = {
@@ -233,38 +233,17 @@ const DigitisedPrescription = ({
         }
       }
       
-      const normalizedTitle = tagTitle.trim().toLowerCase();
-      const existingTagIndex = groupedByType[mappedType].tags.findIndex(
-        t => t.title?.trim().toLowerCase() === normalizedTitle
-      );
+      const tag = {
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
+        note: item.notes || '',
+        since: item.duration || '',
+        status: 'Active',
+        relationship: item.relation || ''
+      };
       
-      if (existingTagIndex !== -1) {
-        const existingTag = groupedByType[mappedType].tags[existingTagIndex];
-        if (tagEnable !== existingTag.enable) {
-          existingTag.enable = tagEnable;
-        }
-        if (item.notes && !existingTag.note) {
-          existingTag.note = item.notes;
-        }
-        if (item.duration && !existingTag.since) {
-          existingTag.since = item.duration;
-        }
-        if (item.relation) {
-          existingTag.relationship = item.relation;
-        }
-      } else {
-        const tag = {
-          tmmhst_id: Date.now() + Math.random(),
-          title: tagTitle,
-          enable: tagEnable,
-          note: item.notes || '',
-          since: item.duration || '',
-          status: 'Active',
-          relationship: item.relation || ''
-        };
-        
-        groupedByType[mappedType].tags.push(tag);
-      }
+      groupedByType[mappedType].tags.push(tag);
     });
 
     const medicalHistoryDataArray = Object.values(groupedByType);
@@ -294,87 +273,12 @@ const DigitisedPrescription = ({
       ? filteredAdditionalNotes.join('\n') 
       : null;
 
-    if (existingContextData && existingContextData.length > 0) {
-      const merged = existingContextData.map((existingSection, index) => {
-        const apiSection = groupedByType[existingSection.tmmhs_id];
-        if (apiSection) {
-          const existingTagsMap = new Map();
-          existingSection.tags.forEach(tag => {
-            const normalizedTitle = tag.title?.trim().toLowerCase();
-            if (normalizedTitle) {
-              existingTagsMap.set(normalizedTitle, tag);
-            }
-          });
-          const updatedTags = [...existingSection.tags];
-          apiSection.tags.forEach(newTag => {
-            const normalizedTitle = newTag.title?.trim().toLowerCase();
-            const existingTag = existingTagsMap.get(normalizedTitle);
-            
-            if (existingTag) {
-              const existingIndex = updatedTags.findIndex(
-                t => t.title?.trim().toLowerCase() === normalizedTitle
-              );
-              if (existingIndex !== -1) {
-                if (newTag.enable !== existingTag.enable) {
-                  updatedTags[existingIndex].enable = newTag.enable;
-                }
-                if (newTag.note && !updatedTags[existingIndex].note) {
-                  updatedTags[existingIndex].note = newTag.note;
-                }
-                if (newTag.since && !updatedTags[existingIndex].since) {
-                  updatedTags[existingIndex].since = newTag.since;
-                }
-                if (newTag.relationship && !updatedTags[existingIndex].relationship) {
-                  updatedTags[existingIndex].relationship = newTag.relationship;
-                }
-              }
-            } else {
-              updatedTags.push(newTag);
-            }
-          });
-          
-          const sectionToReturn = {
-            ...existingSection,
-            tags: updatedTags
-          };
-          
-          // Add medical_history_remarks to the first section if additional notes exist
-          if (index === 0 && medicalHistoryRemarks) {
-            sectionToReturn.medical_history_remarks = medicalHistoryRemarks;
-          }
-          
-          return sectionToReturn;
-        }
-        
-        const sectionToReturn = { ...existingSection };
-        
-        // Add medical_history_remarks to the first section if additional notes exist
-        if (index === 0 && medicalHistoryRemarks) {
-          sectionToReturn.medical_history_remarks = medicalHistoryRemarks;
-        }
-        
-        return sectionToReturn;
-      });
-
-      Object.values(groupedByType).forEach(apiSection => {
-        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
-          merged.push(apiSection);
-        }
-      });
-      
-      // Ensure medical_history_remarks is added to the first section if it doesn't exist
-      if (merged.length > 0 && medicalHistoryRemarks && !merged[0].medical_history_remarks) {
-        merged[0].medical_history_remarks = medicalHistoryRemarks;
-      }
-
-      return merged;
-    } else {
-      // Add medical_history_remarks to the first section if additional notes exist
-      if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
-        medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
-      }
-      return medicalHistoryDataArray;
+    // Add medical_history_remarks to the first section if additional notes exist
+    if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
+      medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
     }
+    
+    return medicalHistoryDataArray;
   }, []);
 
   const convertContextToRxPadFormat = useCallback((contextMedicalHistory) => {

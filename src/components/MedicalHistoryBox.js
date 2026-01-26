@@ -303,67 +303,22 @@ function MedicalHistoryBox(props) {
     }, []);
 
     useEffect(() => {
-      if (defaultList?.length > 0) {
+      if (medicalHistoryData && Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) {
         try {
-            const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
-            const data2 = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
-            
-            const mergedArray = data2?.length > 0 ? [
-            ...data1?.map(e => {
-                const matchingSection = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
-                if (!matchingSection) {
-                    return e;
-                }
-                const existingTagsById = new Map();
-                const existingTagsByTitle = new Map();
-                (e?.tags || []).forEach(tag => {
-                    if (tag?.tmmhst_id) {
-                        existingTagsById.set(tag.tmmhst_id, tag);
-                    }
-                    const normalizedTitle = tag?.title?.trim().toLowerCase();
-                    if (normalizedTitle) {
-                        existingTagsByTitle.set(normalizedTitle, tag);
-                    }
-                });
-                const mergedTags = [...(e?.tags || [])];
-                (matchingSection?.tags || []).forEach(newTag => {
-                    const existingById = newTag?.tmmhst_id && existingTagsById.get(newTag.tmmhst_id);
-                    if (existingById) {
-                        const index = mergedTags.findIndex(t => t?.tmmhst_id === newTag.tmmhst_id);
-                        if (index !== -1) {
-                            mergedTags[index] = { ...mergedTags[index], ...newTag };
-                        }
-                    } else {
-                        const normalizedTitle = newTag?.title?.trim().toLowerCase();
-                        const existingByTitle = normalizedTitle && existingTagsByTitle.get(normalizedTitle);
-                        if (!existingByTitle) {
-                            mergedTags.push(newTag);
-                        } else {
-                            const index = mergedTags.findIndex(
-                                t => t?.title?.trim().toLowerCase() === normalizedTitle
-                            );
-                            if (index !== -1) {
-                                mergedTags[index] = { ...mergedTags[index], ...newTag };
-                            }
-                        }
-                    }
-                });
-                
-                return {
-                    ...e,
-                    ...matchingSection,
-                    tags: mergedTags
-                };
-            })
-            ] : data1;
-
-            setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
+            setCloneMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistoryData)));
         } catch (error) {
-            console.error("Error merging medical history data:", error);
+            console.error("Error setting medical history data:", error);
             setCloneMedicalHistoryData([]);
         }
+      } else if (defaultList?.length > 0) {
+        try {
+            setCloneMedicalHistoryData(JSON.parse(JSON.stringify(defaultList)));
+        } catch (error) {
+            console.error("Error setting default medical history data:", error);
+            setCloneMedicalHistoryData([]);
         }
-    }, [defaultList]);
+      }
+    }, [medicalHistoryData, defaultList]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
