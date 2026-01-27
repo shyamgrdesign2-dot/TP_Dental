@@ -4,10 +4,8 @@ import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from "react-redux";
 import axios from 'axios';
-import { isChrome, isSafari, deviceDetect, browserName } from 'react-device-detect';
-import { useReactToPrint } from 'react-to-print';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { isChrome, isSafari, deviceDetect } from 'react-device-detect';
+import { useQrPrintDownloadHandlers } from '../../common/qrPrintDownloadHelper';
 
 import Homepage from '../../website/Homepage';
 import stopPublishing from '../../assets/images/stop-publishing.svg';
@@ -21,7 +19,6 @@ import { updateWebsitePublish } from "../../redux/doctorsSlice";
 import { errorMessage, handleCopy, validateEmail, trackEvent, getTokenData, sendMessageToParent } from '../../utils/utils';
 import CommonModal from '../../common/CommonModal';
 import QrPrintDownloadModal from '../../common/QrPrintDownloadModal';
-import { uploadDocsToAzure } from '../../pages/medicalRecords/service';
 import alertIcon from '../../assets/images/alertIcon.svg';
 import logoIcom from '../../assets/images/text-logo.svg';
 import ShareIcon from "../../assets/images/share.svg";
@@ -325,110 +322,10 @@ function HeaderDoctorWebsite() {
         setQRCodeVisible(!isQRCodeVisible);
     }, [isQRCodeVisible]);
 
-    const handlePrintWeb = useReactToPrint({
-        content: () => printRef.current,
-        pageStyle: `
-      @media print {
-        .opd-plans-inner-contianer {
-          font-size: 2.5rem;
-          padding: 40px;
-        }
-        .opd-title {
-          font-size: 3rem;
-        }
-        .opd-byline {
-          font-size: 2rem;
-        }
-        .opd-logo img {
-          height: 3rem;
-        }
-        .opd-qr-image {
-          width: 300px !important;
-          height: 300px !important;
-        }
-        .opd-scan-text {
-          font-size: 1.8rem;
-        }
-      }
-    `
+    const { handlePrint, handleDownload } = useQrPrintDownloadHandlers({
+        printRef,
+        fileName: 'Doctor-Website-URL',
     });
-
-    const handlePrintInApp = async () => {
-        const element = printRef.current;
-        const canvas = await html2canvas(element, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        const pdfBlob = pdf.output('blob');
-        
-        const file = new File([pdfBlob], `Doctor-Website-URL-${new Date().toISOString().split("T")[0]}.pdf`, {
-            type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        if (res?.length > 0) {
-            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-        }
-    };
-
-    const handlePrint = () => {
-        if (browserName == "Chrome WebView" || browserName == "WebKit") {
-            handlePrintInApp();
-        } else {
-            handlePrintWeb();
-        }
-    };
-
-    const handleDownloadWeb = async () => {
-        const element = printRef.current;
-        const canvas = await html2canvas(element, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save('Doctor-Website-URL.pdf');
-    };
-
-    const handleDownloadInApp = async () => {
-        const element = printRef.current;
-        const canvas = await html2canvas(element, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        const pdfBlob = pdf.output('blob');
-        
-        const file = new File([pdfBlob], `Doctor-Website-URL-${new Date().toISOString().split("T")[0]}.pdf`, {
-            type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        if (res?.length > 0) {
-            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-        }
-    };
-
-    const handleDownload = () => {
-        if (browserName == "Chrome WebView" || browserName == "WebKit") {
-            handleDownloadInApp();
-        } else {
-            handleDownloadWeb();
-        }
-    };
 
     const handleShowQRCode = () => {
         if (!publishUrl) {
