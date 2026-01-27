@@ -1080,6 +1080,10 @@ export const getRxTitle = (LanguageId, title) => {
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
+  // Safety check: ensure tmm_duration_type exists
+  if (!tmm_duration_type) {
+    return tmm_duration_type || "";
+  }
   var tmm_duration_type = tmm_duration_type.toLowerCase();
 
   const langTranslations = {
@@ -1239,10 +1243,15 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     },
   };
 
-  return (
-    langTranslations[parseInt(LanguageId)][tmm_duration_type] ||
-    tmm_duration_type
-  );
+  // Safety check: ensure LanguageId is valid and exists in langTranslations
+  const languageId = parseInt(LanguageId);
+  const languageTranslations = langTranslations[languageId];
+
+  if (!languageTranslations || !languageTranslations[tmm_duration_type]) {
+    return tmm_duration_type;
+  }
+
+  return languageTranslations[tmm_duration_type];
 };
 
 export const getTimeingTitle = (LanguageId) => {
