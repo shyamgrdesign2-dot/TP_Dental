@@ -811,16 +811,13 @@ function SnapRxPreview() {
                     )}
                 </div>
                 {(state?.page === "digitise" || (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
-                  <>
-                    <label className="fontroboto">Select Language</label>
-                    <Select
-                      placeholder="English"
-                      className="ms-3 appointmentselect"
-                      value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
-                      onSelect={onSelect}
-                      options={LANGUAGE_LIST}
-                    />
-                  </>
+                  <Select
+                    placeholder="English"
+                    className="ms-3 appointmentselect"
+                    value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
+                    onSelect={onSelect}
+                    options={LANGUAGE_LIST}
+                  />
                 )}
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
