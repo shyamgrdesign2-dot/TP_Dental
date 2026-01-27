@@ -247,7 +247,11 @@ function MobileVoiceRxConsult() {
         </div>
       )}
 
-      <div className="mobile-voice-rx-content" ref={contentRef} onScroll={handleScroll}>
+      <div 
+        className={`mobile-voice-rx-content ${patient_data ? 'has-patient-badge' : ''}`} 
+        ref={contentRef} 
+        onScroll={handleScroll}
+      >
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             {/* <i className="icon-ddx" /> */}

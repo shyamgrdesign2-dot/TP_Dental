@@ -181,7 +181,11 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
         </div>
       )}
 
-      <div className="mobile-voice-recording-content" ref={contentRef} onScroll={handleScroll}>
+      <div 
+        className={`mobile-voice-recording-content ${patient_data ? 'has-patient-badge' : ''}`} 
+        ref={contentRef} 
+        onScroll={handleScroll}
+      >
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             <img src={imageBackground} alt="AI" className="ai-icon" />

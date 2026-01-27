@@ -114,6 +114,10 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 200px;
+
+  &.has-patient-badge {
+    padding-top: 52px; // Account for header (56px) + patient badge height (36px)
+  }
 }
 
 .patient-info-badge {

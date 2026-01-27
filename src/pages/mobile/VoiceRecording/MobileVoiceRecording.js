@@ -485,7 +485,9 @@ function MobileVoiceRecording() {
         </div>
       )}
 
-      <div className="mobile-voice-recording-content" ref={contentRef} onScroll={handleScroll}>
+      <div 
+        className={`mobile-voice-recording-content ${patient_data && Object.keys(patient_data).length > 0 ? 'has-patient-badge' : ''}`} 
+        ref={contentRef} onScroll={handleScroll}>
         <div className="welcome-message-card">
           <div className="ai-icon-wrapper">
             <img src={imageBackground} alt="AI" className="ai-icon" />
