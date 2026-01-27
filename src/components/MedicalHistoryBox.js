@@ -303,22 +303,34 @@ function MedicalHistoryBox(props) {
     }, []);
 
     useEffect(() => {
-      if (medicalHistoryData && Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) {
+      if (defaultList?.length > 0) {
         try {
-            setCloneMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistoryData)));
+            const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
+            const data2 = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
+            
+            const mergedArray = data2?.length > 0 ? [
+            ...data1?.map(e => ({
+                ...e,
+                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id) || {}),
+                tags: [
+                ...(e?.tags || [])?.map(tag => ({
+                    ...tag,
+                    ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                })),
+                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags || [])?.filter(item2 => 
+                    !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                )
+                ],
+            }))
+            ] : data1;
+
+            setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
         } catch (error) {
-            console.error("Error setting medical history data:", error);
+            console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
         }
-      } else if (defaultList?.length > 0) {
-        try {
-            setCloneMedicalHistoryData(JSON.parse(JSON.stringify(defaultList)));
-        } catch (error) {
-            console.error("Error setting default medical history data:", error);
-            setCloneMedicalHistoryData([]);
         }
-      }
-    }, [medicalHistoryData, defaultList]);
+    }, [defaultList]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
@@ -554,20 +566,12 @@ function MedicalHistoryBox(props) {
     }, [searchQuery]);
 
     const onSelectParent = useCallback((e) => {
-        // Check if tag with same title already exists to prevent duplicates
-        const normalizedTitle = e?.title?.trim().toLowerCase();
-        const existingTag = addEditData.tags.find(
-            tag => tag.title?.trim().toLowerCase() === normalizedTitle
-        );
-        
-        if (!existingTag) {
-            addEditData.tags.push({
-                ...e
-            });
-            setAddEditData((prev) => {
-                return { ...prev };
-            })
-        }
+        addEditData.tags.push({
+            ...e
+        });
+        setAddEditData((prev) => {
+            return { ...prev };
+        })
         setSearchQuery("")
     }, [addEditData]);
 

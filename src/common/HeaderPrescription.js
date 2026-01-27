@@ -48,6 +48,7 @@ import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { setSelectAutofill } from '../redux/ddxSlice';
 
 var oneClickCosultationTemplateId = 0
@@ -1006,6 +1007,61 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
+            // For normal Rx / voice flows (non-ambient), merge newly added medical history
+            // with the patient's existing history from backend before saving.
+            let mergedMedicalHistory = medicalHistoryData || [];
+            if (patient_data?.patient_unique_id) {
+                try {
+                    const existingResp = await ApiMedicalHistory.getPatientLastHistory({
+                        patient_unique_id: patient_data.patient_unique_id,
+                    });
+                    if (existingResp?.status && Array.isArray(existingResp.data)) {
+                        const existingHistory = existingResp.data;
+                        if (Array.isArray(mergedMedicalHistory) && mergedMedicalHistory.length > 0) {
+                            const bySection = {};
+                            const addSection = (section, isExisting = false) => {
+                                const key = section?.tmmhs_id || section?.title || "";
+                                if (!bySection[key]) {
+                                    bySection[key] = {
+                                        ...section,
+                                        tags: Array.isArray(section?.tags) ? [...section.tags] : [],
+                                    };
+                                    return;
+                                }
+                                const current = bySection[key];
+                                const currentTags = Array.isArray(current.tags) ? current.tags : [];
+                                const seenTitles = new Set(
+                                    currentTags
+                                        .map((t) => (t?.title || "").toLowerCase().trim())
+                                        .filter(Boolean)
+                                );
+                                const incomingTags = Array.isArray(section?.tags) ? section.tags : [];
+                                incomingTags.forEach((tag) => {
+                                    const titleKey = (tag?.title || "").toLowerCase().trim();
+                                    if (!titleKey || !seenTitles.has(titleKey)) {
+                                        currentTags.push(tag);
+                                        if (titleKey) {
+                                            seenTitles.add(titleKey);
+                                        }
+                                    }
+                                });
+                                current.tags = currentTags;
+                                if (isExisting && typeof section?.no_know_history === "boolean") {
+                                    current.no_know_history = section.no_know_history;
+                                }
+                            };
+                            existingHistory.forEach((s) => addSection(s, true));
+                            mergedMedicalHistory.forEach((s) => addSection(s, false));
+                            mergedMedicalHistory = Object.values(bySection);
+                        } else {
+                            mergedMedicalHistory = existingHistory;
+                        }
+                    }
+                } catch (e) {
+                    // If merge fails, fall back to using only the current visit's history.
+                }
+            }
+
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1022,7 +1078,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 vitals: vitalsData,
                 follow_up_date: followUpDate,
                 visit_advice: additionalNote,
-                medical_history: medicalHistoryData,
+                medical_history: mergedMedicalHistory,
                 private_notes_id: privateNotesData?.id !== undefined ? privateNotesData?.id : 0,
                 consultation_start_datetime: startTime,
                 oneclick_cosultation_template_id: oneClickCosultationTemplateId,

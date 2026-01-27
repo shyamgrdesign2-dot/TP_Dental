@@ -173,42 +173,10 @@ const DigitisedPrescription = ({
     };
 
     const groupedByType = {};
-    const additionalNotesItems = [];
     
     apiMedicalHistory.forEach(item => {
       const type = item.type || 'Lifestyle';
       const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
-      if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
-        // Collect additional notes items - prefer lineItem which contains the full formatted text
-        // lineItem format: "Dolo (Notes: took last night for the headache he had)"
-        // or just the name if no notes: "Dolo"
-        let noteText = '';
-        if (item.lineItem && item.lineItem.trim()) {
-          // Use lineItem which contains the full formatted text
-          noteText = item.lineItem.trim();
-        } else if (item.notes && item.notes.trim()) {
-          // If lineItem is not available, combine name and notes
-          const namePart = item.name ? `${item.name}` : '';
-          const notesPart = item.notes ? ` (Notes: ${item.notes})` : '';
-          noteText = namePart + notesPart;
-        } else if (item.name && item.name.trim()) {
-          // Fallback to just name
-          noteText = item.name.trim();
-        }
-        
-        // Filter out "others" - don't include items where the text is just "others" or starts with "others,"
-        // Also clean any "others," prefix from the text
-        let trimmedNote = noteText.trim();
-        
-        // Remove "others," or "others " prefix if present (case insensitive)
-        trimmedNote = trimmedNote.replace(/^others[, ]+/i, '').trim();
-        
-        // Only add if it's not empty and not just "others"
-        if (trimmedNote && trimmedNote.toLowerCase() !== 'others') {
-          additionalNotesItems.push(trimmedNote);
-        }
-        return; 
-      }
       const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
       const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
                          type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
@@ -247,37 +215,6 @@ const DigitisedPrescription = ({
     });
 
     const medicalHistoryDataArray = Object.values(groupedByType);
-    
-    // Combine additional notes into medical_history_remarks
-    // Join with newlines to preserve readability
-    // Filter out any remaining "others" text that might have been included
-    const filteredAdditionalNotes = additionalNotesItems
-      .map(item => {
-        // Clean the item - remove "others," prefix if present
-        let cleaned = item.trim();
-        // Remove "others," or "others " at the start (case insensitive)
-        cleaned = cleaned.replace(/^others[, ]+/i, '').trim();
-        // Remove ", others" or ",others" in the middle or at the end
-        cleaned = cleaned.replace(/[, ]+others[, ]*/gi, ',').trim();
-        // Remove leading/trailing commas and clean up
-        cleaned = cleaned.replace(/^[, ]+|[, ]+$/g, '').trim();
-        // Remove standalone "others" word
-        if (cleaned.toLowerCase() === 'others') {
-          return null;
-        }
-        return cleaned;
-      })
-      .filter(item => item && item.length > 0);
-    
-    const medicalHistoryRemarks = filteredAdditionalNotes.length > 0 
-      ? filteredAdditionalNotes.join('\n') 
-      : null;
-
-    // Add medical_history_remarks to the first section if additional notes exist
-    if (medicalHistoryDataArray.length > 0 && medicalHistoryRemarks) {
-      medicalHistoryDataArray[0].medical_history_remarks = medicalHistoryRemarks;
-    }
-    
     return medicalHistoryDataArray;
   }, []);
 
@@ -295,14 +232,8 @@ const DigitisedPrescription = ({
     };
 
     const rxPadArray = [];
-    let medicalHistoryRemarks = null;
     
-    contextMedicalHistory.forEach((section, index) => {
-      // Extract medical_history_remarks from the first section
-      if (index === 0 && section.medical_history_remarks) {
-        medicalHistoryRemarks = section.medical_history_remarks;
-      }
-      
+    contextMedicalHistory.forEach((section) => {
       if (section.no_know_history || !section.tags || section.tags.length === 0) {
         return;
       }
@@ -336,26 +267,6 @@ const DigitisedPrescription = ({
         }
       });
     });
-    
-    // Add medical_history_remarks as "others" type items in Rx pad
-    // Split by newlines first, then by semicolons as fallback
-    if (medicalHistoryRemarks) {
-      const remarksParts = medicalHistoryRemarks
-        .split('\n')
-        .map(part => part.trim())
-        .filter(part => part)
-        .flatMap(part => part.includes(';') ? part.split(';').map(p => p.trim()).filter(p => p) : [part]);
-      
-      remarksParts.forEach(remark => {
-        rxPadArray.push({
-          type: 'others',
-          name: remark,
-          enable: 'Y',
-          lineItem: remark,
-          notes: remark
-        });
-      });
-    }
 
     return rxPadArray;
   }, []);

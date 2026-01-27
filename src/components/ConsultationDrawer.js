@@ -94,6 +94,7 @@ import tagNew from "../assets/images/new-gif.gif";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import ApiVitals from "../api/services/ApiVitals";
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { addPatientLabReports } from "../api/services/ApiLabParams";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -3489,6 +3490,66 @@ const ConsultationDrawer = ({
             : []
         };
       });
+    }
+
+    // For non-ambient flows (voice, snap, smart), merge new medical history
+    // with the patient's existing medical history from backend.
+    if (!isAmbientRx && patient_data?.patient_unique_id) {
+      try {
+        const existingResp = await ApiMedicalHistory.getPatientLastHistory({
+          patient_unique_id: patient_data.patient_unique_id,
+        });
+        if (existingResp?.status && Array.isArray(existingResp.data)) {
+          const existingHistory = existingResp.data;
+          if (formattedMedicalHistory.length > 0) {
+            const mergedBySection = {};
+
+            const addSection = (section, isExisting = false) => {
+              const key = section?.tmmhs_id || section?.title || "";
+              if (!mergedBySection[key]) {
+                mergedBySection[key] = {
+                  ...section,
+                  tags: Array.isArray(section?.tags) ? [...section.tags] : [],
+                };
+                return;
+              }
+              // Merge tags by title; new tags from formattedMedicalHistory
+              // should be added if they don't already exist.
+              const current = mergedBySection[key];
+              const currentTags = Array.isArray(current.tags) ? current.tags : [];
+              const seenTitles = new Set(
+                currentTags
+                  .map((t) => (t?.title || "").toLowerCase().trim())
+                  .filter(Boolean)
+              );
+              const incomingTags = Array.isArray(section?.tags) ? section.tags : [];
+              incomingTags.forEach((tag) => {
+                const titleKey = (tag?.title || "").toLowerCase().trim();
+                if (!titleKey || !seenTitles.has(titleKey)) {
+                  currentTags.push(tag);
+                  if (titleKey) {
+                    seenTitles.add(titleKey);
+                  }
+                }
+              });
+              current.tags = currentTags;
+
+              // Prefer explicit no_know_history flag from existing data if present.
+              if (isExisting && typeof section?.no_know_history === "boolean") {
+                current.no_know_history = section.no_know_history;
+              }
+            };
+
+            existingHistory.forEach((section) => addSection(section, true));
+            formattedMedicalHistory.forEach((section) => addSection(section, false));
+            formattedMedicalHistory = Object.values(mergedBySection);
+          } else {
+            formattedMedicalHistory = existingHistory;
+          }
+        }
+      } catch (e) {
+        // If merge fails, fall back to using only the current visit's history.
+      }
     }
     
     let vitalsForCase = [];
