@@ -136,11 +136,12 @@ function ConfigurePrintSetting() {
 
     useEffect(() => {
         const makeData = async () => {
-            const publishUrl = profile?.publish_url ;
-            const qrCodeUrl = appointmentLinkShared || publishUrl || `${config.doctor_website_url}${parseInt(defaultPrintSettings?.um_contact, 10).toString(36)}_${defaultPrintSettings?.hm_refer_code}`;
+            const publishUrl = profile?.website_publish ? profile?.publish_url : null ;
+            const qrCodeUrl = publishUrl || appointmentLinkShared ;
+            const qrCode = qrCodeUrl ? await QRCode.toDataURL(qrCodeUrl) : null;
             const copyPrintSettings = JSON.parse(JSON.stringify({
                 ...defaultPrintSettings,
-                qrcode: await QRCode.toDataURL(qrCodeUrl)
+                qrcode: qrCode  
             }))
             
             // Add Case Option ID 18 for Zydus Lab Results if it doesn't exist and we have Zydus data
