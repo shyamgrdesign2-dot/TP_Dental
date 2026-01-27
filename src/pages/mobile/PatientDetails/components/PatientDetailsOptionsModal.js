@@ -77,8 +77,8 @@ function PatientDetailsOptionsModal({
             <div className="patient-details-option-divider" />
           </div>
 
-          {/* Option 3: Book Appointment */}
-          <div className="patient-details-option-item" onClick={() => handleAction('book-appointment')}>
+          {/* Option 3: Book Appointment - Temporarily commented out - will be implemented in next phase */}
+          {/* <div className="patient-details-option-item" onClick={() => handleAction('book-appointment')}>
             <div className="patient-details-option-content">
               <div className="patient-details-option-icon-wrapper">
                 <img src={calendarIcon} alt="Book Appointment" className="patient-details-option-icon" />
@@ -87,7 +87,7 @@ function PatientDetailsOptionsModal({
                 <span>Book Appointment</span>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </Drawer>

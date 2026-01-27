@@ -52,7 +52,8 @@ function WalkInConsultationModal({
         </div>
 
         <div className="modal-actions">
-          <button
+          {/* Temporarily commented out - will be implemented in next phase */}
+          {/* <button
             className="btn-outline btn-add-appointment"
             onClick={handleAddAppointmentClick}
             type="button"
@@ -60,7 +61,7 @@ function WalkInConsultationModal({
           >
             <i className="icon-Add" aria-hidden="true" />
             Add an Appointment
-          </button>
+          </button> */}
           <button
             className="btn-primary btn-walk-in"
             onClick={handleWalkInClick}

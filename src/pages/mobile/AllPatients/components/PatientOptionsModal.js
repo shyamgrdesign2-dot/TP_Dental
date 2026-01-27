@@ -82,7 +82,8 @@ function PatientOptionsModal({
               </div>
               <span>Start Walk-in Consultation</span>
             </button>
-            <div className="option-divider" />
+            {/* Temporarily commented out - will be implemented in next phase */}
+            {/* <div className="option-divider" />
             <button 
               className="option-item"
               onClick={() => handleOptionClick('appointment')}
@@ -91,7 +92,7 @@ function PatientOptionsModal({
                 <img src={CalendarIcon} alt="Calendar" />
               </div>
               <span>Book Appointment</span>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
