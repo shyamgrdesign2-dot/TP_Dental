@@ -90,6 +90,8 @@ function SmartRxPreview() {
 
     const [printUrl, setPrintUrl] = useState(initialUrl);
     const [previewUrl, setPreviewUrl] = useState(initialUrl);
+    // When returning from Configure Print with "No, Apply on This Rx Only", use this blob so vitals/obs/medical/smart rx edits are reflected
+    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx ?? null);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
@@ -466,6 +468,15 @@ function SmartRxPreview() {
         setPreviewUrl(updatedUrl);
     }, [basePrintUrl, selectedLang, showDigitalRx]);
 
+    // Sync currentSessionRx from location state when returning from Configure Print with "No, Apply on This Rx Only"
+    useEffect(() => {
+        if (state?.from === "/configure_print_setting" && state?.currentSessionRx != null) {
+            setCurrentSessionRx(state.currentSessionRx);
+        } else if (state?.from === "/configure_print_setting" && state?.currentSessionRx == null) {
+            setCurrentSessionRx(null);
+        }
+    }, [state?.from, state?.currentSessionRx]);
+
     const handleLanguageSelect = useCallback((language) => {
         setSelectedLang(language);
         if (patient_data?.patient_unique_id) {
@@ -757,7 +768,7 @@ function SmartRxPreview() {
                                         loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                         error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                         noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={!showDigitalRx ? printUrl : previewUrl }
+                                        file={!showDigitalRx ? (currentSessionRx || printUrl) : previewUrl }
                                         onLoadSuccess={onDocumentLoadSuccess}>
                                         {Array.apply(null, Array(numPages))
                                             .map((x, i) => i + 1)

@@ -777,13 +777,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const hasAnyData = (caseManagerData) => {
         return (
-            // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, filteredLabParamsPatchData, transformGivenVaccines, growthChartData) ||
-            // (zydusLabData?.data?.length > 0) ||
-            
-            // Check smart sync data
-            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0))
-            
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, filteredLabParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
+            (isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" && smartRxData?.length > 0))
         );
     };
 
