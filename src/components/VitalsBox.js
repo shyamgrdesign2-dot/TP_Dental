@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useContext, useMemo, useRef, useImperativeHandle, forwardRef } from "react";
 import { Button, Card, DatePicker, Input, Tooltip } from 'antd';
 import dayjs from "dayjs";
 
@@ -21,12 +21,12 @@ import { useAccess } from "../pages/vaccination/useAccess";
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
 
-function VitalsBox(props) {
+const VitalsBox = forwardRef((props, ref) => {
 
     const scrollContainerRef = useRef(null);
     const inputRef = useRef([]);
 
-    const { handleDrawerVital, handleCollapsed } = props
+    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, onVitalsUpdate, hideHeaderButton = false, hideHeaderElements = false, onVitalsDataChange } = props
 
     const {
       selectedVitalsList,
@@ -272,6 +272,19 @@ function VitalsBox(props) {
         }
     }
 
+    // Expose functions to parent via ref
+    useImperativeHandle(ref, () => ({
+        onAddUpdateClicked,
+        hasVitalsData: childVitalsData.length > 0
+    }), [childVitalsData.length]);
+
+    // Notify parent when vitals data changes
+    useEffect(() => {
+        if (onVitalsDataChange) {
+            onVitalsDataChange(childVitalsData.length > 0);
+        }
+    }, [childVitalsData.length, onVitalsDataChange]);
+
     const TABLE_VITALS = useMemo(() => {
         return (
             childVitalsData.length > 0 &&
@@ -348,24 +361,28 @@ function VitalsBox(props) {
 
     return (
         <>
-            <Card bordered={false} className="search-modalCard ">
-                <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
-                    style={{
-                        position: "sticky",
-                        top: "0px",
-                        zIndex: 2,
-                    }}>
-                    <div className='align-items-center d-flex'>
-                        <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleDrawerVital}>
-                            <i className='icon-Cross fs-3'></i>
-                        </Button>
-                        <div className="modal-title">Vitals</div>
+            <Card bordered={false} className="search-modalCard " style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {!hideHeaderElements && (
+                    <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
+                        style={{
+                            position: "sticky",
+                            top: "0px",
+                            zIndex: 2,
+                        }}>
+                        <div className='align-items-center d-flex'>
+                            <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleDrawerVital}>
+                                <i className='icon-Cross fs-3'></i>
+                            </Button>
+                            <div className="modal-title">Vitals</div>
+                        </div>
+                        {!hideHeaderButton && (
+                            <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={loading} disabled={childVitalsData.length > 0 ? false : true}>
+                                Done
+                            </Button>
+                        )}
                     </div>
-                    <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={loading} disabled={childVitalsData.length > 0 ? false : true}>
-                        Done
-                    </Button>
-                </div>
-                <div className="align-items-center d-flex justify-content-between px-20 py-3">
+                )}
+                <div className="align-items-center d-flex justify-content-between px-20 py-3" style={{ position: "sticky", top: hideHeaderElements ? "0px" : "60px", zIndex: 1, backgroundColor: "#fff" }}>
                     {(profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0 ? (
                         <div className="vitals-wrapper">
                             <div className='vitals-row d-flex align-items-center px-2'>
@@ -388,7 +405,13 @@ function VitalsBox(props) {
                         </div> */}
                 </div>
                 {childVitalsData.length > 0 && (
-                    <div className='px-20'>
+                    <div className='px-20' style={{ 
+                        overflowY: 'auto', 
+                        maxHeight: hideHeaderElements ? 'calc(100vh - 120px)' : 'calc(100vh - 180px)', 
+                        flex: 1,
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#c1c1c1 #f1f1f1'
+                    }}>
                         <div className='vitals-wrapper w-100'>
                             <div className='vitals-wrap-body vitals-parent-width'>
                                 <div className='vitals-head'>Name</div>
@@ -469,7 +492,8 @@ function VitalsBox(props) {
             </Card>
         </>
     );
-}
+});
 
+VitalsBox.displayName = 'VitalsBox';
 
 export default React.memo(VitalsBox);

@@ -51,10 +51,30 @@ import MobileObstetricHistoryEdit from './MobileObstetricHistoryEdit';
 import { fetchObstetricDetails } from '../../pages/obstetric/service';
 import './MobileRxPadContent.scss';
 
+// Inline vitals enrichment (BMI, BMR, BSA) – matches ConsultationDrawer / VitalsBox
+function enrichVitalsWithCalculations(vital, patientInfo = {}) {
+  const out = { ...vital };
+  const height = parseFloat(vital.height || vital.Height || '');
+  const weight = parseFloat(vital.weight || vital.Weight || '');
+  if (height > 0 && weight > 0) {
+    const calBMI = (weight / height / height) * 10000;
+    out.bmi = Number.isFinite(calBMI) ? String(calBMI.toFixed(2)) : (out.bmi || out.BMI || '');
+    const age = patientInfo.age || 0;
+    const isMale = patientInfo.gender === 'Male';
+    if (age > 0) {
+      const calBMR = isMale ? 10 * weight + 6.25 * height - 5 * age + 5 : 10 * weight + 6.25 * height - 5 * age - 161;
+      out.bmr = Number.isFinite(calBMR) ? String(calBMR.toFixed(2)) : (out.bmr || out.BMR || '');
+    }
+    const calBSA = Math.sqrt((height * weight) / 3600);
+    out.bsa = Number.isFinite(calBSA) ? String(calBSA.toFixed(2)) : (out.bsa || out.BSA || '');
+  }
+  return out;
+}
+
 const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, patient_data, caseManagerData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData } = useContext(CashManagerContext) || {};
+  const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData, setVitalsData } = useContext(CashManagerContext) || {};
   const { parentOptionsList = [] } = useSelector((state) => state.investigation);
   const { parentOptionsList: medicationParentList = [] } = useSelector((state) => state.medication);
   const { obstetricDetails: allObstetricDetails, isObstetricDetailsFetched } = useSelector((state) => state.obstetric);
@@ -1094,11 +1114,65 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     ));
   };
 
+  // Sync vitals to context (match web version behavior)
+  const syncVitalsToContext = useCallback((vitalsObject) => {
+    if (vitalsObject && typeof vitalsObject === 'object' && Object.keys(vitalsObject).length > 0 && setVitalsData) {
+      const vitalsData = vitalsObject;
+      let systolic = vitalsData.Systolic || '';
+      let diastolic = vitalsData.Diastolic || '';
+      let blood_press = vitalsData.bloodPressure || '';
+      
+      if (blood_press && !systolic && !diastolic) {
+        const bpParts = String(blood_press).split('/');
+        if (bpParts.length === 2) {
+          systolic = bpParts[0].trim();
+          diastolic = bpParts[1].trim();
+        }
+      } else if (!blood_press && systolic && diastolic) {
+        blood_press = `${systolic}/${diastolic}`;
+      }
+      if (!systolic || !diastolic) {
+        blood_press = '';
+      }
+      
+      const vitalsArray = [{
+        date: vitalsData.date || moment().format('YYYY-MM-DD'),
+        temp: String(vitalsData.temperature || '').trim(),
+        pres: String(vitalsData.pulse || '').trim(),
+        resp_rate: String(vitalsData.respRate || '').trim(),
+        systolic: String(systolic).trim(),
+        diastolic: String(diastolic).trim(),
+        blood_press: String(blood_press).trim(),
+        spo2: String(vitalsData.spo2 || '').trim(),
+        height: String(vitalsData.height || '').trim(),
+        weight: String(vitalsData.weight || '').trim(),
+        ofc: String(vitalsData.ofc || vitalsData.OFC || '').trim(),
+        sugar: String(vitalsData.sugar || '').trim(),
+        general_rbs: String(vitalsData['General RBS'] || vitalsData.general_rbs || '').trim(),
+        fib4: String(vitalsData.FIB4 || vitalsData.fib4 || '').trim(),
+        waist_circumference: String(vitalsData['Waist Circumference'] || vitalsData.waist_circumference || '').trim(),
+        bmi: String(vitalsData.BMI || vitalsData.bmi || '').trim(),
+        bmr: String(vitalsData.BMR || vitalsData.bmr || '').trim(),
+        bsa: String(vitalsData.BSA || vitalsData.bsa || '').trim()
+      }];
+      setVitalsData(vitalsArray);
+    }
+  }, [setVitalsData]);
+
   // Update handlers for Rich Text Editor sections
-  const handleVitalsUpdate = (vitals) => {
-    const updatedData = { ...prescriptionData, vitalsAndBodyComposition: vitals };
+  const handleVitalsUpdate = useCallback((vitals) => {
+    // Enrich vitals with BMI, BMR, BSA calculations (match web version)
+    const patientInfo = patient_data ? {
+      age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
+      gender: patient_data.pm_gender || patient_data.gender
+    } : {};
+    const enrichedVitals = enrichVitalsWithCalculations(vitals, patientInfo);
+    
+    const updatedData = { ...prescriptionData, vitalsAndBodyComposition: enrichedVitals };
     onUpdate(updatedData);
-  };
+    // Sync to context (match web version)
+    syncVitalsToContext(enrichedVitals);
+  }, [prescriptionData, onUpdate, syncVitalsToContext, patient_data]);
 
   const handleMedicalHistoryUpdate = (medicalHistory) => {
     const updatedData = { ...prescriptionData, medicalHistory };
@@ -1156,19 +1230,36 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     onUpdate(updatedData);
   };
 
+  // Enrich vitals with BMI, BMR, BSA calculations (match web version)
+  const enrichedVitals = useMemo(() => {
+    const vitals = prescriptionData?.vitalsAndBodyComposition || {};
+    if (!vitals || Object.keys(vitals).length === 0) return {};
+    
+    const patientInfo = patient_data ? {
+      age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
+      gender: patient_data.pm_gender || patient_data.gender
+    } : {};
+    
+    return enrichVitalsWithCalculations(vitals, patientInfo);
+  }, [prescriptionData?.vitalsAndBodyComposition, patient_data]);
+
+  // Sync vitals from Rx pad to context when data changes (match web version)
+  useEffect(() => {
+    if (prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0 && setVitalsData) {
+      syncVitalsToContext(prescriptionData.vitalsAndBodyComposition);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prescriptionData?.vitalsAndBodyComposition]);
+
   return (
     <div className="mobile-rx-pad-content-wrapper">
       {/* Rich Text Editor Sections */}
-      {(prescriptionData?.vitalsAndBodyComposition && 
-        Object.values(prescriptionData.vitalsAndBodyComposition).some(value => 
-          value !== undefined && value !== null && value !== ''
-        )) && (
-        <VitalsRichTextEditor
-          vitalsAndBodyComposition={prescriptionData?.vitalsAndBodyComposition || {}}
-          onUpdate={handleVitalsUpdate}
-          isProcessing={isProcessing}
-        />
-      )}
+      {/* Vitals section always visible so user can add vitals when starting empty */}
+      <VitalsRichTextEditor
+        vitalsAndBodyComposition={enrichedVitals}
+        onUpdate={handleVitalsUpdate}
+        isProcessing={isProcessing}
+      />
 
       {(() => {
         // Show medical history if either Rx pad has it OR context has it (for repeat/edit Rx)

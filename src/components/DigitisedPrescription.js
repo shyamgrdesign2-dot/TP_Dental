@@ -88,6 +88,26 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
+// Inline vitals enrichment (BMI, BMR, BSA) – matches ConsultationDrawer / VitalsBox
+function enrichVitalsWithCalculations(vital, patientInfo = {}) {
+  const out = { ...vital };
+  const height = parseFloat(vital.height || vital.Height || '');
+  const weight = parseFloat(vital.weight || vital.Weight || '');
+  if (height > 0 && weight > 0) {
+    const calBMI = (weight / height / height) * 10000;
+    out.bmi = Number.isFinite(calBMI) ? String(calBMI.toFixed(2)) : (out.bmi || out.BMI || '');
+    const age = patientInfo.age || 0;
+    const isMale = patientInfo.gender === 'Male';
+    if (age > 0) {
+      const calBMR = isMale ? 10 * weight + 6.25 * height - 5 * age + 5 : 10 * weight + 6.25 * height - 5 * age - 161;
+      out.bmr = Number.isFinite(calBMR) ? String(calBMR.toFixed(2)) : (out.bmr || out.BMR || '');
+    }
+    const calBSA = Math.sqrt((height * weight) / 3600);
+    out.bsa = Number.isFinite(calBSA) ? String(calBSA.toFixed(2)) : (out.bsa || out.BSA || '');
+  }
+  return out;
+}
+
 const DigitisedPrescription = ({
   data,
   setData,
@@ -622,18 +642,25 @@ const DigitisedPrescription = ({
     const baseUpdater = (vitalsObject) => {
       if (!setData) return;
       
+      // Enrich vitals with BMI, BMR, BSA calculations
+      const patientInfo = context?.patient_data ? {
+        age: context.patient_data.ageYears || context.patient_data.age || context.patient_data.pm_age,
+        gender: context.patient_data.pm_gender || context.patient_data.gender
+      } : {};
+      const enrichedVitals = enrichVitalsWithCalculations(vitalsObject || {}, patientInfo);
+      
       const shouldPreserve = sectionsStore.current && sectionsStore.current.has('vitalsAndBodyComposition');
       setData((prev = {}) => {
         const updatedData = { ...prev };
         if (shouldPreserve) {
-          updatedData.vitalsAndBodyComposition = vitalsObject && typeof vitalsObject === 'object' ? vitalsObject : {};
+          updatedData.vitalsAndBodyComposition = enrichedVitals && typeof enrichedVitals === 'object' ? enrichedVitals : {};
         } else {
-          updatedData.vitalsAndBodyComposition = vitalsObject || {};
+          updatedData.vitalsAndBodyComposition = enrichedVitals || {};
         }
         return updatedData;
       });
       
-      syncVitalsToContext(vitalsObject);
+      syncVitalsToContext(enrichedVitals);
       if (typeof onRxEdited === "function") {
         onRxEdited(true);
       }
@@ -646,7 +673,7 @@ const DigitisedPrescription = ({
       };
     }
     return baseUpdater;
-  }, [onVitalsUpdate, setData, sectionsStore, syncVitalsToContext, onRxEdited]);
+  }, [onVitalsUpdate, setData, sectionsStore, syncVitalsToContext, onRxEdited, context?.patient_data]);
 
   const medicalHistoryUpdater = useMemo(() => {
     const baseUpdater = (medicalHistoryArray) => {
@@ -914,6 +941,94 @@ const DigitisedPrescription = ({
     setSearchParentQuery((query || "").trimStart());
   };
 
+  const adviceUpdater = useMemo(() => {
+    const baseUpdater = (adviceArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('advice');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.advice = Array.isArray(adviceArray) ? adviceArray : [];
+        } else {
+          updatedData.advice = adviceArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    return baseUpdater;
+  }, [setData, sectionsStore, onRxEdited]);
+
+  const vaccinationsUpdater = useMemo(() => {
+    const baseUpdater = (vaccinationsArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('vaccinations');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.vaccinations = Array.isArray(vaccinationsArray) ? vaccinationsArray : [];
+        } else {
+          updatedData.vaccinations = vaccinationsArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    return baseUpdater;
+  }, [setData, sectionsStore, onRxEdited]);
+
+  const followUpUpdater = useMemo(() => {
+    const baseUpdater = (followUpText) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('followUp');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.followUp = typeof followUpText === 'string' ? followUpText : '';
+        } else {
+          updatedData.followUp = followUpText || '';
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    return baseUpdater;
+  }, [setData, sectionsStore, onRxEdited]);
+
+  const othersUpdater = useMemo(() => {
+    const baseUpdater = (othersArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('others');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.others = Array.isArray(othersArray) ? othersArray : [];
+        } else {
+          updatedData.others = othersArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    return baseUpdater;
+  }, [setData, sectionsStore, onRxEdited]);
+
   const onSearchTest = (query) => {
     setSearchTestQuery((query || "").trimStart());
   };
@@ -951,7 +1066,6 @@ const DigitisedPrescription = ({
         }
         return updated;
       });
-      // Persist and exit edit mode so selection reflects immediately in UI
       editingRef.current = false;
       setTimeout(() => {
         handleInputBlur(activeType, activeIndex);
