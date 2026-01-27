@@ -1,23 +1,61 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { Button } from "react-bootstrap";
 import AdharImg from "../../../assets/images/adhar.png";
 import AbhaNavigationCard from "../common/AbhaNavigationCard";
 import LinkMobileIcon from "../../../assets/images/link-mobile-icon.svg";
 import GlobalIcon from "../../../assets/images/global-icon.svg";
 import PersonalCardIcon from "../../../assets/images/personal-card-icon.svg";
+import FingerScanIcon from "../../../assets/images/finger-scan.svg";
+import FingerScanWhiteIcon from "../../../assets/images/finger-scan-white.svg";
+import OtpIcon from "../../../assets/images/otp.svg";
 import ErrorText from "../common/ErrorText";
 import ApiAbha from "../../../api/services/ApiAbha";
+import { useFeatureValue } from "@growthbook/growthbook-react";
+import TermsAndConditionsPopup from "../common/TermsAndConditionsPopup";
 
 const CreatePatientAbha = ({
   onLinkOptionSelect = () => {},
   onOtpSent = () => {},
+  onBiometricSelect = () => {},
   patientUniqueId,
+  initialAadhaar = "",
 }) => {
-  const [segments, setSegments] = useState(["", "", ""]);
+  const initializeSegments = () => {
+    if (initialAadhaar && initialAadhaar.length === 12) {
+      return [
+        initialAadhaar.slice(0, 4),
+        initialAadhaar.slice(4, 8),
+        initialAadhaar.slice(8, 12),
+      ];
+    }
+    return ["", "", ""];
+  };
+
+  const [segments, setSegments] = useState(initializeSegments());
   const [agreeTerms, setAgreeTerms] = useState(true);
   const inputRefs = [useRef(null), useRef(null), useRef(null)];
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showTermsPopup, setShowTermsPopup] = useState(false);
+  const containerRef = useRef(null);
+  const arrowRef = useRef(null);
+
+  const primaryMethod = useFeatureValue("abha-dropdown", 1);
+  
+  const isOtpPrimary = primaryMethod === 1;
+  const isBiometricPrimary = primaryMethod === 2;
+
+  useEffect(() => {
+    if (initialAadhaar && initialAadhaar.length === 12) {
+      setSegments([
+        initialAadhaar.slice(0, 4),
+        initialAadhaar.slice(4, 8),
+        initialAadhaar.slice(8, 12),
+      ]);
+    }
+  }, [initialAadhaar]);
 
   const handleChange = (index, value) => {
     setHasError(false);
@@ -38,7 +76,36 @@ const CreatePatientAbha = ({
     if (e.key === "Backspace" && segments[index].length === 0 && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
+    if (e.key === "Enter" && index === inputRefs.length - 1) {
+      const aadhaarNumber = segments.join("");
+      if (aadhaarNumber.length === 12 && agreeTerms && !isLoading) {
+        if (isOtpPrimary) {
+          handleSendOtp();
+        } else if (isBiometricPrimary) {
+          handleBiometric();
+        }
+      }
+    }
   };
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   const handleSendOtp = async () => {
     const aadhaarNumber = segments.join("");
@@ -51,6 +118,7 @@ const CreatePatientAbha = ({
     setIsLoading(true);
     setHasError(false);
     setErrorMessage("");
+    setDropdownOpen(false);
 
     try {
       const response = await ApiAbha.sendOtpForAadhaar({
@@ -81,6 +149,21 @@ const CreatePatientAbha = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleBiometric = () => {
+    const aadhaarNumber = segments.join("");
+    if (aadhaarNumber.length !== 12 || !agreeTerms) {
+      setHasError(true);
+      setErrorMessage("Invalid Aadhaar Number!");
+      return;
+    }
+
+    setDropdownOpen(false);
+    onBiometricSelect({
+      aadhaarNumber,
+      patient_unique_id: patientUniqueId,
+    });
   };
 
   const isValid = segments.join("").length === 12;
@@ -119,13 +202,118 @@ const CreatePatientAbha = ({
               </div>
               {hasError && <ErrorText errorText={errorMessage} />}
             </div>
-            <button
-              className="abha_next_button adharcard_next_btn"
-              disabled={!isValid || !agreeTerms || isLoading}
-              onClick={handleSendOtp}
+            <div
+              ref={containerRef}
+              style={{ display: "flex", flexDirection: "column", width: "100%", marginTop: "24px" }}
             >
-              {isLoading ? "Sending OTP..." : "Next"}
-            </button>
+              <div style={{ position: "relative" }}>
+                <Button
+                  className="btn btn-primary3 btn-text-white mb-2 btn-41 d-flex justify-content-between align-items-center"
+                  style={{ width: "100%", position: "relative" }}
+                  disabled={!isValid || !agreeTerms || isLoading}
+                  onClick={() => {
+                    if (isOtpPrimary) {
+                      handleSendOtp();
+                    } else if (isBiometricPrimary) {
+                      handleBiometric();
+                    }
+                  }}
+                >
+                  <div className="d-flex align-items-center justify-content-center" style={{ width: "100%" }}>
+                    {isBiometricPrimary && (
+                      <img
+                        src={FingerScanWhiteIcon}
+                        alt="finger scan"
+                        className="me-2"
+                        style={{ width: "20px", height: "20px" }}
+                      />
+                    )}
+                    {isOtpPrimary && (
+                      <img
+                        src={OtpIcon}
+                        alt="otp"
+                        className="me-2"
+                        style={{ width: "20px", height: "20px" }}
+                      />
+                    )}
+                    <span>
+                      {isLoading
+                        ? "Sending OTP..."
+                        : isOtpPrimary
+                        ? "Verify by OTP"
+                        : "Verify by Biometric"}
+                    </span>
+                  </div>
+                  <div
+                    ref={arrowRef}
+                    style={{
+                      position: "absolute",
+                      right: 24,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      zIndex: 10,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setDropdownOpen((o) => !o);
+                    }}
+                  >
+                    <i
+                      className="icon-right"
+                      style={{
+                        display: "block",
+                        transform: dropdownOpen ? "rotate(90deg)" : "rotate(-90deg)",
+                        color: "white",
+                        fontSize: "12px",
+                      }}
+                    ></i>
+                  </div>
+                </Button>
+              </div>
+              {dropdownOpen && (
+                <div className="smart-rx-buttons-grp" style={{ position: "relative", zIndex: 1000 }}>
+                  {isOtpPrimary ? (
+                    <div>
+                      <button
+                        className="smart-rx-buttons bottom-br"
+                        onClick={handleBiometric}
+                        disabled={!isValid || !agreeTerms}
+                      >
+                        <span style={{ padding: "0 3.4rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                          <img
+                            src={FingerScanIcon}
+                            alt="finger scan"
+                            style={{ width: "20px", height: "20px" }}
+                          />
+                          Verify by Biometric
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button
+                        className="smart-rx-buttons bottom-br"
+                        onClick={handleSendOtp}
+                        disabled={!isValid || !agreeTerms || isLoading}
+                      >
+                        <span style={{ padding: "0 3.4rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                          <img
+                            src={OtpIcon}
+                            alt="otp"
+                            style={{ width: "20px", height: "20px" }}
+                          />
+                          {isLoading ? "Sending OTP..." : "Verify by OTP"}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -137,9 +325,13 @@ const CreatePatientAbha = ({
         />
         <span>
           I agree with the terms and conditions{" "}
-          <button type="button">View</button>
+          <button type="button" onClick={() => setShowTermsPopup(true)}>View</button>
         </span>
       </label>
+      <TermsAndConditionsPopup
+        open={showTermsPopup}
+        onClose={() => setShowTermsPopup(false)}
+      />
       <div className="abha_link_divider">
         <span className="right_line_divider"></span>
         <div className="divider_text">Or Link Existing ABHA</div>
