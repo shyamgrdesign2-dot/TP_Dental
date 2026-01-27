@@ -129,6 +129,7 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { GB_OPTHAL_MODULE } from "../utils/constants";
 
 function Prescription() {
   const {
@@ -362,6 +363,7 @@ function Prescription() {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
@@ -1807,7 +1809,7 @@ function Prescription() {
                       <div className="prescription-box-sm">
                         <MedicationsBox />
                       </div>
-                      <div className="opthal-panel-wrapper">
+                      {isOpthalModuleAccessible ? <div className="opthal-panel-wrapper">
                         <OphthalmologyExamPanel
                           patientData={patient_data}
                           showHeader
@@ -1815,7 +1817,7 @@ function Prescription() {
                           loadPrevAllSignal={loadPrevOpthalSignal}
                           fetchLastOnMount={false}
                         />
-                      </div>
+                      </div> : null}
                     </React.Fragment>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">

@@ -87,6 +87,7 @@ export const GB_ZYDUS_USER = "zydus-hospital-user";
 export const GB_PILLUP_MEDICINE = "pillup-medicine-switch";
 export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
+export const GB_OPTHAL_MODULE = "opthal-module";
 
 export const GYNAECOLOGY = "Gynaecology";
 export const PAEDIATRICS = "Paediatrics";

@@ -77,6 +77,7 @@ import {
   GB_VIDEO_CONSULT,
   GB_NEW_IPD,
   GB_NEW_IPD_HOS_BUSINESS_ID,
+  GB_OPTHAL_MODULE,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -216,6 +217,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
+  const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
@@ -1222,19 +1224,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "labparams",
       },
-      {
-        label: (
-          <span
-            onClick={() => {
-              setAppointmentSelectedFromMenu(record);
-              handleOpthalDrawer();
-            }}
-          >
-            Add Ophthal Details
-          </span>
-        ),
-        key: "opthalDetails",
-      },
+      isOpthalModuleAccessible
+        ? {
+            label: (
+              <span
+                onClick={() => {
+                  setAppointmentSelectedFromMenu(record);
+                  handleOpthalDrawer();
+                }}
+              >
+                Add Ophthal Details
+              </span>
+            ),
+            key: "opthalDetails",
+          }
+        : undefined,
       {
         label: (
           <span
