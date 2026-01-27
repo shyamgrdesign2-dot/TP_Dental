@@ -304,7 +304,7 @@ function SnapRxDigitise() {
             consultation_id: state?.tcm_id,
             doctor_id: getDecodedToken()?.user_id,
           });
-        const isGroundingAccessable =
+        const isGroundingAccessableForZydus =
           tokenData?.hospital_business_id === env.zydus_business_id &&
           isZydusUserAccessableFromGB;
 

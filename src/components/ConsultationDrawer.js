@@ -5574,7 +5574,7 @@ const ConsultationDrawer = ({
                     </div>
                   </div>
                 </div>
-              )}
+              ) : null}
               <CommonModal
                 isModalOpen={isBackModalOpen}
                 onCancel={showHideBackModal}
