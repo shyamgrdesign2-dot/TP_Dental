@@ -1,10 +1,18 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Input, AutoComplete } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
 import { removeBeforeWhiteSpace } from '../../utils/utils';
+import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from '../../utils/medicalHistoryConverters';
+import CashManagerContext from '../../context/CashManagerContext';
+import { getGynecDetails } from '../../api/services/ApiGynec';
+import { useAccess } from '../../pages/vaccination/useAccess';
+import { getDecodedToken } from '../../utils/localStorage';
+import { PATIENT_DETAILS_SIDEBAR_KEYS } from '../../utils/constants';
+import moment from 'moment';
 import examinationIcon from '../../assets/images/Examination.svg';
 import diagnosisIcon from '../../assets/images/Diagnosis.svg';
 import vitalsIcon from '../../assets/images/Vitals.svg';
@@ -17,8 +25,8 @@ import gynecHistoryIcon from '../../assets/images/obstetric-dark.svg';
 import obstetricHistoryIcon from '../../assets/images/obstetric-dark.svg';
 import surgeryIcon from '../../assets/images/surgery.svg';
 import vaccinationIcon from '../../assets/images/Vaccination.svg';
-// import editIcon from '../../assets/images/edit-icon-blue.svg';
-import editIcon from '../../assets/mobile/edit.svg';
+import editIcon from '../../assets/images/edit-icon-blue.svg';
+// import editIcon from '../../assets/mobile/edit.svg';
 import deleteIcon from '../../assets/images/Delete.svg';
 import frameIcon from '../../assets/mobile/Frame_3.svg';
 import logoutIcon from '../../assets/mobile/logout.svg';
@@ -37,12 +45,22 @@ import LabInvestigationEditSheet from './LabInvestigationEditSheet';
 import MedicationEditSheet from './MedicationEditSheet';
 import AddCustomMedicineSheet from './AddCustomMedicineSheet';
 import SymptomsRichTextEditor from '../SymptomsRichTextEditor';
+import { Drawer } from 'antd';
+import MobileGynecHistoryEdit from './MobileGynecHistoryEdit';
+import MobileObstetricHistoryEdit from './MobileObstetricHistoryEdit';
+import { fetchObstetricDetails } from '../../pages/obstetric/service';
 import './MobileRxPadContent.scss';
 
-const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false }) => {
+const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, patient_data, caseManagerData }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData } = useContext(CashManagerContext) || {};
   const { parentOptionsList = [] } = useSelector((state) => state.investigation);
   const { parentOptionsList: medicationParentList = [] } = useSelector((state) => state.medication);
+  const { obstetricDetails: allObstetricDetails, isObstetricDetailsFetched } = useSelector((state) => state.obstetric);
+  const { isGynaecHistoryAccessable } = useAccess();
+  const decodedToken = getDecodedToken();
+  const userId = decodedToken?.result?.user_id;
   const labSearchDebounceRef = useRef(null);
   const medicationSearchDebounceRef = useRef(null);
 
@@ -52,6 +70,8 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
   const [labInvestigationEdit, setLabInvestigationEdit] = useState({ visible: false, index: -1 });
   const [medicationEdit, setMedicationEdit] = useState({ visible: false, index: -1, prefillName: null, prefillMetadata: null });
   const [addCustomMedicine, setAddCustomMedicine] = useState({ visible: false, initialName: '' });
+  const [gynecHistoryDrawerVisible, setGynecHistoryDrawerVisible] = useState(false);
+  const [obstetricHistoryDrawerVisible, setObstetricHistoryDrawerVisible] = useState(false);
 
   // Web-like: empty -> FREQUENTLY USED; typing -> debounced searchInvestigation
   useEffect(() => {
@@ -122,6 +142,94 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
     return opts;
   }, [medicationParentList, medicationSearch]);
+
+  // Fetch gynec history when Rx Pad loads
+  useEffect(() => {
+    if (isGynaecHistoryAccessable && patient_data?.patient_unique_id && userId && !prescriptionData?.gynecHistory && !caseManagerData?.gynecHistoryData) {
+      const fetchGynecHistory = async () => {
+        try {
+          const data = await getGynecDetails(patient_data.patient_unique_id, userId);
+          if (data && Object.keys(data).length > 2) {
+            const { createdAt, createdBy, ...filteredData } = data;
+            onUpdate({ ...prescriptionData, gynecHistory: filteredData });
+          }
+        } catch (error) {
+          console.error('Error fetching gynec history:', error);
+        }
+      };
+      fetchGynecHistory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGynaecHistoryAccessable, patient_data?.patient_unique_id, userId]);
+
+  // Fetch obstetric history when Rx Pad loads
+  useEffect(() => {
+    if (isGynaecHistoryAccessable && patient_data?.patient_unique_id && userId) {
+      // Check if data already exists in prescriptionData, caseManagerData, or Redux
+      const hasObstetricData = 
+        (prescriptionData?.obstetricHistory && Object.keys(prescriptionData.obstetricHistory).length > 0) ||
+        (caseManagerData?.obstetricHistory && Object.keys(caseManagerData.obstetricHistory).length > 0) ||
+        (allObstetricDetails && Object.keys(allObstetricDetails).length > 0);
+      
+      if (!hasObstetricData) {
+        const fetchObstetricHistory = async () => {
+          try {
+            const data = await fetchObstetricDetails(patient_data.patient_unique_id, userId);
+            console.log('Fetched obstetric data:', data);
+            // Check if data has meaningful content (not just empty object or only metadata)
+            const hasData = data && (
+              (data.currentPregnancy && Object.keys(data.currentPregnancy).length > 0) ||
+              (data.lmp || data.gravidity !== undefined || data.parity !== undefined) ||
+              (Object.keys(data).length > 0 && !data.currentPregnancy && (data.lmp || data.gravidity !== undefined))
+            );
+            if (hasData) {
+              // Store in prescriptionData for mobile display
+              onUpdate({ ...prescriptionData, obstetricHistory: data });
+            }
+          } catch (error) {
+            console.error('Error fetching obstetric history:', error);
+          }
+        };
+        fetchObstetricHistory();
+      } else if (allObstetricDetails && Object.keys(allObstetricDetails).length > 0 && !prescriptionData?.obstetricHistory) {
+        // If data exists in Redux but not in prescriptionData, sync it
+        console.log('Syncing obstetric data from Redux:', allObstetricDetails);
+        onUpdate({ ...prescriptionData, obstetricHistory: allObstetricDetails });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGynaecHistoryAccessable, patient_data?.patient_unique_id, userId, allObstetricDetails, isObstetricDetailsFetched]);
+
+  // Sync medical history to CashManagerContext for Add/Edit History drawer
+  // Priority 1: prescriptionData.medicalHistory (Rx pad format from AI/API)
+  // Priority 2: caseManagerData.medical_history (context format from repeat/edit Rx)
+  useEffect(() => {
+    if (!setMedicalHistoryData) return;
+    
+    // Priority 1: If Rx pad has medical history, convert and merge with caseManagerData to preserve enable status
+    const arr = prescriptionData?.medicalHistory;
+    if (arr && Array.isArray(arr) && arr.length > 0) {
+      // Merge with caseManagerData.medical_history to preserve enable status (especially 'N') from saved data
+      // This ensures that after end visit, when editing Rx, enable status is not lost
+      // Priority: caseManagerData (saved data with correct enable) > contextMedicalHistoryData (current context) > empty array
+      const existingData = caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0
+        ? caseManagerData.medical_history
+        : (contextMedicalHistoryData || []);
+      const converted = convertMedicalHistoryToContextFormat(arr, existingData);
+      setMedicalHistoryData(converted);
+      return;
+    }
+    
+    // Priority 2: On repeat/edit Rx, if Rx pad is empty but caseManagerData has history, sync it
+    // caseManagerData.medical_history is already in context format
+    if (caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0) {
+      // Only sync if context is currently empty to avoid overwriting TabPrescription's sync or user edits
+      if (!contextMedicalHistoryData || contextMedicalHistoryData.length === 0) {
+        setMedicalHistoryData(JSON.parse(JSON.stringify(caseManagerData.medical_history)));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only sync when Rx data or case manager data changes; contextMedicalHistoryData used for merge check only
+  }, [prescriptionData?.medicalHistory, caseManagerData?.medical_history, setMedicalHistoryData]);
 
   // Toggle medical history group expansion
   const toggleGroup = (groupName) => {
@@ -560,33 +668,339 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     );
   };
 
+  // Format gynec history for display (matches Figma pattern)
+  const formatGynecHistoryForDisplay = (gynecHistory) => {
+    if (!gynecHistory || typeof gynecHistory !== 'object' || Array.isArray(gynecHistory)) return [];
+    
+    const items = [];
+    const { createdAt, createdBy, reproductiveLifeStages, ...data } = gynecHistory;
+    
+    // Menarche
+    if (data.ageAtMenarche) {
+      items.push(`Menarche (Age at: ${data.ageAtMenarche} years${data.menarcheNotes ? ` | Menarche Note: ${data.menarcheNotes}` : ''})`);
+    }
+    
+    // Cycle
+    if (data.cycle || data.intervalOfCycle || data.cycleNotes) {
+      const cycleParts = [];
+      if (data.cycle) cycleParts.push(`Type: ${data.cycle}`);
+      if (data.intervalOfCycle) cycleParts.push(`Cycle Interval: ${data.intervalOfCycle} days`);
+      if (data.cycleNotes) cycleParts.push(`Cycle Note: ${data.cycleNotes}`);
+      items.push(`Cycle (${cycleParts.join(' | ')})`);
+    }
+    
+    // Flow
+    if (data.flow || data.durationOfMenstrualFlow || data.numberOfPadsPerDay || data.clots || data.flowNotes) {
+      const flowParts = [];
+      if (data.flow) flowParts.push(`Volume: ${data.flow}`);
+      if (data.durationOfMenstrualFlow) flowParts.push(`Duration: ${data.durationOfMenstrualFlow} days`);
+      if (data.clots !== undefined && data.clots !== null && data.clots !== '') {
+        flowParts.push(`Clots: ${data.clots === true || data.clots === 'true' || data.clots === 'Yes' ? 'Yes' : 'No'}`);
+      }
+      if (data.numberOfPadsPerDay) flowParts.push(`Number of pads per day: ${data.numberOfPadsPerDay}`);
+      if (data.flowNotes) flowParts.push(`Flow Note: ${data.flowNotes}`);
+      items.push(`Flow (${flowParts.join(' | ')})`);
+    }
+    
+    // Pain
+    if (data.pain || data.occurrenceOfPain || data.painNotes) {
+      const painParts = [];
+      if (data.pain) painParts.push(`Level: ${data.pain}`);
+      if (data.occurrenceOfPain) painParts.push(`Occurrence of pain: ${data.occurrenceOfPain}`);
+      if (data.painNotes) painParts.push(`Pain Note: ${data.painNotes}`);
+      items.push(`Pain (${painParts.join(' | ')})`);
+    }
+    
+    // Lifecycle Hormonal Changes
+    if (data.reproductiveLifeStages || data.ageAtMenopause || data.typeOfMenopause || data.reproductiveNotes) {
+      const lifecycleParts = [];
+      const stageName = data.reproductiveLifeStages || 'Menopause';
+      if (data.ageAtMenopause) {
+        lifecycleParts.push(`${stageName} at: ${data.ageAtMenopause} years`);
+      }
+      if (data.typeOfMenopause) {
+        lifecycleParts.push(`${stageName} type: ${data.typeOfMenopause}`);
+      }
+      if (data.reproductiveNotes) {
+        lifecycleParts.push(`${stageName} note: ${data.reproductiveNotes}`);
+      }
+      items.push(`Lifecycle Hormonal Changes (${lifecycleParts.join(' | ')})`);
+    }
+    
+    // LMP
+    if (data.lmp) {
+      try {
+        const lmpDate = new Date(data.lmp).toISOString().split('T')[0];
+        items.push(`LMP: ${lmpDate}`);
+      } catch (e) {
+        items.push(`LMP: ${data.lmp}`);
+      }
+    }
+    
+    // Menstruation notes
+    if (data.notes) {
+      items.push(`Menstruation notes (${data.notes})`);
+    }
+    
+    return items;
+  };
+
   // Render Gynae History with Edit/Delete
   const renderGynaeHistory = (gynecHistory) => {
     if (!gynecHistory || (Array.isArray(gynecHistory) && gynecHistory.length === 0)) return null;
     
+    const formattedItems = formatGynecHistoryForDisplay(gynecHistory);
+    if (formattedItems.length === 0) return null;
+    
     return (
       <div className="gynae-history-list">
-        {Array.isArray(gynecHistory) ? (
-          renderListItemsWithActions(gynecHistory, 'gynecHistory')
-        ) : (
-          <div className="gynae-history-content">
-            {Object.entries(gynecHistory).map(([key, value]) => (
-              <div key={key} className="gynae-item">
-                <span className="gynae-label">{key}:</span>
-                <span className="gynae-value">{value}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <ul className="section-list">
+          {formattedItems.map((item, index) => (
+            <li key={index} className="list-item">
+              <span className="item-text">{item}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   };
 
+  // Format obstetric history for display (matches web version pattern)
+  const formatObstetricHistoryForDisplay = (obstetricHistory) => {
+    if (!obstetricHistory || typeof obstetricHistory !== 'object') return { items: [], structured: null };
+    
+    const items = [];
+    // Handle both full structure { currentPregnancy: {...}, pregnancyHistory: [...] } and direct currentPregnancy object
+    const currentPregnancy = obstetricHistory?.currentPregnancy || (obstetricHistory?.lmp !== undefined || obstetricHistory?.gravidity !== undefined ? obstetricHistory : {});
+    
+    // Calculate gestation
+    const today = moment();
+    let gestationWeeks = null;
+    let gestationDays = null;
+    
+    if (currentPregnancy.ceed) {
+      const gestationAge = 40 * 7 - Math.ceil(Math.abs(moment(currentPregnancy.ceed).startOf('day').diff(today.startOf('day'), 'days')));
+      gestationWeeks = Math.floor(gestationAge / 7);
+      gestationDays = gestationAge % 7;
+    } else if (currentPregnancy.lmp) {
+      const lmpDate = moment(currentPregnancy.lmp);
+      gestationWeeks = today.diff(lmpDate, 'weeks');
+      const adjustedLmpDate = lmpDate.clone().add(gestationWeeks, 'weeks');
+      gestationDays = today.diff(adjustedLmpDate, 'days');
+    }
+    
+    // Build structured data for display
+    const structured = {
+      // Row 1: LMP, EDD, CEDD, Gestation
+      lmp: currentPregnancy.lmp ? moment(currentPregnancy.lmp).format('DD-MM-YYYY') : null,
+      edd: currentPregnancy.edd ? moment(currentPregnancy.edd).format('DD-MM-YYYY') : null,
+      ceed: currentPregnancy.ceed ? moment(currentPregnancy.ceed).format('DD-MM-YYYY') : null,
+      gestationWeeks: gestationWeeks,
+      gestationDays: gestationDays,
+      // Row 2: Blood Groups, Marital Status, Marriage Duration, Consanguinity
+      patientBlood: currentPregnancy.blood || currentPregnancy.patientBloodGroup || null,
+      husbandBlood: currentPregnancy.husbandsBlood || currentPregnancy.husbandBloodGroup || null,
+      maritalStatus: currentPregnancy.maritialStatus || currentPregnancy.maritalStatus || null,
+      marriageYears: currentPregnancy.marriageDurationYears || currentPregnancy.marriageDuration?.years || null,
+      marriageMonths: currentPregnancy.marriageDurationMonths || currentPregnancy.marriageDuration?.months || null,
+      consanguinity: currentPregnancy.consang != null ? (currentPregnancy.consang ? 'Yes' : 'No') : null,
+      // GPLAE
+      gravidity: currentPregnancy.gravidity,
+      parity: currentPregnancy.parity,
+      livingChildren: currentPregnancy.livingChildren,
+      abortion: currentPregnancy.abortion,
+      ectopicPregnancies: currentPregnancy.ectopicPregnancies,
+      // Notes
+      diagnosisNotes: currentPregnancy.diagnosisNotes || null,
+      // Examination count
+      examinationCount: currentPregnancy.examinationHistory?.length || 0,
+      // Pregnancy History
+      pregnancyHistoryCount: obstetricHistory?.pregnancyHistory?.length || 0,
+      // ANC Scheduler
+      ancHistoryCount: currentPregnancy.ancHistory?.length || 0,
+      ancCompletedCount: currentPregnancy.ancHistory?.filter(t => t.status === 'Completed')?.length || 0,
+      // Immunisation History
+      immunisationCount: currentPregnancy.immunisationHistory?.length || 0,
+      immunisationGivenCount: currentPregnancy.immunisationHistory?.filter(v => v.status === 'Given')?.length || 0
+    };
+
+    // For backward compatibility - still build items array
+    // Patient Info: LMP, EDD/CEDD, Gestation
+    const patientInfoParts = [];
+    if (currentPregnancy.lmp) {
+      try {
+        const lmpDate = moment(currentPregnancy.lmp).format('DD MMM YYYY');
+        patientInfoParts.push(`LMP: ${lmpDate}`);
+      } catch (e) {
+        patientInfoParts.push(`LMP: ${currentPregnancy.lmp}`);
+      }
+    }
+    
+    if (currentPregnancy.edd || currentPregnancy.ceed) {
+      try {
+        const eddDate = moment(currentPregnancy.ceed || currentPregnancy.edd).format('DD MMM YYYY');
+        const label = currentPregnancy.ceed ? 'CEDD' : 'EDD';
+        patientInfoParts.push(`${label}: ${eddDate}`);
+      } catch (e) {
+        patientInfoParts.push(`${currentPregnancy.ceed ? 'CEDD' : 'EDD'}: ${currentPregnancy.ceed || currentPregnancy.edd}`);
+      }
+    }
+    
+    if (gestationWeeks > 0 || gestationDays > 0) {
+      const gestationParts = [];
+      if (gestationWeeks > 0) {
+        gestationParts.push(`${gestationWeeks} ${gestationWeeks > 1 ? 'Weeks' : 'Week'}`);
+      }
+      if (gestationDays > 0) {
+        gestationParts.push(`${gestationDays} ${gestationDays > 1 ? 'Days' : 'Day'}`);
+      }
+      if (gestationParts.length > 0) {
+        patientInfoParts.push(`Gestation: ${gestationParts.join(' & ')}`);
+      }
+    }
+    
+    if (patientInfoParts.length > 0) {
+      items.push(`Patient Info (${patientInfoParts.join(' | ')})`);
+    }
+    
+    // GPLAE
+    const gplaeParts = [];
+    const hasGravidity = currentPregnancy.gravidity != null && currentPregnancy.gravidity >= 0;
+    const hasParity = currentPregnancy.parity != null && currentPregnancy.parity >= 0;
+    const hasLivingChildren = currentPregnancy.livingChildren != null && currentPregnancy.livingChildren >= 0;
+    const hasAbortion = currentPregnancy.abortion != null && currentPregnancy.abortion >= 0;
+    const hasEctopic = currentPregnancy.ectopicPregnancies != null && currentPregnancy.ectopicPregnancies >= 0;
+    
+    if (hasGravidity || hasParity || hasLivingChildren || hasAbortion || hasEctopic) {
+      if (hasGravidity && currentPregnancy.gravidity === 1) {
+        gplaeParts.push('Primigravida');
+      } else {
+        if (hasGravidity) gplaeParts.push(`G: ${currentPregnancy.gravidity}`);
+        if (hasParity) gplaeParts.push(`P: ${currentPregnancy.parity}`);
+        if (hasLivingChildren) gplaeParts.push(`L: ${currentPregnancy.livingChildren}`);
+        if (hasAbortion) gplaeParts.push(`A: ${currentPregnancy.abortion}`);
+        if (hasEctopic) gplaeParts.push(`E: ${currentPregnancy.ectopicPregnancies}`);
+      }
+      
+      if (gplaeParts.length > 0) {
+        items.push(`GPLAE (${gplaeParts.join(' | ')})`);
+      }
+    }
+    
+    // Diagnosis Notes
+    if (currentPregnancy.diagnosisNotes) {
+      items.push(`Notes (${currentPregnancy.diagnosisNotes})`);
+    }
+    
+    return { items, structured };
+  };
+
   // Render Obstetric History with Edit/Delete
   const renderObstetricHistory = (obstetricHistory) => {
-    if (!obstetricHistory || (Array.isArray(obstetricHistory) && obstetricHistory.length === 0)) return null;
+    if (!obstetricHistory || (Array.isArray(obstetricHistory) && obstetricHistory.length === 0)) {
+      console.log('No obstetric history data to render:', obstetricHistory);
+      return null;
+    }
     
-    return renderListItemsWithActions(obstetricHistory, 'obstetricHistory');
+    console.log('Rendering obstetric history:', obstetricHistory);
+    const { items, structured } = formatObstetricHistoryForDisplay(obstetricHistory);
+    console.log('Formatted obstetric items:', items, structured);
+    
+    // Build all display items from structured data
+    const displayItems = [];
+    
+    // Row 1: LMP, EDD, CEDD, Gestation
+    if (structured?.lmp) displayItems.push(`LMP: ${structured.lmp}`);
+    if (structured?.edd) displayItems.push(`EDD: ${structured.edd}`);
+    if (structured?.ceed) displayItems.push(`CEDD: ${structured.ceed}`);
+    if (structured?.gestationWeeks > 0 || structured?.gestationDays > 0) {
+      const parts = [];
+      if (structured.gestationWeeks > 0) parts.push(`${structured.gestationWeeks} Weeks`);
+      if (structured.gestationDays > 0) parts.push(`${structured.gestationDays} Days`);
+      displayItems.push(`Gestation: ${parts.join(' ')}`);
+    }
+    
+    // Row 2: Blood Groups
+    if (structured?.patientBlood) displayItems.push(`Patient Blood Group: ${structured.patientBlood}`);
+    if (structured?.husbandBlood) displayItems.push(`Husband's Blood Group: ${structured.husbandBlood}`);
+    
+    // Row 3: Marital Info
+    if (structured?.maritalStatus) displayItems.push(`Marital Status: ${structured.maritalStatus}`);
+    if (structured?.marriageYears || structured?.marriageMonths) {
+      const parts = [];
+      if (structured.marriageYears) parts.push(`${structured.marriageYears} Years`);
+      if (structured.marriageMonths) parts.push(`${structured.marriageMonths} Months`);
+      displayItems.push(`Marriage Duration: ${parts.join(' ')}`);
+    }
+    if (structured?.consanguinity) displayItems.push(`Consanguineous: ${structured.consanguinity}`);
+    
+    // Row 4: GPLAE
+    const hasGPLAE = structured?.gravidity != null || structured?.parity != null || 
+                     structured?.livingChildren != null || structured?.abortion != null || 
+                     structured?.ectopicPregnancies != null;
+    if (hasGPLAE) {
+      if (structured.gravidity === 1) {
+        displayItems.push('Primigravida');
+      } else {
+        const gplaeParts = [];
+        if (structured.gravidity != null) gplaeParts.push(`G: ${structured.gravidity}`);
+        if (structured.parity != null) gplaeParts.push(`P: ${structured.parity}`);
+        if (structured.livingChildren != null) gplaeParts.push(`L: ${structured.livingChildren}`);
+        if (structured.abortion != null) gplaeParts.push(`A: ${structured.abortion}`);
+        if (structured.ectopicPregnancies != null) gplaeParts.push(`E: ${structured.ectopicPregnancies}`);
+        if (gplaeParts.length > 0) displayItems.push(`GPLAE: ${gplaeParts.join(', ')}`);
+      }
+    }
+    
+    // Row 5: Diagnosis Notes
+    if (structured?.diagnosisNotes) displayItems.push(`Notes: ${structured.diagnosisNotes}`);
+    
+    // Row 6: Examination Count
+    if (structured?.examinationCount > 0) {
+      displayItems.push(`${structured.examinationCount} Examination${structured.examinationCount > 1 ? 's' : ''} recorded`);
+    }
+    
+    // Row 7: Pregnancy History
+    if (structured?.pregnancyHistoryCount > 0) {
+      displayItems.push(`${structured.pregnancyHistoryCount} Past Pregnanc${structured.pregnancyHistoryCount > 1 ? 'ies' : 'y'} recorded`);
+    }
+    
+    // Row 8: ANC Scheduler
+    if (structured?.ancHistoryCount > 0) {
+      const ancText = `ANC: ${structured.ancHistoryCount} test${structured.ancHistoryCount > 1 ? 's' : ''} scheduled`;
+      if (structured.ancCompletedCount > 0) {
+        displayItems.push(`${ancText} (${structured.ancCompletedCount} completed)`);
+      } else {
+        displayItems.push(ancText);
+      }
+    }
+    
+    // Row 9: Immunisation History
+    if (structured?.immunisationCount > 0) {
+      const immunText = `Immunisation: ${structured.immunisationCount} vaccine${structured.immunisationCount > 1 ? 's' : ''}`;
+      if (structured.immunisationGivenCount > 0) {
+        displayItems.push(`${immunText} (${structured.immunisationGivenCount} given)`);
+      } else {
+        displayItems.push(immunText);
+      }
+    }
+    
+    if (displayItems.length === 0) {
+      console.log('No formatted items to display');
+      return null;
+    }
+    
+    return (
+      <div className="obstetric-history-list">
+        <ul className="section-list">
+          {displayItems.map((item, index) => (
+            <li key={index} className="list-item">
+              <span className="item-text">{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   // Render Surgeries & Procedures with Edit/Delete
@@ -756,15 +1170,34 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         />
       )}
 
-      {(prescriptionData?.medicalHistory && 
-        Array.isArray(prescriptionData.medicalHistory) && 
-        prescriptionData.medicalHistory.length > 0) && (
-        <MedicalHistoryRichTextEditor
-          medicalHistory={prescriptionData?.medicalHistory || []}
-          onUpdate={handleMedicalHistoryUpdate}
-          isProcessing={isProcessing}
-        />
-      )}
+      {(() => {
+        // Show medical history if either Rx pad has it OR context has it (for repeat/edit Rx)
+        const hasRxPadHistory = prescriptionData?.medicalHistory && 
+          Array.isArray(prescriptionData.medicalHistory) && 
+          prescriptionData.medicalHistory.length > 0;
+        
+        const hasContextHistory = contextMedicalHistoryData && 
+          Array.isArray(contextMedicalHistoryData) && 
+          contextMedicalHistoryData.length > 0;
+        
+        if (!hasRxPadHistory && !hasContextHistory) return null;
+        
+        // Use Rx pad data if available, otherwise convert context to Rx format for display
+        let displayHistory = prescriptionData?.medicalHistory || [];
+        if (displayHistory.length === 0 && hasContextHistory) {
+          displayHistory = convertContextToRxPadFormat(contextMedicalHistoryData);
+        }
+        
+        return (
+          <MedicalHistoryRichTextEditor
+            medicalHistory={displayHistory}
+            onUpdate={handleMedicalHistoryUpdate}
+            isProcessing={isProcessing}
+            patient_data={patient_data}
+            caseManagerData={caseManagerData}
+          />
+        );
+      })()}
 
       {/* Symptoms - inline rich text editor (same as web, no bottom sheet). Visibility matches DigitisedPrescription: only when has content. */}
       {(prescriptionData?.symptoms &&
@@ -894,9 +1327,41 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         })}
 
       {/* Mobile-Only Sections - Keep Simple Rendering */}
-      {renderSection('Gynae History', gynecHistoryIcon, prescriptionData?.gynecHistory, renderGynaeHistory)}
-      {renderSection('Obstetric History', obstetricHistoryIcon, prescriptionData?.obstetricHistory, renderObstetricHistory)}
-      {renderSection('Surgeries & Procedures', surgeryIcon, prescriptionData?.surgeriesAndProcedures, renderSurgeries)}
+      {renderSection(
+        'Gynae History', 
+        gynecHistoryIcon, 
+        prescriptionData?.gynecHistory || caseManagerData?.gynecHistoryData, 
+        renderGynaeHistory,
+        (
+          <button 
+            type="button"
+            className="add-edit-button"
+            onClick={() => setGynecHistoryDrawerVisible(true)}
+          >
+            <img src={editIcon} alt="Edit" className="add-edit-icon" />
+            <span>Add/Edit</span>
+          </button>
+        ),
+        true
+      )}
+      {renderSection(
+        'Obstetric History', 
+        obstetricHistoryIcon, 
+        prescriptionData?.obstetricHistory || caseManagerData?.obstetricHistory || allObstetricDetails, 
+        renderObstetricHistory,
+        (
+          <button 
+            type="button"
+            className="add-edit-button"
+            onClick={() => setObstetricHistoryDrawerVisible(true)}
+          >
+            <img src={editIcon} alt="Edit" className="add-edit-icon" />
+            <span>Add/Edit</span>
+          </button>
+        ),
+        true
+      )}
+      {renderSection('Surgeries & Procedures', surgeryIcon, prescriptionData?.surgeriesAndProcedures || caseManagerData?.surgeries, renderSurgeries)}
       
       {/* Bottom Action Buttons */}
       <div className="bottom-action-buttons">
@@ -946,6 +1411,39 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             index: -1,
             prefillName: added?.tmm_medicine_name || added?.medicine_name || '',
             prefillMetadata: added || null,
+          });
+        }}
+      />
+
+      {/* Gynec History Drawer */}
+      <MobileGynecHistoryEdit
+        visible={gynecHistoryDrawerVisible}
+        onClose={() => setGynecHistoryDrawerVisible(false)}
+        patient_data={patient_data}
+        initialData={prescriptionData?.gynecHistory || caseManagerData?.gynecHistoryData}
+        onSave={(updatedGynecHistory) => {
+          onUpdate({ ...prescriptionData, gynecHistory: updatedGynecHistory });
+          setGynecHistoryDrawerVisible(false);
+        }}
+      />
+      <MobileObstetricHistoryEdit
+        visible={obstetricHistoryDrawerVisible}
+        onClose={() => setObstetricHistoryDrawerVisible(false)}
+        patient_data={patient_data}
+        initialData={prescriptionData?.obstetricHistory || caseManagerData?.obstetricHistory || allObstetricDetails}
+        onSave={(updatedObstetricHistory) => {
+          onUpdate({ ...prescriptionData, obstetricHistory: updatedObstetricHistory });
+          setObstetricHistoryDrawerVisible(false);
+        }}
+        onOpenMedicalRecords={() => {
+          // Close the obstetric drawer and navigate to medical records
+          setObstetricHistoryDrawerVisible(false);
+          // Navigate to patient details with medical records tab selected
+          navigate('/patient_details', {
+            state: {
+              patient_data,
+              sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS,
+            },
           });
         }}
       />

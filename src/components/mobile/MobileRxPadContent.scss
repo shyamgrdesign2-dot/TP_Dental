@@ -12,7 +12,7 @@
   .rx-section-card {
     background: #FFFFFF;
     border-radius: 12px;
-    padding: 16px;
+    padding: 12px;
     box-shadow: 0px 0px 6px 0px rgba(242, 77, 182, 0.05);
     border: 1px solid rgba(242, 77, 182, 0.08);
 
@@ -20,9 +20,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #F0F0F0;
+      padding: 12px;
+      padding: 0 0 12px 0;
 
       .header-left {
         display: flex;
@@ -69,6 +68,40 @@
             color: white;
           }
         }
+
+        .add-edit-button {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: none;
+          color: #4b4ad5;
+          font-family: 'Poppins', sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: underline;
+          cursor: pointer;
+          padding: 4px 6px;
+          transition: color 0.2s ease;
+
+          .add-edit-icon {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+          }
+
+          span {
+            color: #4B4AD5 !important;
+          }
+
+          &:hover {
+            color: #3b3ac4;
+          }
+
+          &:active {
+            opacity: 0.8;
+          }
+        }
       }
     }
 
@@ -77,7 +110,11 @@
       font-size: 14px;
       line-height: 22px;
       color: #454551;
-      padding-bottom: 12px;
+      // padding-bottom: 12px;
+      border-radius: 10px;
+      border: var(--stroke-weight-1, 1px) solid var(--T-BG-10, #F1F1F5);
+      background: var(--T-BG-100, #FAFAFB);
+      padding: 12px;
     }
   }
 
@@ -221,6 +258,7 @@
 
     .search-input {
       margin-top: 8px;
+      margin-bottom: 8px;
       
       .ant-input {
         border-radius: 8px;
@@ -287,6 +325,7 @@
 
     .search-input {
       margin-top: 8px;
+      margin-bottom: 8px;
       width: 100%;
 
       .ant-input {
@@ -412,8 +451,12 @@
       }
     }
 
+    // Add/Edit button for content area (not in header)
     .add-edit-button {
       margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
       background: transparent;
       border: 1px solid #7742FE;
       color: #7742FE;
@@ -426,9 +469,19 @@
       transition: all 0.2s ease;
       align-self: flex-start;
 
+      .add-edit-icon {
+        width: 14px;
+        height: 14px;
+        object-fit: contain;
+      }
+
       &:active {
         background: #7742FE;
         color: white;
+      }
+
+      &:hover {
+        background: rgba(119, 66, 254, 0.05);
       }
     }
   }

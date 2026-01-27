@@ -113,7 +113,9 @@ function MedicalHistoryBox(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state;
+    const fromState = state || {};
+    const patient_data = props.patient_data ?? fromState.patient_data;
+    const caseManagerData = props.caseManagerData ?? fromState.caseManagerData;
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -1047,6 +1049,7 @@ function MedicalHistoryBox(props) {
     }, [isGynaecHistoryAccessable]);
 
     const fetchGynecHistory = async () => {
+        if (!patient_data?.patient_unique_id) return;
         try {
             const data = await getGynecDetails(patient_data.patient_unique_id, userId);
             if (data) {
@@ -1082,6 +1085,10 @@ function MedicalHistoryBox(props) {
     }
 
     const handleSaveClick = async () => {
+        if (!patient_data?.patient_unique_id) {
+            setGynecLoading(false);
+            return;
+        }
         setGynecEditState("UPDATE");
         setGynecLoading(true);
         const today = moment().toISOString();
@@ -1105,7 +1112,7 @@ function MedicalHistoryBox(props) {
 
         if (gynecEditState === "CREATE") {
             const payload = {
-                patientId: patient_data.patient_unique_id,
+                patientId: patient_data?.patient_unique_id,
                 timeline: [{
                     ...filteredGynecHistory,
                     createdAt: today,
@@ -1132,7 +1139,7 @@ function MedicalHistoryBox(props) {
                 createdBy: tokenData?.user_id,
             };
             try {
-                const response = await updateGynecDetails(patient_data.patient_unique_id, payload, userId);
+                const response = await updateGynecDetails(patient_data?.patient_unique_id, payload, userId);
                 if (response?.data) {
                     trackUpdateEvent();
                 }

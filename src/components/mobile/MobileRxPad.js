@@ -1320,22 +1320,32 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       // Match web: format medical history from context for case manager
       let formattedMedicalHistory = [];
       if (medicalHistoryData && Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) {
-        formattedMedicalHistory = medicalHistoryData.map((section) => ({
+        const remarks = medicalHistoryData[0]?.medical_history_remarks;
+        formattedMedicalHistory = medicalHistoryData.map((section, index) => ({
           title: section?.title || section?.section_name || '',
           tmmhs_id: section?.tmmhs_id || 0,
           no_know_history: section?.no_know_history !== undefined ? section?.no_know_history : false,
           tags: !section?.no_know_history && Array.isArray(section?.tags)
-            ? section.tags.filter((t) => t?.enable === 'Y' || t?.enable === 'N').map((t) => ({
-                tmmhst_id: t?.tmmhst_id || 0,
-                title: t?.title || '',
-                pms_default: t?.pms_default || 0,
-                since: t?.since || '',
-                status: t?.status || '',
-                medication: t?.medication || '',
-                note: t?.note || '',
-                enable: t?.enable || 'Y',
-              }))
+            ? section.tags.filter((t) => t?.enable === 'Y' || t?.enable === 'N').map((t) => {
+                const tagData = {
+                  tmmhst_id: t?.tmmhst_id || 0,
+                  title: t?.title || '',
+                  pms_default: t?.pms_default || 0,
+                  since: t?.since || '',
+                  status: t?.status || '',
+                  medication: t?.medication || '',
+                  note: t?.note || '',
+                  enable: t?.enable || 'Y',
+                };
+                // Add surgical history specific fields if they exist
+                if (section?.tmmhs_id === 5 && t?.date) {
+                  tagData.date = t.date;
+                  tagData.dateType = t?.dateType || 'onlyYear';
+                }
+                return tagData;
+              })
             : [],
+          ...(remarks && index === 0 && { medical_history_remarks: remarks.trim() })
         }));
       }
 
@@ -1495,6 +1505,8 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               }}
               onEndVisit={handleEndVisit}
               isProcessing={isProcessing}
+              patient_data={patient_data}
+              caseManagerData={caseManagerData}
             />
           ) : null}
         </div>

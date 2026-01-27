@@ -7,6 +7,8 @@ import medicalHistoryIcon from '../assets/images/Medical-History.svg';
 import arrowBoxUpIcon from '../assets/images/arrow-box-up.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import MedicalHistoryBox from './MedicalHistoryBox';
+import MobileMedicalHistoryManager from './mobile/MobileMedicalHistoryManager';
+import { useDeviceType } from '../utils/deviceDetection';
 
 /**
  * MedicalHistoryRichTextEditor - Rich text editor for Medical History with type-based sub-boxes
@@ -18,7 +20,10 @@ const MedicalHistoryRichTextEditor = ({
   isProcessing = false,
   className = '',
   initiallyPopulatedTypes = [],
+  patient_data: patientDataProp,
+  caseManagerData: caseManagerDataProp,
 }) => {
+  const { isMobile } = useDeviceType();
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     medical_condition: true,
@@ -459,75 +464,105 @@ const MedicalHistoryRichTextEditor = ({
         </div>
       </div>
 
-      <Drawer
-        className="scroll-y-hidden"
-        closeIcon={false}
-        placement="right"
-        onClose={() => setMedicalHistoryDrawer(false)}
-        open={medicalHistoryDrawer}
-        width="75%"
-      >
-        <MedicalHistoryBox
-          handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
-          handleCollapsed={() => {}}
-          onSave={(savedData) => {
-            if (savedData && Array.isArray(savedData)) {
-              const convertedMedicalHistory = [];
-              
-              savedData.forEach(section => {
-                if (section.tags && section.tags.length > 0) {
-                  section.tags.forEach(tag => {
-                    if (tag.enable === 'Y' && tag.title && tag.title.trim() !== '') {
-                      const idToTypeMap = {
-                        1: 'Lifestyle',
-                        2: 'Medical Condition',
-                        3: 'Family History',
-                        4: 'Allergies',
-                        5: 'Surgical History'
-                      };
-                      
-                      const historyItem = {
-                        type: idToTypeMap[section.tmmhs_id] || 'Lifestyle',
-                        name: tag.title.trim(),
-                        duration: tag.since || '',
-                        relation: tag.relationship || '',
-                        notes: tag.note || '',
-                        status: tag.status || 'Active'
-                      };
-                      
-                      const lineParts = [tag.title.trim()];
-                      if (tag.since) lineParts.push(tag.since);
-                      if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
-                      if (tag.note) lineParts.push(tag.note);
-                      historyItem.lineItem = lineParts.join(', ');
-                      
-                      convertedMedicalHistory.push(historyItem);
-                    }
-                  });
-                }
-    
-              });
-        
-              const filteredHistory = convertedMedicalHistory.filter(item => {
-              
-                const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || '';
-                if (itemType === 'others') {
-                  return false;
-                }
-                
-                return item.name && item.name.trim() !== '';
-              });
-              
-              if (onUpdate) {
-                onUpdate(filteredHistory);
-              }
+      {/* Mobile: Use bottom sheets, Web: Use right drawer */}
+      {isMobile ? (
+        <MobileMedicalHistoryManager
+          visible={medicalHistoryDrawer}
+          onClose={() => setMedicalHistoryDrawer(false)}
+          onSave={(convertedHistory) => {
+            if (onUpdate) {
+              onUpdate(convertedHistory);
             }
             setMedicalHistoryDrawer(false);
           }}
-          initialActiveKey="medical"
-          hideMenstrualHistoryTab={true}
+          patient_data={patientDataProp}
         />
-      </Drawer>
+      ) : (
+        <Drawer
+          className="scroll-y-hidden"
+          closeIcon={false}
+          placement="right"
+          onClose={() => setMedicalHistoryDrawer(false)}
+          open={medicalHistoryDrawer}
+          width="75%"
+        >
+          <MedicalHistoryBox
+            handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
+            handleCollapsed={() => {}}
+            patient_data={patientDataProp}
+            caseManagerData={caseManagerDataProp}
+            onSave={(savedData) => {
+              if (savedData && Array.isArray(savedData)) {
+                const convertedMedicalHistory = [];
+                const idToTypeMap = {
+                  1: 'Lifestyle',
+                  2: 'Medical Condition',
+                  3: 'Family History',
+                  4: 'Allergies',
+                  5: 'Surgical History'
+                };
+                
+                savedData.forEach(section => {
+                  const sectionType = idToTypeMap[section.tmmhs_id] || 'Lifestyle';
+                  
+                  if (section.tags && section.tags.length > 0) {
+                    section.tags.forEach(tag => {
+                      if ((tag.enable === 'Y' || tag.enable === 'N') && tag.title && tag.title.trim() !== '') {
+                        const historyItem = {
+                          type: sectionType,
+                          name: tag.title.trim(),
+                          duration: tag.since || '',
+                          relation: tag.relationship || '',
+                          notes: tag.note || '',
+                          status: tag.status || 'Active',
+                          enable: tag.enable || 'Y'
+                        };
+                        
+                        // Add surgical history specific fields
+                        if (section.tmmhs_id === 5 && tag.date) {
+                          historyItem.date = tag.date;
+                          historyItem.dateType = tag.dateType || 'onlyYear';
+                        }
+                        
+                        if (tag.enable === 'N') {
+                          historyItem.lineItem = tag.title.trim();
+                        } else {
+                          const lineParts = [tag.title.trim()];
+                          if (section.tmmhs_id === 5 && tag.date) {
+                            lineParts.push(`Date of Surgery: ${tag.date}`);
+                          } else if (tag.since) {
+                            lineParts.push(tag.since);
+                          }
+                          if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
+                          if (tag.note) lineParts.push(tag.note);
+                          historyItem.lineItem = lineParts.join(', ');
+                        }
+                        
+                        convertedMedicalHistory.push(historyItem);
+                      }
+                    });
+                  }
+                });
+          
+                const filteredHistory = convertedMedicalHistory.filter(item => {
+                  const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || '';
+                  if (itemType === 'others') {
+                    return false;
+                  }
+                  return item.name && item.name.trim() !== '';
+                });
+                
+                if (onUpdate) {
+                  onUpdate(filteredHistory);
+                }
+              }
+              setMedicalHistoryDrawer(false);
+            }}
+            initialActiveKey="medical"
+            hideMenstrualHistoryTab={true}
+          />
+        </Drawer>
+      )}
     </div>
   );
 };

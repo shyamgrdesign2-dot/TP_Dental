@@ -553,16 +553,7 @@ function App() {
                     )
                   } 
                 />
-                <Route 
-                  path="voice-recording" 
-                  element={
-                    isMobileDevice && !isTablet ? (
-                      <MobileVoiceRecording />
-                    ) : (
-                      <VoiceRecordingPage />
-                    )
-                  } 
-                />
+                <Route path="voice-recording" element={<MobileVoiceRecording />} />
                 <Route
                   path="get-unlimited-access"
                   element={<GetUnlimitedAccess />}

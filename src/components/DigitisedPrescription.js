@@ -22,6 +22,8 @@ import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
 import { useGrounding } from "../hooks/useGrounding";
+import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from "../utils/medicalHistoryConverters";
+import moment from "moment";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -91,6 +93,20 @@ const DigitisedPrescription = ({
   setData,
   loading,
   showAbsHeaderInsideLoader = false,
+  setVitalsData,
+  setMedicalHistoryData,
+  contextMedicalHistoryData,
+  onRxEdited,
+  onVitalsUpdate,
+  onMedicalHistoryUpdate,
+  onSymptomsUpdate,
+  onExaminationsUpdate,
+  onDiagnosisUpdate,
+  onMedicationsUpdate,
+  onLabInvestigationUpdate,
+  onLabResultsUpdate,
+  sectionsStore: sectionsStoreProp,
+  context,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
@@ -108,6 +124,10 @@ const DigitisedPrescription = ({
   const editingRef = useRef(false);
   const suggestionRef = useRef(null);
   const inputRef = useRef(null);
+  const isUpdatingFromContextRef = useRef(false);
+  const isUpdatingFromRxPadRef = useRef(false);
+  const defaultSectionsStoreRef = useRef(new Set());
+  const sectionsStore = sectionsStoreProp ?? defaultSectionsStoreRef;
   const dispatch = useDispatch();
   const { parentOptionsList } = useSelector((state) => state.medication);
   const { parentOptionsList: testOptionsList } = useSelector(
@@ -553,6 +573,322 @@ const DigitisedPrescription = ({
     },
     [data?.tests, setData]
   );
+
+  const syncVitalsToContext = useCallback((vitalsObject) => {
+    if (vitalsObject && typeof vitalsObject === 'object' && Object.keys(vitalsObject).length > 0 && setVitalsData) {
+      const vitalsData = vitalsObject;
+      let systolic = vitalsData.Systolic || '';
+      let diastolic = vitalsData.Diastolic || '';
+      let blood_press = vitalsData.bloodPressure || '';
+      
+      if (blood_press && !systolic && !diastolic) {
+        const bpParts = String(blood_press).split('/');
+        if (bpParts.length === 2) {
+          systolic = bpParts[0].trim();
+          diastolic = bpParts[1].trim();
+        }
+      } else if (!blood_press && systolic && diastolic) {
+        blood_press = `${systolic}/${diastolic}`;
+      }
+      if (!systolic || !diastolic) {
+        blood_press = '';
+      }
+      
+      const vitalsArray = [{
+        date: vitalsData.date || moment().format('YYYY-MM-DD'),
+        temp: String(vitalsData.temperature || '').trim(),
+        pres: String(vitalsData.pulse || '').trim(),
+        resp_rate: String(vitalsData.respRate || '').trim(),
+        systolic: String(systolic).trim(),
+        diastolic: String(diastolic).trim(),
+        blood_press: String(blood_press).trim(),
+        spo2: String(vitalsData.spo2 || '').trim(),
+        height: String(vitalsData.height || '').trim(),
+        weight: String(vitalsData.weight || '').trim(),
+        ofc: String(vitalsData.ofc || vitalsData.OFC || '').trim(),
+        sugar: String(vitalsData.sugar || '').trim(),
+        general_rbs: String(vitalsData['General RBS'] || vitalsData.general_rbs || '').trim(),
+        fib4: String(vitalsData.FIB4 || vitalsData.fib4 || '').trim(),
+        waist_circumference: String(vitalsData['Waist Circumference'] || vitalsData.waist_circumference || '').trim(),
+        bmi: String(vitalsData.BMI || vitalsData.bmi || '').trim(),
+        bmr: String(vitalsData.BMR || vitalsData.bmr || '').trim(),
+        bsa: String(vitalsData.BSA || vitalsData.bsa || '').trim()
+      }];
+      setVitalsData(vitalsArray);
+    }
+  }, [setVitalsData]);
+
+  const vitalsUpdater = useMemo(() => {
+    const baseUpdater = (vitalsObject) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('vitalsAndBodyComposition');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.vitalsAndBodyComposition = vitalsObject && typeof vitalsObject === 'object' ? vitalsObject : {};
+        } else {
+          updatedData.vitalsAndBodyComposition = vitalsObject || {};
+        }
+        return updatedData;
+      });
+      
+      syncVitalsToContext(vitalsObject);
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onVitalsUpdate === "function") {
+      return (vitalsObject) => {
+        onVitalsUpdate(vitalsObject);
+        baseUpdater(vitalsObject);
+      };
+    }
+    return baseUpdater;
+  }, [onVitalsUpdate, setData, sectionsStore, syncVitalsToContext, onRxEdited]);
+
+  const medicalHistoryUpdater = useMemo(() => {
+    const baseUpdater = (medicalHistoryArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('medicalHistory');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.medicalHistory = Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [];
+        } else {
+          updatedData.medicalHistory = medicalHistoryArray || [];
+        }
+        return updatedData;
+      });
+      
+      if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
+        const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, contextMedicalHistoryData || []);
+        setMedicalHistoryData(convertedData);
+      }
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onMedicalHistoryUpdate === "function") {
+      return (medicalHistoryArray) => {
+        onMedicalHistoryUpdate(medicalHistoryArray);
+        baseUpdater(medicalHistoryArray);
+      };
+    }
+    return baseUpdater;
+  }, [onMedicalHistoryUpdate, setData, sectionsStore, setMedicalHistoryData, contextMedicalHistoryData, onRxEdited]);
+
+  const symptomsUpdater = useMemo(() => {
+    const baseUpdater = (symptomsArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('symptoms');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.symptoms = Array.isArray(symptomsArray) ? symptomsArray : [];
+        } else {
+          updatedData.symptoms = symptomsArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onSymptomsUpdate === "function") {
+      return (symptomsArray) => {
+        onSymptomsUpdate(symptomsArray);
+        baseUpdater(symptomsArray);
+      };
+    }
+    return baseUpdater;
+  }, [onSymptomsUpdate, setData, sectionsStore, onRxEdited]);
+
+  const examinationsUpdater = useMemo(() => {
+    const baseUpdater = (examinationsArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('examinations');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.examinations = Array.isArray(examinationsArray) ? examinationsArray : [];
+        } else {
+          updatedData.examinations = examinationsArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onExaminationsUpdate === "function") {
+      return (examinationsArray) => {
+        onExaminationsUpdate(examinationsArray);
+        baseUpdater(examinationsArray);
+      };
+    }
+    return baseUpdater;
+  }, [onExaminationsUpdate, setData, sectionsStore, onRxEdited]);
+
+  const diagnosisUpdater = useMemo(() => {
+    const baseUpdater = (diagnosisArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('diagnosis');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.diagnosis = Array.isArray(diagnosisArray) ? diagnosisArray : [];
+        } else {
+          updatedData.diagnosis = diagnosisArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onDiagnosisUpdate === "function") {
+      return (diagnosisArray) => {
+        onDiagnosisUpdate(diagnosisArray);
+        baseUpdater(diagnosisArray);
+      };
+    }
+    return baseUpdater;
+  }, [onDiagnosisUpdate, setData, sectionsStore, onRxEdited]);
+
+  const medicationsUpdater = useMemo(() => {
+    const baseUpdater = (medicationsArray) => {
+      if (!setData) return;
+      setData((prev = {}) => ({
+        ...prev,
+        medications: medicationsArray,
+      }));
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onMedicationsUpdate === "function") {
+      return (medicationsArray) => {
+        onMedicationsUpdate(medicationsArray);
+        baseUpdater(medicationsArray);
+      };
+    }
+    return baseUpdater;
+  }, [onMedicationsUpdate, setData, onRxEdited]);
+
+  const investigationsUpdater = useMemo(() => {
+    const baseUpdater = (investigationArray) => {
+      if (!setData) return;
+      setData((prev = {}) => ({
+        ...prev,
+        labInvestigation: investigationArray,
+      }));
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onLabInvestigationUpdate === "function") {
+      return (investigationArray) => {
+        onLabInvestigationUpdate(investigationArray);
+        baseUpdater(investigationArray);
+      };
+    }
+    return baseUpdater;
+  }, [onLabInvestigationUpdate, setData, onRxEdited]);
+
+  const labResultsUpdater = useMemo(() => {
+    const baseUpdater = (labResultsArray) => {
+      if (!setData) return;
+      
+      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('labResults');
+      setData((prev = {}) => {
+        const updatedData = { ...prev };
+        if (shouldPreserve) {
+          updatedData.labResults = Array.isArray(labResultsArray) ? labResultsArray : [];
+        } else {
+          updatedData.labResults = labResultsArray || [];
+        }
+        return updatedData;
+      });
+      if (typeof onRxEdited === "function") {
+        onRxEdited(true);
+      }
+    };
+
+    if (typeof onLabResultsUpdate === "function") {
+      return (labResultsArray) => {
+        onLabResultsUpdate(labResultsArray);
+        baseUpdater(labResultsArray);
+      };
+    }
+    return baseUpdater;
+  }, [onLabResultsUpdate, setData, sectionsStore, onRxEdited]);
+
+  // Sync Rx pad data to context when data loads (initial load only)
+  useEffect(() => {
+    if (data && context && !isUpdatingFromContextRef.current) {
+      if (data.medicalHistory && Array.isArray(data.medicalHistory) && data.medicalHistory.length > 0 && setMedicalHistoryData) {
+        isUpdatingFromRxPadRef.current = true;
+        const convertedData = convertMedicalHistoryToContextFormat(data.medicalHistory, contextMedicalHistoryData || []);
+        setMedicalHistoryData(convertedData);
+        setTimeout(() => {
+          isUpdatingFromRxPadRef.current = false;
+        }, 100);
+      }
+      
+      if (data.vitalsAndBodyComposition && Object.keys(data.vitalsAndBodyComposition).length > 0 && setVitalsData) {
+        syncVitalsToContext(data.vitalsAndBodyComposition);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.medicalHistory, data?.vitalsAndBodyComposition]);
+
+  // Sync context medical history back to Rx pad when drawer saves
+  useEffect(() => {
+    if (contextMedicalHistoryData && Array.isArray(contextMedicalHistoryData) && contextMedicalHistoryData.length > 0 && setData && !isUpdatingFromRxPadRef.current) {
+      const rxPadFormat = convertContextToRxPadFormat(contextMedicalHistoryData);
+      if (rxPadFormat.length > 0) {
+        isUpdatingFromContextRef.current = true;
+        setData((prev = {}) => {
+          const currentRxPadHistory = prev.medicalHistory || [];
+          const currentRxPadSignature = JSON.stringify(currentRxPadHistory.map(item => ({
+            name: item.name,
+            type: item.type,
+            enable: item.enable
+          })));
+          const contextSignature = JSON.stringify(rxPadFormat.map(item => ({
+            name: item.name,
+            type: item.type,
+            enable: item.enable
+          })));
+          
+          // Only update if context has new data not in Rx pad
+          if (currentRxPadSignature !== contextSignature) {
+            return {
+              ...prev,
+              medicalHistory: rxPadFormat
+            };
+          }
+          return prev;
+        });
+        setTimeout(() => {
+          isUpdatingFromContextRef.current = false;
+        }, 100);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextMedicalHistoryData]);
 
   // Fuzzy-correct medication names ONCE when medications first become available
   useEffect(() => {
