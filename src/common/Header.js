@@ -4,12 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { Select, Button, Checkbox, Popover, Drawer, Dropdown, Spin } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
-import { isChrome, isSafari, isBrowser, browserName } from "react-device-detect";
+import { isChrome, isSafari, isBrowser } from "react-device-detect";
 import axios from 'axios';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import jsQR from 'jsqr';
-import { useReactToPrint } from 'react-to-print';
+import { useQrPrintDownloadHandlers } from './qrPrintDownloadHelper';
 
 import Slider from "react-slick";
 
@@ -65,8 +63,8 @@ import { EVENTS } from "../utils/events";
 import {
   sendMessageToParent
 } from "../utils/utils";
-import { uploadDocsToAzure } from "../pages/medicalRecords/service";
 import { QRCodeSVG } from "qrcode.react";
+import { useReactToPrint } from "react-to-print";
 const CUSTOMIZED_PAD_SENDDATA = { data: { default: false, reset: true } }
 
 function Header({ locationPath }) {
@@ -1063,111 +1061,10 @@ function Header({ locationPath }) {
     setOpdPlansUrl(url);
   };
 
-  const handlePrintWeb = useReactToPrint({
-    content: () => printRef.current,
-    pageStyle: `
-      @media print {
-        .opd-plans-inner-contianer {
-          font-size: 2.5rem; /* Enlarge the whole container content */
-          padding: 40px;
-        }
-        .opd-title {
-          font-size: 3rem; /* Enlarge title */
-        }
-        .opd-byline {
-          font-size: 2rem; /* Enlarge byline */
-        }
-        .opd-logo img {
-          height: 3rem; /* Enlarge logo */
-        }
-        .opd-qr-image {
-          width: 300px !important; /* Enlarge QR Code */
-          height: 300px !important;
-        }
-        .opd-scan-text {
-          font-size: 1.8rem; /* Enlarge scan text */
-        }
-      }
-    `
+  const { handlePrint, handleDownload } = useQrPrintDownloadHandlers({
+    printRef,
+    fileName: 'OPD-Plans',
   });
-
-  const handlePrintInApp = async () => {
-    const element = printRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    const pdfBlob = pdf.output('blob');
-    
-    const file = new File([pdfBlob], `OPD-Plans-${new Date().toISOString().split("T")[0]}.pdf`, {
-      type: "application/pdf",
-    });
-    const formData = new FormData();
-    formData.append(file?.name, file);
-    const res = await uploadDocsToAzure(formData);
-    const printUrl = res?.[0]?.url;
-    if (res?.length > 0) {
-      sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-    }
-  };
-
-  const handlePrint = () => {
-    if (browserName == "Chrome WebView" || browserName == "WebKit") {
-      handlePrintInApp();
-    } else {
-      handlePrintWeb();
-    }
-  };
-
-  // Download as PDF functionality
-  const handleDownloadWeb = async () => {
-    const element = printRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('OPD-Plans.pdf');
-  };
-
-  const handleDownloadInApp = async () => {
-    const element = printRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    const pdfBlob = pdf.output('blob');
-    
-    const file = new File([pdfBlob], `OPD-Plans-${new Date().toISOString().split("T")[0]}.pdf`, {
-      type: "application/pdf",
-    });
-    const formData = new FormData();
-    formData.append(file?.name, file);
-    const res = await uploadDocsToAzure(formData);
-    const printUrl = res?.[0]?.url;
-    if (res?.length > 0) {
-      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-    }
-  };
-
-  const handleDownload = () => {
-    if (browserName == "Chrome WebView" || browserName == "WebKit") {
-      handleDownloadInApp();
-    } else {
-      handleDownloadWeb();
-    }
-  };
 
   const handleAiSuite = useCallback(() => {
     setAiModal(!aiModal);
