@@ -15,6 +15,63 @@ function OphthalmologyTableView({
   const intraOcularPressure = ophthalModuleData?.intraOcularPressure || [];
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
+  const hasValue = (value) => {
+    if (value === 0 || value === "0") return true;
+    if (value === null || value === undefined) return false;
+    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+  };
+  const hasArrayData = (items, keys) =>
+    Array.isArray(items) &&
+    items.some((item) => keys.some((key) => hasValue(item?.[key])));
+  const hasVisualAcuityData = hasArrayData(visualAcuity, [
+    "ucDistance",
+    "ucNear",
+    "pinhole",
+    "cDistance",
+    "cNear",
+  ]);
+  const hasAutoRefractionData = hasArrayData(autoRefraction, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasLensometerValuesData = hasArrayData(lensometerValues, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasGlassPrescriptionData =
+    hasArrayData(glassPrescription, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]) || hasValue(ophthalModuleData?.pd);
+  const hasIntraOcularPressureData = hasArrayData(intraOcularPressure, [
+    "nct",
+    "gat",
+    "cc",
+    "cct",
+    "ciop",
+  ]);
+  const hasSlitLampExaminationData = hasArrayData(slitLampExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
+  const hasFundusExaminationData = hasArrayData(fundusExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
 
   // Helper to check if a section should be visible
   const isSectionVisible = (sectionId) => {
@@ -108,8 +165,8 @@ function OphthalmologyTableView({
   const formatAxis = (value) => {
     if (value === null || value === undefined || value === "") return "-";
     const str = String(value);
-    if (str.includes("°") || /[a-zA-Z]/.test(str)) return str;
-    return `${str}°`;
+    if (str.includes("deg") || /[a-zA-Z]/.test(str)) return str;
+    return `${str} deg`;
   };
 
   const formatUnit = (value, unit) => {
@@ -256,7 +313,7 @@ function OphthalmologyTableView({
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       {/* Visual Acuity Test */}
       {isSectionVisible("visualAcuity") &&
-        visualAcuity.length > 0 &&
+        hasVisualAcuityData &&
         renderSection("Visual Acuity Test", () => {
           const rows = ["OD", "OS"].map((eye) => {
             const data = getEyeData(visualAcuity, eye);
@@ -276,7 +333,8 @@ function OphthalmologyTableView({
         })}
 
       {/* Subjective Refraction */}
-      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 &&
+      {isSectionVisible("autoRefraction") &&
+        hasAutoRefractionData &&
         renderSection("Subjective Refraction", () => {
           const undilated = autoRefraction.filter(
             (item) => String(item.type || "").toLowerCase() === "undilated"
@@ -284,6 +342,22 @@ function OphthalmologyTableView({
           const dilated = autoRefraction.filter(
             (item) => String(item.type || "").toLowerCase() === "dilated"
           );
+          const undilatedHasData = hasArrayData(undilated, [
+            "sphere",
+            "cylinder",
+            "axis",
+            "add",
+            "distance",
+            "near",
+          ]);
+          const dilatedHasData = hasArrayData(dilated, [
+            "sphere",
+            "cylinder",
+            "axis",
+            "add",
+            "distance",
+            "near",
+          ]);
 
           const buildRefractionRows = (rows) => {
             return ["OD", "OS"].map((eye) => {
@@ -312,13 +386,13 @@ function OphthalmologyTableView({
 
           return (
             <View>
-              {autoRefractionSubOptions.undilated && undilated.length > 0 && (
+              {autoRefractionSubOptions.undilated && undilatedHasData && (
                 <>
                   {renderSubTitle("Undilated")}
                   {renderEyeTable(headers, buildRefractionRows(undilated))}
                 </>
               )}
-              {autoRefractionSubOptions.dilated && dilated.length > 0 && (
+              {autoRefractionSubOptions.dilated && dilatedHasData && (
                 <>
                   {renderSubTitle("Dilated")}
                   {renderEyeTable(headers, buildRefractionRows(dilated))}
@@ -329,7 +403,8 @@ function OphthalmologyTableView({
         })}
 
       {/* Lensometer Values */}
-      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 &&
+      {isSectionVisible("lensometerValues") &&
+        hasLensometerValuesData &&
         renderSection("Lensometer Values", () => {
           const rows = ["OD", "OS"].map((eye) => {
             const data = getEyeData(lensometerValues, eye);
@@ -350,7 +425,8 @@ function OphthalmologyTableView({
         })}
 
       {/* Glass Prescription */}
-      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 &&
+      {isSectionVisible("glassPrescription") &&
+        hasGlassPrescriptionData &&
         renderSection("Glass Prescription", () => {
           const rows = ["OD", "OS"].map((eye) => {
             const data = getEyeData(glassPrescription, eye);
@@ -381,7 +457,7 @@ function OphthalmologyTableView({
 
       {/* Intra Ocular Pressure */}
       {isSectionVisible("intraOcularPressure") &&
-        intraOcularPressure.length > 0 &&
+        hasIntraOcularPressureData &&
         renderSection(
           "Intra Ocular Pressure",
           () => {
@@ -390,10 +466,10 @@ function OphthalmologyTableView({
               const cctValue = data.cct ?? data.cc;
               return [
                 eye,
-                formatUnit(data.nct, "mmhg"),
-                formatUnit(data.gat, "mmhg"),
+                formatUnit(data.nct, "mmHg"),
+                formatUnit(data.gat, "mmHg"),
                 formatUnit(cctValue, "um"),
-                formatUnit(data.ciop, "mmhg"),
+                formatUnit(data.ciop, "mmHg"),
               ];
             });
             return renderEyeTable(["Eye", "NCT", "GAT", "CCT", "CIOP"], rows);
@@ -403,7 +479,7 @@ function OphthalmologyTableView({
 
       {/* Slit Lamp Examination */}
       {isSectionVisible("slitLampExamination") &&
-        slitLampExamination.length > 0 &&
+        hasSlitLampExaminationData &&
         renderSection("Slit Lamp Examination", () => {
           const rows = slitLampExamination.map((item) => [
             item.section,
@@ -424,7 +500,7 @@ function OphthalmologyTableView({
 
       {/* Fundus Examination */}
       {isSectionVisible("fundusExamination") &&
-        fundusExamination.length > 0 &&
+        hasFundusExaminationData &&
         renderSection("Fundus Examination", () => {
           const rows = fundusExamination.map((item) => [
             item.section,

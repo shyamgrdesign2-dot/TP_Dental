@@ -15,6 +15,63 @@ function OphthalmologyInlineView({
   const intraOcularPressure = ophthalModuleData?.intraOcularPressure || [];
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
+  const hasValue = (value) => {
+    if (value === 0 || value === "0") return true;
+    if (value === null || value === undefined) return false;
+    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+  };
+  const hasArrayData = (items, keys) =>
+    Array.isArray(items) &&
+    items.some((item) => keys.some((key) => hasValue(item?.[key])));
+  const hasVisualAcuityData = hasArrayData(visualAcuity, [
+    "ucDistance",
+    "ucNear",
+    "pinhole",
+    "cDistance",
+    "cNear",
+  ]);
+  const hasAutoRefractionData = hasArrayData(autoRefraction, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasLensometerValuesData = hasArrayData(lensometerValues, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasGlassPrescriptionData =
+    hasArrayData(glassPrescription, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]) || hasValue(ophthalModuleData?.pd);
+  const hasIntraOcularPressureData = hasArrayData(intraOcularPressure, [
+    "nct",
+    "gat",
+    "cc",
+    "cct",
+    "ciop",
+  ]);
+  const hasSlitLampExaminationData = hasArrayData(slitLampExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
+  const hasFundusExaminationData = hasArrayData(fundusExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
 
   // Helper to check if a section should be visible
   const isSectionVisible = (sectionId) => {
@@ -78,19 +135,23 @@ function OphthalmologyInlineView({
         
         if (field.format === "distance") {
           return `${field.label}: 6/${value}`;
-        } else if (field.format === "near") {
-          return `${field.label}: N${value}`;
-        } else if (field.format === "axis") {
-          return `${field.label}: ${value}°`;
-        } else if (field.format === "pressure") {
-          return `${field.label}: ${value} mmhg`;
-        } else if (field.format === "cct") {
-          return `${field.label}: ${value}µm`;
-        } else if (field.format === "ciop") {
-          return `${field.label}: ${value} MmHg`;
-        } else {
-          return `${field.label}: ${value}`;
         }
+        if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        }
+        if (field.format === "axis") {
+          return `${field.label}: ${value} deg`;
+        }
+        if (field.format === "pressure") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        if (field.format === "cct") {
+          return `${field.label}: ${value} um`;
+        }
+        if (field.format === "ciop") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        return `${field.label}: ${value}`;
       })
       .filter(Boolean);
     
@@ -101,19 +162,23 @@ function OphthalmologyInlineView({
         
         if (field.format === "distance") {
           return `${field.label}: 6/${value}`;
-        } else if (field.format === "near") {
-          return `${field.label}: N${value}`;
-        } else if (field.format === "axis") {
-          return `${field.label}: ${value}°`;
-        } else if (field.format === "pressure") {
-          return `${field.label}: ${value} mmhg`;
-        } else if (field.format === "cct") {
-          return `${field.label}: ${value}µm`;
-        } else if (field.format === "ciop") {
-          return `${field.label}: ${value} MmHg`;
-        } else {
-          return `${field.label}: ${value}`;
         }
+        if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        }
+        if (field.format === "axis") {
+          return `${field.label}: ${value} deg`;
+        }
+        if (field.format === "pressure") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        if (field.format === "cct") {
+          return `${field.label}: ${value} um`;
+        }
+        if (field.format === "ciop") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        return `${field.label}: ${value}`;
       })
       .filter(Boolean);
     
@@ -126,7 +191,7 @@ function OphthalmologyInlineView({
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       {/* Visual Acuity Test */}
-      {isSectionVisible("visualAcuity") && visualAcuity.length > 0 && (
+      {isSectionVisible("visualAcuity") && hasVisualAcuityData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -168,7 +233,7 @@ function OphthalmologyInlineView({
       )}
 
       {/* Subjective Refraction */}
-      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 && (
+      {isSectionVisible("autoRefraction") && hasAutoRefractionData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -196,9 +261,18 @@ function OphthalmologyInlineView({
               (item) => item.eye === "OS" && item.type === "Dilated"
             );
 
+            const undilatedHasData = hasArrayData(
+              [undilatedOD, undilatedOS].filter(Boolean),
+              ["sphere", "cylinder", "axis", "add", "distance", "near"]
+            );
+            const dilatedHasData = hasArrayData(
+              [dilatedOD, dilatedOS].filter(Boolean),
+              ["sphere", "cylinder", "axis", "add", "distance", "near"]
+            );
+
             return (
               <View>
-                {autoRefractionSubOptions.undilated && (undilatedOD || undilatedOS) && (
+                {autoRefractionSubOptions.undilated && undilatedHasData && (
                   <Text
                     style={{
                       fontFamily: printSettings?.page_format?.font_family,
@@ -220,7 +294,7 @@ function OphthalmologyInlineView({
                   </Text>
                 )}
 
-                {autoRefractionSubOptions.dilated && (dilatedOD || dilatedOS) && (
+                {autoRefractionSubOptions.dilated && dilatedHasData && (
                   <Text
                     style={{
                       fontFamily: printSettings?.page_format?.font_family,
@@ -248,7 +322,7 @@ function OphthalmologyInlineView({
       )}
 
       {/* Lensometer Values */}
-      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 && (
+      {isSectionVisible("lensometerValues") && hasLensometerValuesData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -291,7 +365,7 @@ function OphthalmologyInlineView({
       )}
 
       {/* Glass Prescription */}
-      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 && (
+      {isSectionVisible("glassPrescription") && hasGlassPrescriptionData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -336,7 +410,8 @@ function OphthalmologyInlineView({
       )}
 
       {/* Intra Ocular Pressure */}
-      {isSectionVisible("intraOcularPressure") && intraOcularPressure.length > 0 && (
+      {isSectionVisible("intraOcularPressure") &&
+        hasIntraOcularPressureData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -377,7 +452,8 @@ function OphthalmologyInlineView({
       )}
 
       {/* Slit Lamp Examination */}
-      {isSectionVisible("slitLampExamination") && slitLampExamination.length > 0 && (
+      {isSectionVisible("slitLampExamination") &&
+        hasSlitLampExaminationData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{
@@ -421,7 +497,7 @@ function OphthalmologyInlineView({
       )}
 
       {/* Fundus Examination */}
-      {isSectionVisible("fundusExamination") && fundusExamination.length > 0 && (
+      {isSectionVisible("fundusExamination") && hasFundusExaminationData && (
         <View style={{ marginBottom: PX_TO_PT * 10 }}>
           <Text
             style={{

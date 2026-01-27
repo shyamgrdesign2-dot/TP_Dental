@@ -15,6 +15,63 @@ function OphthalmologyListView({
   const intraOcularPressure = ophthalModuleData?.intraOcularPressure || [];
   const slitLampExamination = ophthalModuleData?.slitLampExamination || [];
   const fundusExamination = ophthalModuleData?.fundusExamination || [];
+  const hasValue = (value) => {
+    if (value === 0 || value === "0") return true;
+    if (value === null || value === undefined) return false;
+    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+  };
+  const hasArrayData = (items, keys) =>
+    Array.isArray(items) &&
+    items.some((item) => keys.some((key) => hasValue(item?.[key])));
+  const hasVisualAcuityData = hasArrayData(visualAcuity, [
+    "ucDistance",
+    "ucNear",
+    "pinhole",
+    "cDistance",
+    "cNear",
+  ]);
+  const hasAutoRefractionData = hasArrayData(autoRefraction, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasLensometerValuesData = hasArrayData(lensometerValues, [
+    "sphere",
+    "cylinder",
+    "axis",
+    "add",
+    "distance",
+    "near",
+  ]);
+  const hasGlassPrescriptionData =
+    hasArrayData(glassPrescription, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]) || hasValue(ophthalModuleData?.pd);
+  const hasIntraOcularPressureData = hasArrayData(intraOcularPressure, [
+    "nct",
+    "gat",
+    "cc",
+    "cct",
+    "ciop",
+  ]);
+  const hasSlitLampExaminationData = hasArrayData(slitLampExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
+  const hasFundusExaminationData = hasArrayData(fundusExamination, [
+    "OD",
+    "OS",
+    "remarks",
+  ]);
 
   // Helper to check if a section should be visible
   const isSectionVisible = (sectionId) => {
@@ -100,7 +157,7 @@ function OphthalmologyListView({
           marginRight: PX_TO_PT * 6,
         }}
       >
-        •
+        -
       </Text>
       <Text
         style={{
@@ -123,19 +180,23 @@ function OphthalmologyListView({
         
         if (field.format === "distance") {
           return `${field.label}: 6/${value}`;
-        } else if (field.format === "near") {
-          return `${field.label}: N${value}`;
-        } else if (field.format === "axis") {
-          return `${field.label}: ${value}°`;
-        } else if (field.format === "pressure") {
-          return `${field.label}: ${value} mmhg`;
-        } else if (field.format === "cct") {
-          return `${field.label}: ${value}µm`;
-        } else if (field.format === "ciop") {
-          return `${field.label}: ${value} MmHg`;
-        } else {
-          return `${field.label}: ${value}`;
         }
+        if (field.format === "near") {
+          return `${field.label}: N${value}`;
+        }
+        if (field.format === "axis") {
+          return `${field.label}: ${value} deg`;
+        }
+        if (field.format === "pressure") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        if (field.format === "cct") {
+          return `${field.label}: ${value} um`;
+        }
+        if (field.format === "ciop") {
+          return `${field.label}: ${value} mmHg`;
+        }
+        return `${field.label}: ${value}`;
       })
       .filter(Boolean);
     
@@ -151,7 +212,8 @@ function OphthalmologyListView({
   return (
     <View style={{ marginTop: PX_TO_PT * 15 }}>
       {/* Visual Acuity Test */}
-      {isSectionVisible("visualAcuity") && visualAcuity.length > 0 &&
+      {isSectionVisible("visualAcuity") &&
+        hasVisualAcuityData &&
         renderSection("Visual Acuity Test", () => {
           const odData = getEyeData(visualAcuity, "OD");
           const osData = getEyeData(visualAcuity, "OS");
@@ -176,7 +238,8 @@ function OphthalmologyListView({
         })}
 
       {/* Subjective Refraction */}
-      {isSectionVisible("autoRefraction") && autoRefraction.length > 0 &&
+      {isSectionVisible("autoRefraction") &&
+        hasAutoRefractionData &&
         renderSection("Subjective Refraction", () => {
           const undilatedOD = autoRefraction.find(
             (item) => item.eye === "OD" && item.type === "Undilated"
@@ -190,10 +253,18 @@ function OphthalmologyListView({
           const dilatedOS = autoRefraction.find(
             (item) => item.eye === "OS" && item.type === "Dilated"
           );
+          const undilatedHasData = hasArrayData(
+            [undilatedOD, undilatedOS].filter(Boolean),
+            ["sphere", "cylinder", "axis", "add", "distance", "near"]
+          );
+          const dilatedHasData = hasArrayData(
+            [dilatedOD, dilatedOS].filter(Boolean),
+            ["sphere", "cylinder", "axis", "add", "distance", "near"]
+          );
 
           return (
             <View>
-              {autoRefractionSubOptions.undilated && (undilatedOD || undilatedOS) && (
+              {autoRefractionSubOptions.undilated && undilatedHasData && (
                 <>
                   <Text
                     style={{
@@ -226,7 +297,7 @@ function OphthalmologyListView({
                 </>
               )}
 
-              {autoRefractionSubOptions.dilated && (dilatedOD || dilatedOS) && (
+              {autoRefractionSubOptions.dilated && dilatedHasData && (
                 <>
                   <Text
                     style={{
@@ -265,7 +336,8 @@ function OphthalmologyListView({
         })}
 
       {/* Lensometer Values */}
-      {isSectionVisible("lensometerValues") && lensometerValues.length > 0 &&
+      {isSectionVisible("lensometerValues") &&
+        hasLensometerValuesData &&
         renderSection("Lensometer Values", () => {
           const odData = getEyeData(lensometerValues, "OD");
           const osData = getEyeData(lensometerValues, "OS");
@@ -292,7 +364,8 @@ function OphthalmologyListView({
         })}
 
       {/* Glass Prescription */}
-      {isSectionVisible("glassPrescription") && glassPrescription.length > 0 &&
+      {isSectionVisible("glassPrescription") &&
+        hasGlassPrescriptionData &&
         renderSection("Glass Prescription", () => {
           const odData = getEyeData(glassPrescription, "OD");
           const osData = getEyeData(glassPrescription, "OS");
@@ -321,7 +394,8 @@ function OphthalmologyListView({
         })}
 
       {/* Intra Ocular Pressure */}
-      {isSectionVisible("intraOcularPressure") && intraOcularPressure.length > 0 &&
+      {isSectionVisible("intraOcularPressure") &&
+        hasIntraOcularPressureData &&
         renderSection("Intra Ocular Pressure", () => {
           const odData = getEyeData(intraOcularPressure, "OD");
           const osData = getEyeData(intraOcularPressure, "OS");
@@ -344,7 +418,8 @@ function OphthalmologyListView({
         })}
 
       {/* Slit Lamp Examination */}
-      {isSectionVisible("slitLampExamination") && slitLampExamination.length > 0 &&
+      {isSectionVisible("slitLampExamination") &&
+        hasSlitLampExaminationData &&
         renderSection("Slit Lamp Examination", () => {
           return (
             <View>
@@ -383,7 +458,8 @@ function OphthalmologyListView({
         })}
 
       {/* Fundus Examination */}
-      {isSectionVisible("fundusExamination") && fundusExamination.length > 0 &&
+      {isSectionVisible("fundusExamination") &&
+        hasFundusExaminationData &&
         renderSection("Fundus Examination", () => {
           return (
             <View>
