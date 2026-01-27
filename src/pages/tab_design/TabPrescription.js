@@ -122,7 +122,7 @@ import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
 
 function TabPrescription() {
-  const { isMobile: isMobileDevice } = useDeviceType();
+  const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const {
     customizedPadLeftList,
     customizedPadRightList,
@@ -1218,7 +1218,7 @@ function TabPrescription() {
 
   // On mobile, when in Voice Rx flow, show RX Pad (if open) or Consultation Summary (if closed)
   // This ensures we never show the tab view when in Voice Rx flow
-  if (isMobileDevice && isInVoiceRxFlow) {
+  if (isMobileDevice && !isTablet && isInVoiceRxFlow) {
     return (
       <CashManagerContext.Provider value={contextApi}>
         {isGenRxDrawerVisible ? (
@@ -1285,7 +1285,7 @@ function TabPrescription() {
     <CashManagerContext.Provider value={contextApi}>
       <>
         {isGenRxDrawerVisible && (
-          isMobileDevice ? (
+          (isMobileDevice && !isTablet) ? (
             <MobileRxPad
               visible={isGenRxDrawerVisible}
               onClose={() => setIsGenRxDrawerVisible(false)}
