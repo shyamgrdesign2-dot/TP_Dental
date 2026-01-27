@@ -312,7 +312,7 @@ function PatientForm({ mode = ADD, patient_data }) {
 
     return (
         <>
-            {isMobile && (
+            {isMobileOnly && (
                 <TabHeader
                     flag={2}
                     mode={mode}
@@ -368,8 +368,8 @@ function PatientForm({ mode = ADD, patient_data }) {
                     </div>
                 ) : (
                     // Web/Tablet layout
-                    <div className={isMobile ? "" : "border rounded-4 appointment-wrap"}>
-                        <div className={isMobile ? "p-30 pt-0" : "p-30 overflow-y-auto"} style={{ height: 'calc(100vh - 242px)' }}>
+                    <div className={isMobileOnly ? "" : "border rounded-4 appointment-wrap"}>
+                        <div className={isMobileOnly ? "p-30 pt-0" : "p-30 overflow-y-auto"} style={{ height: 'calc(100vh - 242px)' }}>
                             <Row className="justify-content-between">
                                 <Col sm={8}>
                                     {isMobile ? (
@@ -401,7 +401,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                 </Col>
                             </Row>
                         </div>
-                        {!isMobile && (
+                        {!isMobileOnly && (
                         <>
                             <hr className="my-0" />
                             <div className="text-end p-20">
@@ -446,7 +446,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                             </div>
 
                                             <div className="d-flex flex-column align-items-center justify-content-center g-4">
-                                                {!isMobile ? (
+                                                {!isMobileOnly ? (
                                                     <SmartDropdownButtons
                                                         profile={profile}
                                                         patient_data={patientData}
