@@ -92,6 +92,9 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
   const [addCustomMedicine, setAddCustomMedicine] = useState({ visible: false, initialName: '' });
   const [gynecHistoryDrawerVisible, setGynecHistoryDrawerVisible] = useState(false);
   const [obstetricHistoryDrawerVisible, setObstetricHistoryDrawerVisible] = useState(false);
+  // Note: hasTodayVitals and hasTodayLabResults features disabled - dependent utility files not yet available
+  // const [hasTodayVitals, setHasTodayVitals] = useState(false);
+  // const [hasTodayLabResults, setHasTodayLabResults] = useState(false);
 
   // Web-like: empty -> FREQUENTLY USED; typing -> debounced searchInvestigation
   useEffect(() => {
@@ -162,6 +165,31 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
     return opts;
   }, [medicationParentList, medicationSearch]);
+
+  // Note: Fetch today's vitals and lab results feature disabled - dependent utility files not yet available
+  // TODO: Re-enable when getTodayVitals and getTodayLabResults utilities are available
+  // useEffect(() => {
+  //   if (!patient_data?.patient_unique_id) {
+  //     setHasTodayVitals(false);
+  //     setHasTodayLabResults(false);
+  //     return;
+  //   }
+  //   const check = async () => {
+  //     try {
+  //       const [todayVitals, todayLabResults] = await Promise.all([
+  //         getTodayVitals(patient_data),
+  //         getTodayLabResults(patient_data),
+  //       ]);
+  //       setHasTodayVitals(!!todayVitals);
+  //       setHasTodayLabResults(!!(Array.isArray(todayLabResults) && todayLabResults.length > 0));
+  //     } catch (e) {
+  //       console.error('Error fetching today vitals/lab results:', e);
+  //       setHasTodayVitals(false);
+  //       setHasTodayLabResults(false);
+  //     }
+  //   };
+  //   check();
+  // }, [patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   // Fetch gynec history when Rx Pad loads
   useEffect(() => {
@@ -1326,6 +1354,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
       {renderSection('Lab Investigation', labIcon, prescriptionData?.labInvestigation, renderLabInvestigation, null, true)}
 
       {/* Rich Text Editor Sections - Continued */}
+      {/* Show LabResultsRichTextEditor if has lab results content */}
       {(prescriptionData?.labResults && 
         Array.isArray(prescriptionData.labResults) && 
         prescriptionData.labResults.length > 0) && (

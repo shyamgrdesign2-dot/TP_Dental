@@ -3,6 +3,7 @@ import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
 import labResultsIcon from '../assets/images/Lab.svg';
+import styles from './ConsultationDrawer.module.css';
 
 /**
  * LabResultsRichTextEditor - Rich text editor specifically for Lab Results section
@@ -112,21 +113,35 @@ const LabResultsRichTextEditor = ({
 
   return (
     <div className={`labresults-rich-text-editor ${className}`}>
-      <div className="labresults-header">
-        <div className="labresults-icon">
-          <img src={labResultsIcon} alt="Lab Results" />
+      <div className={`${styles['lab-results-header']} ${styles['vitals-header']}`}>
+        <div className={styles['medical-history-header-left']}>
+          <div className={styles['lab-results-icon']}>
+            <img src={labResultsIcon} alt="Lab Results" />
+          </div>
+          <span className={styles['lab-results-title']}>Lab Results</span>
         </div>
-        <span className="labresults-title">Lab Results</span>
+        {/* Temporarily hidden - Add/Edit Results button */}
+        {/* <button
+          className={styles['medical-history-action-button']}
+          onClick={handleOpenLabResultsDrawer}
+        >
+          <img
+            src={addEditIcon}
+            alt="Add/Edit"
+            className={styles['medical-history-action-icon']}
+          />
+          <span>Add/Edit Results</span>
+        </button> */}
       </div>
-      <div className="editor-container">
+      <div className="editor-container lab-results-readonly">
         <RichTextEditor
           key={editorKey}
           initialValue={initialSlateValue}
-          onChange={handleChange}
           placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
           spellCheck={true}
           autoFocus={false}
           showToolbar={false}
+          readOnly={true}
         />
       </div>
     </div>
