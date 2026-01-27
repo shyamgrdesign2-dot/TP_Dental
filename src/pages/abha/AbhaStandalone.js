@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import CreatePatientAbha from "../../components/abha/screens/CreatePatientAbha";
+import CreatePatientAbhaStandaloneOtpOnly from "../../components/abha/screens/CreatePatientAbhaStandaloneOtpOnly";
 import AbhaVerifyOtp from "../../components/abha/screens/AbhaVerifyOtp";
 import MobileVerifyOtp from "../../components/abha/screens/MobileVerifyOtp";
 import CreateNewAbhaAddress from "../../components/abha/screens/CreateNewAbhaAddress";
@@ -38,6 +39,9 @@ const FLOW_TYPES = {
   NEW_PATIENT: "new_patient",
   LINK_EXISTING: "link_existing",
 };
+
+/** Set to true when standalone biometric flow is ready to ship. Doctor portal (AbhaDrawer) is unaffected. */
+const BIOMETRIC_FLOW_ENABLED = false;
 
 const AbhaStandalone = () => {
   const [searchParams] = useSearchParams();
@@ -459,7 +463,7 @@ const AbhaStandalone = () => {
   };
 
   const handleNextClick = async () => {
-    if (currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
+    if (BIOMETRIC_FLOW_ENABLED && currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
       await handleBiometricVerifyNext();
       return;
     }
@@ -636,7 +640,36 @@ const AbhaStandalone = () => {
     }
   }, [currentScreen, screenData]);
 
+  useEffect(() => {
+    if (
+      !BIOMETRIC_FLOW_ENABLED &&
+      (currentScreen === ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY ||
+        currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION)
+    ) {
+      goToCreate({
+        initialAadhaar: screenData?.aadhaarNumber || screenData?.initialAadhaar || "",
+      });
+    }
+  }, [BIOMETRIC_FLOW_ENABLED, currentScreen, goToCreate, screenData?.aadhaarNumber, screenData?.initialAadhaar]);
+
   const renderScreen = () => {
+    if (!BIOMETRIC_FLOW_ENABLED) {
+      if (
+        currentScreen === ABHA_SCREENS.CREATE ||
+        currentScreen === ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY ||
+        currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION
+      ) {
+        return (
+          <CreatePatientAbhaStandaloneOtpOnly
+            onLinkOptionSelect={handleLinkNavigation}
+            onOtpSent={handleOtpSent}
+            patientUniqueId={patientUniqueId || null}
+            initialAadhaar={screenData?.initialAadhaar || ""}
+          />
+        );
+      }
+    }
+
     switch (currentScreen) {
       case ABHA_SCREENS.CREATE:
         return (
@@ -797,11 +830,20 @@ const AbhaStandalone = () => {
           />
         );
       default:
-        return (
-          <CreatePatientAbha
+        return !BIOMETRIC_FLOW_ENABLED ? (
+          <CreatePatientAbhaStandaloneOtpOnly
             onLinkOptionSelect={handleLinkNavigation}
             onOtpSent={handleOtpSent}
             patientUniqueId={patientUniqueId || null}
+            initialAadhaar={screenData?.initialAadhaar || ""}
+          />
+        ) : (
+          <CreatePatientAbha
+            onLinkOptionSelect={handleLinkNavigation}
+            onOtpSent={handleOtpSent}
+            onBiometricSelect={handleBiometricSelect}
+            patientUniqueId={patientUniqueId || null}
+            initialAadhaar={screenData?.initialAadhaar || ""}
           />
         );
     }
@@ -852,12 +894,14 @@ const AbhaStandalone = () => {
         </div>
         <div className="abha-standalone-content">{renderScreen()}</div>
       </div>
-      <BiometricCapturePopup
-        open={biometricPopupOpen}
-        onClose={() => setBiometricPopupOpen(false)}
-        onCaptureSuccess={handleBiometricCaptureSuccess}
-        onCaptureError={handleBiometricCaptureError}
-      />
+      {BIOMETRIC_FLOW_ENABLED && (
+        <BiometricCapturePopup
+          open={biometricPopupOpen}
+          onClose={() => setBiometricPopupOpen(false)}
+          onCaptureSuccess={handleBiometricCaptureSuccess}
+          onCaptureError={handleBiometricCaptureError}
+        />
+      )}
     </div>
   );
 };
