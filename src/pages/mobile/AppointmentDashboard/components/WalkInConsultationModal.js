@@ -67,7 +67,7 @@ function WalkInConsultationModal({
             type="button"
             aria-label="Start Walk-in Consultation"
           >
-            Walk-in Consultation
+            Start Walk-in Consultation
           </button>
         </div>
       </div>
