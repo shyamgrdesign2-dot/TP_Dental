@@ -4,7 +4,7 @@ import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from "react-redux";
 import axios from 'axios';
-import { isChrome, isSafari, deviceDetect } from 'react-device-detect';
+import { isChrome, isSafari, deviceDetect, browserName } from 'react-device-detect';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -21,6 +21,7 @@ import { updateWebsitePublish } from "../../redux/doctorsSlice";
 import { errorMessage, handleCopy, validateEmail, trackEvent, getTokenData, sendMessageToParent } from '../../utils/utils';
 import CommonModal from '../../common/CommonModal';
 import QrPrintDownloadModal from '../../common/QrPrintDownloadModal';
+import { uploadDocsToAzure } from '../../pages/medicalRecords/service';
 import alertIcon from '../../assets/images/alertIcon.svg';
 import logoIcom from '../../assets/images/text-logo.svg';
 import ShareIcon from "../../assets/images/share.svg";
@@ -324,7 +325,7 @@ function HeaderDoctorWebsite() {
         setQRCodeVisible(!isQRCodeVisible);
     }, [isQRCodeVisible]);
 
-    const handlePrint = useReactToPrint({
+    const handlePrintWeb = useReactToPrint({
         content: () => printRef.current,
         pageStyle: `
       @media print {
@@ -352,7 +353,39 @@ function HeaderDoctorWebsite() {
     `
     });
 
-    const handleDownload = async () => {
+    const handlePrintInApp = async () => {
+        const element = printRef.current;
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const pdfBlob = pdf.output('blob');
+        
+        const file = new File([pdfBlob], `Doctor-Website-URL-${new Date().toISOString().split("T")[0]}.pdf`, {
+            type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const printUrl = res?.[0]?.url;
+        if (res?.length > 0) {
+            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        }
+    };
+
+    const handlePrint = () => {
+        if (browserName == "Chrome WebView" || browserName == "WebKit") {
+            handlePrintInApp();
+        } else {
+            handlePrintWeb();
+        }
+    };
+
+    const handleDownloadWeb = async () => {
         const element = printRef.current;
         const canvas = await html2canvas(element, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
@@ -363,6 +396,38 @@ function HeaderDoctorWebsite() {
 
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save('Doctor-Website-URL.pdf');
+    };
+
+    const handleDownloadInApp = async () => {
+        const element = printRef.current;
+        const canvas = await html2canvas(element, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const pdfBlob = pdf.output('blob');
+        
+        const file = new File([pdfBlob], `Doctor-Website-URL-${new Date().toISOString().split("T")[0]}.pdf`, {
+            type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const printUrl = res?.[0]?.url;
+        if (res?.length > 0) {
+            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        }
+    };
+
+    const handleDownload = () => {
+        if (browserName == "Chrome WebView" || browserName == "WebKit") {
+            handleDownloadInApp();
+        } else {
+            handleDownloadWeb();
+        }
     };
 
     const handleShowQRCode = () => {

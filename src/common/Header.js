@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Select, Button, Checkbox, Popover, Drawer, Dropdown, Spin } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
-import { isChrome, isSafari, isBrowser } from "react-device-detect";
+import { isChrome, isSafari, isBrowser, browserName } from "react-device-detect";
 import axios from 'axios';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -65,6 +65,8 @@ import { EVENTS } from "../utils/events";
 import {
   sendMessageToParent
 } from "../utils/utils";
+import { uploadDocsToAzure } from "../pages/medicalRecords/service";
+import { QRCodeSVG } from "qrcode.react";
 const CUSTOMIZED_PAD_SENDDATA = { data: { default: false, reset: true } }
 
 function Header({ locationPath }) {
@@ -1061,7 +1063,7 @@ function Header({ locationPath }) {
     setOpdPlansUrl(url);
   };
 
-  const handlePrint = useReactToPrint({
+  const handlePrintWeb = useReactToPrint({
     content: () => printRef.current,
     pageStyle: `
       @media print {
@@ -1089,8 +1091,40 @@ function Header({ locationPath }) {
     `
   });
 
+  const handlePrintInApp = async () => {
+    const element = printRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    const pdfBlob = pdf.output('blob');
+    
+    const file = new File([pdfBlob], `OPD-Plans-${new Date().toISOString().split("T")[0]}.pdf`, {
+      type: "application/pdf",
+    });
+    const formData = new FormData();
+    formData.append(file?.name, file);
+    const res = await uploadDocsToAzure(formData);
+    const printUrl = res?.[0]?.url;
+    if (res?.length > 0) {
+      sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    }
+  };
+
+  const handlePrint = () => {
+    if (browserName == "Chrome WebView" || browserName == "WebKit") {
+      handlePrintInApp();
+    } else {
+      handlePrintWeb();
+    }
+  };
+
   // Download as PDF functionality
-  const handleDownload = async () => {
+  const handleDownloadWeb = async () => {
     const element = printRef.current;
     const canvas = await html2canvas(element, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
@@ -1101,6 +1135,38 @@ function Header({ locationPath }) {
 
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     pdf.save('OPD-Plans.pdf');
+  };
+
+  const handleDownloadInApp = async () => {
+    const element = printRef.current;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    const pdfBlob = pdf.output('blob');
+    
+    const file = new File([pdfBlob], `OPD-Plans-${new Date().toISOString().split("T")[0]}.pdf`, {
+      type: "application/pdf",
+    });
+    const formData = new FormData();
+    formData.append(file?.name, file);
+    const res = await uploadDocsToAzure(formData);
+    const printUrl = res?.[0]?.url;
+    if (res?.length > 0) {
+      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+    }
+  };
+
+  const handleDownload = () => {
+    if (browserName == "Chrome WebView" || browserName == "WebKit") {
+      handleDownloadInApp();
+    } else {
+      handleDownloadWeb();
+    }
   };
 
   const handleAiSuite = useCallback(() => {
