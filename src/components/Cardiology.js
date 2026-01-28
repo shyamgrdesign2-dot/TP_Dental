@@ -113,6 +113,17 @@ function Cardiology(props) {
     return value;
   }, []);
 
+  const hasOpthalValue = useCallback((value) => {
+    if (value === 0 || value === "0") return true;
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || trimmed === "-" || trimmed === "--") return false;
+      return true;
+    }
+    return Boolean(value);
+  }, []);
+
   const currentOpthal = useMemo(() => {
     const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
     if (!tcmId || !Array.isArray(opthalPrescriptionHistory)) {
@@ -221,21 +232,33 @@ function Cardiology(props) {
       return row;
     });
 
-    const slitLampRows = (currentOpthal?.slitLampExamination || []).map(
-      (item) => [
+    const slitLampRows = (currentOpthal?.slitLampExamination || [])
+      .filter(
+        (item) =>
+          hasOpthalValue(item?.OD ?? item?.od) ||
+          hasOpthalValue(item?.OS ?? item?.os) ||
+          hasOpthalValue(item?.remarks)
+      )
+      .map((item) => [
         item?.section,
         item?.OD || item?.od,
         item?.OS || item?.os,
         item?.remarks,
-      ]
-    );
+      ]);
 
-    const fundusRows = (currentOpthal?.fundusExamination || []).map((item) => [
-      item?.section,
-      item?.OD || item?.od,
-      item?.OS || item?.os,
-      item?.remarks,
-    ]);
+    const fundusRows = (currentOpthal?.fundusExamination || [])
+      .filter(
+        (item) =>
+          hasOpthalValue(item?.OD ?? item?.od) ||
+          hasOpthalValue(item?.OS ?? item?.os) ||
+          hasOpthalValue(item?.remarks)
+      )
+      .map((item) => [
+        item?.section,
+        item?.OD || item?.od,
+        item?.OS || item?.os,
+        item?.remarks,
+      ]);
 
     return (
       <div className="opthal-summary">

@@ -150,6 +150,20 @@
   padding: 4px 0;
 }
 
+.headerAction:disabled {
+  color: #b1b1be;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.headerAction:disabled .headerActionUnderline {
+  text-decoration: none;
+}
+
+.headerAction:disabled .actionIcon {
+  background: #f0f0f6;
+}
+
 .headerActionUnderline {
   text-decoration: underline;
   text-underline-offset: 2px;

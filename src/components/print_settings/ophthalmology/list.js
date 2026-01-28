@@ -18,7 +18,12 @@ function OphthalmologyListView({
   const hasValue = (value) => {
     if (value === 0 || value === "0") return true;
     if (value === null || value === undefined) return false;
-    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || trimmed === "-" || trimmed === "--") return false;
+      return true;
+    }
+    return Boolean(value);
   };
   const hasArrayData = (items, keys) =>
     Array.isArray(items) &&
@@ -424,10 +429,28 @@ function OphthalmologyListView({
           return (
             <View>
               {slitLampExamination.map((item, index) => {
+                const rawOd = item?.OD ?? item?.od;
+                const rawOs = item?.OS ?? item?.os;
+                if (
+                  !hasValue(rawOd) &&
+                  !hasValue(rawOs) &&
+                  !hasValue(item?.remarks)
+                ) {
+                  return null;
+                }
+
                 const odValue =
-                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "NIL";
+                  rawOd === "0" || rawOd === 0
+                    ? "Normal"
+                    : hasValue(rawOd)
+                    ? rawOd
+                    : "NIL";
                 const osValue =
-                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "NIL";
+                  rawOs === "0" || rawOs === 0
+                    ? "Normal"
+                    : hasValue(rawOs)
+                    ? rawOs
+                    : "NIL";
 
                 const values = [];
                 // Only push OD/OS values if not both are "NIL"
@@ -435,8 +458,8 @@ function OphthalmologyListView({
                   values.push(`OD: ${odValue}`);
                   values.push(`OS: ${osValue}`);
                 }
-                if (item.remarks) values.push(`Remarks: ${item.remarks}`);
-                
+                if (hasValue(item?.remarks)) values.push(`Remarks: ${item.remarks}`);
+
                 const formattedValue = values.length > 0 ? values.join(", ") : "NIL";
                 if (formattedValue === "NIL") {
                   return null;
@@ -464,19 +487,37 @@ function OphthalmologyListView({
           return (
             <View>
               {fundusExamination.map((item, index) => {
+                const rawOd = item?.OD ?? item?.od;
+                const rawOs = item?.OS ?? item?.os;
+                if (
+                  !hasValue(rawOd) &&
+                  !hasValue(rawOs) &&
+                  !hasValue(item?.remarks)
+                ) {
+                  return null;
+                }
+
                 const odValue =
-                  item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "NIL";
+                  rawOd === "0" || rawOd === 0
+                    ? "Normal"
+                    : hasValue(rawOd)
+                    ? rawOd
+                    : "NIL";
                 const osValue =
-                  item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "NIL";
-                
+                  rawOs === "0" || rawOs === 0
+                    ? "Normal"
+                    : hasValue(rawOs)
+                    ? rawOs
+                    : "NIL";
+
                 const values = [];
                 // Only push OD/OS values if not both are "NIL"
                 if (!(odValue === "NIL" && osValue === "NIL")) {
                   values.push(`OD: ${odValue}`);
                   values.push(`OS: ${osValue}`);
                 }
-                if (item.remarks) values.push(`Remarks: ${item.remarks}`);
-                
+                if (hasValue(item?.remarks)) values.push(`Remarks: ${item.remarks}`);
+
                 const formattedValue = values.length > 0 ? values.join(", ") : "NIL";
                 if (formattedValue === "NIL") {
                   return null;

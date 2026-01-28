@@ -282,6 +282,7 @@ const OphthalmologySectionCard = ({
   isCollapsed,
   onToggleCollapse,
   showCollapseToggle,
+  showLoadFromPrev,
 }) => {
   const iconSrc = SECTION_ICONS[section.id];
 
@@ -335,12 +336,21 @@ const OphthalmologySectionCard = ({
               </div>
             )
           ))}
-          {section.actions?.map((action) => (
+          {section.actions?.map((action) => {
+            const isLoadFromPrev = action === "Load from Prev.";
+            const isDisabled = isLoadFromPrev && !showLoadFromPrev;
+            return (
             <button
               key={action}
               type="button"
               className={styles.headerAction}
-              onClick={() => onAction?.(section, action)}
+              disabled={isDisabled}
+              title={isDisabled ? "No prev data found" : undefined}
+              onClick={() => {
+                if (!isDisabled) {
+                  onAction?.(section, action);
+                }
+              }}
             >
               {action === "Load from Prev." ? (
                 <>
@@ -369,7 +379,8 @@ const OphthalmologySectionCard = ({
                 </>
               )}
             </button>
-          ))}
+            );
+          })}
           {showCollapseToggle && (
             <button
               type="button"
@@ -486,6 +497,73 @@ const OphthalmologyExamPanel = ({
   }, [buildEmptyTableValues]);
 
   const [tableValues, setLocalTableValues] = useState(initialTableValues);
+
+  const hasPrevDataBySection = useMemo(() => {
+    const data = lastOpthalPrescriptionData || {};
+    const hasOphthalValue = (value) => {
+      if (value === 0 || value === "0") return true;
+      if (value === null || value === undefined) return false;
+      return typeof value === "string"
+        ? value.trim().length > 0
+        : Boolean(value);
+    };
+    const hasOphthalArrayData = (items, keys) =>
+      Array.isArray(items) &&
+      items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+
+    return {
+      visualAcuity: hasOphthalArrayData(data.visualAcuity, [
+        "ucDistance",
+        "ucNear",
+        "pinhole",
+        "cDistance",
+        "cNear",
+      ]),
+      autoRefraction:
+        hasOphthalArrayData(data.autoRefraction, [
+          "sphere",
+          "cylinder",
+          "axis",
+          "add",
+          "distance",
+          "near",
+        ]) || hasOphthalValue(data.pd),
+      lensometerValues: hasOphthalArrayData(data.lensometerValues, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      glassPrescription:
+        hasOphthalArrayData(data.glassPrescription, [
+          "sphere",
+          "cylinder",
+          "axis",
+          "add",
+          "distance",
+          "near",
+        ]) || hasOphthalValue(data.pd),
+      iop: hasOphthalArrayData(data.intraOcularPressure, [
+        "nct",
+        "gat",
+        "cc",
+        "cct",
+        "ciop",
+      ]),
+      slitLamp: hasOphthalArrayData(data.slitLampExamination, [
+        "OD",
+        "OS",
+        "remarks",
+      ]),
+      fundus: hasOphthalArrayData(data.fundusExamination, [
+        "OD",
+        "OS",
+        "remarks",
+      ]),
+    };
+  }, [lastOpthalPrescriptionData]);
 
   const tableById = useMemo(() => {
     return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
@@ -869,6 +947,7 @@ const OphthalmologyExamPanel = ({
             dispatch(setExtraField({ key: fieldKey, value: nextValue }))
           }
           isCollapsed={!!collapsedSections[section.id]}
+          showLoadFromPrev={hasPrevDataBySection[section.id]}
           onToggleCollapse={(sectionId) =>
             setCollapsedSections((prev) => ({
               ...prev,

@@ -18,7 +18,12 @@ function OphthalmologyInlineView({
   const hasValue = (value) => {
     if (value === 0 || value === "0") return true;
     if (value === null || value === undefined) return false;
-    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || trimmed === "-" || trimmed === "--") return false;
+      return true;
+    }
+    return Boolean(value);
   };
   const hasArrayData = (items, keys) =>
     Array.isArray(items) &&
@@ -468,15 +473,34 @@ function OphthalmologyInlineView({
             Slit Lamp Examination:
           </Text>
           {slitLampExamination.map((item, index) => {
+            const rawOd = item?.OD ?? item?.od;
+            const rawOs = item?.OS ?? item?.os;
+            if (
+              !hasValue(rawOd) &&
+              !hasValue(rawOs) &&
+              !hasValue(item?.remarks)
+            ) {
+              return null;
+            }
+
             const odValue =
-              item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
+              rawOd === "0" || rawOd === 0
+                ? "Normal"
+                : hasValue(rawOd)
+                ? rawOd
+                : "--";
             const osValue =
-              item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+              rawOs === "0" || rawOs === 0
+                ? "Normal"
+                : hasValue(rawOs)
+                ? rawOs
+                : "--";
             const values = [];
             if (odValue !== "--") values.push(`OD: ${odValue}`);
             if (osValue !== "--") values.push(`OS: ${osValue}`);
-            if (item.remarks) values.push(`Remarks: ${item.remarks}`);
-            const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
+            if (hasValue(item?.remarks)) values.push(`Remarks: ${item.remarks}`);
+            const formattedValue =
+              values.length > 0 ? `(${values.join(", ")})` : "--";
             return (
               <Text
                 key={index}
@@ -512,15 +536,34 @@ function OphthalmologyInlineView({
             Fundus Examination:
           </Text>
           {fundusExamination.map((item, index) => {
+            const rawOd = item?.OD ?? item?.od;
+            const rawOs = item?.OS ?? item?.os;
+            if (
+              !hasValue(rawOd) &&
+              !hasValue(rawOs) &&
+              !hasValue(item?.remarks)
+            ) {
+              return null;
+            }
+
             const odValue =
-              item.OD === "0" || item.OD === 0 ? "Normal" : item.OD || "--";
+              rawOd === "0" || rawOd === 0
+                ? "Normal"
+                : hasValue(rawOd)
+                ? rawOd
+                : "--";
             const osValue =
-              item.OS === "0" || item.OS === 0 ? "Normal" : item.OS || "--";
+              rawOs === "0" || rawOs === 0
+                ? "Normal"
+                : hasValue(rawOs)
+                ? rawOs
+                : "--";
             const values = [];
             if (odValue !== "--") values.push(`OD: ${odValue}`);
             if (osValue !== "--") values.push(`OS: ${osValue}`);
-            if (item.remarks) values.push(`Remarks: ${item.remarks}`);
-            const formattedValue = values.length > 0 ? `(${values.join(", ")})` : "--";
+            if (hasValue(item?.remarks)) values.push(`Remarks: ${item.remarks}`);
+            const formattedValue =
+              values.length > 0 ? `(${values.join(", ")})` : "--";
             return (
               <Text
                 key={index}

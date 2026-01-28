@@ -18,7 +18,13 @@ function OphthalmologyTableView({
   const hasValue = (value) => {
     if (value === 0 || value === "0") return true;
     if (value === null || value === undefined) return false;
-    return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || /^[-–—]+$/.test(trimmed)) return false;
+      if (/^(n\/?a|nil)$/i.test(trimmed)) return false;
+      return true;
+    }
+    return Boolean(value);
   };
   const hasArrayData = (items, keys) =>
     Array.isArray(items) &&
@@ -481,7 +487,14 @@ function OphthalmologyTableView({
       {isSectionVisible("slitLampExamination") &&
         hasSlitLampExaminationData &&
         renderSection("Slit Lamp Examination", () => {
-          const rows = slitLampExamination.map((item) => [
+          const rows = slitLampExamination
+            .filter(
+              (item) =>
+                hasValue(item?.OD ?? item?.od) ||
+                hasValue(item?.OS ?? item?.os) ||
+                hasValue(item?.remarks)
+            )
+            .map((item) => [
             item.section,
             item.OD === "0" || item.OD === 0
               ? "Normal"
@@ -502,7 +515,14 @@ function OphthalmologyTableView({
       {isSectionVisible("fundusExamination") &&
         hasFundusExaminationData &&
         renderSection("Fundus Examination", () => {
-          const rows = fundusExamination.map((item) => [
+          const rows = fundusExamination
+            .filter(
+              (item) =>
+                hasValue(item?.OD ?? item?.od) ||
+                hasValue(item?.OS ?? item?.os) ||
+                hasValue(item?.remarks)
+            )
+            .map((item) => [
             item.section,
             item.OD === "0" || item.OD === 0
               ? "Normal"

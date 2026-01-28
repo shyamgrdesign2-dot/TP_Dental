@@ -1815,7 +1815,7 @@ function Prescription() {
                           showHeader
                           headerTitle="Ophthal"
                           loadPrevAllSignal={loadPrevOpthalSignal}
-                          fetchLastOnMount={false}
+                          fetchLastOnMount={true}
                         />
                       </div> : null}
                     </React.Fragment>
