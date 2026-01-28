@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { AutoComplete, Collapse, Dropdown, Input } from "antd";
+import {
+  AutoComplete,
+  Button,
+  Collapse,
+  Dropdown,
+  Input,
+  Popover,
+  Select,
+  Spin,
+  Tabs,
+  Tooltip,
+} from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./OphthalmologyExamPanel.module.scss";
@@ -18,6 +30,9 @@ import autoFillBlueIcon from "../../assets/images/autoFillBlue.svg";
 import opthalIcon from "../../assets/images/opthalIcon.svg";
 import arrowDownIcon from "../../assets/images/arrow-box-down.svg";
 import autofillArrowIcon from "../../assets/images/down-arrow-blue.svg";
+import CommonModal from "../../common/CommonModal";
+import alertIcon from "../../assets/images/alertIcon.svg";
+import { errorMessage, removeBeforeWhiteSpace } from "../../utils/utils";
 import {
   resetVisualAcuity,
   setVisualAcuityData,
@@ -30,6 +45,18 @@ import {
   setLastOpthalPrescriptionData,
 } from "../../redux/ophthalmologyExamSlice";
 import { getLastOpthalPrescription } from "../../pages/ophthalmology/service";
+import {
+  addSlitLampTemplate,
+  updateSlitLampTemplate,
+  deleteSlitLampTemplate,
+  getSlitLampTemplates,
+} from "../../redux/slitLampTemplateSlice";
+import {
+  addFundusTemplate,
+  updateFundusTemplate,
+  deleteFundusTemplate,
+  getFundusTemplates,
+} from "../../redux/fundusTemplateSlice";
 
 const SECTION_ICONS = {
   visualAcuity: visualAcuityIcon,
@@ -283,6 +310,7 @@ const OphthalmologySectionCard = ({
   onToggleCollapse,
   showCollapseToggle,
   showLoadFromPrev,
+  renderAction,
 }) => {
   const iconSrc = SECTION_ICONS[section.id];
 
@@ -339,6 +367,10 @@ const OphthalmologySectionCard = ({
           {section.actions?.map((action) => {
             const isLoadFromPrev = action === "Load from Prev.";
             const isDisabled = isLoadFromPrev && !showLoadFromPrev;
+            const customAction = renderAction?.(section, action);
+            if (customAction) {
+              return customAction;
+            }
             return (
             <button
               key={action}
@@ -454,12 +486,41 @@ const OphthalmologyExamPanel = ({
   const { visualAcuity, tables, extraFields } = useSelector(
     (state) => state.ophthalmologyExam
   );
+  const { templates: slitLampTemplates, loading: slitLampLoading } = useSelector(
+    (state) => state.slitLampTemplates
+  );
+  const { templates: fundusTemplates, loading: fundusLoading } = useSelector(
+    (state) => state.fundusTemplates
+  );
   const lastOpthalPrescriptionData = useSelector(
     (state) => state.ophthalmologyExam.lastOpthalPrescriptionData
   );
   const [tableResets, setTableResets] = useState({});
   const [isExpanded, setIsExpanded] = useState(true);
   const [collapsedSections, setCollapsedSections] = useState({});
+  const [slitLampTemplatesOpen, setSlitLampTemplatesOpen] = useState(false);
+  const [slitLampSaveOpen, setSlitLampSaveOpen] = useState(false);
+  const [fundusTemplatesOpen, setFundusTemplatesOpen] = useState(false);
+  const [fundusSaveOpen, setFundusSaveOpen] = useState(false);
+  const [slitLampMatchedTemplates, setSlitLampMatchedTemplates] = useState([]);
+  const [fundusMatchedTemplates, setFundusMatchedTemplates] = useState([]);
+  const [slitLampAllTemplates, setSlitLampAllTemplates] = useState([]);
+  const [fundusAllTemplates, setFundusAllTemplates] = useState([]);
+  const [slitLampTemplateInput, setSlitLampTemplateInput] = useState(null);
+  const [fundusTemplateInput, setFundusTemplateInput] = useState(null);
+  const TAB_ADD_TEMPLATE = 1;
+  const TAB_UPDATE_TEMPLATE = 2;
+  const ADD_EDIT_TEMPLATE_TABS = [
+    { key: TAB_ADD_TEMPLATE, label: "New Template" },
+    { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
+  ];
+  const [slitLampTab, setSlitLampTab] = useState(TAB_ADD_TEMPLATE);
+  const [fundusTab, setFundusTab] = useState(TAB_ADD_TEMPLATE);
+  const [templateDeleteModal, setTemplateDeleteModal] = useState({
+    isOpen: false,
+    type: null,
+    templateId: null,
+  });
   const glassPrescriptionTableId = "glassPrescriptionTable";
   const sourceTableIds = useMemo(
     () => ({
@@ -595,6 +656,21 @@ const OphthalmologyExamPanel = ({
     };
   }, [dispatch, fetchLastOnMount]);
 
+  useEffect(() => {
+    dispatch(getSlitLampTemplates());
+    dispatch(getFundusTemplates());
+  }, [dispatch]);
+
+  useEffect(() => {
+    setSlitLampMatchedTemplates(slitLampTemplates);
+    setSlitLampAllTemplates(slitLampTemplates);
+  }, [slitLampTemplates]);
+
+  useEffect(() => {
+    setFundusMatchedTemplates(fundusTemplates);
+    setFundusAllTemplates(fundusTemplates);
+  }, [fundusTemplates]);
+
   const visualAcuityValues = useMemo(() => {
     const map = {};
     const rows = [
@@ -619,6 +695,10 @@ const OphthalmologyExamPanel = ({
           snapRxSchemaKey: "VISUAL_ACUITY_TEST",
         },
       });
+      return;
+    }
+
+    if (action === "Templates" || action === "Save") {
       return;
     }
 
@@ -694,11 +774,17 @@ const OphthalmologyExamPanel = ({
     const table = tableById[tableId];
     if (!table) return {};
     const nextValues = buildEmptyTableValues(table);
+    const normalize = (value) => String(value || "").toLowerCase();
     table.rows.forEach((row) => {
-      const entry = rows?.find(
-        (item) =>
-          String(item.section || "").toLowerCase() === row.label.toLowerCase()
-      );
+      const entry = rows?.find((item) => {
+        const labelMatch = normalize(item?.section ?? item?.title ?? item?.name);
+        const keyMatch = normalize(
+          item?.sectionKey ?? item?.section_key ?? item?.key ?? item?.id
+        );
+        return (
+          labelMatch === normalize(row.label) || keyMatch === normalize(row.key)
+        );
+      });
       table.columns.forEach((column) => {
         if (column.type === "label") return;
         const cellKey = `${row.key}-${column.key}`;
@@ -715,6 +801,54 @@ const OphthalmologyExamPanel = ({
     });
     return nextValues;
   }, [buildEmptyTableValues, tableById]);
+
+  const buildSectionTemplateRows = useCallback((tableId) => {
+    const table = tableById[tableId];
+    if (!table) return [];
+    const values = tableValues[tableId] || {};
+    return table.rows
+      .map((row) => {
+        const od = values[`${row.key}-od`] ?? "";
+        const os = values[`${row.key}-os`] ?? "";
+        const remarks = values[`${row.key}-remarks`] ?? "";
+        return {
+          section: row.label,
+          sectionKey: row.key,
+          OD: od,
+          OS: os,
+          remarks,
+        };
+      })
+      .filter((row) => row.OD || row.OS || row.remarks);
+  }, [tableById, tableValues]);
+
+  const formatTemplatePreview = useCallback((rows = []) => {
+    const preview = rows
+      .map((row) => {
+        const label =
+          row.section ?? row.title ?? row.name ?? row.sectionLabel ?? row.key;
+        const od = row.OD ?? row.od;
+        const os = row.OS ?? row.os;
+        const remarks = row.remarks;
+        const eyeValues = [od, os].filter(Boolean).join(" / ");
+        const detail = [eyeValues, remarks].filter(Boolean).join(" | ");
+        if (!label) {
+          return null;
+        }
+        return detail ? `${label}: ${detail}` : label;
+      })
+      .filter(Boolean)
+      .join(", ");
+    return preview || "No values saved yet";
+  }, []);
+
+  const applySectionTemplate = useCallback(
+    (tableId, rows) => {
+      const nextValues = buildSectionTableValues(tableId, rows || []);
+      updateTableValues(tableId, nextValues);
+    },
+    [buildSectionTableValues, updateTableValues]
+  );
 
   const loadFromPrev = useCallback((section) => {
     const lastData = lastOpthalPrescriptionData;
@@ -820,6 +954,201 @@ const OphthalmologyExamPanel = ({
     buildSectionTableValues,
     dispatch,
   ]);
+
+  const slitLampTemplateRows = useMemo(
+    () => buildSectionTemplateRows("slitLampTable"),
+    [buildSectionTemplateRows]
+  );
+  const fundusTemplateRows = useMemo(
+    () => buildSectionTemplateRows("fundusTable"),
+    [buildSectionTemplateRows]
+  );
+
+  const handleSlitLampTemplateSearch = (event) => {
+    const query = event.target.value;
+    if (query) {
+      setSlitLampMatchedTemplates(
+        slitLampTemplates.filter((template) =>
+          template.tsl_template_name?.toLowerCase().includes(query.toLowerCase())
+        )
+      );
+    } else {
+      setSlitLampMatchedTemplates(slitLampTemplates);
+    }
+  };
+
+  const handleFundusTemplateSearch = (event) => {
+    const query = event.target.value;
+    if (query) {
+      setFundusMatchedTemplates(
+        fundusTemplates.filter((template) =>
+          template.tft_template_name?.toLowerCase().includes(query.toLowerCase())
+        )
+      );
+    } else {
+      setFundusMatchedTemplates(fundusTemplates);
+    }
+  };
+
+  const handleSlitLampTemplateSelected = (template) => {
+    applySectionTemplate("slitLampTable", template.slitLampExamination);
+    setSlitLampTemplatesOpen(false);
+  };
+
+  const handleFundusTemplateSelected = (template) => {
+    applySectionTemplate("fundusTable", template.fundusExamination);
+    setFundusTemplatesOpen(false);
+  };
+
+  const handleTemplateDeleteModal = (type, templateId) => {
+    setTemplateDeleteModal({ isOpen: true, type, templateId });
+  };
+
+  const closeTemplateDeleteModal = () => {
+    setTemplateDeleteModal({ isOpen: false, type: null, templateId: null });
+  };
+
+  const confirmTemplateDelete = async () => {
+    const { type, templateId } = templateDeleteModal;
+    if (!type || !templateId) {
+      closeTemplateDeleteModal();
+      return;
+    }
+    const action =
+      type === "slitLamp"
+        ? await dispatch(deleteSlitLampTemplate(templateId))
+        : await dispatch(deleteFundusTemplate(templateId));
+    if (action.meta.requestStatus === "rejected") {
+      errorMessage(action.error);
+    }
+    closeTemplateDeleteModal();
+  };
+
+  const handleSlitLampSaveOpen = (nextOpen) => {
+    if (nextOpen) {
+      setSlitLampTemplateInput(null);
+    }
+    setSlitLampSaveOpen(nextOpen);
+  };
+
+  const handleFundusSaveOpen = (nextOpen) => {
+    if (nextOpen) {
+      setFundusTemplateInput(null);
+    }
+    setFundusSaveOpen(nextOpen);
+  };
+
+  const handleSlitLampTemplateInput = (event) => {
+    const nextValue = removeBeforeWhiteSpace(event.target.value);
+    setSlitLampTemplateInput(nextValue);
+  };
+
+  const handleFundusTemplateInput = (event) => {
+    const nextValue = removeBeforeWhiteSpace(event.target.value);
+    setFundusTemplateInput(nextValue);
+  };
+
+  const handleSlitLampTemplateSelect = (data, option) => {
+    setSlitLampTemplateInput(option.key);
+  };
+
+  const handleFundusTemplateSelect = (data, option) => {
+    setFundusTemplateInput(option.key);
+  };
+
+  const handleSlitLampTabChange = (key) => {
+    setSlitLampTemplateInput(null);
+    setSlitLampTab(key);
+  };
+
+  const handleFundusTabChange = (key) => {
+    setFundusTemplateInput(null);
+    setFundusTab(key);
+  };
+
+  const handleSlitLampAddTemplate = async () => {
+    if (!slitLampTemplateRows.length) {
+      errorMessage("At least 1 slit lamp entry added");
+      return;
+    }
+    if (!slitLampTemplateInput) {
+      errorMessage("Please enter template name");
+      return;
+    }
+    const payload = {
+      tsl_template_name: slitLampTemplateInput,
+      slitLampExamination: slitLampTemplateRows,
+    };
+    const action = await dispatch(addSlitLampTemplate(payload));
+    if (action.meta.requestStatus === "fulfilled") {
+      setSlitLampTemplateInput(null);
+      handleSlitLampSaveOpen(false);
+    }
+  };
+
+  const handleFundusAddTemplate = async () => {
+    if (!fundusTemplateRows.length) {
+      errorMessage("At least 1 fundus entry added");
+      return;
+    }
+    if (!fundusTemplateInput) {
+      errorMessage("Please enter template name");
+      return;
+    }
+    const payload = {
+      tft_template_name: fundusTemplateInput,
+      fundusExamination: fundusTemplateRows,
+    };
+    const action = await dispatch(addFundusTemplate(payload));
+    if (action.meta.requestStatus === "fulfilled") {
+      setFundusTemplateInput(null);
+      handleFundusSaveOpen(false);
+    }
+  };
+
+  const handleSlitLampUpdateTemplate = async () => {
+    if (!slitLampTemplateRows.length) {
+      errorMessage("At least 1 slit lamp entry added");
+      return;
+    }
+    if (!slitLampTemplateInput) {
+      errorMessage("Please select template");
+      return;
+    }
+    const data = JSON.parse(slitLampTemplateInput);
+    const payload = {
+      tsl_id: data.tsl_id,
+      tsl_template_name: data.tsl_template_name,
+      slitLampExamination: slitLampTemplateRows,
+    };
+    const action = await dispatch(updateSlitLampTemplate(payload));
+    if (action.meta.requestStatus === "fulfilled") {
+      setSlitLampTemplateInput(null);
+      handleSlitLampSaveOpen(false);
+    }
+  };
+
+  const handleFundusUpdateTemplate = async () => {
+    if (!fundusTemplateRows.length) {
+      errorMessage("At least 1 fundus entry added");
+      return;
+    }
+    if (!fundusTemplateInput) {
+      errorMessage("Please select template");
+      return;
+    }
+    const data = JSON.parse(fundusTemplateInput);
+    const payload = {
+      tft_id: data.tft_id,
+      tft_template_name: data.tft_template_name,
+      fundusExamination: fundusTemplateRows,
+    };
+    const action = await dispatch(updateFundusTemplate(payload));
+    if (action.meta.requestStatus === "fulfilled") {
+      setFundusTemplateInput(null);
+      handleFundusSaveOpen(false);
+    }
+  };
 
   const loadFromPrevAll = useCallback(() => {
     OPHTHALMOLOGY_SECTIONS.forEach((section) => {
@@ -933,8 +1262,370 @@ const OphthalmologyExamPanel = ({
     onClick: ({ key }) => handleAutofill(key),
   };
 
+  const SLIT_LAMP_TEMPLATE_CONTENT = useMemo(() => {
+    return (
+      <>
+        <div className="pop-header" key="slit-lamp-template">
+          <div className="align-items-center d-flex justify-content-between">
+            <div className="title-common">Slit Lamp Templates</div>
+            <Button
+              className="btn btn-delete-prescription p-0"
+              onClick={() => setSlitLampTemplatesOpen(false)}
+            >
+              <i className="icon-Cross" />
+            </Button>
+          </div>
+          <div className="mt-3" key="slit-lamp-template-search">
+            <Input
+              className="popinput"
+              onChange={handleSlitLampTemplateSearch}
+              placeholder="Search Templates"
+              allowClear
+              prefix={<i className="icon-search me-2" />}
+            />
+          </div>
+        </div>
+        <div className="pop-body">
+          {slitLampMatchedTemplates.length > 0 &&
+            slitLampMatchedTemplates.map((template) => (
+              <div
+                className="align-items-center d-flex medicine-templates"
+                key={template.tsl_id}
+              >
+                <div
+                  className="round-box"
+                  onClick={() => handleSlitLampTemplateSelected(template)}
+                >
+                  <i className="icon-template"></i>
+                </div>
+                <div
+                  className="text-truncate w-100"
+                  onClick={() => handleSlitLampTemplateSelected(template)}
+                >
+                  <div className="title text-main2">
+                    {template.tsl_template_name}
+                  </div>
+                  <div className="text-truncate">
+                    {formatTemplatePreview(template.slitLampExamination)}
+                  </div>
+                </div>
+                <Button
+                  className="btn btn-delete-prescription p-0 ms-2"
+                  onClick={() => {
+                    handleTemplateDeleteModal("slitLamp", template.tsl_id);
+                    setSlitLampTemplatesOpen(false);
+                  }}
+                >
+                  {template.loading ? (
+                    <Spin
+                      indicator={<LoadingOutlined style={{ fontSize: 22 }} spin />}
+                    />
+                  ) : (
+                    <i className="icon-delete"></i>
+                  )}
+                </Button>
+              </div>
+            ))}
+        </div>
+      </>
+    );
+  }, [slitLampMatchedTemplates, formatTemplatePreview]);
+
+  const FUNDUS_TEMPLATE_CONTENT = useMemo(() => {
+    return (
+      <>
+        <div className="pop-header" key="fundus-template">
+          <div className="align-items-center d-flex justify-content-between">
+            <div className="title-common">Fundus Templates</div>
+            <Button
+              className="btn btn-delete-prescription p-0"
+              onClick={() => setFundusTemplatesOpen(false)}
+            >
+              <i className="icon-Cross" />
+            </Button>
+          </div>
+          <div className="mt-3" key="fundus-template-search">
+            <Input
+              className="popinput"
+              onChange={handleFundusTemplateSearch}
+              placeholder="Search Templates"
+              allowClear
+              prefix={<i className="icon-search me-2" />}
+            />
+          </div>
+        </div>
+        <div className="pop-body">
+          {fundusMatchedTemplates.length > 0 &&
+            fundusMatchedTemplates.map((template) => (
+              <div
+                className="align-items-center d-flex medicine-templates"
+                key={template.tft_id}
+              >
+                <div
+                  className="round-box"
+                  onClick={() => handleFundusTemplateSelected(template)}
+                >
+                  <i className="icon-template"></i>
+                </div>
+                <div
+                  className="text-truncate w-100"
+                  onClick={() => handleFundusTemplateSelected(template)}
+                >
+                  <div className="title text-main2">
+                    {template.tft_template_name}
+                  </div>
+                  <div className="text-truncate">
+                    {formatTemplatePreview(template.fundusExamination)}
+                  </div>
+                </div>
+                <Button
+                  className="btn btn-delete-prescription p-0 ms-2"
+                  onClick={() => {
+                    handleTemplateDeleteModal("fundus", template.tft_id);
+                    setFundusTemplatesOpen(false);
+                  }}
+                >
+                  {template.loading ? (
+                    <Spin
+                      indicator={<LoadingOutlined style={{ fontSize: 22 }} spin />}
+                    />
+                  ) : (
+                    <i className="icon-delete"></i>
+                  )}
+                </Button>
+              </div>
+            ))}
+        </div>
+      </>
+    );
+  }, [fundusMatchedTemplates, formatTemplatePreview]);
+
+  const SLIT_LAMP_SAVE_CONTENT = useMemo(() => {
+    return (
+      <>
+        <div className="d-flex justify-content-between align-items-center border-bottom templatepopover">
+          <Tabs
+            defaultActiveKey={TAB_ADD_TEMPLATE}
+            items={ADD_EDIT_TEMPLATE_TABS}
+            onChange={handleSlitLampTabChange}
+            className="w-100"
+          />
+          <Button
+            className="btn btn-delete-prescription"
+            onClick={() => handleSlitLampSaveOpen(false)}
+          >
+            <i className="icon-Cross"></i>
+          </Button>
+        </div>
+        {slitLampTab === TAB_ADD_TEMPLATE ? (
+          <div className="pop-header d-flex">
+            <Input
+              allowClear
+              value={slitLampTemplateInput && slitLampTemplateInput}
+              className="popinput inputheight41"
+              placeholder="Template Name"
+              onChange={handleSlitLampTemplateInput}
+            />
+            <Button
+              className="btn btn-primary3 btn-41 ms-3"
+              loading={slitLampLoading}
+              disabled={!slitLampTemplateInput}
+              onClick={handleSlitLampAddTemplate}
+            >
+              {" Save "}
+            </Button>
+          </div>
+        ) : (
+          <div className="pop-header d-flex">
+            <Select
+              showSearch
+              value={
+                slitLampTemplateInput &&
+                JSON.parse(slitLampTemplateInput).tsl_template_name
+              }
+              className="autocomplete-custom w-100 popinput inputheight41"
+              placeholder="Select Template"
+              onSelect={handleSlitLampTemplateSelect}
+              optionLabelProp="label"
+              options={slitLampAllTemplates.map((template) => ({
+                key: JSON.stringify(template),
+                value: template.tsl_template_name,
+                label: <div key={template.tsl_id}>{template.tsl_template_name}</div>,
+              }))}
+              optionRender={(option) => (
+                <div className="align-items-center d-flex text-truncate w-100">
+                  <div className="round-box">
+                    <i className="icon-template"></i>
+                  </div>
+                  <div className="text-truncate w-100">
+                    <div className="title text-main2">{option.data.value}</div>
+                    <div className="text-truncate">
+                      {formatTemplatePreview(
+                        JSON.parse(option.data.key).slitLampExamination
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            />
+            <Button
+              className="btn btn-primary3 btn-41 ms-3"
+              loading={slitLampLoading}
+              disabled={!slitLampTemplateInput}
+              onClick={handleSlitLampUpdateTemplate}
+            >
+              {" Update "}
+            </Button>
+          </div>
+        )}
+      </>
+    );
+  }, [
+    slitLampTab,
+    slitLampTemplateInput,
+    slitLampLoading,
+    slitLampAllTemplates,
+    handleSlitLampTabChange,
+    handleSlitLampTemplateInput,
+    handleSlitLampTemplateSelect,
+    handleSlitLampAddTemplate,
+    handleSlitLampUpdateTemplate,
+    formatTemplatePreview,
+  ]);
+
+  const FUNDUS_SAVE_CONTENT = useMemo(() => {
+    return (
+      <>
+        <div className="d-flex justify-content-between align-items-center border-bottom templatepopover">
+          <Tabs
+            defaultActiveKey={TAB_ADD_TEMPLATE}
+            items={ADD_EDIT_TEMPLATE_TABS}
+            onChange={handleFundusTabChange}
+            className="w-100"
+          />
+          <Button
+            className="btn btn-delete-prescription"
+            onClick={() => handleFundusSaveOpen(false)}
+          >
+            <i className="icon-Cross"></i>
+          </Button>
+        </div>
+        {fundusTab === TAB_ADD_TEMPLATE ? (
+          <div className="pop-header d-flex">
+            <Input
+              allowClear
+              value={fundusTemplateInput && fundusTemplateInput}
+              className="popinput inputheight41"
+              placeholder="Template Name"
+              onChange={handleFundusTemplateInput}
+            />
+            <Button
+              className="btn btn-primary3 btn-41 ms-3"
+              loading={fundusLoading}
+              disabled={!fundusTemplateInput}
+              onClick={handleFundusAddTemplate}
+            >
+              {" Save "}
+            </Button>
+          </div>
+        ) : (
+          <div className="pop-header d-flex">
+            <Select
+              showSearch
+              value={
+                fundusTemplateInput &&
+                JSON.parse(fundusTemplateInput).tft_template_name
+              }
+              className="autocomplete-custom w-100 popinput inputheight41"
+              placeholder="Select Template"
+              onSelect={handleFundusTemplateSelect}
+              optionLabelProp="label"
+              options={fundusAllTemplates.map((template) => ({
+                key: JSON.stringify(template),
+                value: template.tft_template_name,
+                label: <div key={template.tft_id}>{template.tft_template_name}</div>,
+              }))}
+              optionRender={(option) => (
+                <div className="align-items-center d-flex text-truncate w-100">
+                  <div className="round-box">
+                    <i className="icon-template"></i>
+                  </div>
+                  <div className="text-truncate w-100">
+                    <div className="title text-main2">{option.data.value}</div>
+                    <div className="text-truncate">
+                      {formatTemplatePreview(
+                        JSON.parse(option.data.key).fundusExamination
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            />
+            <Button
+              className="btn btn-primary3 btn-41 ms-3"
+              loading={fundusLoading}
+              disabled={!fundusTemplateInput}
+              onClick={handleFundusUpdateTemplate}
+            >
+              {" Update "}
+            </Button>
+          </div>
+        )}
+      </>
+    );
+  }, [
+    fundusTab,
+    fundusTemplateInput,
+    fundusLoading,
+    fundusAllTemplates,
+    handleFundusTabChange,
+    handleFundusTemplateInput,
+    handleFundusTemplateSelect,
+    handleFundusAddTemplate,
+    handleFundusUpdateTemplate,
+    formatTemplatePreview,
+  ]);
+
+  const DELETE_TEMPLATE_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={templateDeleteModal.isOpen}
+        onCancel={closeTemplateDeleteModal}
+        modalWidth={500}
+        title={"You may lose your data"}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>Are you sure you want to delete this template?</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={confirmTemplateDelete}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  Yes Delete
+                </div>
+                <Button
+                  onClick={closeTemplateDeleteModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [templateDeleteModal, confirmTemplateDelete, closeTemplateDeleteModal]);
+
   const sectionsContent = (
     <div className={styles.panel}>
+      {DELETE_TEMPLATE_MODAL}
       {OPHTHALMOLOGY_SECTIONS.map((section) => (
         <OphthalmologySectionCard
           key={section.id}
@@ -948,6 +1639,103 @@ const OphthalmologyExamPanel = ({
           }
           isCollapsed={!!collapsedSections[section.id]}
           showLoadFromPrev={hasPrevDataBySection[section.id]}
+          renderAction={(currentSection, action) => {
+            if (currentSection.id === "slitLamp" && action === "Templates") {
+              return (
+                <Popover
+                  key={`${currentSection.id}-${action}`}
+                  open={slitLampTemplatesOpen}
+                  onOpenChange={setSlitLampTemplatesOpen}
+                  content={SLIT_LAMP_TEMPLATE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-350 pp-0"
+                  placement="bottom"
+                >
+                  <button type="button" className={styles.headerAction}>
+                    <i className="icon-template"></i>
+                    <span>Templates</span>
+                  </button>
+                </Popover>
+              );
+            }
+            if (currentSection.id === "slitLamp" && action === "Save") {
+              return (
+                <Tooltip
+                  key={`${currentSection.id}-${action}`}
+                  placement="bottom"
+                  title={
+                    slitLampTemplateRows.length > 0
+                      ? ""
+                      : "Please enter some slit lamp values to save a template"
+                  }
+                >
+                  <Popover
+                    open={slitLampSaveOpen}
+                    onOpenChange={(open) =>
+                      slitLampTemplateRows.length > 0 && handleSlitLampSaveOpen(open)
+                    }
+                    content={SLIT_LAMP_SAVE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-450 pp-0"
+                    placement="bottom"
+                  >
+                    <button type="button" className={styles.headerAction}>
+                      <i className="icon-save"></i>
+                      <span>Save</span>
+                    </button>
+                  </Popover>
+                </Tooltip>
+              );
+            }
+            if (currentSection.id === "fundus" && action === "Templates") {
+              return (
+                <Popover
+                  key={`${currentSection.id}-${action}`}
+                  open={fundusTemplatesOpen}
+                  onOpenChange={setFundusTemplatesOpen}
+                  content={FUNDUS_TEMPLATE_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-350 pp-0"
+                  placement="bottom"
+                >
+                  <button type="button" className={styles.headerAction}>
+                    <i className="icon-template"></i>
+                    <span>Templates</span>
+                  </button>
+                </Popover>
+              );
+            }
+            if (currentSection.id === "fundus" && action === "Save") {
+              return (
+                <Tooltip
+                  key={`${currentSection.id}-${action}`}
+                  placement="bottom"
+                  title={
+                    fundusTemplateRows.length > 0
+                      ? ""
+                      : "Please enter some fundus values to save a template"
+                  }
+                >
+                  <Popover
+                    open={fundusSaveOpen}
+                    onOpenChange={(open) =>
+                      fundusTemplateRows.length > 0 && handleFundusSaveOpen(open)
+                    }
+                    content={FUNDUS_SAVE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-450 pp-0"
+                    placement="bottom"
+                  >
+                    <button type="button" className={styles.headerAction}>
+                      <i className="icon-save"></i>
+                      <span>Save</span>
+                    </button>
+                  </Popover>
+                </Tooltip>
+              );
+            }
+            return null;
+          }}
           onToggleCollapse={(sectionId) =>
             setCollapsedSections((prev) => ({
               ...prev,

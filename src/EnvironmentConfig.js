@@ -81,6 +81,7 @@ const dev = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
 };
 
 const qa_tp = {
@@ -173,6 +174,9 @@ const qa_tp = {
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
+  cdss_disabled: [],
+  consultation_api_url: "https://pm-consultation-qa.tatvacare.in",
 };
 
 const qa = {
@@ -257,6 +261,8 @@ const qa = {
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://pm-doctor-portal-qa.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
+  cdss_disabled: [],
 };
 
 const uat = {
@@ -350,6 +356,7 @@ const uat = {
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
 };
@@ -455,6 +462,7 @@ const prod = {
   ], // added 21044 zydus id for testing one zydus user in prod
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
   ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-prod.tatvacare.in",
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
 };

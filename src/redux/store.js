@@ -35,6 +35,8 @@ import ipdSlice from "./ipdSlice";
 import billingPackageSlice from "./billingPackageSlice";
 import ophthalSnapRxDigitizationSlice from "./ophthalSnapRxDigitizationSlice";
 import ophthalmologyExamSlice from "./ophthalmologyExamSlice";
+import slitLampTemplateSlice from "./slitLampTemplateSlice";
+import fundusTemplateSlice from "./fundusTemplateSlice";
 
 const persistConfig = {
   key: "root",
@@ -75,6 +77,8 @@ const rootReducer = combineReducers({
   ipd: ipdSlice,
   billingPackage: billingPackageSlice,
   ophthalmologyExam: ophthalmologyExamSlice,
+  slitLampTemplates: slitLampTemplateSlice,
+  fundusTemplates: fundusTemplateSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
