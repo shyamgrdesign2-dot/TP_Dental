@@ -41,7 +41,7 @@ const FLOW_TYPES = {
 };
 
 /** Set to true when standalone biometric flow is ready to ship. Doctor portal (AbhaDrawer) is unaffected. */
-const BIOMETRIC_FLOW_ENABLED = false;
+const BIOMETRIC_FLOW_ENABLED = true;
 
 const AbhaStandalone = () => {
   const [searchParams] = useSearchParams();
