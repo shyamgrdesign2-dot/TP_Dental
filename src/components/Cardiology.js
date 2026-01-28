@@ -143,6 +143,7 @@ function Cardiology(props) {
     setIsGenRxTableView(false);
     setSmartRxFile([]);
     setShowDigitalRx(false);
+    setShowDigitalGenRx(true);
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
       fetchData();
@@ -1648,7 +1649,7 @@ function Cardiology(props) {
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
-      <Card className="" style={(isMobile && !isTablet) ? { border: 'none' } : {}}>
+      <Card className="" style={(isMobile && !isTablet) ? { border: 'none', padding: '6px' } : {}}>
         {viewCaseManagerData ? (
           <>
             {!(isMobile && !isTablet) && (
@@ -1978,12 +1979,12 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show prescription PDF inline using react-pdf */}
             {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !mobilePdfUrl && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !mobilePdfUrl && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 <PrescriptionSkeleton />
               </Card.Body>
             )}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePdfUrl && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePdfUrl && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 {isPdfLoading && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
@@ -2021,6 +2022,76 @@ function Cardiology(props) {
                       />
                     ))}
                   </Document>
+                </div>
+              </Card.Body>
+            )}
+            {/* Mobile view: Show Transcript when toggle is set to Transcript */}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !showDigitalGenRx && genRxData &&
+              isValidMongoId(viewCaseManagerData?.smart_prescription_filename) && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', padding: '16px' }}>
+                <div>
+                  {ambientConversations && ambientConversations.length > 0 ? (
+                    ambientConversations.map((conv, index) => (
+                      <div key={index} style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: conv.speaker === "doctor" || conv.speaker === "Dr" ? "flex-end" : "flex-start",
+                        marginBottom: "16px"
+                      }}>
+                        <div style={{
+                          backgroundColor: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#f1f1f5" : "#EFF6FF",
+                          borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                          padding: "16px",
+                          maxWidth: "80%",
+                          marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                          marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                        }}>
+                          <div style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#5a6774",
+                            marginBottom: "4px",
+                            textTransform: "uppercase"
+                          }}>
+                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                          </div>
+                          <div style={{
+                            color: "#374151",
+                            wordWrap: "break-word",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            lineHeight: "18px",
+                            textAlign: "left"
+                          }}>
+                            {conv.text || conv.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    genRxQueries
+                      ?.filter((query) => {
+                        if (typeof query === "string") {
+                          return !isSymptomCollectorJSON(query);
+                        }
+                        return true;
+                      })
+                      ?.map((query, index) => (
+                        <div key={index} className="gen-rx-transcript">
+                          {query}
+                        </div>
+                      ))
+                  )}
+                  {(!genRxQueries || genRxQueries.length === 0) && (!ambientConversations || ambientConversations.length === 0) && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      color: '#9CA3AF',
+                      fontSize: '14px'
+                    }}>
+                      No transcript data available for this visit.
+                    </div>
+                  )}
                 </div>
               </Card.Body>
             )}
