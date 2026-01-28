@@ -193,6 +193,7 @@ const OphthalmologyExamDrawer = ({
       console.error("Error saving opthal prescription:", error);
     } finally {
       setIsSaving(false);
+      onClose();
     }
   };
 
@@ -237,7 +238,7 @@ const OphthalmologyExamDrawer = ({
             onClick={() => setLoadPrevAllSignal((prev) => prev + 1)}
           >
             <i className="icon-reload"></i>
-            <span>Prev. Rx</span>
+            <span>Load from Prev.</span>
           </button>
           <Button
             type="button"
