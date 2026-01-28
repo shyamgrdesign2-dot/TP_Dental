@@ -98,6 +98,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const processedInputRef = useRef(null); // Track which input we've already processed (prevents duplicates)
   const onDataReadyCalledRef = useRef(false); // Track if onDataReady was called for current input
   const hasLoadedForEditRef = useRef(null); // Track loaded smart_prescription_filename for edit to avoid duplicate fetch
+  const editContextRef = useRef({ smartPrescriptionFilename: null }); // Persist prescription ID for edit mode
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
 
@@ -142,9 +143,40 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       processedInputRef.current = null;
       onDataReadyCalledRef.current = false;
       hasLoadedForEditRef.current = null; // Reset so edit-load can run again on next open
+      editContextRef.current.smartPrescriptionFilename = null; // Reset edit context
     }
   }, [visible]); // Only depend on visible, not input values
 
+  // Populate editContextRef when entering edit mode (persist prescription ID)
+  useEffect(() => {
+    const id = caseManagerData?.smart_prescription_filename;
+    if (id && typeof id === 'string' && id.trim()) {
+      editContextRef.current.smartPrescriptionFilename = id;
+    }
+  }, [caseManagerData?.smart_prescription_filename]);
+
+  useEffect(() => {
+    if (!visible || !patient_data?.patient_unique_id) return;
+    const loadTodayData = async () => {
+      const todayVitals = await getTodayVitals(patient_data);
+      const todayLabResults = await getTodayLabResults(patient_data);
+      
+      if (todayVitals) {
+        setPrescriptionData(prev => ({
+          ...prev,
+          vitalsAndBodyComposition: todayVitals
+        }));
+      }
+      
+      if (todayLabResults && Array.isArray(todayLabResults) && todayLabResults.length > 0) {
+        setPrescriptionData(prev => ({
+          ...prev,
+          labResults: todayLabResults
+        }));
+      }
+    };
+    loadTodayData();
+  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
   // Load existing Voice RX when opening for Edit or Repeat (caseManagerData.smart_prescription_filename, no new audio/input).
   // Matches web ConsultationDrawer getGenRxDetails: getGenRx -> optionally getAmbientRx -> parse -> setPrescriptionData, genRxDetails.
   // For Repeat (tcm_id 0): web also loads the old Rx; we match that behavior.
@@ -508,8 +540,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         }
       }
 
-      // Determine if updating existing Rx (matches web version logic)
-      const existingRxId = genRxDetails?._id || existingGenRxDetails?._id;
+      // Determine if updating existing prescription or creating new one
+      // Use multiple fallbacks to ensure prescription ID is preserved across state updates
+      const existingRxId =
+        genRxDetails?._id ||
+        existingGenRxDetails?._id ||
+        caseManagerData?.smart_prescription_filename ||
+        editContextRef.current?.smartPrescriptionFilename;
       const isUpdatingRx = !!existingRxId;
 
       // Improved mode detection - matches web version
@@ -1084,8 +1121,16 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
   // Handle End Visit - matches web version's onEndVisitClick
   const handleEndVisit = async () => {
-    if (!prescriptionData || !genRxDetails?._id) {
+    if (!prescriptionData) {
       message.error('Prescription data is missing. Please try again.');
+      return;
+    }
+
+    // Validate prescription ID is available for update
+    const rxId = genRxDetails?._id || caseManagerData?.smart_prescription_filename;
+    if (!rxId || typeof rxId !== 'string' || !rxId.trim()) {
+      message.error('Cannot save prescription: Missing prescription ID. Please try again.');
+      setIsEndingVisit(false);
       return;
     }
 
@@ -1139,16 +1184,17 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         }),
       };
 
+      // Step 2: Update prescription via API
       let updateResponse;
       if (isAmbientMode && genRxDetails?.type === "ambient") {
         updateResponse = await editAmbientRxDetails(
           { editedData: updatedPrescriptionData },
-          genRxDetails?._id
+          rxId
         );
       } else {
         updateResponse = await editGenRxDetails(
           { editedData: updatedPrescriptionData },
-          genRxDetails?._id
+          rxId
         );
       }
 
@@ -1156,8 +1202,37 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         throw new Error('Failed to update prescription');
       }
 
+      // Update genRxDetails state with the prescription ID to ensure consistency
+      if (updateResponse?.data?._id || rxId) {
+        setGenRxDetails(prev => ({
+          ...prev,
+          _id: updateResponse?.data?._id || rxId,
+          type: updateResponse?.data?.type || prev?.type || (isAmbientMode ? 'ambient' : 'dictate'),
+        }));
+      }
+
       // Step 3: Save case manager data (matches web version)
-      const tcmId = caseManagerData?.tcm_id || 0;
+      // Distinguish between EDIT (came with smart_prescription_filename) vs NEW (created just now)
+      const isEditingExistingPrescription = !!caseManagerData?.smart_prescription_filename;
+      let tcmId = caseManagerData?.tcm_id;
+      
+      // Skip case manager update ONLY if editing existing prescription without tcm_id
+      // This prevents duplicate entries when editing
+      if (isEditingExistingPrescription && (!tcmId || tcmId === 0)) {
+        // Prescription is already updated - show success screen to user
+        setEndVisitCaseManagerData({
+          ...caseManagerData,
+          smart_prescription_filename: rxId,
+          tcm_id: caseManagerData?.tcm_id,
+        });
+        setShowEndVisitScreen(true);
+        setIsEndingVisit(false);
+        message.success('Prescription updated successfully.');
+        return;
+      }
+      
+      // Default to 0 for new prescriptions
+      tcmId = tcmId || 0;
       const consultationDate = caseManagerData?.consultation_date || moment().format('YYYY-MM-DD HH:mm:ss');
       const pamId = patient_data?.pam_id || 0;
       const labReportID = caseManagerData?.labReportID || null;
@@ -1356,7 +1431,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           patient_data !== undefined ? patient_data.patient_unique_id : 0,
         pam_id: pamId,
         consultation_date: consultationDate,
-        smart_prescription_filename: genRxDetails?._id,
+        smart_prescription_filename: genRxDetails?._id || rxId,
         labReportID: labReportID,
         ...(finalVitalsArray.length > 0 && { vitals: finalVitalsArray }),
         ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
