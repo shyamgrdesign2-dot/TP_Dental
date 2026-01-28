@@ -21,6 +21,7 @@ import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 import ApiVitals from "../../api/services/ApiVitals";
 import { addPatientLabReports } from "../../api/services/ApiLabParams";
+import ApiMedicalHistory from "../../api/services/ApiMedicalHistory";
 import moment from "moment";
 import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
 import CashManagerContext from "../../context/CashManagerContext";
@@ -608,7 +609,60 @@ function SnapRxDigitise() {
         });
         if (hasTcm && patient_data?.patient_unique_id && ((Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) || labResultsDataForApi.length > 0 || cleanedVitalsForCase.length > 0)) {
           try {
-            const formattedMedicalHistory = formatMedicalHistoryForApi(medicalHistoryData);
+            // Merge current medical history with patient's existing history from backend
+            let mergedMedicalHistory = medicalHistoryData || [];
+            if (patient_data?.patient_unique_id) {
+              try {
+                const existingResp = await ApiMedicalHistory.getPatientLastHistory({
+                  patient_unique_id: patient_data.patient_unique_id,
+                });
+                if (existingResp?.status && Array.isArray(existingResp.data)) {
+                  const existingHistory = existingResp.data;
+                  if (Array.isArray(mergedMedicalHistory) && mergedMedicalHistory.length > 0) {
+                    const bySection = {};
+                    const addSection = (section, isExisting = false) => {
+                      const key = section?.tmmhs_id || section?.title || "";
+                      if (!bySection[key]) {
+                        bySection[key] = {
+                          ...section,
+                          tags: Array.isArray(section?.tags) ? [...section.tags] : [],
+                        };
+                        return;
+                      }
+                      const current = bySection[key];
+                      const currentTags = Array.isArray(current.tags) ? current.tags : [];
+                      const seenTitles = new Set(
+                        currentTags
+                          .map((t) => (t?.title || "").toLowerCase().trim())
+                          .filter(Boolean)
+                      );
+                      const incomingTags = Array.isArray(section?.tags) ? section.tags : [];
+                      incomingTags.forEach((tag) => {
+                        const titleKey = (tag?.title || "").toLowerCase().trim();
+                        if (!titleKey || !seenTitles.has(titleKey)) {
+                          currentTags.push(tag);
+                          if (titleKey) {
+                            seenTitles.add(titleKey);
+                          }
+                        }
+                      });
+                      current.tags = currentTags;
+                      if (isExisting && typeof section?.no_know_history === "boolean") {
+                        current.no_know_history = section.no_know_history;
+                      }
+                    };
+                    existingHistory.forEach((s) => addSection(s, true));
+                    mergedMedicalHistory.forEach((s) => addSection(s, false));
+                    mergedMedicalHistory = Object.values(bySection);
+                  } else {
+                    mergedMedicalHistory = existingHistory;
+                  }
+                }
+              } catch (e) {
+                console.error("Error merging medical history:", e);
+              }
+            }
+            const formattedMedicalHistory = formatMedicalHistoryForApi(mergedMedicalHistory);
             if (formattedMedicalHistory.length > 0 || labResultsDataForApi.length > 0 || cleanedVitalsForCase.length > 0) {
               const consultationDate = moment().format("YYYY-MM-DD HH:mm:ss");
               const smartRxFiles = smartRxFilesData
