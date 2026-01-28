@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Input } from 'antd';
+import { Input, Spin } from 'antd';
 import './WalkInConsultation.scss';
 import WalkInPatientCard from './components/WalkInPatientCard';
-import { clearSearch, searchPatients } from '../../../redux/appointmentsSlice';
+import { fetchAllPatients } from '../../allPatients.js/service';
 import { resetVaccineState } from '../../../redux/vaccineSlice';
 import { resetGrowthChartState } from '../../../redux/growthChartSlice';
 import { resetObstetricState } from '../../../redux/obstetricSlice';
@@ -19,15 +19,21 @@ import { getDecodedToken } from '../../../utils/localStorage';
 import { getProfile } from '../../../redux/doctorsSlice';
 import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
 
+const PATIENT_LIST_PAGE_SIZE = 25;
+
 function WalkInConsultation() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
+  const observer = useRef();
   
   const { profile, loading: profileLoading } = useSelector((state) => state.doctors);
-  const { patients, loading, error } = useSelector((state) => state.records);
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [patientsList, setPatientsList] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [pageNo, setPageNo] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   // Ensure profile is loaded - dispatch getProfile if missing
   useEffect(() => {
@@ -57,19 +63,64 @@ function WalkInConsultation() {
     dispatch(resetDDxState());
   }, [dispatch]);
 
-  // Search with debounce (same as web version - 500ms setTimeout)
+  // Load patient list using All Patients API (listDashboard) - same as All Patients page
   useEffect(() => {
+    let cancelled = false;
+    
+    const loadPatientList = async () => {
+      setLoadingList(true);
+      try {
+        const params = {
+          search: searchQuery,
+          page: pageNo,
+          limit: PATIENT_LIST_PAGE_SIZE,
+        };
+        const res = await fetchAllPatients(params);
+        if (!cancelled) {
+          // API returns { patients: [], total, totalPages } via axiosService (returns response.data)
+          const list = res?.patients || [];
+          const totalPages = res?.totalPages || 1;
+          
+          // If page 1 or search changed, replace list; otherwise append
+          if (pageNo === 1 || searchQuery !== "") {
+            setPatientsList(Array.isArray(list) ? list : []);
+          } else {
+            setPatientsList((prev) => [...prev, ...(Array.isArray(list) ? list : [])]);
+          }
+          
+          // Check if there are more pages
+          setHasMore(pageNo < totalPages);
+        }
+      } catch (error) {
+        console.error('[WalkIn] Error loading patient list:', error);
+        if (!cancelled) {
+          if (pageNo === 1) {
+            setPatientsList([]);
+          }
+          setHasMore(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingList(false);
+        }
+      }
+    };
+
+    // Debounce search when user types, immediate load when empty (initial load)
     if (searchQuery) {
-      const timeOutId = setTimeout(() => {
-        dispatch(searchPatients({ searchQuery: searchQuery, company: "" }));
-      }, 500);
+      const timeOutId = setTimeout(loadPatientList, 500);
       return () => {
+        cancelled = true;
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(clearSearch());
+      // Load immediately when search is empty (initial load or cleared)
+      loadPatientList();
+      return () => {
+        cancelled = true;
+      };
     }
-  }, [searchQuery, dispatch]);
+  }, [searchQuery, pageNo]);
 
   const handleSearchChange = useCallback((value) => {
     // Track search event (same as web version)
@@ -79,11 +130,28 @@ function WalkInConsultation() {
       });
     }
     setSearchQuery(value);
+    setPageNo(1); // Reset to page 1 when search changes
   }, [profile, clinicName]);
 
   const handleSearchClear = useCallback(() => {
     setSearchQuery('');
+    setPageNo(1); // Reset to page 1 when search is cleared
   }, []);
+
+  // Intersection Observer for infinite scroll (same as All Patients)
+  const lastPatientElementRef = useCallback(
+    (node) => {
+      if (loadingList) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPageNo((prevPageNo) => prevPageNo + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loadingList, hasMore]
+  );
 
   const handleBackClick = useCallback(() => {
     navigate(-1);
@@ -165,7 +233,7 @@ function WalkInConsultation() {
 
       {/* Content */}
       <div className="content-container">
-        {loading && searchQuery.length > 0 ? (
+        {loadingList ? (
           <div className="patients-shimmer">
             {[...Array(5)].map((_, index) => (
               <div key={index} className="patient-shimmer-item">
@@ -186,26 +254,37 @@ function WalkInConsultation() {
               </div>
             ))}
           </div>
-        ) : patients && patients.length > 0 ? (
+        ) : patientsList && patientsList.length > 0 ? (
           <div className="patients-list">
-            {patients.map((patient, index) => (
-              <WalkInPatientCard
-                key={patient.pm_pid || patient.pm_patient_id || patient.patient_unique_id || index}
-                patient={patient}
-                searchQuery={searchQuery}
-                onPatientDetails={handlePatientDetails}
-                onVoiceRx={handleVoiceRx}
-                doctorDetails={doctorDetails}
-                profile={profile}
-              />
-            ))}
+            {patientsList.map((patient, index) => {
+              // Attach ref to the last patient card for infinite scroll
+              const isLastElement = index === patientsList.length - 1;
+              return (
+                <div key={patient.pm_pid || patient.pm_patient_id || patient.patient_unique_id || index} ref={isLastElement ? lastPatientElementRef : null}>
+                  <WalkInPatientCard
+                    patient={patient}
+                    searchQuery={searchQuery}
+                    onPatientDetails={handlePatientDetails}
+                    onVoiceRx={handleVoiceRx}
+                    doctorDetails={doctorDetails}
+                    profile={profile}
+                  />
+                </div>
+              );
+            })}
+            {/* Loading spinner for next page */}
+            {loadingList && hasMore && (
+              <div className="loading-more" style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <Spin />
+              </div>
+            )}
           </div>
-        ) : searchQuery.length > 0 && patients && patients.length === 0 ? (
+        ) : (
           <div className="empty-state">
             <div className="empty-icon">👤</div>
             <p>No patients found</p>
             <p className="empty-subtitle">
-              Try adjusting your search criteria
+              {searchQuery ? 'Try adjusting your search criteria' : 'No patients available at the moment'}
             </p>
             <button 
               className="add-patient-button"
@@ -214,21 +293,7 @@ function WalkInConsultation() {
               Add New Patient
             </button>
           </div>
-        ) : !searchQuery ? (
-          <div className="empty-state">
-            <div className="empty-icon">🔍</div>
-            <p>Search for a patient</p>
-            <p className="empty-subtitle">
-              Enter patient's name, phone number, or ID to start
-            </p>
-            <button 
-              className="add-patient-button"
-              onClick={handleAddNewPatient}
-            >
-              Add New Patient
-            </button>
-          </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

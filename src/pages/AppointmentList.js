@@ -11,6 +11,7 @@ import AddNewPatient from "./AddNewPatient";
 import EditNewPatient from "./EditNewPatient";
 import WalkInConsultation from "./WalkInConsultation";
 import MobileWalkInConsultation from "./mobile/WalkInConsultation/WalkInConsultation";
+import MobileWalkInConsultationZydus from "./mobile/WalkInConsultationZydus/WalkInConsultationZydus";
 import MessagesData from "./MessagesData";
 import { useDeviceType } from "../utils/deviceDetection";
 
@@ -111,7 +112,10 @@ function AppointmentList() {
               path="walk_in_consultation" 
               element={(isMobileDevice && !isTablet) ? <MobileWalkInConsultation /> : <WalkInConsultation />} 
             />
-            <Route path="walk_in_consultation_zydus" element={<WalkInConsultationZydus />} />
+            <Route 
+              path="walk_in_consultation_zydus" 
+              element={(isMobileDevice && !isTablet) ? <MobileWalkInConsultationZydus /> : <WalkInConsultationZydus />} 
+            />
             <Route path="add_patient" element={<AddNewPatient />} />
             <Route path="edit_patient" element={<EditNewPatient />} />
             <Route path="bulk_messages" element={<MessagesData appointmentAgentsData={agentsData} />} />
