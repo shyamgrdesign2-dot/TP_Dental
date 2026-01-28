@@ -14,20 +14,24 @@ const buildQueryString = (params = {}) => {
   return `?${query}`;
 };
 
-export const createOpthalPrescription = async (payload) => {
+export const createOpthalPrescription = async (payload, params = {}) => {
   let res = {};
   try {
-    res = await api.post("/api/v1/opthal-prescription", payload, baseUrl);
+    res = await api.post(`/api/v1/opthal-prescription${buildQueryString(params)}`, payload, baseUrl);
   } catch (e) {
     console.error("Error while creating opthal prescription:", e);
   }
   return res;
 };
 
-export const updateOpthalPrescription = async (id, payload) => {
+export const updateOpthalPrescription = async (id, payload, params = {}) => {
   let res = {};
   try {
-    res = await api.post(`/api/v1/opthal-prescription?_id=${id}`, payload, baseUrl);
+    res = await api.post(
+      `/api/v1/opthal-prescription${buildQueryString({ _id: id, ...params })}`,
+      payload,
+      baseUrl
+    );
   } catch (e) {
     console.error("Error while updating opthal prescription:", e);
   }
@@ -56,10 +60,10 @@ export const getOpthalPrescriptionDetails = async (params = {}) => {
   return res;
 };
 
-export const getLastOpthalPrescription = async () => {
+export const getLastOpthalPrescription = async (params = {}) => {
   let res = {};
   try {
-    res = await api.get("/api/v1/opthal-prescription/last", baseUrl);
+    res = await api.get(`/api/v1/opthal-prescription/last${buildQueryString(params)}`, baseUrl);
     res = res?.data ?? res;
   } catch (e) {
     console.error("Error while fetching last opthal prescription:", e);

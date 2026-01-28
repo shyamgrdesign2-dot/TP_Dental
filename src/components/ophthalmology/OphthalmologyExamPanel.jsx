@@ -642,7 +642,9 @@ const OphthalmologyExamPanel = ({
     let isMounted = true;
     const fetchLastOpthal = async () => {
       try {
-        const response = await getLastOpthalPrescription();
+        const response = await getLastOpthalPrescription({
+          patientId: patientData?.patient_unique_id || location.state?.patient_data?.patient_unique_id,
+        });
         if (!isMounted) return;
         const payload = response?.data ?? response;
         dispatch(setLastOpthalPrescriptionData(payload || null));
@@ -654,7 +656,7 @@ const OphthalmologyExamPanel = ({
     return () => {
       isMounted = false;
     };
-  }, [dispatch, fetchLastOnMount]);
+  }, [dispatch, fetchLastOnMount, location.state?.patient_data?.patient_unique_id, patientData?.patient_unique_id]);
 
   useEffect(() => {
     dispatch(getSlitLampTemplates());

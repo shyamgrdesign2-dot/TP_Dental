@@ -37,7 +37,10 @@ const OphthalmologyExamDrawer = ({
     let isMounted = true;
     const fetchExisting = async () => {
       try {
-        const response = await getOpthalPrescriptionDetails({ tcm_id: tcmId });
+        const response = await getOpthalPrescriptionDetails({
+          tcm_id: tcmId,
+          patientId: patientData?.patient_unique_id,
+        });
         const data = response?.data ?? response;
         const payload = Array.isArray(data) ? data[0] : data;
         if (!isMounted || !payload) {
@@ -56,7 +59,7 @@ const OphthalmologyExamDrawer = ({
     return () => {
       isMounted = false;
     };
-  }, [dispatch, tcmId]);
+  }, [dispatch, tcmId, patientData?.patient_unique_id]);
 
   const tableById = useMemo(() => {
     return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
@@ -181,9 +184,10 @@ const OphthalmologyExamDrawer = ({
     setIsSaving(true);
     try {
       const payload = buildPayload();
+      const patientId = patientData?.patient_unique_id;
       const response = opthalPrescriptionId
-        ? await updateOpthalPrescription(opthalPrescriptionId, payload)
-        : await createOpthalPrescription(payload);
+        ? await updateOpthalPrescription(opthalPrescriptionId, payload, { patientId })
+        : await createOpthalPrescription(payload, { patientId });
       const resolvedId =
         response?._id || response?.data?._id || response?.result?._id || null;
       if (resolvedId && !opthalPrescriptionId) {

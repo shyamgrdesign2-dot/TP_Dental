@@ -103,7 +103,10 @@ function ConfigurePrintSetting() {
                 return;
             }
             try {
-                const response = await getOpthalPrescriptionDetails({ tcm_id: tcmId });
+                const response = await getOpthalPrescriptionDetails({
+                    tcm_id: tcmId,
+                    patientId: mergedCaseManagerData?.patient_data?.patient_unique_id,
+                });
                 const data = response?.data ?? response;
                 const payload = Array.isArray(data) ? data[0] : data;
                 setOpthalModuleData(payload || null);

@@ -1132,6 +1132,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             };
 
             const opthalId = ophthalmologyExam?.opthalPrescriptionId;
+            const opthalPatientId = patient_data?.patient_unique_id;
             const opthalAction = opthalId ? "update" : "create";
 
             console.log("Opthal prescription payload:", opthalPayload);
@@ -1207,14 +1208,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     tcm_id: generatedTcmId,
                 };
                 if (opthalId) {
-                    await updateOpthalPrescription(opthalId, opthalPayloadWithTcm);
+                    await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, { patientId: opthalPatientId });
                 } else {
-                    await createOpthalPrescription(opthalPayloadWithTcm);
+                    await createOpthalPrescription(opthalPayloadWithTcm, { patientId: opthalPatientId });
                 }
             } else {
                 const opthalPromise = opthalId
-                    ? updateOpthalPrescription(opthalId, opthalPayload)
-                    : createOpthalPrescription(opthalPayload);
+                    ? updateOpthalPrescription(opthalId, opthalPayload, { patientId: opthalPatientId })
+                    : createOpthalPrescription(opthalPayload, { patientId: opthalPatientId });
                 [action] = await Promise.all([
                     caseManagerPromise,
                     opthalPromise,
