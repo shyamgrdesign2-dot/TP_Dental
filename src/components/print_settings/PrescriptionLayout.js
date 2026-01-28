@@ -618,7 +618,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
 
   const hasObsHistoryData = Array.isArray(obstetricDetails)
     ? obstetricDetails.length > 0
-    : !!obstetricDetails;
+    : !!(obstetricDetails && obstetricDetails.id);
 
   const obsHistoryId = Array.isArray(obstetricDetails)
     ? obstetricDetails[0]?.id
@@ -1036,8 +1036,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length) && option.id === 10) ||
                 ((caseManagerData?.smart_prescription_filename?.length || (smartRxFile && smartRxFile.length > 0)) && option.id === 11 && !isVoiceAmbientRx && !isAfterDigitization) ||
                 (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
-                (caseManagerData.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
-                (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
+                (hasGynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
+                (option.id === 14 && isGynaecHistoryAccessable && hasObsHistoryData) ||
                 (hasTodayLabResults && option.id === 15) ||
                 (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
                 (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
