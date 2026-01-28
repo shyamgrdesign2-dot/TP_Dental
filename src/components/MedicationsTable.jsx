@@ -54,6 +54,7 @@ const MedicationsTable = ({
   const [rowEditValues, setRowEditValues] = useState({});
   const [isTablet, setIsTablet] = useState(false);
   const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
+  const [editingItemIdForPopup, setEditingItemIdForPopup] = useState(null); // Store itemId when opening popup for replacement
   const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
   const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
@@ -352,6 +353,7 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: medicineName,
+        groundingMedicineName: medicineName, // Set groundingMedicineName for ambient mode
         corrected_name: medication?.tmm_generic || medication?.generic_name || '',
         dosage: '',
         frequency: '',
@@ -369,6 +371,10 @@ const MedicationsTable = ({
           ...medication,
           selectedValue: medicineName,
         };
+        // Store medicineUnit in metadata for unit per dose dropdown
+        if (medication.medicineUnit) {
+          newMedication.metadata.medicineUnit = medication.medicineUnit;
+        }
       }
       
       const updatedMedications = [...medications, newMedication];
@@ -380,6 +386,7 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: extractedName,
+        groundingMedicineName: extractedName, // Set groundingMedicineName for ambient mode
         dosage: '',
         frequency: '',
         schedule: '',
@@ -401,6 +408,8 @@ const MedicationsTable = ({
         if (option?.key && typeof option.key === 'string') {
           const medication = JSON.parse(option.key);
           if (medication && medication.tmm_id === 0) {
+            const currentEditingItemId = (editingCell && editingCell.field === 'name') ? editingCell.itemId : editingRow || null;
+            setEditingItemIdForPopup(currentEditingItemId);
             setShowAddMedicinePopup(true);
             return;
           }
@@ -427,7 +436,7 @@ const MedicationsTable = ({
         addNewMedication(value, option);
       }
     },
-    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewMedication]
+    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewMedication, editingCell, editingRow]
   );
 
   const handleCellClick = async (itemId, field, currentValue) => {
@@ -443,10 +452,13 @@ const MedicationsTable = ({
     }
     
     if (field === 'dosage') {
-      // Initialize unit per dose options when clicking on dosage field
+      // Load unit per dose options if medicineUnit is available
       const item = medications.find(med => med.id === itemId);
-      if (item) {
-        onSearchUnitPerDoseChild(value || '', itemId);
+      if (item && item.metadata?.medicineUnit && Array.isArray(item.metadata.medicineUnit)) {
+        const currentDosage = value || '';
+        if (currentDosage) {
+          onSearchUnitPerDoseChild(currentDosage, itemId);
+        }
       }
     }
   };
@@ -464,6 +476,11 @@ const MedicationsTable = ({
           ...item,
           [field]: updatedValue,
         };
+
+        // If updating the name field, also update groundingMedicineName for ambient mode
+        if (field === "name") {
+          updated.groundingMedicineName = updatedValue;
+        }
 
         if (field === "quantity") {
           const isQuantityChanged =
@@ -511,6 +528,7 @@ const MedicationsTable = ({
           const updated = {
             ...item, // Preserve all existing properties
             name: medicineName,
+            groundingMedicineName: medicineName, // Update groundingMedicineName for ambient mode
             corrected_name: generic || item.corrected_name || '',
             edited: false, // Set to false for autocomplete selections
           };
@@ -521,6 +539,9 @@ const MedicationsTable = ({
               ...medicineData,
               selectedValue: medicineName,
             };
+            if (medicineData.medicineUnit) {
+              updated.metadata.medicineUnit = medicineData.medicineUnit;
+            }
           }
           
           // Recalculate lineItem
@@ -566,6 +587,7 @@ const MedicationsTable = ({
           const updated = {
             ...item,
             name: extractedName,
+            groundingMedicineName: extractedName, // Update groundingMedicineName for ambient mode
             edited: false, // Set to false for autocomplete selections
           };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
@@ -597,6 +619,7 @@ const MedicationsTable = ({
     try {
       const medicineData = option?.key ? JSON.parse(option.key) : null;
       if (medicineData && medicineData.tmm_id === 0) {
+        setEditingItemIdForPopup(itemId);
         setShowAddMedicinePopup(true);
         return;
       }
@@ -635,7 +658,7 @@ const MedicationsTable = ({
     } catch (e) {
       handleNameSelect(itemId, value, option, isTabletMode);
     }
-  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect]);
+  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect, editingCell, editingRow]);
 
   // Handle editing entire row (tablet view)
   const handleRowEdit = (itemId) => {
@@ -667,6 +690,11 @@ const MedicationsTable = ({
         const isQuantityChanged =
           String(newQuantity ?? "").trim() !== String(prevQuantity ?? "").trim();
         updated.edited = isQuantityChanged;
+
+        // If name was updated, also update groundingMedicineName for ambient mode
+        if (rowEditValues.name !== undefined) {
+          updated.groundingMedicineName = rowEditValues.name;
+        }
 
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         updated.hm_type = rowEditValues.hm_type;
@@ -1178,39 +1206,23 @@ const MedicationsTable = ({
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'dosage') || (isTablet && editingRow === item.id) ? (
                     <AutoComplete
-                      value={isTablet && editingRow === item.id ? (rowEditValues.dosage || '') : (editValue || '')}
-                      placeholder="e.g., 1 Tablet"
+                      defaultValue={isTablet && editingRow === item.id ? rowEditValues.dosage : item.dosage}
+                      value={isTablet && editingRow === item.id ? rowEditValues.dosage : editValue}
+                      placeholder="e.g 1 Tablet"
                       bordered={false}
                       defaultOpen={false}
                       onSearch={(query) => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('dosage', query);
+                          onSearchUnitPerDoseChild(query, item.id);
                         } else {
                           setEditValue(query);
                           onSearchUnitPerDoseChild(query, item.id);
                         }
                       }}
-                      options={unitPerDoseOptions}
-                      className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
-                      popupClassName="option-truncate"
-                      defaultActiveFirstOption={true}
-                      onSelect={(data, e) => {
-                        if (isTablet && editingRow === item.id) {
-                          handleRowFieldChange('dosage', data);
-                        } else {
-                          setEditValue(data);
-                          onSelectUnitPerDoseChild(data, e, item.id);
-                          setTimeout(() => {
-                            setEditingCell(null);
-                            setEditValue('');
-                          }, 100);
-                        }
-                      }}
                       onFocus={() => {
                         if (!isTablet) {
-                          const currentDosage = item.dosage || '';
-                          setEditValue(currentDosage);
-                          onSearchUnitPerDoseChild(currentDosage, item.id);
+                          onSearchUnitPerDoseChild(item.dosage || '', item.id);
                         }
                       }}
                       onBlur={() => {
@@ -1219,21 +1231,26 @@ const MedicationsTable = ({
                           handleCellSave();
                         }
                       }}
+                      options={unitPerDoseOptions}
+                      className="autocomplete-custom w-100 h-100 inputborder"
+                      defaultActiveFirstOption={true}
+                      onSelect={(data, e) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('dosage', data);
+                          onSelectUnitPerDoseChild(data, e, item.id);
+                        } else {
+                          setEditValue(data);
+                          onSelectUnitPerDoseChild(data, e, item.id);
+                          handleCellSave();
+                        }
+                      }}
                       onClear={() => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('dosage', '');
                         } else {
                           setEditValue('');
-                          const updatedMedications = medications.map(med => {
-                            if (med.id === item.id) {
-                              const updated = { ...med, dosage: "" };
-                              updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
-                              return updated;
-                            }
-                            return med;
-                          });
-                          onUpdate(updatedMedications);
                         }
+                        onSearchUnitPerDoseChild("", item.id);
                       }}
                       allowClear
                     />
@@ -1617,35 +1634,87 @@ const MedicationsTable = ({
        {showAddMedicinePopup && (
         <CustomMedicinePopup
           isOpen={showAddMedicinePopup}
-          onCancel={() => setShowAddMedicinePopup(false)}
+          onCancel={() => {
+            setShowAddMedicinePopup(false);
+            setEditingItemIdForPopup(null);
+          }}
           initialData={{ tmm_medicine_name: searchQuery }}
           onSuccess={(addedMedicine) => {
-            // Add the newly created medicine to the medications list
             const medicineName = addedMedicine?.tmm_medicine_name || addedMedicine?.medicine_name || '';
-            const newMedication = {
-              id: Date.now().toString(),
-              name: medicineName,
-              corrected_name: addedMedicine?.tmm_generic || addedMedicine?.generic_name || '',
-              dosage: '',
-              frequency: '',
-              schedule: '',
-              duration: '',
-              quantity: 0,
-              notes: '',
-              lineItem: medicineName,
-              edited: false,
-            };
+            const generic = addedMedicine?.tmm_generic || addedMedicine?.generic_name || '';
             
-            // Add metadata if available
-            if (addedMedicine) {
-              newMedication.metadata = {
-                ...addedMedicine,
-                selectedValue: medicineName,
+            if (editingItemIdForPopup) {
+              const updatedMedications = medications.map((item) => {
+                if (item.id === editingItemIdForPopup) {
+                  const updated = {
+                    ...item, // Preserve all existing properties
+                    name: medicineName,
+                    groundingMedicineName: medicineName, // Update groundingMedicineName for ambient mode
+                    corrected_name: generic || item.corrected_name || '',
+                    edited: false,
+                  };
+                  
+                  // Add metadata if available
+                  if (addedMedicine) {
+                    updated.metadata = {
+                      ...addedMedicine,
+                      selectedValue: medicineName,
+                    };
+                    if (addedMedicine.medicineUnit) {
+                      updated.metadata.medicineUnit = addedMedicine.medicineUnit;
+                    }
+                  }
+                  
+                  // Recalculate lineItem
+                  updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+                  return updated;
+                }
+                return item;
+              });
+              
+              onUpdate(updatedMedications);
+              if (editingCell && editingCell.itemId === editingItemIdForPopup) {
+                setEditingCell(null);
+                setEditValue('');
+              }
+              if (editingRow === editingItemIdForPopup) {
+                setRowEditValues(prev => ({
+                  ...prev,
+                  name: medicineName,
+                }));
+              }
+              setEditingItemIdForPopup(null);
+            } else {
+              // Add the newly created medicine to the medications list
+              const newMedication = {
+                id: Date.now().toString(),
+                name: medicineName,
+                groundingMedicineName: medicineName, // Set groundingMedicineName for ambient mode
+                corrected_name: generic,
+                dosage: '',
+                frequency: '',
+                schedule: '',
+                duration: '',
+                quantity: 0,
+                notes: '',
+                lineItem: medicineName,
+                edited: false,
               };
+              
+              // Add metadata if available
+              if (addedMedicine) {
+                newMedication.metadata = {
+                  ...addedMedicine,
+                  selectedValue: medicineName,
+                };
+                if (addedMedicine.medicineUnit) {
+                  newMedication.metadata.medicineUnit = addedMedicine.medicineUnit;
+                }
+              }
+              
+              const updatedMedications = [...medications, newMedication];
+              onUpdate(updatedMedications);
             }
-            
-            const updatedMedications = [...medications, newMedication];
-            onUpdate(updatedMedications);
             setSearchQuery('');
           }}
         />

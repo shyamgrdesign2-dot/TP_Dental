@@ -1299,7 +1299,34 @@ function SmartPrescription() {
 
   useEffect(() => {
     if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
+      const vitalsByDate = {};
+      selectedVitalsList.forEach(vital => {
+        const dateKey = vital.date;
+        const existing = vitalsByDate[dateKey];
+        
+        if (!existing) {
+          vitalsByDate[dateKey] = vital;
+        } else if ((vital.tcv_id > 0 || vital.tcbc_id > 0) && (existing.tcv_id === 0 && existing.tcbc_id === 0)) {
+          vitalsByDate[dateKey] = vital;
+        } else if ((existing.tcv_id > 0 || existing.tcbc_id > 0) && (vital.tcv_id === 0 && vital.tcbc_id === 0)) {
+          // Keep existing
+        } else {
+          const existingId = Number(existing.tcv_id || 0);
+          const vitalId = Number(vital.tcv_id || 0);
+          if (vitalId > existingId) {
+            vitalsByDate[dateKey] = vital;
+          } else if (vitalId === existingId) {
+            const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0).length;
+            const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0).length;
+            if (vitalDataCount > existingDataCount) {
+              vitalsByDate[dateKey] = vital;
+            }
+          }
+        }
+      });
+      
+      const uniqueVitals = Object.values(vitalsByDate);
+      const updatedData = uniqueVitals.map((e) => {
         return {
           ...e,
           systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
@@ -1308,7 +1335,7 @@ function SmartPrescription() {
       });
       setVitalsData(updatedData);
     }
-  }, [selectedVitalsList]);
+  }, [selectedVitalsList, caseManagerData, tcmId]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {

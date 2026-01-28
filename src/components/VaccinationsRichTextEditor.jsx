@@ -44,7 +44,16 @@ const VaccinationsRichTextEditor = ({
     let editorItems = editorItemsRef.current || [];
     
     if (editorItems.length === 0 && currentItems.length > 0) {
-      editorItems = currentItems.map(vacc => vacc.name || vacc.lineItem || '');
+      editorItems = currentItems.map(vacc => {
+        const name = vacc.name || '';
+        const lineItem = vacc.lineItem || '';
+        
+        // Display both name and lineItem if both are available
+        if (name && lineItem) {
+          return `${name} - ${lineItem}`;
+        }
+        return lineItem || name || '';
+      });
       editorItemsRef.current = editorItems;
     }
     
@@ -58,19 +67,27 @@ const VaccinationsRichTextEditor = ({
       if (typeof vaccination === 'string') {
         return vaccination;
       }
-      const name = vaccination.name || '';
-      const parts = [];
       
+      const name = vaccination.name || '';
+      const lineItem = vaccination.lineItem || '';
+      if (name && lineItem) {
+        return `${name} - ${lineItem}`;
+      }
+      if (lineItem) {
+        return lineItem;
+      }
+      const parts = [];
+      if (vaccination.schedule) parts.push(vaccination.schedule);
+      if (vaccination.notes) parts.push(vaccination.notes);
       if (vaccination.severity) parts.push(vaccination.severity);
       if (vaccination.duration) parts.push(vaccination.duration);
-      if (vaccination.notes) parts.push(vaccination.notes);
       if (vaccination.type) parts.push(vaccination.type);
       
       if (parts.length > 0) {
         return `${name} (${parts.join(', ')})`;
       }
       
-      return name || vaccination.lineItem || '';
+      return name || '';
     });
     
     if (formattedVaccinations.length === 0) {

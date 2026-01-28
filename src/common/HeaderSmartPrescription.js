@@ -51,6 +51,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
 import VideoModal from "./VideoModal";
 import { getDecodedToken } from "../utils/localStorage";
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { env } from "../EnvironmentConfig";
 import {
   RX_DIGITIZATION,
@@ -492,6 +493,60 @@ function HeaderPrescription({
   async function onEndVisitClick() {
     const smartRxFiles = smartRxData?.map((file) => file.name);
     const files = smartRxData?.map((file) => file);
+    // Merge current medical history with patient's existing history from backend
+    let mergedMedicalHistory = medicalHistoryData || [];
+    if (patient_data?.patient_unique_id) {
+      try {
+        const existingResp = await ApiMedicalHistory.getPatientLastHistory({
+          patient_unique_id: patient_data.patient_unique_id,
+        });
+        if (existingResp?.status && Array.isArray(existingResp.data)) {
+          const existingHistory = existingResp.data;
+          if (Array.isArray(mergedMedicalHistory) && mergedMedicalHistory.length > 0) {
+            const bySection = {};
+            const addSection = (section, isExisting = false) => {
+              const key = section?.tmmhs_id || section?.title || "";
+              if (!bySection[key]) {
+                bySection[key] = {
+                  ...section,
+                  tags: Array.isArray(section?.tags) ? [...section.tags] : [],
+                };
+                return;
+              }
+              const current = bySection[key];
+              const currentTags = Array.isArray(current.tags) ? current.tags : [];
+              const seenTitles = new Set(
+                currentTags
+                  .map((t) => (t?.title || "").toLowerCase().trim())
+                  .filter(Boolean)
+              );
+              const incomingTags = Array.isArray(section?.tags) ? section.tags : [];
+              incomingTags.forEach((tag) => {
+                const titleKey = (tag?.title || "").toLowerCase().trim();
+                if (!titleKey || !seenTitles.has(titleKey)) {
+                  currentTags.push(tag);
+                  if (titleKey) {
+                    seenTitles.add(titleKey);
+                  }
+                }
+              });
+              current.tags = currentTags;
+              if (isExisting && typeof section?.no_know_history === "boolean") {
+                current.no_know_history = section.no_know_history;
+              }
+            };
+            existingHistory.forEach((s) => addSection(s, true));
+            mergedMedicalHistory.forEach((s) => addSection(s, false));
+            mergedMedicalHistory = Object.values(bySection);
+          } else {
+            mergedMedicalHistory = existingHistory;
+          }
+        }
+      } catch (e) {
+        // If merge fails, fall back to using only the current visit's history.
+      }
+    }
+
     const sendData = {
       action: tcmId == 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -514,7 +569,7 @@ function HeaderPrescription({
       vitals: vitalsData,
       follow_up_date: followUpDate,
       visit_advice: additionalNote,
-      medical_history: medicalHistoryData,
+      medical_history: mergedMedicalHistory,
       smart_prescription_filename: smartRxFiles || [],
       pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
       isCustomSSRX: isCustomSSRX ? "1" : "0",

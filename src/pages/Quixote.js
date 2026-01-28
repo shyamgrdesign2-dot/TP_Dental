@@ -21,7 +21,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, carePlanAssignments } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, carePlanAssignments, gynecHistoryData } = useContext(PrintSettingsContext);
 
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
@@ -189,6 +189,10 @@ function Quixote({ mode = NORMAL, ...props }) {
         //     setPdfUrl(URL.createObjectURL(blob))
         // }
         const makePDFUrl = async () => {
+            if (!caseManagerData || !caseManagerData.patient_data) {
+                return;
+            }
+            
             const blob = await pdf(<ViewPDF
                 mode={mode}
                 caseManagerData={caseManagerData}
@@ -208,6 +212,7 @@ function Quixote({ mode = NORMAL, ...props }) {
                 growthChartDetails={props.growthChartDetails}
                 isGynaecHistoryAccessable = {isGynaecHistoryAccessable}
                 obsHistoryData={props.obstetricDetails}
+                gynecHistoryData={gynecHistoryData}
                 labParamsData={labParamsData}
                 customModules={customModules}
                 patientBills={props.patientBills}
@@ -218,7 +223,11 @@ function Quixote({ mode = NORMAL, ...props }) {
             setPdfUrl(URL.createObjectURL(blob))
             dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
         }
-        caseManagerData && makePDFUrl()
+        // Only generate PDF if caseManagerData exists and has patient_data
+        // This prevents generating PDF with empty/incomplete data
+        if (caseManagerData && caseManagerData.patient_data) {
+            makePDFUrl()
+        }
         return () => {
             setLoadSuccesss(false)
         };
@@ -237,7 +246,18 @@ function Quixote({ mode = NORMAL, ...props }) {
         props.todayVaccines,
         props.growthChartDetails,
         props.obstetricDetails,
-        printSettings?.default_language
+        printSettings?.default_language,
+        caseManagerData,
+        frequencyList,
+        timingList,
+        labParamsData,
+        customModules,
+        carePlanAssignments,
+        smartRxFile,
+        props.patientBills,
+        props.advanceReceipts,
+        props.patientWalletBalance,
+        gynecHistoryData
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

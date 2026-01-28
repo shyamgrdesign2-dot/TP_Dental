@@ -453,9 +453,23 @@
   margin-top: 0;
   flex: 1;
   overflow-y: auto;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh);
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
+  position: relative;
+  min-height: 100%;
+}
+
+.rightSection.gradientBorder {
+  padding: 0;
+  margin: 0;
+  border-top: none;
+  max-height: 100%;
+  overflow: hidden;
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  flex: 1;
   
   ul,
   li {
@@ -758,13 +772,15 @@
 }
 
 .gradientBorder {
-  margin: 20px 30px;
+  margin: 0;
   position: relative;
-  border-radius: 20px; /* Adjust to match your design */
-  padding: 4px; /* Adjust for inner content spacing */
+  border-radius: 0;
+  padding: 0;
   background-size: 300% 300%;
   animation: gradient-border-animation 6s infinite linear;
-  height: calc(100vh - 90px);
+  height: 100%;
+  width: 100%;
+  flex: 1;
 }
 
 .gradientBorder::before {
@@ -775,18 +791,20 @@
   right: 0;
   bottom: 0;
   z-index: -1;
-  border-radius: inherit; /* Ensures the border matches the container's shape */
-  padding: 5px; /* Adjust for border thickness */
+  border-radius: 0; /* No rounded corners for full coverage */
+  padding: 0; /* No padding for full coverage */
   background: linear-gradient(90deg, #ff7e5f, #feb47b, #86a8e7, #d16ba5);
   background-size: 300% 300%;
   animation: gradient-rotate 6s infinite linear;
 }
 
 .gradientBorder > * {
-  background: #fafafb; /* Inner content background */
-  border-radius: inherit; /* Keeps content within the gradient border */
+  background: transparent; /* Transparent to show loader background */
+  border-radius: 0; /* No rounded corners for full coverage */
   z-index: 1; /* Ensures content is above the border */
   position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 /* Keyframes for gradient animation */
@@ -1009,6 +1027,46 @@
   flex-shrink: 0;
 }
 
+.vitals-header,
+.medical-history-header,
+.lab-results-header {
+  justify-content: space-between;
+}
+
+.medical-history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.medical-history-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #4b4ad5;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.medical-history-action-button span {
+  color: #4B4AD5 !important;
+}
+
+.medical-history-action-button:hover {
+  color: #3b3ac4;
+}
+
+.medical-history-action-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .symptoms-icon,
 .examination-icon,
 .diagnosis-icon,
@@ -1079,6 +1137,18 @@
   display: flex;
   flex-direction: column;
   min-height: auto;
+}
+
+.vitals-editor-container {
+  pointer-events: none;
+  cursor: default;
+  opacity: 1;
+}
+
+.vitals-editor-container :global(.richTextEditor) {
+  pointer-events: none;
+  cursor: default;
+  user-select: text;
 }
 
 .symptoms-shimmer-container,
@@ -1226,46 +1296,6 @@
 .medical-history-textarea::placeholder {
   color: #9CA3AF;
   font-style: italic;
-}
-
-.add-medical-history-container {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 8px;
-  padding: 0 12px; /* Match sub-box padding */
-}
-
-.add-medical-history-button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  height: 54px;
-  padding: 0 16px;
-  background: #F8F9FF;
-  border: 1px dashed #4B4AD5;
-  border-radius: 6px;
-  color: #4B4AD5;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(75, 74, 213, 0.1);
-}
-
-.add-medical-history-button:hover {
-  background: #F0F2FF;
-  border-color: #3B3AC4;
-  color: #3B3AC4;
-  box-shadow: 0 2px 4px rgba(75, 74, 213, 0.15);
-}
-
-.add-medical-history-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
 }
 
 /* Lab Investigation Table Styles */

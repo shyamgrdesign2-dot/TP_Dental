@@ -93,6 +93,7 @@ function MedicalHistoryBox(props) {
     const [addEditData, setAddEditData] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchOptions, setSearchOptions] = useState([]);
+    const [sectionSearchQueries, setSectionSearchQueries] = useState({});
 
     const SINCE_OPTIONS = [
         { value: "Hour", label: "H" },
@@ -1708,6 +1709,15 @@ function MedicalHistoryBox(props) {
                                     <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>
                                         {cloneMedicalHistoryData.length > 0 ? (
                                             cloneMedicalHistoryData?.map((e, i) => {
+                                                const sectionSearchQuery = (sectionSearchQueries?.[e?.tmmhs_id] || "").trim().toLowerCase();
+                                                const filteredTags = (e?.tags || []).map((tag, originalIndex) => ({
+                                                    tag,
+                                                    originalIndex,
+                                                })).filter(({ tag }) => {
+                                                    if (tag?.delete) return false;
+                                                    if (!sectionSearchQuery) return true;
+                                                    return (tag?.title || "").toLowerCase().includes(sectionSearchQuery);
+                                                });
                                                 return (
                                                     <div key={i} className="border-bottom px-4 pt-3 pb-2">
                                                         <div className="d-flex align-items-center justify-content-between mb-3">
@@ -1725,12 +1735,11 @@ function MedicalHistoryBox(props) {
                                                             </div>
                                                         </div>
                                                         <div className="d-flex flex-wrap">
-                                                            {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
-                                                                const displayTitle = e1?.enable === "N" ? `${e1?.title} N` : e1?.title;
+                                                            {!e?.no_know_history && !e?.isExpand && filteredTags.map(({ tag, originalIndex }) => {
                                                                 return (
-                                                                    <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{displayTitle}</div>
-                                                                        <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
+                                                                    <div key={Math.random()} className={`history-badge ${tag?.enable !== undefined ? tag?.enable === "Y" ? 'history-active' : tag?.enable === "N" ? 'history-inactive' : '' : ''}`}>
+                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, tag?.tmmhst_id, i, originalIndex)}>{tag?.title}</div>
+                                                                        <span onClick={() => onEnableClick(e?.tmmhs_id, tag?.tmmhst_id, i, originalIndex)}>{tag?.enable !== undefined ? tag?.enable : "-"}<img alt="" src={tag?.enable !== undefined ? tag?.enable === "Y" ? ActiveverticleUpDown : tag?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
                                                                         </span>
                                                                     </div>
                                                                 )

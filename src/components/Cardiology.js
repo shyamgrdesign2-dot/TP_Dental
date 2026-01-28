@@ -868,8 +868,8 @@ function Cardiology(props) {
           )}
           {/* Handle vitals type separately */}
           {type === "vitals" &&
-             Object.entries(data?.vitals || {})
-               .filter(([key, value]) => value.trim()) // Filter out empty or falsy values
+             Object.entries(data?.vitalsAndBodyComposition || data?.vitals || {})
+               .filter(([key, value]) => value && String(value).trim()) // Filter out empty or falsy values
                .map(([key, value]) => (
                  <li key={key}>
                    <div className="medicine-item">
@@ -887,37 +887,52 @@ function Cardiology(props) {
               <li key={index}>
                 <div className="medicine-item">
                   <span>
-                    {/* Render dynamically based on type */}
-                    {type === "advice"
-                      ? item
-                      : type === "symptoms" && item?.name?.length > 0
-                      ? item.name[0]?.toUpperCase() + item.name?.slice(1)
-                      : type === "medications" || type === "tests"
-                      ? item?.refinedName
-                      : type === "labResults"
-                      ? (() => {
-                          const lineItem =
-                            typeof item?.lineItem === "string"
-                              ? item.lineItem.trim()
-                              : "";
-                          if (lineItem) return lineItem;
-                          const testname =
-                            typeof item?.testname === "string"
-                              ? item.testname.trim()
-                              : "";
-                          const value =
-                            typeof item?.value === "string"
-                              ? item.value.trim()
-                              : "";
-                          return testname && value
-                            ? `${testname} (${value})`
-                            : testname || value || "";
-                        })()
-                      : type === "dynamicFields"
-                      ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
-                      : type === "others"
-                      ? item
-                      : item?.name}
+                    {/* Render dynamically based on type - prioritize name when available */}
+                    {(() => {
+                      const itemName = item?.name && String(item.name).trim();
+                      const lineItem = item?.lineItem && String(item.lineItem).trim();
+                      
+                      if (type === "advice") return item;
+                      if (type === "symptoms" && itemName) {
+                        return itemName[0]?.toUpperCase() + itemName?.slice(1);
+                      }
+                      if (type === "medications" || type === "tests") {
+                        return item?.refinedName || itemName || "";
+                      }
+                      if (type === "labResults") {
+                        const testname =
+                          typeof item?.testname === "string"
+                            ? item.testname.trim()
+                            : "";
+                        const value =
+                          typeof item?.value === "string"
+                            ? item.value.trim()
+                            : "";
+                        return testname && value
+                          ? `${testname} (${value})`
+                          : testname || value || "";
+                      }
+                      if (type === "dynamicFields") {
+                        return item?.title || itemName || (typeof item === "string" ? item : "");
+                      }
+                      if (type === "others") return item;
+                      if (type === "vaccinations") {
+                        // Display both name and lineItem if both are available
+                        if (itemName && lineItem) {
+                          return `${itemName} - ${lineItem}`;
+                        }
+                        return lineItem || itemName || "";
+                      }
+                      if (type === "medicalHistory") {
+                        // Display both name and lineItem if both are available
+                        if (itemName && lineItem) {
+                          return `${itemName} - ${lineItem}`;
+                        }
+                        return itemName || lineItem || "";
+                      }
+                      // Use name first, fallback to lineItem only if name is not available
+                      return itemName || lineItem || "";
+                    })()}
                   </span>
 
                   {/* Lab Results specific rendering */}
@@ -928,21 +943,28 @@ function Cardiology(props) {
                     type === "symptoms" ||
                     type === "examinations" ||
                     type === "diagnosis") && (() => {
+                    // For vaccinations, if lineItem exists, don't show additional details (already in lineItem)
+                    if (type === "vaccinations" && item?.lineItem) {
+                      return null;
+                    }
+                    
                     const hasIndividualFields = (item?.severity && item?.severity !== '') || 
                                                (item?.duration && item?.duration !== '') || 
                                                (item?.notes && item?.notes !== '') ||
                                                (item?.type && item?.type !== '') ||
-                                               (item?.relation && item?.relation !== '');
+                                               (item?.relation && item?.relation !== '') ||
+                                               (item?.schedule && item?.schedule !== '');
                     
                     const details = hasIndividualFields
                       ? [
+                          item?.schedule && item?.schedule !== '' ? item?.schedule : null,
                           item?.severity && item?.severity !== '' ? item?.severity : null,
                           item?.duration && item?.duration !== '' ? item?.duration : null,
                           item?.notes && item?.notes !== '' ? item?.notes : null,
                           item?.type && item?.type !== '' ? item?.type : null,
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : null;
                     
                     return details && (
                       <span> ({details})</span>
@@ -1093,15 +1115,13 @@ function Cardiology(props) {
     );
   };
 
-  const renderMedicalHistoryGrouped = () => {
-    const medicalHistoryData = genRxData?.medicalHistory;
-    
+  const renderMedicalHistoryGrouped = (medicalHistoryData) => {
     if (!medicalHistoryData || !Array.isArray(medicalHistoryData) || medicalHistoryData.length === 0) {
       return null;
     }
   
     const groupedByType = medicalHistoryData.reduce((acc, item) => {
-      const type = isGenRxTableView ? (item?.type || item?.subtype || 'other') : 'other';
+      const type = item?.type || item?.subtype || 'other';
       if (!acc[type]) {
         acc[type] = [];
       }
@@ -1116,8 +1136,10 @@ function Cardiology(props) {
 
     const typeDisplayNames = {
       'medical_condition': 'Medical Conditions',
+      'Medical condition': 'Medical Conditions',
       'allergy': 'Allergies',
       'family_history': 'Family History',
+      'Family History': 'Family History',
       'lifestyle': 'Lifestyle',
       'other': 'others'
     };
@@ -1133,7 +1155,25 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              const itemName = item?.name || item?.condition || 'N/A';
+              const itemNameRaw = item?.name || item?.condition || '';
+              const lineItemRaw = item?.lineItem || '';
+              let itemName = String(itemNameRaw).trim();
+              let lineItem = String(lineItemRaw).trim();
+              const isNoHistory = lineItem?.toLowerCase().startsWith('no ');
+              if (!isNoHistory && lineItem) {
+                lineItem = lineItem.split(' - ')[0].split(',')[0].trim();
+              }
+              const typeNames = ['Medical Condition', 'medical_condition', 'Family History', 'family_history', 'Allergy', 'allergy', 'Allergies', 'Lifestyle', 'lifestyle', 'Other', 'other'];
+              for (const typeName of typeNames) {
+                if (itemName.toLowerCase().startsWith(typeName.toLowerCase() + ',')) {
+                  itemName = itemName.substring(typeName.length + 1).trim();
+                  break;
+                }
+              }
+              itemName = itemName.split(',')[0].trim();
+              
+              const displayName = isNoHistory ? lineItemRaw.trim() : (itemName || lineItem || 'N/A');
+              
               const details = [];
               
               if (item?.duration && item.duration !== '') {
@@ -1152,7 +1192,7 @@ function Cardiology(props) {
               return (
                 <div key={itemIndex} style={{ marginBottom: '2px', marginLeft: '32px' }}>
                   <span style={{ fontWeight: 500, fontSize: 'inherit' }}>
-                    • {itemName}
+                    • {displayName}
                   </span>
                   {details.length > 0 && (
                     <span style={{ fontWeight: 400, fontSize: 'inherit' }}>
@@ -1182,7 +1222,7 @@ function Cardiology(props) {
 
   const renderGenRxItems = (type) => {
     if (type === "medicalHistory") {
-      return renderMedicalHistoryGrouped();
+      return renderMedicalHistoryGrouped(genRxData?.medicalHistory);
     }
     
     return (
@@ -1296,6 +1336,13 @@ function Cardiology(props) {
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") && (() => {
+                    // Use name as primary, fallback to lineItem only if name is not available
+                    const itemName = item?.name && String(item.name).trim();
+                    const lineItem = item?.lineItem && String(item.lineItem).trim();
+                    
+                    // If name exists, use it; otherwise use lineItem
+                    const displayName = itemName || lineItem || 'N/A';
+                    
                     const hasIndividualFields = (item?.severity && item?.severity !== '') || 
                                                (item?.duration && item?.duration !== '') || 
                                                (item?.notes && item?.notes !== '') ||
@@ -1316,19 +1363,15 @@ function Cardiology(props) {
                           item?.frequency && item?.frequency !== '' ? item?.frequency : null,
                           item?.schedule && item?.schedule !== '' ? item?.schedule : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : null;
                     
-                    return item.lineItem && !hasIndividualFields ? (
-                      <span>{item.lineItem}</span>
-                    ) : item.name ? (
-                    <span>
-                      {item.name}
+                    return (
+                      <span>
+                        {displayName}
                         {details && (
                           <span> ({details})</span>
                         )}
-                    </span>
-                    ) : (
-                      <span>{item}</span>
+                      </span>
                     );
                   })()}
 
@@ -1416,8 +1459,81 @@ function Cardiology(props) {
       );
     });
 
+  // Render dynamicFields for smart rx and snap rx (handles object structure)
+  const renderDynamicFields = (dynamicFieldsData) => {
+    if (!dynamicFieldsData || typeof dynamicFieldsData !== "object" || Array.isArray(dynamicFieldsData)) {
+      return null;
+    }
+
+    return Object.entries(dynamicFieldsData)
+      .filter(([moduleName, moduleData]) => {
+        return (
+          Array.isArray(moduleData) &&
+          moduleData.length > 0 &&
+          moduleData.some((item) => {
+            const value =
+              typeof item === "string"
+                ? item
+                : item?.lineItem || item?.title || item?.name || item?.notes;
+            return typeof value === "string" && value.trim().length > 0;
+          })
+        );
+      })
+      .map(([moduleName, moduleData]) => {
+        return (
+          <div key={moduleName} style={{ marginBottom: "20px" }}>
+            <div className="d-flex align-items-start">
+              <img
+                className="me-2"
+                src={customModuleIcon}
+                alt={moduleName}
+              />
+              <div className="title-digitise-section mb-1">
+                {moduleName
+                  .replace(/([A-Z])/g, " $1")
+                  .replace(/^./, (str) => str.toUpperCase())}
+              </div>
+            </div>
+            <div className="digitised-data-section">
+              <ul>
+                {moduleData.map((item, index) => {
+                  const displayValue =
+                    typeof item === "string"
+                      ? item
+                      : item?.lineItem || item?.title || item?.name || item?.notes || "";
+                  const notes = item?.notes && typeof item.notes === "string" ? item.notes.trim() : "";
+                  return (
+                    <li key={index}>
+                      <div className="medicine-item">
+                        <span>{displayValue}</span>
+                        {notes && <span>{` (${notes})`}</span>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        );
+      });
+  };
+
   // Add this helper function at the top of the component
   const hasValidContent = (data, type) => {
+    if (type === "dynamicFields") {
+      if (!data?.[type] || typeof data[type] !== "object" || Array.isArray(data[type])) {
+        return false;
+      }
+      return Object.entries(data[type]).some(([moduleName, moduleData]) => {
+        if (!Array.isArray(moduleData) || moduleData.length === 0) return false;
+        return moduleData.some((item) => {
+          if (typeof item === "string") return item.trim().length > 0;
+          const value = item?.lineItem || item?.title || item?.name || item?.notes;
+          return typeof value === "string" && value.trim().length > 0;
+        });
+      });
+    }
+
     if (!data?.[type] || !Array.isArray(data[type])) return false;
 
     return data[type].some((item) => {
@@ -2007,10 +2123,13 @@ function Cardiology(props) {
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
-                    {rxDigitisedData?.editedData?.vitals &&
+                    {((rxDigitisedData?.editedData?.vitalsAndBodyComposition &&
+                      Object.values(rxDigitisedData?.editedData?.vitalsAndBodyComposition).some(
+                        (value) => value && String(value).trim().length > 0
+                      )) || (rxDigitisedData?.editedData?.vitals &&
                       Object.values(rxDigitisedData?.editedData?.vitals).some(
-                        (value) => value?.trim?.().length > 0
-                      ) && (
+                        (value) => value && String(value).trim().length > 0
+                      ))) && (
                         <>
                           <div className="d-flex align-items-start">
                             <img
@@ -2042,7 +2161,7 @@ function Cardiology(props) {
                               Medical History
                             </div>
                           </div>
-                          {renderItems("medicalHistory")}
+                          {renderMedicalHistoryGrouped(rxDigitisedData?.editedData?.medicalHistory)}
                         </>
                       )}
 
@@ -2204,17 +2323,7 @@ function Cardiology(props) {
                     {rxDigitisedData?.editedData?.dynamicFields &&
                       hasValidContent(rxDigitisedData.editedData, "dynamicFields") && (
                         <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={customModuleIcon}
-                              alt="Dynamic Fields"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Dynamic Fields
-                            </div>
-                          </div>
-                          {renderItems("dynamicFields")}
+                          {renderDynamicFields(rxDigitisedData.editedData.dynamicFields)}
                         </>
                       )}
 
@@ -2294,10 +2403,13 @@ function Cardiology(props) {
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
                   <div className="m-4">
-                    {snapRxDigitisedData?.vitals &&
+                    {((snapRxDigitisedData?.vitalsAndBodyComposition &&
+                      Object.values(snapRxDigitisedData?.vitalsAndBodyComposition).some(
+                        (value) => value && String(value).trim().length > 0
+                      )) || (snapRxDigitisedData?.vitals &&
                       Object.values(snapRxDigitisedData?.vitals).some(
-                        (value) => value?.trim?.().length > 0
-                      ) && (
+                        (value) => value && String(value).trim().length > 0
+                      ))) && (
                         <>
                           <div className="d-flex align-items-start">
                             <img
@@ -2329,7 +2441,7 @@ function Cardiology(props) {
                               Medical History
                             </div>
                           </div>
-                          {renderItems("medicalHistory")}
+                          {renderMedicalHistoryGrouped(snapRxDigitisedData?.medicalHistory)}
                         </>
                       )}
 
@@ -2476,17 +2588,7 @@ function Cardiology(props) {
                     {snapRxDigitisedData?.dynamicFields &&
                       hasValidContent(snapRxDigitisedData, "dynamicFields") && (
                         <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={customModuleIcon}
-                              alt="Dynamic Fields"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Dynamic Modules
-                            </div>
-                          </div>
-                          {renderItems("dynamicFields")}
+                          {renderDynamicFields(snapRxDigitisedData.dynamicFields)}
                         </>
                       )}
 

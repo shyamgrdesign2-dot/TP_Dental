@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import { Button, Card, DatePicker, Input, Tooltip } from 'antd';
-import dayjs from "dayjs";
 
 import { useSelector, useDispatch } from "react-redux";
-// import { v4 as uuidv4 } from 'uuid';
-import { errorMessage, getClinicName, onlyDecimalFormat } from "../utils/utils";
+import { errorMessage, getClinicName, onlyDecimalFormat, mergeVitalsByDate } from "../utils/utils";
 
 import CashManagerContext from '../context/CashManagerContext';
 
 import {
     addUpdateVitals,
     getPatientBirthWeight,
-    getVitals,
 } from "../redux/vitalsSlice";
 import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
@@ -25,11 +22,14 @@ function VitalsBox(props) {
 
     const scrollContainerRef = useRef(null);
     const inputRef = useRef([]);
+    const [datePickerOpen, setDatePickerOpen] = useState(false);
+    const hasInitializedRef = useRef(false);
 
-    const { handleDrawerVital, handleCollapsed } = props
+    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, onVitalsUpdate } = props
 
     const {
       selectedVitalsList,
+      vitalsPastList,
       loading,
       patientBirthWeight: storedPatientBirthWeight,
     } = useSelector((state) => state.vitals);
@@ -46,15 +46,16 @@ function VitalsBox(props) {
       "growth-chart-new-design"
     );
 
-    const { profile, userId } = useSelector((state) => state.doctors);
+    const { profile } = useSelector((state) => state.doctors);
     const { isPediatricAccessable } = useAccess();
 
     useEffect(() => {
         if (selectedVitalsList.length > 0) {
             const updatedData = selectedVitalsList.map((e, i) => {
-                return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : '', diastolic: e.blood_press ? e.blood_press.split('/')[1] : '' };
+                return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : (e.systolic || ''), diastolic: e.blood_press ? e.blood_press.split('/')[1] : (e.diastolic || '') };
             });
-            setVitalsData(updatedData);
+            const merged = mergeVitalsByDate(vitalsData, updatedData);
+            setVitalsData(merged);
         } else if(measurements.length) {
             let cal = calculate('', '');
             setVitalsData(measurements.map(m => ({
@@ -78,90 +79,10 @@ function VitalsBox(props) {
                 fib4: '',
                 waist_circumference: ''
             })));
+        } else if (vitalsData.length === 0 && selectedVitalsList.length === 0 && measurements.length === 0) {
+            setVitalsData([]);
         }
     }, [selectedVitalsList, measurements]);
-
-    useEffect(() => {
-        setChildVitalsData([...vitalsData])
-    }, [vitalsData]);
-
-    useEffect(() => {
-        if (childVitalsData.length === 0) {
-            let cal = calculate('', '');
-            childVitalsData.push({
-                date: moment().format(dateFormat),
-                dev_unique_id: 0,
-                tcv_id: 0,
-                tcbc_id: 0,
-                temp: '',
-                pres: '',
-                resp_rate: '',
-                systolic: '',
-                diastolic: '',
-                spo2: '',
-                height: '',
-                weight: '',
-                fib4: '',
-                waist_circumference: '',
-                ofc: '',
-                bmi: cal.bmi,
-                bmr: cal.bmr,
-                bsa: cal.bsa,
-                general_rbs: ''
-
-            });
-            setChildVitalsData((prev) => [...prev]);
-        }
-    }, [childVitalsData]);
-
-    const onChange = useCallback(
-        (date, dateString) => {
-            let cal = calculate('', '');
-            const growthChartData = measurements?.find((m) => m.date === dateString);
-            const { height, weight, bmi, ofc } = growthChartData || {};
-            const tempVitals = [...childVitalsData];
-            setDateString(dateString);
-            tempVitals.push(
-                {
-                date: dateString,
-                height: height || "",
-                weight: weight || "",
-                ofc: ofc || "",
-                bmi: bmi || cal.bmi,
-                dev_unique_id: 0,
-                tcv_id: 0,
-                tcbc_id: 0,
-                temp: "",
-                pres: "",
-                resp_rate: "",
-                systolic: "",
-                diastolic: "",
-                spo2: "",
-                bmr: cal.bmr,
-                bsa: cal.bsa,
-                general_rbs: '',
-                fib4: "",
-                waist_circumference: ""
-                },
-            );
-            setChildVitalsData([...tempVitals]);
-        },
-        [childVitalsData]
-    );
-
-    useEffect(() => {
-        if (scrollContainerRef.current) {
-            // const scrollWidth = scrollContainerRef.current.scrollWidth;
-            // scrollContainerRef.current.scrollLeft = scrollWidth;
-            const data = childVitalsData.sort((a, b) => new Date(b.date) - new Date(a.date))
-            const index = data.findLastIndex(e => e.date == dateString)
-            if (index !== -1) {
-                inputRef.current[index].focus()
-                const scrollWidth = index;
-                scrollContainerRef.current.scrollLeft = scrollWidth * 180;
-            }
-        }
-    }, [childVitalsData.length])
 
     const calculate = (H, W) => {
         var height = 0, weight = 0, bmi = "", bmr = "", bsa = ""
@@ -196,45 +117,316 @@ function VitalsBox(props) {
         return { bmi: bmi, bmr: bmr, bsa: bsa }
     }
 
-    const onChangeInput = useCallback(
-        (value, i, flag) => {
-            const updateValue = onlyDecimalFormat(value);
-            if (flag === 1) {
-                childVitalsData[i].temp = updateValue;
-            } else if (flag === 2) {
-                childVitalsData[i].pres = updateValue;
-            } else if (flag === 3) {
-                childVitalsData[i].resp_rate = updateValue;
-            } else if (flag === 4) {
-                childVitalsData[i].systolic = updateValue;
-            } else if (flag === 5) {
-                childVitalsData[i].diastolic = updateValue;
-            } else if (flag === 6) {
-                childVitalsData[i].spo2 = updateValue;
-            } else if (flag === 7) {
-                childVitalsData[i].height = updateValue;
-                let cal = calculate(updateValue, childVitalsData[i].weight);
-                childVitalsData[i].bmi = cal.bmi;
-                childVitalsData[i].bmr = cal.bmr;
-                childVitalsData[i].bsa = cal.bsa;
-            } else if (flag === 8) {
-                childVitalsData[i].weight = updateValue;
-                let cal = calculate(childVitalsData[i].height, updateValue);
-                childVitalsData[i].bmi = cal.bmi;
-                childVitalsData[i].bmr = cal.bmr;
-                childVitalsData[i].bsa = cal.bsa;
-            } else if (flag === 9) {
-                childVitalsData[i].ofc = updateValue;
-            } else if (flag === 10) {
-                childVitalsData[i].general_rbs = updateValue;
-            }else if (flag === 11) {
-                childVitalsData[i].fib4 = updateValue;
-            }else if (flag === 12) {
-                childVitalsData[i].waist_circumference= updateValue;
+    const convertRxPadVitalsToSidebarFormat = useCallback((rxPadVitals) => {
+        if (!rxPadVitals || typeof rxPadVitals !== 'object' || Object.keys(rxPadVitals).length === 0) {
+            return null;
+        }
+
+        let systolic = String(rxPadVitals.Systolic || rxPadVitals.systolic || '').trim();
+        let diastolic = String(rxPadVitals.Diastolic || rxPadVitals.diastolic || '').trim();
+        let blood_press = rxPadVitals.bloodPressure || rxPadVitals.blood_press || '';
+        
+        if (blood_press && !systolic && !diastolic) {
+            const bpParts = String(blood_press).split('/');
+            if (bpParts.length === 2) {
+                systolic = bpParts[0].trim();
+                diastolic = bpParts[1].trim();
             }
-            setChildVitalsData((prev) => [...prev]);
+        } else if (!blood_press && systolic && diastolic) {
+            blood_press = `${systolic}/${diastolic}`;
+        }
+        if (!systolic || !diastolic) {
+            blood_press = '';
+        }
+
+        const today = moment().format(dateFormat);
+        let cal = calculate(
+            String(rxPadVitals.height || '').trim(),
+            String(rxPadVitals.weight || '').trim()
+        );
+
+        return {
+            date: rxPadVitals.date || today,
+            temp: String(rxPadVitals.temperature || rxPadVitals.temp || '').trim(),
+            pres: String(rxPadVitals.pulse || rxPadVitals.pres || '').trim(),
+            resp_rate: String(rxPadVitals.respRate || rxPadVitals.resp_rate || '').trim(),
+            systolic: systolic,
+            diastolic: diastolic,
+            blood_press: String(blood_press).trim(),
+            spo2: String(rxPadVitals.spo2 || '').trim(),
+            height: String(rxPadVitals.height || '').trim(),
+            weight: String(rxPadVitals.weight || '').trim(),
+            ofc: String(rxPadVitals.ofc || rxPadVitals.OFC || '').trim(),
+            general_rbs: String(rxPadVitals['General RBS'] || rxPadVitals.general_rbs || '').trim(),
+            fib4: String(rxPadVitals.FIB4 || rxPadVitals.fib4 || '').trim(),
+            waist_circumference: String(rxPadVitals['Waist Circumference'] || rxPadVitals.waist_circumference || '').trim(),
+            bmi: String(rxPadVitals.BMI || rxPadVitals.bmi || cal.bmi).trim(),
+            bmr: String(rxPadVitals.BMR || rxPadVitals.bmr || cal.bmr).trim(),
+            bsa: String(rxPadVitals.BSA || rxPadVitals.bsa || cal.bsa).trim(),
+            dev_unique_id: 0,
+            tcv_id: 0,
+            tcbc_id: 0
+        };
+    }, [calculate]);
+
+    const convertSidebarToRxPadFormat = useCallback((sidebarVitalsArray, selectedDate = null) => {
+        if (!sidebarVitalsArray || !Array.isArray(sidebarVitalsArray) || sidebarVitalsArray.length === 0) {
+            return {};
+        }
+        
+        let targetVitals = null;
+        if (selectedDate) {
+            targetVitals = sidebarVitalsArray.find(v => v.date === selectedDate);
+        }
+        
+        if (!targetVitals) {
+            const sortedVitals = [...sidebarVitalsArray].sort((a, b) => new Date(b.date) - new Date(a.date));
+            targetVitals = sortedVitals[0];
+        }
+        
+        if (!targetVitals) return {};
+        
+        let bloodPressure = '';
+        if (targetVitals.systolic && targetVitals.diastolic) {
+            bloodPressure = `${targetVitals.systolic}/${targetVitals.diastolic}`;
+        }
+        
+        const rxPadVitals = {
+            date: targetVitals.date || moment().format('YYYY-MM-DD'),
+            temperature: targetVitals.temp || '',
+            pulse: targetVitals.pres || '',
+            respRate: targetVitals.resp_rate || '',
+            Systolic: targetVitals.systolic || '',
+            Diastolic: targetVitals.diastolic || '',
+            bloodPressure: bloodPressure,
+            spo2: targetVitals.spo2 || '',
+            height: targetVitals.height || '',
+            weight: targetVitals.weight || '',
+            ofc: targetVitals.ofc || '',
+            'General RBS': targetVitals.general_rbs || '',
+            FIB4: targetVitals.fib4 || '',
+            'Waist Circumference': targetVitals.waist_circumference || '',
+            BMI: targetVitals.bmi || '',
+            BMR: targetVitals.bmr || '',
+            BSA: targetVitals.bsa || ''
+        };
+        Object.keys(rxPadVitals).forEach(key => {
+            if (rxPadVitals[key] === '' || rxPadVitals[key] === null || rxPadVitals[key] === undefined) {
+                delete rxPadVitals[key];
+            }
+        });
+        
+        return rxPadVitals;
+    }, []);
+
+    useEffect(() => {
+        if (hasInitializedRef.current) return;
+        let vitalsToUse = null;
+        if (initialVitals && typeof initialVitals === 'object' && Object.keys(initialVitals).length > 0) {
+            const convertedVitals = convertRxPadVitalsToSidebarFormat(initialVitals);
+            if (convertedVitals) {
+                vitalsToUse = convertedVitals;
+            }
+        }
+        if (vitalsData.length > 0) {
+            const today = moment().format(dateFormat);
+            const todayVitalsFromContext = vitalsData.find(v => v.date === today);
+            
+            if (vitalsToUse && todayVitalsFromContext) {
+                const merged = {
+                    ...todayVitalsFromContext,
+                    ...vitalsToUse,
+                    dev_unique_id: todayVitalsFromContext.dev_unique_id || 0,
+                    tcv_id: todayVitalsFromContext.tcv_id || 0,
+                    tcbc_id: todayVitalsFromContext.tcbc_id || 0,
+                    date: today
+                };
+                setChildVitalsData(prev => {
+                    const updated = [...prev];
+                    const existingIndex = updated.findIndex(v => v.date === today);
+                    if (existingIndex >= 0) {
+                        updated[existingIndex] = merged;
+                    } else {
+                        updated.push(merged);
+                    }
+                    return updated;
+                });
+            } else if (vitalsToUse) {
+                setChildVitalsData(prev => {
+                    const updated = [...prev];
+                    const existingIndex = updated.findIndex(v => v.date === vitalsToUse.date);
+                    if (existingIndex >= 0) {
+                        updated[existingIndex] = { ...updated[existingIndex], ...vitalsToUse };
+                    } else {
+                        updated.push(vitalsToUse);
+                    }
+                    return updated;
+                });
+            } else {
+                setChildVitalsData([...vitalsData]);
+            }
+            hasInitializedRef.current = true;
+        } else if (vitalsToUse) {
+            setChildVitalsData(prev => {
+                const updated = [...prev];
+                const existingIndex = updated.findIndex(v => v.date === vitalsToUse.date);
+                if (existingIndex >= 0) {
+                    updated[existingIndex] = { ...updated[existingIndex], ...vitalsToUse };
+                } else {
+                    updated.push(vitalsToUse);
+                }
+                return updated;
+            });
+            hasInitializedRef.current = true;
+        } else if (childVitalsData.length === 0) {
+            let cal = calculate('', '');
+            setChildVitalsData([{
+                date: moment().format(dateFormat),
+                dev_unique_id: 0,
+                tcv_id: 0,
+                tcbc_id: 0,
+                temp: '',
+                pres: '',
+                resp_rate: '',
+                systolic: '',
+                diastolic: '',
+                spo2: '',
+                height: '',
+                weight: '',
+                fib4: '',
+                waist_circumference: '',
+                ofc: '',
+                bmi: cal.bmi,
+                bmr: cal.bmr,
+                bsa: cal.bsa,
+                general_rbs: ''
+            }]);
+            hasInitializedRef.current = true;
+        }
+    }, [vitalsData, initialVitals, convertRxPadVitalsToSidebarFormat, calculate]);
+
+    const onChange = useCallback(
+        (date, dateString) => {
+            const existingIndex = childVitalsData.findIndex(item => item.date === dateString);
+            if (existingIndex >= 0) {
+                setDateString(dateString);
+                return;
+            }
+            
+            let existingApiEntry = null;
+            if (Array.isArray(vitalsData) && vitalsData.length > 0) {
+                existingApiEntry = vitalsData.find(v => v.date === dateString);
+            }
+            if (!existingApiEntry && selectedVitalsList.length > 0) {
+                existingApiEntry = selectedVitalsList.find(v => v.date === dateString);
+            }
+            if (!existingApiEntry && vitalsPastList.length > 0) {
+                existingApiEntry = vitalsPastList.find(v => v.date === dateString);
+            }
+            
+            let cal = calculate('', '');
+            const growthChartData = measurements?.find((m) => m.date === dateString);
+            const { height, weight, bmi, ofc } = growthChartData || {};
+            const tempVitals = [...childVitalsData];
+            setDateString(dateString);
+            
+            if (existingApiEntry) {
+                tempVitals.push({
+                    ...existingApiEntry,
+                    systolic: existingApiEntry.blood_press ? existingApiEntry.blood_press.split('/')[0] : (existingApiEntry.systolic || ''),
+                    diastolic: existingApiEntry.blood_press ? existingApiEntry.blood_press.split('/')[1] : (existingApiEntry.diastolic || ''),
+                    height: height || existingApiEntry.height || "",
+                    weight: weight || existingApiEntry.weight || "",
+                    ofc: ofc || existingApiEntry.ofc || "",
+                    bmi: bmi || existingApiEntry.bmi || cal.bmi,
+                    bmr: existingApiEntry.bmr || cal.bmr,
+                    bsa: existingApiEntry.bsa || cal.bsa,
+                });
+            } else {
+                tempVitals.push({
+                    date: dateString,
+                    height: height || "",
+                    weight: weight || "",
+                    ofc: ofc || "",
+                    bmi: bmi || cal.bmi,
+                    dev_unique_id: 0,
+                    tcv_id: 0,
+                    tcbc_id: 0,
+                    temp: "",
+                    pres: "",
+                    resp_rate: "",
+                    systolic: "",
+                    diastolic: "",
+                    spo2: "",
+                    bmr: cal.bmr,
+                    bsa: cal.bsa,
+                    general_rbs: '',
+                    fib4: "",
+                    waist_circumference: ""
+                });
+            }
+            setChildVitalsData([...tempVitals]);
         },
-        [childVitalsData]
+        [childVitalsData, measurements, vitalsData, selectedVitalsList, vitalsPastList]
+    );
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            const data = childVitalsData.sort((a, b) => new Date(b.date) - new Date(a.date))
+            const index = data.findLastIndex(e => e.date == dateString)
+            if (index !== -1) {
+                inputRef.current[index].focus()
+                const scrollWidth = index;
+                scrollContainerRef.current.scrollLeft = scrollWidth * 180;
+            }
+        }
+    }, [childVitalsData.length])
+
+    const onChangeInput = useCallback(
+        (value, date, flag) => {
+            const updateValue = onlyDecimalFormat(value);
+            setChildVitalsData(prevVitals => {
+                const tempVitals = [...prevVitals];
+                const index = tempVitals.findIndex(item => item.date === date);
+                if (index === -1) return prevVitals;
+                
+                if (flag === 1) {
+                    tempVitals[index].temp = updateValue;
+                } else if (flag === 2) {
+                    tempVitals[index].pres = updateValue;
+                } else if (flag === 3) {
+                    tempVitals[index].resp_rate = updateValue;
+                } else if (flag === 4) {
+                    tempVitals[index].systolic = updateValue;
+                } else if (flag === 5) {
+                    tempVitals[index].diastolic = updateValue;
+                } else if (flag === 6) {
+                    tempVitals[index].spo2 = updateValue;
+                } else if (flag === 7) {
+                    tempVitals[index].height = updateValue;
+                    let cal = calculate(updateValue, tempVitals[index].weight);
+                    tempVitals[index].bmi = cal.bmi;
+                    tempVitals[index].bmr = cal.bmr;
+                    tempVitals[index].bsa = cal.bsa;
+                } else if (flag === 8) {
+                    tempVitals[index].weight = updateValue;
+                    let cal = calculate(tempVitals[index].height, updateValue);
+                    tempVitals[index].bmi = cal.bmi;
+                    tempVitals[index].bmr = cal.bmr;
+                    tempVitals[index].bsa = cal.bsa;
+                } else if (flag === 9) {
+                    tempVitals[index].ofc = updateValue;
+                } else if (flag === 10) {
+                    tempVitals[index].general_rbs = updateValue;
+                } else if (flag === 11) {
+                    tempVitals[index].fib4 = updateValue;
+                } else if (flag === 12) {
+                    tempVitals[index].waist_circumference = updateValue;
+                }
+                return tempVitals;
+            });
+        },
+        [calculate]
     );
 
     const onAddUpdateClicked = async () => {
@@ -265,8 +457,26 @@ function VitalsBox(props) {
             })
           );
         }
+        if (onVitalsSave && childVitalsData.length > 0) {
+            const today = moment().format(dateFormat);
+            const todayVitals = childVitalsData.find(v => v.date === today);
+            if (todayVitals) {
+                const rxPadVitals = convertSidebarToRxPadFormat(childVitalsData, today);
+                if (Object.keys(rxPadVitals).length > 0) {
+                    onVitalsSave(rxPadVitals);
+                }
+            }
+        }
+        
         if (action.meta.requestStatus === "fulfilled") {
-            handleCollapsed(1)
+            if (action.payload && Array.isArray(action.payload) && action.payload.length > 0) {
+                const updatedData = action.payload.map((e) => {
+                    return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : '', diastolic: e.blood_press ? e.blood_press.split('/')[1] : '' };
+                });
+                setVitalsData(updatedData);
+                setChildVitalsData(updatedData);
+            }
+            handleCollapsed(1);
         } else {
             errorMessage(action.error)
         }
@@ -280,51 +490,55 @@ function VitalsBox(props) {
                     <div key={i} className='vitals-wrap-body w-100 vitals-child-width'>
                         <div className='vitals-head rounded-start-0 w-100'>{moment(item.date).format(showDateFormat)}</div>
                         {isPediatricAccessable && <><div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, item.date, 8)} />
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 7)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, item.date, 7)} />
                         </div>
                         {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, item.date, 9)} />
                         </div> : null}
                         </>}
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input ref={(el) => (inputRef.current[i] = el)} className='inputheight41-group focused' placeholder="Enter" inputMode="numeric" value={item.temp} addonAfter={'Frh'} onChange={(e) => onChangeInput(e.target.value, i, 1)} />
+                            <Input ref={(el) => (inputRef.current[i] = el)} className='inputheight41-group focused' placeholder="Enter" inputMode="numeric" value={item.temp} addonAfter={'Frh'} onChange={(e) => onChangeInput(e.target.value, item.date, 1)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.pres} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, i, 2)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.pres} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, item.date, 2)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.resp_rate} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, i, 3)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.resp_rate} addonAfter={'/min'} onChange={(e) => onChangeInput(e.target.value, item.date, 3)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.systolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, i, 4)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.systolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, item.date, 4)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.diastolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, i, 5)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.diastolic} addonAfter={'mmHg'} onChange={(e) => onChangeInput(e.target.value, item.date, 5)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.spo2} addonAfter={'%'} onChange={(e) => onChangeInput(e.target.value, i, 6)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.spo2} addonAfter={'%'} onChange={(e) => onChangeInput(e.target.value, item.date, 6)} />
                         </div>
                         <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.general_rbs} addonAfter={'mg/dl'} onChange={(e) => onChangeInput(e.target.value, i, 10)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.general_rbs} addonAfter={'mg/dl'} onChange={(e) => onChangeInput(e.target.value, item.date, 10)} />
                         </div>
                          <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.fib4} addonAfter={<span style={{ width: "24px" }} />}  onChange={(e) => onChangeInput(e.target.value, i, 11)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.fib4} addonAfter={<span style={{ width: "24px" }} />}  onChange={(e) => onChangeInput(e.target.value, item.date, 11)} />
                         </div>
                         <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.waist_circumference} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 12)} />
+                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.waist_circumference} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, item.date, 12)} />
                         </div>
-                        {!isPediatricAccessable && <>{profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 9)} />
-                        </div> : null}
-                        <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, i, 7)} />
-                        </div>
-                        <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
-                            <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, i, 8)} />
-                        </div></>}
+                        {!isPediatricAccessable && (
+                            <>
+                                {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2 w-100'>
+                                    <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.ofc} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, item.date, 9)} />
+                                </div> : null}
+                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
+                                    <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.height} addonAfter={'cms'} onChange={(e) => onChangeInput(e.target.value, item.date, 7)} />
+                                </div>
+                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2 w-100'>
+                                    <Input className='inputheight41-group' placeholder="Enter" inputMode="numeric" value={item.weight} addonAfter={'kgs'} onChange={(e) => onChangeInput(e.target.value, item.date, 8)} />
+                                </div>
+                            </>
+                        )}
                         <div className='vitals-row vitals-row-40 d-flex align-items-center px-2 w-100'>
                             <div className='fs-14 '>{`${item.bmi != '' ? parseFloat(item.bmi).toFixed(2) : '--'} kg/m²`}</div>
                         </div>
@@ -341,14 +555,12 @@ function VitalsBox(props) {
     }, [childVitalsData]);
 
     const disabledDate = (current) => {
-        // Can not select days before today and today
-        // return current && current > dayjs().endOf("day");
         return current && current >= moment().add(1, 'days').startOf('day');
     };
 
     return (
         <>
-            <Card bordered={false} className="search-modalCard ">
+            <Card bordered={false} className="search-modalCard " style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
                     style={{
                         position: "sticky",
@@ -365,7 +577,7 @@ function VitalsBox(props) {
                         Done
                     </Button>
                 </div>
-                <div className="align-items-center d-flex justify-content-between px-20 py-3">
+                <div className="align-items-center d-flex justify-content-between px-20 py-3" style={{ position: "sticky", top: "60px", zIndex: 1, backgroundColor: "#fff" }}>
                     {(profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0 ? (
                         <div className="vitals-wrapper">
                             <div className='vitals-row d-flex align-items-center px-2'>
@@ -377,18 +589,34 @@ function VitalsBox(props) {
                         </div>
                     ) : null}
                     <div className="position-relative">
-                        <Button className='btn btn-primary2 btn-41'>
+                        <Button 
+                            className='btn btn-primary2 btn-41'
+                            onClick={() => setDatePickerOpen(true)}
+                        >
                             Add New Date
                         </Button>
-                        <DatePicker key={Math.random()} suffixIcon={null} inputReadOnly onChange={onChange} disabledDate={disabledDate} className="calender-vitals w-100 h-100" />
+                        <DatePicker 
+                            open={datePickerOpen}
+                            onOpenChange={setDatePickerOpen}
+                            suffixIcon={null} 
+                            inputReadOnly 
+                            onChange={(date, dateString) => {
+                                onChange(date, dateString);
+                                setDatePickerOpen(false);
+                            }} 
+                            disabledDate={disabledDate} 
+                            className="calender-vitals w-100 h-100" 
+                        />
                     </div>
-                        {/* <div className="float-end d-flex align-itms-center">
-                            <i className="icon-setting me-2"></i>
-                            <span className="text-decoration-underline fw-medium"> Add or Configure </span>
-                        </div> */}
                 </div>
                 {childVitalsData.length > 0 && (
-                    <div className='px-20'>
+                    <div className='px-20' style={{ 
+                        overflowY: 'auto', 
+                        maxHeight: 'calc(100vh - 180px)', 
+                        flex: 1,
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#c1c1c1 #f1f1f1'
+                    }}>
                         <div className='vitals-wrapper w-100'>
                             <div className='vitals-wrap-body vitals-parent-width'>
                                 <div className='vitals-head'>Name</div>
@@ -432,15 +660,17 @@ function VitalsBox(props) {
                                 </div>
                                 {!isPediatricAccessable && (
                                     <>
-                                {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2'>
-                                    OFC
-                                </div> : null}
-                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
-                                    Height
-                                </div>
-                                <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
-                                    Weight
-                                </div> </>)}
+                                        {profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID || isGowthChartAccessableFromGB ? <div className='vitals-row d-flex align-items-center border-bottom px-2'>
+                                            OFC
+                                        </div> : null}
+                                        <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
+                                            Height
+                                        </div>
+                                        <div className='vitals-row vitals-row-60 d-flex align-items-center px-2'>
+                                            Weight
+                                        </div>
+                                    </>
+                                )}
                                 <div className='vitals-row vitals-row-40 d-flex align-items-center px-2'>
                                     BMI
                                     <Tooltip placement="right" title="Body mass index will be auto-calculated by entering Height and Weight">

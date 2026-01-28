@@ -48,7 +48,7 @@ const MedicalHistoryRichTextEditor = ({
     };
 
     medicalHistory.forEach(item => {
-      const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+      const type = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
       if (groups[type]) {
         groups[type].push(item);
       } else {
@@ -125,7 +125,7 @@ const MedicalHistoryRichTextEditor = ({
     });
 
     const updatedHistory = medicalHistory.filter(item => {
-      const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+      const itemType = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
       return itemType !== type;
     }).concat(updatedItems);
 
@@ -214,7 +214,7 @@ const MedicalHistoryRichTextEditor = ({
 
     // Update the specific type in the full medical history array
     const updatedHistory = medicalHistory.filter(item => {
-      const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
+      const itemType = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
       return itemType !== type;
     }).concat(updatedItems);
 
@@ -346,10 +346,23 @@ const MedicalHistoryRichTextEditor = ({
     <div className={`${styles['medical-history-rich-text-editor']} ${className}`}>
       <div className={styles['medical-history-content-box']}>
         <div className={styles['medical-history-header']}>
-          <div className={styles['medical-history-icon']}>
-          <img src={medicalHistoryIcon} alt="Medical History" />
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['medical-history-icon']}>
+              <img src={medicalHistoryIcon} alt="Medical History" />
+            </div>
+            <span className={styles['medical-history-title']}>Medical History</span>
           </div>
-          <span className={styles['medical-history-title']}>Medical History</span>
+          <button
+            className={styles['medical-history-action-button']}
+            onClick={() => setMedicalHistoryDrawer(true)}
+          >
+            <img
+              src={addEditIcon}
+              alt="Add/Edit"
+              className={styles['medical-history-action-icon']}
+            />
+            <span>Add/Edit History</span>
+          </button>
         </div>
 
         <div className={styles['medical-history-sections']}>
@@ -362,7 +375,7 @@ const MedicalHistoryRichTextEditor = ({
               )
             );
             const isExpanded = expandedSections[type];
-            const isEditableType = type === 'others';
+            const isEditableType = false;
             const textareaValue = localTextareaValues[type] !== undefined 
               ? localTextareaValues[type] 
               : (groupedHistory[type] && groupedHistory[type].length > 0
@@ -447,19 +460,6 @@ const MedicalHistoryRichTextEditor = ({
           })}
         </div>
 
-        <div className={styles['add-medical-history-container']}>
-            <button 
-              className={styles['add-medical-history-button']}
-              onClick={() => setMedicalHistoryDrawer(true)}
-            >
-              <img 
-                src={addEditIcon} 
-                alt="Add/Edit" 
-                className={styles['add-medical-history-icon']}
-              />
-              <span>Add / Edit Medical History</span>
-            </button>
-        </div>
       </div>
 
       <Drawer
@@ -501,7 +501,7 @@ const MedicalHistoryRichTextEditor = ({
                       };
                       
                       if (tag.enable === 'N') {
-                        historyItem.lineItem = `No ${tag.title.trim()}`;
+                        historyItem.lineItem = tag.title.trim();
                       } else {
                         const lineParts = [tag.title.trim()];
                         if (tag.since) lineParts.push(tag.since);

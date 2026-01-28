@@ -1,8 +1,14 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useContext, useEffect, useRef } from 'react';
+import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
-import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
+import { arrayToSlateBulletList } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
 import labResultsIcon from '../assets/images/Lab.svg';
+import addEditIcon from '../assets/images/Icon.svg';
+import LabParams from './LabParams';
+import CashManagerContext from '../context/CashManagerContext';
+import styles from './ConsultationDrawer.module.css';
+import { getTodayLabResults } from '../utils/getTodayLabResults';
 
 /**
  * LabResultsRichTextEditor - Rich text editor specifically for Lab Results section
@@ -13,38 +19,101 @@ const LabResultsRichTextEditor = ({
   onUpdate,
   isProcessing = false,
   className = '',
+  onLabResultsSaved,
 }) => {
-  const previousCountRef = useRef(null);
-  const keyVersionRef = useRef(0);
+  const [labResultsDrawer, setLabResultsDrawer] = useState(false);
+  const [drawerPrefillResults, setDrawerPrefillResults] = useState([]);
+  const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
+  const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const { patient_data } = useContext(CashManagerContext);
 
-  const nonEmptyCount = useMemo(() => {
-    if (!Array.isArray(labResults) || labResults.length === 0) {
-      return 0;
+  useEffect(() => {
+    const mergeWithTodayResults = async () => {
+      if (!patient_data?.patient_unique_id || !onUpdate) return;
+
+      const incomingResults = Array.isArray(labResults) ? labResults : [];
+
+      let todayLabResults = [];
+      try {
+        const todayResults = await getTodayLabResults(patient_data);
+        if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
+          try {
+            const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
+            todayLabResults = await matchLabResultsWithApi(todayResults, patient_data);
+          } catch (error) {
+            todayLabResults = todayResults;
+          }
+        }
+      } catch (error) {
+      }
+
+      const mergedMap = new Map();
+
+      todayLabResults.forEach(result => {
+        const testName = (result.testName || result.testname || result.name || '').trim();
+        const reportName = (result.reportName || '').trim();
+        if (testName && reportName) {
+          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
+        }
+      });
+
+      incomingResults.forEach(result => {
+        const testName = (result.testName || result.testname || result.name || '').trim();
+        const reportName = (result.reportName || '').trim();
+        if (!testName || !reportName) return;
+
+        const existing = mergedMap.get(testName);
+        if (existing) {
+          const existingUnits = extractUnitsFromValue(existing.value || '');
+          const incomingValue = (result.value || '').trim();
+          const numericValue = extractNumericValue(incomingValue);
+          const incomingUnits = extractUnitsFromValue(incomingValue);
+
+          mergedMap.set(testName, {
+            ...existing,
+            testName: testName,
+            testname: testName,
+            name: testName,
+            reportName: reportName,
+            units: result.units || existing.units || '',
+            value: incomingUnits ? `${numericValue} ${incomingUnits}`
+                  : existingUnits ? `${numericValue} ${existingUnits}`
+                  : numericValue,
+          });
+        } else {
+          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
+        }
+      });
+
+      const finalResults = Array.from(mergedMap.values());
+      const signature = JSON.stringify(finalResults.map(r => ({
+        testname: (r.testName || r.testname || r.name || '').trim(),
+        value: (r.value || '').trim(),
+      })));
+      if (signature !== lastProcessedResultsRef.current) {
+        lastProcessedResultsRef.current = signature;
+        onUpdate(finalResults);
+      }
+    };
+
+    mergeWithTodayResults();
+  }, [labResults, patient_data?.patient_unique_id]);
+
+  const editorSignature = useMemo(() => {
+    if (!Array.isArray(labResults)) {
+      return 'empty';
     }
-
-    return labResults.filter((result = {}) => {
-      const testname = result.testname || result.name || '';
-      const value = result.value || '';
-      return (
-        (testname && testname.trim() !== '') ||
-        (value && value.trim() !== '')
-      );
-    }).length;
+    return JSON.stringify(
+      labResults.map((result = {}) => ({
+        testname: (result.testName || result.testname || result.name || '').trim(),
+        value: (result.value || '').trim(),
+      }))
+    );
   }, [labResults]);
 
-  const editorKey = useMemo(() => {
-    if (previousCountRef.current === null) {
-      previousCountRef.current = nonEmptyCount;
-      return 'labresults-0';
-    }
+  const editorKey = useMemo(() => `labresults-${editorSignature}`, [editorSignature]);
 
-    if (nonEmptyCount < previousCountRef.current) {
-      keyVersionRef.current += 1;
-    }
-
-    previousCountRef.current = nonEmptyCount;
-    return `labresults-${keyVersionRef.current}`;
-  }, [nonEmptyCount]);
+  const lastProcessedResultsRef = useRef(null);
 
   const initialSlateValue = useMemo(() => {
     if (!labResults || labResults.length === 0) {
@@ -52,15 +121,15 @@ const LabResultsRichTextEditor = ({
     }
 
     const formattedResults = labResults.map(result => {
-      const testname = result.testname || result.name || '';
+      const testName = (result.testName || result.testname || result.name || '').trim();
       const value = result.value || '';
       
-      if (testname && value) {
-        return `${testname} (${value})`;
+      if (testName && value) {
+        return `${testName} (${value})`;
       } else if (value) {
         return value;
-      } else if (testname) {
-        return testname;
+      } else if (testName) {
+        return testName;
       }
       return '';
     }).filter(text => text.trim() !== '');
@@ -72,34 +141,122 @@ const LabResultsRichTextEditor = ({
     return arrayToSlateBulletList(formattedResults);
   }, [labResults]);
 
-  const handleChange = useCallback((value) => {
-    const items = slateBulletListToArray(value);
-    const labResultsArray = items.map(text => {
-      const colonIndex = text.indexOf(':');
-      if (colonIndex > -1) {
-        return {
-          testname: text.substring(0, colonIndex).trim(),
-          value: text.substring(colonIndex + 1).trim()
-        };
-      }
-      return { value: text, testname: '' };
-    });
-    
-    if (onUpdate) {
-      onUpdate(labResultsArray);
+  const handleLabParamsUpdate = useCallback(() => {
+    setLabResultsDrawer(false);
+    if (typeof onLabResultsSaved === 'function') {
+      onLabResultsSaved();
     }
-  }, [onUpdate]);
+  }, [onLabResultsSaved]);
+  const extractUnitsFromValue = (valueStr = "") => {
+    if (!valueStr) return "";
+    const str = String(valueStr).trim();
+    const match = str.match(/^\d+(?:\.\d+)?\s+(.+)$/);
+    if (match) return match[1].trim();
+    const percentMatch = str.match(/^\d+(?:\.\d+)?(%|percent)$/i);
+    if (percentMatch) return percentMatch[1];
+    return "";
+  };
+
+  const extractNumericValue = (valueStr = "") => {
+    if (!valueStr) return "";
+    const str = String(valueStr).trim();
+    const match = str.match(/^(\d+(?:\.\d+)?)/);
+    return match ? match[1] : str;
+  };
+
+  const handleSidebarResultsSync = useCallback(
+    async (syncedLabResults = []) => {
+      if (!onUpdate || !patient_data?.patient_unique_id) return;
+      
+      const newResults = Array.isArray(syncedLabResults) ? syncedLabResults : [];
+      
+      let matchedNewResults = newResults;
+      if (newResults.length > 0) {
+        try {
+          const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
+          matchedNewResults = await matchLabResultsWithApi(newResults, patient_data);
+        } catch (error) {
+        }
+      }
+
+      let todayLabResults = [];
+      try {
+        const todayResults = await getTodayLabResults(patient_data);
+        if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
+          try {
+            const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
+            todayLabResults = await matchLabResultsWithApi(todayResults, patient_data);
+          } catch (error) {
+            todayLabResults = todayResults;
+          }
+        }
+      } catch (error) {
+        onUpdate(matchedNewResults);
+        return;
+      }
+
+      const mergedMap = new Map();
+
+      todayLabResults.forEach(result => {
+        const testName = (result.testName || result.testname || result.name || '').trim();
+        const reportName = (result.reportName || '').trim();
+        if (!testName || !reportName) return;
+        mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
+      });
+
+      matchedNewResults.forEach(result => {
+        const testName = (result.testName || result.testname || result.name || '').trim();
+        const reportName = (result.reportName || '').trim();
+        if (!testName || !reportName) return;
+
+        const existing = mergedMap.get(testName);
+        if (existing) {
+          const existingUnits = extractUnitsFromValue(existing.value || '');
+          const newValue = (result.value || '').trim();
+          const numericValue = extractNumericValue(newValue);
+          const newUnits = extractUnitsFromValue(newValue);
+
+          mergedMap.set(testName, {
+            ...existing,
+            testName: testName,
+            testname: testName,
+            name: testName,
+            reportName: reportName,
+            units: result.units || existing.units || '',
+            value: newUnits ? `${numericValue} ${newUnits}`
+                  : existingUnits ? `${numericValue} ${existingUnits}`
+                  : numericValue,
+          });
+        } else {
+          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
+        }
+      });
+      
+      onUpdate(Array.from(mergedMap.values()));
+    },
+    [onUpdate, patient_data]
+  );
+
+  const handleOpenLabResultsDrawer = useCallback(() => {
+    setDrawerPrefillResults(Array.isArray(labResults) ? labResults : []);
+    setDrawerInstanceKey((prev) => prev + 1);
+    setLabResultsDrawer(true);
+  }, [labResults]);
+
+  const showHideBackModal = useCallback(() => {
+    setIsBackModalOpen(!isBackModalOpen);
+  }, [isBackModalOpen]);
 
   if (isProcessing) {
     return (
       <div className={`labresults-rich-text-editor ${className}`}>
-        <div className="labresults-header">
-          <div className="labresults-icon">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-            </svg>
+        <div className={`${styles['lab-results-header']} ${styles['vitals-header']}`}>
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['lab-results-icon']}>
+              <img src={labResultsIcon} alt="Lab Results" />
+            </div>
+            <span className={styles['lab-results-title']}>Lab Results</span>
           </div>
-          <span className="labresults-title">Lab Results</span>
         </div>
         <div className="editor-container">
           <div className="shimmer-container">
@@ -111,25 +268,60 @@ const LabResultsRichTextEditor = ({
   }
 
   return (
-    <div className={`labresults-rich-text-editor ${className}`}>
-      <div className="labresults-header">
-        <div className="labresults-icon">
-          <img src={labResultsIcon} alt="Lab Results" />
+    <>
+      <div className={`labresults-rich-text-editor ${className}`}>
+        <div className={`${styles['lab-results-header']} ${styles['vitals-header']}`}>
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['lab-results-icon']}>
+              <img src={labResultsIcon} alt="Lab Results" />
+            </div>
+            <span className={styles['lab-results-title']}>Lab Results</span>
+          </div>
+          <button
+            className={styles['medical-history-action-button']}
+            onClick={handleOpenLabResultsDrawer}
+          >
+            <img
+              src={addEditIcon}
+              alt="Add/Edit"
+              className={styles['medical-history-action-icon']}
+            />
+            <span>Add/Edit Results</span>
+          </button>
         </div>
-        <span className="labresults-title">Lab Results</span>
+        <div className="editor-container lab-results-readonly">
+          <RichTextEditor
+            key={editorKey}
+            initialValue={initialSlateValue}
+            placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
+            spellCheck={true}
+            autoFocus={false}
+            showToolbar={false}
+            readOnly={true}
+          />
+        </div>
       </div>
-      <div className="editor-container">
-        <RichTextEditor
-          key={editorKey}
-          initialValue={initialSlateValue}
-          onChange={handleChange}
-          placeholder="Add lab results (e.g., Hemoglobin: 13.5 g/dL)..."
-          spellCheck={true}
-          autoFocus={false}
-          showToolbar={false}
+      <Drawer
+        className="scroll-y-hidden"
+        closeIcon={false}
+        placement="right"
+        onClose={() => setLabResultsDrawer(false)}
+        open={labResultsDrawer}
+        width={880}
+      >
+        <LabParams
+          key={drawerInstanceKey}
+          handleAddLabParamsDrawer={() => setLabResultsDrawer(false)}
+          patient_unique_id={patient_data?.patient_unique_id}
+          onSave={handleLabParamsUpdate}
+          isBackModalOpen={isBackModalOpen}
+          showHideBackModal={showHideBackModal}
+          patientGender={patient_data?.pm_gender}
+          prefillLabResults={drawerPrefillResults}
+          onResultsChange={handleSidebarResultsSync}
         />
-      </div>
-    </div>
+      </Drawer>
+    </>
   );
 };
 

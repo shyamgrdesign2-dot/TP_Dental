@@ -18,7 +18,7 @@ import successIcon from '../assets/images/success-icon.svg';
 import cvtInfoIcon from '../assets/images/cvt-info.svg';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
+import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, LANGUAGE_LIST, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -39,6 +39,7 @@ import {
   getClinic,
   getTokenData,
 } from "../utils/utils";
+import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -48,7 +49,7 @@ function SmartRxPreview() {
     const divRef = useRef(null);
     const printRef = useRef();
 
-    const { servicesList } = useSelector((state) => state.doctors);
+    const { servicesList, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
     const {
         loading,
@@ -60,19 +61,46 @@ function SmartRxPreview() {
     const { state } = useLocation();
     const { patient_data, isDigitiseRxSubmit} = state
 
-    const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}` : null);
-    const [previewUrl, setPreviewUrl] = useState(null);
+    const buildUrlWithLanguage = (url, language) => {
+        if (!url) return null;
+        try {
+            const urlObj = new URL(url);
+            urlObj.searchParams.delete('lg');
+            urlObj.searchParams.delete('rx');
+            // Set rx=1 for both written and digitised prescriptions
+            urlObj.searchParams.set('rx', '1');
+            if (language) {
+                const encodedData = btoa(language.toString());
+                urlObj.searchParams.set('lg', encodedData);
+            }
+            return urlObj.toString();
+        } catch (error) {
+            return url;
+        }
+    };
+
+    const [selectedLang, setSelectedLang] = useState(
+      defaultPrintSettings?.default_language && 
+      defaultPrintSettings?.default_language !== "English" 
+      ? defaultPrintSettings?.default_language 
+      : 1
+    );
+    const basePrintUrl = state?.print_url || null;
+    const initialUrl = basePrintUrl ? buildUrlWithLanguage(basePrintUrl, selectedLang) : null;
+
+    const [printUrl, setPrintUrl] = useState(initialUrl);
+    const [previewUrl, setPreviewUrl] = useState(initialUrl);
+    // When returning from Configure Print with "No, Apply on This Rx Only", use this blob so vitals/obs/medical/smart rx edits are reflected
+    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx ?? null);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
     const [printBlob, setPrintBlob] = useState(null);
-    const [smartRxFile, setSmartRxFile] = useState([]);
+    const [smartRxFile, setSmartRxFile] = useState(state?.smartRxFile || []);
     const [isLoading, setIsLoading] = useState(false);
     const [buttonText, setButtonText] = useState("Send to WhatsApp");
-
-    const { profile } = useSelector((state) => state.doctors);
 
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
@@ -156,6 +184,16 @@ function SmartRxPreview() {
         fetchData();
     }, [state.tcm_id, patient_data?.patient_unique_id]);
 
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    useEffect(() => {
+        if (state?.smartRxFile && state.smartRxFile.length > 0) {
+            setSmartRxFile(state.smartRxFile);
+        } else if (state?.files && state.files.length > 0) {
+            setSmartRxFile(state.files);
+        }
+    }, [state?.smartRxFile, state?.files, state?.from]);
+
     const fetchRxDigitisedData = async () => {
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
@@ -186,6 +224,21 @@ function SmartRxPreview() {
           }
         }
     }, []);
+
+    useEffect(() => {
+        const fetchDefaultLanguage = async () => {
+            if (!patient_data?.patient_unique_id) return;
+            try {
+                const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
+                if (res?.settings?.defaultLanguage) {
+                    setSelectedLang(res.settings.defaultLanguage);
+                }
+            } catch (error) {
+                console.error("Error fetching patient default language:", error);
+            }
+        };
+        fetchDefaultLanguage();
+    }, [patient_data?.patient_unique_id]);
 
     const handleDownload = async () => {
         try {
@@ -244,6 +297,15 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
+          // Only fetch if we don't have smartRxFile from state
+          if (state?.smartRxFile?.length > 0 || state?.files?.length > 0) {
+              const stateFiles = state?.smartRxFile || state?.files || [];
+              const isStringArray = stateFiles.every(file => typeof file === 'string');
+              if (!isStringArray) {
+                  return;
+              }
+          }
+          
           const payload = {
             tcm_id: state?.tcm_id,
           };
@@ -261,7 +323,7 @@ function SmartRxPreview() {
           }
         };
         fetchData();
-    }, []);
+    }, [state?.tcm_id, state?.smartRxFile, state?.files]);
 
     const tempRxDigitise = async () => {
     
@@ -379,6 +441,9 @@ function SmartRxPreview() {
     const updateRxDigitizeInUrl = (url, showDigitalRx) => {
         const urlObj = new URL(url);
 
+        // Set rx=1 for both written and digitised prescriptions
+        urlObj.searchParams.set('rx', '1');
+
         urlObj.searchParams.delete('voiceRxDigitize');
 
         if (showDigitalRx) {
@@ -396,13 +461,31 @@ function SmartRxPreview() {
 
     // Effect to update printUrl when showDigitalRx changes
     useEffect(() => {
-        if (printUrl) {
-            // Only modify the URL if showDigitalRx is true, else keep printUrl unchanged
-            const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
-            setPreviewUrl(updatedUrl);
-            setPrintUrl(updatedUrl);
+        if (!basePrintUrl) return;
+        const urlWithLanguage = buildUrlWithLanguage(basePrintUrl, selectedLang);
+        const updatedUrl = updateRxDigitizeInUrl(urlWithLanguage, showDigitalRx);
+        setPrintUrl(updatedUrl);
+        setPreviewUrl(updatedUrl);
+    }, [basePrintUrl, selectedLang, showDigitalRx]);
+
+    // Sync currentSessionRx from location state when returning from Configure Print with "No, Apply on This Rx Only"
+    useEffect(() => {
+        if (state?.from === "/configure_print_setting" && state?.currentSessionRx != null) {
+            setCurrentSessionRx(state.currentSessionRx);
+        } else if (state?.from === "/configure_print_setting" && state?.currentSessionRx == null) {
+            setCurrentSessionRx(null);
         }
-    }, [showDigitalRx]);
+    }, [state?.from, state?.currentSessionRx]);
+
+    const handleLanguageSelect = useCallback((language) => {
+        setSelectedLang(language);
+        if (patient_data?.patient_unique_id) {
+            updatePatientDefaultLanguage({
+                patientId: patient_data.patient_unique_id,
+                default_language: language,
+            });
+        }
+    }, [patient_data?.patient_unique_id]);
 
     const configurePrintUrl = async () => {
         var sendData = {
@@ -412,7 +495,7 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx", page: state?.page } })
         } else {
             errorMessage(action.error)
         }
@@ -516,7 +599,7 @@ function SmartRxPreview() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={state?.pam_id} isSnapRx={true} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={state?.pam_id} isSnapRx={true} selectedLang={selectedLang} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
                     <Col md={7} lg={7} xl={7}>
@@ -657,14 +740,25 @@ function SmartRxPreview() {
                     </Col>
                     <Col md={17} lg={17} xl={12}>
                         <div className={isMobile ? 'p-20' : ''}>
-                            <div className="d-flex align-itms-center justify-content-between">
-                                <div className="titleprint">Preview</div>
-                               { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
-                                    <div>
-                                        <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
-                                        <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
-                                    </div>
-                                }
+                            <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
+                                <div className="d-flex align-items-center flex-wrap gap-3">
+                                    <div className="titleprint">Preview</div>
+                                    { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
+                                        <div>
+                                            <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
+                                            <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
+                                        </div>
+                                    }
+                                </div>
+                                {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
+                                    <Select
+                                        placeholder=""
+                                        className="appointmentselect"
+                                        value={LANGUAGE_LIST.find(item => item.value == selectedLang)}
+                                        onSelect={handleLanguageSelect}
+                                        options={LANGUAGE_LIST}
+                                    />
+                                )}
                             </div>
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
 
@@ -674,7 +768,7 @@ function SmartRxPreview() {
                                         loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                         error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                         noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={!showDigitalRx ? printUrl : previewUrl }
+                                        file={!showDigitalRx ? (currentSessionRx || printUrl) : previewUrl }
                                         onLoadSuccess={onDocumentLoadSuccess}>
                                         {Array.apply(null, Array(numPages))
                                             .map((x, i) => i + 1)

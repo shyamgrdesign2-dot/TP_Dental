@@ -62,7 +62,12 @@ function PrescriptionPrintView() {
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
 
-    const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English" ? defaultPrintSettings?.default_language : 1);
+    const [selectedLang, setSelectedLang] = useState(
+      defaultPrintSettings?.default_language && 
+      defaultPrintSettings?.default_language !== "English" 
+      ? defaultPrintSettings?.default_language 
+      : 1
+    );
     const encodedData = btoa(selectedLang.toString());
 
     const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
