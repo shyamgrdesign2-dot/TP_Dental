@@ -733,9 +733,17 @@ function ConfigurePrintSetting() {
                 setMergedCaseManagerData(prev => {
                     if (!prev) return prev;
                     const prevVitals = Array.isArray(prev.vitals) ? prev.vitals : [];
+                    
+                    // Filter out any existing vitals for today's date to prevent duplicates
+                    const filteredVitals = prevVitals.filter(v => {
+                        const vitalDate = v.date || v.createdAt || v.created_at || v.createdDate;
+                        return !vitalDate || moment(vitalDate).format("YYYY-MM-DD") !== today;
+                    });
+                    
+                    // Add the latest vitals for today
                     return {
                         ...prev,
-                        vitals: [...prevVitals, vitalsForCaseManager],
+                        vitals: [...filteredVitals, vitalsForCaseManager],
                     };
                 });
             } catch {
@@ -744,7 +752,7 @@ function ConfigurePrintSetting() {
         };
 
         fetchTodayVitalsForWrittenRx();
-    }, [smartRxFile, isAfterDigitization, mergedCaseManagerData?.patient_data, mergedCaseManagerData?.vitals]);
+    }, [smartRxFile, isAfterDigitization, mergedCaseManagerData?.patient_data]);
 
     // Fetch Gynec (Menstrual) History specifically for print settings / PDF flows
     useEffect(() => {
