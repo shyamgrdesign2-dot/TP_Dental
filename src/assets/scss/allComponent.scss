@@ -508,8 +508,27 @@
 
   .opthal-panel-wrapper {
     margin-bottom: 15px;
-    background-color: $white;
     border-radius: 16px;
+    background: white;
+    .ant-collapse {
+      background: white !important;
+
+      &.ant-collapse-icon-position-start {
+        background: white !important;
+      }
+    }
+    .ant-collapse-item-active {
+      .ant-collapse-header {
+        position: sticky;
+        top: 0;
+        border-radius: 8px;
+        padding: 16px;
+        background: white;
+        border-radius: 8px 8px 0 0 !important;
+        z-index: 1;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+    }
   }
 }
 
