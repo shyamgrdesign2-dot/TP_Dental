@@ -2,27 +2,29 @@ import api from "./axiosService";
 import config from "../../config";
 import { getDecodedToken } from "../../utils/localStorage";
 
-const templateBaseUrl = { customBaseUrl: config.templates_api_url };
+const templateBaseUrl = { customBaseUrl: config.opthal_prescription_api_url };
 
 const normalizeTemplate = (template = {}) => {
+  const source = template.template || template;
   return {
     tft_id:
       template.tft_id ??
       template.tat_id ??
       template.id ??
       template._id ??
+      source._id ??
       null,
     tft_template_name:
-      template.tft_template_name ??
-      template.tat_template_name ??
-      template.title ??
-      template.name ??
+      source.tft_template_name ??
+      source.tat_template_name ??
+      source.title ??
+      source.name ??
       "",
     fundusExamination:
-      template.fundusExamination ??
-      template.entries ??
-      template.advices ??
-      template.items ??
+      source.fundusExamination ??
+      source.entries ??
+      source.advices ??
+      source.items ??
       [],
   };
 };
@@ -34,12 +36,33 @@ const getDoctorId = () => {
 };
 
 const buildTemplatePayload = (payload = {}) => ({
-  module: "fundus",
+  module: "fundusExamination",
   site: "opd",
   isMaster: false,
   title: payload.tft_template_name || "",
   entries: payload.fundusExamination ?? [],
 });
+
+const normalizeResponse = (response) => {
+  if (response && Object.prototype.hasOwnProperty.call(response, "status")) {
+    return response;
+  }
+  if (response?.data?.template) {
+    return {
+      status: true,
+      data: {
+        ...response.data.template,
+        _id: response.data._id,
+        doctorId: response.data.doctorId,
+        hospitalId: response.data.hospitalId,
+      },
+    };
+  }
+  return {
+    status: true,
+    data: response?.data ?? response,
+  };
+};
 
 const ApiFundusTemplates = {
   addTemplate(template) {
@@ -48,11 +71,13 @@ const ApiFundusTemplates = {
     if (doctorId) {
       params.set("doctorId", doctorId);
     }
-    return api.post(
-      `/api/v1/templates?${params.toString()}`,
+    return api
+      .put(
+      `/api/v1/opthal-prescription/templates?${params.toString()}`,
       buildTemplatePayload(template),
       templateBaseUrl
-    );
+      )
+      .then(normalizeResponse);
   },
   updateTemplate(template) {
     const doctorId = getDoctorId();
@@ -63,11 +88,13 @@ const ApiFundusTemplates = {
     if (doctorId) {
       params.set("doctorId", doctorId);
     }
-    return api.put(
-      `/api/v1/templates?${params.toString()}`,
+    return api
+      .put(
+      `/api/v1/opthal-prescription/templates?${params.toString()}`,
       buildTemplatePayload(template),
       templateBaseUrl
-    );
+      )
+      .then(normalizeResponse);
   },
   deleteTemplate(templateId) {
     const doctorId = getDoctorId();
@@ -78,18 +105,29 @@ const ApiFundusTemplates = {
     if (doctorId) {
       params.set("doctorId", doctorId);
     }
-    return api.delete(
-      `/api/v1/templates?${params.toString()}`,
+    return api
+      .delete(
+      `/api/v1/opthal-prescription/templates?${params.toString()}`,
       templateBaseUrl
-    );
+      )
+      .then(normalizeResponse);
   },
   listTemplates() {
     const params = new URLSearchParams({
-      moduleName: "fundus",
+      moduleName: "fundusExamination",
       site: "opd",
       isMaster: "false",
     });
-    return api.get(`/api/v1/templates/via-module-name?${params.toString()}`, templateBaseUrl);
+    const doctorId = getDoctorId();
+    if (doctorId) {
+      params.set("doctorId", doctorId);
+    }
+    return api
+      .get(
+      `/api/v1/opthal-prescription/templates/via-module-name?${params.toString()}`,
+      templateBaseUrl
+      )
+      .then(normalizeResponse);
   },
   normalizeTemplate,
   normalizeTemplates(templates = []) {

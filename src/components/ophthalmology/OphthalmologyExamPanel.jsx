@@ -1082,6 +1082,7 @@ const OphthalmologyExamPanel = ({
     const action = await dispatch(addSlitLampTemplate(payload));
     if (action.meta.requestStatus === "fulfilled") {
       setSlitLampTemplateInput(null);
+      dispatch(getSlitLampTemplates());
       handleSlitLampSaveOpen(false);
     }
   };
@@ -1102,6 +1103,7 @@ const OphthalmologyExamPanel = ({
     const action = await dispatch(addFundusTemplate(payload));
     if (action.meta.requestStatus === "fulfilled") {
       setFundusTemplateInput(null);
+      dispatch(getFundusTemplates());
       handleFundusSaveOpen(false);
     }
   };
@@ -1124,6 +1126,7 @@ const OphthalmologyExamPanel = ({
     const action = await dispatch(updateSlitLampTemplate(payload));
     if (action.meta.requestStatus === "fulfilled") {
       setSlitLampTemplateInput(null);
+      dispatch(getSlitLampTemplates());
       handleSlitLampSaveOpen(false);
     }
   };
@@ -1146,6 +1149,7 @@ const OphthalmologyExamPanel = ({
     const action = await dispatch(updateFundusTemplate(payload));
     if (action.meta.requestStatus === "fulfilled") {
       setFundusTemplateInput(null);
+      dispatch(getFundusTemplates());
       handleFundusSaveOpen(false);
     }
   };
