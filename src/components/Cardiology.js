@@ -118,11 +118,19 @@ function Cardiology(props) {
     if (value === null || value === undefined) return false;
     if (typeof value === "string") {
       const trimmed = value.trim();
-      if (trimmed === "" || trimmed === "-" || trimmed === "--") return false;
+      if (trimmed === "" || /^[-–—]+$/.test(trimmed)) return false;
+      if (/^(n\/?a|nil)$/i.test(trimmed)) return false;
       return true;
     }
     return Boolean(value);
   }, []);
+
+  const hasOpthalArrayData = useCallback(
+    (items, keys) =>
+      Array.isArray(items) &&
+      items.some((item) => keys.some((key) => hasOpthalValue(item?.[key]))),
+    [hasOpthalValue]
+  );
 
   const currentOpthal = useMemo(() => {
     const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
@@ -138,16 +146,61 @@ function Cardiology(props) {
   const hasOpthalData = useMemo(() => {
     if (!currentOpthal) return false;
     const hasArrays = [
-      currentOpthal.visualAcuity,
-      currentOpthal.autoRefraction,
-      currentOpthal.lensometerValues,
-      currentOpthal.glassPrescription,
-      currentOpthal.intraOcularPressure,
-      currentOpthal.slitLampExamination,
-      currentOpthal.fundusExamination,
-    ].some((list) => Array.isArray(list) && list.length > 0);
-    return hasArrays || !!currentOpthal.pd;
-  }, [currentOpthal]);
+      hasOpthalArrayData(currentOpthal.visualAcuity, [
+        "ucDistance",
+        "ucNear",
+        "pinhole",
+        "cDistance",
+        "cNear",
+      ]),
+      hasOpthalArrayData(currentOpthal.autoRefraction, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.lensometerValues, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.glassPrescription, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.intraOcularPressure, [
+        "nct",
+        "gat",
+        "cc",
+        "cct",
+        "ciop",
+      ]),
+      hasOpthalArrayData(currentOpthal.slitLampExamination, [
+        "OD",
+        "OS",
+        "od",
+        "os",
+        "remarks",
+      ]),
+      hasOpthalArrayData(currentOpthal.fundusExamination, [
+        "OD",
+        "OS",
+        "od",
+        "os",
+        "remarks",
+      ]),
+    ].some(Boolean);
+    return hasArrays || hasOpthalValue(currentOpthal.pd);
+  }, [currentOpthal, hasOpthalArrayData, hasOpthalValue]);
 
   const renderOpthalTable = (headers, rows) => (
     <table className="opthal-summary-table">
@@ -185,6 +238,40 @@ function Cardiology(props) {
       return null;
     }
 
+    const hasVisualAcuityData = hasOpthalArrayData(
+      currentOpthal?.visualAcuity,
+      ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]
+    );
+    const hasAutoRefractionData = hasOpthalArrayData(
+      currentOpthal?.autoRefraction,
+      ["sphere", "cylinder", "axis", "add", "distance", "near"]
+    );
+    const hasLensometerValuesData = hasOpthalArrayData(
+      currentOpthal?.lensometerValues,
+      ["sphere", "cylinder", "axis", "add", "distance", "near"]
+    );
+    const hasGlassPrescriptionData =
+      hasOpthalArrayData(currentOpthal?.glassPrescription, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]) || hasOpthalValue(currentOpthal?.pd);
+    const hasIntraOcularPressureData = hasOpthalArrayData(
+      currentOpthal?.intraOcularPressure,
+      ["nct", "gat", "cc", "cct", "ciop"]
+    );
+    const hasSlitLampExaminationData = hasOpthalArrayData(
+      currentOpthal?.slitLampExamination,
+      ["OD", "OS", "od", "os", "remarks"]
+    );
+    const hasFundusExaminationData = hasOpthalArrayData(
+      currentOpthal?.fundusExamination,
+      ["OD", "OS", "od", "os", "remarks"]
+    );
+
     const visualRows = renderEyeRows(currentOpthal?.visualAcuity, [
       "ucDistance",
       "ucNear",
@@ -199,6 +286,22 @@ function Cardiology(props) {
     const dilatedRows = (currentOpthal?.autoRefraction || []).filter(
       (item) => String(item?.type || "").toLowerCase() === "dilated"
     );
+    const undilatedHasData = hasOpthalArrayData(undilatedRows, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+    const dilatedHasData = hasOpthalArrayData(dilatedRows, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
 
     const lensometerRows = renderEyeRows(currentOpthal?.lensometerValues, [
       "sphere",
@@ -262,24 +365,26 @@ function Cardiology(props) {
 
     return (
       <div className="opthal-summary">
-        <div className="opthal-section">
-          <div className="opthal-section-header">
-            <img src={visualAcuityIcon} alt="" className="opthal-section-icon" />
-            <div className="opthal-section-title">Visual Acuity Test</div>
+        {hasVisualAcuityData && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img src={visualAcuityIcon} alt="" className="opthal-section-icon" />
+              <div className="opthal-section-title">Visual Acuity Test</div>
+            </div>
+            {renderOpthalTable(
+              ["Eye", "UC Distance", "UC Near", "Pinhole", "C Distance", "C Near"],
+              visualRows
+            )}
           </div>
-          {renderOpthalTable(
-            ["Eye", "UC Distance", "UC Near", "Pinhole", "C Distance", "C Near"],
-            visualRows
-          )}
-        </div>
+        )}
 
-        {(undilatedRows.length > 0 || dilatedRows.length > 0) && (
+        {hasAutoRefractionData && (undilatedHasData || dilatedHasData) && (
           <div className="opthal-section">
             <div className="opthal-section-header">
               <img src={autoRefractionIcon} alt="" className="opthal-section-icon" />
               <div className="opthal-section-title">Auto Refraction Test</div>
             </div>
-            {undilatedRows.length > 0 && (
+            {undilatedHasData && (
               <>
                 <div className="opthal-section-subtitle">Undilated</div>
                 {renderOpthalTable(
@@ -295,7 +400,7 @@ function Cardiology(props) {
                 )}
               </>
             )}
-            {dilatedRows.length > 0 && (
+            {dilatedHasData && (
               <>
                 <div className="opthal-section-subtitle">Dilated</div>
                 {renderOpthalTable(
@@ -314,8 +419,7 @@ function Cardiology(props) {
           </div>
         )}
 
-        {Array.isArray(currentOpthal?.lensometerValues) &&
-          currentOpthal?.lensometerValues?.length > 0 && (
+        {hasLensometerValuesData && (
             <div className="opthal-section">
               <div className="opthal-section-header">
                 <img src={lensometerIcon} alt="" className="opthal-section-icon" />
@@ -328,8 +432,7 @@ function Cardiology(props) {
             </div>
           )}
 
-        {Array.isArray(currentOpthal?.glassPrescription) &&
-          currentOpthal?.glassPrescription?.length > 0 && (
+        {hasGlassPrescriptionData && (
             <div className="opthal-section">
               <div className="opthal-section-header">
                 <img src={glassPrescriptionIcon} alt="" className="opthal-section-icon" />
@@ -339,7 +442,7 @@ function Cardiology(props) {
                 ["Eye", "Sphere", "Cylinder", "Axis", "Add", "Distance", "Near"],
                 glassRows
               )}
-              {currentOpthal?.pd && (
+              {hasOpthalValue(currentOpthal?.pd) && (
                 <div className="opthal-pd-row">
                   <div className="opthal-pd-label">PD</div>
                   <div className="opthal-pd-value">
@@ -350,8 +453,7 @@ function Cardiology(props) {
             </div>
           )}
 
-        {Array.isArray(currentOpthal?.intraOcularPressure) &&
-          currentOpthal?.intraOcularPressure?.length > 0 && (
+        {hasIntraOcularPressureData && (
             <div className="opthal-section">
               <div className="opthal-section-header">
                 <img src={iopIcon} alt="" className="opthal-section-icon" />
@@ -366,7 +468,7 @@ function Cardiology(props) {
             </div>
           )}
 
-        {slitLampRows.length > 0 && (
+        {hasSlitLampExaminationData && slitLampRows.length > 0 && (
           <div className="opthal-section">
             <div className="opthal-section-header">
               <img src={slitLampIcon} alt="" className="opthal-section-icon" />
@@ -379,7 +481,7 @@ function Cardiology(props) {
           </div>
         )}
 
-        {fundusRows.length > 0 && (
+        {hasFundusExaminationData && fundusRows.length > 0 && (
           <div className="opthal-section">
             <div className="opthal-section-header">
               <img src={fundusIcon} alt="" className="opthal-section-icon" />
