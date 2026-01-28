@@ -584,7 +584,9 @@ function Cardiology(props) {
     if (
       isSmartSyncAccessableFromGB &&
       viewCaseManagerData?.smart_prescription_filename !== null &&
-      viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg")
+      viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg") &&
+      !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+      !isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
       // viewCaseManagerData.medicine?.length === 0 &&
       // viewCaseManagerData.symptoms?.length === 0 &&
       // viewCaseManagerData.examination?.length === 0 &&
@@ -2224,7 +2226,7 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                rxDigitisedData?.ocrData && (
+                rxDigitisedData && (
                   <div className="digitise-info-cardiology">
                     <img
                       src={successIcon}
