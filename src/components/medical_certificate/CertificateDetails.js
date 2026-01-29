@@ -127,9 +127,9 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
                                                 <PdfThumbnail pdfUrl={item?.certificate} index={index} thumbnailUrl={item?.thumbnailUrl} />
                                             </div>
                                             <div className="bg-selected leave-ui d-flex justify-content-between">
-                                                <div className="text-truncate">
-                                                    <h5 className="fw-semibold fs-14 m-0 text-start text-truncate">{item?.tcu_title}</h5>
-                                                    <div className="text-start">{moment(item?.tcu_created_date).format('DD MMM, YYYY LT')}</div>
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <h5 className="fw-semibold m-0 text-start text-truncate" style={{ fontSize: '12px' }}>{item?.tcu_title}</h5>
+                                                    <div className="text-start" style={{ fontSize: '10px', whiteSpace: 'pre-wrap', wordWrap: 'break-word', color: '#454551', fontWeight: 400, letterSpacing: '0.1px' }}>{moment(item?.tcu_created_date).format('DD MMM, YYYY, hh:mm A')}</div>
                                                 </div>
                                                 <Dropdown className='btn btn-outline btn-more p-0 mt-1'
                                                     menu={{
