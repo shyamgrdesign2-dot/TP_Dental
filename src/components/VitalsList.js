@@ -155,8 +155,8 @@ function VitalsList(props) {
             return moment(createdAt).format('YYYY-MM-DD') === today;
         });
         return (
-            filteredVitals.length > 0 &&
-            filteredVitals.map((item, i) => {
+            vitalsData.length > 0 &&
+            vitalsData.map((item, i) => {
                 if (item.temp || item.pres || item.resp_rate || item.blood_press || item.spo2 || item.general_rbs || item.ofc || item.height || item.weight || item.fib4 || item.waist_circumference || item.bmi || item.bmr || item.bsa) {
                 return (
                     <div key={i} className={`${filteredVitals.length - 1 !== i && 'border-bottom'} pt-3 vitals-height input-readonly`}>
