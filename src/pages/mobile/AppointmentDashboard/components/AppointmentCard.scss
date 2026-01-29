@@ -126,17 +126,32 @@
       }
 
       &.status-chip {
+        .chip-bill-label {
+          font-size: 12px;
+          font-weight: 400;
+          font-family: 'Poppins', sans-serif;
+          line-height: 14px;
+        }
+
         &.unbilled {
-          .chip-text {
-            color: #ed8a00;
-            font-weight: 400;
+          .chip-bill-label {
+            color: #ED8A00 !important;
+            font-weight: 500;
+          }
+          &:not(.has-bill-label) .chip-text {
+            color: #ED8A00 !important;
+            font-weight: 500;
           }
         }
 
         &.billed {
-          .chip-text {
-            color: #3d8c40;
-            font-weight: 400;
+          .chip-bill-label {
+            color: #3D8C40 !important;
+            font-weight: 500;
+          }
+          &:not(.has-bill-label) .chip-text {
+            color: #3D8C40;
+            font-weight: 500;
           }
         }
       }

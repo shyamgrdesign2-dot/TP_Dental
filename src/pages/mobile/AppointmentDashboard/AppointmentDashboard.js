@@ -26,6 +26,9 @@ import { jwtDecode } from 'jwt-decode';
 import { generateBillToken } from '../../opdBilling/service';
 import { fetchPatientDefaultLanguage } from '../../../api/services/DefaultLanguageService';
 import { getSnapRxDigitization } from '../../snapRx/services/snapRxService';
+import { useOpdBilling } from '../../opdBilling/useOpdBilling';
+import { fetchAdvanceSetting } from '../../opdBilling/service';
+import { setAdvancedSettings } from '../../../redux/billingSlice';
 
 import ProfileSection from './components/ProfileSection';
 import AppointmentTabs from './components/AppointmentTabs';
@@ -63,6 +66,7 @@ function AppointmentDashboard() {
     setOnLoad,
   } = useSelector((state) => state.records);
   const { advancedSettings } = useSelector((state) => state.billing);
+  const { isOpdBillingAccessable } = useOpdBilling();
 
   const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,6 +114,15 @@ function AppointmentDashboard() {
       dispatch(getProfile());
     }
   }, [dispatch, profile, profileLoading]);
+
+  // Fetch advance settings so Billed/Unbilled can show on Queue, Finished, Cancelled (same as desktop)
+  useEffect(() => {
+    if (advancedSettings && Object.keys(advancedSettings).length === 0 && isOpdBillingAccessable) {
+      fetchAdvanceSetting().then((response) => {
+        if (response) dispatch(setAdvancedSettings(response));
+      });
+    }
+  }, [isOpdBillingAccessable, advancedSettings, dispatch]);
 
   // Map hospital_data to clinicOptions (like web version)
   useEffect(() => {

@@ -67,16 +67,23 @@ function AppointmentCard({
       });
     }
 
-    // Visit type chip
-    if (appointment.toct_type) {
-      let chipText = appointment.toct_type;
-      if (appointment.billStatus) {
-        chipText += ` (${appointment.billStatus})`;
+    // Visit type + Billed/Unbilled: one chip like "New Visit (Unbilled)" – only (Billed)/(Unbilled) in color (reference)
+    if (appointment.toct_type || appointment.billStatus) {
+      const billType = appointment.billStatus === 'Unbilled' ? 'unbilled' : 'billed';
+      if (appointment.toct_type && appointment.billStatus) {
+        chips.push({
+          type: billType,
+          text: appointment.toct_type,
+          billLabel: `(${appointment.billStatus})`,
+        });
+      } else if (appointment.toct_type) {
+        chips.push({ type: 'visit-type', text: appointment.toct_type });
+      } else {
+        chips.push({
+          type: billType,
+          text: appointment.billStatus,
+        });
       }
-      chips.push({
-        type: appointment.billStatus === 'Unbilled' ? 'unbilled' : 'billed',
-        text: chipText,
-      });
     }
 
     return chips;
@@ -130,11 +137,12 @@ function AppointmentCard({
       {chips.length > 0 && (
         <div className="card-chips">
           {chips.map((chip, index) => (
-            <div 
+            <div
               key={index}
-              className={`chip ${chip.type === 'time' ? 'time-chip' : 'status-chip'} ${chip.type}`}
+              className={`chip ${chip.type === 'time' ? 'time-chip' : 'status-chip'} ${chip.type} ${chip.billLabel ? 'has-bill-label' : ''}`}
             >
               <span className="chip-text">{chip.text}</span>
+              {chip.billLabel && <span className="chip-bill-label">{chip.billLabel}</span>}
             </div>
           ))}
         </div>
