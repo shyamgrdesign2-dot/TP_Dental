@@ -51,6 +51,7 @@ function MobileVoiceRecording() {
   const consent = location.state?.consent || null;
   const existingPrescriptionData = location.state?.existingPrescriptionData || null;
   const existingGenRxDetails = location.state?.existingGenRxDetails || null;
+  const caseManagerData = location.state?.caseManagerData || null;
 
   const mediaRecorderRef = useRef(null);
   const audioStreamRef = useRef(null);
@@ -387,9 +388,10 @@ function MobileVoiceRecording() {
           noStayClickCount: noStayClickCountRef.current,
           crossButtonClickCount: crossButtonClickCountRef.current,
           mutePauseButtonClickCount: mutePauseButtonClickCountRef.current,
-          existingPrescriptionData, // Pass existing data for merging (matches web version)
-          existingGenRxDetails, // Pass existing Rx details for update logic
-          mobileQueries: location.state?.mobileQueries || [], // Persist queries from previous state
+          existingPrescriptionData,
+          existingGenRxDetails,
+          caseManagerData,
+          mobileQueries: location.state?.mobileQueries || [],
         }
       });
     } catch (err) {
