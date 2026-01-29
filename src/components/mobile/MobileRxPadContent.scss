@@ -626,9 +626,10 @@
           color: #FFFFFF !important;
           font-weight: none !important;
         }
-        // .btn-icon {
-        //   filter: brightness(0) invert(1); // Make icon white
-        // }
+
+        .ant-spin-dot-item {
+          background-color: #FFFFFF !important;
+        }
       }
     }
   }

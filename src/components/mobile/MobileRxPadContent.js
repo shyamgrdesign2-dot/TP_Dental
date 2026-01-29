@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Input, AutoComplete } from 'antd';
+import { Input, AutoComplete, Spin } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
@@ -71,7 +71,7 @@ function enrichVitalsWithCalculations(vital, patientInfo = {}) {
   return out;
 }
 
-const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, patient_data, caseManagerData }) => {
+const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, patient_data, caseManagerData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData, setVitalsData } = useContext(CashManagerContext) || {};
@@ -202,7 +202,6 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             onUpdate({ ...prescriptionData, gynecHistory: filteredData });
           }
         } catch (error) {
-          console.error('Error fetching gynec history:', error);
         }
       };
       fetchGynecHistory();
@@ -223,7 +222,6 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         const fetchObstetricHistory = async () => {
           try {
             const data = await fetchObstetricDetails(patient_data.patient_unique_id, userId);
-            console.log('Fetched obstetric data:', data);
             // Check if data has meaningful content (not just empty object or only metadata)
             const hasData = data && (
               (data.currentPregnancy && Object.keys(data.currentPregnancy).length > 0) ||
@@ -235,13 +233,10 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
               onUpdate({ ...prescriptionData, obstetricHistory: data });
             }
           } catch (error) {
-            console.error('Error fetching obstetric history:', error);
           }
         };
         fetchObstetricHistory();
       } else if (allObstetricDetails && Object.keys(allObstetricDetails).length > 0 && !prescriptionData?.obstetricHistory) {
-        // If data exists in Redux but not in prescriptionData, sync it
-        console.log('Syncing obstetric data from Redux:', allObstetricDetails);
         onUpdate({ ...prescriptionData, obstetricHistory: allObstetricDetails });
       }
     }
@@ -946,15 +941,9 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
   // Render Obstetric History with Edit/Delete
   const renderObstetricHistory = (obstetricHistory) => {
     if (!obstetricHistory || (Array.isArray(obstetricHistory) && obstetricHistory.length === 0)) {
-      console.log('No obstetric history data to render:', obstetricHistory);
       return null;
     }
-    
-    console.log('Rendering obstetric history:', obstetricHistory);
     const { items, structured } = formatObstetricHistoryForDisplay(obstetricHistory);
-    console.log('Formatted obstetric items:', items, structured);
-    
-    // Build all display items from structured data
     const displayItems = [];
     
     // Row 1: LMP, EDD, CEDD, Gestation
@@ -1034,7 +1023,6 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     }
     
     if (displayItems.length === 0) {
-      console.log('No formatted items to display');
       return null;
     }
     
@@ -1496,10 +1484,15 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         <button 
           type="button"
           className="end-visit-btn"
-          onClick={() => onEndVisit && onEndVisit()}
+          onClick={() => !endVisitLoading && onEndVisit && onEndVisit()}
+          disabled={endVisitLoading}
         >
-          <img src={logoutIcon} alt="End Visit" className="btn-icon" />
-          <span>End Visit</span>
+          {endVisitLoading ? (
+            <Spin size="small" className="end-visit-btn-spinner" />
+          ) : (
+            <img src={logoutIcon} alt="End Visit" className="btn-icon" />
+          )}
+          <span>{endVisitLoading ? 'Ending visit...' : 'End Visit'}</span>
         </button>
       </div>
 

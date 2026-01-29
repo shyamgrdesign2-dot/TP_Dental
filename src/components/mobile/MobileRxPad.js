@@ -1494,6 +1494,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             });
           }
           setShowEndVisitScreen(true);
+          setIsEndingVisit(false);
         }, 2000);
       } else {
         throw new Error(action.error || 'Failed to save case manager data');
@@ -1580,6 +1581,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               }}
               onEndVisit={handleEndVisit}
               isProcessing={isProcessing}
+              endVisitLoading={isEndingVisit}
               patient_data={patient_data}
               caseManagerData={caseManagerData}
             />

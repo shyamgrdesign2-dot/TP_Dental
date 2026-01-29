@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Drawer, Spin } from 'antd';
+import { Drawer, Spin, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { isChrome, isSafari } from 'react-device-detect';
@@ -9,7 +9,7 @@ import { jwtDecode } from 'jwt-decode';
 import api from '../../api/services/axiosService';
 import { env } from '../../EnvironmentConfig';
 import { getClinicName, errorMessage, sendMessageToParent, trackEvent } from '../../utils/utils';
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../../utils/constants';
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, MESSAGE_KEY } from '../../utils/constants';
 import { EVENTS } from '../../utils/events';
 import { viewCaseManager } from '../../redux/caseManagerSlice';
 import { Document, Page } from 'react-pdf';
@@ -19,6 +19,8 @@ import downloadIcon from '../../assets/mobile/Arrow Download (1).svg';
 import whatsappIcon from '../../assets/mobile/WhatsApp.svg';
 import printIcon from '../../assets/mobile/printer.svg';
 import loadingImg from '../../assets/images/loading.png';
+import visitEndIcon from '../../assets/images/end-visit.svg';
+import closeVisitIcon from '../../assets/images/close-visit.svg';
 import './MobileEndVisitScreen.scss';
 
 // Set up PDF.js worker (same as web version)
@@ -59,7 +61,7 @@ function MobileEndVisitScreen({
   const printRef = useRef(null);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [whatsAppButtonText, setWhatsAppButtonText] = useState('Share on WhatsApp');
+  const [whatsAppButtonText, setWhatsAppButtonText] = useState('Send to WhatsApp');
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [printUrl, setPrintUrl] = useState(null);
@@ -269,15 +271,38 @@ function MobileEndVisitScreen({
       const response = await api.post(WHATS_APP_API, body, baseUrl);
       if (response.message) {
         setWhatsAppButtonText('Successfully Sent');
+        message.open({
+          key: `${MESSAGE_KEY}-whatsapp`,
+          type: '',
+          className: 'message-appointment',
+          content: (
+            <div className="d-flex align-items-center">
+              <img src={visitEndIcon} className="me-3" alt="Success" />
+              <div>
+                <div className="title-common-digitised text-start fontroboto">
+                  Successfully Sent
+                </div>
+              </div>
+              <img
+                src={closeVisitIcon}
+                className="ms-3"
+                alt="Close"
+                onClick={() => message.destroy(`${MESSAGE_KEY}-whatsapp`)}
+                style={{ cursor: 'pointer' }}
+              />
+            </div>
+          ),
+          duration: 3,
+        });
         setTimeout(() => {
-          setWhatsAppButtonText('Share on WhatsApp');
+          setWhatsAppButtonText('Send to WhatsApp again');
         }, 3000);
       } else {
-        setWhatsAppButtonText('Share on WhatsApp');
+        setWhatsAppButtonText('Send to WhatsApp');
       }
     } catch (error) {
       errorMessage(WTSAP_ERR_MESSAGE);
-      setWhatsAppButtonText('Share on WhatsApp');
+      setWhatsAppButtonText('Send to WhatsApp');
     } finally {
       setIsLoading(false);
     }
@@ -387,7 +412,7 @@ function MobileEndVisitScreen({
               className="action-icon-btn"
               onClick={handleWhatsAppShare}
               disabled={isLoading}
-              aria-label="Share on WhatsApp"
+              aria-label="Send to WhatsApp"
             >
               {isLoading ? (
                 <img src={loadingImg} alt="Loading" width="24" height="24" />

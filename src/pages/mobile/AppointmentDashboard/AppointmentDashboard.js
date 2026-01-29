@@ -157,13 +157,11 @@ function AppointmentDashboard() {
                   const billToken = await generateBillToken();
                   setBillToken(billToken);
                 } catch (e) {
-                  console.error('Error generating bill token:', e);
                 }
                 setSelectedHospital(parseInt(firstClinicId));
               }
             }
           } catch (e) {
-            console.error('Error decoding token:', e);
           }
         }
       };
@@ -536,7 +534,6 @@ function AppointmentDashboard() {
             return res.settings.defaultLanguage;
           }
         } catch (error) {
-          console.error('Error fetching patient default language:', error);
         }
         return defaultPrintSettings?.default_language;
       };
@@ -563,7 +560,6 @@ function AppointmentDashboard() {
 
           return urlObj.toString();
         } catch (error) {
-          console.error('Error updating rxDigitize in URL:', error);
           return record.print_rx_url;
         }
       };
@@ -577,7 +573,6 @@ function AppointmentDashboard() {
       // Open URL directly (same as web version)
       window.open(`${printUrl}&lg=${encodedData}`, '_blank');
     } catch (error) {
-      console.error('Error printing prescription:', error);
       message.error('Failed to open prescription');
     }
   }, [defaultPrintSettings]);
@@ -606,7 +601,6 @@ function AppointmentDashboard() {
       saveAs(blob, `prescription_${record.pam_id || Date.now()}.pdf`);
       message.success('Prescription downloaded successfully');
     } catch (error) {
-      console.error('Error downloading prescription:', error);
       message.error('Failed to download prescription');
     }
   }, []);
@@ -719,7 +713,6 @@ function AppointmentDashboard() {
         const billToken = await generateBillToken();
         setBillToken(billToken);
       } catch (e) {
-        console.error('Error updating token:', e);
       }
       // Refresh the page to ensure all data is updated
       navigate(0, { replace: true });
