@@ -2679,13 +2679,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       };
       setAppointmentSelectedFromMenu(patientData);
     }
-    if (response?.bills?.length > 0) {
-      const billData = response?.bills?.map((bill) => ({
-        ...bill,
-        patient: response?.patient,
-      }));
-      setPatientBills(billData);
-    }
+    const billData = response?.bills?.map((bill) => ({
+      ...bill,
+      patient: response?.patient,
+    }));
+    setPatientBills(billData);
     const patientWalletBalanceRes = await fetchPatientWalletBalance(
       record?.patient_unique_id ||
         appointmentSelectedFromMenu?.patient_unique_id ||
