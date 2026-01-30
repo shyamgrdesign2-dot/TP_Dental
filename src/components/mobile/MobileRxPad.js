@@ -21,8 +21,6 @@ import { addUpdateVitals } from '../../redux/vitalsSlice';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { errorMessage } from '../../utils/utils';
-import { loadTodayVitalsAndLabResults } from '../../utils/loadTodayVitalsAndLabResults';
-import { mapLabResultsToStandardized } from '../../utils/mapLabResults';
 import CashManagerContext from '../../context/CashManagerContext';
 import MobileRxPadProcessing from './MobileRxPadProcessing';
 import MobileRxPadSkeleton from './MobileRxPadSkeleton';
@@ -140,12 +138,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       hasLoadedForEditRef.current = null; // Reset so edit-load can run again on next open
     }
   }, [visible]); // Only depend on visible, not input values
-
-  // Match web ConsultationDrawer: auto-load today's vitals and lab results into RX pad when drawer opens
-  useEffect(() => {
-    if (!visible || !patient_data?.patient_unique_id) return;
-    loadTodayVitalsAndLabResults({ patient_data, setState: setPrescriptionData });
-  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   // Load existing Voice RX when opening for Edit or Repeat (caseManagerData.smart_prescription_filename, no new audio/input).
   // Matches web ConsultationDrawer getGenRxDetails: getGenRx -> optionally getAmbientRx -> parse -> setPrescriptionData, genRxDetails.
@@ -417,9 +409,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     if (!data || typeof data !== 'object') {
       return false;
     }
-    const mappedLabResults = Array.isArray(data.labResults)
-      ? mapLabResultsToStandardized(data.labResults)
-      : [];
+    const mappedLabResults = Array.isArray(data.labResults) ? data.labResults : [];
     const cleanedData = {
       symptoms: Array.isArray(data.symptoms) ? data.symptoms : [],
       medications: Array.isArray(data.medications) ? data.medications : [],
