@@ -239,7 +239,7 @@ function App() {
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
-          hm_id: `${decodedToken?.result?.clinic_id ?? ''}`,
+          clinic_id: `${decodedToken?.result?.clinic_id}`,
         });
       } catch (e) {
         console.log(e);
