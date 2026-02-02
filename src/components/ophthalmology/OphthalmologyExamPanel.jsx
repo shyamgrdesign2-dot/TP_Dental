@@ -80,6 +80,32 @@ const resolveOptionsKey = (optionsKey) => {
   }, OPHTHALMOLOGY_OPTIONS);
 };
 
+const parseNumericValue = (value) => {
+  if (value === null || value === undefined) return null;
+  const match = String(value).match(/-?\d+(\.\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0]);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const formatCiopValue = (value) => {
+  if (!Number.isFinite(value)) return "";
+  const rounded = Math.round(value * 10) / 10;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return String(rounded);
+};
+
+const computeCiopValue = ({ nct, gat, cct }) => {
+  const nctValue = parseNumericValue(nct);
+  const gatValue = parseNumericValue(gat);
+  const cctValue = parseNumericValue(cct);
+  if (cctValue === null) return "";
+  const baseValue = gatValue ?? nctValue;
+  if (baseValue === null) return "";
+  const correction = ((520 - cctValue) / 10) * 0.7;
+  return formatCiopValue(baseValue + correction);
+};
+
 const DropdownInput = ({
   value,
   placeholder,
@@ -1184,12 +1210,22 @@ const OphthalmologyExamPanel = ({
           ...baseProps,
           values: tableValues[table.id],
           onChange: (rowKey, columnKey, nextValue) => {
+            const nextTableValues = {
+              ...(tableValues[table.id] || {}),
+              [`${rowKey}-${columnKey}`]: nextValue,
+            };
+            let nextCiopValue = null;
+            if (table.id === "iopTable" && ["nct", "gat", "cct"].includes(columnKey)) {
+              nextCiopValue = computeCiopValue({
+                nct: nextTableValues[`${rowKey}-nct`],
+                gat: nextTableValues[`${rowKey}-gat`],
+                cct: nextTableValues[`${rowKey}-cct`],
+              });
+              nextTableValues[`${rowKey}-ciop`] = nextCiopValue;
+            }
             setLocalTableValues((prev) => ({
               ...prev,
-              [table.id]: {
-                ...prev[table.id],
-                [`${rowKey}-${columnKey}`]: nextValue,
-              },
+              [table.id]: nextTableValues,
             }));
             dispatch(
               setTableValue({
@@ -1198,6 +1234,15 @@ const OphthalmologyExamPanel = ({
                 value: nextValue,
               })
             );
+            if (nextCiopValue !== null) {
+              dispatch(
+                setTableValue({
+                  tableId: table.id,
+                  cellKey: `${rowKey}-ciop`,
+                  value: nextCiopValue,
+                })
+              );
+            }
           },
         };
       }
