@@ -371,10 +371,6 @@ function TabPrescription() {
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
 
-  // Check if video consultation is available for this patient
-  const isVideoConsultAvailable = isVideoConsultAccessible && 
-                                   videoConsultData?.pam_status_type_appointment === 1;
-
   const showHideSubModal = (object) => {
     object && setSubModalData(object)
     setIsSubModalOpen(!isSubModalOpen);
