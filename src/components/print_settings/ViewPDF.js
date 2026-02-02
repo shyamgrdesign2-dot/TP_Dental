@@ -6,6 +6,9 @@ import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
 import ObsHistoryTableView from './obsHistory/table';
+import OphthalmologyInlineView from './ophthalmology/inline';
+import OphthalmologyListView from './ophthalmology/list';
+import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
 
 const PX_TO_PT = 0.75
@@ -258,10 +261,30 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
-    const gynecHistoryData = caseManagerData?.gynecHistoryData
     const labParamsData = caseManagerData?.labParamsData
+    const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
+    const hasOphthalValue = (value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    };
+    const hasOphthalArrayData = (items, keys) =>
+        Array.isArray(items) && items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+    const hasOphthalModuleData = !!(
+        ophthalModuleData &&
+        (
+            hasOphthalArrayData(ophthalModuleData.visualAcuity, ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]) ||
+            hasOphthalArrayData(ophthalModuleData.autoRefraction, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.lensometerValues, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.glassPrescription, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.intraOcularPressure, ["nct", "gat", "cc", "cct", "ciop"]) ||
+            hasOphthalArrayData(ophthalModuleData.slitLampExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalArrayData(ophthalModuleData.fundusExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalValue(ophthalModuleData.pd)
+        )
+    );
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
@@ -789,6 +812,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return activeCarePlans.length > 0;
                 case 91: // Vaccines
                     return caseManagerData?.visit_advice;
+                case 20: // Ophthalmology Module
+                    return hasOphthalModuleData;
                 default:
                     return false;
             }
@@ -1122,6 +1147,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     return patientBills?.length > 0;
                                 case 18: 
                                     return advanceReceipts?.length > 0;
+                                case 20:
+                                    return hasOphthalModuleData;
                                 default:
                                     if (option.is_custom_module) {
                                         const customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
@@ -5225,6 +5252,72 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </View>
                                                     </View>
                                                 </View>
+                                            ))
+                                        }
+                                    </>
+                                ) : option?.id === 20 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {hasOphthalModuleData &&
+                                            (option?.format === "inline" ? (
+                                                <OphthalmologyInlineView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
+                                                />
+                                            ) : option?.format === "listview" ? (
+                                                <OphthalmologyListView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
+                                                />
+                                            ) : (
+                                                <>
+                                                    {(option?.ophthalmology_option || option?.subSections || []).map((section) => {
+                                                        if (section?.visible === false) {
+                                                            return null;
+                                                        }
+                                                        const sectionOptions = [section];
+                                                        const sectionView = section?.view ?? 3;
+                                                        if (sectionView === 1) {
+                                                            return (
+                                                                <OphthalmologyInlineView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        if (sectionView === 2) {
+                                                            return (
+                                                                <OphthalmologyListView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        return (
+                                                            <OphthalmologyTableView 
+                                                                key={section.id}
+                                                                PX_TO_PT={PX_TO_PT} 
+                                                                styles={styles} 
+                                                                printSettings={printSettings} 
+                                                                ophthalModuleData={ophthalModuleData}
+                                                                options={sectionOptions}
+                                                            />
+                                                        );
+                                                    })}
+                                                </>
                                             ))
                                         }
                                     </>

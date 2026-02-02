@@ -42,6 +42,8 @@ export default {
   api_secret_key: env.api_secret_key,
   api_key: env.api_key,
   lab_params_api_url: env.lab_params_api_url,
+  opthal_prescription_api_url: env.opthal_prescription_api_url,
+  templates_api_url: env.templates_api_url,
   upload_doc_api_url: env.upload_doc_api_url,
   central_auth_api_url: env.central_auth_api_url,
   pedia_logout_url: env.pedia_logout_url,

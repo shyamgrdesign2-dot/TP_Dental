@@ -16,6 +16,8 @@ export const PERSISTANT_STORAGE_KEY_MEDECO_TOKEN =
   "persistant.storage.key.medeco-token";
 export const PERSISTANT_STORAGE_KEY_EXTRA = "persistant.storage.key.extra";
 export const SNAP_RX_TOKENS_STORAGE_KEY = "snapRxFileUploadTokensV2";
+export const OPHTHAL_SNAP_RX_TOKENS_STORAGE_KEY =
+  "ophthalSnapRxFileUploadTokensV2";
 export const FROM_NATIVE_APP = "from_native_app";
 export const MESSAGE_KEY = "message_key";
 export const PERSISTANT_STORAGE_KEY_BILL_TOKEN = 'persistant.storage.key.bill-token';
@@ -85,6 +87,17 @@ export const GB_ZYDUS_USER = "zydus-hospital-user";
 export const GB_PILLUP_MEDICINE = "pillup-medicine-switch";
 export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
+export const GB_OPTHAL_MODULE = "opthal-module";
+export const OPTHAL_PAD_MODULE_ID = 23;
+export const OPTHAL_PAD_MODULE = {
+  tmdpm_id: 23,
+  tmdpm_type: "R",
+  tmdpm_name: "Opthal",
+  tmdpm_short_name: "Opthal",
+  tmdpm_status: 0,
+  tmdpm_icon_url:
+    "https://practice.tatvacare.in/img/microservices/right/opthal.svg",
+};
 
 export const GYNAECOLOGY = "Gynaecology";
 export const PAEDIATRICS = "Paediatrics";

@@ -42,6 +42,7 @@ const dev = {
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
   lab_params_api_url: "https://pm-patient-docs-uat.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-uat.tatvacare.in",
   opd_encryption_url:
     "https://api-uat.mytatva.in/api/v8/helper/encrypt_visit_data",
   opd_visit_url: "https://visit-enrolment-tatva.getvisitapp.net",
@@ -80,6 +81,7 @@ const dev = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
 };
 
 const qa_tp = {
@@ -130,6 +132,7 @@ const qa_tp = {
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
   lab_params_api_url: "https://pm-patient-docs-qa.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-qa.tatvacare.in",
   opd_encryption_url:
     "https://api-uat.mytatva.in/api/v8/helper/encrypt_visit_data",
   opd_visit_url: "https://visit-enrolment-tatva.getvisitapp.net",
@@ -171,6 +174,9 @@ const qa_tp = {
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
+  cdss_disabled: [],
+  consultation_api_url: "https://pm-consultation-qa.tatvacare.in",
 };
 
 const qa = {
@@ -217,6 +223,7 @@ const qa = {
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
   lab_params_api_url: "https://pm-patient-docs-uat.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-uat.tatvacare.in",
   opd_encryption_url:
     "https://api-uat.mytatva.in/api/v8/helper/encrypt_visit_data",
   opd_visit_url: "https://visit-enrolment-tatva.getvisitapp.net",
@@ -254,6 +261,8 @@ const qa = {
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://pm-doctor-portal-qa.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
+  cdss_disabled: [],
 };
 
 const uat = {
@@ -305,6 +314,7 @@ const uat = {
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
   lab_params_api_url: "https://pm-patient-docs-uat.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-uat.tatvacare.in",
   opd_encryption_url:
     "https://api-uat.mytatva.in/api/v8/helper/encrypt_visit_data",
   opd_visit_url: "https://visit-enrolment-tatva.getvisitapp.net",
@@ -346,6 +356,7 @@ const uat = {
   FREE_VOICE_RX_APOLLO_USER_IDS: [12469, 12475],
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
 };
@@ -390,6 +401,7 @@ const prod = {
   rx_digitization: "https://pm-rxdigitization-prod.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-prod.tatvacare.in",
   lab_params_api_url: "https://pm-patient-docs-prod.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-prod.tatvacare.in",
   user_management_api_url: "https://diginext-usermgmt-prod.tatvacare.in",
   razorpay_integration_url: "https://pm-razorpay-uat-integration.tatvacare.in",
   api_secret_key: "184028f7-a9dh-4518-k1f2-q07t5mn11g72",
@@ -450,6 +462,7 @@ const prod = {
   ], // added 21044 zydus id for testing one zydus user in prod
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
   ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",
+  templates_api_url: "https://pm-ipd-prod.tatvacare.in",
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
 };
