@@ -9,7 +9,7 @@ import { env } from "../../EnvironmentConfig";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX } from "../../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
 
 import { getPatientBirthWeight, getVitals } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
@@ -24,6 +24,7 @@ import TabMedicationBox from "../../components/tab_design/TabMedicationBox";
 import TabAdviceBox from "../../components/tab_design/TabAdviceBox";
 import TabInvestigationBox from "../../components/tab_design/TabInvestigationBox";
 import TabFollowUpBox from "../../components/tab_design/TabFollowUpBox";
+import OphthalmologyExamPanel from "../../components/ophthalmology/OphthalmologyExamPanel";
 
 import VitalsBox from "../../components/VitalsBox";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
@@ -107,7 +108,7 @@ import TatvaAiBanner from "../../components/TatvaAiBanner";
 import TatvaAiKnowMore from "../../components/TatvaAiKnowMore";
 import ExpiredSubModal from "../monetization/components/ExpiredSubModal";
 import { checkCredits } from "../../redux/monetizationSlice";
-import { services } from "../../redux/doctorsSlice";
+import { services, setCustomizedPadLists } from "../../redux/doctorsSlice";
 import SCPopup from "../../components/SCPopup";
 import { fetchSymptomsCollectorData } from "../../api/services/ApiGenRx";
 import SCBanner from "../../components/SCBanner";
@@ -117,6 +118,12 @@ import { getCarePlanNames, getCarePlanAssignments } from "../smartSync/services/
 import TabCarePlanList from "../../components/tab_design/TabCarePlanList";
 import GroundingBox from "../../components/GroundingBox";
 import GroundingKnowMore from "../../components/GroundingKnowMore";
+import { getOpthalPrescriptionDetails } from "../ophthalmology/service";
+import {
+  resetOpthalForm,
+  setLastOpthalPrescriptionData,
+  setOpthalPrescriptionId,
+} from "../../redux/ophthalmologyExamSlice";
 
 function TabPrescription() {
   const {
@@ -125,6 +132,7 @@ function TabPrescription() {
     frequencyList,
     timingList,
     userId,
+    opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -139,6 +147,7 @@ function TabPrescription() {
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
   const { examinationHistory = [] } = obstetricDetails || [];
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const shouldShowAncHistory = obstetricDetails?.ancHistory?.find(
     (item) =>
       !item?.deleted &&
@@ -224,6 +233,41 @@ function TabPrescription() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchOpthalPrescription = async () => {
+      dispatch(resetOpthalForm());
+      dispatch(setLastOpthalPrescriptionData(null));
+      dispatch(setOpthalPrescriptionId(null));
+      if (!tcmId) {
+        return;
+      }
+      try {
+        const response = await getOpthalPrescriptionDetails({
+          tcm_id: tcmId,
+          patientId: patient_data?.patient_unique_id,
+        });
+        const data = response?.data ?? response;
+        const payload = Array.isArray(data) ? data[0] : data;
+        if (!isMounted || !payload) {
+          return;
+        }
+        dispatch(setLastOpthalPrescriptionData(payload));
+        if (payload?._id) {
+          dispatch(setOpthalPrescriptionId(payload._id));
+        }
+        setLoadPrevOpthalSignal((prev) => prev + 1);
+      } catch (error) {
+        console.error("Error fetching opthal prescription details:", error);
+      }
+    };
+    fetchOpthalPrescription();
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, tcmId]);
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object)
@@ -384,6 +428,41 @@ function TabPrescription() {
       fetchCarePlanNames();
     }
   }, [isCarePlanEnabled]);
+
+  useEffect(() => {
+    if (!isOpthalModuleAccessible || profile?.dp_id !== 17) {
+      return;
+    }
+    if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
+      return;
+    }
+    if (customizedPadRightList.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)) {
+      return;
+    }
+    if (opthalModuleAutoAdded) {
+      return;
+    }
+    const medicationsIndex = customizedPadRightList.findIndex(
+      (item) => item?.tmdpm_id === 12
+    );
+    const nextRightList = [...customizedPadRightList];
+    if (medicationsIndex >= 0) {
+      nextRightList.splice(medicationsIndex + 1, 0, { ...OPTHAL_PAD_MODULE });
+    } else {
+      nextRightList.push({ ...OPTHAL_PAD_MODULE });
+    }
+    dispatch(
+      setCustomizedPadLists({
+        right: nextRightList,
+        opthalModuleAutoAdded: true,
+      })
+    );
+  }, [
+    customizedPadRightList,
+    isOpthalModuleAccessible,
+    opthalModuleAutoAdded,
+    profile?.dp_id,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
@@ -1701,6 +1780,17 @@ function TabPrescription() {
                     <div key={i} className="prescription-box-sm">
                       <TabMedicationBox />
                     </div>
+                  ) : e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
+                    
+                      <div key={i} className="opthal-panel-wrapper">
+                        <OphthalmologyExamPanel
+                          patientData={patient_data}
+                          showHeader
+                          headerTitle="Ophthal"
+                          loadPrevAllSignal={loadPrevOpthalSignal}
+                          fetchLastOnMount={true}
+                        />
+                      </div>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       {" "}

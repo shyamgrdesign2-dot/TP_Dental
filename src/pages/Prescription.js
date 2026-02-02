@@ -1848,7 +1848,6 @@ function Prescription() {
                       <MedicationsBox />
                     </div>
                   ) : e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
-                    isOpthalModuleAccessible ? (
                       <div key={i} className="opthal-panel-wrapper">
                         <OphthalmologyExamPanel
                           patientData={patient_data}
@@ -1858,7 +1857,6 @@ function Prescription() {
                           fetchLastOnMount={true}
                         />
                       </div>
-                    ) : null
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <AdviceBox />
