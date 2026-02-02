@@ -47,7 +47,7 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, in
   
   const decodedToken = getDecodedToken();
   const hospital_business_id = decodedToken?.result?.hospital_business_id;
-  const isApollo = config.APOLLO_BUSINESS_IDS?.includes(hospital_business_id);
+  const isApollo = config.APOLLO_BUSINESS_IDS_CM_V2?.includes(hospital_business_id);
 
   // Initialize form data when initialData changes (for edit mode)
   // Use a ref to track if we've already initialized to prevent infinite loops

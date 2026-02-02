@@ -569,8 +569,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const labParamsPatchTableData = labParamsPatchData ? syncLabResultsData(labParamsPatchData) : null;
 
     const getCustomModuleName = (id) => {
-        const customModule = customModules.find((module) => module.module_id === id);
-        return customModule?.name ? customModule?.printConfig?.nameOverride !== undefined ? customModule?.printConfig?.nameOverride : customModule?.name : caseManagerData?.moduleContents?.find((module) => module.module_id === id)?.module_name;
+        // Safety check: ensure customModules is an array before calling .find()
+        const customModule = Array.isArray(customModules) ? customModules.find((module) => module.module_id === id) : null;
+        
+        if (customModule?.name) {
+            return customModule?.printConfig?.nameOverride !== undefined 
+                ? customModule?.printConfig?.nameOverride 
+                : customModule?.name;
+        }
+        
+        // Fallback: try to get name from caseManagerData.moduleContents
+        if (caseManagerData?.moduleContents && Array.isArray(caseManagerData.moduleContents)) {
+            const moduleContent = caseManagerData.moduleContents.find((module) => module.module_id === id);
+            return moduleContent?.module_name;
+        }
+        
+        return undefined;
     }
 
     const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {

@@ -16,8 +16,9 @@ import "./SelectExistingModuleTab.scss";
  *
  * @param {Function} onAddToRx - Callback when "Add to Rx" is clicked
  * @param {Function} onViewMore - Callback when "View more" is clicked
+ * @param {Boolean} drawerOpen - Whether the parent drawer is open (used to reset search on close)
  */
-const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
+const SelectExistingModuleTab = ({ onAddToRx, onViewMore, drawerOpen }) => {
   const dispatch = useDispatch();
   const { customModules: reduxModules, hospitalSearchResults, loading } = useSelector(
     (state) => state.customModules
@@ -28,7 +29,7 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
   const hospital_business_id = decodedToken?.result?.hospital_business_id;
-  const isApollo = config.APOLLO_BUSINESS_IDS?.includes(hospital_business_id);
+  const isApollo = config.APOLLO_BUSINESS_IDS_CM_V2?.includes(hospital_business_id);
 
   // Fetch modules by hospital on mount
   useEffect(() => {
@@ -45,6 +46,13 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
       }));
     }
   }, [hospitalId, userId, dispatch]);
+
+  // Reset search query when drawer opens to ensure fresh state
+  useEffect(() => {
+    if (drawerOpen) {
+      setSearchQuery("");
+    }
+  }, [drawerOpen]);
 
   // Update local modules when Redux state changes
   useEffect(() => {

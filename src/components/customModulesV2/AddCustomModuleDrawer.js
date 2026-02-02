@@ -35,6 +35,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   // Used to force reset of CreateNewModuleTab internal state after successful creation
   const [createTabKey, setCreateTabKey] = useState(0);
+  // Local loading state for module creation process (prevents multiple clicks)
+  const [isCreatingModule, setIsCreatingModule] = useState(false);
   const decodedToken = getDecodedToken();
   const hospitalId = decodedToken?.result?.clinic_id;
 
@@ -233,6 +235,21 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
           await dispatch(customizedPad(sendData)).unwrap();
           
+          // Refresh customModules to ensure the newly added/cloned module is available
+          // This is critical for the prescription page to find and render the module
+          await dispatch(getModules(userId)).unwrap();
+          
+          // Also refresh hospital search results to ensure all modules are available
+          if (hospitalId) {
+            await dispatch(searchModulesByHospital({
+              hospitalId,
+              moduleName: "",
+              page: 1,
+              limit: 100,
+              departmentId: profile?.dp_id
+            })).unwrap();
+          }
+          
           message.success({
             content: needsCloning 
               ? `"${targetModuleName}" cloned and added to your prescription pad!`
@@ -267,6 +284,8 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
       customizedPadLeftList,
       defaultPrintSettings,
       onClose,
+      hospitalId,
+      profile?.dp_id,
     ]
   );
 
@@ -288,6 +307,13 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
         message.error("Missing required information");
         return;
       }
+
+      // Prevent multiple clicks by setting loading state immediately
+      if (isCreatingModule) {
+        return;
+      }
+
+      setIsCreatingModule(true);
 
       try {
         // Helper function to convert label to camelCase fieldName
@@ -406,7 +432,25 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             };
 
             await dispatch(customizedPad(sendData)).unwrap();
-            
+          }
+        }
+
+        // Refresh modules list by hospital (after all API calls complete)
+        await dispatch(searchModulesByHospital({
+          hospitalId,
+          moduleName: "",
+          page: 1,
+          limit: 100,
+          departmentId: profile?.dp_id
+        })).unwrap();
+
+        // Show success message only after ALL API calls complete
+        if (newlyCreatedModule && newlyCreatedModule.module_id) {
+          const moduleExists = customizedPadRightList?.some(
+            (item) => item.tmdpm_id === newlyCreatedModule.module_id
+          );
+          
+          if (!moduleExists) {
             message.success(
               `Module "${moduleData.moduleName}" created and added to your prescription pad!`
             );
@@ -421,20 +465,11 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           );
         }
 
-        // Refresh modules list by hospital
-        await dispatch(searchModulesByHospital({
-          hospitalId,
-          moduleName: "",
-          page: 1,
-          limit: 100,
-          departmentId: profile?.dp_id
-        })).unwrap();
-
-    setConfirmModalOpen(false);
-    // Close drawer after creation
-    onClose();
-    // Reset form data
-    setCreateModuleFormData(null);
+        setConfirmModalOpen(false);
+        // Close drawer after creation
+        onClose();
+        // Reset form data
+        setCreateModuleFormData(null);
         // Reset to select tab
         setActiveTab("select");
         // Force remount of CreateNewModuleTab so its internal state (inputs) is cleared
@@ -446,9 +481,12 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
           error?.error ||
           "Failed to create module. Please try again.";
         message.error(errorMessage);
+      } finally {
+        // Always reset loading state, even if there's an error
+        setIsCreatingModule(false);
       }
     },
-    [dispatch, userId, onClose, customModules, hospitalId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings]
+    [dispatch, userId, onClose, customModules, hospitalId, customizedPadRightList, customizedPadLeftList, defaultPrintSettings, profile, isCreatingModule]
   );
 
   const handleFormChange = useCallback((formData) => {
@@ -504,6 +542,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
             <SelectExistingModuleTab
               onAddToRx={handleAddToRx}
               onViewMore={handleViewMore}
+              drawerOpen={open}
             />
           </TabPane>
           <TabPane
@@ -523,10 +562,15 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
       {/* Confirm Module Modal */}
       <ConfirmModuleModal
         open={confirmModalOpen}
-        onClose={() => setConfirmModalOpen(false)}
+        onClose={() => {
+          // Prevent closing modal while creating module
+          if (!isCreatingModule) {
+            setConfirmModalOpen(false);
+          }
+        }}
         onConfirm={handleConfirmModule}
         moduleData={createModuleFormData}
-        loading={loading}
+        loading={isCreatingModule}
       />
     </Drawer>
   );

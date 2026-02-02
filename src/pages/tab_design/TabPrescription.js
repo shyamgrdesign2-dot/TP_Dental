@@ -218,6 +218,35 @@ function TabPrescription() {
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
+  // Clear removedModuleIds for modules that are explicitly added back via Redux
+  // This handles the case when a user adds a module back via "Add to Rx"
+  useEffect(() => {
+    if (removedModuleIds.size > 0 && originalCustomizedPadRightList?.length > 0) {
+      const modulesInRedux = new Set(
+        originalCustomizedPadRightList
+          .filter((item) => item.is_custom_module)
+          .map((item) => item.tmdpm_id)
+      );
+      
+      // Check if any removed modules are now back in Redux (explicitly added)
+      const needsUpdate = Array.from(removedModuleIds).some((moduleId) => modulesInRedux.has(moduleId));
+      
+      if (needsUpdate) {
+        setRemovedModuleIds((prev) => {
+          const newSet = new Set(prev);
+          let hasChanges = false;
+          modulesInRedux.forEach((moduleId) => {
+            if (newSet.has(moduleId)) {
+              newSet.delete(moduleId);
+              hasChanges = true;
+            }
+          });
+          return hasChanges ? newSet : prev;
+        });
+      }
+    }
+  }, [originalCustomizedPadRightList]);
+
   // Update local customizedPadRightList when Redux state changes
   // Filter out any modules that are in removedModuleIds to prevent them from reappearing
   useEffect(() => {
@@ -414,6 +443,14 @@ function TabPrescription() {
       setRemovedModuleIds((prev) => new Set([...prev, moduleId]));
       // Note: customModuleContents is already updated in the component's handleRemoveFromRxPad
       // We don't need to update it here to avoid double removal
+    },
+    markModuleAsAdded: (moduleId) => {
+      // Remove module from removedModuleIds when explicitly added back to Rx pad
+      setRemovedModuleIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(moduleId);
+        return newSet;
+      });
     },
     showHideSubModal,
     useVoiceRx,

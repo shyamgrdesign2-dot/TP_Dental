@@ -40,13 +40,13 @@ const AddCustomModuleV2 = ({ onOpenDrawer }) => {
         <span className="add-custom-module-v2__count">
           {moduleCount}/{MAX_MODULES} modules added
         </span>
-        <Tooltip
+        {/* <Tooltip
           title="You can create up to 10 custom modules. If you've reached the limit, delete an existing custom module to add a new one."
           placement="top"
           overlayClassName="add-custom-module-v2__tooltip"
         >
           <InfoCircleOutlined className="add-custom-module-v2__info-icon" />
-        </Tooltip>
+        </Tooltip> */}
       </div>
     </div>
   );

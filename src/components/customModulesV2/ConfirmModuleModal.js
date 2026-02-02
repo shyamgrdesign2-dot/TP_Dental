@@ -56,7 +56,8 @@ const ConfirmModuleModal = ({
           </h2>
           <CloseOutlined
             className="confirm-module-modal__close-icon"
-            onClick={onClose}
+            onClick={loading ? undefined : onClose}
+            style={{ cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
           />
         </div>
 
