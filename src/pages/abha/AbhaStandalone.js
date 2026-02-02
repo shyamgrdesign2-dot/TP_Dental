@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import CreatePatientAbha from "../../components/abha/screens/CreatePatientAbha";
-import CreatePatientAbhaStandaloneOtpOnly from "../../components/abha/screens/CreatePatientAbhaStandaloneOtpOnly";
 import AbhaVerifyOtp from "../../components/abha/screens/AbhaVerifyOtp";
 import MobileVerifyOtp from "../../components/abha/screens/MobileVerifyOtp";
 import CreateNewAbhaAddress from "../../components/abha/screens/CreateNewAbhaAddress";
@@ -40,7 +39,6 @@ const FLOW_TYPES = {
   LINK_EXISTING: "link_existing",
 };
 
-/** Set to true when standalone biometric flow is ready to ship. Doctor portal (AbhaDrawer) is unaffected. */
 const BIOMETRIC_FLOW_ENABLED = true;
 
 const AbhaStandalone = () => {
@@ -56,6 +54,7 @@ const AbhaStandalone = () => {
   const embedded = searchParams.get("embedded") === "true";
   const callbackUrl = searchParams.get("callbackUrl");
   const origin = searchParams.get("origin");
+  const biometricFlowEnabled = BIOMETRIC_FLOW_ENABLED || (embedded && searchParams.get("biometricFlow") === "true");
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(null);
@@ -463,7 +462,7 @@ const AbhaStandalone = () => {
   };
 
   const handleNextClick = async () => {
-    if (BIOMETRIC_FLOW_ENABLED && currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
+    if (biometricFlowEnabled && currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION) {
       await handleBiometricVerifyNext();
       return;
     }
@@ -622,8 +621,6 @@ const AbhaStandalone = () => {
     if (callbackUrl) {
       window.location.href = `${decodeURIComponent(callbackUrl)}?status=cancelled`;
     } else if (embedded) {
-      // In iframe, just notify parent - don't navigate
-      // Parent can handle closing the iframe
     }
   }, [callbackUrl, embedded, postMessageToParent]);
 
@@ -640,36 +637,7 @@ const AbhaStandalone = () => {
     }
   }, [currentScreen, screenData]);
 
-  useEffect(() => {
-    if (
-      !BIOMETRIC_FLOW_ENABLED &&
-      (currentScreen === ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY ||
-        currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION)
-    ) {
-      goToCreate({
-        initialAadhaar: screenData?.aadhaarNumber || screenData?.initialAadhaar || "",
-      });
-    }
-  }, [BIOMETRIC_FLOW_ENABLED, currentScreen, goToCreate, screenData?.aadhaarNumber, screenData?.initialAadhaar]);
-
   const renderScreen = () => {
-    if (!BIOMETRIC_FLOW_ENABLED) {
-      if (
-        currentScreen === ABHA_SCREENS.CREATE ||
-        currentScreen === ABHA_SCREENS.BIOMETRIC_AADHAAR_ENTRY ||
-        currentScreen === ABHA_SCREENS.BIOMETRIC_VERIFICATION
-      ) {
-        return (
-          <CreatePatientAbhaStandaloneOtpOnly
-            onLinkOptionSelect={handleLinkNavigation}
-            onOtpSent={handleOtpSent}
-            patientUniqueId={patientUniqueId || null}
-            initialAadhaar={screenData?.initialAadhaar || ""}
-          />
-        );
-      }
-    }
-
     switch (currentScreen) {
       case ABHA_SCREENS.CREATE:
         return (
@@ -830,14 +798,7 @@ const AbhaStandalone = () => {
           />
         );
       default:
-        return !BIOMETRIC_FLOW_ENABLED ? (
-          <CreatePatientAbhaStandaloneOtpOnly
-            onLinkOptionSelect={handleLinkNavigation}
-            onOtpSent={handleOtpSent}
-            patientUniqueId={patientUniqueId || null}
-            initialAadhaar={screenData?.initialAadhaar || ""}
-          />
-        ) : (
+        return (
           <CreatePatientAbha
             onLinkOptionSelect={handleLinkNavigation}
             onOtpSent={handleOtpSent}
@@ -894,12 +855,14 @@ const AbhaStandalone = () => {
         </div>
         <div className="abha-standalone-content">{renderScreen()}</div>
       </div>
-      {BIOMETRIC_FLOW_ENABLED && (
+      {biometricFlowEnabled && (
         <BiometricCapturePopup
           open={biometricPopupOpen}
           onClose={() => setBiometricPopupOpen(false)}
           onCaptureSuccess={handleBiometricCaptureSuccess}
           onCaptureError={handleBiometricCaptureError}
+          embedded={embedded}
+          parentOrigin={origin || undefined}
         />
       )}
     </div>
