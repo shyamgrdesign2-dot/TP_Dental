@@ -333,12 +333,12 @@ function CustomModule({ module }) {
   const loadPreviousClick = async () => {
     const tokenData = decodedToken?.result;
     var sendData = {
-      module_id: module?.module_id,
-      hm_business_id: tokenData?.hospital_business_id,
-      um_id: tokenData?.user_id,
+      module_id: `${module?.module_id}`,
+      hm_business_id: `${tokenData?.hospital_business_id}`,
+      um_id: `${tokenData?.user_id}`,
       patient_unique_id:
-        patient_data !== undefined ? patient_data.patient_unique_id : 0,
-      tcm_id: tcmId,
+        patient_data !== undefined ? `${patient_data.patient_unique_id}` : "0",
+      tcm_id: `${tcmId}`,
     };
     const action = await dispatch(userPreModulesRX(sendData));
     if (action.meta.requestStatus === "fulfilled") {

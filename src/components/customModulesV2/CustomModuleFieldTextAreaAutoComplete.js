@@ -98,14 +98,17 @@ const CustomModuleFieldTextAreaAutoComplete = ({
     return Array.from(values);
   }, [templates, fieldName, searchQuery]);
 
-  // Call search API when query > 3 chars - only if this field is focused
+  // Call search API when query > 3 chars and <= 25 chars - only if this field is focused
   useEffect(() => {
-    if (isFocused && searchQuery && searchQuery.trim().length > 3) {
+    const trimmedQuery = searchQuery?.trim() || "";
+    const queryLength = trimmedQuery.length;
+    
+    if (isFocused && trimmedQuery && queryLength > 3 && queryLength <= 25) {
       const timeOutId = setTimeout(() => {
         dispatch(
           searchModule({
             moduleId,
-            keyword: searchQuery.trim(),
+            keyword: trimmedQuery,
             fieldName,
           })
         );
@@ -170,42 +173,87 @@ const CustomModuleFieldTextAreaAutoComplete = ({
         });
       }
     }
-    // If query > 3 chars, show API results
+    // If query > 3 chars and <= 25 chars, show API results (if found)
+    // If query > 25 chars, only show "Add Custom" option
     else {
-      if (searchModuleResults && Array.isArray(searchModuleResults)) {
-        const apiValues = new Set();
-        searchModuleResults.forEach((result) => {
-          if (result.moduleContents && Array.isArray(result.moduleContents)) {
-            result.moduleContents.forEach((moduleContent) => {
-              if (
-                moduleContent.content &&
-                moduleContent.content[fieldName]
-              ) {
-                const fieldValue = moduleContent.content[fieldName];
-                if (fieldValue && fieldValue.trim()) {
-                  apiValues.add(fieldValue.trim());
+      const queryTrimmed = searchQuery.trim();
+      const queryLength = queryTrimmed.length;
+      
+      // Only process API results if query length is between 4 and 25
+      if (queryLength > 3 && queryLength <= 25) {
+        if (searchModuleResults && Array.isArray(searchModuleResults)) {
+          const apiValues = new Set();
+          searchModuleResults.forEach((result) => {
+            if (result.moduleContents && Array.isArray(result.moduleContents)) {
+              result.moduleContents.forEach((moduleContent) => {
+                if (
+                  moduleContent.content &&
+                  moduleContent.content[fieldName]
+                ) {
+                  const fieldValue = moduleContent.content[fieldName];
+                  if (fieldValue && fieldValue.trim()) {
+                    apiValues.add(fieldValue.trim());
+                  }
                 }
-              }
+              });
+            }
+          });
+
+          // Only show API results if we found something
+          if (apiValues.size > 0) {
+            Array.from(apiValues).forEach((val) => {
+              data.push({
+                key: JSON.stringify({ value: val }),
+                value: val,
+                label: <div>{val}</div>,
+              });
             });
           }
-        });
 
-        Array.from(apiValues).forEach((val) => {
-          data.push({
-            key: JSON.stringify({ value: val }),
-            value: val,
-            label: <div>{val}</div>,
-          });
-        });
-
-        // Add custom value option if not in API results
-        const queryTrimmed = searchQuery.trim();
-        if (
-          queryTrimmed &&
-          !Array.from(apiValues).some(
-            (v) => v.toLowerCase() === queryTrimmed.toLowerCase()
-          )
-        ) {
+          // Add custom value option if not in API results or no results found
+          if (
+            queryTrimmed &&
+            (!Array.from(apiValues).some(
+              (v) => v.toLowerCase() === queryTrimmed.toLowerCase()
+            ) || apiValues.size === 0)
+          ) {
+            data.push({
+              key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
+              value: queryTrimmed,
+              label: (
+                <div>
+                  {queryTrimmed}
+                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
+                  <span className="fw-medium text-decoration-underline text-primary">
+                    {" "}
+                    Add Custom
+                  </span>
+                </div>
+              ),
+            });
+          }
+        } else {
+          // No API results yet, show "Add Custom" option
+          if (queryTrimmed) {
+            data.push({
+              key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
+              value: queryTrimmed,
+              label: (
+                <div>
+                  {queryTrimmed}
+                  <i className="icon-Add mx-1 text-primary fs-6"></i>{" "}
+                  <span className="fw-medium text-decoration-underline text-primary">
+                    {" "}
+                    Add Custom
+                  </span>
+                </div>
+              ),
+            });
+          }
+        }
+      } else if (queryLength > 25) {
+        // Query length > 25, only show "Add Custom" option
+        if (queryTrimmed) {
           data.push({
             key: JSON.stringify({ value: queryTrimmed, isCustom: true }),
             value: queryTrimmed,

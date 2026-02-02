@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { Table, Switch, Row, Col, Button, Card, Popover, Modal } from 'antd';
-import { MenuOutlined } from '@ant-design/icons';
+import { Table, Switch, Row, Col, Button, Card, Popover, Modal, Dropdown, Menu, message } from 'antd';
+import { MenuOutlined, MoreOutlined } from '@ant-design/icons';
 import { DndContext } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, } from '@dnd-kit/sortable';
@@ -21,6 +21,11 @@ import { useAccess } from '../pages/vaccination/useAccess';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_CARE_PLAN, GB_ISCRIBE } from '../utils/constants';
 import customModuleIcon from '../assets/images/custom-module.svg';
+import editIcon from '../assets/images/edit-icon-blue.svg';
+import deleteIcon from '../assets/images/delete-icon-blue.svg';
+import { addModule, getModules } from '../redux/customModuleSlice';
+import { savePrintsettings } from '../redux/doctorsSlice';
+import EditCustomModuleDrawer from '../components/customModulesV2/EditCustomModuleDrawer';
 
 const CustomRow = ({ children, ...props }) => {
   const {
@@ -76,7 +81,7 @@ const CustomRow = ({ children, ...props }) => {
 function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowthChartEnabled, page }) {
 
   const { setSymptomsData, setExaminationData, setDiagnosisData, setAdviceData, setInvestigationData, setMedicationData, setVitalsData, setMedicalHistoryData, setPrivateNotesData, setFollowUpDate, setAdditionalNote } = useContext(CashManagerContext);
-  const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile } = useSelector((state) => state.doctors);
+  const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile, userId, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
   const [dataSourceLeft, setDataSourceLeft] = useState([]);
   const [dataSourceRight, setDataSourceRight] = useState([]);
@@ -84,8 +89,10 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const [popOverVideo, setPopOverVideo] = useState(false);
   const [videoLink, setVideoLink] = useState(null);
   const { isGynaecHistoryAccessable } = useAccess();
-  const {customModules} = useSelector((state) => state.customModules);
+  const {customModules, hospitalSearchResults} = useSelector((state) => state.customModules);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [selectedModuleForEdit, setSelectedModuleForEdit] = useState(null);
 
   useEffect(() => {
     if (customizedPadLeftList.length > 0) {
@@ -108,6 +115,28 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     }
     
   }, [handleDrawerCustomize]);
+
+  // Update module names in dataSourceRight when customModules change
+  useEffect(() => {
+    if (customModules && customModules.length > 0 && dataSourceRight.length > 0) {
+      setDataSourceRight((prev) =>
+        prev.map((item) => {
+          if (item.is_custom_module) {
+            const updatedModule = customModules.find(
+              (m) => m.module_id === item.tmdpm_id
+            );
+            if (updatedModule && updatedModule.name !== item.tmdpm_name) {
+              return {
+                ...item,
+                tmdpm_name: updatedModule.name,
+              };
+            }
+          }
+          return item;
+        })
+      );
+    }
+  }, [customModules]);
 
   //LEFT SIDE OF ELEMETNS
   const columnsLeft = [
@@ -152,6 +181,219 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     }
   };
 
+  // Get module definition and check if it's disabled
+  const getModuleDefinition = (moduleId) => {
+    return customModules?.find((m) => m.module_id === moduleId) || null;
+  };
+
+  const isModuleDisabled = (record) => {
+    if (!record.is_custom_module) return false;
+    const moduleDef = getModuleDefinition(record.tmdpm_id);
+    if (!moduleDef) return false;
+    return moduleDef.hasBeenUsed || moduleDef.hasBeenCloned || moduleDef.userId != userId;
+  };
+
+  // Handle remove module from Rx pad
+  const handleRemoveFromRxPad = async (record) => {
+    try {
+      message.loading({
+        content: "Removing module from Rx pad...",
+        key: "removeFromRx",
+      });
+
+      const updatedRightList = dataSourceRight.filter(
+        (item) => item.tmdpm_id !== record.tmdpm_id
+      );
+
+      const sendData = {
+        data: {
+          default: false,
+          reset: false,
+          left: dataSourceLeft,
+          right: updatedRightList,
+        },
+      };
+
+      await dispatch(customizedPad(sendData)).unwrap();
+      setDataSourceRight(updatedRightList);
+
+      message.success({
+        content: `"${record.tmdpm_name}" removed from Rx pad successfully`,
+        key: "removeFromRx",
+        duration: 3,
+      });
+    } catch (error) {
+      console.error("Error removing module from Rx pad:", error);
+      message.error({
+        content: error?.message || "Failed to remove module from Rx pad. Please try again.",
+        key: "removeFromRx",
+        duration: 3,
+      });
+    }
+  };
+
+  // Handle edit module
+  const handleEditModule = (record) => {
+    const moduleDef = getModuleDefinition(record.tmdpm_id);
+    if (moduleDef) {
+      setSelectedModuleForEdit(moduleDef);
+      setEditDrawerOpen(true);
+    }
+  };
+
+  // Handle delete module
+  const handleDeleteModule = async (record) => {
+    try {
+      message.loading({ content: "Deleting module...", key: "deleteModule" });
+
+      const moduleDef = getModuleDefinition(record.tmdpm_id);
+      if (!moduleDef) {
+        message.error({ content: "Module not found", key: "deleteModule", duration: 3 });
+        return;
+      }
+
+      // Step 1: Remove module from user modules
+      const modules = customModules.filter(
+        (cm) => cm.module_id !== record.tmdpm_id
+      );
+      const action = await dispatch(addModule({ userId, modules }));
+
+      if (action.meta.requestStatus === "fulfilled") {
+        // Step 2: Remove from print settings
+        if (defaultPrintSettings?.prescription?.case_option) {
+          const caseOptions = defaultPrintSettings.prescription.case_option;
+
+          const updatedCaseOptions = caseOptions.filter(
+            (option) =>
+              !(option.id === record.tmdpm_id && option.is_custom_module)
+          );
+
+          const rxPrescription = {
+            ...defaultPrintSettings.prescription,
+            case_option: updatedCaseOptions,
+          };
+
+          const printSettingsData = {
+            ...defaultPrintSettings,
+            prescription: JSON.stringify(rxPrescription),
+            header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+            page_format: JSON.stringify(defaultPrintSettings.page_format),
+          };
+
+          await dispatch(savePrintsettings(printSettingsData)).unwrap();
+        }
+
+        // Step 3: Remove from customized pad
+        const updatedRightPad = dataSourceRight.filter(
+          (item) => item.tmdpm_id !== record.tmdpm_id
+        );
+        setDataSourceRight(updatedRightPad);
+
+        // Refresh modules list
+        if (userId) {
+          await dispatch(getModules(userId));
+        }
+
+        message.success({
+          content: `Module "${record.tmdpm_name}" deleted successfully`,
+          key: "deleteModule",
+          duration: 3,
+        });
+      } else {
+        message.error({
+          content: "Failed to delete module",
+          key: "deleteModule",
+          duration: 3,
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting module:", error);
+      message.error({
+        content: "Failed to delete module. Please try again.",
+        key: "deleteModule",
+        duration: 3,
+      });
+    }
+  };
+
+  // Create dropdown menu for custom modules
+  const createMoreMenu = (record) => {
+    const disabled = isModuleDisabled(record);
+    return (
+      <Menu>
+        <Menu.Item
+          key="remove"
+          onClick={() => handleRemoveFromRxPad(record)}
+          style={{
+            fontFamily: "Poppins, sans-serif",
+            fontSize: "14px",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: "#4a4a4a",
+            padding: "8px 12px",
+          }}
+        >
+          <i className="icon-exit color-blue" style={{ margin: "0 4px 3px 0" }}></i>
+          Remove From Rx Pad
+        </Menu.Item>
+        <Menu.Item
+          key="edit"
+          onClick={disabled ? undefined : () => handleEditModule(record)}
+          disabled={disabled}
+          style={{
+            fontFamily: "Poppins, sans-serif",
+            fontSize: "14px",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: disabled ? "#a2a2a8" : "#4a4a4a",
+            padding: "8px 12px",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.6 : 1,
+          }}
+        >
+          <img
+            src={editIcon}
+            width={18}
+            height={18}
+            alt="edit"
+            style={{ margin: "0 8px 3px 0" }}
+          />
+          Edit Module
+        </Menu.Item>
+        <Menu.Item
+          key="delete"
+          onClick={disabled ? undefined : () => handleDeleteModule(record)}
+          disabled={disabled}
+          style={{
+            fontFamily: "Poppins, sans-serif",
+            fontSize: "14px",
+            fontWeight: "500",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: disabled ? "#a2a2a8" : "#ff4d4f",
+            padding: "8px 12px",
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.6 : 1,
+          }}
+        >
+          <img
+            src={deleteIcon}
+            width={18}
+            height={18}
+            alt="delete"
+            style={{ margin: "0 8px 3px 0" }}
+          />
+          Delete Module
+        </Menu.Item>
+      </Menu>
+    );
+  };
+
   //RIGHT SIDE OF ELEMETNS
   const columnsRight = [
     {
@@ -173,7 +415,40 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       title: 'ENABLE/DISABLE',
       dataIndex: 'tmdpm_status',
       key: 'tmdpm_status',
-      render: (text, record) => <Switch defaultChecked onChange={(checked) => onChangeRight(checked, record)} checked={text ? false : true} />,
+      width: 160,
+      align: 'right',
+      render: (text, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Switch defaultChecked onChange={(checked) => onChangeRight(checked, record)} checked={text ? false : true} />
+            {record.is_custom_module ? (
+              <Dropdown
+                overlay={createMoreMenu(record)}
+                trigger={["click"]}
+                placement="bottomRight"
+              >
+                <Button
+                  type="text"
+                  icon={
+                    <MoreOutlined
+                      style={{
+                        fontSize: "18px",
+                        color: "#4a4a4a",
+                        fontWeight: "bold",
+                        cursor: "pointer"
+                      }}
+                    />
+                  }
+                  className="more-options-btn"
+                  style={{ padding: '4px 0', minWidth: 'auto', height: 'auto', marginLeft: '8px' }}
+                />
+              </Dropdown>
+            ) : (
+              <div style={{ width: '26px', height: '26px', marginLeft: '12px' }}></div>
+            )}
+          </div>
+        </div>
+      ),
     },
   ];
 
@@ -480,6 +755,21 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         <VideoModal
           videoLink={videoLink}
           onCancel={() => setVideoLink(null)}
+        />
+      )}
+
+      {editDrawerOpen && selectedModuleForEdit && (
+        <EditCustomModuleDrawer
+          open={editDrawerOpen}
+          onClose={async () => {
+            setEditDrawerOpen(false);
+            setSelectedModuleForEdit(null);
+            // Refresh modules after edit
+            if (userId) {
+              await dispatch(getModules(userId));
+            }
+          }}
+          module={selectedModuleForEdit}
         />
       )}
     </div>

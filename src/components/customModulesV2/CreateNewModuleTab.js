@@ -8,7 +8,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { customizedPad } from "../../redux/doctorsSlice";
 import alertIcon from '../../assets/images/alertIcon.svg';
 import stethoscopeIcon from '../../assets/images/stethoscope.svg';
-import Plus from '../../assets/images/website-images/plus.svg'
+import Plus from '../../assets/images/website-images/plus.svg';
+import moduleLimitIcon from '../../assets/images/moduleLimitIcon.svg';
 import ModuleListItem from "./ModuleListItem";
 import { getDecodedToken } from "../../utils/localStorage";
 import config from "../../config";
@@ -16,6 +17,7 @@ import "./CreateNewModuleTab.scss";
 
 const MAX_MODULE_NAME_LENGTH = 30;
 const MAX_COLUMN_LABEL_LENGTH = 15;
+const MAX_MODULES = 15;
 
 /**
  * CreateNewModuleTab Component
@@ -48,6 +50,11 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, in
   const decodedToken = getDecodedToken();
   const hospital_business_id = decodedToken?.result?.hospital_business_id;
   const isApollo = config.APOLLO_BUSINESS_IDS_CM_V2?.includes(hospital_business_id);
+
+  // Count user-created modules (exclude cloned modules with origin_id)
+  const userCreatedModules = customModules?.filter((module) => !module.origin_id) || [];
+  const moduleCount = userCreatedModules.length;
+  const isModuleLimitReached = moduleCount >= MAX_MODULES;
 
   // Initialize form data when initialData changes (for edit mode)
   // Use a ref to track if we've already initialized to prevent infinite loops
@@ -274,6 +281,27 @@ const CreateNewModuleTab = ({ onCreateModule, onFormChange, editMode = false, in
       "Unknown"
     );
   }, [hospitalSearchResults]);
+
+  // Show module limit warning if limit is reached and not in edit mode
+  if (isModuleLimitReached && !editMode) {
+    return (
+      <div className="create-new-module-tab">
+        <div className="create-new-module-tab__content">
+          <div className="create-new-module-tab__limit-warning">
+            <div className="create-new-module-tab__limit-icon">
+              <img src={moduleLimitIcon} alt="Module limit reached" />
+            </div>
+            <h3 className="create-new-module-tab__limit-title">
+              Module limit reached
+            </h3>
+              <h4 className="create-new-module-tab__limit-message">
+                You've already created the maximum of <span className="create-new-module-tab__limit-bold">{MAX_MODULES} custom modules</span>. To continue, please use existing modules.
+              </h4>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="create-new-module-tab">
