@@ -42,6 +42,17 @@ const snellenOptions = [
 
 const logMarOptions = buildRange(0.0, 1.2, 0.1, 1);
 const decimalOptions = buildRange(1.0, 0.1, -0.1, 1);
+const snellenNearOptionsForNear = [
+  "N5",
+  "N6",
+  "N8",
+  "N10",
+  "N12",
+  "N14",
+  "N18",
+  "N24",
+  "Unable to read near"
+];
 const jaegerOptions = [
   "J1",
   "J2",
@@ -85,6 +96,7 @@ export const OPHTHALMOLOGY_OPTIONS = {
   snellenOptions,
   logMarOptions,
   decimalOptions,
+  snellenNearOptionsForNear,
   jaegerOptions,
   tumblingOptions,
   sphereOptions,
@@ -348,7 +360,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "ucNear",
             label: "UC Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
           {
             key: "pinhole",
@@ -366,7 +378,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "cNear",
             label: "C Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
         ],
         rows: [
@@ -437,7 +449,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "near",
             label: "Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
         ],
         rows: [
@@ -484,7 +496,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "near",
             label: "Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
         ],
         rows: [
@@ -548,7 +560,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "near",
             label: "Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
         ],
         rows: [
@@ -607,7 +619,7 @@ export const OPHTHALMOLOGY_SECTIONS = [
             key: "near",
             label: "Near",
             placeholder: "Eg: N8",
-            optionsKey: "jaegerOptions",
+            optionsKey: "snellenNearOptionsForNear",
           },
         ],
         rows: [
