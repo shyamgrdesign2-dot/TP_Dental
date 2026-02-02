@@ -132,7 +132,7 @@ const qa_tp = {
   api_secret_key: "194627f7-u6hu-4378-q0e2-a34t5lt77f31",
   api_key: "TC_12o89l11327dfrt55",
   lab_params_api_url: "https://pm-patient-docs-qa.tatvacare.in",
-  opthal_prescription_api_url: "https://pm-patient-docs-uat.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-qa.tatvacare.in",
   opd_encryption_url:
     "https://api-uat.mytatva.in/api/v8/helper/encrypt_visit_data",
   opd_visit_url: "https://visit-enrolment-tatva.getvisitapp.net",
@@ -401,7 +401,7 @@ const prod = {
   rx_digitization: "https://pm-rxdigitization-prod.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-prod.tatvacare.in",
   lab_params_api_url: "https://pm-patient-docs-prod.tatvacare.in",
-  opthal_prescription_api_url: "https://pm-patient-docs-uat.tatvacare.in",
+  opthal_prescription_api_url: "https://pm-patient-docs-prod.tatvacare.in",
   user_management_api_url: "https://diginext-usermgmt-prod.tatvacare.in",
   razorpay_integration_url: "https://pm-razorpay-uat-integration.tatvacare.in",
   api_secret_key: "184028f7-a9dh-4518-k1f2-q07t5mn11g72",
