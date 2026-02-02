@@ -72,7 +72,7 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
       try {
         // Step 1: Check if the module is from another doctor and handle cloning
-        const isOwnModule = module.userId === userId;
+        const isOwnModule = module.userId == userId;
         
         if (!isOwnModule) {
           // Check if user already has this module cloned (check by origin_id)

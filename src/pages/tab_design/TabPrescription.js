@@ -124,11 +124,16 @@ import CustomModule from "../../components/CustomModule";
 function TabPrescription() {
   const {
     customizedPadLeftList,
-    customizedPadRightList,
+    customizedPadRightList: originalCustomizedPadRightList,
     frequencyList,
     timingList,
     userId,
   } = useSelector((state) => state.doctors);
+  
+  // Local state to manage customizedPadRightList with deleted modules for edit case
+  const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
+  // Track modules that have been explicitly removed from Rx pad to prevent re-adding
+  const [removedModuleIds, setRemovedModuleIds] = useState(new Set());
   const { planDetails } = useSelector((state) => state.subscription);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
@@ -167,7 +172,7 @@ function TabPrescription() {
   );
   const { profile } = useSelector((state) => state.doctors);
   const { isLoading } = useSelector((state) => state.uploadDoc);
-  const { customModules } = useSelector(
+  const { customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
   const decodedToken = getDecodedToken();
@@ -177,7 +182,33 @@ function TabPrescription() {
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
 
-  const { state } = useLocation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { state } = location;
+
+  // Create a combined module list that includes both user's modules and hospital-wide modules
+  // This ensures deleted modules are still available when editing a prescription
+  const allAvailableModules = React.useMemo(() => {
+    // Add userId to each module in customModules
+    const modulesWithUserId = customModules.map((module) => ({
+      ...module,
+      userId: userId || module.userId, // Use existing userId if available, otherwise add from Redux
+    }));
+    
+    const combined = [...modulesWithUserId];
+    const existingIds = new Set(modulesWithUserId.map((m) => m.module_id));
+    
+    // Add hospital modules that aren't already in the user's list
+    if (hospitalSearchResults?.modules) {
+      hospitalSearchResults.modules.forEach((module) => {
+        if (!existingIds.has(module.module_id)) {
+          combined.push(module);
+        }
+      });
+    }
+    
+    return combined;
+  }, [customModules, hospitalSearchResults, userId]);
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
@@ -186,6 +217,113 @@ function TabPrescription() {
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  // Update local customizedPadRightList when Redux state changes
+  // Filter out any modules that are in removedModuleIds to prevent them from reappearing
+  useEffect(() => {
+    const filteredList = originalCustomizedPadRightList.filter(
+      (item) => !item.is_custom_module || !removedModuleIds.has(item.tmdpm_id)
+    );
+    setCustomizedPadRightList(filteredList);
+  }, [originalCustomizedPadRightList, removedModuleIds]);
+
+  // Reconstruct customizedPadRightList to include deleted modules when editing a prescription
+  useEffect(() => {
+    if (caseManagerData?.moduleContents?.length > 0 && allAvailableModules.length > 0) {
+      // Get module IDs from the prescription content
+      const moduleIdsInPrescription = caseManagerData.moduleContents.map(
+        (content) => content.module_id
+      );
+
+      // Get module IDs already in the right list (check both Redux and local state)
+      const existingModuleIdsInRedux = new Set(
+        originalCustomizedPadRightList
+          .filter((item) => item.is_custom_module)
+          .map((item) => item.tmdpm_id)
+      );
+      const existingModuleIdsInLocal = new Set(
+        customizedPadRightList
+          .filter((item) => item.is_custom_module)
+          .map((item) => item.tmdpm_id)
+      );
+      // Combine both sets to get all existing module IDs
+      const existingModuleIds = new Set([...existingModuleIdsInRedux, ...existingModuleIdsInLocal]);
+
+      // Find modules that are in the prescription but not in the right list (deleted modules)
+      // Exclude modules that have been explicitly removed from Rx pad
+      const missingModules = moduleIdsInPrescription.filter(
+        (moduleId) => !existingModuleIds.has(moduleId) && !removedModuleIds.has(moduleId)
+      );
+
+      if (missingModules.length > 0) {
+        // Create pad entries for missing modules
+        const missingModuleEntries = missingModules
+          .map((moduleId) => {
+            // Try to find the module definition
+            const moduleDefinition = allAvailableModules.find(
+              (m) => m.module_id === moduleId
+            );
+            
+            if (moduleDefinition) {
+              return {
+                tmdpm_id: moduleDefinition.module_id,
+                tmdpm_name: moduleDefinition.name,
+                tmdpm_type: "custom_module",
+                tmdpm_status: 0, // Enabled
+                is_custom_module: true,
+              };
+            }
+            
+            // If module definition not found, try to get name from moduleContents
+            const moduleContent = caseManagerData.moduleContents.find(
+              (content) => content.module_id === moduleId
+            );
+            
+            if (moduleContent) {
+              console.warn(
+                `Module definition not found for ${moduleId}, using fallback from moduleContents`
+              );
+              return {
+                tmdpm_id: moduleId,
+                tmdpm_name: moduleContent.module_name || moduleId,
+                tmdpm_type: "custom_module",
+                tmdpm_status: 0, // Enabled
+                is_custom_module: true,
+              };
+            }
+            
+            // Last resort: create entry with just the ID
+            console.error(
+              `Cannot find module ${moduleId} in allAvailableModules or moduleContents`
+            );
+            return {
+              tmdpm_id: moduleId,
+              tmdpm_name: `Module ${moduleId}`,
+              tmdpm_type: "custom_module",
+              tmdpm_status: 0,
+              is_custom_module: true,
+            };
+          })
+          .filter(Boolean);
+
+        // Add missing modules to the right list
+        // Merge with current local state to preserve any modules already added
+        const currentModuleIds = new Set(
+          customizedPadRightList
+            .filter((item) => item.is_custom_module)
+            .map((item) => item.tmdpm_id)
+        );
+        // Only add modules that aren't already in the local state
+        const newModuleEntries = missingModuleEntries.filter(
+          (entry) => !currentModuleIds.has(entry.tmdpm_id)
+        );
+        if (newModuleEntries.length > 0) {
+          const updatedRightList = [...customizedPadRightList, ...newModuleEntries];
+          setCustomizedPadRightList(updatedRightList);
+        }
+      }
+    }
+  }, [caseManagerData, allAvailableModules, originalCustomizedPadRightList, removedModuleIds, customizedPadRightList]);
 
   const [symptomsData, setSymptomsData] = useState([]);
   const [examinationData, setExaminationData] = useState([]);
@@ -276,6 +414,11 @@ function TabPrescription() {
     setCustomModuleContents,
     pillupSwitch,
     setPillupSwitch,
+    markModuleAsRemoved: (moduleId) => {
+      setRemovedModuleIds((prev) => new Set([...prev, moduleId]));
+      // Note: customModuleContents is already updated in the component's handleRemoveFromRxPad
+      // We don't need to update it here to avoid double removal
+    },
     showHideSubModal,
     useVoiceRx,
     setUseVoiceRx,
@@ -560,14 +703,70 @@ function TabPrescription() {
       ) {
         setAdditionalNote(caseManagerData.visit_advice);
       }
-      if (caseManagerData?.moduleContents?.length) {
-        setCustomModuleContents(caseManagerData?.moduleContents?.filter(
-          (e) => !!customModules.find((cm) => cm.module_id === e.module_id)
-        ))
-      }
       setPillupSwitch(caseManagerData?.pillup_fulfilment == 1 ? true : false)
     }
   }, []);
+
+  // Separate useEffect to handle customModuleContents after customModules are loaded
+  useEffect(() => {
+    if (caseManagerData?.moduleContents?.length) {
+      // Don't filter out modules - they should all be rendered even if deleted
+      // The allAvailableModules list will include deleted modules from hospital search
+      const normalizedContents = caseManagerData.moduleContents.map((moduleContent) => {
+        // Try to find matching module in allAvailableModules (may not exist if deleted)
+        const matchingModule = allAvailableModules?.find((cm) => String(cm.module_id) === String(moduleContent.module_id));
+        
+        // If no matching module found, use the moduleContent as-is (preserve original data)
+        if (!matchingModule) {
+          return moduleContent;
+        }
+        
+        // Normalize content based on module version
+        let normalizedContent = [];
+        
+        if (matchingModule?.version === "v2") {
+          // For v2, preserve all existing fields and only add missing namedFields
+          normalizedContent = (moduleContent.content || []).map((item) => {
+            // Start with all existing fields from the item (preserve original data)
+            const normalizedItem = { ...item };
+            
+            // Only add missing namedFields, don't overwrite existing ones
+            matchingModule.namedFields?.forEach((field) => {
+              if (!(field.fieldName in normalizedItem)) {
+                normalizedItem[field.fieldName] = "";
+              }
+            });
+            
+            return normalizedItem;
+          });
+        } else {
+          // For v1, normalize to {title, notes} structure
+          normalizedContent = (moduleContent.content || []).map((item) => {
+            // If item already has title and notes, use them (preserve original)
+            if (item.title !== undefined || item.notes !== undefined) {
+              return {
+                title: item.title || "",
+                notes: item.notes || "",
+              };
+            }
+            // Otherwise, try to convert from other structures
+            // Get first two string values as title and notes
+            const values = Object.values(item).filter(v => typeof v === 'string' && v.trim().length > 0);
+            return {
+              title: values[0] || "",
+              notes: values[1] || "",
+            };
+          });
+        }
+        
+        return {
+          ...moduleContent,
+          content: normalizedContent,
+        };
+      });      
+      setCustomModuleContents(normalizedContents);
+    }
+  }, [caseManagerData?.moduleContents, allAvailableModules]);
 
   const getSymptomsCollectorData = async () => {
     const payload = {
@@ -1707,9 +1906,41 @@ function TabPrescription() {
                 } */}
                 {showSCBanner && <SCBanner handleBanner={() => setShowSCBanner(false)} />}
                 {customizedPadRightList?.map((e, i) => {
-                  const customModule = customModules?.find(
-                    (m) => m.module_id === e.tmdpm_id
-                  )
+
+                  let customModule = allAvailableModules?.find(
+                    (m) => String(m.module_id) === String(e.tmdpm_id)
+                  );
+
+                  // If module not found in allAvailableModules, create fallback from moduleContents
+                  if (!customModule && e.is_custom_module && customModuleContents?.length > 0) {
+                    const moduleContent = customModuleContents.find(
+                      (content) => String(content.module_id) === String(e.tmdpm_id)
+                    );
+                    
+                    if (moduleContent) {
+                      // Create a fallback module definition from the content
+                      customModule = {
+                        module_id: moduleContent.module_id,
+                        name: moduleContent.module_name || e.tmdpm_name,
+                        version: moduleContent.module_version || "v2",
+                        // For V2 modules, extract namedFields from the first content row
+                        namedFields: moduleContent.module_version === "v2" && moduleContent.content?.length > 0
+                          ? Object.keys(moduleContent.content[0])
+                              .filter((key) => key !== "id") // Exclude the id field
+                              .map((key, index) => ({
+                                fieldName: key,
+                                fieldLabel: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " "),
+                                fieldType: "string",
+                                isRequired: false,
+                                order: index,
+                              }))
+                          : [],
+                      };
+                      console.warn(
+                        `Using fallback module definition for ${e.tmdpm_id} from moduleContents`
+                      );
+                    }
+                  }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm" style={showShimmer ? { background: `url(${genRxBg})`, padding: "2px" } : {}}>
                      <div style={showShimmer ? {background: "white", borderRadius: "17px"} : {}}>
@@ -1760,15 +1991,16 @@ function TabPrescription() {
                     <div key={i} className="prescription-box-sm">
                       <TabFollowUpBox />
                     </div>
-                    ): e.is_custom_module && e.tmdpm_status === 0 && customModule && (
-                      // <div className="prescription-box-sm">
-                      (customModule.version === "v2" ? (
-                        <CustomModuleV2 module={customModule} />
-                      ) : (
-                        <CustomModule module={customModule} />
-                      ))
-                      // </div>
-                    )
+                    ): e.is_custom_module && e.tmdpm_status === 0 && customModule ? (
+                      
+                      <div key={i} className="prescription-box-sm">
+                        {customModule.version === "v2" ? (
+                          <CustomModuleV2 module={customModule} />
+                        ) : (
+                          <CustomModule module={customModule} />
+                        )}
+                      </div>
+                    ) : null
                 })}
                 {/* <TabAddCustomModule /> */}
                 {/* <AddCustomModule /> */}

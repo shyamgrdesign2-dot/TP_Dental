@@ -50,12 +50,10 @@ const SelectExistingModuleTab = ({ onAddToRx, onViewMore }) => {
   useEffect(() => {
     if (hospitalSearchResults?.modules && hospitalSearchResults.modules.length > 0) {
       let filteredModules = hospitalSearchResults.modules;
-      console.log(isApollo,"isApollo")
       // For Apollo users, filter to show only modules created by the logged-in user
       if (isApollo) {
         filteredModules = hospitalSearchResults.modules.filter(
           (module) => {
-            console.log(module.userId,"-",userId)
             return module.userId == userId
           }
         );
