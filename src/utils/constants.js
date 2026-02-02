@@ -96,7 +96,7 @@ export const OPTHAL_PAD_MODULE = {
   tmdpm_short_name: "Opthal",
   tmdpm_status: 0,
   tmdpm_icon_url:
-    "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/opthal.svg",
+    "https://practice.tatvacare.in/img/microservices/right/opthal.svg",
 };
 
 export const GYNAECOLOGY = "Gynaecology";
