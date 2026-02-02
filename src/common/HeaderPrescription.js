@@ -22,7 +22,7 @@ import VideoModal from './VideoModal';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree } from "../utils/utils";
 
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
 
 import visitEnd from '../assets/images/end-visit.svg';
@@ -40,7 +40,7 @@ import {
     editCaseManager,
     getInvestigationAndMedicine
 } from "../redux/caseManagerSlice";
-import { listVideo } from "../redux/doctorsSlice";
+import { customizedPad, listVideo } from "../redux/doctorsSlice";
 import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
@@ -59,7 +59,7 @@ var oneClickCosultationTemplateId = 0
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan }) {
 
-    const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
     const { frequencyList, timingList, videoList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
@@ -1222,6 +1222,21 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 ]);
             }
             if (action.meta.requestStatus === "fulfilled") {
+                if (
+                    opthalModuleAutoAdded &&
+                    customizedPadRightList?.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)
+                ) {
+                    dispatch(
+                        customizedPad({
+                            data: {
+                                default: false,
+                                reset: false,
+                                left: customizedPadLeftList,
+                                right: customizedPadRightList,
+                            },
+                        })
+                    );
+                }
                 try {
                     // Ensure care plan is linked to the definitive consultation id
                     const decodedToken = getDecodedToken();

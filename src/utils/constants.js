@@ -88,6 +88,16 @@ export const GB_PILLUP_MEDICINE = "pillup-medicine-switch";
 export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
+export const OPTHAL_PAD_MODULE_ID = 23;
+export const OPTHAL_PAD_MODULE = {
+  tmdpm_id: 23,
+  tmdpm_type: "R",
+  tmdpm_name: "Opthal",
+  tmdpm_short_name: "Opthal",
+  tmdpm_status: 0,
+  tmdpm_icon_url:
+    "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/opthal.svg",
+};
 
 export const GYNAECOLOGY = "Gynaecology";
 export const PAEDIATRICS = "Paediatrics";

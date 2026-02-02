@@ -21,6 +21,7 @@ const initialState = {
   error: null,
   customizedPadLeftList: [],
   customizedPadRightList: [],
+  opthalModuleAutoAdded: false,
   timingList: [],
   frequencyList: [],
   medicineTypeList: [],
@@ -420,6 +421,18 @@ const doctorsSlice = createSlice({
     },
     setB2C_Profile: (state, action) => {
       state.profile = { ...state.profile, b2c: action.payload }
+    },
+    setCustomizedPadLists: (state, action) => {
+      const { left, right, opthalModuleAutoAdded } = action.payload || {};
+      if (left) {
+        state.customizedPadLeftList = left;
+      }
+      if (right) {
+        state.customizedPadRightList = right;
+      }
+      if (typeof opthalModuleAutoAdded === "boolean") {
+        state.opthalModuleAutoAdded = opthalModuleAutoAdded;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -452,6 +465,7 @@ const doctorsSlice = createSlice({
         state.loading = false;
         state.customizedPadLeftList = action.payload.left != undefined ? action.payload.left : []
         state.customizedPadRightList = action.payload.right != undefined ? action.payload.right : []
+        state.opthalModuleAutoAdded = false;
       })
       .addCase(customizedPad.rejected, (state) => {
         state.loading = false;
@@ -665,5 +679,5 @@ const doctorsSlice = createSlice({
   },
 });
 
-export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile } = doctorsSlice.actions
+export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile, setCustomizedPadLists } = doctorsSlice.actions
 export default doctorsSlice.reducer;

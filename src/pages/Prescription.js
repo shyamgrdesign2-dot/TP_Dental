@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals } from "../redux/vitalsSlice";
 import {
@@ -107,7 +107,7 @@ import GenRxBox from "../components/GenRxBox";
 import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services } from "../redux/doctorsSlice";
+import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
@@ -138,6 +138,7 @@ function Prescription() {
     customizedPadRightList,
     frequencyList,
     timingList,
+    opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
 
   const { planDetails } = useSelector((state) => state.subscription);
@@ -456,6 +457,41 @@ function Prescription() {
     };
     dispatch(viewPatient(sendData));
   }, []);
+
+  useEffect(() => {
+    if (!isOpthalModuleAccessible || profile?.dp_id !== 17) {
+      return;
+    }
+    if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
+      return;
+    }
+    if (customizedPadRightList.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)) {
+      return;
+    }
+    if (opthalModuleAutoAdded) {
+      return;
+    }
+    const medicationsIndex = customizedPadRightList.findIndex(
+      (item) => item?.tmdpm_id === 12
+    );
+    const nextRightList = [...customizedPadRightList];
+    if (medicationsIndex >= 0) {
+      nextRightList.splice(medicationsIndex + 1, 0, { ...OPTHAL_PAD_MODULE });
+    } else {
+      nextRightList.push({ ...OPTHAL_PAD_MODULE });
+    }
+    dispatch(
+      setCustomizedPadLists({
+        right: nextRightList,
+        opthalModuleAutoAdded: true,
+      })
+    );
+  }, [
+    customizedPadRightList,
+    isOpthalModuleAccessible,
+    opthalModuleAutoAdded,
+    profile?.dp_id,
+  ]);
 
   useEffect(() => {
     if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
@@ -1808,11 +1844,12 @@ function Prescription() {
                       />
                     </div>
                   ) : e.tmdpm_id === 12 && e.tmdpm_status === 0 ? (
-                    <React.Fragment key={i}>
-                      <div className="prescription-box-sm">
-                        <MedicationsBox />
-                      </div>
-                      {isOpthalModuleAccessible ? <div className="opthal-panel-wrapper">
+                    <div key={i} className="prescription-box-sm">
+                      <MedicationsBox />
+                    </div>
+                  ) : e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
+                    isOpthalModuleAccessible ? (
+                      <div key={i} className="opthal-panel-wrapper">
                         <OphthalmologyExamPanel
                           patientData={patient_data}
                           showHeader
@@ -1820,8 +1857,8 @@ function Prescription() {
                           loadPrevAllSignal={loadPrevOpthalSignal}
                           fetchLastOnMount={true}
                         />
-                      </div> : null}
-                    </React.Fragment>
+                      </div>
+                    ) : null
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <AdviceBox />
