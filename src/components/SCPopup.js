@@ -3,7 +3,6 @@ import { useContext, useState } from "react";
 import autoFill from "../assets/images/autofill-white.svg";
 import scHeaderBg from "../assets/images/sc-header-bg.png";
 import autoFillRx from "../assets/images/sc-rx.svg";
-import autoFillRxDark from "../assets/images/sc-voice-rx.svg";
 import scBg from "../assets/images/sc-bg.svg";
 import close from "../assets/images/close-square.svg";
 import scStrip from "../assets/images/sc-strip.png";
@@ -744,41 +743,14 @@ const SCPopup = ({ handlePopup, handleGenRx }) => {
             <span>{"Autofill details"}</span>
           </Button>
         ) : (
-          <>
-            <Button
-              type="button"
-              className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-center sc-popup-btn"
-              style={{
-                width: "50%",
-                gap: "8px",
-              }}
-              onClick={() => {
-                handleGenRx();
-                handleAutofill();
-              }}
-            >
-              <img src={autoFillRxDark} alt="auto-fill" />
-              <span>{"Autofill to Voice Rx"}</span>
-            </Button>
-            <Button
-              className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
-              style={{
-                gap: "8px",
-                width: (tp_monetization_enable || isFreeVoiceRxUser) ? "50%" : "100%",
-              }}
-              onClick={handleAutofill}
-            >
-              <img
-                src={(tp_monetization_enable || isFreeVoiceRxUser) ? autoFillRx : autoFill}
-                alt="auto-fill"
-              />
-              <span>
-                {(tp_monetization_enable || isFreeVoiceRxUser)
-                  ? "Autofill to Rx Pad"
-                  : "Autofill details"}
-              </span>
-            </Button>
-          </>
+          <Button
+            className="btn btn-primary3 btn-41 px-4 d-flex align-items-center justify-content-center"
+            style={{ gap: "8px", width: "100%" }}
+            onClick={handleAutofill}
+          >
+            <img src={autoFillRx} alt="auto-fill" />
+            <span>{"Autofill to Rx Pad"}</span>
+          </Button>
         )}
       </div>
     </Modal>

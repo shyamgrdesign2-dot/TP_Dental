@@ -2671,7 +2671,7 @@ const ConsultationDrawer = ({
 
     // Merge medicalHistory arrays while removing duplicates
     const mergedMedicalHistory = [...data1.medicalHistory];
-    data2WithSC.medicalHistory.forEach((history2) => {
+    data2WithSC?.medicalHistory?.forEach((history2) => {
       if (
         !mergedMedicalHistory.some((history1) =>
           isDuplicate(history1, history2)
