@@ -54,6 +54,7 @@ import {
     createOpthalPrescription,
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
+import { resetOpthalForm } from '../redux/ophthalmologyExamSlice';
 
 var oneClickCosultationTemplateId = 0
 
@@ -244,6 +245,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setAdditionalNote('')
         setSurgeriesData([]);
         setCustomModuleContents([]);
+        dispatch(resetOpthalForm());
     }
     // const languageItems = [
     //     {
