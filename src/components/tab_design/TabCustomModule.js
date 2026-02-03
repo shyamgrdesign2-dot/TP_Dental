@@ -468,7 +468,7 @@ function TabCustomModule({ module }) {
             />
           </div>
           <div className="tab-template-height">
-            {matchedTemplates.length > 0 &&
+            {matchedTemplates?.length > 0 &&
               matchedTemplates.map((template, i) => {
                 return (
                   <div

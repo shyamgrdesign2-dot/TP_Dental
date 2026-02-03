@@ -22,7 +22,7 @@ import VideoModal from './VideoModal';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree } from "../utils/utils";
 
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
 
 import visitEnd from '../assets/images/end-visit.svg';
@@ -40,7 +40,7 @@ import {
     editCaseManager,
     getInvestigationAndMedicine
 } from "../redux/caseManagerSlice";
-import { listVideo } from "../redux/doctorsSlice";
+import { customizedPad, listVideo } from "../redux/doctorsSlice";
 import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
@@ -49,12 +49,19 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
+import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
+import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
+import {
+    createOpthalPrescription,
+    updateOpthalPrescription,
+} from "../pages/ophthalmology/service";
+import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
 
 var oneClickCosultationTemplateId = 0
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan }) {
 
-    const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+    const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
     const { frequencyList, timingList, videoList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
@@ -76,6 +83,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
     );
+    const ophthalmologyExam = useSelector((state) => state.ophthalmologyExam);
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
 
@@ -238,6 +246,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         setAdditionalNote('')
         setSurgeriesData([]);
         setCustomModuleContents([]);
+        dispatch(resetOpthalForm());
     }
     // const languageItems = [
     //     {
@@ -313,6 +322,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload
             if (data !== undefined) {
+                if (data?.opthalModuleData) {
+                    const slitLampRows = data.opthalModuleData?.slitLampExamination;
+                    const fundusRows = data.opthalModuleData?.fundusExamination;
+                    if (hasSectionData(slitLampRows)) {
+                        const values = buildSectionTableValues("slitLampTable", slitLampRows);
+                        dispatch(setOpthalTableValues({ tableId: "slitLampTable", values }));
+                    }
+                    if (hasSectionData(fundusRows)) {
+                        const values = buildSectionTableValues("fundusTable", fundusRows);
+                        dispatch(setOpthalTableValues({ tableId: "fundusTable", values }));
+                    }
+                }
                 if (data.symptoms.length > 0) {
                     const updatedData = data.symptoms.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", severity: "", note: "" }
@@ -546,7 +567,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         filteredContent = e.content?.filter(c => c?.title || c?.notes);
                     }
                     return {...e, content: filteredContent};
-                })
+                }),
+                opthalModuleData: buildOpthalTemplatePayload(),
             }
         }
 
@@ -676,7 +698,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         filteredContent = e.content?.filter(c => c?.title || c?.notes);
                     }
                     return {...e, content: filteredContent};
-                })
+                }),
+                opthalModuleData: buildOpthalTemplatePayload(),
             }
         }
         const action = await dispatch(oneClickUpdateTemplate(sendData));
@@ -1062,6 +1085,85 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [customizeDrawer]);
 
+    const hasOpthalValues = useCallback(() => {
+        return (
+            Object.values(ophthalmologyExam?.visualAcuity || {}).some((eye) =>
+                Object.values(eye || {}).some((value) => value)
+            ) ||
+            Object.values(ophthalmologyExam?.tables || {}).some((table) =>
+                Object.values(table || {}).some((value) => value)
+            ) ||
+            Object.values(ophthalmologyExam?.extraFields || {}).some((value) => value)
+        );
+    }, [ophthalmologyExam]);
+
+    const opthalTablesById = useMemo(() => {
+        return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
+            section.tables.forEach((table) => {
+                acc[table.id] = table;
+            });
+            return acc;
+        }, {});
+    }, []);
+
+    const hasOphthalValue = useCallback((value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    }, []);
+
+    const hasSectionData = useCallback((items) => {
+        if (!Array.isArray(items)) return false;
+        return items.some((item) =>
+            ["OD", "OS", "od", "os", "remarks"].some((key) => hasOphthalValue(item?.[key]))
+        );
+    }, [hasOphthalValue]);
+
+    const buildSectionTableValues = useCallback((tableId, rows) => {
+        const table = opthalTablesById[tableId];
+        if (!table) return {};
+        const nextValues = {};
+        const normalize = (value) => String(value || "").toLowerCase();
+        table.rows.forEach((row) => {
+            const entry = rows?.find((item) => {
+                const labelMatch = normalize(item?.section ?? item?.title ?? item?.name);
+                const keyMatch = normalize(
+                    item?.sectionKey ?? item?.section_key ?? item?.key ?? item?.id
+                );
+                return (
+                    labelMatch === normalize(row.label) || keyMatch === normalize(row.key)
+                );
+            });
+            table.columns.forEach((column) => {
+                if (column.type === "label") return;
+                const cellKey = `${row.key}-${column.key}`;
+                if (column.key === "od") {
+                    nextValues[cellKey] = entry?.OD ?? entry?.od ?? "";
+                    return;
+                }
+                if (column.key === "os") {
+                    nextValues[cellKey] = entry?.OS ?? entry?.os ?? "";
+                    return;
+                }
+                nextValues[cellKey] = entry?.[column.key] ?? "";
+            });
+        });
+        return nextValues;
+    }, [opthalTablesById]);
+
+    const buildOpthalTemplatePayload = useCallback(() => {
+        const payload = buildOpthalPayload({
+            sections: OPHTHALMOLOGY_SECTIONS,
+            tables: ophthalmologyExam?.tables,
+            extraFields: ophthalmologyExam?.extraFields,
+            visualAcuity: ophthalmologyExam?.visualAcuity,
+        });
+        return {
+            slitLampExamination: payload.slitLampExamination || [],
+            fundusExamination: payload.fundusExamination || [],
+        };
+    }, [ophthalmologyExam]);
+
     async function onEndVisitClick() {
         if (symptomsData.length > 0 && symptomsData.filter(e => e.symptom_name == "").length > 0) {
             errorMessage('Please fillup symptom name')
@@ -1078,6 +1180,17 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
+            const opthalPayload = buildOpthalPayload({
+                sections: OPHTHALMOLOGY_SECTIONS,
+                tables: ophthalmologyExam?.tables,
+                extraFields: ophthalmologyExam?.extraFields,
+                visualAcuity: ophthalmologyExam?.visualAcuity,
+                tcmId,
+            });
+
+            const opthalId = ophthalmologyExam?.opthalPrescriptionId;
+            const opthalPatientId = patient_data?.patient_unique_id;
+
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1160,8 +1273,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     clinic_name,
                     patient_number: patient_data?.pm_contact_no,
                     patient_id: patient_data?.patient_unique_id,
-                    tcm_id: tcmId,
-                })
+                tcm_id: tcmId,
+            })
                 :
                 window.Moengage.track_event("TP_Consultation_edited", {
                     clinic_name,
@@ -1170,8 +1283,48 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     tcm_id: tcmId,
                 })
 
-            const action = tcmId == 0 ? await dispatch(addCaseManager(sendData)) : await dispatch(editCaseManager(sendData))
+            const caseManagerPromise = tcmId == 0
+                ? dispatch(addCaseManager(sendData))
+                : dispatch(editCaseManager(sendData));
+            let action;
+
+            if (tcmId == 0) {
+                action = await caseManagerPromise;
+                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                const opthalPayloadWithTcm = {
+                    ...opthalPayload,
+                    tcm_id: generatedTcmId,
+                };
+                if (opthalId) {
+                    await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, { patientId: opthalPatientId });
+                } else {
+                    await createOpthalPrescription(opthalPayloadWithTcm, { patientId: opthalPatientId });
+                }
+            } else {
+                const opthalPromise = opthalId
+                    ? updateOpthalPrescription(opthalId, opthalPayload, { patientId: opthalPatientId })
+                    : createOpthalPrescription(opthalPayload, { patientId: opthalPatientId });
+                [action] = await Promise.all([
+                    caseManagerPromise,
+                    opthalPromise,
+                ]);
+            }
             if (action.meta.requestStatus === "fulfilled") {
+                if (
+                    opthalModuleAutoAdded &&
+                    customizedPadRightList?.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)
+                ) {
+                    dispatch(
+                        customizedPad({
+                            data: {
+                                default: false,
+                                reset: false,
+                                left: customizedPadLeftList,
+                                right: customizedPadRightList,
+                            },
+                        })
+                    );
+                }
                 try {
                     // Ensure care plan is linked to the definitive consultation id
                     const decodedToken = getDecodedToken();
@@ -1468,10 +1621,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <i className="icon-template me-2"></i> <span>Templates</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
                                         <Popover
                                             open={popOver2}
-                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
                                             content={SAVE_CONTENT_WEB}
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
@@ -1490,8 +1643,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>Templates</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
-                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasCustomModuleContent()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
                                     </Tooltip>
                                 </div>
                             )}
@@ -1564,8 +1717,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {(isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && (
                                 <GenRxButton onClick={handleGenRx} />
                             )}
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || hasCustomModuleContent()) && onEndVisitClick()} loading={loading}>
+                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
+                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) && onEndVisitClick()} loading={loading}>
                                     <i className='icon-exit me-2'></i>
                                     End Visit
                                 </Button>

@@ -19,7 +19,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 const showDateFormat = 'DD MMM, YY'
 
-function Quixote({ mode = NORMAL, ...props }) {
+function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
     const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
@@ -213,6 +213,7 @@ function Quixote({ mode = NORMAL, ...props }) {
                 advanceReceipts={props.advanceReceipts}
                 patientWalletBalance={props.patientWalletBalance}
                 selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
+                ophthalModuleData={ophthalModuleData}
             />).toBlob();
             setPdfUrl(URL.createObjectURL(blob))
             dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
