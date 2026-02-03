@@ -3089,53 +3089,141 @@ function Cardiology(props) {
                       </div>
                     )}
                     {customModulesRxData.length > 0 &&
-                      customModulesRxData?.map(
-                        (item) =>
-                          item.module_name && (
-                            <div className="d-flex align-items-start mb-4">
+                      customModulesRxData
+                        ?.filter((item) => {
+                          // Only show modules that have content
+                          if (!item.content || item.content.length === 0) return false;
+                          
+                          // Check if V2 module has any non-empty fields
+                          if (item.module_version === "v2") {
+                            return item.content.some((row) => {
+                              const { id, ...fields } = row;
+                              return Object.values(fields).some(
+                                (value) => value && value.toString().trim().length > 0
+                              );
+                            });
+                          }
+                          
+                          // For V1 modules, check if title or notes exist
+                          return item.content.some((c) => c.title?.trim() || c.notes?.trim());
+                        })
+                        .map((item) => {
+                          // Get module definition to access namedFields for V2
+                          const moduleDefinition = customModulesRxData.find(
+                            (m) => m.module_id === item.module_id
+                          );
+                          
+                          return (
+                            <div className="d-flex align-items-start mb-4" key={item.module_id}>
                               <img
                                 className="me-2"
                                 src={customModuleIcon}
                                 alt={item.module_name}
                               />
-                              <div>
+                              <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
                                 <div className="title">{item.module_name}</div>
-                                {item.content.map((c, i) => {
-                                  return (
-                                    <span key={i}>
-                                      {c.title && (
-                                        <>
-                                          <span>{c.title}</span>
-                                          {c.notes?.trim() ? <br /> : ""}
-                                        </>
-                                      )}
-                                      {c.notes?.trim() && (
-                                        <div>
-                                          {c.notes
-                                            ?.trim()
-                                            ?.replace(/\n+/g, "\n")
-                                            .split("\n")
-                                            .map((line, index) => (
-                                              <React.Fragment key={index}>
-                                                {line}
-                                                {index !==
-                                                  c.notes
-                                                    ?.trim()
-                                                    ?.replace(/\n+/g, "\n")
-                                                    .split("\n").length -
-                                                    1 && <br />}
-                                              </React.Fragment>
-                                            ))}
+                                {item.module_version === "v2" ? (
+                                  // V2 Module Rendering - Ant Design Table Format
+                                  (() => {
+                                    const namedFields = moduleDefinition?.namedFields || [];
+                                    const filteredContent = item.content.filter((row) => {
+                                      const { id, ...fields } = row;
+                                      return Object.values(fields).some(
+                                        (value) => value && value.toString().trim().length > 0
+                                      );
+                                    });
+
+                                    if (filteredContent.length === 0) return null;
+
+                                    // Get all field names from namedFields or from first row
+                                    const fieldNames = namedFields.length > 0
+                                      ? namedFields.map(f => f.fieldName)
+                                      : Object.keys(filteredContent[0] || {}).filter(k => k !== 'id');
+
+                                    // Create columns for Ant Design Table
+                                    const tableColumns = fieldNames.map((fieldName, idx) => {
+                                      const field = namedFields.find(f => f.fieldName === fieldName);
+                                      const headerLabel = field?.fieldLabel || fieldName;
+                                      return {
+                                        title: headerLabel.toUpperCase(),
+                                        dataIndex: fieldName,
+                                        key: fieldName,
+                                        render: (text) => text || '-',
+                                        onHeaderCell: () => ({
+                                          style: {
+                                            backgroundColor: '#f5f5f5',
+                                            fontWeight: 600,
+                                          },
+                                        }),
+                                      };
+                                    });
+
+                                    // Transform data for table (remove id field)
+                                    const tableData = filteredContent.map((row, index) => {
+                                      const { id, ...fields } = row;
+                                      return {
+                                        key: `row-${index}`,
+                                        ...fields,
+                                      };
+                                    });
+
+                                    return (
+                                      <div className="mt-2">
+                                        <div className="border-top border-bottom border-start border-end" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                                          <Table
+                                            className="table-border"
+                                            columns={tableColumns}
+                                            dataSource={tableData}
+                                            pagination={false}
+                                            size="small"
+                                            style={{ width: '100%' }}
+                                          />
                                         </div>
-                                      )}
-                                      {item.content.length - 1 !== i && <br />}
-                                    </span>
-                                  );
-                                })}
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  // V1 Module Rendering (Original)
+                                  item.content
+                                    .filter((c) => c.title?.trim() || c.notes?.trim())
+                                    .map((c, i) => {
+                                      return (
+                                        <span key={i}>
+                                          {c.title && (
+                                            <>
+                                              <span>{c.title}</span>
+                                              {c.notes?.trim() ? <br /> : ""}
+                                            </>
+                                          )}
+                                          {c.notes?.trim() && (
+                                            <div>
+                                              {c.notes
+                                                ?.trim()
+                                                ?.replace(/\n+/g, "\n")
+                                                .split("\n")
+                                                .map((line, index) => (
+                                                  <React.Fragment key={index}>
+                                                    {line}
+                                                    {index !==
+                                                      c.notes
+                                                        ?.trim()
+                                                        ?.replace(/\n+/g, "\n")
+                                                        .split("\n").length -
+                                                        1 && <br />}
+                                                  </React.Fragment>
+                                                ))}
+                                            </div>
+                                          )}
+                                          {i < item.content.filter(c => c.title?.trim() || c.notes?.trim()).length - 1 && <br />}
+                                        </span>
+                                      );
+                                    })
+                                )}
                               </div>
                             </div>
-                          )
-                      )}
+                          );
+                        })
+                    }
                   </div>
                 </div>
               </Card.Body>

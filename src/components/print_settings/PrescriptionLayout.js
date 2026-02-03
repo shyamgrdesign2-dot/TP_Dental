@@ -217,7 +217,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   }
 
   const customModulesMap = new Map(
-    customModules.map((module) => [module.module_id, module.name])
+    customModules?.map((module) => [module.module_id, module.name])
   );
 
   const customModulesRxData = caseManagerData?.moduleContents?.filter((module) => module.content.length).map((content) => ({

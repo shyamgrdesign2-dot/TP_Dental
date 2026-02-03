@@ -66,6 +66,7 @@ export default {
   GOOGLE_MAPS_API_KEY: env.GOOGLE_MAPS_API_KEY,
   ZYDUS_BUSINESS_ID: env.ZYDUS_BUSINESS_ID,
   APOLLO_BUSINESS_IDS: env.APOLLO_BUSINESS_IDS,
+  APOLLO_BUSINESS_IDS_CM_V2: env.APOLLO_BUSINESS_IDS_CM_V2,
   MEDECO_WEBVIEW_URL: env.medeco_webview_url,
   doctor_portal_url: env.doctor_portal_url,
   whatsapp_x_api_key: env.whatsapp_x_api_key,

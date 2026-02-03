@@ -179,3 +179,24 @@
   text-align: left;
   color: #454551;
 }
+
+/* Tooltip for disabled menu items */
+.module-disabled-tooltip {
+  &.ant-tooltip .ant-tooltip-inner {
+    background-color: #FFF9E6 !important;
+    color: #171725;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 13px;
+    line-height: 1.5;
+    
+    strong {
+      font-weight: 600;
+    }
+  }
+
+  &.ant-tooltip .ant-tooltip-arrow {
+    --antd-arrow-background-color: #FFF9E6 !important;
+  }
+}
