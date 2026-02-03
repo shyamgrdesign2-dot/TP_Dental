@@ -101,6 +101,7 @@ const CustomModuleV2 = ({ module }) => {
   
   // Edit Module Drawer
   const [isEditModuleDrawerOpen, setIsEditModuleDrawerOpen] = useState(false);
+  const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
 
   const TAB_ADD_TEMPLATE = 1;
   const TAB_UPDATE_TEMPLATE = 2;
@@ -589,6 +590,11 @@ const CustomModuleV2 = ({ module }) => {
     }
   };
 
+  // Handle delete module confirmation
+  const handleDeleteModuleClick = () => {
+    setIsDeleteConfirmationModalOpen(true);
+  };
+
   // Handle delete module
   const handleDeleteModule = async () => {
     try {
@@ -647,6 +653,8 @@ const CustomModuleV2 = ({ module }) => {
         );
         setCustomModuleContents(updatedContents);
 
+        setIsDeleteConfirmationModalOpen(false);
+
         message.success({
           content: `Module "${module.name}" deleted successfully`,
           key: "deleteModule",
@@ -667,6 +675,10 @@ const CustomModuleV2 = ({ module }) => {
         duration: 3,
       });
     }
+  };
+
+  const handleDeleteConfirmationModal = () => {
+    setIsDeleteConfirmationModalOpen(false);
   };
 
   // Handle edit row
@@ -978,7 +990,7 @@ const CustomModuleV2 = ({ module }) => {
       </Menu.Item>
       <Menu.Item
         key="delete"
-        onClick={isModuleDisabled ? undefined : handleDeleteModule}
+        onClick={isModuleDisabled ? undefined : handleDeleteModuleClick}
         disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
@@ -1295,6 +1307,51 @@ const CustomModuleV2 = ({ module }) => {
     );
   }, [moduleData, module.namedFields]);
 
+  // Delete Confirmation Modal
+  const DELETE_CONFIRMATION_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={isDeleteConfirmationModalOpen}
+        modalWidth={610}
+        title={"Are you sure you want to delete?"}
+        onCancel={handleDeleteConfirmationModal}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Deleting this "<b>{module?.name}</b>" module will permanently
+                  remove all saved templates and data associated with it. This
+                  action cannot be undone.
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    handleDeleteModule();
+                  }}
+                  className="me-4 text-decoration-underline btn p-0"
+                  style={{ color: "#ff4d4f", cursor: "pointer" }}
+                >
+                  Yes, Delete
+                </div>
+                <Button
+                  onClick={handleDeleteConfirmationModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [isDeleteConfirmationModalOpen, module, handleDeleteConfirmationModal, handleDeleteModule]);
+
   return (
     <div className="prescription-box-sm">
       {/* Header */}
@@ -1586,6 +1643,9 @@ const CustomModuleV2 = ({ module }) => {
         onClose={() => setIsEditModuleDrawerOpen(false)}
         module={module}
       />
+
+      {/* Delete Confirmation Modal */}
+      {DELETE_CONFIRMATION_MODAL}
     </div>
   );
 };

@@ -663,17 +663,19 @@ function CustomModule({ module }) {
       <CommonModal
         isModalOpen={isDeleteModuleModalOpen}
         onCancel={toggleDeleteModuleModal}
-        modalWidth={500}
+        modalWidth={610}
         title={"Are you sure you want to delete?"}
         modalBody={
           <>
-            <div className="d-flex align-items-start alert-warning rounded-10px p-3 patient-details">
-              <img className="me-3" src={alertIcon} alt="Warning" />
-              <span>
-                Deleting this "<b>{module?.name}</b>" module will permanently
-                remove all saved templates and data associated with it. This
-                action cannot be undone.
-              </span>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Deleting this "<b>{module?.name}</b>" module will permanently
+                  remove all saved templates and data associated with it. This
+                  action cannot be undone.
+                </span>
+              </div>
             </div>
             <div className="mt-4">
               <div className="d-flex align-items-center mt-2 justify-content-end">
@@ -682,7 +684,8 @@ function CustomModule({ module }) {
                     onDeleteModule();
                     toggleDeleteModuleModal();
                   }}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  className="me-4 text-decoration-underline btn p-0"
+                  style={{ color: "#ff4d4f", cursor: "pointer" }}
                 >
                   Yes, Delete
                 </div>
@@ -698,7 +701,7 @@ function CustomModule({ module }) {
         }
       />
     );
-  }, [isDeleteModuleModalOpen]);
+  }, [isDeleteModuleModalOpen, module]);
 
   const reorder = (list, startIndex, endIndex) => {
     const result = Array.from(list);

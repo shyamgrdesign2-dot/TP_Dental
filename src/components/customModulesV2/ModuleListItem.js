@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button, Tooltip, message, Input } from "antd";
 import { PlusOutlined, MoreOutlined, UserOutlined, CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import { Dropdown } from "antd";
@@ -8,8 +8,10 @@ import { addModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
+import alertIcon from "../../assets/images/alertIcon.svg";
 import stethoscopeIcon from '../../assets/images/stethoscope.svg';
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
+import CommonModal from "../../common/CommonModal";
 
 /**
  * ModuleListItem Component
@@ -28,6 +30,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [canEditName, setCanEditName] = useState(false);
   const [newModuleName, setNewModuleName] = useState(module?.name || "");
+  const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
   const {
     profile,
     userId,
@@ -157,6 +160,11 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     },
   ];
 
+  // Handle delete module confirmation
+  const handleDeleteModuleClick = () => {
+    setIsDeleteConfirmationModalOpen(true);
+  };
+
   // Handle delete module
   const handleDeleteModule = async () => {
     try {
@@ -206,6 +214,8 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
 
         await dispatch(customizedPad(sendData)).unwrap();
 
+        setIsDeleteConfirmationModalOpen(false);
+
         message.success({
           content: `Module "${module.name}" deleted successfully`,
           key: "deleteModule",
@@ -231,6 +241,10 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
         duration: 3
       });
     }
+  };
+
+  const handleDeleteConfirmationModal = () => {
+    setIsDeleteConfirmationModalOpen(false);
   };
 
   // Handle edit module name
@@ -348,7 +362,7 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     setDropdownVisible(false);
     
     if (key === "delete" && !isModuleDisabled) {
-      handleDeleteModule();
+      handleDeleteModuleClick();
     } else if (key === "edit" && !isModuleDisabled) {
       setCanEditName(true);
     }
@@ -373,6 +387,51 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const gridStyle = {
     "--column-count": columnCount,
   };
+
+  // Delete Confirmation Modal
+  const DELETE_CONFIRMATION_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={isDeleteConfirmationModalOpen}
+        modalWidth={610}
+        title={"Are you sure you want to delete?"}
+        onCancel={handleDeleteConfirmationModal}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Deleting this "<b>{module?.name}</b>" module will permanently
+                  remove all saved templates and data associated with it. This
+                  action cannot be undone.
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    handleDeleteModule();
+                  }}
+                  className="me-4 text-decoration-underline btn p-0"
+                  style={{ color: "#ff4d4f", cursor: "pointer" }}
+                >
+                  Yes, Delete
+                </div>
+                <Button
+                  onClick={handleDeleteConfirmationModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [isDeleteConfirmationModalOpen, module, handleDeleteConfirmationModal, handleDeleteModule]);
 
   return (
     <div className="module-list-item">
@@ -481,6 +540,9 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {DELETE_CONFIRMATION_MODAL}
     </div>
   );
 };

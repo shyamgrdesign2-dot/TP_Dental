@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { Table, Switch, Row, Col, Button, Card, Popover, Modal, Dropdown, Menu, message } from 'antd';
 import { MenuOutlined, MoreOutlined } from '@ant-design/icons';
 import { DndContext } from '@dnd-kit/core';
@@ -23,9 +23,11 @@ import { GB_CARE_PLAN, GB_ISCRIBE } from '../utils/constants';
 import customModuleIcon from '../assets/images/custom-module.svg';
 import editIcon from '../assets/images/edit-icon-blue.svg';
 import deleteIcon from '../assets/images/delete-icon-blue.svg';
+import alertIcon from '../assets/images/alertIcon.svg';
 import { addModule, getModules } from '../redux/customModuleSlice';
 import { savePrintsettings } from '../redux/doctorsSlice';
 import EditCustomModuleDrawer from '../components/customModulesV2/EditCustomModuleDrawer';
+import CommonModal from './CommonModal';
 
 const CustomRow = ({ children, ...props }) => {
   const {
@@ -93,6 +95,8 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [selectedModuleForEdit, setSelectedModuleForEdit] = useState(null);
+  const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState(null);
 
   useEffect(() => {
     if (customizedPadLeftList.length > 0) {
@@ -241,20 +245,30 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     }
   };
 
+  // Handle delete module confirmation
+  const handleDeleteModuleClick = (record) => {
+    setModuleToDelete(record);
+    setIsDeleteConfirmationModalOpen(true);
+  };
+
   // Handle delete module
-  const handleDeleteModule = async (record) => {
+  const handleDeleteModule = async () => {
+    if (!moduleToDelete) return;
+
     try {
       message.loading({ content: "Deleting module...", key: "deleteModule" });
 
-      const moduleDef = getModuleDefinition(record.tmdpm_id);
+      const moduleDef = getModuleDefinition(moduleToDelete.tmdpm_id);
       if (!moduleDef) {
         message.error({ content: "Module not found", key: "deleteModule", duration: 3 });
+        setIsDeleteConfirmationModalOpen(false);
+        setModuleToDelete(null);
         return;
       }
 
       // Step 1: Remove module from user modules
       const modules = customModules.filter(
-        (cm) => cm.module_id !== record.tmdpm_id
+        (cm) => cm.module_id !== moduleToDelete.tmdpm_id
       );
       const action = await dispatch(addModule({ userId, modules }));
 
@@ -265,7 +279,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
 
           const updatedCaseOptions = caseOptions.filter(
             (option) =>
-              !(option.id === record.tmdpm_id && option.is_custom_module)
+              !(option.id === moduleToDelete.tmdpm_id && option.is_custom_module)
           );
 
           const rxPrescription = {
@@ -285,7 +299,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
 
         // Step 3: Remove from customized pad
         const updatedRightPad = dataSourceRight.filter(
-          (item) => item.tmdpm_id !== record.tmdpm_id
+          (item) => item.tmdpm_id !== moduleToDelete.tmdpm_id
         );
         setDataSourceRight(updatedRightPad);
 
@@ -294,8 +308,11 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           await dispatch(getModules(userId));
         }
 
+        setIsDeleteConfirmationModalOpen(false);
+        setModuleToDelete(null);
+
         message.success({
-          content: `Module "${record.tmdpm_name}" deleted successfully`,
+          content: `Module "${moduleToDelete.tmdpm_name}" deleted successfully`,
           key: "deleteModule",
           duration: 3,
         });
@@ -314,6 +331,11 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         duration: 3,
       });
     }
+  };
+
+  const handleDeleteConfirmationModal = () => {
+    setIsDeleteConfirmationModalOpen(false);
+    setModuleToDelete(null);
   };
 
   // Create dropdown menu for custom modules
@@ -366,7 +388,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         </Menu.Item>
         <Menu.Item
           key="delete"
-          onClick={disabled ? undefined : () => handleDeleteModule(record)}
+          onClick={disabled ? undefined : () => handleDeleteModuleClick(record)}
           disabled={disabled}
           style={{
             fontFamily: "Poppins, sans-serif",
@@ -595,6 +617,51 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     }
   }
 
+  // Delete Confirmation Modal
+  const DELETE_CONFIRMATION_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={isDeleteConfirmationModalOpen}
+        modalWidth={610}
+        title={"Are you sure you want to delete?"}
+        onCancel={handleDeleteConfirmationModal}
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Deleting this "<b>{moduleToDelete?.tmdpm_name}</b>" module will permanently
+                  remove all saved templates and data associated with it. This
+                  action cannot be undone.
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={() => {
+                    handleDeleteModule();
+                  }}
+                  className="me-4 text-decoration-underline btn p-0"
+                  style={{ color: "#ff4d4f", cursor: "pointer" }}
+                >
+                  Yes, Delete
+                </div>
+                <Button
+                  onClick={handleDeleteConfirmationModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [isDeleteConfirmationModalOpen, moduleToDelete, handleDeleteConfirmationModal, handleDeleteModule]);
+
   //PopOverVideo function
   const showHideVideoListPopover = useCallback(() => {
     setPopOverVideo(!popOverVideo);
@@ -772,6 +839,9 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           module={selectedModuleForEdit}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {DELETE_CONFIRMATION_MODAL}
     </div>
   );
 };
