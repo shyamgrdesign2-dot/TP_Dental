@@ -459,7 +459,7 @@ function Prescription() {
   }, []);
 
   useEffect(() => {
-    if (isOpthalModuleAccessible && profile?.dp_id !== 17) {
+    if (!isOpthalModuleAccessible && profile?.dp_id !== 17) {
       return;
     }
     if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
