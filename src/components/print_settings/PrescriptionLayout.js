@@ -788,8 +788,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
 
           return (
             <>
-              <div className="d-flex align-items-center justify-content-between text-start">
-                <div className="d-flex align-items-center" style={{ flex: 1 }}>
+              <div className="d-flex align-items-center justify-content-between text-start ophthal-option-row">
+                <div className="d-flex align-items-center ophthal-option-title">
                   <div
                     className="d-flex align-items-center cursor-pointer Preview-color-icon"
                     onClick={(e) => {
@@ -800,12 +800,12 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   >
                     <i
                       className={`icon-Preview ${record.enable === "N" && "disable-preview"
-                        } me-3`}
+                        } me-1`}
                     ></i>
-                    <span style={{ wordBreak: "break-word" }}>{record.title}</span>
+                    <span className="ophthal-option-text">{record.title}</span>
                   </div>
                 </div>
-                <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-2 ophthal-option-actions">
                 <Form.Item className="mb-0 form_addnewpatient ">
                   <Radio.Group
                     className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
@@ -837,7 +837,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     }}
                     style={{
                       cursor: 'pointer',
-                      marginRight: '8px',
+                      // marginRight: '8px',
                       fontSize: '18px',
                       color: '#6B7280',
                       display: 'inline-flex',
@@ -895,8 +895,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                           style={{ ...style, marginBottom: '4px' }}
                           {...attributes}
                         >
-                            <div className="d-flex align-items-center justify-content-between text-start" style={{ padding: '8px 0' }}>
-                              <div className="d-flex align-items-center" style={{ flex: 1 }}>
+                            <div className="d-flex align-items-center justify-content-between text-start ophthal-option-row" style={{ padding: '8px 0' }}>
+                              <div className="d-flex align-items-center ophthal-option-title">
                                 <div 
                                   style={{ 
                                     width: '40px', 
@@ -949,10 +949,10 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                                   <i
                                     className={`icon-Preview ${section.visible === false && "disable-preview"} me-3`}
                                   ></i>
-                                  <span style={{ wordBreak: "break-word" }}>{section.label}</span>
+                                  <span className="ophthal-option-text">{section.label}</span>
                                 </div>
                               </div>
-                              <div className="d-flex align-items-center gap-2">
+                              <div className="d-flex align-items-center gap-2 ophthal-option-actions">
                                 <Form.Item className="mb-0 form_addnewpatient">
                                   <Radio.Group
                                     className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""}`}

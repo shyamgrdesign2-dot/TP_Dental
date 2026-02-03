@@ -21,6 +21,7 @@ const initialState = {
   extraFields: {},
   opthalPrescriptionId: null,
   lastOpthalPrescriptionData: null,
+  resetCounter: 0,
 };
 
 const ophthalmologyExamSlice = createSlice({
@@ -82,6 +83,7 @@ const ophthalmologyExamSlice = createSlice({
       state.visualAcuity = initialState.visualAcuity;
       state.tables = {};
       state.extraFields = {};
+      state.resetCounter += 1;
     },
   },
 });

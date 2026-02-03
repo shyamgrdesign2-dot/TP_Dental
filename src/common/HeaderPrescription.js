@@ -50,11 +50,12 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
+import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
 import {
     createOpthalPrescription,
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
-import { resetOpthalForm } from '../redux/ophthalmologyExamSlice';
+import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
 
 var oneClickCosultationTemplateId = 0
 
@@ -305,6 +306,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         if (action.meta.requestStatus === "fulfilled") {
             const data = action.payload
             if (data !== undefined) {
+                if (data?.opthalModuleData) {
+                    const slitLampRows = data.opthalModuleData?.slitLampExamination;
+                    const fundusRows = data.opthalModuleData?.fundusExamination;
+                    if (hasSectionData(slitLampRows)) {
+                        const values = buildSectionTableValues("slitLampTable", slitLampRows);
+                        dispatch(setOpthalTableValues({ tableId: "slitLampTable", values }));
+                    }
+                    if (hasSectionData(fundusRows)) {
+                        const values = buildSectionTableValues("fundusTable", fundusRows);
+                        dispatch(setOpthalTableValues({ tableId: "fundusTable", values }));
+                    }
+                }
                 if (data.symptoms.length > 0) {
                     const updatedData = data.symptoms.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", severity: "", note: "" }
@@ -502,7 +515,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
                 investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
-                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)}))
+                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)})),
+                opthalModuleData: buildOpthalTemplatePayload(),
             }
         }
 
@@ -612,7 +626,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
                 investigation: investigationData.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
-                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)}))
+                userModules: customModuleContents?.map((e) => ({...e, content: e.content?.filter(c => c?.title || c?.notes)})),
+                opthalModuleData: buildOpthalTemplatePayload(),
             }
         }
         const action = await dispatch(oneClickUpdateTemplate(sendData));
@@ -1019,43 +1034,65 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         }, {});
     }, []);
 
-    const buildEyeRowsPayload = useCallback((tableId, tableValues) => {
+    const hasOphthalValue = useCallback((value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    }, []);
+
+    const hasSectionData = useCallback((items) => {
+        if (!Array.isArray(items)) return false;
+        return items.some((item) =>
+            ["OD", "OS", "od", "os", "remarks"].some((key) => hasOphthalValue(item?.[key]))
+        );
+    }, [hasOphthalValue]);
+
+    const buildSectionTableValues = useCallback((tableId, rows) => {
         const table = opthalTablesById[tableId];
-        if (!table) return [];
-        return table.rows.map((row) => {
-            const rowData = { eye: row.label };
+        if (!table) return {};
+        const nextValues = {};
+        const normalize = (value) => String(value || "").toLowerCase();
+        table.rows.forEach((row) => {
+            const entry = rows?.find((item) => {
+                const labelMatch = normalize(item?.section ?? item?.title ?? item?.name);
+                const keyMatch = normalize(
+                    item?.sectionKey ?? item?.section_key ?? item?.key ?? item?.id
+                );
+                return (
+                    labelMatch === normalize(row.label) || keyMatch === normalize(row.key)
+                );
+            });
             table.columns.forEach((column) => {
                 if (column.type === "label") return;
                 const cellKey = `${row.key}-${column.key}`;
-                rowData[column.key] = tableValues?.[cellKey] ?? "";
+                if (column.key === "od") {
+                    nextValues[cellKey] = entry?.OD ?? entry?.od ?? "";
+                    return;
+                }
+                if (column.key === "os") {
+                    nextValues[cellKey] = entry?.OS ?? entry?.os ?? "";
+                    return;
+                }
+                nextValues[cellKey] = entry?.[column.key] ?? "";
             });
-            return rowData;
         });
+        return nextValues;
     }, [opthalTablesById]);
 
-    const buildSectionRowsPayload = useCallback((tableId, tableValues) => {
-        const table = opthalTablesById[tableId];
-        if (!table) return [];
-        return table.rows.map((row) => {
-            const rowData = { section: row.label };
-            table.columns.forEach((column) => {
-                if (column.type === "label") return;
-                const cellKey = `${row.key}-${column.key}`;
-                const value = tableValues?.[cellKey] ?? "";
-                if (column.key === "od") {
-                    rowData.OD = value;
-                } else if (column.key === "os") {
-                    rowData.OS = value;
-                } else {
-                    rowData[column.key] = value;
-                }
-            });
-            return rowData;
+    const buildOpthalTemplatePayload = useCallback(() => {
+        const payload = buildOpthalPayload({
+            sections: OPHTHALMOLOGY_SECTIONS,
+            tables: ophthalmologyExam?.tables,
+            extraFields: ophthalmologyExam?.extraFields,
+            visualAcuity: ophthalmologyExam?.visualAcuity,
         });
-    }, [opthalTablesById]);
+        return {
+            slitLampExamination: payload.slitLampExamination || [],
+            fundusExamination: payload.fundusExamination || [],
+        };
+    }, [ophthalmologyExam]);
 
     async function onEndVisitClick() {
-        console.log('INTEL ==> onEndVisitClick')
         if (symptomsData.length > 0 && symptomsData.filter(e => e.symptom_name == "").length > 0) {
             errorMessage('Please fillup symptom name')
         } else if (examinationData.length > 0 && examinationData.filter(e => e.examination_name == "").length > 0) {
@@ -1071,74 +1108,17 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else if (investigationData.length > 0 && investigationData.filter(e => e.investigation_name == "").length > 0) {
             errorMessage('Please fillup investigation name')
         } else {
-            const opthalTables = ophthalmologyExam?.tables || {};
-            const opthalExtraFields = ophthalmologyExam?.extraFields || {};
-            const visualAcuityPayload = [
-                {
-                    eye: "OD",
-                    ...(ophthalmologyExam?.visualAcuity?.od || {}),
-                },
-                {
-                    eye: "OS",
-                    ...(ophthalmologyExam?.visualAcuity?.os || {}),
-                },
-            ];
-
-            const undilated = buildEyeRowsPayload(
-                "autoRefractionUndilated",
-                opthalTables["autoRefractionUndilated"]
-            ).map((row) => ({ ...row, type: "Undilated" }));
-            const dilated = buildEyeRowsPayload(
-                "autoRefractionDilated",
-                opthalTables["autoRefractionDilated"]
-            ).map((row) => ({ ...row, type: "Dilated" }));
-
-            const lensometerValues = buildEyeRowsPayload(
-                "lensometerTable",
-                opthalTables["lensometerTable"]
-            );
-
-            const glassPrescription = buildEyeRowsPayload(
-                "glassPrescriptionTable",
-                opthalTables["glassPrescriptionTable"]
-            );
-
-            const intraOcularPressure = buildEyeRowsPayload(
-                "iopTable",
-                opthalTables["iopTable"]
-            ).map(({ cct, ...rest }) => ({
-                ...rest,
-                cc: cct ?? "",
-            }));
-
-            const slitLampExamination = buildSectionRowsPayload(
-                "slitLampTable",
-                opthalTables["slitLampTable"]
-            );
-
-            const fundusExamination = buildSectionRowsPayload(
-                "fundusTable",
-                opthalTables["fundusTable"]
-            );
-
-            const opthalPayload = {
-                tcm_id: tcmId,
-                visualAcuity: visualAcuityPayload,
-                autoRefraction: [...undilated, ...dilated],
-                lensometerValues,
-                glassPrescription,
-                pd: opthalExtraFields?.pd || "",
-                intraOcularPressure,
-                slitLampExamination,
-                fundusExamination,
-            };
+            const opthalPayload = buildOpthalPayload({
+                sections: OPHTHALMOLOGY_SECTIONS,
+                tables: ophthalmologyExam?.tables,
+                extraFields: ophthalmologyExam?.extraFields,
+                visualAcuity: ophthalmologyExam?.visualAcuity,
+                tcmId,
+            });
 
             const opthalId = ophthalmologyExam?.opthalPrescriptionId;
             const opthalPatientId = patient_data?.patient_unique_id;
-            const opthalAction = opthalId ? "update" : "create";
 
-            console.log("Opthal prescription payload:", opthalPayload);
-            console.log("Opthal prescription action:", opthalAction, opthalId);
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1535,10 +1515,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <i className="icon-template me-2"></i> <span>Templates</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) ? "" : "Please enter some data to save a template"}>
                                         <Popover
                                             open={popOver2}
-                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) && showHideSaveTemplatePopOver()}
+                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || customModuleContents?.some((e) => {return e?.content?.some(c => c.title || c.notes)})) && showHideSaveTemplatePopOver()}
                                             content={SAVE_CONTENT_WEB}
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
@@ -1557,8 +1537,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>Templates</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0) ? "" : "Please enter some data to save a template"}>
-                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues()) ? "" : "Please enter some data to save a template"}>
+                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
                                     </Tooltip>
                                 </div>
                             )}

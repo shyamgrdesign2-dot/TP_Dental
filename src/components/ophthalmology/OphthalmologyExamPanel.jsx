@@ -509,7 +509,7 @@ const OphthalmologyExamPanel = ({
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { visualAcuity, tables, extraFields } = useSelector(
+  const { visualAcuity, tables, extraFields, resetCounter } = useSelector(
     (state) => state.ophthalmologyExam
   );
   const { templates: slitLampTemplates, loading: slitLampLoading } = useSelector(
@@ -584,6 +584,11 @@ const OphthalmologyExamPanel = ({
   }, [buildEmptyTableValues]);
 
   const [tableValues, setLocalTableValues] = useState(initialTableValues);
+
+  useEffect(() => {
+    if (!tables || Object.keys(tables).length === 0) return;
+    setLocalTableValues((prev) => ({ ...prev, ...tables }));
+  }, [tables]);
 
   const hasPrevDataBySection = useMemo(() => {
     const data = lastOpthalPrescriptionData || {};
@@ -1199,6 +1204,18 @@ const OphthalmologyExamPanel = ({
       setLocalTableValues(initialTableValues);
     }
   }, [clearAllSignal, initialTableValues]);
+
+  useEffect(() => {
+    if (resetCounter <= 0) return;
+    setLocalTableValues(initialTableValues);
+    setTableResets((prev) => {
+      const next = { ...prev };
+      OPHTHALMOLOGY_SECTIONS.forEach((section) => {
+        next[section.id] = (next[section.id] || 0) + 1;
+      });
+      return next;
+    });
+  }, [resetCounter, initialTableValues]);
 
   const getTableProps = (section, table) => {
     const baseProps = {

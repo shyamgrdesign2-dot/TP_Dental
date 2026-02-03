@@ -138,6 +138,29 @@ function ConfigurePrintSetting() {
         },
     ];
 
+    const hasOphthalValue = (value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    };
+
+    const hasOphthalArrayData = (items, keys) =>
+        Array.isArray(items) && items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+
+    const hasOphthalModuleData = !!(
+        opthalModuleData &&
+        (
+            hasOphthalArrayData(opthalModuleData.visualAcuity, ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]) ||
+            hasOphthalArrayData(opthalModuleData.autoRefraction, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.lensometerValues, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.glassPrescription, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.intraOcularPressure, ["nct", "gat", "cc", "cct", "ciop"]) ||
+            hasOphthalArrayData(opthalModuleData.slitLampExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalArrayData(opthalModuleData.fundusExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalValue(opthalModuleData.pd)
+        )
+    );
+
     useEffect(() => {
         const makeData = async () => {
             const copyPrintSettings = JSON.parse(JSON.stringify({
@@ -164,14 +187,14 @@ function ConfigurePrintSetting() {
                 }
             }
 
-            // Add Case Option ID 20 for Ophthalmology (always add for testing)
-            if (copyPrintSettings?.prescription?.case_option) {
+            // Add Case Option ID 20 for Ophthalmology when module has data
+            if (hasOphthalModuleData && copyPrintSettings?.prescription?.case_option) {
                 const hasOphthalmologyOption = copyPrintSettings.prescription.case_option.find(option => option.id === 20);
                 if (!hasOphthalmologyOption) {
                     // Add Ophthalmology option with default settings
                     copyPrintSettings.prescription.case_option.push({
                         id: 20,
-                        title: "Ophthal Details",
+                        title: "Ophthal",
                         format: "table", // table, listview, or inline
                         enable: "Y",
                         custom_status: "Y",
@@ -196,7 +219,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings]);
+    }, [defaultPrintSettings, hasOphthalModuleData]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;
