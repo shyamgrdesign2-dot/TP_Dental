@@ -1497,6 +1497,27 @@ body {
     font-weight: 500;
   }
 }
+
+.ophthal-option-row {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ophthal-option-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.ophthal-option-text {
+  white-space: nowrap;
+}
+
+.ophthal-option-actions {
+  flex: 1 1 320px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
 .tutorial-thumb {
   img {
     width: 117px;
@@ -2327,6 +2348,14 @@ body {
   .banner {
     padding: 9px 10px; /* Adjust padding for smaller screens */
     gap: 5px; /* Reduce spacing between elements */
+  }
+
+  .opthal-panel-wrapper {
+    .ant-collapse-item-active {
+      .ant-collapse-header {
+        top: 0;
+      }
+    }
   }
 
   .demoModeWrapper {
