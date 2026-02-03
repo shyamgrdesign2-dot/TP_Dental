@@ -938,7 +938,7 @@ function Prescription() {
         userId
       );
       // Destructure to remove createdAt and createdBy
-      const { createdAt, createdBy, ...updatedData } = data;
+      const { createdAt, createdBy, ...updatedData } = data || {};
 
       setUpdatedGynecHistory(updatedData);
     } catch (error) {

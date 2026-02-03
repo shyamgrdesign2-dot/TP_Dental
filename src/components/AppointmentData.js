@@ -1224,21 +1224,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "labparams",
       },
-      isOpthalModuleAccessible
-        ? {
-            label: (
-              <span
-                onClick={() => {
-                  setAppointmentSelectedFromMenu(record);
-                  handleOpthalDrawer();
-                }}
-              >
-                Add Ophthal Details
-              </span>
-            ),
-            key: "opthalDetails",
-          }
-        : undefined,
+      // isOpthalModuleAccessible
+      //   ? {
+      //       label: (
+      //         <span
+      //           onClick={() => {
+      //             setAppointmentSelectedFromMenu(record);
+      //             handleOpthalDrawer();
+      //           }}
+      //         >
+      //           Add Ophthal Details
+      //         </span>
+      //       ),
+      //       key: "opthalDetails",
+      //     }
+      //   : undefined,
       {
         label: (
           <span

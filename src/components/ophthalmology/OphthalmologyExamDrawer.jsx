@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Button, Drawer, Dropdown } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import OphthalmologyExamPanel from "./OphthalmologyExamPanel";
 import styles from "./OphthalmologyExamDrawer.module.scss";
 import { OPHTHALMOLOGY_SECTIONS } from "../../utils/ophthalmologyExamConstants";
+import { buildOpthalPayload } from "../../utils/ophthalmologyPayload";
 import {
   createOpthalPrescription,
   getOpthalPrescriptionDetails,
@@ -61,124 +62,15 @@ const OphthalmologyExamDrawer = ({
     };
   }, [dispatch, tcmId, patientData?.patient_unique_id]);
 
-  const tableById = useMemo(() => {
-    return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
-      section.tables.forEach((table) => {
-        acc[table.id] = table;
-      });
-      return acc;
-    }, {});
-  }, []);
-
-  const buildEyeRowsPayload = useCallback(
-    (tableId, tableValues) => {
-      const table = tableById[tableId];
-      if (!table) return [];
-      return table.rows.map((row) => {
-        const rowData = { eye: row.label };
-        table.columns.forEach((column) => {
-          if (column.type === "label") return;
-          const cellKey = `${row.key}-${column.key}`;
-          rowData[column.key] = tableValues?.[cellKey] ?? "";
-        });
-        return rowData;
-      });
-    },
-    [tableById]
-  );
-
-  const buildSectionRowsPayload = useCallback(
-    (tableId, tableValues) => {
-      const table = tableById[tableId];
-      if (!table) return [];
-      return table.rows.map((row) => {
-        const rowData = { section: row.label };
-        table.columns.forEach((column) => {
-          if (column.type === "label") return;
-          const cellKey = `${row.key}-${column.key}`;
-          const value = tableValues?.[cellKey] ?? "";
-          if (column.key === "od") {
-            rowData.OD = value;
-          } else if (column.key === "os") {
-            rowData.OS = value;
-          } else {
-            rowData[column.key] = value;
-          }
-        });
-        return rowData;
-      });
-    },
-    [tableById]
-  );
-
   const buildPayload = useCallback(() => {
-    const visualAcuityPayload = [
-      {
-        eye: "OD",
-        ...(visualAcuity?.od || {}),
-      },
-      {
-        eye: "OS",
-        ...(visualAcuity?.os || {}),
-      },
-    ];
-
-    const undilated = buildEyeRowsPayload(
-      "autoRefractionUndilated",
-      tables?.autoRefractionUndilated
-    ).map((row) => ({ ...row, type: "Undilated" }));
-
-    const dilated = buildEyeRowsPayload(
-      "autoRefractionDilated",
-      tables?.autoRefractionDilated
-    ).map((row) => ({ ...row, type: "Dilated" }));
-
-    const lensometerValues = buildEyeRowsPayload(
-      "lensometerTable",
-      tables?.lensometerTable
-    );
-
-    const glassPrescription = buildEyeRowsPayload(
-      "glassPrescriptionTable",
-      tables?.glassPrescriptionTable
-    );
-
-    const intraOcularPressure = buildEyeRowsPayload("iopTable", tables?.iopTable).map(
-      ({ cct, ...rest }) => ({
-        ...rest,
-        cc: cct ?? "",
-      })
-    );
-
-    const slitLampExamination = buildSectionRowsPayload(
-      "slitLampTable",
-      tables?.slitLampTable
-    );
-
-    const fundusExamination = buildSectionRowsPayload(
-      "fundusTable",
-      tables?.fundusTable
-    );
-
-    return {
-      tcm_id: tcmId,
-      visualAcuity: visualAcuityPayload,
-      autoRefraction: [...undilated, ...dilated],
-      lensometerValues,
-      glassPrescription,
-      pd: extraFields?.pd || "",
-      intraOcularPressure,
-      slitLampExamination,
-      fundusExamination,
-    };
-  }, [
-    buildEyeRowsPayload,
-    buildSectionRowsPayload,
-    extraFields?.pd,
-    tables,
-    tcmId,
-    visualAcuity,
-  ]);
+    return buildOpthalPayload({
+      sections: OPHTHALMOLOGY_SECTIONS,
+      tables,
+      extraFields,
+      visualAcuity,
+      tcmId,
+    });
+  }, [extraFields, tables, tcmId, visualAcuity]);
 
   const handleSave = async () => {
     setIsSaving(true);
