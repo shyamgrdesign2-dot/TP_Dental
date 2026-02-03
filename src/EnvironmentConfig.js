@@ -65,6 +65,7 @@ const dev = {
   GOOGLE_MAPS_API_KEY: "AIzaSyAqhrcrUh31u4FhmgsUDaV-hju14_74Bug",
   ZYDUS_BUSINESS_ID: 754811713438773,
   APOLLO_BUSINESS_IDS: [234659817, 657381720513497],
+  APOLLO_BUSINESS_IDS_CM_V2: [234659817, 657381720513497],
   digitization_api_url:
     "https://pm-digitization-uat.tatvacare.in/api/v1/digitization/snap-rx",
   monetization_url: "https://pm-tp-monetization-qa.tatvacare.in",
@@ -155,6 +156,7 @@ const qa_tp = {
   GOOGLE_MAPS_API_KEY: "AIzaSyAqhrcrUh31u4FhmgsUDaV-hju14_74Bug",
   ZYDUS_BUSINESS_ID: 754811713438773,
   APOLLO_BUSINESS_IDS: [234659817, 657381720513497],
+  APOLLO_BUSINESS_IDS_CM_V2: [234659817, 657381720513497],
   digitization_api_url: "https://pm-digitization-qa.tatvacare.in",
   short_links_api_url: "https://u.tatvacare.in",
   SHORT_LINKS_API_KEY: "7pP-Ynz1BFQk9IkcGFqrmNxmKKMVZEAniwSsFEAI",
@@ -248,6 +250,7 @@ const qa = {
   GOOGLE_MAPS_API_KEY: "AIzaSyAqhrcrUh31u4FhmgsUDaV-hju14_74Bug",
   ZYDUS_BUSINESS_ID: 754811713438773,
   APOLLO_BUSINESS_IDS: [234659817, 657381720513497],
+  APOLLO_BUSINESS_IDS_CM_V2: [234659817, 657381720513497],
   digitization_api_url: "https://pm-digitization-uat.tatvacare.in",
   monetization_url: "https://pm-tp-monetization-qa.tatvacare.in",
   tp_monetization_disabled_hospital: [
