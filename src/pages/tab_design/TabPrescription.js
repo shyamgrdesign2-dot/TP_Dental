@@ -430,7 +430,7 @@ function TabPrescription() {
   }, [isCarePlanEnabled]);
 
   useEffect(() => {
-    if (!isOpthalModuleAccessible && profile?.dp_id !== 17) {
+    if (!isOpthalModuleAccessible) {
       return;
     }
     if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
@@ -461,7 +461,6 @@ function TabPrescription() {
     customizedPadRightList,
     isOpthalModuleAccessible,
     opthalModuleAutoAdded,
-    profile?.dp_id,
   ]);
 
   useEffect(() => {
