@@ -38,6 +38,7 @@ const VoiceRxConsult = () => {
   const dispatch = useDispatch();
   const { profile, userId, servicesList } = useSelector((state) => state.doctors);
   const { showSCPopup } = useSelector((state) => state.ddx);
+  const AI_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
   
   const { patient_data, isFromTabView , autoOpenModal, fromPrescription } = location.state || {};
   const decodedToken = getDecodedToken();
@@ -176,7 +177,16 @@ const VoiceRxConsult = () => {
   }, [profile, tokenData]);
 
   const handleBack = () => {
-    navigate('/', { replace: true });
+    if (fromPrescription && patient_data) {
+      navigate("/prescription", {
+        state: {
+          patient_data,
+        },
+      });
+      return;
+    }
+    // Go back to appointments list explicitly
+    navigate("/", { replace: true });
   };
 
   const handleStartConsultation = () => {
@@ -190,15 +200,6 @@ const VoiceRxConsult = () => {
   const handleModalClose = () => {
     setIsVoiceRxModalOpen(false);
     setShowWelcome(true);
-    
-    if (fromPrescription && patient_data) {
-      navigate("/prescription", {
-      state: {
-        patient_data,
-          isFromTabView: isFromTabView || false,
-        },
-      });
-    }
   };
 
   const formatTime = (seconds) => {
@@ -793,7 +794,7 @@ const VoiceRxConsult = () => {
         </div>
       </Modal>
 
-      {!isFreeVoiceRxUser && (
+      {!isFreeVoiceRxUser && AI_planDetails?.service_type === "ai" && [1, 2, 5].includes(AI_planDetails?.credit_balance) && (
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{

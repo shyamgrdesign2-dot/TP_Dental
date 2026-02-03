@@ -1790,11 +1790,11 @@ function Prescription() {
       });
     }
     
-    // Navigate to VoiceRxConsult page with auto-open modal
+
     navigate("/voice-rx-consult", {
       state: {
         patient_data,
-        autoOpenModal: true,
+        autoOpenModal: false,
         fromPrescription: true,
       },
     });

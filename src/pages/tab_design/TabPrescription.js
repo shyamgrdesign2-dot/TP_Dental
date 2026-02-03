@@ -1432,11 +1432,11 @@ function TabPrescription() {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
-    // Navigate to VoiceRxConsult page with auto-open modal
+
     navigate("/voice-rx-consult", {
       state: {
         patient_data,
-        autoOpenModal: true,
+        autoOpenModal: false,
         fromPrescription: true,
       },
     });
