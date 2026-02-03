@@ -1047,6 +1047,57 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [hasOphthalValue]);
 
+    const hasOphthalPayloadData = useCallback((data) => {
+        if (!data) return false;
+        const hasOphthalArrayData = (items, keys) =>
+            Array.isArray(items) &&
+            items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+
+        return (
+            hasOphthalArrayData(data.visualAcuity, [
+                "ucDistance",
+                "ucNear",
+                "pinhole",
+                "cDistance",
+                "cNear",
+            ]) ||
+            hasOphthalArrayData(data.autoRefraction, [
+                "sphere",
+                "cylinder",
+                "axis",
+                "add",
+                "distance",
+                "near",
+            ]) ||
+            hasOphthalArrayData(data.lensometerValues, [
+                "sphere",
+                "cylinder",
+                "axis",
+                "add",
+                "distance",
+                "near",
+            ]) ||
+            hasOphthalArrayData(data.glassPrescription, [
+                "sphere",
+                "cylinder",
+                "axis",
+                "add",
+                "distance",
+                "near",
+            ]) ||
+            hasOphthalArrayData(data.intraOcularPressure, [
+                "nct",
+                "gat",
+                "cc",
+                "cct",
+                "ciop",
+            ]) ||
+            hasOphthalArrayData(data.slitLampExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalArrayData(data.fundusExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalValue(data.pd)
+        );
+    }, [hasOphthalValue]);
+
     const buildSectionTableValues = useCallback((tableId, rows) => {
         const table = opthalTablesById[tableId];
         if (!table) return {};
@@ -1118,6 +1169,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
             const opthalId = ophthalmologyExam?.opthalPrescriptionId;
             const opthalPatientId = patient_data?.patient_unique_id;
+            const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
 
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
@@ -1185,23 +1237,29 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             if (tcmId == 0) {
                 action = await caseManagerPromise;
                 const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-                const opthalPayloadWithTcm = {
-                    ...opthalPayload,
-                    tcm_id: generatedTcmId,
-                };
-                if (opthalId) {
-                    await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, { patientId: opthalPatientId });
-                } else {
-                    await createOpthalPrescription(opthalPayloadWithTcm, { patientId: opthalPatientId });
+                if (shouldSyncOpthal) {
+                    const opthalPayloadWithTcm = {
+                        ...opthalPayload,
+                        tcm_id: generatedTcmId,
+                    };
+                    if (opthalId) {
+                        await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, { patientId: opthalPatientId });
+                    } else {
+                        await createOpthalPrescription(opthalPayloadWithTcm, { patientId: opthalPatientId });
+                    }
                 }
             } else {
-                const opthalPromise = opthalId
-                    ? updateOpthalPrescription(opthalId, opthalPayload, { patientId: opthalPatientId })
-                    : createOpthalPrescription(opthalPayload, { patientId: opthalPatientId });
-                [action] = await Promise.all([
-                    caseManagerPromise,
-                    opthalPromise,
-                ]);
+                if (shouldSyncOpthal) {
+                    const opthalPromise = opthalId
+                        ? updateOpthalPrescription(opthalId, opthalPayload, { patientId: opthalPatientId })
+                        : createOpthalPrescription(opthalPayload, { patientId: opthalPatientId });
+                    [action] = await Promise.all([
+                        caseManagerPromise,
+                        opthalPromise,
+                    ]);
+                } else {
+                    action = await caseManagerPromise;
+                }
             }
             if (action.meta.requestStatus === "fulfilled") {
                 if (
