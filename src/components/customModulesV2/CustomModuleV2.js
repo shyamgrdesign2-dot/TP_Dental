@@ -1384,8 +1384,32 @@ const CustomModuleV2 = ({ module }) => {
     );
   }, [isDeleteConfirmationModalOpen, module, handleDeleteConfirmationModal, handleDeleteModule]);
 
+  // Close dropdown when clicking outside the module or on a different module
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is inside a dropdown - if so, don't close
+      if (event.target.closest('.custom-module-dropdown')) {
+        return;
+      }
+      
+      // Check if click is inside this module
+      const clickedModule = event.target.closest('.prescription-box-sm');
+      const currentModuleId = module?.module_id;
+      
+      // If click is outside any module or on a different module, close dropdowns
+      if (!clickedModule || clickedModule.getAttribute('data-module-id') !== String(currentModuleId)) {
+        setFocusedFieldId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [module?.module_id]);
+
   return (
-    <div className="prescription-box-sm">
+    <div className="prescription-box-sm" data-module-id={module?.module_id}>
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
@@ -1527,34 +1551,36 @@ const CustomModuleV2 = ({ module }) => {
       {DELETE_MODAL}
 
       {/* Table */}
-      <div className={`custom-module-v2__table ${columnClass}`}>
+      <table className={`custom-module-v2__table ${columnClass} mt-14`}>
         {/* Table Header */}
-        <div className="custom-module-v2__table-header mt-14 border-top border-bottom">
-          {module.namedFields?.map((field, index) => (
-            <div
-              key={field.fieldName}
-              className="custom-module-v2__table-header-cell"
-            >
-              {field.fieldLabel.toUpperCase()}
-            </div>
-          ))}
-          <div className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
-            {/* Action column header */}
-          </div>
-        </div>
+        <thead>
+          <tr className="border-top border-bottom">
+            {module.namedFields?.map((field, index) => (
+              <th
+                key={field.fieldName}
+                className="custom-module-v2__table-header-cell"
+              >
+                {field.fieldLabel.toUpperCase()}
+              </th>
+            ))}
+            <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
+              {/* Action column header */}
+            </th>
+          </tr>
+        </thead>
 
         {/* Table Body */}
-        <div className="custom-module-v2__table-body">
+        <tbody>
           {moduleData.map((row, rowIndex) => {
             // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
             const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
             return (
-            <div
+            <tr
               key={rowKey}
-              className="custom-module-v2__table-row border-bottom"
+              className="border-bottom"
             >
               {module.namedFields?.map((field, fieldIndex) => (
-                <div
+                <td
                   key={field.fieldName}
                   className="custom-module-v2__table-cell"
                 >
@@ -1594,9 +1620,9 @@ const CustomModuleV2 = ({ module }) => {
                       onFocusChange={setFocusedFieldId}
                     />
                   )}
-                </div>
+                </td>
               ))}
-              <div className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
+              <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
                 {isMobile && (
                   <Button
                     className="btn py-0 btn-delete-prescription px-0"
@@ -1611,12 +1637,12 @@ const CustomModuleV2 = ({ module }) => {
                 >
                   <i className="icon-delete"></i>
                 </Button>
-              </div>
-            </div>
+              </td>
+            </tr>
           );
           })}
-        </div>
-      </div>
+        </tbody>
+      </table>
 
       {/* Add New Line Button */}
       <div className="p-14">

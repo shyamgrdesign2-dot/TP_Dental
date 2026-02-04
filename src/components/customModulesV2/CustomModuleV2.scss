@@ -1,14 +1,34 @@
 /* Custom Module V2 - Table Design */
 .custom-module-v2__table {
   width: 100%;
-  // overflow-x: auto;
-}
-
-.custom-module-v2__table-header {
-  display: grid;
-  gap: 0;
-//   padding: 12px 12px;
-  // background: #fafafa;
+  background: #ffffff;
+  border-top: 1px solid #e2e2ea;
+  border-bottom: 1px solid #e2e2ea;
+  border-left: 1px solid #e2e2ea;
+  border-right: 1px solid #e2e2ea;
+  border-radius: 16px;
+  border-collapse: collapse;
+  overflow: visible;
+  table-layout: auto;
+  position: relative;
+  z-index: 1;
+  
+  thead {
+    tr {
+      border-top: 1px solid #e2e2ea;
+      border-bottom: 1px solid #e2e2ea;
+    }
+  }
+  
+  tbody {
+    tr {
+      border-bottom: 1px solid #e2e2ea;
+    }
+    
+    tr:last-child {
+      border-bottom: 1px solid #e2e2ea;
+    }
+  }
 }
 
 .custom-module-v2__table-header-cell {
@@ -18,66 +38,30 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 8px 12px;
-  position: relative;
-  
-  // Use pseudo-element to ensure border is always visible
-  &::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background-color: #e2e2ea;
-    z-index: 1;
-    pointer-events: none;
-  }
+  box-sizing: border-box;
+  border-right: 1px solid #e2e2ea;
+  text-align: left;
 
   &--action {
     width: 50px;
     min-width: 50px;
     max-width: 50px;
-    flex-shrink: 0;
-    // Remove border from action column
-    &::after {
-      display: none;
-    }
+    border-right: none;
   }
 }
 
-.custom-module-v2__table-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.custom-module-v2__table-row {
-  display: grid;
-  gap: 0;
-  align-items: stretch; // Changed from center to stretch so all cells have same height
-  min-height: 48px;
-  position: relative;
-}
-
 .custom-module-v2__table-cell {
-  display: flex;
-  align-items: flex-start;
   padding: 8px 12px;
-  min-height: 58px;
   box-sizing: border-box;
+  border-right: 1px solid #e2e2ea;
+  vertical-align: top;
   position: relative;
-  height: 100%; // Ensure cell takes full row height
+  overflow: visible;
+  z-index: 1;
   
-  // Use pseudo-element to ensure border is always visible on top
-  &::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background-color: #e2e2ea;
-    z-index: 1;
-    pointer-events: none;
+  // Ensure inputs take full width
+  .custom-module-v2__input {
+    width: 100%;
   }
 
   &--action {
@@ -85,13 +69,10 @@
     min-width: 50px;
     max-width: 50px;
     padding: 0 12px;
-    gap: 12px;
-    flex-shrink: 0;
-    align-items: center;
-    // Remove border from action column
-    &::after {
-      display: none;
-    }
+    border-right: none;
+    vertical-align: middle;
+    text-align: center;
+    overflow: visible;
   }
 }
 
@@ -106,12 +87,6 @@
   resize: none;
   margin: 0 !important;
   box-sizing: border-box;
-  max-width: 100%;
-  // Ensure it doesn't cover the border pseudo-element
-  position: relative;
-  z-index: 0;
-  // Force black text color even when disabled
-  // color: #454551 !important;
 
   &:hover,
   &:focus,
@@ -125,18 +100,15 @@
     color: #bfbfbf !important;
   }
 
-  // Override disabled state text color - but keep placeholder gray
   &:disabled {
     opacity: 1 !important;
     
-    // Keep placeholder gray even when disabled - this must come first
     &::placeholder {
       color: #bfbfbf !important;
       -webkit-text-fill-color: #bfbfbf !important;
       opacity: 1 !important;
     }
     
-    // Apply black color for actual text content
     color: #454551 !important;
     -webkit-text-fill-color: #454551 !important;
   }
@@ -156,20 +128,17 @@
     &:disabled {
       opacity: 1 !important;
       
-      // Keep placeholder gray even when disabled - this must come first
       &::placeholder {
         color: #bfbfbf !important;
         -webkit-text-fill-color: #bfbfbf !important;
         opacity: 1 !important;
       }
       
-      // Apply black color for actual text content
       color: #454551 !important;
       -webkit-text-fill-color: #454551 !important;
     }
   }
   
-  // TextArea specific
   &.ant-input {
     border: none !important;
     margin: 0 !important;
@@ -184,9 +153,8 @@
   }
 }
 
-// TextArea specific overrides to ensure no borders interfere with cell borders
+// TextArea specific overrides
 .custom-module-v2__table-cell {
-  // Ensure TextArea doesn't add any borders that would cover the cell's border
   textarea.ant-input {
     border: none !important;
     box-shadow: none !important;
@@ -194,7 +162,6 @@
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    max-width: 100% !important;
     
     &::placeholder {
       color: #bfbfbf !important;
@@ -208,29 +175,24 @@
       outline: none !important;
     }
     
-    // Override disabled state text color - but keep placeholder gray
     &:disabled {
       opacity: 1 !important;
       
-      // Keep placeholder gray even when disabled - this must come first
       &::placeholder {
         color: #bfbfbf !important;
         -webkit-text-fill-color: #bfbfbf !important;
         opacity: 1 !important;
       }
       
-      // Apply black color for actual text content
       color: #454551 !important;
       -webkit-text-fill-color: #454551 !important;
     }
   }
   
-  // Handle any wrapper divs
   .ant-input {
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
-    max-width: 100% !important;
     
     &::placeholder {
       color: #bfbfbf !important;
@@ -244,47 +206,36 @@
       outline: none !important;
     }
     
-    // Override disabled state text color - but keep placeholder gray
     &:disabled {
       opacity: 1 !important;
       
-      // Keep placeholder gray even when disabled - this must come first
       &::placeholder {
         color: #bfbfbf !important;
         -webkit-text-fill-color: #bfbfbf !important;
         opacity: 1 !important;
       }
       
-      // Apply black color for actual text content
       color: #454551 !important;
       -webkit-text-fill-color: #454551 !important;
     }
   }
   
-  // Ensure the input container doesn't overflow and covers the border
   .custom-module-v2__input {
-    max-width: 100% !important;
-    overflow: hidden;
-    // Ensure input doesn't cover the border pseudo-element
-    position: relative;
-    z-index: 0;
+    width: 100% !important;
     
     &::placeholder {
       color: #bfbfbf !important;
     }
     
-    // Override disabled state text color - but keep placeholder gray
     &:disabled {
       opacity: 1 !important;
       
-      // Keep placeholder gray even when disabled - this must come first
       &::placeholder {
         color: #bfbfbf !important;
         -webkit-text-fill-color: #bfbfbf !important;
         opacity: 1 !important;
       }
       
-      // Apply black color for actual text content
       color: #454551 !important;
       -webkit-text-fill-color: #454551 !important;
     }
@@ -294,14 +245,19 @@
   .custom-module-dropdown-container {
     width: 100%;
     position: relative;
+    overflow: visible;
     
     .custom-module-dropdown {
-      z-index: 1050 !important; // Higher than other elements
+      position: absolute !important;
+      top: 100% !important;
+      left: 0 !important;
+      z-index: 1000 !important; // Higher than table cells (z-index: 1)
       // Match Ant Design AutoComplete dropdown styling
       width: 100% !important;
       min-width: 100% !important;
       max-width: 100% !important;
       background: #ffffff !important;
+      background-color: #ffffff !important;
       border: 1px solid #d9d9d9 !important;
       border-radius: 8px !important;
       box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1) !important;
@@ -381,45 +337,7 @@
   }
 }
 
-/* Dynamic grid columns based on number of fields */
-@mixin grid-columns($count) {
-  grid-template-columns: repeat(#{$count}, 1fr) 50px;
-}
-
-// Default 2 columns (+ action column)
-.custom-module-v2__table-header,
-.custom-module-v2__table-row {
-  @include grid-columns(2);
-}
-
-// Support for different column counts
-.custom-module-v2--1-cols {
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    @include grid-columns(1);
-  }
-}
-
-.custom-module-v2--3-cols {
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    @include grid-columns(3);
-  }
-}
-
-.custom-module-v2--4-cols {
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    @include grid-columns(4);
-  }
-}
-
-.custom-module-v2--5-cols {
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    @include grid-columns(5);
-  }
-}
+/* Table automatically handles column widths based on content */
 
 .info-tooltip {
   &.ant-tooltip {
@@ -448,19 +366,36 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .custom-module-v2__table {
-    overflow-x: scroll;
-  }
-
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    min-width: 600px;
+    overflow-x: auto;
+    display: block;
+    
+    thead,
+    tbody,
+    tr {
+      display: block;
+    }
+    
+    thead tr {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+    
+    tbody {
+      display: block;
+    }
+    
+    tbody tr {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+      min-width: 600px;
+    }
   }
 }
 
 /* Tablet and Tab view adjustments - increase action column width to 80px to prevent breaking */
-/* This is needed because 50px is not enough for edit/delete buttons with padding on smaller screens */
 @media (min-width: 769px) and (max-width: 1366px) {
-  // Update action column cell widths
   .custom-module-v2__table-header-cell--action {
     width: 80px !important;
     min-width: 80px !important;
@@ -471,42 +406,6 @@
     width: 80px !important;
     min-width: 80px !important;
     max-width: 80px !important;
-  }
-  
-  // Override grid-template-columns to use 80px for action column instead of 50px
-  // Default 2 columns
-  .custom-module-v2__table-header,
-  .custom-module-v2__table-row {
-    grid-template-columns: repeat(2, 1fr) 80px !important;
-  }
-  
-  // Apply to all column count variations
-  .custom-module-v2--1-cols {
-    .custom-module-v2__table-header,
-    .custom-module-v2__table-row {
-      grid-template-columns: repeat(1, 1fr) 80px !important;
-    }
-  }
-  
-  .custom-module-v2--3-cols {
-    .custom-module-v2__table-header,
-    .custom-module-v2__table-row {
-      grid-template-columns: repeat(3, 1fr) 80px !important;
-    }
-  }
-  
-  .custom-module-v2--4-cols {
-    .custom-module-v2__table-header,
-    .custom-module-v2__table-row {
-      grid-template-columns: repeat(4, 1fr) 80px !important;
-    }
-  }
-  
-  .custom-module-v2--5-cols {
-    .custom-module-v2__table-header,
-    .custom-module-v2__table-row {
-      grid-template-columns: repeat(5, 1fr) 80px !important;
-    }
   }
 }
 
@@ -641,15 +540,19 @@
     .custom-module-dropdown-container {
       width: 100% !important;
       position: relative !important;
+      overflow: visible !important;
       
       .custom-module-dropdown {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
         // Ensure dropdown works properly in drawer
         width: 100% !important;
         min-width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
         // Ensure dropdown appears above drawer content
-        z-index: 1051 !important;
+        z-index: 9999 !important;
         // Match Ant Design AutoComplete dropdown styling
         background: #ffffff !important;
         border: 1px solid #d9d9d9 !important;
