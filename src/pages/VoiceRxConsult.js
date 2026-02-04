@@ -794,7 +794,7 @@ const VoiceRxConsult = () => {
         </div>
       </Modal>
 
-      {!isFreeVoiceRxUser && AI_planDetails?.service_type === "ai" && [1, 2, 5].includes(AI_planDetails?.credit_balance) && (
+      {!isFreeVoiceRxUser && AI_planDetails?.service_type === "ai" && ([0 ,1, 2, 5].includes(AI_planDetails?.credit_balance)) && (
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{
