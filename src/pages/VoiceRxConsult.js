@@ -64,6 +64,7 @@ const VoiceRxConsult = () => {
   const crossButtonClickCountRef = useRef(0);
   const mutePauseButtonClickCountRef = useRef(0);
   const consentRef = useRef(null);
+  const quitFromBackRef = useRef(false);
 
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
@@ -177,16 +178,8 @@ const VoiceRxConsult = () => {
   }, [profile, tokenData]);
 
   const handleBack = () => {
-    if (fromPrescription && patient_data) {
-      navigate("/prescription", {
-        state: {
-          patient_data,
-        },
-      });
-      return;
-    }
-    // Go back to appointments list explicitly
-    navigate("/", { replace: true });
+    quitFromBackRef.current = true;
+    setShowQuitRecordingModal(true);
   };
 
   const handleStartConsultation = () => {
@@ -278,6 +271,7 @@ const VoiceRxConsult = () => {
     if (isRecording || isPaused) {
       crossButtonClickCountRef.current += 1;
     }
+    quitFromBackRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
     }
@@ -289,7 +283,16 @@ const VoiceRxConsult = () => {
 
   const handleQuitRecording = () => {
     setShowQuitRecordingModal(false);
-    cleanupRecording();
+    if (quitFromBackRef.current) {
+      quitFromBackRef.current = false;
+      if (fromPrescription && patient_data) {
+        navigate("/prescription", { state: { patient_data } });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } else {
+      cleanupRecording();
+    }
   };
 
   const handleStayRecording = async () => {
