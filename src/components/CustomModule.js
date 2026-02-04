@@ -35,7 +35,7 @@ import "./CustomModule.scss";
 import CommonModal from "../common/CommonModal";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CashManagerContext from "../context/CashManagerContext";
-import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
+import { errorMessage, removeBeforeWhiteSpace, getClinic } from "../utils/utils";
 import ModuleIcon from "../assets/images/custom-module.svg";
 import { MenuOutlined } from "@ant-design/icons";
 import DisabledModuleTooltip from "./customModulesV2/DisabledModuleTooltip";
@@ -61,10 +61,24 @@ function CustomModule({ module }) {
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
-  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
+  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings, profile } = useSelector((state) => state.doctors);
 
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
+  const clinic = getClinic(profile?.hospital_data);
+  const hospitalId = decodedToken?.result?.clinic_id;
+
+  // Helper function to get MoEngage data
+  const getMoeData = () => {
+    return {
+      doctor_name: profile?.um_name || "",
+      doctor_um_id: userId || "",
+      specialty: profile?.dp_name || "",
+      doctor_mobile_no: profile?.um_contact || "",
+      sub_doctor: profile?.is_sub_doctor ? 1 : 0,
+      hospital_id: clinic?.hm_id || hospitalId || "",
+    };
+  };
 
   const { customModuleContents, setCustomModuleContents, patient_data, tcmId, markModuleAsRemoved } =
     useContext(CashManagerContext);
@@ -393,6 +407,11 @@ function CustomModule({ module }) {
   };
 
   const onDeleteModule = async () => {
+    // Track MoEngage event for delete module
+    if (window.Moengage) {
+      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+    }
+
     try {
       const moduleToDelete = customModules.find(
         (m) => m.module_id === module.module_id
@@ -438,6 +457,11 @@ function CustomModule({ module }) {
   };
 
   const handleRemoveFromRxPad = async () => {
+    // Track MoEngage event for remove from Rx pad
+    if (window.Moengage) {
+      window.Moengage.track_event("TP_CMV2_Remove", getMoeData());
+    }
+
     try {
       message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
 
@@ -1057,7 +1081,13 @@ function CustomModule({ module }) {
       </Menu.Item>
       <Menu.Item
         key="edit"
-        onClick={isModuleDisabled ? undefined : () => setCanEditName(true)}
+        onClick={isModuleDisabled ? undefined : () => {
+          // Track MoEngage event for edit module
+          if (window.Moengage) {
+            window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+          }
+          setCanEditName(true);
+        }}
         disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
