@@ -63,6 +63,8 @@ import FinalSetup from "./pages/FinalSetup";
 import OurOffering from "./pages/ourOffering/OurOffering";
 import SnapRx from "./pages/snapRx/SnapRx";
 import UploadRx from "./pages/uploadRx";
+import OphthalSnapRx from "./pages/ophthalSnapRx/SnapRx";
+import OphthalUploadRx from "./pages/ophthalUploadRx";
 import BottomSheetManager from "./components/bottomSheetManager";
 import SnapRxPreview from "./pages/snapRx/SnapRxPreview";
 import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
@@ -87,6 +89,7 @@ function App() {
   const authToken = searchParams.get("authToken");
   const redirectTo = searchParams.get("redirectTo");
   const uploadParams = searchParams.get("uploadParams");
+  const ophthalUploadParams = searchParams.get("ophthalUploadParams");
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
@@ -238,6 +241,7 @@ function App() {
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
+          clinic_id: `${decodedToken?.result?.clinic_id}`,
         });
       } catch (e) {
         console.log(e);
@@ -289,6 +293,12 @@ function App() {
       // );
     }
   }, [uploadParams]);
+
+  useEffect(() => {
+    if (ophthalUploadParams) {
+      localStorage.setItem("ophthalUploadParams", ophthalUploadParams);
+    }
+  }, [ophthalUploadParams]);
 
   // Add effect to handle redirectTo parameter
   useEffect(() => {
@@ -440,6 +450,10 @@ function App() {
 
               {/* Restricted route - authorized only to get/upload snapRx files */}
               <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
+              <Route
+                path="ophthal-snap-rx/mobile-upload"
+                element={<OphthalUploadRx />}
+              />
 
               {/* ABHA Standalone - Can work with URL auth token */}
               <Route path="/abha-standalone" element={<AbhaStandalone />} />
@@ -499,6 +513,7 @@ function App() {
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
+                <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
                 <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
                 <Route
                   path="get-unlimited-access"

@@ -87,8 +87,10 @@ instance.interceptors.response.use(
 
         if (error.response.status === 401) {
             const isSnapRxMobileUploadPath = window.location?.pathname?.includes('snap-rx/mobile-upload');
+            const isOphthalSnapRxMobileUploadPath = window.location?.pathname?.includes('ophthal-snap-rx/mobile-upload');
             if (
                 !isSnapRxMobileUploadPath &&
+                !isOphthalSnapRxMobileUploadPath &&
                 !error?.request?.responseURL.startsWith(main_config.zydus_proxy_url) &&
                 !error?.request?.responseURL.startsWith(main_config.snap_rx_api_url)
             ) {

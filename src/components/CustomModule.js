@@ -23,6 +23,7 @@ import {
 import {
   CheckOutlined,
   CloseOutlined,
+  InfoCircleOutlined,
   LoadingOutlined,
   MoreOutlined,
   PlusOutlined,
@@ -37,12 +38,14 @@ import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
 import ModuleIcon from "../assets/images/custom-module.svg";
 import { MenuOutlined } from "@ant-design/icons";
+import DisabledModuleTooltip from "./customModulesV2/DisabledModuleTooltip";
 import {
   addModule,
   clearSearchResults,
   searchModule,
   userPreModulesRX,
 } from "../redux/customModuleSlice";
+import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import editIcon from "../assets/images/edit-icon-blue.svg";
@@ -55,16 +58,19 @@ import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
 
 function CustomModule({ module }) {
-  const { customModules, searchModuleResults, loading } = useSelector(
+  const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
-  const { userId } = useSelector((state) => state.doctors);
+  const { userId, customizedPadLeftList, customizedPadRightList, defaultPrintSettings } = useSelector((state) => state.doctors);
 
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
 
-  const { customModuleContents, setCustomModuleContents, patient_data, tcmId } =
+  const { customModuleContents, setCustomModuleContents, patient_data, tcmId, markModuleAsRemoved } =
     useContext(CashManagerContext);
+
+  // Check if module is disabled (used or cloned by the user)
+  const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -327,12 +333,12 @@ function CustomModule({ module }) {
   const loadPreviousClick = async () => {
     const tokenData = decodedToken?.result;
     var sendData = {
-      module_id: module?.module_id,
-      hm_business_id: tokenData?.hospital_business_id,
-      um_id: tokenData?.user_id,
+      module_id: `${module?.module_id}`,
+      hm_business_id: `${tokenData?.hospital_business_id}`,
+      um_id: `${tokenData?.user_id}`,
       patient_unique_id:
-        patient_data !== undefined ? patient_data.patient_unique_id : 0,
-      tcm_id: tcmId,
+        patient_data !== undefined ? `${patient_data.patient_unique_id}` : "0",
+      tcm_id: `${tcmId}`,
     };
     const action = await dispatch(userPreModulesRX(sendData));
     if (action.meta.requestStatus === "fulfilled") {
@@ -428,6 +434,77 @@ function CustomModule({ module }) {
       }
     } catch (error) {
       message.error(error || "Failed to delete module.");
+    }
+  };
+
+  const handleRemoveFromRxPad = async () => {
+    try {
+      message.loading({ content: "Removing module from Rx pad...", key: "removeFromRx" });
+
+      // // Step 1: Remove from print settings
+      // if (defaultPrintSettings?.prescription?.case_option) {
+      //   const caseOptions = defaultPrintSettings.prescription.case_option;
+        
+      //   // Filter out the current module from case_option
+      //   const updatedCaseOptions = caseOptions.filter(
+      //     (option) => !(option.id === module.module_id && option.is_custom_module)
+      //   );
+
+      //   const rxPrescription = {
+      //     ...defaultPrintSettings.prescription,
+      //     case_option: updatedCaseOptions,
+      //   };
+
+      //   const printSettingsData = {
+      //     ...defaultPrintSettings,
+      //     prescription: JSON.stringify(rxPrescription),
+      //     header_footer: JSON.stringify(defaultPrintSettings.header_footer),
+      //     page_format: JSON.stringify(defaultPrintSettings.page_format),
+      //   };
+
+      //   await dispatch(savePrintsettings(printSettingsData)).unwrap();
+      // }
+
+      // Step 2: Remove from customized pad right list
+      const updatedRightList = customizedPadRightList.filter(
+        (item) => item.tmdpm_id !== module.module_id
+      );
+      
+      const sendData = {
+        data: {
+          default: false,
+          reset: false,
+          left: customizedPadLeftList,  // Keep left side as-is
+          right: updatedRightList,       // Remove module from right side
+        }
+      };
+      
+      await dispatch(customizedPad(sendData)).unwrap();
+      
+      // Step 3: Remove from customModuleContents if present
+      setCustomModuleContents((prev) => {
+        return prev.filter(
+          (item) => item.module_id !== module.module_id
+        );
+      });
+
+      // Step 4: Mark module as removed to prevent re-adding from caseManagerData
+      if (markModuleAsRemoved) {
+        markModuleAsRemoved(module.module_id);
+      }
+
+      message.success({
+        content: `"${module.name}" removed from Rx pad successfully`,
+        key: "removeFromRx",
+        duration: 3
+      });
+    } catch (error) {
+      console.error("Error removing module from Rx pad:", error);
+      message.error({
+        content: error?.message || "Failed to remove module from Rx pad. Please try again.",
+        key: "removeFromRx",
+        duration: 3
+      });
     }
   };
 
@@ -586,17 +663,19 @@ function CustomModule({ module }) {
       <CommonModal
         isModalOpen={isDeleteModuleModalOpen}
         onCancel={toggleDeleteModuleModal}
-        modalWidth={500}
+        modalWidth={610}
         title={"Are you sure you want to delete?"}
         modalBody={
           <>
-            <div className="d-flex align-items-start alert-warning rounded-10px p-3 patient-details">
-              <img className="me-3" src={alertIcon} alt="Warning" />
-              <span>
-                Deleting this "<b>{module?.name}</b>" module will permanently
-                remove all saved templates and data associated with it. This
-                action cannot be undone.
-              </span>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Deleting this "<b>{module?.name}</b>" module will permanently
+                  remove all saved templates and data associated with it. This
+                  action cannot be undone.
+                </span>
+              </div>
             </div>
             <div className="mt-4">
               <div className="d-flex align-items-center mt-2 justify-content-end">
@@ -605,7 +684,8 @@ function CustomModule({ module }) {
                     onDeleteModule();
                     toggleDeleteModuleModal();
                   }}
-                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  className="me-4 text-decoration-underline btn p-0"
+                  style={{ color: "#ff4d4f", cursor: "pointer" }}
                 >
                   Yes, Delete
                 </div>
@@ -621,7 +701,7 @@ function CustomModule({ module }) {
         }
       />
     );
-  }, [isDeleteModuleModalOpen]);
+  }, [isDeleteModuleModalOpen, module]);
 
   const reorder = (list, startIndex, endIndex) => {
     const result = Array.from(list);
@@ -959,8 +1039,8 @@ function CustomModule({ module }) {
   const menu = (
     <Menu>
       <Menu.Item
-        key="edit"
-        onClick={() => setCanEditName(true)}
+        key="remove"
+        onClick={handleRemoveFromRxPad}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -972,18 +1052,13 @@ function CustomModule({ module }) {
           padding: "8px 12px",
         }}
       >
-        <img
-          src={editIcon}
-          width={16}
-          height={16}
-          alt="edit"
-          style={{ margin: "0 8px 3px 0" }}
-        />
-        Edit Module Name
+        <i className="icon-exit color-blue" style={{ margin: "0 4px 3px 0" }}></i>
+        Remove From Rx Pad
       </Menu.Item>
       <Menu.Item
-        key="delete"
-        onClick={toggleDeleteModuleModal}
+        key="edit"
+        onClick={isModuleDisabled ? undefined : () => setCanEditName(true)}
+        disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
           fontSize: "14px",
@@ -991,18 +1066,86 @@ function CustomModule({ module }) {
           display: "flex",
           alignItems: "center",
           gap: "8px",
-          color: "#ff4d4f",
+          color: isModuleDisabled ? "#a2a2a8" : "#4a4a4a",
           padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
         }}
       >
-        <img
-          src={deleteIcon}
-          width={16}
-          height={16}
-          alt="edit"
-          style={{ margin: "0 8px 3px 0" }}
-        />
-        Delete Module
+        {isModuleDisabled ? (
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={editIcon}
+                width={18}
+                height={18}
+                alt="edit"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Edit Module Name
+            </span>
+          </DisabledModuleTooltip>
+        ) : (
+          <>
+            <img
+              src={editIcon}
+              width={18}
+              height={18}
+              alt="edit"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Edit Module Name
+          </>
+        )}
+      </Menu.Item>
+      <Menu.Item
+        key="delete"
+        onClick={isModuleDisabled ? undefined : toggleDeleteModuleModal}
+        disabled={isModuleDisabled}
+        style={{
+          fontFamily: "Poppins, sans-serif",
+          fontSize: "14px",
+          fontWeight: "500",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: isModuleDisabled ? "#a2a2a8" : "#ff4d4f",
+          padding: "8px 12px",
+          cursor: isModuleDisabled ? "not-allowed" : "pointer",
+          opacity: isModuleDisabled ? 0.6 : 1,
+        }}
+      >
+        {isModuleDisabled ? (
+          <DisabledModuleTooltip
+            module={module}
+            hospitalSearchResults={hospitalSearchResults}
+          >
+            <span style={{ display: "flex", alignItems: "center" }}>
+              <img
+                src={deleteIcon}
+                width={18}
+                height={18}
+                alt="delete"
+                style={{ margin: "0 8px 3px 0" }}
+              />
+              Delete Module
+            </span>
+          </DisabledModuleTooltip>
+        ) : (
+          <>
+            <img
+              src={deleteIcon}
+              width={18}
+              height={18}
+              alt="delete"
+              style={{ margin: "0 8px 3px 0" }}
+            />
+            Delete Module
+          </>
+        )}
       </Menu.Item>
     </Menu>
   );
@@ -1096,7 +1239,19 @@ function CustomModule({ module }) {
           <>
             <div className="d-flex align-items-center">
               <img className="me-2" src={ModuleIcon} alt={module?.name} />
-              <div className="title-common">{module?.name}</div>
+              <div className="title-common d-flex align-items-center">
+                {module?.name}
+                <DisabledModuleTooltip
+                  module={module}
+                  hospitalSearchResults={hospitalSearchResults}
+                  placement="bottom"
+                  type="title"
+                >
+                  <InfoCircleOutlined
+                    style={{ marginLeft: 8, color: "#a1a1aa", fontSize: 16 }}
+                  />
+                </DisabledModuleTooltip>
+              </div>
             </div>
 
             <div className="d-flex align-items-center">

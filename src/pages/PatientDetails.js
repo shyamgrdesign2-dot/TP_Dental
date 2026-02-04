@@ -39,6 +39,7 @@ import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDa
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
+import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 
 const { Sider, Content } = Layout;
 
@@ -85,6 +86,7 @@ function PatientDetails() {
     const [abhaConsentsCount, setAbhaConsentsCount] = useState(null);
     const [patientAdmissionStatus, setPatientAdmissionStatus] = useState(null);
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
+    const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
 
     useEffect(() => {
         setLocationPath(location.pathname);
@@ -145,6 +147,50 @@ function PatientDetails() {
         //     clearTimeout(timeOutId);
         // };
     }, [tcmData]);
+
+    useEffect(() => {
+        const tcmId = viewCaseManagerData?.tcm_id;
+        if (!tcmId) {
+            return;
+        }
+        let isMounted = true;
+        const fetchOpthalPrescription = async () => {
+            try {
+                const response = await getOpthalPrescriptionDetails({
+                    tcm_id: tcmId,
+                    patientId: patient_data?.patient_unique_id,
+                });
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                if (!isMounted) {
+                    return;
+                }
+                setOpthalPrescriptionHistory((prev) => {
+                    const next = Array.isArray(prev) ? [...prev] : [];
+                    const index = next.findIndex((item) => item?.tcm_id === tcmId);
+                    const entry = { tcm_id: tcmId, data: payload || null };
+                    if (index >= 0) {
+                        next[index] = entry;
+                    } else {
+                        next.push(entry);
+                    }
+                    return next;
+                });
+            } catch (error) {
+                console.error("Error fetching opthal prescription details:", error);
+            }
+        };
+        fetchOpthalPrescription();
+        return () => {
+            isMounted = false;
+        };
+    }, [viewCaseManagerData?.tcm_id]);
+
+    useEffect(() => {
+        return () => {
+            setOpthalPrescriptionHistory([]);
+        };
+    }, []);
 
     useEffect(() => {
     if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
@@ -316,7 +362,7 @@ function PatientDetails() {
                                             <Vaccination /> */}
                                     </div>
                                     <div className='col-lg-7 col-md-12 col-12'>
-                                        <Cardiology patient_data={patient_data} tcmData={tcmData} loading={loading} viewCaseManagerData={viewCaseManagerData} nextPress={nextPress} prevPress={prevPress} />
+                                        <Cardiology patient_data={patient_data} tcmData={tcmData} loading={loading} viewCaseManagerData={viewCaseManagerData} nextPress={nextPress} prevPress={prevPress} opthalPrescriptionHistory={opthalPrescriptionHistory} />
                                     </div>
                                 </div>
                             </div>
