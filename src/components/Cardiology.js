@@ -75,6 +75,7 @@ import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageServ
 import AbhaSyncButton from "./AbhaSyncButton";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
+import { useGrounding } from "../hooks/useGrounding";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -533,6 +534,7 @@ function Cardiology(props) {
   );
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const isGroundingAccessable = useGrounding();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -688,6 +690,25 @@ function Cardiology(props) {
     setSnapRxFile(response?.uploaded_files || []);
   };
 
+
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+
   const getGenRxDetails = async () => {
     try {
       setIsGenRxTableView(false);
@@ -733,9 +754,21 @@ function Cardiology(props) {
             } else if (response.data.digitizeData) {
               prescriptionData = response.data.digitizeData;
             } else {
-              // Fallback to history digitize data
+
               const latestHistory = response.data?.history?.[response.data.history.length - 1];
-              prescriptionData = latestHistory?.digitize || null;
+              const digitizeObj = latestHistory?.digitize;
+              if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                if (numericKeys.length > 0) {
+                  prescriptionData = digitizeObj[numericKeys[0]];
+                } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                  prescriptionData = digitizeObj;
+                } else {
+                  prescriptionData = digitizeObj;
+                }
+              } else {
+                prescriptionData = digitizeObj || null;
+              }
             }
             
             setGenRxData(prescriptionData);
@@ -1394,7 +1427,19 @@ function Cardiology(props) {
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {item?.name || 'N/A'}
+                  {capitalize(
+                    (() => {
+                      if (isGroundingAccessable) {
+                        const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                        if (isFuzzySearchEmpty) {
+                          return item?.groundingMedicineName || item.name || "";
+                        }
+                        return item.name || item?.groundingMedicineName || "";
+                      }
+                      return item?.groundingMedicineName || item.name || "";
+                    })().trim() || '-', 
+                    true
+                  )}
                 </td>
                 <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}
@@ -1614,7 +1659,16 @@ function Cardiology(props) {
               item.name &&
               detailText.trim().toLowerCase().startsWith(item.name.trim().toLowerCase());
 
-            const baseName = item.name || "N/A";
+            const baseName = (() => {
+              if (isGroundingAccessable) {
+                const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                if (isFuzzySearchEmpty) {
+                  return item?.groundingMedicineName || item.name || "N/A";
+                }
+                return item.name || item?.groundingMedicineName || "N/A";
+              }
+              return item?.groundingMedicineName || item.name || "N/A";
+            })();
 
             let formattedMain = baseName;
             if (detailText) {
@@ -2339,11 +2393,18 @@ function Cardiology(props) {
                       ))
                     ) : (
                     
-                      genRxQueries?.map((query, index) => (
-                        <div key={index} className="gen-rx-transcript">
-                          {query}
-                        </div>
-                      ))
+                      genRxQueries
+                        ?.filter((query) => {
+                          if (typeof query === "string") {
+                            return !isSymptomCollectorJSON(query);
+                          }
+                          return true;
+                        })
+                        ?.map((query, index) => (
+                          <div key={index} className="gen-rx-transcript">
+                            {query}
+                          </div>
+                        ))
                     )}
                   </div>
                 )}

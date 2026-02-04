@@ -1080,6 +1080,10 @@ export const getRxTitle = (LanguageId, title) => {
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
+  // Safety check: ensure tmm_duration_type exists
+  if (!tmm_duration_type) {
+    return tmm_duration_type || "";
+  }
   var tmm_duration_type = tmm_duration_type.toLowerCase();
 
   const langTranslations = {
@@ -1239,10 +1243,15 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     },
   };
 
-  return (
-    langTranslations[parseInt(LanguageId)][tmm_duration_type] ||
-    tmm_duration_type
-  );
+  // Safety check: ensure LanguageId is valid and exists in langTranslations
+  const languageId = parseInt(LanguageId);
+  const languageTranslations = langTranslations[languageId];
+
+  if (!languageTranslations || !languageTranslations[tmm_duration_type]) {
+    return tmm_duration_type;
+  }
+
+  return languageTranslations[tmm_duration_type];
 };
 
 export const getTimeingTitle = (LanguageId) => {
@@ -1494,6 +1503,56 @@ export const getSupportedMimeType = () => {
   }
 
   return null; // No supported type found, let browser use default
+};
+
+export const stopAllActiveRecorders = () => {
+  try {
+    if (window.mediaRecorderRef && window.mediaRecorderRef.current) {
+      if (window.mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          window.mediaRecorderRef.current.stop();
+        } catch (e) {
+          console.error('Error stopping global mediaRecorderRef:', e);
+        }
+      }
+    }
+
+    if (window.audioStreamRef && window.audioStreamRef.current) {
+      try {
+        window.audioStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        window.audioStreamRef.current = null;
+      } catch (e) {
+        console.error('Error stopping global audioStreamRef:', e);
+      }
+    }
+
+    if (window.streamRef && window.streamRef.current) {
+      try {
+        window.streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        window.streamRef.current = null;
+      } catch (e) {
+        console.error('Error stopping global streamRef:', e);
+      }
+    }
+
+    if (window.audioContextRef && window.audioContextRef.current) {
+      try {
+        if (window.audioContextRef.current.state !== 'closed') {
+          window.audioContextRef.current.close();
+        }
+        window.audioContextRef.current = null;
+      } catch (e) {
+        console.error('Error closing global audioContextRef:', e);
+      }
+    }
+    console.log('Stopped active recorders and streams (page reload will complete cleanup)');
+  } catch (error) {
+    console.error('Error stopping all active recorders:', error);
+  }
 };
 
 export const isApollo = () => env?.APOLLO_BUSINESS_IDS?.includes(getTokenData()?.hospital_business_id);

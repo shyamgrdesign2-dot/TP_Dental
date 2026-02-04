@@ -1432,6 +1432,14 @@ function TabPrescription() {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
+
+    navigate("/voice-rx-consult", {
+      state: {
+        patient_data,
+        autoOpenModal: false,
+        fromPrescription: true,
+      },
+    });
   };
 
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
@@ -1460,7 +1468,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={() => setIsGenRxDrawerVisible(true)} selectedCarePlan={selectedCarePlan} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div

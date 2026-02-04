@@ -162,7 +162,8 @@ export const generateAmbientRx = async function (payload, patientId, admissionId
             doctorId: allFields.doctorId || parseInt(process.env.REACT_APP_AMBIENT_RX_DOCTOR_ID) || 456,
             hospitalId: allFields.hospitalId || parseInt(process.env.REACT_APP_AMBIENT_RX_HOSPITAL_ID) || 789,                                                                              
             voice_prescription_text: transcriptValue,
-            source_duration: allFields.source_duration ? parseInt(allFields.source_duration) : parseInt(process.env.REACT_APP_AMBIENT_RX_SOURCE_DURATION) || 45000,                           
+            // When data is in JSON format (text-only, no audio), source_duration should be 0
+            source_duration: allFields.source_duration ? parseInt(allFields.source_duration) : 0,                           
             getConversation: allFields.getConversation !== undefined ? allFields.getConversation === 'true' || allFields.getConversation === true : (process.env.REACT_APP_AMBIENT_RX_GET_CONVERSATION === 'true' || true),                                                     
             schemaKey: allFields.schemaKey || process.env.REACT_APP_AMBIENT_RX_SCHEMA_KEY || "default"
           };
@@ -293,7 +294,8 @@ export const updateAmbientRx = async function (payload, id, patientId, admission
             hospitalId: allFields.hospitalId || parseInt(process.env.REACT_APP_AMBIENT_RX_HOSPITAL_ID) || 789,                                                                              
             admissionId: allFields.admissionId || admissionId || null,
             schemaKey: allFields.schemaKey || process.env.REACT_APP_AMBIENT_RX_SCHEMA_KEY || "default",
-            source_duration: allFields.source_duration ? parseInt(allFields.source_duration) : parseInt(process.env.REACT_APP_AMBIENT_RX_UPDATE_SOURCE_DURATION) || 30,                     
+            // When data is in JSON format (text-only, no audio), source_duration should be 0
+            source_duration: allFields.source_duration ? parseInt(allFields.source_duration) : 0,                     
             voice_prescription_text: transcriptValue,
             getConversation: allFields.getConversation !== undefined ? allFields.getConversation === 'true' || allFields.getConversation === true : (process.env.REACT_APP_AMBIENT_RX_GET_CONVERSATION === 'true' || true)                                                      
           };
@@ -464,6 +466,56 @@ export const fhirBundleAmbientRx = async function (payload) {
       code: e.code,
       endpoint: ambientEndpoints.fhir
     });
+  }
+  return res;
+};
+
+export const copyVoiceRx = async function (id, newAppointmentId) {
+  let res = { success: false };
+  try {
+    const response = await api.post(
+      `/api/v1/voice-digitize/copy-rx/${id}`,
+      { newAppointmentId },
+      baseUrl
+    );
+    if (response?.data) {
+      res = { success: true, data: response.data };
+    } else {
+      res = { success: true, data: response };
+    }
+  } catch (e) {
+    console.error("Error while copying voice rx: ", e);
+    res = { 
+      success: false, 
+      error: e.message,
+      status: e.response?.status,
+      statusText: e.response?.statusText
+    };
+  }
+  return res;
+};
+
+export const copyAmbientRx = async function (id, newAppointmentId) {
+  let res = { success: false };
+  try {
+    const response = await api.post(
+      `/api/v1/ambient-voice-rx/copy-rx/${id}`,
+      { newAppointmentId },
+      ambientRxBaseUrl
+    );
+    if (response?.data) {
+      res = { success: true, data: response.data };
+    } else {
+      res = { success: true, data: response };
+    }
+  } catch (e) {
+    console.error("Error while copying ambient rx: ", e);
+    res = { 
+      success: false, 
+      error: e.message,
+      status: e.response?.status,
+      statusText: e.response?.statusText
+    };
   }
   return res;
 };

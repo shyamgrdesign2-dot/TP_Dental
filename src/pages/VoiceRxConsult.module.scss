@@ -1,3 +1,47 @@
+:global {
+  button.btn.btn-link[class*="quitButton"],
+  .btn.btn-link[class*="quitButton"],
+  button.btn.btn-link.text-decoration-underline[class*="quitButton"],
+  .btn.btn-link.text-decoration-underline[class*="quitButton"] {
+    --bs-btn-bg: #FC5A5A !important;
+    --bs-btn-color: #FFFFFF !important;
+    --bs-btn-hover-bg: #FC5A5A !important;
+    --bs-btn-hover-color: #FFFFFF !important;
+    --bs-btn-active-bg: #FC5A5A !important;
+    --bs-btn-active-color: #FFFFFF !important;
+    --bs-link-color: #FFFFFF !important;
+    background-color: #FC5A5A !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    text-decoration: none !important;
+    
+    &:hover,
+    &:focus,
+    &:active,
+    &:visited {
+      background-color: #FC5A5A !important;
+      color: #FFFFFF !important;
+      text-decoration: none !important;
+    }
+  }
+  
+  button.btn-primary3[class*="stayButton"],
+  .btn-primary3[class*="stayButton"],
+  button.btn[class*="stayButton"],
+  .btn[class*="stayButton"] {
+    --bs-btn-color: #FFFFFF !important;
+    --bs-btn-hover-color: #FFFFFF !important;
+    --bs-btn-active-color: #FFFFFF !important;
+    color: #FFFFFF !important;
+    
+    &:hover,
+    &:focus,
+    &:active {
+      color: #FFFFFF !important;
+    }
+  }
+}
+
 .voiceRxConsultPage {
   min-height: 100vh;
   background: linear-gradient(135deg, #f8f7ff 0%, #ffffff 100%);
@@ -99,6 +143,36 @@
         opacity: 0.7;
       }
     }
+
+    .modeIndicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12.53px;
+      background: #E8F5E9 !important;
+      border-radius: 104.43px;
+      border: 1px solid rgba(46, 125, 50, 0.3) !important;
+      height: 38px;
+      box-sizing: border-box;
+      flex-shrink: 0;
+
+      .modeText {
+        font-size: 14px;
+        font-weight: 400;
+        color: #2E7D32 !important;
+        font-family: 'Poppins', sans-serif;
+        letter-spacing: 0px;
+        line-height: 100%;
+        white-space: nowrap;
+      }
+
+      .modeIcon {
+        width: 19px;
+        height: 16px;
+        display: block;
+        flex-shrink: 0;
+      }
+    }
   }
 
   .rightSection {
@@ -151,9 +225,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: calc(100vh - 120px);
-  padding: 60px 20px;
+  padding: 20px 20px 120px;
   position: relative;
   z-index: 5;
 
@@ -184,7 +258,6 @@
         background: none;
         -webkit-text-fill-color: initial;
         color: initial;
-        filter: none;
       }
     }
 
@@ -207,13 +280,11 @@
       width: 570.14px;
       min-height: 60px;
       margin: 0 auto;
-      margin-bottom: 60px;
+      margin-bottom: 10px;
       font-family: 'Poppins', sans-serif;
       font-weight: 400;
       text-align: center;
       opacity: 0.8;
-      display: block;
-      word-wrap: break-word;
       overflow-wrap: break-word;
 
       strong {
@@ -222,11 +293,194 @@
     }
   }
 
+  .patientSummaryWrapper {
+    width: 100%;
+    max-width: 720px;
+    margin: -10px auto 20px;
+    display: flex;
+    justify-content: center;
+
+    &:has([class*="detailedSummaryContainer"]) {
+      margin-bottom: 10px;
+    }
+  }
+
+  .bottomCenterBar {
+    position: fixed;
+    left: 50%;
+    bottom: 80px;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  .recBar {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: auto;
+    max-width: 1200px;
+    background: transparent;
+    padding: 0;
+  }
+
+  .deleteButton {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    
+    img {
+      width: 60px;
+      height: 60px;
+    }
+    
+    &:hover {
+      opacity: 0.8;
+    }
+    
+    &:active {
+      opacity: 0.6;
+    }
+  }
+
+  .pauseButton {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    padding: 0;
+    
+    img {
+      width: 35px;
+      height: 35px;
+      display: block;
+    }
+    
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(237, 138, 0, 0.2);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+    
+    &[data-muted="true"] {
+      background: transparent;
+      box-shadow: none;
+      
+      img {
+        width: 65px;
+        height: 63px;
+        object-fit: contain;
+      }
+    }
+  }
+
+  .timeLabel {
+    min-width: 64px;
+    color: #374151;
+    font-weight: 600;
+    letter-spacing: .4px;
+    font-size: 16px;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .waveArea {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 300px;
+    max-width: none;
+    height: 60px;
+    width: 100%;
+  }
+
+  .sendCta {
+    background: transparent;
+    border: none;
+    padding: 0;
+    min-width: 80px;
+    height: 80px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    img {
+      width: 150px;
+      height: 150px;
+    }
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &:active {
+      opacity: 0.6;
+    }
+  }
+
+  .listeningSection {
+    position: absolute;
+    bottom: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .gradientEllipse {
+    position: absolute;
+    width: 740px;
+    height: 163px;
+    background: url('../assets/images/ellipse-895.svg') no-repeat center;
+    background-size: contain;
+    z-index: 1;
+  }
+
+  .listeningText {
+    position: relative;
+    z-index: 2;
+    color: #FFFFFF !important;
+    font-size: 16px;
+    font-weight: 400;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.3px;
+    text-align: center;
+  }
+
+
   .inputSection {
     position: fixed;
-    bottom: 200px; 
+    bottom: 40px;
     left: 50%;
-    transform: translateX(-50%); // centered alignment
+    transform: translateX(-50%);
     width: 100%;
     max-width: 900px;
     z-index: 100;
@@ -234,241 +488,12 @@
     .inputContainer {
       display: flex;
       align-items: center;
-      gap: 8px;
-      background: transparent;
-      border-radius: 0;
-      padding: 0;
-      box-shadow: none;
-      border: none;
-      overflow: visible;
-      height: auto;
-      width: auto;
       justify-content: center;
-
-      .textInput {
-        width: 592px;
-        border: 1px solid rgba(154, 125, 218, 0.2);
-        outline: none;
-        padding: 14px 16px;
-        font-size: 16px;
-        color: #1f2937;
-        background: white;
-        border-radius: 16px;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 400;
-        min-height: 52px;
-        max-height: 120px;
-        resize: none;
-        overflow-y: auto;
-        box-shadow: 0 0 12px 2px rgba(242, 77, 182, 0.15);
-        flex-shrink: 0;
-        line-height: 1.5;
-        box-sizing: border-box;
-
-        &::placeholder {
-          color: #a2a2a8;
-          opacity: 0.6;
-          font-weight: 400;
-          font-size: 16px;
-        }
-
-        &:focus {
-          background: white;
-          border-color: rgba(154, 125, 218, 0.4);
-        }
-
-        &::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        &::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 3px;
-        }
-
-        &::-webkit-scrollbar-thumb {
-          background: #c0c0c0;
-          border-radius: 3px;
-
-          &:hover {
-            background: #a0a0a0;
-          }
-        }
-      }
-
-      .submitButton {
-        background: linear-gradient(135deg, #F24DB6 0%, #4D77F2 100%);
-        border: none;
-        border-radius: 100px;
-        width: 52px;
-        height: 52px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 0 12px 2px rgba(242, 77, 182, 0.15);
-        font-family: 'Poppins', sans-serif;
-        position: relative;
-        overflow: hidden;
-        flex-shrink: 0;
-        box-sizing: border-box;
-
-        i {
-          font-size: 24px;
-          color: white;
-        }
-
-        svg {
-          width: 24px;
-          height: 24px;
-          color: white;
-          fill: white;
-        }
-
-        &:hover:not(:disabled) {
-          background: linear-gradient(135deg, #E03DA3 0%, #3D6BE8 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
-        }
-
-        &:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        &:active {
-          transform: translateY(0);
-        }
-      }
-
-      .voiceRxButton {
-        background: linear-gradient(135deg, #F24DB6 0%, #4D77F2 100%);
-        border: none;
-        border-radius: 16px;
-        padding: 0 24px;
-        color: white;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-        box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
-        width: 160px;
-        justify-content: center;
-        font-family: 'Poppins', sans-serif;
-        position: relative;
-        overflow: hidden;
-        height: 52px;
-        flex-shrink: 0;
-        box-sizing: border-box;
-
-        &:hover {
-          background: linear-gradient(135deg, #E03DA3 0%, #3D6BE8 100%);
-          transform: translateY(-1px);
-        }
-
-        .buttonIcon {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          width: 23.48px;
-          height: 20px;
-
-          i {
-            font-size: 16px;
-            color: white;
-            width: 12px;
-            height: 16px;
-          }
-
-          .soundBars {
-            display: flex;
-            align-items: center;
-            gap: 2px;
-
-            .bar {
-              width: 2px;
-              height: 12px;
-              background: white;
-              border-radius: 1px;
-              animation: soundBar 1.2s ease-in-out infinite;
-
-              &:nth-child(1) { animation-delay: 0s; }
-              &:nth-child(2) { animation-delay: 0.2s; }
-              &:nth-child(3) { animation-delay: 0.4s; }
-              &:nth-child(4) { animation-delay: 0.6s; }
-            }
-          }
-        }
-
-        &::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(138, 43, 226, 0.35);
-          
-          &::before {
-            left: 100%;
-          }
-        }
-
-        &:active {
-          transform: translateY(-1px);
-        }
-
-        .button-icon {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-
-          .sound-bars {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-
-            .bar {
-              width: 3px;
-              height: 12px;
-              background: white;
-              border-radius: 2px;
-              animation: soundBar 1.2s ease-in-out infinite;
-
-              &:nth-child(1) {
-                animation-delay: 0s;
-              }
-
-              &:nth-child(2) {
-                animation-delay: 0.2s;
-              }
-
-              &:nth-child(3) {
-                animation-delay: 0.4s;
-              }
-
-              &:nth-child(4) {
-                animation-delay: 0.6s;
-              }
-            }
-          }
-        }
-      }
+      gap: 8px;
     }
   }
 }
 
-// Responsive Design
 @media (max-width: 768px) {
   .header {
     height: 64px;
@@ -537,88 +562,90 @@
     }
 
     .inputSection {
-      transform: translateX(-50%); // centered alignment for tablet
+      bottom: 20px;
+      padding: 0 16px;
       
       .inputContainer {
-        flex-direction: column;
-        gap: 8px;
-        padding: 0;
-        height: auto;
-        width: 100%;
-        max-width: 100%;
-        background: transparent;
-
-        .textInput {
-          padding: 8px 12px;
-          font-size: 14px;
-          width: 100%;
-          max-width: 592px;
-          min-height: 52px;
-          max-height: 120px;
-          border-radius: 12px;
-          box-shadow: 0 0 8px 1px rgba(242, 77, 182, 0.15);
-
-          &::placeholder {
-            font-size: 14px;
-          }
-        }
-
-        .submitButton {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-        }
-
-        .voiceRxButton {
-          width: 160px;
-          padding: 10px 16px;
-          font-size: 14px;
-          min-width: auto;
-          height: 52px;
-          margin-top: 8px;
-          border-radius: 8px;
-          gap: 8px;
-          border: none;
-
-          .button-icon {
-            gap: 3px;
-
-            .sound-bars {
-              gap: 2px;
-
-              .bar {
-                width: 2px;
-                height: 10px;
-                border-radius: 1px;
-              }
-            }
-          }
-        }
+        justify-content: center;
       }
+    }
+
+    .bottomCenterBar { 
+      bottom: 60px; 
+    }
+    
+    .recBar { 
+      width: 92vw;
+      gap: 8px;
+    }
+    
+    .deleteButton {
+      width: 50px;
+      height: 50px;
+      min-width: 50px;
+      
+      img {
+        width: 24px;
+        height: 24px;
+      }
+    }
+    
+    .pauseButton {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      
+      img {
+        width: 18px;
+        height: 18px;
+      }
+    }
+    
+    .waveArea {
+      min-width: 150px;
+      height: 50px;
+    }
+    
+    .timeLabel {
+      min-width: 50px;
+      font-size: 14px;
+    }
+
+    .sendCta {
+      min-width: 70px;
+      height: 70px;
+      padding: 0;
+      
+      img {
+        width: 35px;
+        height: 35px;
+      }
+    }
+    
+    .listeningSection {
+      bottom: -40px;
+    }
+    
+    .gradientEllipse {
+      width: 350px;
+      height: 80px;
+      filter: blur(20px);
+    }
+    
+    .listeningText {
+      font-size: 14px;
     }
   }
 }
 
-// Tablet view specific fixes - for all tablets (portrait and landscape)
 @media (min-width: 601px) and (max-width: 1024px) {
   .mainContent {
     .inputSection {
-      transform: translateX(-50%); // centered alignment
+      transform: translateX(-50%);
       left: 50%;
-      
-      .inputContainer {
-        align-items: center;
-        justify-content: center;
-        
-        img {
-          display: block;
-          margin: 0 auto;
-        }
-      }
     }
   }
-  
-  // Modal should behave like desktop in tablet view
+
   .voiceRxModal {
     .ant-modal-content {
       width: 775px !important;
@@ -646,38 +673,10 @@
   }
 
   .consentContainer {
-      height: auto !important;
     padding: 4px 8px !important;
-    background: rgba(239, 234, 249, 1) !important;
   }
 }
 
-// Animation for recording state
-.voiceRxButton.recording {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(138, 43, 226, 0.4);
-  }
-  100% {
-    box-shadow: 0 6px 20px rgba(138, 43, 226, 0.25);
-  }
-}
-
-// Sound wave animations
-@keyframes soundBar {
-  0%, 100% {
-    height: 8px;
-  }
-  50% {
-    height: 16px;
-  }
-}
 
 // Voice Rx Modal Styles
 .voiceRxModal {
@@ -727,22 +726,21 @@
   }
 
   .closeIcon {
-    font-size: 14px;
-    color: white !important;
-    font-weight: 400;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 19.99px;
+    width: 20px;
     height: 20px;
     border-radius: 4px;
     background: #454551;
+    color: white !important;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
       background: #374151;
-      color: white !important;
     }
   }
 }
@@ -755,11 +753,7 @@
   font-family: 'Poppins', sans-serif;
   font-size: 18px;
   font-weight: 600;
-  font-style: normal;
   color: #454551;
-  text-align: left;
-  margin: 0;
-  padding: 0;
   line-height: 100%;
   letter-spacing: 0.1px;
   -webkit-font-smoothing: antialiased;
@@ -807,29 +801,18 @@
 }
 
 .iconBackground {
-  width: auto;
-  height: auto;
-  border-radius: 0;
-  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: none;
-  position: static;
-
-  &::before { content: none; }
 }
 
 .cardTitle {
   font-family: 'Roboto', sans-serif;
   font-size: 20px;
   font-weight: 600;
-  font-style: normal;
   color: #454551;
   line-height: 26px;
-  letter-spacing: 0px;
   text-align: center;
-  vertical-align: middle;
   margin: 0 0 12px 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -839,10 +822,8 @@
   font-family: 'Poppins', sans-serif;
   font-size: 12px;
   font-weight: 400;
-  font-style: normal;
   color: #454551;
   line-height: 22px;
-  letter-spacing: 0px;
   text-align: center;
   margin: 0 0 12px 0;
   flex-grow: 1;
@@ -850,14 +831,7 @@
   -moz-osx-font-smoothing: grayscale;
 
   strong {
-    font-family: 'Poppins', sans-serif;
     font-weight: 600;
-    font-style: normal;
-    font-size: 12px;
-    line-height: 22px;
-    letter-spacing: 0px;
-    text-align: center;
-    color: #454551;
   }
 }
 
@@ -867,8 +841,6 @@
   padding: 3px 10px;
   margin: 0 0 20px 0;
   border: 1px solid rgba(154, 125, 218, 0.2);
-  min-height: auto;
-  height: auto;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -878,11 +850,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  margin: 0;
-  gap: 0px;
-  height: auto;
   width: 100%;
-  flex-wrap: nowrap;
   
   .consentText {
     font-family: 'Poppins', sans-serif;
@@ -929,29 +897,28 @@
 }
 
 .modeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 41px;
+  margin: 0 auto;
+  padding: 6px 14px;
   background: linear-gradient(135deg, #B472BE 0%, #313DB0 100%);
   border: none;
   border-radius: 12px;
-  padding: 6px 14px;
   color: white;
   font-family: 'Poppins', sans-serif;
   font-size: 14px;
   font-weight: 500;
-  font-style: normal;
   line-height: 20px;
   letter-spacing: 0.1px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 4px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: all 0.3s ease;
-  width: 200px;
-  height: 41px;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.12);
-  margin: 0 auto;
 
   i {
     font-size: 16px;
@@ -974,11 +941,10 @@
 .disclaimerText {
   display: flex;
   justify-content: center;
-  color: rgba(162, 162, 168, 1) !important;
   font-size: 12px;
+  color: rgba(162, 162, 168, 1) !important;
 }
 
-// Mobile responsive for modal - ONLY for small phones <= 600px
 @media (max-width: 600px) {
   .voiceRxModal {
     .ant-modal-content {
@@ -1029,16 +995,10 @@
 
   .modeButton {
     padding: 12px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 20px;
-    letter-spacing: 0.1px;
   }
 
   .consentContainer {
-    height: auto !important;
     padding: 4px 8px !important;
-    background: rgba(239, 234, 249, 1) !important;
   }
 }
 
