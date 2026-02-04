@@ -194,6 +194,8 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      window.streamRef = streamRef;
+      window.audioContextRef = audioContextRef;
       const input = audioContext.createMediaStreamSource(stream);
       input.connect(analyser);
 
@@ -224,6 +226,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
+        window.streamRef = null;
       }
       
       // Close audio context only if it's not already closed
@@ -232,6 +235,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
           console.error('Error closing audio context:', err);
         });
         audioContextRef.current = null;
+        window.audioContextRef = null;
       }
       
       analyserRef.current = null;
@@ -245,10 +249,11 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
         animationFrameRef.current = null;
       }
       
-      // Stop media stream tracks
+      // Stop media stream tracks (unmount cleanup)
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
+        window.streamRef = null;
       }
       
       // Close audio context only if it's not already closed
@@ -256,6 +261,7 @@ function VoiceWaveVisualizer({ isRecording, isPaused }) {
         audioContextRef.current.close().catch((err) => {
           console.error('Error closing audio context:', err);
         });
+        window.audioContextRef = null;
       }
     };
   }, [isRecording, startVisualizer]);

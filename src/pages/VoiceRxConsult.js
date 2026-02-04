@@ -19,7 +19,7 @@ import vitalsIcons from "../assets/images/vitals-icons.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import styles from "./VoiceRxConsult.module.scss";
 import startConsultImg from "../assets/images/text-box.svg";
-import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage } from "../utils/utils";
+import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage, stopAllActiveRecorders } from "../utils/utils";
 import { useSelector, useDispatch } from "react-redux";
 import { FAILED_VERIFICATION, FREE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
@@ -146,6 +146,27 @@ const VoiceRxConsult = () => {
     setIsPaused(false);
     setRecordingTime(0);
     setSelectedMode('');
+    window.mediaRecorderRef = null;
+    window.audioStreamRef = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -241,6 +262,8 @@ const VoiceRxConsult = () => {
       try {
         mediaRecorderRef.current.start();
         setIsRecording(true);
+        window.mediaRecorderRef = mediaRecorderRef;
+        window.audioStreamRef = audioStreamRef;
       } catch (startError) {
         console.error("Error starting MediaRecorder:", startError);
         if (audioStreamRef.current) {
@@ -422,7 +445,11 @@ const VoiceRxConsult = () => {
         clinic_name: clinic?.hm_name,
         mode: selectedMode,
       });
-      
+
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingTime(0);
+
       let blob;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         blob = await new Promise((resolve) => {
@@ -438,17 +465,24 @@ const VoiceRxConsult = () => {
           };
           mediaRecorderRef.current.stop();
         });
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
       } else {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         blob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
       }
 
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      setIsRecording(false);
-      setIsPaused(false);
-      setRecordingTime(0);
+      stopAllActiveRecorders();
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
 
       if (!blob || blob.size === 0) {
         message.error('No audio captured. Please try again.');

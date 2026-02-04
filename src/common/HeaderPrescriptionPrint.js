@@ -16,7 +16,7 @@ import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const { profile } = useSelector((state) => state.doctors);
@@ -28,13 +28,12 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const isReceptionist = urlParams.has("receptionist");
 
     const onEndVisitClick = async () => {
-        stopAllActiveRecorders();
+        if (isVoiceOrAmbientFlow) {
+            stopAllActiveRecorders();
+        }
         
         if (handleGoToAppointment) {
             handleGoToAppointment();
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
         } else {
             var sendData = {
               patient_unique_id:
@@ -73,10 +72,6 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               dispatch(resetUploadDocState());
               dispatch(resetDDxState());
               navigate("/", { replace: true });
-              // Reload page after navigation to ensure recorder cleanup
-              setTimeout(() => {
-                window.location.reload();
-              }, 100);
             } else {
               errorMessage(action.error);
             }

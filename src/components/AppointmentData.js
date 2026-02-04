@@ -2224,7 +2224,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                <div className="d-flex">
+                <div className="d-flex" style={{ flex: "0 0 auto" }}>
                   {selectedTab !== TAB_CANCELLED && (
                     <button
                       // className="btn btn-outline-primary btn-smart-rx"
@@ -2345,7 +2345,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </button>
                 </>
               ) : (
-                <div className="d-flex">
+                <div className="d-flex" style={{ flex: "0 0 auto" }}>
                   {(selectedTab !== TAB_CANCELLED && !finishedData.some(
                     (x) => x.pam_ref_id == record.encounterId)) && (
                     <button

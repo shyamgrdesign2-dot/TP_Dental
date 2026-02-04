@@ -55,7 +55,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -357,6 +357,21 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (!visible) {
       hasAutoSubmittedRef.current = false;
+      stopAllActiveRecorders();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
     }
   }, [visible]);
 
@@ -1343,6 +1358,8 @@ const ConsultationDrawer = ({
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
+      window.mediaRecorderRef = mediaRecorderRef;
+      window.audioStreamRef = audioStreamRef;
     } catch (error) {
       console.error("Error accessing microphone:", error);
     }
@@ -1373,6 +1390,8 @@ const ConsultationDrawer = ({
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
+    window.mediaRecorderRef = null;
+    window.audioStreamRef = null;
   };
 
   const handleSend = async () => {
@@ -1452,6 +1471,14 @@ const ConsultationDrawer = ({
             try {
               if (isRecording) {
                 mediaRecorderRef.current?.stop();
+                if (audioStreamRef.current) {
+                  audioStreamRef.current.getTracks().forEach((track) => track.stop());
+                  audioStreamRef.current = null;
+                }
+                window.mediaRecorderRef = null;
+                window.audioStreamRef = null;
+                setIsRecording(false);
+                setIsPaused(false);
                 await new Promise((resolve) => setTimeout(resolve, 100)); // Ensure audio is processed
 
                 const mimeType =
@@ -1460,6 +1487,7 @@ const ConsultationDrawer = ({
                   type: mimeType,
                 });
 
+                stopAllActiveRecorders();
                 await handleVoiceDigitize(audioBlob, "");
               } else {
                 await handleVoiceDigitize(null, inputText || editableQuery);
@@ -3348,6 +3376,7 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    stopAllActiveRecorders();
     const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries

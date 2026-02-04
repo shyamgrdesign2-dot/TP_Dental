@@ -425,8 +425,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       }
       
                   if (prescriptionData) {
-                    // Merge with latestPrescription data
-        const mergedData = {
+                    // Merge with latestPrescription data; include version for Repeat Rx gating
+                    const mergedData = {
                       ...latestPrescription,
                       symptoms: prescriptionData.symptoms || latestPrescription.symptoms || [],
                       diagnosis: prescriptionData.diagnosis || latestPrescription.diagnosis || [],
@@ -436,7 +436,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                       follow_up_date: prescriptionData.followUp || prescriptionData.follow_up_date || latestPrescription.follow_up_date || "",
                       followUp: prescriptionData.followUp || prescriptionData.follow_up_date || latestPrescription.follow_up_date || "",
                       vaccinations: prescriptionData.vaccinations || latestPrescription.vaccinations || [],
-                      labInvestigation: prescriptionData.labInvestigation || prescriptionData.tests || latestPrescription.investigation || []
+                      labInvestigation: prescriptionData.labInvestigation || prescriptionData.tests || latestPrescription.investigation || [],
+                      version: response.data?.version
                     };
 
                     digitizedData = mergedData;
@@ -1318,6 +1319,10 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 
                 // Only show if NOT Snap Rx and NOT Smart Rx
                 if (isSnapRx || isSmartRx) {
+                  return null;
+                }
+                // Repeat Rx only for version v2 (Voice/Ambient)
+                if (lastPrescriptionData?.version?.trim?.()?.toLowerCase() !== "v2") {
                   return null;
                 }
                 
