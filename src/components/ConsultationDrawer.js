@@ -245,9 +245,31 @@ const ConsultationDrawer = ({
   const isSymptomCollectorJSON = useCallback((text) => {
     if (typeof text !== "string") return false;
     const trimmed = text.trim();
-    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    let toParse = trimmed;
+    // Handle "Input: {...} , Previous Context: ..." format (e.g. dictate mode API response)
+    if (trimmed.includes("Input:") && trimmed.includes("{")) {
+      const startIdx = trimmed.indexOf("{");
+      if (startIdx >= 0) {
+        let depth = 0;
+        let endIdx = -1;
+        for (let i = startIdx; i < trimmed.length; i++) {
+          if (trimmed[i] === "{") depth++;
+          else if (trimmed[i] === "}") {
+            depth--;
+            if (depth === 0) {
+              endIdx = i;
+              break;
+            }
+          }
+        }
+        if (endIdx >= 0) {
+          toParse = trimmed.substring(startIdx, endIdx + 1);
+        }
+      }
+    }
+    if (!toParse.startsWith("{") || !toParse.endsWith("}")) return false;
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed = JSON.parse(toParse);
       if (!parsed || typeof parsed !== "object") return false;
       return (
         Array.isArray(parsed.symptoms) ||
@@ -262,9 +284,9 @@ const ConsultationDrawer = ({
   const isFirstTranscriptJSON = useMemo(() => {
     if (Array.isArray(queries) && queries.length > 0) {
       const firstQuery = queries[0];
-      const firstText = typeof firstQuery === 'string' 
-        ? firstQuery 
-        : (firstQuery?.text || '');
+      const firstText = typeof firstQuery === 'string'
+        ? firstQuery
+        : (firstQuery?.text || firstQuery?.message || firstQuery?.content || '');
       return isSymptomCollectorJSON(firstText);
     }
     if (fullTranscript) {
@@ -5360,6 +5382,10 @@ const ConsultationDrawer = ({
                         {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
                         {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
                           const cardIndex = idx + 1;
+                          const queryTextForCheck = typeof query === 'string' ? query : (query?.text || query?.message || query?.content || '');
+                          if (isSymptomCollectorJSON(queryTextForCheck)) {
+                            return <React.Fragment key={cardIndex} />;
+                          }
                           const isCardExpanded = expandedTranscripts.has(cardIndex);
                           const isAudio = query && typeof query === 'object' && query.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations

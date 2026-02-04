@@ -113,14 +113,14 @@ const VoiceRxConsult = () => {
             _id: response?._id,
           })
         );
-        if (patient_data?.pam_status === "0") {
+        if (patient_data?.pam_status === "0" && (isFreeVoiceRxUser || (AI_planDetails?.credit_balance ?? 1) > 0)) {
           dispatch(setShowSCPopup(true));
         }
       }
     } catch (error) {
       console.error("Error fetching symptoms collector data:", error);
     }
-  }, [patient_data, userId, clinicId, dispatch]);
+  }, [patient_data, userId, clinicId, dispatch, isFreeVoiceRxUser, AI_planDetails?.credit_balance]);
 
   useEffect(() => {
     getSymptomsCollectorData();
@@ -298,6 +298,10 @@ const VoiceRxConsult = () => {
   const handleStayRecording = async () => {
     noStayClickCountRef.current += 1;
     setShowQuitRecordingModal(false);
+    if (quitFromBackRef.current) {
+      quitFromBackRef.current = false;
+      return;
+    }
     audioChunksRef.current = [...savedChunksRef.current];
     setRecordingTime(savedRecordingTimeRef.current);
     
@@ -655,11 +659,9 @@ const VoiceRxConsult = () => {
                 patient</strong>. I'll transcribe & structure the <strong>Rx automatically!</strong>
               </div>
             </div>
-            
             <div className={styles.patientSummaryWrapper}>
-              <PatientSummary patientData={patient_data} />
+              <PatientSummary patientData={patient_data} hideSymptomsBanner={!isFreeVoiceRxUser && AI_planDetails?.credit_balance === 0} />
             </div>
-            
             {isRecording ? (
               <div className={styles.bottomCenterBar}>
                 <div className={styles.recBar}>
@@ -833,7 +835,7 @@ const VoiceRxConsult = () => {
         </div>
       </Drawer>
 
-      {showSCPopup && (
+      {showSCPopup && (isFreeVoiceRxUser || AI_planDetails?.credit_balance !== 0) && (
         <SCPopup
           handlePopup={() => dispatch(setShowSCPopup(false))}
           handleGenRx={handleGenRx}
@@ -860,6 +862,7 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-link text-decoration-underline ms-4 ${styles.quitButton}`}
                 onClick={handleQuitRecording}
+                style={{ color: 'red' }}
               >
                 Yes, Quit
               </button>
@@ -867,6 +870,7 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-primary3 btn-41 px-4 ${styles.stayButton}`}
                 onClick={handleStayRecording}
+                style={{ color: 'white' }}
               >
                 No, Stay
               </button>
