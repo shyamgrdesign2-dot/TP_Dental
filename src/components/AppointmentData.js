@@ -1179,15 +1179,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const tokenData = decodedToken?.result;
   const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
 
-  const handlePrintDraftRx = (record) => {
-    window.open(`${record?.print_rx_url}`);
-  }
-
   const getMenuItems = (record) => {
     const items = [
       selectedTab === TAB_DRAFT_RX && {
         label: (
-          <span onClick={() => handlePrintDraftRx(record)}>
+          <span onClick={() => onPrintRxUrlClick(record)}>
             Print Draft Rx
           </span>
         ),
