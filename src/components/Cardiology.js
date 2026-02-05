@@ -48,7 +48,6 @@ import {
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
-  GB_SAVE_AS_DRAFT_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -533,7 +532,6 @@ function Cardiology(props) {
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
-  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
@@ -1136,6 +1134,7 @@ function Cardiology(props) {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
+          isEditRx: true,
         },
       });
     }
@@ -2958,7 +2957,7 @@ function Cardiology(props) {
               </div>
             ) : (
               <Card.Body className="p-0 cardbody-data">
-                {!!is_draft && isSaveAsDraftRxAccessableFromGB && <DraftRxAlert />}
+                {!!is_draft && <DraftRxAlert />}
                 <div>
                   <div className="p-3 pb-0">
                     {viewCaseManagerData.symptoms.length > 0 && (

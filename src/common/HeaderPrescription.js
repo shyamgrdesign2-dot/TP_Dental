@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useContext, useMemo } from 're
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import { Button, Dropdown, Tooltip, Popover, Input, Spin, Tabs, Select, Drawer, message } from 'antd';
 import { LoadingOutlined } from "@ant-design/icons";
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { isMobile, isDesktop } from 'react-device-detect';
 import { useTabletViewport } from '../hooks/useTabletViewport';
 import { v4 as uuidv4 } from 'uuid';
@@ -126,7 +126,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isFreeVoiceRxUser = isVoiceRxFree();
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
-    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB;
+    const {isEditRx = false} = useLocation().state || {};
+    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
     
     useEffect(() => {
         dispatch(oneClickTemplatesList());

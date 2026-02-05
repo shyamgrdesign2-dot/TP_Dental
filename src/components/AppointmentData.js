@@ -1085,7 +1085,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }, [date]);
 
   const nextDatePress = useCallback(() => {
-    if (selectedTab !== TAB_QUEUE) {
+    if (![TAB_QUEUE, TAB_DRAFT_RX].includes(selectedTab)) {
       if (
         !moment(moment(date.startDate).format(dateFormat)).isSame(
           moment().format(dateFormat),
