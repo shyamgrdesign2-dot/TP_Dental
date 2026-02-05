@@ -18,6 +18,9 @@ import { useSelector, useDispatch } from "react-redux";
 
 import {
     viewCaseManager,
+    listConsultations,
+    resetConsultations,
+    resetViewCaseManagerData,
 } from "../redux/caseManagerSlice";
 import { checkPatientAdmitted } from "../redux/ipdSlice";
 import VisitVaccination from "./vaccination/components/visitVaccination/VisitVaccination";
@@ -39,6 +42,7 @@ import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDa
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
+import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 
 const { Sider, Content } = Layout;
@@ -50,6 +54,7 @@ function PatientDetails() {
     const {
         viewCaseManagerData,
         loading,
+        consultations: consultationsFromRedux,
     } = useSelector((state) => state.caseManager);
     const { allUploadedDocs } = useSelector(
       (state) => state.uploadDoc
@@ -72,8 +77,18 @@ function PatientDetails() {
 
     const [locationPath, setLocationPath] = useState("/");
     const [collapsed, setCollapsed] = useState(isMobile ? true : false);
-    const [tcmData, setTcmData] = useState({ tcm_id: 0, page: 1 });
     const [filesData, setFilesData] = useState([]);
+    
+    // Use consultation navigation hook
+    const {
+        currentConsultation,
+        handleNext: handleNextConsultation,
+        handlePrev: handlePrevConsultation,
+        isFirstConsultation,
+        isLastConsultation,
+        currentPageDisplay,
+    } = useConsultationNavigation(patient_data?.patient_unique_id, consultationsFromRedux);
+    
     const [shouldShowUploadDocPopup, setShowUploadDocPopup] = useState(false);
     const [isFileSizeError, setIsFileSizeError] = useState(false);
     const [isFileLimitError, setIsFileLimitError] = useState(false);
@@ -87,6 +102,17 @@ function PatientDetails() {
     const [patientAdmissionStatus, setPatientAdmissionStatus] = useState(null);
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
     const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
+
+    // Fetch consultations on mount
+    useEffect(() => {
+        if (patient_data?.patient_unique_id) {
+            dispatch(listConsultations({
+                patient_unique_id: patient_data.patient_unique_id,
+                limit: 10,
+                page: 1
+            }));
+        }
+    }, [patient_data?.patient_unique_id, dispatch]);
 
     useEffect(() => {
         setLocationPath(location.pathname);
@@ -124,29 +150,22 @@ function PatientDetails() {
         }
     }, [sidebarKey]);
 
+    // Call viewCaseManager when currentConsultation changes
     useEffect(() => {
-        const clinic_name = getClinicName(profile?.hospital_data);
-        window.Moengage.track_event("TP_Patient_detail_landing", {
-            clinic_name,
-            patient_number: patient_data?.pm_contact_no,
-            patient_id: patient_data?.patient_unique_id,
-        })
-        var sendData = {
-            patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
-            tcm_id: tcmData.tcm_id
+        if (currentConsultation?.tcm_id && patient_data?.patient_unique_id) {
+            const clinic_name = getClinicName(profile?.hospital_data);
+            window.Moengage.track_event("TP_Patient_detail_landing", {
+                clinic_name,
+                patient_number: patient_data?.pm_contact_no,
+                patient_id: patient_data?.patient_unique_id,
+            });
+            var sendData = {
+                patient_unique_id: patient_data.patient_unique_id,
+                tcm_id: currentConsultation.tcm_id
+            };
+            dispatch(viewCaseManager(sendData));
         }
-        dispatch(viewCaseManager(sendData));
-        // const timeOutId = setTimeout(() => {
-        //     var sendData = {
-        //         patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
-        //         tcm_id: tcmData.tcm_id
-        //     }
-        //     dispatch(viewCaseManager(sendData));
-        // }, 500);
-        // return () => {
-        //     clearTimeout(timeOutId);
-        // };
-    }, [tcmData]);
+    }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;
@@ -189,6 +208,8 @@ function PatientDetails() {
     useEffect(() => {
         return () => {
             setOpthalPrescriptionHistory([]);
+            dispatch(resetConsultations());
+            dispatch(resetViewCaseManagerData());
         };
     }, []);
 
@@ -263,19 +284,19 @@ function PatientDetails() {
     };
 
     const nextPress = () => {
-        window.Moengage.track_event("patient_detail_prev", {
-            "doctor_id": profile?.doctor_unique_id,
-            "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
-        });
-        setTcmData({ tcm_id: viewCaseManagerData?.next_tcm_id, page: tcmData.page -= 1 })
-    }
-
-    const prevPress = () => {
         window.Moengage.track_event("patient_detail_next", {
             "doctor_id": profile?.doctor_unique_id,
             "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
         });
-        setTcmData({ tcm_id: viewCaseManagerData?.prev_tcm_id, page: (tcmData.page += 1) })
+        handleNextConsultation();
+    }
+
+    const prevPress = () => {
+        window.Moengage.track_event("patient_detail_prev", {
+            "doctor_id": profile?.doctor_unique_id,
+            "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
+        });
+        handlePrevConsultation();
     }
 
     const onClickSidebarHandle = useCallback((key) => {
@@ -355,14 +376,25 @@ function PatientDetails() {
                                         {/* Care Plan List - Show assigned care plans for patient */}
                                         <CarePlanBox
                                             patientId={patient_data?.patient_unique_id}
-                                            selectedTcmId={tcmData?.tcm_id}
+                                            selectedTcmId={currentConsultation?.tcm_id}
                                             readOnly={true}
                                         />
                                         {/*   <LabParameters />
                                             <Vaccination /> */}
                                     </div>
                                     <div className='col-lg-7 col-md-12 col-12'>
-                                        <Cardiology patient_data={patient_data} tcmData={tcmData} loading={loading} viewCaseManagerData={viewCaseManagerData} nextPress={nextPress} prevPress={prevPress} opthalPrescriptionHistory={opthalPrescriptionHistory} />
+                                        <Cardiology 
+                                            patient_data={patient_data} 
+                                            tcmData={currentConsultation}
+                                            loading={loading} 
+                                            viewCaseManagerData={viewCaseManagerData} 
+                                            nextPress={nextPress} 
+                                            prevPress={prevPress}
+                                            currentPageDisplay={currentPageDisplay}
+                                            isFirstConsultation={isFirstConsultation}
+                                            isLastConsultation={isLastConsultation}
+                                            opthalPrescriptionHistory={opthalPrescriptionHistory}
+                                        />
                                     </div>
                                 </div>
                             </div>

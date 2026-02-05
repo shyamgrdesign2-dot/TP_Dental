@@ -34,6 +34,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
 };
 
 export const TAB_QUEUE = 0;
+export const TAB_DRAFT_RX = 6;
 export const TAB_FINISHED = 3;
 export const TAB_CANCELLED = 4;
 export const TAB_ZYDUS_ENCOUNTER = 11;
@@ -88,6 +89,7 @@ export const GB_PILLUP_MEDICINE = "pillup-medicine-switch";
 export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
+export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -117,6 +119,7 @@ export const REJECTED = "REJECTED";
 export const GB_NEW_IPD = "new-ipd";
 export const GB_NEW_IPD_HOS_BUSINESS_ID = "new-ipd-hos-business-id";
 export const GB_NEW_IPD_ZYDUS = "new-ipd-zydus";
+export const GB_APPT_SEQUENCE = "enable-sequence-change";
 export const FAILED_VERIFICATION = "FAILED-VERIFICATION";
 export const PENDING_VERIFICATION = "PENDING-VERIFICATION";
 export const S_TATVA_PRACTICE = "tatva_practice";

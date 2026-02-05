@@ -363,6 +363,7 @@ const uat = {
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
+  consultation_api_url: "https://pm-consultation-uat.tatvacare.in",
 };
 
 const prod = {
@@ -481,6 +482,7 @@ const prod = {
   templates_api_url: "https://pm-ipd-prod.tatvacare.in",
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
+  consultation_api_url: "https://pm-consultation-prod.tatvacare.in",
 };
 
 const getEnv = () => {

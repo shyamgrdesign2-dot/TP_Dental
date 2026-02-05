@@ -516,7 +516,8 @@ function Prescription() {
     useDDX,
     setUseDDX,
     selectedCarePlan,
-    setSelectedCarePlan
+    setSelectedCarePlan,
+    isDraft: caseManagerData?.is_draft
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);

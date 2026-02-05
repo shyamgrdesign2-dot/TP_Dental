@@ -77,7 +77,10 @@ import {
   GB_VIDEO_CONSULT,
   GB_NEW_IPD,
   GB_NEW_IPD_HOS_BUSINESS_ID,
+  TAB_DRAFT_RX,
   GB_OPTHAL_MODULE,
+  GB_SAVE_AS_DRAFT_RX,
+  GB_APPT_SEQUENCE,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -88,6 +91,8 @@ import ImgcancelEnd from "../assets/images/cancel-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
 import newTag from "../assets/images/new-gif.gif";
 import alertIcon from "../assets/images/alertIcon.svg";
+import draftIconSecondary from "../assets/images/draft-secondary.svg";
+import draftIconPrimary from "../assets/images/draft-primary.svg";
 import { MESSAGE_KEY } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import docimg from "../assets/images/docimg.png";
@@ -200,6 +205,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     finishedData,
     zydusAappointmentData,
     snapRxUnDigitisedIds,
+    draftRxCount,
   } = useSelector((state) => state.records);
   const dispatch = useDispatch();
 
@@ -261,6 +267,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
+  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
 
 
   const showHideSubModal = () => {
@@ -404,6 +412,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -520,6 +529,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         </div>
       ),
     },
+    isSaveAsDraftRxAccessableFromGB && {
+      key: TAB_DRAFT_RX,
+      label: (
+        <div className="d-flex align-items-center">
+          <img width={20} height={20} className="me-2" src={selectedTab === TAB_DRAFT_RX ? draftIconPrimary : draftIconSecondary} alt="Draft" />
+          Draft ({draftRxCount})
+        </div>
+      ),
+    },
     {
       key: TAB_FINISHED,
       label: (
@@ -549,6 +567,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           <div className="d-flex align-items-center">
             <i className="icon-Queue"></i>
             Queue ({isDigitisationTab ? 0 : queueCount})
+          </div>
+        ),
+      },
+      isSaveAsDraftRxAccessableFromGB && {
+        key: TAB_DRAFT_RX,
+        label: (
+          <div className="d-flex align-items-center">
+            <img width={20} height={20} className="me-2" src={selectedTab === TAB_DRAFT_RX ? draftIconPrimary : draftIconSecondary} alt="Draft" />
+            Draft ({draftRxCount})
           </div>
         ),
       },
@@ -634,7 +661,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isSnapRxDigitizationAccessable,
   ]);
 
-  const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
 
   useEffect(() => {
@@ -765,6 +791,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   cvtAppointmentIdsStr: allUnDigitisedIds?.join(","),
                 }
               : {}),
+            ...(isAppointmentSequenceFromGB && selectedTab === TAB_QUEUE
+              ? {
+                  sortBySequence: true,
+                }
+              : {}),
           };
           dispatch(getAllAppointment(sendData));
         } else {
@@ -799,6 +830,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     advancedSettings?.billingStatusInAppointmentScreen,
     pendingDigitisation?.data,
     snapRxUnDigitisedIds,
+    isAppointmentSequenceFromGB,
   ]);
 
   useEffect(() => {
@@ -838,6 +870,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ...(isDigitisationTab && allUnDigitisedIds?.length > 0
             ? {
                 cvtAppointmentIdsStr: allUnDigitisedIds?.join(","),
+              }
+            : {}),
+          ...(isAppointmentSequenceFromGB && selectedTab === TAB_QUEUE
+            ? {
+                sortBySequence: true,
               }
             : {}),
         };
@@ -1142,8 +1179,20 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const tokenData = decodedToken?.result;
   const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
 
+  const handlePrintDraftRx = (record) => {
+    window.open(`${record?.print_rx_url}`);
+  }
+
   const getMenuItems = (record) => {
     const items = [
+      selectedTab === TAB_DRAFT_RX && {
+        label: (
+          <span onClick={() => handlePrintDraftRx(record)}>
+            Print Draft Rx
+          </span>
+        ),
+        key: "printDraftRx",
+      },
       {
         label: (
           <span onClick={() => onPatientDetailsClick(record)}>
@@ -1193,7 +1242,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             key: "createbill",
           }
         : undefined,
-      isOpdBillingAccessable
+      isOpdBillingAccessable 
         ? {
             label: (
               <div
@@ -1224,22 +1273,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "labparams",
       },
-      // isOpthalModuleAccessible
-      //   ? {
-      //       label: (
-      //         <span
-      //           onClick={() => {
-      //             setAppointmentSelectedFromMenu(record);
-      //             handleOpthalDrawer();
-      //           }}
-      //         >
-      //           Add Ophthal Details
-      //         </span>
-      //       ),
-      //       key: "opthalDetails",
-      //     }
-      //   : undefined,
-      {
+      selectedTab !== TAB_DRAFT_RX && {
         label: (
           <span
             onClick={() => {
@@ -1279,7 +1313,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             key: "admitToIpd",
           }
         : undefined,
-      {
+      selectedTab !== TAB_DRAFT_RX && {
         label: (
           <span
             onClick={() => {
@@ -1292,7 +1326,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         ),
         key: "endvisit",
       },
-      {
+      selectedTab !== TAB_DRAFT_RX && {
         label: (
           <span
             onClick={() => {
@@ -1994,6 +2028,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     if (showZeroSeconds) return `${Min} ${Sec}`;
     return `${Min}`;
   }
+
+  const handleResumeDraftRx = async (record) => {
+    const sendData = {
+      patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
+      tcm_id: record?.tcm_id
+    }
+    const action = await dispatch(viewCaseManager(sendData));
+    if (action.meta.requestStatus === "fulfilled") {
+        navigate("/prescription", { state: { patient_data: record, caseManagerData: action.payload } })
+    }
+  };
+
   const columns = [
     {
       title: "#",
@@ -2131,32 +2177,51 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       ellipsis: true,
       sortDirections: ["descend", "ascend", "descend"],
       defaultSortOrder: sort_order,
-      sorter: (a, b, sortOrder) => {
-        if (
-          selectedTab !== TAB_ZYDUS_APPOINTMENT &&
-          selectedTab != TAB_ZYDUS_ENCOUNTER
-        ) {
-          if (sortOrder !== sort_order) {
-            setPageNo(0);
-            dispatch(changeSortOrder(sortOrder));
-          }
-        } else {
-          const lhsDateTime = `${a.apDate} ${a.apTime}`;
-          const lhsLongTime = moment(
-            lhsDateTime,
-            "Do MMM YYYY HH:mm A"
-          ).valueOf();
+      sorter: isAppointmentSequenceFromGB && selectedTab === TAB_QUEUE
+        ? false
+        : (a, b, sortOrder) => {
+            if (
+              selectedTab !== TAB_ZYDUS_APPOINTMENT &&
+              selectedTab != TAB_ZYDUS_ENCOUNTER
+            ) {
+              if (sortOrder !== sort_order) {
+                setPageNo(0);
+                dispatch(changeSortOrder(sortOrder));
+              }
+            } else if (selectedTab === TAB_FINISHED) {
+              // Sort by finishedTime when finished tab is selected
+              const lhsDateTime = `${a.apDate} ${a.finishedTime}`;
+              const lhsLongTime = moment(
+                lhsDateTime,
+                "Do MMM YYYY HH:mm A"
+              ).valueOf();
 
-          const rhsDateTime = `${b.apDate} ${b.apTime}`;
-          const rhsLongTime = moment(
-            rhsDateTime,
-            "Do MMM YYYY HH:mm A"
-          ).valueOf();
+              const rhsDateTime = `${b.apDate} ${b.finishedTime}`;
+              const rhsLongTime = moment(
+                rhsDateTime,
+                "Do MMM YYYY HH:mm A"
+              ).valueOf();
 
-          const result = lhsLongTime - rhsLongTime;
-          return result;
-        }
-      },
+              const result = lhsLongTime - rhsLongTime;
+              return sortOrder === "ascend" ? result : -result;
+            } else {
+              // ZYDUS tabs sorting
+              const lhsDateTime = `${a.apDate} ${a.apTime}`;
+              const lhsLongTime = moment(
+                lhsDateTime,
+                "Do MMM YYYY HH:mm A"
+              ).valueOf();
+
+              const rhsDateTime = `${b.apDate} ${b.apTime}`;
+              const rhsLongTime = moment(
+                rhsDateTime,
+                "Do MMM YYYY HH:mm A"
+              ).valueOf();
+
+              const result = lhsLongTime - rhsLongTime;
+              return result;
+            }
+          },
       render: (text, record) => {
         const getDisplayText = () => {
           if (!isMunshiHospital()) {
@@ -2198,7 +2263,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) &&
+            {selectedTab === TAB_DRAFT_RX ? (
+              <button
+                className="btn btn-outline-primary btn-resume-draft-rx"
+                onClick={() => handleResumeDraftRx(record)}
+              >
+                Resume
+              </button>
+            ) :
+            (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) &&
             shouldShowVoiceRx() &&
             selectedTab != TAB_ZYDUS_ENCOUNTER ? (
               (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB)) ? (
@@ -2549,6 +2622,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ? "There are no patients in your queue right now!"
           : selectedTab === TAB_FINISHED
           ? "You haven't finished any consultations or ended the visit yet."
+          : selectedTab === TAB_DRAFT_RX
+          ? "You haven't saved any drafts yet."
           : "Nothing here! You haven’t cancelled any appointments here."}
       </div>
     </div>

@@ -76,4 +76,5 @@ export default {
   ipd_api_url: env.ipd_api_url,
   abha_api_url: env.abha_api_url,
   abha_records_api_url: env.abha_records_api_url,
+  consultation_api_url: env.consultation_api_url,
 };

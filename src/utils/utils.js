@@ -1736,3 +1736,45 @@ export const handleAdmitToIpd = async (record) => {
 export const isIPad = () => {
   return navigator.userAgent.includes("iPad") || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
 };
+
+export const formatHeightWeight = (value = '') =>
+  value?.includes('/') ? value?.split('/').reverse().join('/') : value;
+
+export const filterCustomModuleContent = (customModuleContents = []) => {
+  return customModuleContents
+    ?.map((e) => {
+      if (!e) return null;
+      // Filter content based on module version
+      let filteredContent;
+      if (e.module_version === "v2") {
+        // For V2 modules, filter rows with content and remove 'id' field
+        filteredContent =
+          e.content
+            ?.filter((row) => {
+              // Check if any field (except 'id') has content
+              const { id, ...fields } = row || {};
+              return Object.values(fields).some(
+                (value) => value && value.toString().trim().length > 0,
+              );
+            })
+            .map((row) => {
+              // Remove 'id' field from the actual payload
+              const { id, ...cleanRow } = row || {};
+              return cleanRow;
+            }) || [];
+      } else {
+        // For V1 modules, check for title or notes
+        filteredContent = (e.content || []).filter(
+          (e1) => e1.title || e1.notes,
+        );
+      }
+
+      // Skip modules with no content after filtering
+      if (!filteredContent || filteredContent.length === 0) {
+        return null;
+      }
+
+      return { ...e, content: filteredContent };
+    })
+    .filter(Boolean);
+};

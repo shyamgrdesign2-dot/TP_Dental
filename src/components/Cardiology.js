@@ -48,6 +48,7 @@ import {
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
+  GB_SAVE_AS_DRAFT_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -66,6 +67,7 @@ import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
+import draftIcon from "../assets/images/draft-document.svg";
 
 import {
   getSnapRxDigitization,
@@ -98,8 +100,12 @@ function Cardiology(props) {
     viewCaseManagerData,
     nextPress,
     prevPress,
+    currentPageDisplay,
+    isFirstConsultation,
+    isLastConsultation,
     opthalPrescriptionHistory,
   } = props;
+  const {is_draft} = viewCaseManagerData || {};
 
   const normalizeEyeLabel = useCallback((eye) => {
     const normalized = String(eye || "").toUpperCase();
@@ -527,7 +533,7 @@ function Cardiology(props) {
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
-
+  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
@@ -1876,6 +1882,19 @@ function Cardiology(props) {
     });
   };
 
+  const DraftRxAlert = () => {
+    const sameDoctor = viewCaseManagerData?.doctor_data?.um_id === userId;
+    return (
+      <div className="draft-rx-alert">
+        <img src={draftIcon} alt="Draft" className="me-1" />
+        This Rx is in <span className="fw-bold">draft</span>!{" "}
+        {sameDoctor && (
+          <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -1932,28 +1951,16 @@ function Cardiology(props) {
                 <div className="align-items-center d-flex">
                   <Button
                     className="btn border rounded-3 px-1 me-2 antdesable-custom"
-                    onClick={nextPress}
-                    disabled={
-                      !loading &&
-                      tcmData.page > 1 &&
-                      viewCaseManagerData?.next_tcm_id
-                        ? false
-                        : true
-                    }
+                    onClick={prevPress}
+                    disabled={loading || isFirstConsultation}
                   >
                     <i className="icon-right d-block"></i>
                   </Button>
-                  <span className="fw-normal fs-14 fontroboto">{`${tcmData.page}/${viewCaseManagerData?.total_consultation}`}</span>
+                  <span className="fw-normal fs-14 fontroboto">{currentPageDisplay || '0/0'}</span>
                   <Button
                     className="btn border rounded-3 antdesable-custom p-1 ms-2"
-                    onClick={prevPress}
-                    disabled={
-                      !loading &&
-                      tcmData.page < viewCaseManagerData?.total_consultation &&
-                      viewCaseManagerData?.prev_tcm_id
-                        ? false
-                        : true
-                    }
+                    onClick={nextPress}
+                    disabled={loading || isLastConsultation}
                   >
                     <i
                       className="icon-right"
@@ -1962,7 +1969,7 @@ function Cardiology(props) {
                   </Button>
                 </div>
                 <div>
-                  <button
+                  {!is_draft && <button
                     className="btn p-0 ms-3"
                     style={{
                       visibility:
@@ -1974,7 +1981,7 @@ function Cardiology(props) {
                     onClick={handleEditRxClick}
                   >
                     <i className="icon-Edit"></i>
-                  </button>
+                  </button>}
                   <button
                     className="btn p-0 ms-3"
                     onClick={() =>
@@ -2951,6 +2958,7 @@ function Cardiology(props) {
               </div>
             ) : (
               <Card.Body className="p-0 cardbody-data">
+                {!!is_draft && isSaveAsDraftRxAccessableFromGB && <DraftRxAlert />}
                 <div>
                   <div className="p-3 pb-0">
                     {viewCaseManagerData.symptoms.length > 0 && (
