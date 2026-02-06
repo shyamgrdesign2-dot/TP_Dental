@@ -353,7 +353,6 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: medicineName,
-        groundingMedicineName: medicineName, // Set groundingMedicineName for ambient mode
         corrected_name: medication?.tmm_generic || medication?.generic_name || '',
         dosage: '',
         frequency: '',
@@ -386,7 +385,6 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: extractedName,
-        groundingMedicineName: extractedName, // Set groundingMedicineName for ambient mode
         dosage: '',
         frequency: '',
         schedule: '',
@@ -477,11 +475,6 @@ const MedicationsTable = ({
           [field]: updatedValue,
         };
 
-        // If updating the name field, also update groundingMedicineName for ambient mode
-        if (field === "name") {
-          updated.groundingMedicineName = updatedValue;
-        }
-
         if (field === "quantity") {
           const isQuantityChanged =
             String(updatedValue ?? "").trim() !== String(prevQuantity ?? "").trim();
@@ -528,7 +521,6 @@ const MedicationsTable = ({
           const updated = {
             ...item, // Preserve all existing properties
             name: medicineName,
-            groundingMedicineName: medicineName, // Update groundingMedicineName for ambient mode
             corrected_name: generic || item.corrected_name || '',
             edited: false, // Set to false for autocomplete selections
           };
@@ -587,7 +579,6 @@ const MedicationsTable = ({
           const updated = {
             ...item,
             name: extractedName,
-            groundingMedicineName: extractedName, // Update groundingMedicineName for ambient mode
             edited: false, // Set to false for autocomplete selections
           };
           updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
@@ -690,11 +681,6 @@ const MedicationsTable = ({
         const isQuantityChanged =
           String(newQuantity ?? "").trim() !== String(prevQuantity ?? "").trim();
         updated.edited = isQuantityChanged;
-
-        // If name was updated, also update groundingMedicineName for ambient mode
-        if (rowEditValues.name !== undefined) {
-          updated.groundingMedicineName = rowEditValues.name;
-        }
 
         updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         updated.hm_type = rowEditValues.hm_type;
@@ -1649,7 +1635,6 @@ const MedicationsTable = ({
                   const updated = {
                     ...item, // Preserve all existing properties
                     name: medicineName,
-                    groundingMedicineName: medicineName, // Update groundingMedicineName for ambient mode
                     corrected_name: generic || item.corrected_name || '',
                     edited: false,
                   };
@@ -1689,7 +1674,6 @@ const MedicationsTable = ({
               const newMedication = {
                 id: Date.now().toString(),
                 name: medicineName,
-                groundingMedicineName: medicineName, // Set groundingMedicineName for ambient mode
                 corrected_name: generic,
                 dosage: '',
                 frequency: '',
