@@ -435,69 +435,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const innerMedication = (index) => {
         const mainArray = []
-        if (!caseManagerData?.medicine || !Array.isArray(caseManagerData.medicine) || caseManagerData.medicine.length === 0) {
-            return mainArray;
-        }
         for (var i = index; i < caseManagerData.medicine.length; i++) {
-            const currentId = caseManagerData.medicine[i].tmm_id || caseManagerData.medicine[i].unique_id || i;
-            const indexId = caseManagerData.medicine[index].tmm_id || caseManagerData.medicine[index].unique_id || index;
-            if (currentId == indexId) {
+            if (caseManagerData.medicine[i].tmm_id == caseManagerData.medicine[index].tmm_id) {
                 mainArray.push(caseManagerData.medicine[i])
             } else {
                 break;
             }
         }
         return mainArray
-    } 
-    const medicationData = (caseManagerData?.medicine && Array.isArray(caseManagerData.medicine) && caseManagerData.medicine.length > 0)
-        ? caseManagerData.medicine.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => {
-            if (acc.length === 0) {
-                return [curr];
-            }
-            const lastItem = acc[acc.length - 1];
-            const lastId = lastItem?.tmm_id || lastItem?.unique_id || lastItem?.tmm_medicine_name || lastItem?.index;
-            const currId = curr.tmm_id || curr.unique_id || curr.tmm_medicine_name || curr.index;
-            if (lastId === currId) {
-                return acc;
-            } else {
-                return [...acc, curr];
-            }
-        }, [])
-        : []
+    }
+    const medicationData = caseManagerData.medicine?.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], [])
 
     const formatUnitPerDose = (tmm_dosage, is_dosage_decimal) => {
         const unitPerDoseFormat = medicine_freq_dosage_format(tmm_dosage, is_dosage_decimal);
         return unitPerDoseFormat;
     }
-
-    const convertRelativeDateToDate = (relativeDateString, consultationDate) => {
-        if (!relativeDateString || typeof relativeDateString !== 'string' || relativeDateString.trim() === '') {
-            return relativeDateString;
-        }
-        
-        if (moment(relativeDateString).isValid()) {
-            return relativeDateString;
-        }
-        
-        const relativeDateMatch = relativeDateString.match(/(\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years)(\(s\))?/i);
-        if (relativeDateMatch) {
-            const value = parseInt(relativeDateMatch[1]);
-            const unit = relativeDateMatch[2].toLowerCase();
-            const baseDate = consultationDate ? moment(consultationDate) : moment();
-            
-            if (unit.includes('year')) {
-                return baseDate.add(value, 'years').format('YYYY-MM-DD');
-            } else if (unit.includes('month')) {
-                return baseDate.add(value, 'months').format('YYYY-MM-DD');
-            } else if (unit.includes('week')) {
-                return baseDate.add(value, 'weeks').format('YYYY-MM-DD');
-            } else {
-                return baseDate.add(value, 'days').format('YYYY-MM-DD');
-            }
-        }
-        
-        return relativeDateString;
-    };
 
     const onCalFollowUp = (start_date, end_date) => {
         const dateB = moment(start_date);
@@ -648,6 +600,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           };
 
           img.onerror = function (error) {
+            console.error("Error loading footer image:", error);
             setFooterImageHeight(0);
           };
         }
@@ -674,6 +627,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
          }
          return null;
        } catch (error) {
+         console.error("Error rendering footer image:", error);
          return null;
        }
      };
@@ -717,18 +671,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ? getMarginByFormat(letterhead_format, header_footer, "right", 0.5)
         : PX_TO_PT * 30;
 
-        let paddingBottom = letterhead_format === 2
+        const paddingBottom = letterhead_format === 2
         ? (isOwnLetterheadFirstPageOnly ? userBottomMargin : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
         : letterhead_format === 1
-            ? fileFooter?.imageShow && fileFooter?.footerHeight && fileFooter?.footerWidth
+            ? fileFooter?.imageShow
                 ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (paddingLeft + paddingRight))) + paddingTop
                 : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
                 : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5;
-        
-        // Guard against NaN values
-        if (isNaN(paddingBottom) || !isFinite(paddingBottom)) {
-            paddingBottom = getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5;
-        }
 
         return {
             paddingTop,
@@ -1152,7 +1101,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 8: 
                                     return caseManagerData.medical_history?.length > 0;
                                 case 9: 
-                                    return caseManagerData.follow_up_date && caseManagerData.follow_up_date.trim() !== '' && moment(caseManagerData.follow_up_date).isValid();
+                                    return caseManagerData.follow_up_date;
                                 case 91: 
                                     return caseManagerData.visit_advice;
                                 case 10: 
@@ -1196,42 +1145,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             return false;
                         };
-                        
-                        const hasEnabledItemsAfterPageBreak = (pageBreakIndex) => {
-                            for (let i = pageBreakIndex + 1; i < printSettings?.prescription?.case_option?.length; i++) {
-                                const nextOption = printSettings?.prescription?.case_option[i];
-                                if (nextOption?.type === "page_break") {
-                                    continue;
-                                }
-                                if (nextOption?.enable === "Y") {
-                                    const hasData = hasModuleData(nextOption, caseManagerData);
-                                    if (hasData) {
-                                        return true;
-                                    }
-                                }
-                            }
-                            return false;
-                        };
-                        
                         return printSettings?.prescription?.case_option?.map((option, index) => {
-                            const customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                            
+                            let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
+                            if(customModule) {
+                                customModule = { ...customModule, name: getCustomModuleName(option?.id) };
+                            }
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
-                                const shouldRender = shouldRenderPageBreak(index);
-                                const hasItemsAfter = hasEnabledItemsAfterPageBreak(index);
-                                
                                 if (isLastPageBreak) {
                                     return null;
                                 }
                                 if (hasRenderedPageBreak) {
                                     return null;
                                 }
-                                if (!shouldRender) {
-                                    return null;
-                                }
-                                // Don't render page break if it's the last enabled item before signature
-                                if (!hasItemsAfter) {
+                                if (!shouldRenderPageBreak(index)) {
                                     return null;
                                 }
                                 hasRenderedPageBreak = true;
@@ -1246,17 +1173,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             if (option?.type !== "page_break" && option?.enable === "Y") {
                                 hasRenderedPageBreak = false;
                             }
-                            
-                            const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
-                            
-                            // Check if this is a custom module and if it has data
-                            const hasCustomModuleData = option?.is_custom_module === true && customModule?.content?.some((item) => item?.title || item?.notes);
-                            
-                            // Skip rendering if it's a custom module with no data
-                            if (option?.is_custom_module === true && !hasCustomModuleData) {
-                                return null;
-                            }
-                            
                             return (
                                 <View key={option.id} style={{
                                     marginTop: index === 0 ? (printSettings?.header_footer?.show_patient_info === 'first' ||
@@ -1507,14 +1423,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {caseManagerData?.medicine && Array.isArray(caseManagerData.medicine) && caseManagerData.medicine.length > 0 && (
+                                        {caseManagerData.medicine.length > 0 && (
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, marginBottom: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
                                                     {medicationData?.map((pItem, i) => {
                                                         return (
                                                             <Text key={i}>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -1607,7 +1523,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -1733,7 +1649,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={styles.row} key={i} wrap={false}>
                                                                 <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
                                                                 <View style={styles.cell}>
-                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || ''}</Text>
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name}</Text>
                                                                     {option?.medicine_with_generic && (
                                                                         <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic}</Text>
                                                                     )}
@@ -2386,38 +2302,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 9 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {(() => {
-                                            // Convert relative date string to actual date if needed
-                                            const followUpDate = caseManagerData.follow_up_date 
-                                                ? convertRelativeDateToDate(caseManagerData.follow_up_date, caseManagerData?.patient_data?.patient_consultaion_date)
-                                                : null;
-                                            
-                                            // Only render if we have a valid date
-                                            if (!followUpDate || (typeof followUpDate === 'string' && followUpDate.trim() === '') || !moment(followUpDate).isValid()) {
-                                                return null;
-                                            }
-                                            
-                                            return (
-                                                option?.format === 'inline' ? (
+                                        {caseManagerData.follow_up_date && (
+                                            option?.format === 'inline' ? (
                                                     <Text style={{ marginTop: PX_TO_PT * 15 }}>
                                                         <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Follow-up:&nbsp;</Text>
-                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(followUpDate, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{option?.followup_dateformat ? moment(followUpDate).format('DD/MM/YYYY') : onCalFollowUp(moment(followUpDate).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
+                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(caseManagerData.follow_up_date, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{option?.followup_dateformat ? moment(caseManagerData.follow_up_date).format('DD/MM/YYYY') : onCalFollowUp(moment(caseManagerData.follow_up_date).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
                                                     </Text>
-                                                ) : option?.format === 'listview' ? (
+                                            ) : option?.format === 'listview' ? (
                                                     <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                         <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Follow-up:&nbsp;</Text>
-                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(followUpDate, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400, marginTop: PX_TO_PT * 4 }}>{option?.followup_dateformat ? moment(followUpDate).format('DD/MM/YYYY') : onCalFollowUp(moment(followUpDate).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
+                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(caseManagerData.follow_up_date, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400, marginTop: PX_TO_PT * 4 }}>{option?.followup_dateformat ? moment(caseManagerData.follow_up_date).format('DD/MM/YYYY') : onCalFollowUp(moment(caseManagerData.follow_up_date).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
                                                     </View>
-                                                ) : (
+                                            ) : (
                                                     <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                         <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Follow-up:&nbsp;</Text>
                                                         <View style={styles.table}>
-                                                            <Text style={{border: '1px solid #171725', padding: 6, color: '#171725', fontFamily: getIndianLanguageFont(followUpDate, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{option?.followup_dateformat ? moment(followUpDate).format('DD/MM/YYYY') : onCalFollowUp(moment(followUpDate).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
+                                                            <Text style={{border: '1px solid #171725', padding: 6, color: '#171725', fontFamily: getIndianLanguageFont(caseManagerData.follow_up_date, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{option?.followup_dateformat ? moment(caseManagerData.follow_up_date).format('DD/MM/YYYY') : onCalFollowUp(moment(caseManagerData.follow_up_date).format('YYYY-MM-DD'), moment(caseManagerData?.patient_data?.patient_consultaion_date).format('YYYY-MM-DD'))}</Text>
                                                         </View>
                                                     </View>
-                                                )
-                                            );
-                                        })()}
+                                            )
+                                        )}
                                     </>
                                 ) : option?.id === 91 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
