@@ -1459,81 +1459,8 @@ function Cardiology(props) {
       );
     });
 
-  // Render dynamicFields for smart rx and snap rx (handles object structure)
-  const renderDynamicFields = (dynamicFieldsData) => {
-    if (!dynamicFieldsData || typeof dynamicFieldsData !== "object" || Array.isArray(dynamicFieldsData)) {
-      return null;
-    }
-
-    return Object.entries(dynamicFieldsData)
-      .filter(([moduleName, moduleData]) => {
-        return (
-          Array.isArray(moduleData) &&
-          moduleData.length > 0 &&
-          moduleData.some((item) => {
-            const value =
-              typeof item === "string"
-                ? item
-                : item?.lineItem || item?.title || item?.name || item?.notes;
-            return typeof value === "string" && value.trim().length > 0;
-          })
-        );
-      })
-      .map(([moduleName, moduleData]) => {
-        return (
-          <div key={moduleName} style={{ marginBottom: "20px" }}>
-            <div className="d-flex align-items-start">
-              <img
-                className="me-2"
-                src={customModuleIcon}
-                alt={moduleName}
-              />
-              <div className="title-digitise-section mb-1">
-                {moduleName
-                  .replace(/([A-Z])/g, " $1")
-                  .replace(/^./, (str) => str.toUpperCase())}
-              </div>
-            </div>
-            <div className="digitised-data-section">
-              <ul>
-                {moduleData.map((item, index) => {
-                  const displayValue =
-                    typeof item === "string"
-                      ? item
-                      : item?.lineItem || item?.title || item?.name || item?.notes || "";
-                  const notes = item?.notes && typeof item.notes === "string" ? item.notes.trim() : "";
-                  return (
-                    <li key={index}>
-                      <div className="medicine-item">
-                        <span>{displayValue}</span>
-                        {notes && <span>{` (${notes})`}</span>}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-        );
-      });
-  };
-
   // Add this helper function at the top of the component
   const hasValidContent = (data, type) => {
-    if (type === "dynamicFields") {
-      if (!data?.[type] || typeof data[type] !== "object" || Array.isArray(data[type])) {
-        return false;
-      }
-      return Object.entries(data[type]).some(([moduleName, moduleData]) => {
-        if (!Array.isArray(moduleData) || moduleData.length === 0) return false;
-        return moduleData.some((item) => {
-          if (typeof item === "string") return item.trim().length > 0;
-          const value = item?.lineItem || item?.title || item?.name || item?.notes;
-          return typeof value === "string" && value.trim().length > 0;
-        });
-      });
-    }
-
     if (!data?.[type] || !Array.isArray(data[type])) return false;
 
     return data[type].some((item) => {
@@ -2323,7 +2250,17 @@ function Cardiology(props) {
                     {rxDigitisedData?.editedData?.dynamicFields &&
                       hasValidContent(rxDigitisedData.editedData, "dynamicFields") && (
                         <>
-                          {renderDynamicFields(rxDigitisedData.editedData.dynamicFields)}
+                          <div className="d-flex align-items-start">
+                            <img
+                              className="me-2"
+                              src={customModuleIcon}
+                              alt="Dynamic Fields"
+                            />
+                            <div className="title-digitise-section mb-1">
+                              Dynamic Fields
+                            </div>
+                          </div>
+                          {renderItems("dynamicFields")}
                         </>
                       )}
 
@@ -2588,7 +2525,17 @@ function Cardiology(props) {
                     {snapRxDigitisedData?.dynamicFields &&
                       hasValidContent(snapRxDigitisedData, "dynamicFields") && (
                         <>
-                          {renderDynamicFields(snapRxDigitisedData.dynamicFields)}
+                          <div className="d-flex align-items-start">
+                            <img
+                              className="me-2"
+                              src={customModuleIcon}
+                              alt="Dynamic Fields"
+                            />
+                            <div className="title-digitise-section mb-1">
+                              Dynamic Modules
+                            </div>
+                          </div>
+                          {renderItems("dynamicFields")}
                         </>
                       )}
 
