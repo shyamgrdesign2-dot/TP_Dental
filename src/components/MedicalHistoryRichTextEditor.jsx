@@ -48,7 +48,7 @@ const MedicalHistoryRichTextEditor = ({
     };
 
     medicalHistory.forEach(item => {
-      const type = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
+      const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
       if (groups[type]) {
         groups[type].push(item);
       } else {
@@ -125,7 +125,7 @@ const MedicalHistoryRichTextEditor = ({
     });
 
     const updatedHistory = medicalHistory.filter(item => {
-      const itemType = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
+      const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
       return itemType !== type;
     }).concat(updatedItems);
 
@@ -214,7 +214,7 @@ const MedicalHistoryRichTextEditor = ({
 
     // Update the specific type in the full medical history array
     const updatedHistory = medicalHistory.filter(item => {
-      const itemType = item.type?.trim().toLowerCase().replace(/\s+/g, '_') || 'others';
+      const itemType = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
       return itemType !== type;
     }).concat(updatedItems);
 
