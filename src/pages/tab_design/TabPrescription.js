@@ -126,7 +126,6 @@ function TabPrescription() {
     timingList,
     userId,
   } = useSelector((state) => state.doctors);
-  const navigate = useNavigate();
   const { planDetails } = useSelector((state) => state.subscription);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
@@ -1113,14 +1112,6 @@ function TabPrescription() {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
-    // Navigate to VoiceRxConsult page with auto-open modal
-    navigate("/voice-rx-consult", {
-      state: {
-        patient_data,
-        autoOpenModal: true,
-        fromPrescription: true,
-      },
-    });
   };
 
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
@@ -1149,7 +1140,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={() => setIsGenRxDrawerVisible(true)} selectedCarePlan={selectedCarePlan} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
