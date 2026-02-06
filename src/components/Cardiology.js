@@ -916,20 +916,6 @@ function Cardiology(props) {
                         return item?.title || itemName || (typeof item === "string" ? item : "");
                       }
                       if (type === "others") return item;
-                      if (type === "vaccinations") {
-                        // Display both name and lineItem if both are available
-                        if (itemName && lineItem) {
-                          return `${itemName} - ${lineItem}`;
-                        }
-                        return lineItem || itemName || "";
-                      }
-                      if (type === "medicalHistory") {
-                        // Display both name and lineItem if both are available
-                        if (itemName && lineItem) {
-                          return `${itemName} - ${lineItem}`;
-                        }
-                        return itemName || lineItem || "";
-                      }
                       // Use name first, fallback to lineItem only if name is not available
                       return itemName || lineItem || "";
                     })()}
@@ -943,21 +929,14 @@ function Cardiology(props) {
                     type === "symptoms" ||
                     type === "examinations" ||
                     type === "diagnosis") && (() => {
-                    // For vaccinations, if lineItem exists, don't show additional details (already in lineItem)
-                    if (type === "vaccinations" && item?.lineItem) {
-                      return null;
-                    }
-                    
                     const hasIndividualFields = (item?.severity && item?.severity !== '') || 
                                                (item?.duration && item?.duration !== '') || 
                                                (item?.notes && item?.notes !== '') ||
                                                (item?.type && item?.type !== '') ||
-                                               (item?.relation && item?.relation !== '') ||
-                                               (item?.schedule && item?.schedule !== '');
+                                               (item?.relation && item?.relation !== '');
                     
                     const details = hasIndividualFields
                       ? [
-                          item?.schedule && item?.schedule !== '' ? item?.schedule : null,
                           item?.severity && item?.severity !== '' ? item?.severity : null,
                           item?.duration && item?.duration !== '' ? item?.duration : null,
                           item?.notes && item?.notes !== '' ? item?.notes : null,
@@ -1155,11 +1134,9 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              // Get both name and lineItem
-              const itemNameRaw = item?.name || item?.condition || '';
-              const lineItemRaw = item?.lineItem || '';
+              // Use name first, fallback to lineItem only if name is not available
+              const itemNameRaw = item?.name || item?.condition || item?.lineItem || 'N/A';
               let itemName = String(itemNameRaw).trim();
-              const lineItem = String(lineItemRaw).trim();
               // Remove type prefix and duplicated info from itemName
               const typeNames = ['Medical Condition', 'medical_condition', 'Family History', 'family_history', 'Allergy', 'allergy', 'Allergies', 'Lifestyle', 'lifestyle', 'Other', 'other'];
               for (const typeName of typeNames) {
@@ -1173,14 +1150,6 @@ function Cardiology(props) {
               if (commaParts.length > 1) {
                 // Keep only the first part (condition name)
                 itemName = commaParts[0];
-              }
-              
-              // Display both name and lineItem if both are available
-              let displayName = '';
-              if (itemName && lineItem) {
-                displayName = `${itemName} - ${lineItem}`;
-              } else {
-                displayName = itemName || lineItem || 'N/A';
               }
               
               const details = [];
@@ -1201,7 +1170,7 @@ function Cardiology(props) {
               return (
                 <div key={itemIndex} style={{ marginBottom: '2px', marginLeft: '32px' }}>
                   <span style={{ fontWeight: 500, fontSize: 'inherit' }}>
-                    • {displayName}
+                    • {itemName}
                   </span>
                   {details.length > 0 && (
                     <span style={{ fontWeight: 400, fontSize: 'inherit' }}>

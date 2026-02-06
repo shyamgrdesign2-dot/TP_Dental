@@ -1046,14 +1046,13 @@ const DigitisedPrescription = ({
       style={{ background: `url(${genRxBg})` }}
     >
       <GenRXLoaders
-        isProcessing={showLoader}
+        isProcessing={true}
         isSnapRx={true}
         showAbsHeaderInsideLoader={showAbsHeaderInsideLoader}
       />
-    </div>
+          </div>
   ) : (
-    <>
-      <div className={styles.rightSection}>
+    <div className={styles.rightSection}>
       {instructionVisible && (
         <div className={styles.rxPadInstruction}>
           <div className={styles.instructionIcon}>
@@ -1279,7 +1278,6 @@ const DigitisedPrescription = ({
         are correct and complete.
             </div>
             </div>
-    </>
   );
 
   return (
