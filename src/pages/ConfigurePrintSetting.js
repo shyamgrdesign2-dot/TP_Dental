@@ -680,11 +680,8 @@ function ConfigurePrintSetting() {
                                      isAmbientRx || 
                                      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || 
                                      (rxId && !smartRxFile) ||
-                                     isAfterDigitization;
-    // For written rx (snap & smart): pass smartRxFile so written rx + casemanager data (vitals, obs, medical) both show in print.
-    // Do not hide casemanager data by nulling smartRxFile when configuring written rx (change from previous "do not show casemanager data for written rx" behavior).
-    const isWrittenRxFlow = !!(smartRxFile && smartRxFile.length > 0 && !isAfterDigitization);
-    const smartRxFileForContext = (isVoiceAmbientModeCheck && !isWrittenRxFlow) ? null : smartRxFile;
+                                     isAfterDigitization; 
+    const smartRxFileForContext = isVoiceAmbientModeCheck ? null : smartRxFile;
     
     const contextApi = { 
         smartRxFile: smartRxFileForContext, 
@@ -814,9 +811,12 @@ function ConfigurePrintSetting() {
                             enable: "Y",
                             custom_status: "Y"
                         });
+                    } else {
+                        if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
+                            smartRxOption.enable = "Y";
+                            smartRxOption.custom_status = "Y";
+                        }
                     }
-                    // When smartRxOption already exists, preserve the user's saved enable/custom_status from default.
-                    // Do not overwrite with "Y" so "Yes, set as default for all Rx" with SmartRx disabled is respected.
                 }
                 if (isSnapSmartVoiceAmbientFlow) {
                     const carePlanIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 19);

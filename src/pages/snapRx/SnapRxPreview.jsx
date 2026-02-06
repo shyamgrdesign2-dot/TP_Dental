@@ -261,12 +261,8 @@ function SnapRxPreview() {
       
       const newUrl = urlObj.toString();
       setPrintUrl(newUrl);
-      // When returning from Configure Print with "No, Apply on This Rx Only", keep the session blob
-      // so vitals/obs/medical/smart rx edits are reflected in print for this Rx only.
-      const isApplyOnThisRxOnly = state?.from === "/configure_print_setting" && state?.currentSessionRx != null;
-      if (!isApplyOnThisRxOnly) {
-        setCurrentSessionRx(null);
-      }
+      // Clear currentSessionRx when URL changes to force PDF reload
+      setCurrentSessionRx(null);
     } catch (error) {
       let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
       // Remove rxDigitize parameter completely
@@ -279,12 +275,10 @@ function SnapRxPreview() {
         url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
       }
       setPrintUrl(url);
-      const isApplyOnThisRxOnly = state?.from === "/configure_print_setting" && state?.currentSessionRx != null;
-      if (!isApplyOnThisRxOnly) {
-        setCurrentSessionRx(null);
-      }
+      // Clear currentSessionRx when URL changes to force PDF reload
+      setCurrentSessionRx(null);
     }
-  }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, state?.currentSessionRx, viewCaseManagerData?.isRxDigitize]);
+  }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, viewCaseManagerData?.isRxDigitize]);
 
   const handleDownload = async () => {
     try {
