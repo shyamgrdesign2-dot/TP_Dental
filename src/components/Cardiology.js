@@ -1155,14 +1155,12 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
+              // Get both name and lineItem
               const itemNameRaw = item?.name || item?.condition || '';
               const lineItemRaw = item?.lineItem || '';
               let itemName = String(itemNameRaw).trim();
-              let lineItem = String(lineItemRaw).trim();
-              const isNoHistory = lineItem?.toLowerCase().startsWith('no ');
-              if (!isNoHistory && lineItem) {
-                lineItem = lineItem.split(' - ')[0].split(',')[0].trim();
-              }
+              const lineItem = String(lineItemRaw).trim();
+              // Remove type prefix and duplicated info from itemName
               const typeNames = ['Medical Condition', 'medical_condition', 'Family History', 'family_history', 'Allergy', 'allergy', 'Allergies', 'Lifestyle', 'lifestyle', 'Other', 'other'];
               for (const typeName of typeNames) {
                 if (itemName.toLowerCase().startsWith(typeName.toLowerCase() + ',')) {
@@ -1170,9 +1168,20 @@ function Cardiology(props) {
                   break;
                 }
               }
-              itemName = itemName.split(',')[0].trim();
+              // Remove duration/relation/notes from itemName if they appear after comma (e.g., "Diabetes, 2 year(s)")
+              const commaParts = itemName.split(',').map(p => p.trim());
+              if (commaParts.length > 1) {
+                // Keep only the first part (condition name)
+                itemName = commaParts[0];
+              }
               
-              const displayName = isNoHistory ? lineItemRaw.trim() : (itemName || lineItem || 'N/A');
+              // Display both name and lineItem if both are available
+              let displayName = '';
+              if (itemName && lineItem) {
+                displayName = `${itemName} - ${lineItem}`;
+              } else {
+                displayName = itemName || lineItem || 'N/A';
+              }
               
               const details = [];
               

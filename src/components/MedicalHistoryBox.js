@@ -309,52 +309,19 @@ function MedicalHistoryBox(props) {
             const data2 = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
             
             const mergedArray = data2?.length > 0 ? [
-            ...data1?.map(e => {
-                const matchingSection = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
-                if (!matchingSection) {
-                    return e;
-                }
-                const existingTagsById = new Map();
-                const existingTagsByTitle = new Map();
-                (e?.tags || []).forEach(tag => {
-                    if (tag?.tmmhst_id) {
-                        existingTagsById.set(tag.tmmhst_id, tag);
-                    }
-                    const normalizedTitle = tag?.title?.trim().toLowerCase();
-                    if (normalizedTitle) {
-                        existingTagsByTitle.set(normalizedTitle, tag);
-                    }
-                });
-                const mergedTags = [...(e?.tags || [])];
-                (matchingSection?.tags || []).forEach(newTag => {
-                    const existingById = newTag?.tmmhst_id && existingTagsById.get(newTag.tmmhst_id);
-                    if (existingById) {
-                        const index = mergedTags.findIndex(t => t?.tmmhst_id === newTag.tmmhst_id);
-                        if (index !== -1) {
-                            mergedTags[index] = { ...mergedTags[index], ...newTag };
-                        }
-                    } else {
-                        const normalizedTitle = newTag?.title?.trim().toLowerCase();
-                        const existingByTitle = normalizedTitle && existingTagsByTitle.get(normalizedTitle);
-                        if (!existingByTitle) {
-                            mergedTags.push(newTag);
-                        } else {
-                            const index = mergedTags.findIndex(
-                                t => t?.title?.trim().toLowerCase() === normalizedTitle
-                            );
-                            if (index !== -1) {
-                                mergedTags[index] = { ...mergedTags[index], ...newTag };
-                            }
-                        }
-                    }
-                });
-                
-                return {
-                    ...e,
-                    ...matchingSection,
-                    tags: mergedTags
-                };
-            })
+            ...data1?.map(e => ({
+                ...e,
+                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id) || {}),
+                tags: [
+                ...(e?.tags || [])?.map(tag => ({
+                    ...tag,
+                    ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                })),
+                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags || [])?.filter(item2 => 
+                    !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                )
+                ],
+            }))
             ] : data1;
 
             setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
@@ -599,20 +566,12 @@ function MedicalHistoryBox(props) {
     }, [searchQuery]);
 
     const onSelectParent = useCallback((e) => {
-        // Check if tag with same title already exists to prevent duplicates
-        const normalizedTitle = e?.title?.trim().toLowerCase();
-        const existingTag = addEditData.tags.find(
-            tag => tag.title?.trim().toLowerCase() === normalizedTitle
-        );
-        
-        if (!existingTag) {
-            addEditData.tags.push({
-                ...e
-            });
-            setAddEditData((prev) => {
-                return { ...prev };
-            })
-        }
+        addEditData.tags.push({
+            ...e
+        });
+        setAddEditData((prev) => {
+            return { ...prev };
+        })
         setSearchQuery("")
     }, [addEditData]);
 
@@ -1749,15 +1708,6 @@ function MedicalHistoryBox(props) {
                                     <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>
                                         {cloneMedicalHistoryData.length > 0 ? (
                                             cloneMedicalHistoryData?.map((e, i) => {
-                                                const sectionSearchQuery = (sectionSearchQueries?.[e?.tmmhs_id] || "").trim().toLowerCase();
-                                                const filteredTags = (e?.tags || []).map((tag, originalIndex) => ({
-                                                    tag,
-                                                    originalIndex,
-                                                })).filter(({ tag }) => {
-                                                    if (tag?.delete) return false;
-                                                    if (!sectionSearchQuery) return true;
-                                                    return (tag?.title || "").toLowerCase().includes(sectionSearchQuery);
-                                                });
                                                 return (
                                                     <div key={i} className="border-bottom px-4 pt-3 pb-2">
                                                         <div className="d-flex align-items-center justify-content-between mb-3">
@@ -1775,11 +1725,12 @@ function MedicalHistoryBox(props) {
                                                             </div>
                                                         </div>
                                                         <div className="d-flex flex-wrap">
-                                                            {!e?.no_know_history && !e?.isExpand && filteredTags.map(({ tag, originalIndex }) => {
+                                                            {!e?.no_know_history && !e?.isExpand && e?.tags?.map((e1, i1) => {
+                                                                const displayTitle = e1?.enable === "N" ? `${e1?.title} N` : e1?.title;
                                                                 return (
-                                                                    <div key={Math.random()} className={`history-badge ${tag?.enable !== undefined ? tag?.enable === "Y" ? 'history-active' : tag?.enable === "N" ? 'history-inactive' : '' : ''}`}>
-                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, tag?.tmmhst_id, i, originalIndex)}>{tag?.title}</div>
-                                                                        <span onClick={() => onEnableClick(e?.tmmhs_id, tag?.tmmhst_id, i, originalIndex)}>{tag?.enable !== undefined ? tag?.enable : "-"}<img alt="" src={tag?.enable !== undefined ? tag?.enable === "Y" ? ActiveverticleUpDown : tag?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
+                                                                    <div key={Math.random()} className={`history-badge ${e1?.enable !== undefined ? e1?.enable === "Y" ? 'history-active' : e1?.enable === "N" ? 'history-inactive' : '' : ''}`}>
+                                                                        <div onClick={() => onTagClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{displayTitle}</div>
+                                                                        <span onClick={() => onEnableClick(e?.tmmhs_id, e1?.tmmhst_id, i, i1)}>{e1?.enable !== undefined ? e1?.enable : "-"}<img src={e1?.enable !== undefined ? e1?.enable === "Y" ? ActiveverticleUpDown : e1?.enable === "N" ? InActiveverticleUpDown : verticleUpDown : verticleUpDown} />
                                                                         </span>
                                                                     </div>
                                                                 )

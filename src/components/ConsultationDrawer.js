@@ -53,8 +53,9 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, getHmTypeIndicator, getClinic } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, getHmTypeIndicator, getClinic, mergeVitalsByDate } from "../utils/utils";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { loadTodayVitalsAndLabResults } from "../utils/loadTodayVitalsAndLabResults";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
@@ -76,6 +77,7 @@ import {
   S_DDX,
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
+  PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
 } from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
@@ -95,6 +97,7 @@ import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import ApiVitals from "../api/services/ApiVitals";
 import { addPatientLabReports } from "../api/services/ApiLabParams";
+import { mapLabResultsToStandardized } from "../utils/mapLabResults";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import config from "../config";
@@ -308,7 +311,7 @@ const ConsultationDrawer = ({
     const groupedByDate = {};
     labResults.forEach((result = {}) => {
       const dateKey = result.date || today;
-      const testname = result.testname || result.testName || result.name || "Result";
+      const testname = result.testname || result.name || "Result";
       const value = result.value || "";
       const units = result.units || "";
       if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
@@ -485,6 +488,11 @@ const ConsultationDrawer = ({
     }
   }, [prescriptionData]);
 
+  // Auto-load today's vitals and lab results into RX pad
+  useEffect(() => {
+    if (!visible || !patient_data?.patient_unique_id) return;
+    loadTodayVitalsAndLabResults({ patient_data, setState: setPrescriptionData });
+  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   useEffect(() => {
     if (!isGroundingAccessable) return;
@@ -1687,6 +1695,7 @@ const ConsultationDrawer = ({
     // Clean the data first
     const cleanedData = deepClean(data || {});
     
+    // Map instruction to notes for labInvestigation items
     const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
       ? cleanedData.labInvestigation.map(item => {
           const { instruction, ...restItem } = item;
@@ -1710,6 +1719,11 @@ const ConsultationDrawer = ({
         })
       : [];
     
+    // Map lab results to standardized names (matching sidebar)
+    const mappedLabResults = Array.isArray(cleanedData.labResults)
+      ? mapLabResultsToStandardized(cleanedData.labResults)
+      : [];
+    
     // Ensure all required fields exist with proper defaults
     const validatedData = {
       symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
@@ -1720,7 +1734,7 @@ const ConsultationDrawer = ({
       examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
       followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
       labInvestigation: mappedLabInvestigation,
-      labResults: Array.isArray(cleanedData.labResults) ? cleanedData.labResults : [],
+      labResults: mappedLabResults,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
       vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
       others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
@@ -1728,6 +1742,7 @@ const ConsultationDrawer = ({
     };
     
     validatedData.labInvestigation = mappedLabInvestigation;
+    validatedData.labResults = mappedLabResults;
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
     
     if (validatedData.vitalsAndBodyComposition && Object.keys(validatedData.vitalsAndBodyComposition).length > 0) {
@@ -2311,16 +2326,9 @@ const ConsultationDrawer = ({
                     const apiLabResults = validatedPrescriptionData?.labResults || [];
                     
                     const hasExistingVitals = Object.keys(existingVitals).length > 0 && 
-                      Object.values(existingVitals).some(v => {
-                        const strValue = String(v || '').trim();
-                        return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-                      });
+                      Object.values(existingVitals).some(v => String(v || '').trim() !== '' && String(v).trim() !== 'undefined' && String(v).trim() !== 'null');
                     const hasApiVitals = Object.keys(apiVitals).length > 0 && 
-                      Object.values(apiVitals).some(v => {
-                        const strValue = String(v || '').trim();
-                        return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-                      });
-                    
+                      Object.values(apiVitals).some(v => String(v || '').trim() !== '' && String(v).trim() !== 'undefined' && String(v).trim() !== 'null');
                     const hasExistingLabResults = Array.isArray(existingLabResults) && existingLabResults.length > 0 && 
                       existingLabResults.some(r => {
                         const testname = (r.testname || r.name || '').trim();
@@ -2334,16 +2342,14 @@ const ConsultationDrawer = ({
                         return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
                       });
                     
-                    const finalVitals = hasApiVitals ? apiVitals : (hasExistingVitals ? existingVitals : {});
-                    
                     return {
                       ...finalPrescriptionData,
-                      vitalsAndBodyComposition: finalVitals,
+                      vitalsAndBodyComposition: hasApiVitals ? apiVitals : (hasExistingVitals ? existingVitals : {}),
                       labResults: hasApiLabResults ? apiLabResults : (hasExistingLabResults ? existingLabResults : []),
                       medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
-              });
+              });     
             } else {
               setPrescriptionData(prev => {
                 // Preserve existing vitals and lab results if they exist
@@ -2505,54 +2511,7 @@ const ConsultationDrawer = ({
             }
             
             if (prescriptionData) {
-              const hasResponseVitals = prescriptionData?.vitalsAndBodyComposition && 
-                Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0 &&
-                Object.values(prescriptionData.vitalsAndBodyComposition).some(v => {
-                  const strValue = String(v || '').trim();
-                  return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-                });
-              
-              if (!hasResponseVitals && patient_data?.patient_unique_id) {
-                try {
-                  const { getTodayVitals } = await import('../utils/getTodayVitals');
-                  const todayVitals = await getTodayVitals(patient_data);
-                  if (todayVitals) {
-                    prescriptionData.vitalsAndBodyComposition = todayVitals;
-                  }
-                } catch (error) {
-                  console.error('Error loading vitals from listVitals API:', error);
-                }
-              }
-              
-              const hasResponseLabResults = prescriptionData?.labResults && 
-                Array.isArray(prescriptionData.labResults) && 
-                prescriptionData.labResults.length > 0 &&
-                prescriptionData.labResults.some(r => {
-                  const testname = (r.testname || r.testName || r.name || '').trim();
-                  const value = (r.value || '').trim();
-                  return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
-                });
-              
-              if (!hasResponseLabResults && patient_data?.patient_unique_id) {
-                try {
-                  const { getTodayLabResults } = await import('../utils/getTodayLabResults');
-                  const todayLabResults = await getTodayLabResults(patient_data);
-                  if (todayLabResults && todayLabResults.length > 0) {
-                    prescriptionData.labResults = todayLabResults;
-                  }
-                } catch (error) {
-                  console.error('Error loading lab results from lab parameters API:', error);
-                }
-              }
-              
-              if (prescriptionData?.labResults && Array.isArray(prescriptionData.labResults) && prescriptionData.labResults.length > 0) {
-                try {
-                  const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
-                  prescriptionData.labResults = await matchLabResultsWithApi(prescriptionData.labResults, patient_data);
-                } catch (error) {
-                  console.error('Error matching lab results with API:', error);
-                }
-              }
+              // Track which sections were initially populated from API BEFORE setting state
               if (prescriptionData.symptoms && Array.isArray(prescriptionData.symptoms) && prescriptionData.symptoms.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('symptoms');
               }
@@ -2760,7 +2719,6 @@ const ConsultationDrawer = ({
           setIsEditing(false);
           setUseVoiceRx(true);
           setShowPrescription(true);
-          
         } else {
           if (response.success === false && response.data === null) {
             throw new Error(response.error || "Server error - API returned failure with null data");
@@ -3453,8 +3411,7 @@ const ConsultationDrawer = ({
                 status: tag?.status || "",
                 medication: tag?.medication || "",
                 note: tag?.note || "",
-                enable: tag?.enable || "Y",
-                relationship: tag?.relationship || ""
+                enable: tag?.enable || "Y"
               }))
             : []
         };

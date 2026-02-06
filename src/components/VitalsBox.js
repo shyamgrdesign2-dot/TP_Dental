@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } 
 import { Button, Card, DatePicker, Input, Tooltip } from 'antd';
 
 import { useSelector, useDispatch } from "react-redux";
+// import { v4 as uuidv4 } from 'uuid';
 import { errorMessage, getClinicName, onlyDecimalFormat, mergeVitalsByDate } from "../utils/utils";
 
 import CashManagerContext from '../context/CashManagerContext';
@@ -22,10 +23,8 @@ function VitalsBox(props) {
 
     const scrollContainerRef = useRef(null);
     const inputRef = useRef([]);
-    const [datePickerOpen, setDatePickerOpen] = useState(false);
-    const hasInitializedRef = useRef(false);
 
-    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, onVitalsUpdate } = props
+    const { handleDrawerVital, handleCollapsed } = props
 
     const {
       selectedVitalsList,
@@ -54,6 +53,7 @@ function VitalsBox(props) {
             const updatedData = selectedVitalsList.map((e, i) => {
                 return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : (e.systolic || ''), diastolic: e.blood_press ? e.blood_press.split('/')[1] : (e.diastolic || '') };
             });
+            // Merge with existing vitalsData to preserve any updates from Voice Rx, etc.
             const merged = mergeVitalsByDate(vitalsData, updatedData);
             setVitalsData(merged);
         } else if(measurements.length) {
@@ -80,204 +80,14 @@ function VitalsBox(props) {
                 waist_circumference: ''
             })));
         } else if (vitalsData.length === 0 && selectedVitalsList.length === 0 && measurements.length === 0) {
+            // If no vitals at all, ensure vitalsData is empty array
             setVitalsData([]);
         }
     }, [selectedVitalsList, measurements]);
 
-    const calculate = (H, W) => {
-        var height = 0, weight = 0, bmi = "", bmr = "", bsa = ""
-
-        if (H != '' && H != 0) {
-            height = parseFloat(H)
-        } else {
-            height = 0
-        }
-
-        if (W != '' && W != 0) {
-            weight = parseFloat(W)
-        } else {
-            weight = 0
-        }
-
-        const calBMI = (weight / height / height) * 10000
-        bmi = weight && height ? isFinite(calBMI) ? calBMI.toFixed(2) : '' : '';
-
-        var age = patient_data !== undefined && patient_data.ageYears !== undefined ? patient_data.ageYears : 0
-        if (patient_data !== undefined && patient_data.pm_gender == 'Male') {
-            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
-        } else {
-            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
-        }
-
-        const calBSA = Math.sqrt(height * weight / 3600);
-        bsa = weight && height ? isFinite(calBSA) ? calBSA.toFixed(2) : '' : '';
-
-        return { bmi: bmi, bmr: bmr, bsa: bsa }
-    }
-
-    const convertRxPadVitalsToSidebarFormat = useCallback((rxPadVitals) => {
-        if (!rxPadVitals || typeof rxPadVitals !== 'object' || Object.keys(rxPadVitals).length === 0) {
-            return null;
-        }
-
-        let systolic = String(rxPadVitals.Systolic || rxPadVitals.systolic || '').trim();
-        let diastolic = String(rxPadVitals.Diastolic || rxPadVitals.diastolic || '').trim();
-        let blood_press = rxPadVitals.bloodPressure || rxPadVitals.blood_press || '';
-        
-        if (blood_press && !systolic && !diastolic) {
-            const bpParts = String(blood_press).split('/');
-            if (bpParts.length === 2) {
-                systolic = bpParts[0].trim();
-                diastolic = bpParts[1].trim();
-            }
-        } else if (!blood_press && systolic && diastolic) {
-            blood_press = `${systolic}/${diastolic}`;
-        }
-        if (!systolic || !diastolic) {
-            blood_press = '';
-        }
-
-        const today = moment().format(dateFormat);
-        let cal = calculate(
-            String(rxPadVitals.height || '').trim(),
-            String(rxPadVitals.weight || '').trim()
-        );
-
-        return {
-            date: rxPadVitals.date || today,
-            temp: String(rxPadVitals.temperature || rxPadVitals.temp || '').trim(),
-            pres: String(rxPadVitals.pulse || rxPadVitals.pres || '').trim(),
-            resp_rate: String(rxPadVitals.respRate || rxPadVitals.resp_rate || '').trim(),
-            systolic: systolic,
-            diastolic: diastolic,
-            blood_press: String(blood_press).trim(),
-            spo2: String(rxPadVitals.spo2 || '').trim(),
-            height: String(rxPadVitals.height || '').trim(),
-            weight: String(rxPadVitals.weight || '').trim(),
-            ofc: String(rxPadVitals.ofc || rxPadVitals.OFC || '').trim(),
-            general_rbs: String(rxPadVitals['General RBS'] || rxPadVitals.general_rbs || '').trim(),
-            fib4: String(rxPadVitals.FIB4 || rxPadVitals.fib4 || '').trim(),
-            waist_circumference: String(rxPadVitals['Waist Circumference'] || rxPadVitals.waist_circumference || '').trim(),
-            bmi: String(rxPadVitals.BMI || rxPadVitals.bmi || cal.bmi).trim(),
-            bmr: String(rxPadVitals.BMR || rxPadVitals.bmr || cal.bmr).trim(),
-            bsa: String(rxPadVitals.BSA || rxPadVitals.bsa || cal.bsa).trim(),
-            dev_unique_id: 0,
-            tcv_id: 0,
-            tcbc_id: 0
-        };
-    }, [calculate]);
-
-    const convertSidebarToRxPadFormat = useCallback((sidebarVitalsArray, selectedDate = null) => {
-        if (!sidebarVitalsArray || !Array.isArray(sidebarVitalsArray) || sidebarVitalsArray.length === 0) {
-            return {};
-        }
-        
-        let targetVitals = null;
-        if (selectedDate) {
-            targetVitals = sidebarVitalsArray.find(v => v.date === selectedDate);
-        }
-        
-        if (!targetVitals) {
-            const sortedVitals = [...sidebarVitalsArray].sort((a, b) => new Date(b.date) - new Date(a.date));
-            targetVitals = sortedVitals[0];
-        }
-        
-        if (!targetVitals) return {};
-        
-        let bloodPressure = '';
-        if (targetVitals.systolic && targetVitals.diastolic) {
-            bloodPressure = `${targetVitals.systolic}/${targetVitals.diastolic}`;
-        }
-        
-        const rxPadVitals = {
-            date: targetVitals.date || moment().format('YYYY-MM-DD'),
-            temperature: targetVitals.temp || '',
-            pulse: targetVitals.pres || '',
-            respRate: targetVitals.resp_rate || '',
-            Systolic: targetVitals.systolic || '',
-            Diastolic: targetVitals.diastolic || '',
-            bloodPressure: bloodPressure,
-            spo2: targetVitals.spo2 || '',
-            height: targetVitals.height || '',
-            weight: targetVitals.weight || '',
-            ofc: targetVitals.ofc || '',
-            'General RBS': targetVitals.general_rbs || '',
-            FIB4: targetVitals.fib4 || '',
-            'Waist Circumference': targetVitals.waist_circumference || '',
-            BMI: targetVitals.bmi || '',
-            BMR: targetVitals.bmr || '',
-            BSA: targetVitals.bsa || ''
-        };
-        Object.keys(rxPadVitals).forEach(key => {
-            if (rxPadVitals[key] === '' || rxPadVitals[key] === null || rxPadVitals[key] === undefined) {
-                delete rxPadVitals[key];
-            }
-        });
-        
-        return rxPadVitals;
-    }, []);
-
     useEffect(() => {
-        if (hasInitializedRef.current) return;
-        let vitalsToUse = null;
-        if (initialVitals && typeof initialVitals === 'object' && Object.keys(initialVitals).length > 0) {
-            const convertedVitals = convertRxPadVitalsToSidebarFormat(initialVitals);
-            if (convertedVitals) {
-                vitalsToUse = convertedVitals;
-            }
-        }
         if (vitalsData.length > 0) {
-            const today = moment().format(dateFormat);
-            const todayVitalsFromContext = vitalsData.find(v => v.date === today);
-            
-            if (vitalsToUse && todayVitalsFromContext) {
-                const merged = {
-                    ...todayVitalsFromContext,
-                    ...vitalsToUse,
-                    dev_unique_id: todayVitalsFromContext.dev_unique_id || 0,
-                    tcv_id: todayVitalsFromContext.tcv_id || 0,
-                    tcbc_id: todayVitalsFromContext.tcbc_id || 0,
-                    date: today
-                };
-                setChildVitalsData(prev => {
-                    const updated = [...prev];
-                    const existingIndex = updated.findIndex(v => v.date === today);
-                    if (existingIndex >= 0) {
-                        updated[existingIndex] = merged;
-                    } else {
-                        updated.push(merged);
-                    }
-                    return updated;
-                });
-            } else if (vitalsToUse) {
-                setChildVitalsData(prev => {
-                    const updated = [...prev];
-                    const existingIndex = updated.findIndex(v => v.date === vitalsToUse.date);
-                    if (existingIndex >= 0) {
-                        updated[existingIndex] = { ...updated[existingIndex], ...vitalsToUse };
-                    } else {
-                        updated.push(vitalsToUse);
-                    }
-                    return updated;
-                });
-            } else {
-                setChildVitalsData([...vitalsData]);
-            }
-            hasInitializedRef.current = true;
-        } else if (vitalsToUse) {
-            setChildVitalsData(prev => {
-                const updated = [...prev];
-                const existingIndex = updated.findIndex(v => v.date === vitalsToUse.date);
-                if (existingIndex >= 0) {
-                    updated[existingIndex] = { ...updated[existingIndex], ...vitalsToUse };
-                } else {
-                    updated.push(vitalsToUse);
-                }
-                return updated;
-            });
-            hasInitializedRef.current = true;
+            setChildVitalsData([...vitalsData]);
         } else if (childVitalsData.length === 0) {
             let cal = calculate('', '');
             setChildVitalsData([{
@@ -301,9 +111,8 @@ function VitalsBox(props) {
                 bsa: cal.bsa,
                 general_rbs: ''
             }]);
-            hasInitializedRef.current = true;
         }
-    }, [vitalsData, initialVitals, convertRxPadVitalsToSidebarFormat, calculate]);
+    }, [vitalsData]);
 
     const onChange = useCallback(
         (date, dateString) => {
@@ -313,6 +122,7 @@ function VitalsBox(props) {
                 return;
             }
             
+            // Check if entry exists in API vitals for this date
             let existingApiEntry = null;
             if (Array.isArray(vitalsData) && vitalsData.length > 0) {
                 existingApiEntry = vitalsData.find(v => v.date === dateString);
@@ -330,6 +140,7 @@ function VitalsBox(props) {
             const tempVitals = [...childVitalsData];
             setDateString(dateString);
             
+            // If we found existing vitals, use them; otherwise create new empty entry
             if (existingApiEntry) {
                 tempVitals.push({
                     ...existingApiEntry,
@@ -372,6 +183,8 @@ function VitalsBox(props) {
 
     useEffect(() => {
         if (scrollContainerRef.current) {
+            // const scrollWidth = scrollContainerRef.current.scrollWidth;
+            // scrollContainerRef.current.scrollLeft = scrollWidth;
             const data = childVitalsData.sort((a, b) => new Date(b.date) - new Date(a.date))
             const index = data.findLastIndex(e => e.date == dateString)
             if (index !== -1) {
@@ -382,51 +195,82 @@ function VitalsBox(props) {
         }
     }, [childVitalsData.length])
 
+    const calculate = (H, W) => {
+        var height = 0, weight = 0, bmi = "", bmr = "", bsa = ""
+
+        if (H != '' && H != 0) {
+            height = parseFloat(H)
+        } else {
+            height = 0
+        }
+
+        if (W != '' && W != 0) {
+            weight = parseFloat(W)
+        } else {
+            weight = 0
+        }
+
+        const calBMI = (weight / height / height) * 10000
+        bmi = weight && height ? isFinite(calBMI) ? calBMI.toFixed(2) : '' : '';
+
+        var age = patient_data !== undefined && patient_data.ageYears !== undefined ? patient_data.ageYears : 0
+        if (patient_data !== undefined && patient_data.pm_gender == 'Male') {
+            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
+        } else {
+            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
+        }
+
+        const calBSA = Math.sqrt(height * weight / 3600);
+        bsa = weight && height ? isFinite(calBSA) ? calBSA.toFixed(2) : '' : '';
+
+        return { bmi: bmi, bmr: bmr, bsa: bsa }
+    }
+
     const onChangeInput = useCallback(
         (value, date, flag) => {
             const updateValue = onlyDecimalFormat(value);
-            setChildVitalsData(prevVitals => {
-                const tempVitals = [...prevVitals];
-                const index = tempVitals.findIndex(item => item.date === date);
-                if (index === -1) return prevVitals;
-                
-                if (flag === 1) {
-                    tempVitals[index].temp = updateValue;
-                } else if (flag === 2) {
-                    tempVitals[index].pres = updateValue;
-                } else if (flag === 3) {
-                    tempVitals[index].resp_rate = updateValue;
-                } else if (flag === 4) {
-                    tempVitals[index].systolic = updateValue;
-                } else if (flag === 5) {
-                    tempVitals[index].diastolic = updateValue;
-                } else if (flag === 6) {
-                    tempVitals[index].spo2 = updateValue;
-                } else if (flag === 7) {
-                    tempVitals[index].height = updateValue;
-                    let cal = calculate(updateValue, tempVitals[index].weight);
-                    tempVitals[index].bmi = cal.bmi;
-                    tempVitals[index].bmr = cal.bmr;
-                    tempVitals[index].bsa = cal.bsa;
-                } else if (flag === 8) {
-                    tempVitals[index].weight = updateValue;
-                    let cal = calculate(tempVitals[index].height, updateValue);
-                    tempVitals[index].bmi = cal.bmi;
-                    tempVitals[index].bmr = cal.bmr;
-                    tempVitals[index].bsa = cal.bsa;
-                } else if (flag === 9) {
-                    tempVitals[index].ofc = updateValue;
-                } else if (flag === 10) {
-                    tempVitals[index].general_rbs = updateValue;
-                } else if (flag === 11) {
-                    tempVitals[index].fib4 = updateValue;
-                } else if (flag === 12) {
-                    tempVitals[index].waist_circumference = updateValue;
-                }
-                return tempVitals;
-            });
+            const tempVitals = [...childVitalsData];
+            const index = tempVitals.findIndex(item => item.date === date);
+            if (index === -1) return;
+            
+            if (flag === 1) {
+                tempVitals[index].temp = updateValue;
+            } else if (flag === 2) {
+                tempVitals[index].pres = updateValue;
+            } else if (flag === 3) {
+                tempVitals[index].resp_rate = updateValue;
+            } else if (flag === 4) {
+                tempVitals[index].systolic = updateValue;
+            } else if (flag === 5) {
+                tempVitals[index].diastolic = updateValue;
+            } else if (flag === 6) {
+                tempVitals[index].spo2 = updateValue;
+            } else if (flag === 7) {
+                tempVitals[index].height = updateValue;
+                let cal = calculate(updateValue, tempVitals[index].weight);
+                tempVitals[index].bmi = cal.bmi;
+                tempVitals[index].bmr = cal.bmr;
+                tempVitals[index].bsa = cal.bsa;
+            } else if (flag === 8) {
+                tempVitals[index].weight = updateValue;
+                let cal = calculate(tempVitals[index].height, updateValue);
+                tempVitals[index].bmi = cal.bmi;
+                tempVitals[index].bmr = cal.bmr;
+                tempVitals[index].bsa = cal.bsa;
+            } else if (flag === 9) {
+                tempVitals[index].ofc = updateValue;
+            } else if (flag === 10) {
+                tempVitals[index].general_rbs = updateValue;
+            }else if (flag === 11) {
+                tempVitals[index].fib4 = updateValue;
+            }else if (flag === 12) {
+                tempVitals[index].waist_circumference= updateValue;
+            }
+            setChildVitalsData(tempVitals);
         },
-        [calculate]
+        [childVitalsData]
     );
 
     const onAddUpdateClicked = async () => {
@@ -457,26 +301,17 @@ function VitalsBox(props) {
             })
           );
         }
-        if (onVitalsSave && childVitalsData.length > 0) {
-            const today = moment().format(dateFormat);
-            const todayVitals = childVitalsData.find(v => v.date === today);
-            if (todayVitals) {
-                const rxPadVitals = convertSidebarToRxPadFormat(childVitalsData, today);
-                if (Object.keys(rxPadVitals).length > 0) {
-                    onVitalsSave(rxPadVitals);
-                }
-            }
-        }
-        
         if (action.meta.requestStatus === "fulfilled") {
+            // Update vitalsData in context with the saved data so it appears in print and sidebar
             if (action.payload && Array.isArray(action.payload) && action.payload.length > 0) {
                 const updatedData = action.payload.map((e) => {
                     return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : '', diastolic: e.blood_press ? e.blood_press.split('/')[1] : '' };
                 });
                 setVitalsData(updatedData);
+                // Also update childVitalsData to keep it in sync
                 setChildVitalsData(updatedData);
             }
-            handleCollapsed(1);
+            handleCollapsed(1)
         } else {
             errorMessage(action.error)
         }
@@ -555,12 +390,14 @@ function VitalsBox(props) {
     }, [childVitalsData]);
 
     const disabledDate = (current) => {
+        // Can not select days before today and today
+        // return current && current > dayjs().endOf("day");
         return current && current >= moment().add(1, 'days').startOf('day');
     };
 
     return (
         <>
-            <Card bordered={false} className="search-modalCard " style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Card bordered={false} className="search-modalCard ">
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
                     style={{
                         position: "sticky",
@@ -577,7 +414,7 @@ function VitalsBox(props) {
                         Done
                     </Button>
                 </div>
-                <div className="align-items-center d-flex justify-content-between px-20 py-3" style={{ position: "sticky", top: "60px", zIndex: 1, backgroundColor: "#fff" }}>
+                <div className="align-items-center d-flex justify-content-between px-20 py-3">
                     {(profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0 ? (
                         <div className="vitals-wrapper">
                             <div className='vitals-row d-flex align-items-center px-2'>
@@ -589,34 +426,14 @@ function VitalsBox(props) {
                         </div>
                     ) : null}
                     <div className="position-relative">
-                        <Button 
-                            className='btn btn-primary2 btn-41'
-                            onClick={() => setDatePickerOpen(true)}
-                        >
+                        <Button className='btn btn-primary2 btn-41'>
                             Add New Date
                         </Button>
-                        <DatePicker 
-                            open={datePickerOpen}
-                            onOpenChange={setDatePickerOpen}
-                            suffixIcon={null} 
-                            inputReadOnly 
-                            onChange={(date, dateString) => {
-                                onChange(date, dateString);
-                                setDatePickerOpen(false);
-                            }} 
-                            disabledDate={disabledDate} 
-                            className="calender-vitals w-100 h-100" 
-                        />
+                        <DatePicker key={Math.random()} suffixIcon={null} inputReadOnly onChange={onChange} disabledDate={disabledDate} className="calender-vitals w-100 h-100" />
                     </div>
                 </div>
                 {childVitalsData.length > 0 && (
-                    <div className='px-20' style={{ 
-                        overflowY: 'auto', 
-                        maxHeight: 'calc(100vh - 180px)', 
-                        flex: 1,
-                        scrollbarWidth: 'thin',
-                        scrollbarColor: '#c1c1c1 #f1f1f1'
-                    }}>
+                    <div className='px-20'>
                         <div className='vitals-wrapper w-100'>
                             <div className='vitals-wrap-body vitals-parent-width'>
                                 <div className='vitals-head'>Name</div>

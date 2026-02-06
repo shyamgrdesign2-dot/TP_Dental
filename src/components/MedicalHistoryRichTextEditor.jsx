@@ -375,7 +375,7 @@ const MedicalHistoryRichTextEditor = ({
               )
             );
             const isExpanded = expandedSections[type];
-            const isEditableType = false;
+            const isEditableType = type === 'others';
             const textareaValue = localTextareaValues[type] !== undefined 
               ? localTextareaValues[type] 
               : (groupedHistory[type] && groupedHistory[type].length > 0
@@ -501,7 +501,7 @@ const MedicalHistoryRichTextEditor = ({
                       };
                       
                       if (tag.enable === 'N') {
-                        historyItem.lineItem = tag.title.trim();
+                        historyItem.lineItem = `No ${tag.title.trim()}`;
                       } else {
                         const lineParts = [tag.title.trim()];
                         if (tag.since) lineParts.push(tag.since);

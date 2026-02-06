@@ -176,38 +176,17 @@ const DigitisedPrescription = ({
         }
       }
       
-      const normalizedTitle = tagTitle.trim().toLowerCase();
-      const existingTagIndex = groupedByType[mappedType].tags.findIndex(
-        t => t.title?.trim().toLowerCase() === normalizedTitle
-      );
+      const tag = {
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
+        note: item.notes || '',
+        since: item.duration || '',
+        status: 'Active',
+        relationship: item.relation || ''
+      };
       
-      if (existingTagIndex !== -1) {
-        const existingTag = groupedByType[mappedType].tags[existingTagIndex];
-        if (tagEnable !== existingTag.enable) {
-          existingTag.enable = tagEnable;
-        }
-        if (item.notes && !existingTag.note) {
-          existingTag.note = item.notes;
-        }
-        if (item.duration && !existingTag.since) {
-          existingTag.since = item.duration;
-        }
-        if (item.relation) {
-          existingTag.relationship = item.relation;
-        }
-      } else {
-        const tag = {
-          tmmhst_id: Date.now() + Math.random(),
-          title: tagTitle,
-          enable: tagEnable,
-          note: item.notes || '',
-          since: item.duration || '',
-          status: 'Active',
-          relationship: item.relation || ''
-        };
-        
-        groupedByType[mappedType].tags.push(tag);
-      }
+      groupedByType[mappedType].tags.push(tag);
     });
 
     const medicalHistoryDataArray = Object.values(groupedByType);
@@ -216,44 +195,11 @@ const DigitisedPrescription = ({
       const merged = existingContextData.map(existingSection => {
         const apiSection = groupedByType[existingSection.tmmhs_id];
         if (apiSection) {
-          const existingTagsMap = new Map();
-          existingSection.tags.forEach(tag => {
-            const normalizedTitle = tag.title?.trim().toLowerCase();
-            if (normalizedTitle) {
-              existingTagsMap.set(normalizedTitle, tag);
-            }
-          });
-          const updatedTags = [...existingSection.tags];
-          apiSection.tags.forEach(newTag => {
-            const normalizedTitle = newTag.title?.trim().toLowerCase();
-            const existingTag = existingTagsMap.get(normalizedTitle);
-            
-            if (existingTag) {
-              const existingIndex = updatedTags.findIndex(
-                t => t.title?.trim().toLowerCase() === normalizedTitle
-              );
-              if (existingIndex !== -1) {
-                if (newTag.enable !== existingTag.enable) {
-                  updatedTags[existingIndex].enable = newTag.enable;
-                }
-                if (newTag.note && !updatedTags[existingIndex].note) {
-                  updatedTags[existingIndex].note = newTag.note;
-                }
-                if (newTag.since && !updatedTags[existingIndex].since) {
-                  updatedTags[existingIndex].since = newTag.since;
-                }
-                if (newTag.relationship && !updatedTags[existingIndex].relationship) {
-                  updatedTags[existingIndex].relationship = newTag.relationship;
-                }
-              }
-            } else {
-              updatedTags.push(newTag);
-            }
-          });
-          
+          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
+          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
           return {
             ...existingSection,
-            tags: updatedTags
+            tags: [...existingSection.tags, ...newTags]
           };
         }
         return existingSection;
@@ -297,9 +243,9 @@ const DigitisedPrescription = ({
         if (tag.enable === 'N') {
           rxPadArray.push({
             type: type,
-            name: tag.title || '',
+            name: `No ${tag.title}`,
             enable: 'N',
-            lineItem: tag.title || ''
+            lineItem: `No ${tag.title}`
           });
         } else {
           const parts = [];
