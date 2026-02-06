@@ -55,7 +55,6 @@ import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, getHmTypeIndicator, getClinic, mergeVitalsByDate } from "../utils/utils";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
-import { loadTodayVitalsAndLabResults } from "../utils/loadTodayVitalsAndLabResults";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
@@ -77,7 +76,6 @@ import {
   S_DDX,
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
-  PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
 } from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
@@ -487,12 +485,6 @@ const ConsultationDrawer = ({
       setShowPrescription(true);
     }
   }, [prescriptionData]);
-
-  // Auto-load today's vitals and lab results into RX pad
-  useEffect(() => {
-    if (!visible || !patient_data?.patient_unique_id) return;
-    loadTodayVitalsAndLabResults({ patient_data, setState: setPrescriptionData });
-  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
 
   useEffect(() => {
     if (!isGroundingAccessable) return;
@@ -2319,69 +2311,30 @@ const ConsultationDrawer = ({
                           )
                         : validatedPrescriptionData;
 
-                    // Preserve existing vitals and lab results if they exist and API doesn't provide them
-                    const existingVitals = prevData?.vitalsAndBodyComposition || {};
-                    const existingLabResults = prevData?.labResults || [];
-                    const apiVitals = validatedPrescriptionData?.vitalsAndBodyComposition || {};
-                    const apiLabResults = validatedPrescriptionData?.labResults || [];
-                    
-                    const hasExistingVitals = Object.keys(existingVitals).length > 0 && 
-                      Object.values(existingVitals).some(v => String(v || '').trim() !== '' && String(v).trim() !== 'undefined' && String(v).trim() !== 'null');
-                    const hasApiVitals = Object.keys(apiVitals).length > 0 && 
-                      Object.values(apiVitals).some(v => String(v || '').trim() !== '' && String(v).trim() !== 'undefined' && String(v).trim() !== 'null');
-                    const hasExistingLabResults = Array.isArray(existingLabResults) && existingLabResults.length > 0 && 
-                      existingLabResults.some(r => {
-                        const testname = (r.testname || r.name || '').trim();
-                        const value = (r.value || '').trim();
-                        return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
-                      });
-                    const hasApiLabResults = Array.isArray(apiLabResults) && apiLabResults.length > 0 && 
-                      apiLabResults.some(r => {
-                        const testname = (r.testname || r.name || '').trim();
-                        const value = (r.value || '').trim();
-                        return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
-                      });
-                    
                     return {
                       ...finalPrescriptionData,
-                      vitalsAndBodyComposition: hasApiVitals ? apiVitals : (hasExistingVitals ? existingVitals : {}),
-                      labResults: hasApiLabResults ? apiLabResults : (hasExistingLabResults ? existingLabResults : []),
+                  vitalsAndBodyComposition: validatedPrescriptionData?.vitalsAndBodyComposition || {},
                       medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
               });     
             } else {
-              setPrescriptionData(prev => {
-                // Preserve existing vitals and lab results if they exist
-                const existingVitals = prev?.vitalsAndBodyComposition || {};
-                const existingLabResults = prev?.labResults || [];
-                const hasVitals = Object.keys(existingVitals).length > 0 && 
-                  Object.values(existingVitals).some(v => String(v || '').trim() !== '' && String(v).trim() !== 'undefined' && String(v).trim() !== 'null');
-                const hasLabResults = Array.isArray(existingLabResults) && existingLabResults.length > 0 && 
-                  existingLabResults.some(r => {
-                    const testname = (r.testname || r.name || '').trim();
-                    const value = (r.value || '').trim();
-                    return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
-                  });
-                
-                return {
-                  symptoms: [],
-                  medications: [],
-                  vitalsAndBodyComposition: hasVitals ? existingVitals : {},
-                  labResults: hasLabResults ? existingLabResults : [],
-                  advice: [],
-                  diagnosis: [],
-                  examinations: [],
-                  followUp: "",
-                  labInvestigation: [],
-                  medicalHistory: [],
-                  vaccinations: [],
-                  others: [],
-                  dynamicFields: localModules.reduce((acc, moduleName) => {
-                    acc[moduleName] = [];
-                    return acc;
-                  }, {}),
-                };
+              setPrescriptionData({
+                symptoms: [],
+                medications: [],
+                vitalsAndBodyComposition: {},
+                advice: [],
+                diagnosis: [],
+                examinations: [],
+                followUp: "",
+                labInvestigation: [],
+                medicalHistory: [],
+                vaccinations: [],
+                others: [],
+                dynamicFields: localModules.reduce((acc, moduleName) => {
+                  acc[moduleName] = [];
+                  return acc;
+                }, {}),
               });
             }
 
