@@ -296,11 +296,8 @@ function SmartRxPreview() {
         const fetchData = async () => {
           // Only fetch if we don't have smartRxFile from state
           if (state?.smartRxFile?.length > 0 || state?.files?.length > 0) {
-              const stateFiles = state?.smartRxFile || state?.files || [];
-              const isStringArray = stateFiles.every(file => typeof file === 'string');
-              if (!isStringArray) {
-                  return;
-              }
+              console.log('SmartRxPreview - Skipping API fetch, using state data');
+              return;
           }
           
           const payload = {
