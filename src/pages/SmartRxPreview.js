@@ -66,14 +66,13 @@ function SmartRxPreview() {
         try {
             const urlObj = new URL(url);
             urlObj.searchParams.delete('lg');
-            urlObj.searchParams.delete('rx');
-            urlObj.searchParams.set('rx', '0');
             if (language) {
                 const encodedData = btoa(language.toString());
                 urlObj.searchParams.set('lg', encodedData);
             }
             return urlObj.toString();
         } catch (error) {
+            console.error('Invalid print URL:', error);
             return url;
         }
     };

@@ -116,27 +116,19 @@ const vitalsSlice = createSlice({
                         
                         if (!existing) {
                             vitalsByDate[dateKey] = vital;
+                        } else if ((vital.tcv_id > 0 || vital.tcbc_id > 0) && (existing.tcv_id === 0 && existing.tcbc_id === 0)) {
+                            vitalsByDate[dateKey] = vital;
+                        } else if ((existing.tcv_id > 0 || existing.tcbc_id > 0) && (vital.tcv_id === 0 && vital.tcbc_id === 0)) {
+                            // Keep existing
                         } else {
-                            const existingId = Math.max(Number(existing.tcv_id || 0), Number(existing.tcbc_id || 0));
-                            const vitalId = Math.max(Number(vital.tcv_id || 0), Number(vital.tcbc_id || 0));
+                            const existingId = Number(existing.tcv_id || 0);
+                            const vitalId = Number(vital.tcv_id || 0);
                             if (vitalId > existingId) {
                                 vitalsByDate[dateKey] = vital;
-                            } else if (vitalId === existingId && vitalId > 0) {
-                                const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
-                                const vitalTime = new Date(vital.updated_at || vital.created_at || 0).getTime();
-                                if (vitalTime > existingTime) {
-                                    vitalsByDate[dateKey] = vital;
-                                } else if (vitalTime === existingTime) {
-                                    const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                                    const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                                    if (vitalDataCount > existingDataCount) {
-                                        vitalsByDate[dateKey] = vital;
-                                    }
-                                }
-                            } else if (existingId === 0 && vitalId === 0) {
-                                const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
-                                const vitalTime = new Date(vital.updated_at || vital.created_at || 0).getTime();
-                                if (vitalTime > existingTime) {
+                            } else if (vitalId === existingId) {
+                                const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0).length;
+                                const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0).length;
+                                if (vitalDataCount > existingDataCount) {
                                     vitalsByDate[dateKey] = vital;
                                 }
                             }

@@ -22,12 +22,11 @@ function VitalsList(props) {
     const { vitalsData } = useContext(CashManagerContext);
 
     const PAST_VITALS = useMemo(() => {
-        const filteredPastList = vitalsPastList.filter(p => !vitalsData.some(v => v.date === p.date));
         return (
-            filteredPastList.length > 0 &&
-            filteredPastList.map((item, i) => {
+            vitalsPastList.length > 0 &&
+            vitalsPastList.map((item, i) => {
                 return (
-                    <div key={i} className={`${filteredPastList.length - 1 !== i && 'border-bottom'} pt-3 vitals-height input-readonly`}>
+                    <div key={i} className={`${vitalsPastList.length - 1 != i && 'border-bottom'} pt-3 vitals-height input-readonly`}>
                         <div className="title-sami mb-3">
                             {moment(item.date).format(showDateFormat)}
                         </div>
@@ -69,16 +68,16 @@ function VitalsList(props) {
                                 <Input className='inputheight41-group mx-2' value={item.resp_rate} addonAfter={'/min'} readOnly />
                             </div>
                         )}
-                        {item.blood_press && !item.blood_press.includes('undefined') && item.blood_press.split('/')[0] && (
+                        {item.blood_press && item.blood_press.split('/')[0] && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Systolic</div>
-                                <Input className='inputheight41-group mx-2' value={item.blood_press.split('/')[0]} addonAfter={'mmHg'} readOnly />
+                                <Input className='inputheight41-group mx-2' value={item.blood_press ? item.blood_press.split('/')[0] : ''} addonAfter={'mmHg'} readOnly />
                             </div>
                         )}
-                        {item.blood_press && !item.blood_press.includes('undefined') && item.blood_press.split('/')[1] && (
+                        {item.blood_press && item.blood_press.split('/')[1] && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Diastolic</div>
-                                <Input className='inputheight41-group mx-2' value={item.blood_press.split('/')[1]} addonAfter={'mmHg'} readOnly />
+                                <Input className='inputheight41-group mx-2' value={item.blood_press ? item.blood_press.split('/')[1] : ''} addonAfter={'mmHg'} readOnly />
                             </div>
                         )}
                         {item.spo2 && (
@@ -145,7 +144,7 @@ function VitalsList(props) {
                 );
             })
         );
-    }, [vitalsPastList, vitalsData]);
+    }, [vitalsPastList]);
 
     const TODAY_VITALS = useMemo(() => {
         return (
@@ -194,16 +193,16 @@ function VitalsList(props) {
                                 <Input className='inputheight41-group mx-2' value={item.resp_rate} addonAfter={'/min'} readOnly />
                             </div>
                         )}
-                        {item.blood_press && !item.blood_press.includes('undefined') && item.blood_press.split('/')[0] && (
+                        {item.blood_press && item.blood_press.split('/')[0] && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Systolic</div>
-                                <Input className='inputheight41-group mx-2' value={item.blood_press.split('/')[0]} addonAfter={'mmHg'} readOnly />
+                                <Input className='inputheight41-group mx-2' value={item.blood_press ? item.blood_press.split('/')[0] : ''} addonAfter={'mmHg'} readOnly />
                             </div>
                         )}
-                        {item.blood_press && !item.blood_press.includes('undefined') && item.blood_press.split('/')[1] && (
+                        {item.blood_press && item.blood_press.split('/')[1] && (
                             <div className="d-flex align-items-center justify-content-between mb-12">
                                 <div className="fontroboto">Diastolic</div>
-                                <Input className='inputheight41-group mx-2' value={item.blood_press.split('/')[1]} addonAfter={'mmHg'} readOnly />
+                                <Input className='inputheight41-group mx-2' value={item.blood_press ? item.blood_press.split('/')[1] : ''} addonAfter={'mmHg'} readOnly />
                             </div>
                         )}
                         {item.spo2 && (
@@ -294,7 +293,7 @@ function VitalsList(props) {
                     </div>
                 )}
                 {TODAY_VITALS}
-                {vitalsPastList.filter(p => !vitalsData.some(v => v.date === p.date)).length > 0 && (
+                {vitalsPastList.length > 0 && (
                     <div>
                         <Collapse items={accordionItems} defaultActiveKey={['1']} className="prescriptiontab-accordian" expandIconPosition={'end'} />
                     </div>

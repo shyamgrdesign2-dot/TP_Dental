@@ -41,18 +41,6 @@ const normalizePlural = (word = "") => {
   return lower;
 };
 
-const getCleanWords = (name = "") => {
-  if (!name) return [];
-  const cleaned = String(name)
-    .toLowerCase()
-    .replace(/haem/g, "hem")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return [];
-  return cleaned.split(" ").filter(w => w.length > 0).map(w => normalizePlural(w));
-};
-
 // Enhanced normalization
 const normalizeTestNameAdvanced = (name = "") => {
   if (!name) return null;
@@ -85,54 +73,16 @@ const normalizeTestName = (name = "") => {
 const getNormalizedVariants = (name = "") => {
   const variants = new Set();
   if (!name) return variants;
-  
-  const bracketMatches = [...String(name).matchAll(/\(([^)]+)\)/g)];
-  const nameWithoutBrackets = String(name).replace(/\(([^)]+)\)/g, " ").trim();
-  
-  const addVariant = (value) => {
-    if (!value) return;
-    const normalized = normalizeTestName(value);
-    if (normalized) variants.add(normalized);
-    
-    const advanced = normalizeTestNameAdvanced(value);
-    if (advanced && advanced.normalized) {
-      variants.add(advanced.normalized);
-      if (Array.isArray(advanced.words) && advanced.words.length > 0) {
-        const acronym = advanced.words.map((w) => w[0]).join("");
-        if (acronym) variants.add(acronym);
-        const orderedJoin = advanced.words.join("");
-        if (orderedJoin) variants.add(orderedJoin);
-        for (let i = 0; i < advanced.words.length; i++) {
-          const suffix = advanced.words.slice(i).join("");
-          if (suffix) variants.add(suffix);
-        }
-      }
+  const normalized = normalizeTestName(name);
+  if (normalized) variants.add(normalized);
+  const advanced = normalizeTestNameAdvanced(name);
+  if (advanced && advanced.normalized) {
+    variants.add(advanced.normalized);
+    if (Array.isArray(advanced.words) && advanced.words.length > 0) {
+      const acronym = advanced.words.map((w) => w[0]).join("");
+      if (acronym) variants.add(acronym);
     }
-  
-    const words = getCleanWords(value);
-    if (words.length > 0) {
-      const wordAcronym = words.map((w) => w[0]).join("");
-      if (wordAcronym) variants.add(wordAcronym);
-      const wordJoin = words.join("");
-      if (wordJoin) variants.add(wordJoin);
-      for (let i = 0; i < words.length; i++) {
-        const suffix = words.slice(i).join("");
-        if (suffix) variants.add(suffix);
-      }
-    }
-  };
-
-  addVariant(nameWithoutBrackets);
-  
-  bracketMatches.forEach((match) => {
-    const bracketContent = (match[1] || "").trim();
-    if (bracketContent) {
-      addVariant(bracketContent);
-      const bracketNormalized = normalizeTestName(bracketContent);
-      if (bracketNormalized) variants.add(bracketNormalized);
-    }
-  });
-
+  }
   return variants;
 };
 
@@ -154,9 +104,6 @@ const findBestMatch = (inputName = "", testLookup = {}, defaultTestData = []) =>
     return null;
   }
   
-  const inputBracketMatches = [...String(inputName).matchAll(/\(([^)]+)\)/g)];
-  const inputBracketContents = inputBracketMatches.map(m => normalizeTestName(m[1] || "")).filter(Boolean);
-  
   let bestMatch = null;
   let bestScore = Infinity;
   const maxDistance = Math.max(3, Math.floor(inputNormalized.normalized.length * 0.3));
@@ -164,46 +111,6 @@ const findBestMatch = (inputName = "", testLookup = {}, defaultTestData = []) =>
   for (const test of defaultTestData) {
     const testName = test?.testName || "";
     if (!testName) continue;
-    
-    const testBracketMatches = [...String(testName).matchAll(/\(([^)]+)\)/g)];
-    const testBracketContents = testBracketMatches.map(m => normalizeTestName(m[1] || "")).filter(Boolean);
-    
-    if (inputBracketContents.length > 0 && testBracketContents.length > 0) {
-      const hasBracketMatch = inputBracketContents.some(inputBracket => 
-        testBracketContents.some(testBracket => inputBracket === testBracket)
-      );
-      if (hasBracketMatch) {
-        const testNameWithoutBrackets = String(testName).replace(/\(([^)]+)\)/g, " ").trim();
-        const testNormalized = normalizeTestNameAdvanced(testNameWithoutBrackets);
-        if (testNormalized && testNormalized.normalized) {
-          const inputWords = inputNormalized.words || [];
-          const testWords = testNormalized.words || [];
-          const commonWords = inputWords.filter(w => testWords.includes(w));
-          if (commonWords.length > 0) {
-            return test;
-          }
-        }
-      }
-    }
-    
-    if (testBracketContents.length > 0) {
-      const inputNormalizedFull = normalizeTestName(inputName);
-      const hasBracketInInput = testBracketContents.some(testBracket => 
-        inputNormalizedFull.includes(testBracket)
-      );
-      if (hasBracketInInput) {
-        const testNameWithoutBrackets = String(testName).replace(/\(([^)]+)\)/g, " ").trim();
-        const testNormalized = normalizeTestNameAdvanced(testNameWithoutBrackets);
-        if (testNormalized && testNormalized.normalized) {
-          const inputWords = inputNormalized.words || [];
-          const testWords = testNormalized.words || [];
-          const commonWords = inputWords.filter(w => testWords.includes(w));
-          if (commonWords.length > 0) {
-            return test;
-          }
-        }
-      }
-    }
     
     const testNormalized = normalizeTestNameAdvanced(testName);
     if (!testNormalized || !testNormalized.normalized) continue;
@@ -262,12 +169,14 @@ const mapLabResult = (result = {}, testLookup = {}, defaultTestData = []) => {
 
   // Extract value and units
   const rawValue = result?.value !== undefined ? String(result.value).trim() : "";
+  let cleanValue = rawValue;
   let cleanUnits = result?.units || "";
   
   // Extract units from value if not present (e.g., "23 mg/dl" -> value: "23", units: "mg/dl")
   if (rawValue && !cleanUnits) {
     const parts = rawValue.trim().split(/\s+/);
     if (parts.length > 1) {
+      cleanValue = parts.slice(0, -1).join(" ");
       cleanUnits = parts[parts.length - 1];
     }
   }

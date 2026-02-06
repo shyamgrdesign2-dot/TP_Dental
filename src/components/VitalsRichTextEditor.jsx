@@ -243,8 +243,7 @@ const VitalsRichTextEditor = ({
     
     if (currentVitals.bloodPressure && !processedKeys.has('Systolic') && !processedKeys.has('Diastolic')) {
       const bpValue = String(currentVitals.bloodPressure).trim();
-      const bpParts = bpValue.split('/');
-      if (bpValue && bpParts.length === 2 && bpParts[0].trim() && bpParts[1].trim()) {
+      if (bpValue) {
         vitalPairs.push(`BP: ${bpValue}`);
         processedKeys.add('bloodPressure');
       }

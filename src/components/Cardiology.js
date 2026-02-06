@@ -887,17 +887,17 @@ function Cardiology(props) {
               <li key={index}>
                 <div className="medicine-item">
                   <span>
-                    {/* Render dynamically based on type - prioritize name when available */}
+                    {/* Render dynamically based on type - prioritize lineItem when available */}
                     {(() => {
-                      const itemName = item?.name && String(item.name).trim();
                       const lineItem = item?.lineItem && String(item.lineItem).trim();
+                      if (lineItem) return lineItem;
                       
                       if (type === "advice") return item;
-                      if (type === "symptoms" && itemName) {
-                        return itemName[0]?.toUpperCase() + itemName?.slice(1);
+                      if (type === "symptoms" && item?.name?.length > 0) {
+                        return item.name[0]?.toUpperCase() + item.name?.slice(1);
                       }
                       if (type === "medications" || type === "tests") {
-                        return item?.refinedName || itemName || "";
+                        return item?.refinedName || item?.name || "";
                       }
                       if (type === "labResults") {
                         const testname =
@@ -913,11 +913,10 @@ function Cardiology(props) {
                           : testname || value || "";
                       }
                       if (type === "dynamicFields") {
-                        return item?.title || itemName || (typeof item === "string" ? item : "");
+                        return item?.title || item?.name || (typeof item === "string" ? item : "");
                       }
                       if (type === "others") return item;
-                      // Use name first, fallback to lineItem only if name is not available
-                      return itemName || lineItem || "";
+                      return item?.name || "";
                     })()}
                   </span>
 
@@ -1094,13 +1093,15 @@ function Cardiology(props) {
     );
   };
 
-  const renderMedicalHistoryGrouped = (medicalHistoryData) => {
+  const renderMedicalHistoryGrouped = () => {
+    const medicalHistoryData = genRxData?.medicalHistory;
+    
     if (!medicalHistoryData || !Array.isArray(medicalHistoryData) || medicalHistoryData.length === 0) {
       return null;
     }
   
     const groupedByType = medicalHistoryData.reduce((acc, item) => {
-      const type = item?.type || item?.subtype || 'other';
+      const type = isGenRxTableView ? (item?.type || item?.subtype || 'other') : 'other';
       if (!acc[type]) {
         acc[type] = [];
       }
@@ -1115,10 +1116,8 @@ function Cardiology(props) {
 
     const typeDisplayNames = {
       'medical_condition': 'Medical Conditions',
-      'Medical condition': 'Medical Conditions',
       'allergy': 'Allergies',
       'family_history': 'Family History',
-      'Family History': 'Family History',
       'lifestyle': 'Lifestyle',
       'other': 'others'
     };
@@ -1134,24 +1133,7 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              // Use name first, fallback to lineItem only if name is not available
-              const itemNameRaw = item?.name || item?.condition || item?.lineItem || 'N/A';
-              let itemName = String(itemNameRaw).trim();
-              // Remove type prefix and duplicated info from itemName
-              const typeNames = ['Medical Condition', 'medical_condition', 'Family History', 'family_history', 'Allergy', 'allergy', 'Allergies', 'Lifestyle', 'lifestyle', 'Other', 'other'];
-              for (const typeName of typeNames) {
-                if (itemName.toLowerCase().startsWith(typeName.toLowerCase() + ',')) {
-                  itemName = itemName.substring(typeName.length + 1).trim();
-                  break;
-                }
-              }
-              // Remove duration/relation/notes from itemName if they appear after comma (e.g., "Diabetes, 2 year(s)")
-              const commaParts = itemName.split(',').map(p => p.trim());
-              if (commaParts.length > 1) {
-                // Keep only the first part (condition name)
-                itemName = commaParts[0];
-              }
-              
+              const itemName = item?.name || item?.condition || 'N/A';
               const details = [];
               
               if (item?.duration && item.duration !== '') {
@@ -1200,7 +1182,7 @@ function Cardiology(props) {
 
   const renderGenRxItems = (type) => {
     if (type === "medicalHistory") {
-      return renderMedicalHistoryGrouped(genRxData?.medicalHistory);
+      return renderMedicalHistoryGrouped();
     }
     
     return (
@@ -1314,12 +1296,10 @@ function Cardiology(props) {
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") && (() => {
-                    // Use name as primary, fallback to lineItem only if name is not available
-                    const itemName = item?.name && String(item.name).trim();
                     const lineItem = item?.lineItem && String(item.lineItem).trim();
-                    
-                    // If name exists, use it; otherwise use lineItem
-                    const displayName = itemName || lineItem || 'N/A';
+                    if (lineItem) {
+                      return <span>{lineItem}</span>;
+                    }
                     
                     const hasIndividualFields = (item?.severity && item?.severity !== '') || 
                                                (item?.duration && item?.duration !== '') || 
@@ -1343,13 +1323,15 @@ function Cardiology(props) {
                         ].filter(Boolean).join(', ')
                       : null;
                     
-                    return (
+                    return item.name ? (
                       <span>
-                        {displayName}
+                        {item.name}
                         {details && (
                           <span> ({details})</span>
                         )}
                       </span>
+                    ) : (
+                      <span>{item}</span>
                     );
                   })()}
 
@@ -2066,7 +2048,7 @@ function Cardiology(props) {
                               Medical History
                             </div>
                           </div>
-                          {renderMedicalHistoryGrouped(rxDigitisedData?.editedData?.medicalHistory)}
+                          {renderItems("medicalHistory")}
                         </>
                       )}
 
@@ -2356,7 +2338,7 @@ function Cardiology(props) {
                               Medical History
                             </div>
                           </div>
-                          {renderMedicalHistoryGrouped(snapRxDigitisedData?.medicalHistory)}
+                          {renderItems("medicalHistory")}
                         </>
                       )}
 
