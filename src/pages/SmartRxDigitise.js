@@ -801,9 +801,6 @@ function SmartRxDigitise() {
             patientInfo
           );
         }
-        if (!refinedData?.examinations && Array.isArray(refinedData?.examination)) {
-          refinedData.examinations = refinedData.examination;
-        }
         
         // Map lab results to standardized names (matching sidebar)
         if (Array.isArray(refinedData?.labResults) && refinedData.labResults.length > 0) {

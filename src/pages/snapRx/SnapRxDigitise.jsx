@@ -105,9 +105,6 @@ function SnapRxDigitise() {
         patientInfo
       );
     }
-    if (!normalized.examinations && Array.isArray(normalized.examination)) {
-      normalized.examinations = normalized.examination;
-    }
     
     // Map lab results to standardized names (matching sidebar)
     if (Array.isArray(normalized.labResults) && normalized.labResults.length > 0) {
