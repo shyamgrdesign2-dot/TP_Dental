@@ -95,7 +95,7 @@ function SmartRxDigitise() {
   const [labResultsSavedFromSidebar, setLabResultsSavedFromSidebar] = useState(false);
   // Grounding check (Zydus users)
   const tokenDataLocal = getTokenData();
-  const isGroundingAccessableForZydus =
+  const isGroundingAccessable =
     tokenDataLocal?.hospital_business_id === env.zydus_business_id &&
     isZydusUserAccessableFromGB;
 

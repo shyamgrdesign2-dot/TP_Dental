@@ -93,7 +93,6 @@ function MedicalHistoryBox(props) {
     const [addEditData, setAddEditData] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchOptions, setSearchOptions] = useState([]);
-    const [sectionSearchQueries, setSectionSearchQueries] = useState({});
 
     const SINCE_OPTIONS = [
         { value: "Hour", label: "H" },

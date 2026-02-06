@@ -38,7 +38,7 @@ import UploadDocument from "./medicalRecords/UploadDocument";
 import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
-import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
+import { setBillPrintSettings } from "../redux/billingSlice";
 import ApiVitals from "../api/services/ApiVitals";
 
 const { Sider, Content } = Layout;
