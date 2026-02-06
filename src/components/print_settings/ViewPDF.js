@@ -1549,7 +1549,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         ...Object.values(
                                                                                             Object.fromEntries(
                                                                                                 Object.entries({
-                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
+                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? item.tmm_generic : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
                                                                                                         ? item.tmm_dosage && item.tmm_unit
@@ -1642,7 +1642,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         ...Object.values(
                                                                                             Object.fromEntries(
                                                                                                 Object.entries({
-                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
+                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? item.tmm_generic : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
                                                                                                         ? item.tmm_dosage && item.tmm_unit
@@ -1753,7 +1753,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 <View style={styles.cell}>
                                                                     <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || ''}</Text>
                                                                     {option?.medicine_with_generic && (
-                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic || pItem.corrected_name || pItem.metadata?.tmm_generic || ''}</Text>
+                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic}</Text>
                                                                     )}
                                                                 </View>
                                                                 <View style={{ flex: 
@@ -1807,7 +1807,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         )
                                                                     })}
                                                                 </View>
-                                                                </View>
+                                                            </View>
                                                         ))}
                                                     </View>
                                                 </View>

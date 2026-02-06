@@ -398,7 +398,7 @@ function ConfigurePrintSetting() {
                                         return {
                                             ...med,
                                             tmm_medicine_name: med.name || med.medicine_name || med.tmm_medicine_name || med.lineItem || "",
-                                            tmm_generic: med.corrected_name || med.metadata?.tmm_generic || med.generic || med.generic_name || med.tmm_generic || "",
+                                            tmm_generic: med.generic || med.generic_name || med.tmm_generic || "",
                                             tmm_dosage: dosage,
                                             tmm_unit: unitId,
                                             tmm_freq_type: freqType,
