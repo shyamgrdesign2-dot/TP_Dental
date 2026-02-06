@@ -57,7 +57,6 @@ function SnapRxDigitise() {
   
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
   const [vitalsData, setVitalsData] = useState([]);
-  const [labResultsSavedFromSidebar, setLabResultsSavedFromSidebar] = useState(false);
 
   const baseUrlRxDigitise = env.digitization_api_url;
 
@@ -509,13 +508,16 @@ function SnapRxDigitise() {
                 if (saveResult?.status && Array.isArray(saveResult.data) && saveResult.data.length > 0) {
                   const savedVital = saveResult.data[0];
                   const enrichedSavedVital = enrichVitalsWithCalculations(savedVital, patientInfo);
-                  const savedDate = enrichedSavedVital.date || moment().format("YYYY-MM-DD");
-                  // Find existing entry for this date and update it, or add if not found
-                  const existingDateIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === savedDate);
-                  if (existingDateIndex >= 0) {
-                    vitalsForCase[existingDateIndex] = enrichedSavedVital;
+                  if (existingTodayIndex >= 0) {
+                    vitalsForCase[existingTodayIndex] = enrichedSavedVital;
+                  } else {
+                    // Find the entry we just pushed and replace it with the API response
+                    const todayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today && v.temp === enrichedRxPadVital.temp && v.pres === enrichedRxPadVital.pres);
+                    if (todayIndex >= 0) {
+                      vitalsForCase[todayIndex] = enrichedSavedVital;
                     } else {
                       vitalsForCase.push(enrichedSavedVital);
+                    }
                   }
                 }
               }
@@ -525,9 +527,11 @@ function SnapRxDigitise() {
           console.error("Error fetching vitals for case manager payload:", err);
         }
 
+        // Save medical history if it exists in the consultation
         const labResultsDataForApi = formatLabResultsForApi(data?.labResults || []);
         
-        if (labResultsDataForApi.length > 0 && patient_data?.patient_unique_id && !labResultsSavedFromSidebar) {
+        // Save lab results to API
+        if (labResultsDataForApi.length > 0 && patient_data?.patient_unique_id) {
           try {
             const decodedToken = getDecodedToken();
             const doctorId = decodedToken?.result?.user_id;
@@ -543,35 +547,7 @@ function SnapRxDigitise() {
         }
 
         const hasTcm = tcm_id !== undefined && tcm_id !== null;
-        // Deduplicate vitals by date - keep only one entry per date (prefer highest tcv_id or most recent)
-        const deduplicatedVitals = {};
-        vitalsForCase.forEach((v) => {
-          const dateKey = v.date || moment().format("YYYY-MM-DD");
-          if (!deduplicatedVitals[dateKey]) {
-            deduplicatedVitals[dateKey] = v;
-          } else {
-            // If duplicate exists, prefer the one with higher tcv_id (more recent), or merge fields
-            const existing = deduplicatedVitals[dateKey];
-            if (v.tcv_id && existing.tcv_id && v.tcv_id > existing.tcv_id) {
-              deduplicatedVitals[dateKey] = v;
-            } else if (!existing.tcv_id && v.tcv_id) {
-              deduplicatedVitals[dateKey] = v;
-            } else {
-              // Merge non-empty fields from both, preferring the newer one
-              const merged = { ...existing };
-              Object.keys(v).forEach(key => {
-                if (key !== 'date' && key !== 'tcv_id' && key !== 'tcbc_id' && key !== 'dev_unique_id' && key !== 'pam_id') {
-                  const vValue = v[key];
-                  if (vValue !== undefined && vValue !== null && String(vValue).trim() !== '') {
-                    merged[key] = vValue;
-                  }
-                }
-              });
-              deduplicatedVitals[dateKey] = merged;
-            }
-          }
-        });
-        const cleanedVitalsForCase = Object.values(deduplicatedVitals).map(v => {
+        const cleanedVitalsForCase = vitalsForCase.map(v => {
           const cleaned = { ...v };
           const systolic = String(cleaned.systolic || '').trim();
           const diastolic = String(cleaned.diastolic || '').trim();
@@ -768,7 +744,6 @@ function SnapRxDigitise() {
                     showAbsHeaderInsideLoader={isLoading}
                     enableInstructionBanner={false}
                     showHeader={false}
-                    onLabResultsSaved={() => setLabResultsSavedFromSidebar(true)}
                   />
                 </div>
               </div>

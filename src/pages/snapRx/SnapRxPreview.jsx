@@ -103,14 +103,6 @@ function SnapRxPreview() {
   const [showDigitalRx, setShowDigitalRx] = useState(false);
   const progressRef = useRef(null);
 
-  useEffect(() => {
-    if (state?.smartRxFile && state.smartRxFile.length > 0) {
-      setSmartRxFile(state.smartRxFile);
-    } else if (state?.files && state.files.length > 0) {
-      setSmartRxFile(state.files);
-    }
-  }, [state?.files, state?.smartRxFile, state?.from]);
-
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlDigitization = env.digitization_api_url;
 
@@ -182,19 +174,12 @@ function SnapRxPreview() {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
         setViewCaseManagerData(viewCaseManagerData);
-        
-        // After print configuration, show digitized Rx if we were configuring for digitized Rx
-        if (state?.from === "/configure_print_setting") {
-          // Only use page state to determine if we were configuring for digitized Rx
-          // Don't use viewCaseManagerData?.isRxDigitize as it can be true even when configuring written Rx
-          setShowDigitalRx(state?.page === "digitise");
-        } else if (state?.page === "digitise") {
-          // After digitization, show written Rx initially (but digitized prescription will load via rxDigitize=true when user toggles to Digital Rx)
-          setShowDigitalRx(false);
-        } else {
-          // Default: show digitized Rx only if it's digitized and page is "digitise"
-          const shouldShowDigital = viewCaseManagerData?.isRxDigitize && state?.page === "digitise";
-          setShowDigitalRx(shouldShowDigital);
+        if (viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url) {
+          const baseUrl = viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url;
+          const urlWithLanguage = buildUrlWithLanguage(baseUrl, selectedLang);
+          const updatedUrl = updateRxDigitizeInUrl(urlWithLanguage, viewCaseManagerData?.isRxDigitize && state?.page === "digitise");
+          setPreviewUrl(updatedUrl);
+          setPrintUrl(updatedUrl);
         }
       }
     };
@@ -260,32 +245,23 @@ function SnapRxPreview() {
     try {
       const urlObj = new URL(baseUrl);
       
-      // Always remove rxDigitize first, then set it based on showDigitalRx
       urlObj.searchParams.delete('rxDigitize');
       
       urlObj.searchParams.set('pam_id', pam_id.toString());
       urlObj.searchParams.set('lg', encodedData);
       
-      // Only set rxDigitize=true for digital Rx, otherwise leave it removed (which means written Rx)
       if (showDigitalRx) {
         urlObj.searchParams.set('rxDigitize', 'true');
       }
       
-      const newUrl = urlObj.toString();
-      setPrintUrl(newUrl);
-      // Clear currentSessionRx when URL changes to force PDF reload
-      setCurrentSessionRx(null);
+      setPrintUrl(urlObj.toString());
     } catch (error) {
       let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
-      // Remove rxDigitize parameter completely
       url = url.replace(/[?&]rxDigitize=[^&]*/g, '');
-      // Only add rxDigitize=true for digital Rx
       if (showDigitalRx) {
-        url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
+        url += "&rxDigitize=true";
       }
       setPrintUrl(url);
-      // Clear currentSessionRx when URL changes to force PDF reload
-      setCurrentSessionRx(null);
     }
   }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, viewCaseManagerData?.isRxDigitize]);
 
@@ -568,11 +544,7 @@ function SnapRxPreview() {
           tcm_id: state?.tcm_id,
           print_url: state?.print_rx_url || state?.print_url,
           selectedLang: selectedLang,
-          from: "/snap-rx/preview",
-          // Pass page state if it exists (indicates digitized Rx flow)
-          // If state?.page === "digitise", we're configuring for digitized Rx
-          // If state?.page is undefined/null, we're configuring for written Rx
-          page: state?.page
+          from: "/snap-rx/preview"
         },
       });
     } else {
@@ -734,9 +706,7 @@ function SnapRxPreview() {
               {!showProgressbar &&
                 isSnapRxDigitizationAccessable &&
                 smartRxFile?.length > 0 &&
-                state?.page !== "digitise" &&
-                !(state?.from === "/configure_print_setting" && state?.page === "digitise") &&
-                !showDigitalRx && (
+                state?.page !== "digitise" && (
                   <div className="digitise-cta-container">
                     <div className="content-box">
                       <div className="d-flex">
@@ -772,8 +742,8 @@ function SnapRxPreview() {
               <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
                 <div className="titleprint">Preview</div>
                 <div className="d-flex align-items-center flex-wrap gap-3">
-                  {((viewCaseManagerData?.isRxDigitize && state?.page === "digitise") ||
-                    (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
+                  {viewCaseManagerData?.isRxDigitize &&
+                    state?.page === "digitise" && (
                       <div>
                         <button
                           className={`digital-btn ${
@@ -781,10 +751,7 @@ function SnapRxPreview() {
                               ? "digitise-toggle-btn"
                               : "active-digitise-toggle-btn"
                           }`}
-                          onClick={() => {
-                            setCurrentSessionRx(null); // Clear cached session Rx to force reload with new URL
-                            setShowDigitalRx(true);
-                          }}
+                          onClick={() => setShowDigitalRx(true)}
                         >
                           Digital Rx
                         </button>
@@ -794,27 +761,20 @@ function SnapRxPreview() {
                               ? "digitise-toggle-btn"
                               : "active-digitise-toggle-btn"
                           }`}
-                          onClick={() => {
-                            setCurrentSessionRx(null);
-                            setShowDigitalRx(false);
-                          }}
+                          onClick={() => setShowDigitalRx(false)}
                         >
                           Written Rx
                         </button>
                       </div>
                     )}
-                  {(state?.page === "digitise" || (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
-                    <>
-                      <label className="fontroboto">Select Language</label>
-                      <Select
-                        placeholder="English"
-                        className="ms-3 appointmentselect"
-                        value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
-                        onSelect={onSelect}
-                        options={LANGUAGE_LIST}
-                      />
-                    </>
-                  )}
+                  <label className="fontroboto">Select Language</label>
+                  <Select
+                    placeholder="English"
+                    className="ms-3 appointmentselect"
+                    value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
+                    onSelect={onSelect}
+                    options={LANGUAGE_LIST}
+                  />
                 </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">

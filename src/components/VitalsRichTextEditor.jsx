@@ -121,7 +121,13 @@ const VitalsRichTextEditor = ({
       }
     });
     
-    merged.date = moment().format('YYYY-MM-DD');
+    if (rxPadVitals.date) {
+      merged.date = rxPadVitals.date;
+    } else if (apiVitalsData.date) {
+      merged.date = apiVitalsData.date;
+    } else {
+      merged.date = moment().format('YYYY-MM-DD');
+    }
     
     const sanitizeValue = (key, value) => {
       if (value === undefined || value === null) return '';

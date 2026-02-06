@@ -18,7 +18,6 @@ const LabResultsRichTextEditor = ({
   onUpdate,
   isProcessing = false,
   className = '',
-  onLabResultsSaved,
 }) => {
   const [labResultsDrawer, setLabResultsDrawer] = useState(false);
   const [drawerPrefillResults, setDrawerPrefillResults] = useState([]);
@@ -66,11 +65,9 @@ const LabResultsRichTextEditor = ({
   }, [labResults]);
 
   const handleLabParamsUpdate = useCallback(() => {
+    // This can be used to refresh lab results if needed
     setLabResultsDrawer(false);
-    if (typeof onLabResultsSaved === 'function') {
-      onLabResultsSaved();
-    }
-  }, [onLabResultsSaved]);
+  }, []);
 
   const handleSidebarResultsSync = useCallback(
     (syncedLabResults = []) => {

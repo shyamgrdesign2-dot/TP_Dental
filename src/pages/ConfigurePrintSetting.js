@@ -35,7 +35,6 @@ import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { getFormattedDate } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
-import { viewCaseManager } from "../redux/caseManagerSlice";
 
 function ConfigurePrintSetting() {
 
@@ -44,11 +43,8 @@ function ConfigurePrintSetting() {
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page } = state || {};
+    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId } = state || {};
     // selectedLang is available in state but not used in this component
-    // Only page === "digitise" indicates we're configuring print settings after digitization
-    // Don't use caseManagerData?.isRxDigitize because Rx can be digitized but we might be configuring written Rx
-    const isAfterDigitization = page === "digitise";
 
     const [divWidth, setDivWidth] = useState(0);
     const [selectedTab, setSelectedTab] = useState(caseManagerData !== undefined ? TAB_PRESCRIPTION : TAB_HEADER_FOOTER);
@@ -91,72 +87,13 @@ function ConfigurePrintSetting() {
 
     useEffect(() => {
         const fetchVoiceAmbientData = async () => {
-            if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
-                const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
-                const hasLabResults = caseManagerData?.labParamsData && Array.isArray(caseManagerData.labParamsData) && caseManagerData.labParamsData.length > 0;
-                const hasMedicalHistory = caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0;
-                if (!hasVitals || !hasLabResults || !hasMedicalHistory) {
-                    try {
-                        const sendData = {
-                            patient_unique_id: caseManagerData.patient_data.patient_unique_id,
-                            tcm_id: caseManagerData.tcm_id,
-                            configurePrintSetting: true
-                        };
-                        const action = await dispatch(viewCaseManager(sendData));
-                        if (action.meta.requestStatus === "fulfilled" && action.payload) {
-                            const updatedCaseManagerData = {
-                                ...caseManagerData,
-                                ...(action.payload.vitals && Array.isArray(action.payload.vitals) && action.payload.vitals.length > 0 && { vitals: action.payload.vitals }),
-                                ...(action.payload.labParamsData && Array.isArray(action.payload.labParamsData) && action.payload.labParamsData.length > 0 && { labParamsData: action.payload.labParamsData }),
-                                ...(action.payload.medical_history && Array.isArray(action.payload.medical_history) && action.payload.medical_history.length > 0 && { medical_history: action.payload.medical_history }),
-                                ...(action.payload.patient_data && { patient_data: { ...caseManagerData.patient_data, ...action.payload.patient_data } })
-                            };
-                            setMergedCaseManagerData(updatedCaseManagerData);
-                            if (action.payload.labParamsData && Array.isArray(action.payload.labParamsData) && action.payload.labParamsData.length > 0) {
-                                setLabParamsData(action.payload.labParamsData);
-                            }
-                            
-                            const patientId = caseManagerData.patient_data.patient_unique_id;
-                            if (patientId && (!action.payload.labParamsData || !action.payload.labParamsData.length)) {
-                                try {
-                                    const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-                                    const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
-                                    const baseUrl = env.lab_params_api_url || config.lab_params_api_url;
-                                    
-                                    const response = await axios.get(
-                                        `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
-                                        {
-                                            headers: {
-                                                'Authorization': `Bearer ${cleanedToken}`,
-                                            },
-                                        }
-                                    );
-                                    
-                                    if (response?.data?.data?.results && Array.isArray(response.data.data.results) && response.data.data.results.length > 0) {
-                                        setLabParamsData(response.data.data.results);
-                                        setMergedCaseManagerData(prev => ({
-                                            ...prev,
-                                            labParamsData: response.data.data.results
-                                        }));
-                                    }
-                                } catch (error) {
-                                }
-                            }
-                            
-                            return; 
-                        }
-                    } catch (error) {
-                    }
-                }
-            }
-            
             if (!caseManagerData) {
                 return;
             }
             
             const rxIdToUse = rxId || caseManagerData?.smart_prescription_filename;
             const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
-            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerData?.isRxDigitize && !rxIdToUse);
+            const isSnapRx = caseManagerData?.isRxDigitize;
             
             const hasMergedMedicine = mergedCaseManagerData?.medicine && 
                                       Array.isArray(mergedCaseManagerData.medicine) && 
@@ -174,14 +111,7 @@ function ConfigurePrintSetting() {
                 setMergedCaseManagerData(caseManagerData);
             }
             
-            // Fetch data for:
-            // 1. Snap Rx after digitization (isSnapRx && isAfterDigitization)
-            // 2. Voice/Ambient Rx (has rxId but not snap Rx - always fetch)
-            // For written Rx (before digitization), skip this and use caseManagerData as-is
-            const isVoiceAmbientFlow = rxIdToUse && !isSnapRx;
-            const shouldFetchData = (isSnapRx && isAfterDigitization) || isVoiceAmbientFlow;
-            
-            if (shouldFetchData) {
+            if (rxIdToUse || isSnapRx) {
                 try {
                     let voiceAmbientResponse = null;
                     let prescriptionData = null;
@@ -249,9 +179,6 @@ function ConfigurePrintSetting() {
                                     prescriptionData = digitizeObj;
                                 }
                             }
-                        } else if (responseData && !isSnapRx) {
-                            // For voice/ambient, responseData itself might be the prescription data
-                            prescriptionData = responseData;
                         }
                         
                         const transformVoiceAmbientData = (data) => {
@@ -588,8 +515,6 @@ function ConfigurePrintSetting() {
                     });
                 }
             } else {
-                // For written Rx (before digitization), ensure we use caseManagerData as-is
-                // This ensures vitals, lab results, medical history are available for written Rx config
                 if (!mergedCaseManagerData || mergedCaseManagerData !== caseManagerData) {
                     setMergedCaseManagerData(caseManagerData);
                 }
@@ -611,17 +536,8 @@ function ConfigurePrintSetting() {
                         }
                     );
                     
-                    if (response?.data?.data?.results && Array.isArray(response.data.data.results) && response.data.data.results.length > 0) {
+                    if (response?.data?.data?.results) {
                         setLabParamsData(response.data.data.results);
-                        setMergedCaseManagerData(prev => {
-                            if (!prev?.labParamsData || !Array.isArray(prev.labParamsData) || prev.labParamsData.length === 0) {
-                                return {
-                                    ...prev,
-                                    labParamsData: response.data.data.results
-                                };
-                            }
-                            return prev;
-                        });
                     }
                 } catch (error) {
                     
@@ -662,8 +578,7 @@ function ConfigurePrintSetting() {
     const isVoiceAmbientModeCheck = mergedCaseManagerData?.isVoiceAmbientRx || 
                                      isAmbientRx || 
                                      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || 
-                                     (rxId && !smartRxFile) ||
-                                     isAfterDigitization; 
+                                     (rxId && !smartRxFile);
     const smartRxFileForContext = isVoiceAmbientModeCheck ? null : smartRxFile;
     
     const contextApi = { 
@@ -738,7 +653,7 @@ function ConfigurePrintSetting() {
                 qrcode: await QRCode.toDataURL(`${config.doctor_website_url}${parseInt(defaultPrintSettings?.um_contact, 10).toString(36)}_${defaultPrintSettings?.hm_refer_code}`)
             }))
             
-            const isVoiceAmbientFlow = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || mergedCaseManagerData?.isVoiceAmbientRx || isAfterDigitization;
+            const isVoiceAmbientFlow = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || mergedCaseManagerData?.isVoiceAmbientRx;
             if (isVoiceAmbientFlow && copyPrintSettings?.prescription?.case_option) {
                 copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.filter(
                     option => option?.type !== "page_break"
@@ -764,31 +679,6 @@ function ConfigurePrintSetting() {
                 }
             }
 
-          
-            if (((smartRxFile && smartRxFile.length > 0) || mergedCaseManagerData?.smart_prescription_filename) && copyPrintSettings?.prescription?.case_option) {
-                const smartRxOption = copyPrintSettings.prescription.case_option.find(option => option.id === 11);
-                
-                if (!smartRxOption && !isVoiceAmbientFlow) {
-                 
-                    const vaccinesIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 10);
-                    const insertIndex = vaccinesIndex !== -1 ? vaccinesIndex + 1 : copyPrintSettings.prescription.case_option.length;
-                
-                    copyPrintSettings.prescription.case_option.splice(insertIndex, 0, {
-                        id: 11,
-                        title: "SmartRx",
-                        format: "inline",
-                        enable: "Y",
-                        custom_status: "Y"
-                    });
-                } else if (smartRxOption && !isVoiceAmbientFlow) {
-                 
-                    if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
-                        smartRxOption.enable = "Y";
-                        smartRxOption.custom_status = "Y";
-                    }
-                }
-            }
-
             setPrintSettings(copyPrintSettings);
             copyPrintSettings?.logo_enable === 'Y' && copyPrintSettings.logo_image && setFileLogo({ imageShow: true, showFile: copyPrintSettings.logo_image });
             copyPrintSettings?.water_mark_enable === 'Y' && copyPrintSettings.water_mark_image && setFileWatermark({ imageShow: true, showFile: copyPrintSettings.water_mark_image });
@@ -799,7 +689,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, mergedCaseManagerData?.isVoiceAmbientRx, smartRxFile, mergedCaseManagerData?.smart_prescription_filename, isAfterDigitization]);
+    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, mergedCaseManagerData?.isVoiceAmbientRx]);
 
     useEffect(() => {
         // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true

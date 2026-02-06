@@ -187,7 +187,6 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
-  const [labResultsSavedFromSidebar, setLabResultsSavedFromSidebar] = useState(false);
   const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
   const clinic = getClinic(profile?.hospital_data);
   const { parentOptionsList: medicationParentOptionsList } = useSelector(
@@ -3534,9 +3533,7 @@ const ConsultationDrawer = ({
     }
 
     const labResultsDataForApi = formatLabResultsForApi(prescriptionData?.labResults || []);
-    if (!labResultsSavedFromSidebar) {
-      await persistLabResultsToApi(labResultsDataForApi);
-    }
+    await persistLabResultsToApi(labResultsDataForApi);
 
     const cleanedVitalsForCase = vitalsForCase.map(v => {
       const cleaned = { ...v };
@@ -5355,7 +5352,6 @@ const ConsultationDrawer = ({
                       onAdviceUpdate={handleAdviceUpdate}
                       onFollowUpUpdate={handleFollowUpUpdate}
                       onOthersUpdate={handleAdditionalNotesUpdate}
-                      onLabResultsSaved={() => setLabResultsSavedFromSidebar(true)}
                       onRxEdited={setIsRxEdited}
                               />
                   </div>
