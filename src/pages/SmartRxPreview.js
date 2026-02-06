@@ -67,8 +67,7 @@ function SmartRxPreview() {
             const urlObj = new URL(url);
             urlObj.searchParams.delete('lg');
             urlObj.searchParams.delete('rx');
-            // Set rx=1 for both written and digitised prescriptions
-            urlObj.searchParams.set('rx', '1');
+            urlObj.searchParams.set('rx', '0');
             if (language) {
                 const encodedData = btoa(language.toString());
                 urlObj.searchParams.set('lg', encodedData);
@@ -438,9 +437,6 @@ function SmartRxPreview() {
     // Function to update rxDigitize parameter in the URL
     const updateRxDigitizeInUrl = (url, showDigitalRx) => {
         const urlObj = new URL(url);
-
-        // Set rx=1 for both written and digitised prescriptions
-        urlObj.searchParams.set('rx', '1');
 
         urlObj.searchParams.delete('voiceRxDigitize');
 
