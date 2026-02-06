@@ -24,21 +24,17 @@ const VitalsRichTextEditor = ({
       if (patient_data?.patient_unique_id) {
         try {
           const todayVitals = await getTodayVitals(patient_data);
-          setApiVitals(todayVitals || null);
-          if (onUpdate && todayVitals) {
-            const rxPadVitals = vitalsAndBodyComposition || {};
-            const hasMeaningfulVitals = Object.values(rxPadVitals).some(v => {
-              const strValue = String(v || '').trim();
-              return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-            });
-            
-            if (!hasMeaningfulVitals) {
+          if (todayVitals) {
+            setApiVitals(todayVitals);
+            // Auto-update RX pad if no existing vitals
+            if (onUpdate && (!vitalsAndBodyComposition || Object.keys(vitalsAndBodyComposition).length === 0)) {
               onUpdate(todayVitals);
             }
+          } else {
+            setApiVitals(null);
           }
         } catch (error) {
           console.error('Error fetching vitals:', error);
-          setApiVitals(null);
         }
       }
     };
@@ -80,8 +76,10 @@ const VitalsRichTextEditor = ({
       return key;
     };
     
-    const merged = { ...apiVitalsData };
-    const processedFields = new Set(); 
+    const merged = {};
+    const processedFields = new Set();
+    
+
     Object.entries(rxPadVitals).forEach(([key, value]) => {
       if (key === 'date') return;
       const normalizedKey = normalizeKey(key);
@@ -277,18 +275,11 @@ const VitalsRichTextEditor = ({
   }, [onUpdate]);
 
 
-  const hasVitalsToDisplay = !isProcessing && mergedVitals && 
-    Object.values(mergedVitals).some(value => {
-      const strValue = String(value || '').trim();
-      return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-    });
-  const hasApiVitals = !isProcessing && apiVitals && 
-    Object.values(apiVitals).some(value => {
-      const strValue = String(value || '').trim();
-      return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
-    });
-  
-  if (!isProcessing && !hasVitalsToDisplay && !hasApiVitals) {
+  if (!isProcessing && (!mergedVitals || 
+      !Object.values(mergedVitals).some(value => {
+        const strValue = String(value || '').trim();
+        return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
+      }))) {
     return null;
   }
 

@@ -1,14 +1,16 @@
-import React, { useCallback, useMemo, useState, useContext, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useContext, useEffect } from 'react';
 import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
-import { arrayToSlateBulletList } from '../utils/slateHelpers';
+import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './LabResultsRichTextEditor.scss';
 import labResultsIcon from '../assets/images/Lab.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import LabParams from './LabParams';
 import CashManagerContext from '../context/CashManagerContext';
 import styles from './ConsultationDrawer.module.css';
-import { getTodayLabResults } from '../utils/getTodayLabResults';
+import moment from 'moment';
+import { env } from '../EnvironmentConfig';
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
 
 /**
  * LabResultsRichTextEditor - Rich text editor specifically for Lab Results section
@@ -27,77 +29,74 @@ const LabResultsRichTextEditor = ({
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const { patient_data } = useContext(CashManagerContext);
 
+  // Auto-fetch and load today's lab results
   useEffect(() => {
-    const mergeWithTodayResults = async () => {
-      if (!patient_data?.patient_unique_id || !onUpdate) return;
-
-      const incomingResults = Array.isArray(labResults) ? labResults : [];
-
-      let todayLabResults = [];
+    const fetchTodayLabResults = async () => {
+      if (!patient_data?.patient_unique_id || !onUpdate || (labResults && labResults.length > 0)) return;
+      
+      const today = moment().format('YYYY-MM-DD');
       try {
-        const todayResults = await getTodayLabResults(patient_data);
-        if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
-          try {
-            const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
-            todayLabResults = await matchLabResultsWithApi(todayResults, patient_data);
-          } catch (error) {
-            todayLabResults = todayResults;
+        const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
+        const baseUrl = env.lab_params_api_url;
+        
+        if (cleanedToken && baseUrl) {
+          const response = await fetch(
+            `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${cleanedToken}`,
+              },
+            }
+          );
+          
+          const labData = await response.json();
+          const allResults = labData?.data?.results || [];
+          
+          if (allResults.length > 0) {
+            const todayResults = allResults.filter(result => {
+              const resultDate = result.createdAt || result.created_at || result.createdDate || result.date;
+              if (!resultDate) return false;
+              return moment(resultDate).format('YYYY-MM-DD') === today;
+            });
+            
+            if (todayResults.length > 0) {
+              const formattedResults = [];
+              const seenTests = new Set();
+              
+              todayResults.forEach(result => {
+                (result.inputs || []).forEach(input => {
+                  if (!input?.testName || input.testName === "Remarks") return;
+                  
+                  const testKey = `${input.testName}`.toLowerCase().trim();
+                  if (seenTests.has(testKey)) return;
+                  
+                  const value = input.value !== undefined ? String(input.value).trim() : "";
+                  if (!value) return;
+                  
+                  const units = input.units?.trim();
+                  const displayValue = units ? `${value} ${units}`.trim() : value;
+                  formattedResults.push({
+                    testname: input.testName,
+                    value: displayValue,
+                  });
+                  seenTests.add(testKey);
+                });
+              });
+              
+              if (formattedResults.length > 0) {
+                onUpdate(formattedResults);
+              }
+            }
           }
         }
       } catch (error) {
-      }
-
-      const mergedMap = new Map();
-
-      todayLabResults.forEach(result => {
-        const testName = (result.testName || result.testname || result.name || '').trim();
-        const reportName = (result.reportName || '').trim();
-        if (testName && reportName) {
-          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
-        }
-      });
-
-      incomingResults.forEach(result => {
-        const testName = (result.testName || result.testname || result.name || '').trim();
-        const reportName = (result.reportName || '').trim();
-        if (!testName || !reportName) return;
-
-        const existing = mergedMap.get(testName);
-        if (existing) {
-          const existingUnits = extractUnitsFromValue(existing.value || '');
-          const incomingValue = (result.value || '').trim();
-          const numericValue = extractNumericValue(incomingValue);
-          const incomingUnits = extractUnitsFromValue(incomingValue);
-
-          mergedMap.set(testName, {
-            ...existing,
-            testName: testName,
-            testname: testName,
-            name: testName,
-            reportName: reportName,
-            units: result.units || existing.units || '',
-            value: incomingUnits ? `${numericValue} ${incomingUnits}`
-                  : existingUnits ? `${numericValue} ${existingUnits}`
-                  : numericValue,
-          });
-        } else {
-          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
-        }
-      });
-
-      const finalResults = Array.from(mergedMap.values());
-      const signature = JSON.stringify(finalResults.map(r => ({
-        testname: (r.testName || r.testname || r.name || '').trim(),
-        value: (r.value || '').trim(),
-      })));
-      if (signature !== lastProcessedResultsRef.current) {
-        lastProcessedResultsRef.current = signature;
-        onUpdate(finalResults);
+        console.error('Error fetching lab results:', error);
       }
     };
-
-    mergeWithTodayResults();
-  }, [labResults, patient_data?.patient_unique_id]);
+    
+    fetchTodayLabResults();
+  }, [patient_data?.patient_unique_id, onUpdate, labResults]);
 
   const editorSignature = useMemo(() => {
     if (!Array.isArray(labResults)) {
@@ -105,7 +104,7 @@ const LabResultsRichTextEditor = ({
     }
     return JSON.stringify(
       labResults.map((result = {}) => ({
-        testname: (result.testName || result.testname || result.name || '').trim(),
+        testname: (result.testname || result.name || '').trim(),
         value: (result.value || '').trim(),
       }))
     );
@@ -113,23 +112,21 @@ const LabResultsRichTextEditor = ({
 
   const editorKey = useMemo(() => `labresults-${editorSignature}`, [editorSignature]);
 
-  const lastProcessedResultsRef = useRef(null);
-
   const initialSlateValue = useMemo(() => {
     if (!labResults || labResults.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
     const formattedResults = labResults.map(result => {
-      const testName = (result.testName || result.testname || result.name || '').trim();
+      const testname = result.testname || result.name || '';
       const value = result.value || '';
       
-      if (testName && value) {
-        return `${testName} (${value})`;
+      if (testname && value) {
+        return `${testname} (${value})`;
       } else if (value) {
         return value;
-      } else if (testName) {
-        return testName;
+      } else if (testname) {
+        return testname;
       }
       return '';
     }).filter(text => text.trim() !== '');
@@ -147,94 +144,14 @@ const LabResultsRichTextEditor = ({
       onLabResultsSaved();
     }
   }, [onLabResultsSaved]);
-  const extractUnitsFromValue = (valueStr = "") => {
-    if (!valueStr) return "";
-    const str = String(valueStr).trim();
-    const match = str.match(/^\d+(?:\.\d+)?\s+(.+)$/);
-    if (match) return match[1].trim();
-    const percentMatch = str.match(/^\d+(?:\.\d+)?(%|percent)$/i);
-    if (percentMatch) return percentMatch[1];
-    return "";
-  };
-
-  const extractNumericValue = (valueStr = "") => {
-    if (!valueStr) return "";
-    const str = String(valueStr).trim();
-    const match = str.match(/^(\d+(?:\.\d+)?)/);
-    return match ? match[1] : str;
-  };
 
   const handleSidebarResultsSync = useCallback(
-    async (syncedLabResults = []) => {
-      if (!onUpdate || !patient_data?.patient_unique_id) return;
-      
-      const newResults = Array.isArray(syncedLabResults) ? syncedLabResults : [];
-      
-      let matchedNewResults = newResults;
-      if (newResults.length > 0) {
-        try {
-          const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
-          matchedNewResults = await matchLabResultsWithApi(newResults, patient_data);
-        } catch (error) {
-        }
+    (syncedLabResults = []) => {
+      if (onUpdate) {
+        onUpdate(Array.isArray(syncedLabResults) ? syncedLabResults : []);
       }
-
-      let todayLabResults = [];
-      try {
-        const todayResults = await getTodayLabResults(patient_data);
-        if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
-          try {
-            const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
-            todayLabResults = await matchLabResultsWithApi(todayResults, patient_data);
-          } catch (error) {
-            todayLabResults = todayResults;
-          }
-        }
-      } catch (error) {
-        onUpdate(matchedNewResults);
-        return;
-      }
-
-      const mergedMap = new Map();
-
-      todayLabResults.forEach(result => {
-        const testName = (result.testName || result.testname || result.name || '').trim();
-        const reportName = (result.reportName || '').trim();
-        if (!testName || !reportName) return;
-        mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
-      });
-
-      matchedNewResults.forEach(result => {
-        const testName = (result.testName || result.testname || result.name || '').trim();
-        const reportName = (result.reportName || '').trim();
-        if (!testName || !reportName) return;
-
-        const existing = mergedMap.get(testName);
-        if (existing) {
-          const existingUnits = extractUnitsFromValue(existing.value || '');
-          const newValue = (result.value || '').trim();
-          const numericValue = extractNumericValue(newValue);
-          const newUnits = extractUnitsFromValue(newValue);
-
-          mergedMap.set(testName, {
-            ...existing,
-            testName: testName,
-            testname: testName,
-            name: testName,
-            reportName: reportName,
-            units: result.units || existing.units || '',
-            value: newUnits ? `${numericValue} ${newUnits}`
-                  : existingUnits ? `${numericValue} ${existingUnits}`
-                  : numericValue,
-          });
-        } else {
-          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
-        }
-      });
-      
-      onUpdate(Array.from(mergedMap.values()));
     },
-    [onUpdate, patient_data]
+    [onUpdate]
   );
 
   const handleOpenLabResultsDrawer = useCallback(() => {

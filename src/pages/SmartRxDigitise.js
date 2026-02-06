@@ -828,6 +828,27 @@ function SmartRxDigitise() {
           );
         }
         
+        const hasResponseLabResults = refinedData?.labResults && 
+          Array.isArray(refinedData.labResults) && 
+          refinedData.labResults.length > 0 &&
+          refinedData.labResults.some(r => {
+            const testname = (r.testname || r.testName || r.name || '').trim();
+            const value = (r.value || '').trim();
+            return testname !== '' && value !== '' && value !== 'undefined' && value !== 'null';
+          });
+        
+        if (!hasResponseLabResults && patient_data?.patient_unique_id) {
+          try {
+            const { getTodayLabResults } = await import('../utils/getTodayLabResults');
+            const todayLabResults = await getTodayLabResults(patient_data);
+            if (todayLabResults && todayLabResults.length > 0) {
+              refinedData.labResults = todayLabResults;
+            }
+          } catch (error) {
+            console.error('Error loading lab results from lab parameters API:', error);
+          }
+        }
+        
         if (refinedData?.labResults && Array.isArray(refinedData.labResults) && refinedData.labResults.length > 0) {
           try {
             const { matchLabResultsWithApi } = await import('../utils/matchLabResultsWithApi');
