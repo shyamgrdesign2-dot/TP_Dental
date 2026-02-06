@@ -9,7 +9,7 @@
 }
 
 .backgroundContainer {
-  position: absolute;
+  position: relative;
   background: white; /* Fallback background */
   padding: 0;
   border-radius: 0; /* No rounded corners */
@@ -21,11 +21,11 @@
   overflow: hidden; /* Prevent pseudo-element overflow */
   z-index: 1;
   box-shadow: none; /* No shadow */
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  margin: 0;
 }
 
 .backgroundContainer::before {

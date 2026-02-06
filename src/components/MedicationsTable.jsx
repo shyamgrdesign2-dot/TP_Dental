@@ -369,10 +369,6 @@ const MedicationsTable = ({
           ...medication,
           selectedValue: medicineName,
         };
-        // Store medicineUnit in metadata for unit per dose dropdown
-        if (medication.medicineUnit) {
-          newMedication.metadata.medicineUnit = medication.medicineUnit;
-        }
       }
       
       const updatedMedications = [...medications, newMedication];
@@ -447,13 +443,10 @@ const MedicationsTable = ({
     }
     
     if (field === 'dosage') {
-      // Load unit per dose options if medicineUnit is available
+      // Initialize unit per dose options when clicking on dosage field
       const item = medications.find(med => med.id === itemId);
-      if (item && item.metadata?.medicineUnit && Array.isArray(item.metadata.medicineUnit)) {
-        const currentDosage = value || '';
-        if (currentDosage) {
-          onSearchUnitPerDoseChild(currentDosage, itemId);
-        }
+      if (item) {
+        onSearchUnitPerDoseChild(value || '', itemId);
       }
     }
   };
@@ -528,9 +521,6 @@ const MedicationsTable = ({
               ...medicineData,
               selectedValue: medicineName,
             };
-            if (medicineData.medicineUnit) {
-              updated.metadata.medicineUnit = medicineData.medicineUnit;
-            }
           }
           
           // Recalculate lineItem
@@ -866,76 +856,6 @@ const MedicationsTable = ({
     [medications, onUpdate]
   );
 
-  // Unit per dose handlers
-  const onSearchUnitPerDoseChild = useCallback(
-    (query, itemId) => {
-      const item = medications.find(med => med.id === itemId);
-      if (!item) return;
-      
-      const updateQuery = onlyDecimalFormat(query);
-      const updatedMedications = medications.map(med => {
-        if (med.id === itemId) {
-          const updated = { ...med, dosage: updateQuery };
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
-          return updated;
-        }
-        return med;
-      });
-      onUpdate(updatedMedications);
-      
-      if (updateQuery && item.metadata?.medicineUnit && Array.isArray(item.metadata.medicineUnit)) {
-        const options = item.metadata.medicineUnit.map((e) => {
-          return {
-            key: JSON.stringify({ ...e, tmm_dosage: updateQuery, unique_id: uuidv4() }),
-            value: `${updateQuery} ${e.tmu_title}`,
-            label: <>{`${updateQuery} ${e.tmu_title}`}</>,
-          };
-        });
-        setUnitPerDoseOptions(options);
-      } else {
-        setUnitPerDoseOptions([]);
-      }
-    },
-    [medications, onUpdate]
-  );
-
-  const onBlurUnitPerDoseChild = useCallback(
-    async (itemId) => {
-      const item = medications.find(med => med.id === itemId);
-      if (!item) return;
-      
-      if (!isAlphabetExit(item.dosage)) {
-        setUnitPerDoseOptions([]);
-        const updatedMedications = medications.map(med => {
-          if (med.id === itemId) {
-            const updated = { ...med, dosage: "" };
-            updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
-            return updated;
-          }
-          return med;
-        });
-        onUpdate(updatedMedications);
-      }
-    },
-    [medications, onUpdate]
-  );
-
-  const onSelectUnitPerDoseChild = useCallback(
-    (data, e, itemId) => {
-      setUnitPerDoseOptions([]);
-      const updatedMedications = medications.map(item => {
-        if (item.id === itemId) {
-          const updated = { ...item, dosage: data };
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
-          return updated;
-        }
-        return item;
-      });
-      onUpdate(updatedMedications);
-    },
-    [medications, onUpdate]
-  );
-
   // Duration handlers
   const onSearchSinceChild = useCallback(
     (query, itemId) => {
@@ -1258,23 +1178,39 @@ const MedicationsTable = ({
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'dosage') || (isTablet && editingRow === item.id) ? (
                     <AutoComplete
-                      defaultValue={isTablet && editingRow === item.id ? rowEditValues.dosage : item.dosage}
-                      value={isTablet && editingRow === item.id ? rowEditValues.dosage : editValue}
-                      placeholder="e.g 1 Tablet"
+                      value={isTablet && editingRow === item.id ? (rowEditValues.dosage || '') : (editValue || '')}
+                      placeholder="e.g., 1 Tablet"
                       bordered={false}
                       defaultOpen={false}
                       onSearch={(query) => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('dosage', query);
-                          onSearchUnitPerDoseChild(query, item.id);
                         } else {
                           setEditValue(query);
                           onSearchUnitPerDoseChild(query, item.id);
                         }
                       }}
+                      options={unitPerDoseOptions}
+                      className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
+                      popupClassName="option-truncate"
+                      defaultActiveFirstOption={true}
+                      onSelect={(data, e) => {
+                        if (isTablet && editingRow === item.id) {
+                          handleRowFieldChange('dosage', data);
+                        } else {
+                          setEditValue(data);
+                          onSelectUnitPerDoseChild(data, e, item.id);
+                          setTimeout(() => {
+                            setEditingCell(null);
+                            setEditValue('');
+                          }, 100);
+                        }
+                      }}
                       onFocus={() => {
                         if (!isTablet) {
-                          onSearchUnitPerDoseChild(item.dosage || '', item.id);
+                          const currentDosage = item.dosage || '';
+                          setEditValue(currentDosage);
+                          onSearchUnitPerDoseChild(currentDosage, item.id);
                         }
                       }}
                       onBlur={() => {
@@ -1283,26 +1219,21 @@ const MedicationsTable = ({
                           handleCellSave();
                         }
                       }}
-                      options={unitPerDoseOptions}
-                      className="autocomplete-custom w-100 h-100 inputborder"
-                      defaultActiveFirstOption={true}
-                      onSelect={(data, e) => {
-                        if (isTablet && editingRow === item.id) {
-                          handleRowFieldChange('dosage', data);
-                          onSelectUnitPerDoseChild(data, e, item.id);
-                        } else {
-                          setEditValue(data);
-                          onSelectUnitPerDoseChild(data, e, item.id);
-                          handleCellSave();
-                        }
-                      }}
                       onClear={() => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('dosage', '');
                         } else {
                           setEditValue('');
+                          const updatedMedications = medications.map(med => {
+                            if (med.id === item.id) {
+                              const updated = { ...med, dosage: "" };
+                              updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+                              return updated;
+                            }
+                            return med;
+                          });
+                          onUpdate(updatedMedications);
                         }
-                        onSearchUnitPerDoseChild("", item.id);
                       }}
                       allowClear
                     />
@@ -1711,9 +1642,6 @@ const MedicationsTable = ({
                 ...addedMedicine,
                 selectedValue: medicineName,
               };
-              if (addedMedicine.medicineUnit) {
-                newMedication.metadata.medicineUnit = addedMedicine.medicineUnit;
-              }
             }
             
             const updatedMedications = [...medications, newMedication];

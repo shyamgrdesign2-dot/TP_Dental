@@ -456,14 +456,6 @@
   max-height: calc(100vh - 140px);
   scrollbar-width: thin;
   scrollbar-color: #c1c1c1 #f1f1f1;
-}
-
-.rightSection.gradientBorder {
-  padding: 0;
-  margin: 0;
-  border-top: none;
-  max-height: 100%;
-  overflow: hidden;
   
   ul,
   li {
@@ -766,15 +758,13 @@
 }
 
 .gradientBorder {
-  margin: 0;
+  margin: 20px 30px;
   position: relative;
-  border-radius: 0;
-  padding: 0;
+  border-radius: 20px; /* Adjust to match your design */
+  padding: 4px; /* Adjust for inner content spacing */
   background-size: 300% 300%;
   animation: gradient-border-animation 6s infinite linear;
-  height: 100%;
-  width: 100%;
-  flex: 1;
+  height: calc(100vh - 90px);
 }
 
 .gradientBorder::before {
@@ -785,20 +775,18 @@
   right: 0;
   bottom: 0;
   z-index: -1;
-  border-radius: 0; /* No rounded corners for full coverage */
-  padding: 0; /* No padding for full coverage */
+  border-radius: inherit; /* Ensures the border matches the container's shape */
+  padding: 5px; /* Adjust for border thickness */
   background: linear-gradient(90deg, #ff7e5f, #feb47b, #86a8e7, #d16ba5);
   background-size: 300% 300%;
   animation: gradient-rotate 6s infinite linear;
 }
 
 .gradientBorder > * {
-  background: transparent; /* Transparent to show loader background */
-  border-radius: 0; /* No rounded corners for full coverage */
+  background: #fafafb; /* Inner content background */
+  border-radius: inherit; /* Keeps content within the gradient border */
   z-index: 1; /* Ensures content is above the border */
   position: relative;
-  width: 100%;
-  height: 100%;
 }
 
 /* Keyframes for gradient animation */
