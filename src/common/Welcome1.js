@@ -156,7 +156,7 @@ function Welcome1(props) {
     };
 
     const onConsultClick = async (patient) => {
-        navigate("/prescription", { state: { patient_data: {...patient, pam_id: 0, tcm_id: 0}, send_path: "patient_details" } });
+        navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
     };
 
     const onVoiceRxClick = async (patient) => {
@@ -407,7 +407,7 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: {...patient_data, pam_id: 0, tcm_id: 0}, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null, pam_id: 0 } } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null } } })
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
@@ -621,7 +621,7 @@ function Welcome1(props) {
                                                                 "doctor_id": profile?.doctor_unique_id,
                                                                 "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                             });
-                                                            navigate("/prescription", { state: { patient_data: {...patient_data, pam_id: 0, tcm_id: 0}, send_path: "patient_details" } })
+                                                            navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
                                                         }}>
                                                         {'Start New Visit'}
                                                     </Button>
@@ -813,7 +813,7 @@ function Welcome1(props) {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                 });
-                                                navigate("/prescription", { state: { patient_data: {...patient_data, pam_id: 0, tcm_id: 0}, send_path: "patient_details" } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
                                             }}>
                                             {'Start New Visit'}
                                         </Button>
