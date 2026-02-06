@@ -2,7 +2,6 @@ import { Button, Checkbox, Divider, message, Modal } from "antd";
 import { useContext, useState } from "react";
 import scHeaderBg from "../assets/images/sc-header-bg.png";
 import autoFillRx from "../assets/images/sc-rx.svg";
-import autoFillRxDark from "../assets/images/sc-voice-rx.svg";
 import scBg from "../assets/images/sc-bg.svg";
 import close from "../assets/images/close-square.svg";
 import scStrip from "../assets/images/sc-strip.png";
@@ -827,7 +826,7 @@ const SCPopup = ({
                  }}
                  onClick={handleVoiceAutofillClick}
                >
-                 <img src={autoFillRxDark} alt="auto-fill" />
+                 <img src={autoFillRx} alt="auto-fill" />
                  <span>{"Autofill to Voice Rx"}</span>
                </Button>
              )}
@@ -841,7 +840,7 @@ const SCPopup = ({
                  }}
                  onClick={handleAmbientAutofillClick}
                >
-                 <img src={autoFillRxDark} alt="auto-fill" />
+                 <img src={autoFillRx} alt="auto-fill" />
                  <span>{"Autofill to Ambient Voice Rx"}</span>
                </Button>
              )}

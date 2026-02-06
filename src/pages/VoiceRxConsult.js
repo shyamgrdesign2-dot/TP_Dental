@@ -19,7 +19,7 @@ import vitalsIcons from "../assets/images/vitals-icons.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import styles from "./VoiceRxConsult.module.scss";
 import startConsultImg from "../assets/images/text-box.svg";
-import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage } from "../utils/utils";
+import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage, stopAllActiveRecorders } from "../utils/utils";
 import { useSelector, useDispatch } from "react-redux";
 import { FAILED_VERIFICATION, FREE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
@@ -38,6 +38,7 @@ const VoiceRxConsult = () => {
   const dispatch = useDispatch();
   const { profile, userId, servicesList } = useSelector((state) => state.doctors);
   const { showSCPopup } = useSelector((state) => state.ddx);
+  const AI_planDetails = servicesList?.find(e => e.service_name === S_VOICE_RX)
   
   const { patient_data, isFromTabView , autoOpenModal, fromPrescription } = location.state || {};
   const decodedToken = getDecodedToken();
@@ -63,6 +64,7 @@ const VoiceRxConsult = () => {
   const crossButtonClickCountRef = useRef(0);
   const mutePauseButtonClickCountRef = useRef(0);
   const consentRef = useRef(null);
+  const quitFromBackRef = useRef(false);
 
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
@@ -111,14 +113,14 @@ const VoiceRxConsult = () => {
             _id: response?._id,
           })
         );
-        if (patient_data?.pam_status === "0") {
+        if (patient_data?.pam_status === "0" && (isFreeVoiceRxUser || (AI_planDetails?.credit_balance ?? 1) > 0)) {
           dispatch(setShowSCPopup(true));
         }
       }
     } catch (error) {
       console.error("Error fetching symptoms collector data:", error);
     }
-  }, [patient_data, userId, clinicId, dispatch]);
+  }, [patient_data, userId, clinicId, dispatch, isFreeVoiceRxUser, AI_planDetails?.credit_balance]);
 
   useEffect(() => {
     getSymptomsCollectorData();
@@ -144,6 +146,27 @@ const VoiceRxConsult = () => {
     setIsPaused(false);
     setRecordingTime(0);
     setSelectedMode('');
+    window.mediaRecorderRef = null;
+    window.audioStreamRef = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -176,7 +199,8 @@ const VoiceRxConsult = () => {
   }, [profile, tokenData]);
 
   const handleBack = () => {
-    navigate('/', { replace: true });
+    quitFromBackRef.current = true;
+    setShowQuitRecordingModal(true);
   };
 
   const handleStartConsultation = () => {
@@ -190,15 +214,6 @@ const VoiceRxConsult = () => {
   const handleModalClose = () => {
     setIsVoiceRxModalOpen(false);
     setShowWelcome(true);
-    
-    if (fromPrescription && patient_data) {
-      navigate("/prescription", {
-      state: {
-        patient_data,
-          isFromTabView: isFromTabView || false,
-        },
-      });
-    }
   };
 
   const formatTime = (seconds) => {
@@ -247,6 +262,8 @@ const VoiceRxConsult = () => {
       try {
         mediaRecorderRef.current.start();
         setIsRecording(true);
+        window.mediaRecorderRef = mediaRecorderRef;
+        window.audioStreamRef = audioStreamRef;
       } catch (startError) {
         console.error("Error starting MediaRecorder:", startError);
         if (audioStreamRef.current) {
@@ -277,6 +294,7 @@ const VoiceRxConsult = () => {
     if (isRecording || isPaused) {
       crossButtonClickCountRef.current += 1;
     }
+    quitFromBackRef.current = false;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
     }
@@ -288,12 +306,25 @@ const VoiceRxConsult = () => {
 
   const handleQuitRecording = () => {
     setShowQuitRecordingModal(false);
-    cleanupRecording();
+    if (quitFromBackRef.current) {
+      quitFromBackRef.current = false;
+      if (fromPrescription && patient_data) {
+        navigate("/prescription", { state: { patient_data } });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } else {
+      cleanupRecording();
+    }
   };
 
   const handleStayRecording = async () => {
     noStayClickCountRef.current += 1;
     setShowQuitRecordingModal(false);
+    if (quitFromBackRef.current) {
+      quitFromBackRef.current = false;
+      return;
+    }
     audioChunksRef.current = [...savedChunksRef.current];
     setRecordingTime(savedRecordingTimeRef.current);
     
@@ -414,7 +445,11 @@ const VoiceRxConsult = () => {
         clinic_name: clinic?.hm_name,
         mode: selectedMode,
       });
-      
+
+      setIsRecording(false);
+      setIsPaused(false);
+      setRecordingTime(0);
+
       let blob;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         blob = await new Promise((resolve) => {
@@ -430,17 +465,24 @@ const VoiceRxConsult = () => {
           };
           mediaRecorderRef.current.stop();
         });
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
       } else {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         blob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach((track) => track.stop());
+          audioStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
       }
 
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      setIsRecording(false);
-      setIsPaused(false);
-      setRecordingTime(0);
+      stopAllActiveRecorders();
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
 
       if (!blob || blob.size === 0) {
         message.error('No audio captured. Please try again.');
@@ -651,11 +693,9 @@ const VoiceRxConsult = () => {
                 patient</strong>. I'll transcribe & structure the <strong>Rx automatically!</strong>
               </div>
             </div>
-            
             <div className={styles.patientSummaryWrapper}>
-              <PatientSummary patientData={patient_data} />
+              <PatientSummary patientData={patient_data} hideSymptomsBanner={!isFreeVoiceRxUser && AI_planDetails?.credit_balance === 0} />
             </div>
-            
             {isRecording ? (
               <div className={styles.bottomCenterBar}>
                 <div className={styles.recBar}>
@@ -793,7 +833,7 @@ const VoiceRxConsult = () => {
         </div>
       </Modal>
 
-      {!isFreeVoiceRxUser && (
+      {!isFreeVoiceRxUser && AI_planDetails?.service_type === "ai" && ([0 ,1, 2, 5].includes(AI_planDetails?.credit_balance)) && (
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{
@@ -829,7 +869,7 @@ const VoiceRxConsult = () => {
         </div>
       </Drawer>
 
-      {showSCPopup && (
+      {showSCPopup && (isFreeVoiceRxUser || AI_planDetails?.credit_balance !== 0) && (
         <SCPopup
           handlePopup={() => dispatch(setShowSCPopup(false))}
           handleGenRx={handleGenRx}
@@ -856,6 +896,7 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-link text-decoration-underline ms-4 ${styles.quitButton}`}
                 onClick={handleQuitRecording}
+                style={{ color: 'red' }}
               >
                 Yes, Quit
               </button>
@@ -863,6 +904,7 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-primary3 btn-41 px-4 ${styles.stayButton}`}
                 onClick={handleStayRecording}
+                style={{ color: 'white' }}
               >
                 No, Stay
               </button>

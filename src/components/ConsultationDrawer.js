@@ -55,7 +55,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -245,9 +245,31 @@ const ConsultationDrawer = ({
   const isSymptomCollectorJSON = useCallback((text) => {
     if (typeof text !== "string") return false;
     const trimmed = text.trim();
-    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    let toParse = trimmed;
+    // Handle "Input: {...} , Previous Context: ..." format (e.g. dictate mode API response)
+    if (trimmed.includes("Input:") && trimmed.includes("{")) {
+      const startIdx = trimmed.indexOf("{");
+      if (startIdx >= 0) {
+        let depth = 0;
+        let endIdx = -1;
+        for (let i = startIdx; i < trimmed.length; i++) {
+          if (trimmed[i] === "{") depth++;
+          else if (trimmed[i] === "}") {
+            depth--;
+            if (depth === 0) {
+              endIdx = i;
+              break;
+            }
+          }
+        }
+        if (endIdx >= 0) {
+          toParse = trimmed.substring(startIdx, endIdx + 1);
+        }
+      }
+    }
+    if (!toParse.startsWith("{") || !toParse.endsWith("}")) return false;
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed = JSON.parse(toParse);
       if (!parsed || typeof parsed !== "object") return false;
       return (
         Array.isArray(parsed.symptoms) ||
@@ -262,9 +284,9 @@ const ConsultationDrawer = ({
   const isFirstTranscriptJSON = useMemo(() => {
     if (Array.isArray(queries) && queries.length > 0) {
       const firstQuery = queries[0];
-      const firstText = typeof firstQuery === 'string' 
-        ? firstQuery 
-        : (firstQuery?.text || '');
+      const firstText = typeof firstQuery === 'string'
+        ? firstQuery
+        : (firstQuery?.text || firstQuery?.message || firstQuery?.content || '');
       return isSymptomCollectorJSON(firstText);
     }
     if (fullTranscript) {
@@ -335,6 +357,21 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (!visible) {
       hasAutoSubmittedRef.current = false;
+      stopAllActiveRecorders();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
     }
   }, [visible]);
 
@@ -1321,6 +1358,8 @@ const ConsultationDrawer = ({
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
+      window.mediaRecorderRef = mediaRecorderRef;
+      window.audioStreamRef = audioStreamRef;
     } catch (error) {
       console.error("Error accessing microphone:", error);
     }
@@ -1351,6 +1390,8 @@ const ConsultationDrawer = ({
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
+    window.mediaRecorderRef = null;
+    window.audioStreamRef = null;
   };
 
   const handleSend = async () => {
@@ -1430,6 +1471,14 @@ const ConsultationDrawer = ({
             try {
               if (isRecording) {
                 mediaRecorderRef.current?.stop();
+                if (audioStreamRef.current) {
+                  audioStreamRef.current.getTracks().forEach((track) => track.stop());
+                  audioStreamRef.current = null;
+                }
+                window.mediaRecorderRef = null;
+                window.audioStreamRef = null;
+                setIsRecording(false);
+                setIsPaused(false);
                 await new Promise((resolve) => setTimeout(resolve, 100)); // Ensure audio is processed
 
                 const mimeType =
@@ -1438,6 +1487,7 @@ const ConsultationDrawer = ({
                   type: mimeType,
                 });
 
+                stopAllActiveRecorders();
                 await handleVoiceDigitize(audioBlob, "");
               } else {
                 await handleVoiceDigitize(null, inputText || editableQuery);
@@ -2760,7 +2810,7 @@ const ConsultationDrawer = ({
 
     // Merge medicalHistory arrays while removing duplicates
     const mergedMedicalHistory = [...data1.medicalHistory];
-    data2WithSC.medicalHistory.forEach((history2) => {
+    data2WithSC?.medicalHistory?.forEach((history2) => {
       if (
         !mergedMedicalHistory.some((history1) =>
           isDuplicate(history1, history2)
@@ -3326,6 +3376,7 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    stopAllActiveRecorders();
     const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries
@@ -5360,6 +5411,10 @@ const ConsultationDrawer = ({
                         {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
                         {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
                           const cardIndex = idx + 1;
+                          const queryTextForCheck = typeof query === 'string' ? query : (query?.text || query?.message || query?.content || '');
+                          if (isSymptomCollectorJSON(queryTextForCheck)) {
+                            return <React.Fragment key={cardIndex} />;
+                          }
                           const isCardExpanded = expandedTranscripts.has(cardIndex);
                           const isAudio = query && typeof query === 'object' && query.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations

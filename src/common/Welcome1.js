@@ -11,7 +11,7 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX } from '../utils/constants';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -19,8 +19,11 @@ import { EVENTS } from '../utils/events';
 import { getDecodedToken } from '../utils/localStorage';
 import {
   getClinic,
-  getTokenData
+  getTokenData,
+  isZydus
 } from "../utils/utils";
+import draftIcon from '../assets/images/draft-primary.svg';
+import useTabletViewport from '../hooks/useTabletViewport';
 
 function Welcome1(props) {
 
@@ -37,6 +40,7 @@ function Welcome1(props) {
     );
     const isFreeVoiceRxUser = isVoiceRxFree();
     const tp_monetization_enable = !shouldMonetizationDisabled();
+    const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
 
     const navigate = useNavigate();
     const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
@@ -62,6 +66,8 @@ function Welcome1(props) {
         abhaHeaderActions,
         patientAdmissionStatus
     } = props;
+    
+    const isTablet = useTabletViewport();
 
     const handleClickOutside = (event) => {
         if (!consultButtonRef?.current?.contains(event.target)) {
@@ -336,9 +342,6 @@ function Welcome1(props) {
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}
-                        {sidebarKey !== PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && 
-                            <img src={require("../assets/images/bg-welcome.png")} className={`welcomeig d-inline-block align-top ${isMobile ? 'ms-2' : 'ms-4'}`} alt="Welcome" />
-                        }
                     </div>
                     {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS && abhaHeaderActions ? (
                         <div className="d-flex gap-2">
@@ -373,7 +376,7 @@ function Welcome1(props) {
                                     >
                                         <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'>
                                             {/* onClick={showHideVideoListPopover} */}
-                                            <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                                            <span className={`text-decoration-none rounded-5 shadow2 ${isTablet ? "" : "pe-3 bg-white"}`}><img height={42} src={tutorial} />{isTablet ? "" : "Tutorial"}</span>
                                         </button>
                                     </Popover>
                                     {videoLink && (
@@ -382,6 +385,17 @@ function Welcome1(props) {
                                             onCancel={() => setVideoLink(null)}
                                         />
                                     )}
+
+
+                                    {!!viewCaseManagerData?.is_draft && viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB && 
+                                        <Button 
+                                            variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
+                                            onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
+                                        >
+                                            <img src={draftIcon} width={20} height={20} alt="Draft" className='me-2' />
+                                            Resume {isTablet ? "" : "Draft"}
+                                        </Button>
+                                    }
                                     
                                     {(!viewCaseManagerData?.smart_prescription_filename?.length || (isVoiceOrAmbientRx && isV2VoiceAmbientRx)) &&
                                         <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={() => {
@@ -393,9 +407,19 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') } } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null } } })
                                             }
-                                        }}> <i className={'icon-reload me-2'}></i>Repeat {modifyFormat && modifyFormat.first}<sup>{modifyFormat && modifyFormat.second}</sup>&nbsp;{modifyFormat && modifyFormat.third} Rx</Button>
+                                        }}>
+                                            <i className={'icon-reload me-2'}></i>
+                                            Repeat {viewCaseManagerData?.is_draft && isSaveAsDraftRxAccessableFromGB 
+                                                ? isTablet ? "" : "Draft" 
+                                                : (
+                                                    <>
+                                                        {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx
+                                                    </>
+                                                  )
+                                            }
+                                        </Button>
                                     }
                                     {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && !isMobile ? (
                                         <>
@@ -405,7 +429,6 @@ function Welcome1(props) {
                                                         background: "#4B4AD5",
                                                         borderRadius: "10px",
                                                         color: "white",
-                                                        marginLeft: "1rem",
                                                         position: "relative",
                                                     }}
                                                 >
@@ -482,7 +505,6 @@ function Welcome1(props) {
                                                             background: "#4B4AD5",
                                                             borderRadius: "10px",
                                                             color: "white",
-                                                            marginLeft: "1rem",
                                                             position: "relative",
                                                         }}
                                                     >
@@ -540,7 +562,6 @@ function Welcome1(props) {
                                                             background: "#4B4AD5",
                                                             borderRadius: "10px",
                                                             color: "white",
-                                                            marginLeft: "1rem",
                                                             position: "relative",
                                                         }}
                                                     >
@@ -623,7 +644,6 @@ function Welcome1(props) {
                                                     background: "#4B4AD5",
                                                     borderRadius: "10px",
                                                     color: "white",
-                                                    marginLeft: "1rem",
                                                     position: "relative",
                                                 }}
                                             >
@@ -688,7 +708,6 @@ function Welcome1(props) {
                                                             background: "#4B4AD5",
                                                             borderRadius: "10px",
                                                             color: "white",
-                                                            marginLeft: "1rem",
                                                             position: "relative",
                                                         }}
                                                     >
@@ -744,7 +763,6 @@ function Welcome1(props) {
                                                     background: "#4B4AD5",
                                                     borderRadius: "10px",
                                                     color: "white",
-                                                    marginLeft: "1rem",
                                                     position: "relative",
                                                 }}
                                             >

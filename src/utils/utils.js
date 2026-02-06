@@ -1080,6 +1080,10 @@ export const getRxTitle = (LanguageId, title) => {
 }
 
 export const getDurationTitle = (LanguageId, tmm_duration_type) => {
+  // Safety check: ensure tmm_duration_type exists
+  if (!tmm_duration_type) {
+    return tmm_duration_type || "";
+  }
   var tmm_duration_type = tmm_duration_type.toLowerCase();
 
   const langTranslations = {
@@ -1239,10 +1243,15 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
     },
   };
 
-  return (
-    langTranslations[parseInt(LanguageId)][tmm_duration_type] ||
-    tmm_duration_type
-  );
+  // Safety check: ensure LanguageId is valid and exists in langTranslations
+  const languageId = parseInt(LanguageId);
+  const languageTranslations = langTranslations[languageId];
+
+  if (!languageTranslations || !languageTranslations[tmm_duration_type]) {
+    return tmm_duration_type;
+  }
+
+  return languageTranslations[tmm_duration_type];
 };
 
 export const getTimeingTitle = (LanguageId) => {
@@ -1726,4 +1735,46 @@ export const handleAdmitToIpd = async (record) => {
 
 export const isIPad = () => {
   return navigator.userAgent.includes("iPad") || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+};
+
+export const formatHeightWeight = (value = '') =>
+  value?.includes('/') ? value?.split('/').reverse().join('/') : value;
+
+export const filterCustomModuleContent = (customModuleContents = []) => {
+  return customModuleContents
+    ?.map((e) => {
+      if (!e) return null;
+      // Filter content based on module version
+      let filteredContent;
+      if (e.module_version === "v2") {
+        // For V2 modules, filter rows with content and remove 'id' field
+        filteredContent =
+          e.content
+            ?.filter((row) => {
+              // Check if any field (except 'id') has content
+              const { id, ...fields } = row || {};
+              return Object.values(fields).some(
+                (value) => value && value.toString().trim().length > 0,
+              );
+            })
+            .map((row) => {
+              // Remove 'id' field from the actual payload
+              const { id, ...cleanRow } = row || {};
+              return cleanRow;
+            }) || [];
+      } else {
+        // For V1 modules, check for title or notes
+        filteredContent = (e.content || []).filter(
+          (e1) => e1.title || e1.notes,
+        );
+      }
+
+      // Skip modules with no content after filtering
+      if (!filteredContent || filteredContent.length === 0) {
+        return null;
+      }
+
+      return { ...e, content: filteredContent };
+    })
+    .filter(Boolean);
 };

@@ -265,6 +265,7 @@ function GenRxPrescriptionPrintView() {
         tcm_id={state?.tcm_id}
         printUrl={printUrl}
         pam_id={pam_id}
+        isVoiceOrAmbientFlow={true}
       />
       <div
         className={`${

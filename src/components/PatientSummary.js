@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Drawer } from "antd";
+import { Button, Drawer } from "antd";
 import axios from "axios";
 import moment from "moment";
+import dayjs from "dayjs";
 import ddxIcon from "../assets/images/ddx.svg";
+import scStrip from "../assets/images/sc-banner-strip.png";
 import labIcon from "../assets/images/Lab.svg";
 import vitalsIcon from "../assets/images/Vitals.svg";
 import noteIcon from "../assets/images/vuesax/bulk/note.svg";
@@ -15,18 +17,20 @@ import ApiVitals from "../api/services/ApiVitals";
 import ApiCaseManager from "../api/services/ApiCaseManager";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "../pages/snapRx/services/snapRxService";
-import { isValidMongoId } from "../utils/utils";
+import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../utils/utils";
+import { setShowSCPopup } from "../redux/ddxSlice";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import ViewLabParam from "./ViewLabParams";
 import LabParams from "./LabParams";
 
-const PatientSummary = ({ patientData }) => {
+const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { viewCaseManagerData } = useSelector((state) => state.caseManager);
-  const { frequencyList, timingList } = useSelector((state) => state.doctors);
+  const { frequencyList, timingList, profile, userId } = useSelector((state) => state.doctors);
+  const { symptomCollector } = useSelector((state) => state.ddx);
   
   const [showDetailedSummary, setShowDetailedSummary] = useState(false);
   const [apiVitals, setApiVitals] = useState([]);
@@ -36,6 +40,7 @@ const PatientSummary = ({ patientData }) => {
   const [addlabparamsDrawer, setAddlabparamsDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
+  const [showSymptomsBanner, setShowSymptomsBanner] = useState(true);
   
   const patient_data = patientData || location.state?.patient_data;
 
@@ -420,8 +425,8 @@ const PatientSummary = ({ patientData }) => {
       }
       
                   if (prescriptionData) {
-                    // Merge with latestPrescription data
-        const mergedData = {
+                    // Merge with latestPrescription data; include version for Repeat Rx gating
+                    const mergedData = {
                       ...latestPrescription,
                       symptoms: prescriptionData.symptoms || latestPrescription.symptoms || [],
                       diagnosis: prescriptionData.diagnosis || latestPrescription.diagnosis || [],
@@ -431,7 +436,8 @@ const PatientSummary = ({ patientData }) => {
                       follow_up_date: prescriptionData.followUp || prescriptionData.follow_up_date || latestPrescription.follow_up_date || "",
                       followUp: prescriptionData.followUp || prescriptionData.follow_up_date || latestPrescription.follow_up_date || "",
                       vaccinations: prescriptionData.vaccinations || latestPrescription.vaccinations || [],
-                      labInvestigation: prescriptionData.labInvestigation || prescriptionData.tests || latestPrescription.investigation || []
+                      labInvestigation: prescriptionData.labInvestigation || prescriptionData.tests || latestPrescription.investigation || [],
+                      version: response.data?.version
                     };
 
                     digitizedData = mergedData;
@@ -1234,6 +1240,63 @@ const PatientSummary = ({ patientData }) => {
   return (
     <div className={styles.patientSummaryContainer}>
       <div className={styles.allModulesWrapper}>
+        {symptomCollector && (symptomCollector?.symptoms?.length > 0 || symptomCollector?.medicalHistory?.length > 0) && showSymptomsBanner && !hideSymptomsBanner && (
+          <div
+            className="d-flex justify-content-between align-items-center"
+            style={{
+              border: "1px solid #E2E2EA",
+              borderRadius: 16,
+              padding: "8px 12px 8px 18px",
+              marginBottom: 12,
+              background: "#A461D81A",
+            }}
+          >
+            <div className="d-flex w-100">
+              <div style={{ fontSize: 16 }}>
+                <div className="d-flex align-items-center">
+                  <img
+                    src={scStrip}
+                    alt="scStrip"
+                    width={45}
+                    height={45}
+                    className="me-2"
+                  />
+                  <span>
+                    Hey! You've received <b style={{ fontWeight: 600 }}>symptoms</b>{" "}
+                    and <b style={{ fontWeight: 600 }}>medical history</b> details
+                    from the patient.{" "}
+                    <span
+                      className="theme-color cursor-pointer"
+                      style={{ textDecoration: "underline", marginLeft: 5 }}
+                      onClick={() => {
+                        dispatch(setShowSCPopup(true));
+                        trackEvent("SC_Doctor_ViewedSummary", {
+                          clinic_name: getClinicName(profile?.hospital_data),
+                          appointment_id: patient_data?.pam_id || 0,
+                          hospital_id: getTokenData()?.clinic_id,
+                          timestamp: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+                          doctor_id: userId,
+                          doctor_name: profile?.um_name,
+                          doctor_specialty: profile?.dp_name,
+                        });
+                      }}
+                    >
+                      View now
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <Button
+              type="text"
+              className="btn btn-delete-prescription focus-none h-100"
+              style={{ padding: 5 }}
+              onClick={() => setShowSymptomsBanner(false)}
+            >
+              <i className="icon-Cross fs-3" />
+            </Button>
+          </div>
+        )}
         <div className={styles.patientSummaryCard}>
           <div className={styles.cardHeader}>
             <img src={ddxIcon} alt="Patient Summary" className={styles.headerIcon} />
@@ -1256,6 +1319,10 @@ const PatientSummary = ({ patientData }) => {
                 
                 // Only show if NOT Snap Rx and NOT Smart Rx
                 if (isSnapRx || isSmartRx) {
+                  return null;
+                }
+                // Repeat Rx only for version v2 (Voice/Ambient)
+                if (lastPrescriptionData?.version?.trim?.()?.toLowerCase() !== "v2") {
                   return null;
                 }
                 

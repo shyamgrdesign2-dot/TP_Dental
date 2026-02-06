@@ -192,7 +192,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                       ...customModules?.map((module) => ({
                         id: module.module_id,
                         title: module.name,
-                        format: "inline",
+                        format: "table",
                         enable: "Y",
                         custom_status: "Y",
                         is_custom_module: true,
