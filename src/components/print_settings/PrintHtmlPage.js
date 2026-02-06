@@ -1311,20 +1311,11 @@ function PrintHtmlPage() {
                             >
                               Symptoms:&nbsp;
                             </label>
-                            {(() => {
-                              const allStringFormat = caseManagerData.symptoms.every(item => {
-                                if (item.isStringFormat) return true;
-                                const hasStructuredData = (item.since && item.since !== '') || (item.severity && item.severity !== '') || (item.note && item.note !== '');
-                                return !hasStructuredData;
-                              });
-                              return (
                             <table
                               className="w-100 mb-15 print_table"
                               cellPadding={5}
                               cellSpacing={5}
-                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                             >
-                                  {!allStringFormat && (
                               <tr>
                                 <th
                                   className={`${printSettings.page_format.font_family}`}
@@ -1363,28 +1354,15 @@ function PrintHtmlPage() {
                                   NOTE
                                 </th>
                               </tr>
-                                  )}
-                                  {caseManagerData.symptoms.map((item, i) => (
+                              {caseManagerData.symptoms.map((item, i) => {
+                                return (
                                   <tr key={i}>
-                                      {allStringFormat ? (
                                     <td
                                       className={`${printSettings.page_format.font_family}`}
                                       style={{
                                         fontSize:
                                           printSettings.page_format.font_size,
                                       }}
-                                          colSpan="4"
-                                        >
-                                          {item.symptom_name}
-                                        </td>
-                                      ) : (
-                                        <>
-                                          <td
-                                            className={`${printSettings.page_format.font_family}`}
-                                            style={{
-                                              fontSize:
-                                                printSettings.page_format.font_size,
-                                            }}
                                     >
                                       {item.symptom_name}
                                     </td>
@@ -1415,13 +1393,10 @@ function PrintHtmlPage() {
                                     >
                                       {item.note ? item.note : "-"}
                                     </td>
-                                        </>
-                                      )}
                                   </tr>
-                                  ))}
+                                );
+                              })}
                             </table>
-                              );
-                            })()}
                           </div>
                         ))}
 
@@ -1559,19 +1534,11 @@ function PrintHtmlPage() {
                             >
                               Examinations:&nbsp;
                             </label>
-                            {(() => {
-                              const allStringFormat = caseManagerData.examination.every(item => {
-                                const hasStructuredData = (item.note && item.note !== '');
-                                return !hasStructuredData;
-                              });
-                              return (
                             <table
                               className="w-100 mb-15 print_table"
                               cellPadding={5}
                               cellSpacing={5}
-                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                             >
-                                  {!allStringFormat && (
                               <tr>
                                 <th
                                   className={`${printSettings.page_format.font_family}`}
@@ -1592,28 +1559,15 @@ function PrintHtmlPage() {
                                   NOTE
                                 </th>
                               </tr>
-                                  )}
-                                  {caseManagerData.examination.map((item, i) => (
+                              {caseManagerData.examination.map((item, i) => {
+                                return (
                                   <tr key={i}>
-                                      {allStringFormat ? (
                                     <td
                                       className={`${printSettings.page_format.font_family}`}
                                       style={{
                                         fontSize:
                                           printSettings.page_format.font_size,
                                       }}
-                                          colSpan="2"
-                                        >
-                                          {item.examination_name}
-                                        </td>
-                                      ) : (
-                                        <>
-                                          <td
-                                            className={`${printSettings.page_format.font_family}`}
-                                            style={{
-                                              fontSize:
-                                                printSettings.page_format.font_size,
-                                            }}
                                     >
                                       {item.examination_name}
                                     </td>
@@ -1626,13 +1580,10 @@ function PrintHtmlPage() {
                                     >
                                       {item.note ? item.note : "-"}
                                     </td>
-                                        </>
-                                      )}
                                   </tr>
-                                  ))}
+                                );
+                              })}
                             </table>
-                              );
-                            })()}
                           </div>
                         ))}
 
@@ -1956,20 +1907,11 @@ function PrintHtmlPage() {
                             >
                               Diagnosis:&nbsp;
                             </label>
-                            {(() => {
-                              const allStringFormat = caseManagerData.diagnosis.every(item => {
-                                if (item.isStringFormat) return true;
-                                const hasStructuredData = (item.since && item.since !== '') || (item.status && item.status !== '') || (item.note && item.note !== '');
-                                return !hasStructuredData;
-                              });
-                              return (
                             <table
                               className="w-100 mb-15 print_table"
                               cellPadding={5}
                               cellSpacing={5}
-                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                             >
-                                  {!allStringFormat && (
                               <tr>
                                 <th
                                   className={`${printSettings.page_format.font_family}`}
@@ -2008,28 +1950,15 @@ function PrintHtmlPage() {
                                   NOTE
                                 </th>
                               </tr>
-                                  )}
-                                  {caseManagerData.diagnosis.map((item, i) => (
+                              {caseManagerData.diagnosis.map((item, i) => {
+                                return (
                                   <tr key={i}>
-                                      {allStringFormat ? (
                                     <td
                                       className={`${printSettings.page_format.font_family}`}
                                       style={{
                                         fontSize:
                                           printSettings.page_format.font_size,
                                       }}
-                                          colSpan="4"
-                                        >
-                                          {item.tds_name}
-                                        </td>
-                                      ) : (
-                                        <>
-                                          <td
-                                            className={`${printSettings.page_format.font_family}`}
-                                            style={{
-                                              fontSize:
-                                                printSettings.page_format.font_size,
-                                            }}
                                     >
                                       {item.tds_name}
                                     </td>
@@ -2060,13 +1989,10 @@ function PrintHtmlPage() {
                                     >
                                       {item.note ? item.note : "-"}
                                     </td>
-                                        </>
-                                      )}
                                   </tr>
-                                  ))}
+                                );
+                              })}
                             </table>
-                              );
-                            })()}
                           </div>
                         ))}
 

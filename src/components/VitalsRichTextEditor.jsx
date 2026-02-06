@@ -55,19 +55,8 @@ const VitalsRichTextEditor = ({
           };
           const response = await ApiVitals.getVitals(sendData);
           if (response?.status && response?.data?.length > 0) {
-            const today = moment().format('YYYY-MM-DD');
-            // Only use vitals that are for today's date (check createdAt or date)
-            const todayVitals = response.data.find(v => {
-              const vitalDate = v.createdAt || v.created_at || v.createdDate || v.date;
-              if (!vitalDate) return false;
-              return moment(vitalDate).format('YYYY-MM-DD') === today;
-            });
-            
-            if (todayVitals) {
-              setApiVitals(formatApiVitals(todayVitals));
-            } else {
-              setApiVitals(null);
-            }
+            const latestVitals = response.data[0];
+            setApiVitals(formatApiVitals(latestVitals));
           }
         } catch (error) {
           console.error('Error fetching vitals:', error);
@@ -114,20 +103,19 @@ const VitalsRichTextEditor = ({
     const merged = {};
     const processedFields = new Set();
     
-
-    Object.entries(rxPadVitals).forEach(([key, value]) => {
-      if (key === 'date') return;
-      const normalizedKey = normalizeKey(key);
-      if (value !== undefined && value !== null && String(value).trim() !== '') {
-        merged[normalizedKey] = String(value).trim();
-        processedFields.add(normalizedKey);
-      }
-    });
-
     Object.entries(apiVitalsData).forEach(([key, value]) => {
       if (key === 'date') return;
       const normalizedKey = normalizeKey(key);
       if (!processedFields.has(normalizedKey) && value !== undefined && value !== null && String(value).trim() !== '') {
+        merged[normalizedKey] = String(value).trim();
+        processedFields.add(normalizedKey);
+      }
+    });
+    
+    Object.entries(rxPadVitals).forEach(([key, value]) => {
+      if (key === 'date') return;
+      const normalizedKey = normalizeKey(key);
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
         merged[normalizedKey] = String(value).trim();
         processedFields.add(normalizedKey);
       }

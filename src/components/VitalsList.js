@@ -148,18 +148,12 @@ function VitalsList(props) {
     }, [vitalsPastList, vitalsData]);
 
     const TODAY_VITALS = useMemo(() => {
-        const today = moment().format('YYYY-MM-DD');
-        const filteredVitals = vitalsData.filter(item => {
-            const createdAt = item.createdAt || item.created_at || item.createdDate;
-            if (!createdAt) return false;
-            return moment(createdAt).format('YYYY-MM-DD') === today;
-        });
         return (
             vitalsData.length > 0 &&
             vitalsData.map((item, i) => {
                 if (item.temp || item.pres || item.resp_rate || item.blood_press || item.spo2 || item.general_rbs || item.ofc || item.height || item.weight || item.fib4 || item.waist_circumference || item.bmi || item.bmr || item.bsa) {
                 return (
-                    <div key={i} className={`${filteredVitals.length - 1 !== i && 'border-bottom'} pt-3 vitals-height input-readonly`}>
+                    <div key={i} className={`${vitalsData.length - 1 != i && 'border-bottom'} pt-3 vitals-height input-readonly`}>
                         <div className="title-sami mb-3">
                             {moment(item.date).format(showDateFormat)}
                         </div>
@@ -275,7 +269,6 @@ function VitalsList(props) {
                     </div>
                 );
             }
-                return null;
             })
         );
     }, [vitalsData]);
