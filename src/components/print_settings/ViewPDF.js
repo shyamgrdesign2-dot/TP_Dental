@@ -1781,13 +1781,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         const isLastItem = ii === innerMedication(pItem.index)?.length -1;
                                                                         return (
                                                                             <View style={{ flexGrow: 1, flexDirection: 'row', borderBottom: ii != innerMedication(pItem.index)?.length - 1 ? '1px solid #171725' : '0px' }} key={ii}>
+                                                                                {option?.medicine_option?.length && isTapered && !isLastItem && (
+                                                                                    <ThenConnector printSettings={printSettings} />
+                                                                                )}
                                                                                 {option?.medicine_option?.includes('dose') && (
-                                                                                  <>
                                                                                     <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit).tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit).tmu_title : ""}`}`}</Text>
-                                                                                    {isTapered && !isLastItem && (
-                                                                                      <ThenConnector printSettings={printSettings} />
-                                                                                    )}
-                                                                                  </>
                                                                                 )}
                                                                                 {option?.medicine_option?.includes('frequency') && (
                                                                                 <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
