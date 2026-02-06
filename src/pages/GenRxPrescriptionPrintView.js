@@ -62,31 +62,7 @@ function GenRxPrescriptionPrintView() {
 
   const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
 
-  // Initialize selected language from default print settings or patient default language
-  const [selectedLang, setSelectedLang] = useState(
-    defaultPrintSettings?.default_language || 1
-  );
-  
-  const buildUrlWithLanguage = (baseUrl, isAmbient, language) => {
-    if (!baseUrl) return null;
-    const url = new URL(baseUrl);
-    url.searchParams.delete('voiceRxDigitize');
-    url.searchParams.delete('ambientVoiceRxDigitize');
-    url.searchParams.delete('lg'); 
-    if (isAmbient) {
-      url.searchParams.set('ambientVoiceRxDigitize', 'true');
-      url.searchParams.set('rxDigitize', 'false');
-    } else {
-      url.searchParams.set('voiceRxDigitize', 'true');
-    }
-    if (language) {
-      const encodedData = btoa(language.toString());
-      url.searchParams.set('lg', encodedData);
-    }
-    return url.toString();
-  };
-
-  const initialUrl = state?.print_url ? buildUrlWithLanguage(state.print_url, isAmbientMode, selectedLang) : null;
+  const initialUrl = state?.print_url ? buildUrlWithParams(state.print_url, isAmbientMode) : null;
   const [printUrl, setPrintUrl] = useState(initialUrl);
   const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [tokenData, setTokenData] = useState(null);

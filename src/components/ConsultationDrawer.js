@@ -13,9 +13,12 @@ import {
   Button,
   Input,
   message,
+  Menu,
+  Dropdown,
   Spin,
   Tooltip,
   Divider,
+  AutoComplete,
 } from "antd";
 import styles from "./ConsultationDrawer.module.css";
 import deleteIcon from "../assets/images/delete-gen-rx.svg";
@@ -49,24 +52,35 @@ import {
   addCaseManager,
   editCaseManager,
   getInvestigationAndMedicine,
-  viewCaseManager,
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, getHmTypeIndicator, getClinic } from "../utils/utils";
-import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from "../utils/utils";
+import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
-import genRxSendCta from "../assets/images/genRxSendCta.svg";
 import zydusDataEngineIcon from "../assets/images/intersect.svg";
 import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
-import DigitisedPrescription from "./DigitisedPrescription";
+import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
+import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
+import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
+import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
+import LabInvestigationTable from "./LabInvestigationTable";
+import AdviceRichTextEditor from "./AdviceRichTextEditor";
+import VitalsRichTextEditor from "./VitalsRichTextEditor";
+import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
+import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
+import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
+import MedicationsTable from "./MedicationsTable";
 import {
   FAILED_VERIFICATION,
   FREE,
@@ -89,17 +103,23 @@ import { setSelectAutofill } from "../redux/ddxSlice";
 import growIcon from "../assets/images/grow.svg";
 import accuracyIcon from "../assets/images/accuracy.svg";
 import healthIcon from "../assets/images/health-care.svg";
+import playIcons from "../assets/images/tube-icon.svg";
 import VideoModal from "../common/VideoModal";
 import tagNew from "../assets/images/new-gif.gif";
+import CustomMedicinePopup from "./CustomMedicinePopup";
+import {
+  getFrequentlySearchedMedication,
+  searchMedication,
+} from "../redux/medicationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
-import ApiVitals from "../api/services/ApiVitals";
-import { addPatientLabReports } from "../api/services/ApiLabParams";
-import { mapLabResultsToStandardized } from "../utils/mapLabResults";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import {
+  getFrequentlySearchedInvestigation,
+  searchInvestigation,
+} from "../redux/investigationSlice";
 import config from "../config";
-import moment from "moment";
 import { isMobile } from "react-device-detect";
 import { useGrounding } from "../hooks/useGrounding";
 import GenRXLoaders from "./GenRxLoaders";
@@ -119,7 +139,7 @@ const ConsultationDrawer = ({
     (e) => e.service_name === S_VOICE_RX
   );
 
-  const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData } = useContext(CashManagerContext);
+  const { useVoiceRx, setUseVoiceRx, useDDX, medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
 
   const { state } = useLocation();
   const { patient_data, caseManagerData, fromVoiceRecording, audioBlob: audioBlobFromLocation, consent, noStayClickCount, crossButtonClickCount, mutePauseButtonClickCount } = state || {};
@@ -134,12 +154,14 @@ const ConsultationDrawer = ({
   const isFuzzyUpdatingTestsRef = useRef(false);
   const lastFuzzyTestsRef = useRef("");
   const lastFuzzyTestsCallRef = useRef({ sig: "", ts: 0 });
-  // Initialise with empty object to avoid null deref, but treat "empty" via helper below.
-  const [prescriptionData, setPrescriptionData] = useState({});
+  const [prescriptionData, setPrescriptionData] = useState(null);
   const isAutoFocusShownRef = useRef(false);
   const hasAutoSubmittedRef = useRef(false);
   const [symptomsCollectorData, setSymptomsCollectorData] = useState(null);
   const [localModules, setLocalModules] = useState([]);
+  const [showInput, setShowInput] = useState(false);
+  const [newModuleName, setNewModuleName] = useState("");
+  const [updatedModuleName, setUpdatedModuleName] = useState("");
   const [genRxDetails, setGenRxDetails] = useState(null);
   const [fullTranscript, setFullTranscript] = useState("");
   const [conversations, setConversations] = useState([]);
@@ -156,6 +178,7 @@ const ConsultationDrawer = ({
   const [editableText, setEditableText] = useState("");
   const [editableQuery, setEditableQuery] = useState("");
   const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
+  const [showInstructionMessage, setShowInstructionMessage] = useState(true);
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableLineItem, setEditableLineItem] = useState("");
@@ -166,6 +189,7 @@ const ConsultationDrawer = ({
   const [editableKey, setEditableKey] = useState("");
   const [queries, setQueries] = useState([]); // Array of { text, isAudio, duration }
   const [isRxEdited, setIsRxEdited] = useState(false);
+  const [editingModule, setEditingModule] = useState("");
   // Track which sections were initially populated from API - these should remain visible even if content is deleted
   const initiallyPopulatedSectionsRef = useRef(new Set());
   // Track which medical history types were initially populated
@@ -181,6 +205,8 @@ const ConsultationDrawer = ({
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
   });
+  const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState(null);
   const [pendingSelection, setPendingSelection] = useState(null);
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
@@ -216,74 +242,6 @@ const ConsultationDrawer = ({
     thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
     title: "Voice Rx Tutorial"
   };
-  const persistLabResultsToApi = useCallback(
-    async (labResultsDataForApi = []) => {
-      if (
-        !Array.isArray(labResultsDataForApi) ||
-        labResultsDataForApi.length === 0 ||
-        !patient_data?.patient_unique_id
-      ) {
-        return;
-      }
-
-      try {
-        const payload = {
-          patientId: patient_data.patient_unique_id,
-          doctorId: profile?.doctor_unique_id || doctorId,
-          results: labResultsDataForApi,
-        };
-        await addPatientLabReports(payload);
-      } catch (err) {
-        console.error("Error saving lab results to API:", err);
-      }
-    },
-    [patient_data?.patient_unique_id, profile?.doctor_unique_id, doctorId]
-  );
-  const isPrescriptionDataEmpty = useCallback((data) => {
-    if (!data || typeof data !== "object") return true;
-    const {
-      symptoms,
-      medications,
-      vitalsAndBodyComposition,
-      advice,
-      diagnosis,
-      examinations,
-      followUp,
-      labInvestigation,
-      medicalHistory,
-      vaccinations,
-      others,
-      labResults,
-      dynamicFields,
-    } = data;
-
-    const hasArrayContent = (arr) => Array.isArray(arr) && arr.length > 0;
-    const hasObjectContent =
-      vitalsAndBodyComposition &&
-      typeof vitalsAndBodyComposition === "object" &&
-      Object.keys(vitalsAndBodyComposition).length > 0;
-    const hasFollowUp = typeof followUp === "string" && followUp.trim().length > 0;
-    const hasDynamicFields =
-      dynamicFields &&
-      typeof dynamicFields === "object" &&
-      Object.values(dynamicFields).some((v) => Array.isArray(v) ? v.length > 0 : !!v);
-
-    return !(
-      hasArrayContent(symptoms) ||
-      hasArrayContent(medications) ||
-      hasArrayContent(advice) ||
-      hasArrayContent(diagnosis) ||
-      hasArrayContent(examinations) ||
-      hasArrayContent(labInvestigation) ||
-      hasArrayContent(medicalHistory) ||
-      hasArrayContent(vaccinations) ||
-      hasArrayContent(others) ||
-      hasArrayContent(labResults) ||
-      hasObjectContent ||
-      hasFollowUp ||
-      hasDynamicFields
-    );
-  }, []);
   const isSymptomCollectorJSON = useCallback((text) => {
     if (typeof text !== "string") return false;
     const trimmed = text.trim();
@@ -300,41 +258,6 @@ const ConsultationDrawer = ({
     } catch (error) {
       return false;
     }
-  }, []);
-
-  const formatLabResultsForApi = useCallback((labResults = []) => {
-    if (!Array.isArray(labResults) || labResults.length === 0) return [];
-    const today = moment().format("YYYY-MM-DD");
-    const groupedByDate = {};
-    labResults.forEach((result = {}) => {
-      const dateKey = result.date || today;
-      const testname = result.testname || result.name || "Result";
-      const value = result.value || "";
-      const units = result.units || "";
-      if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
-      // Extract value and units from display format (e.g., "23 mg/dl" -> value: "23", units: "mg/dl")
-      let cleanValue = value;
-      let cleanUnits = units;
-      if (value && !units) {
-        const parts = String(value).trim().split(/\s+/);
-        if (parts.length > 1) {
-          cleanValue = parts.slice(0, -1).join(" ");
-          cleanUnits = parts[parts.length - 1];
-        }
-      }
-      groupedByDate[dateKey].push({
-        reportName: result.reportName || "",
-        testName: testname,
-        value: cleanValue,
-        units: cleanUnits,
-        refRange: result.refRange || "",
-        arrowDirection: result.arrowDirection || "",
-      });
-    });
-    return Object.entries(groupedByDate).map(([date, inputs]) => ({
-      date,
-      inputs: inputs.filter(input => input.value && input.value.trim() !== ""),
-    })).filter(result => result.inputs.length > 0);
   }, []);
   const isFirstTranscriptJSON = useMemo(() => {
     if (Array.isArray(queries) && queries.length > 0) {
@@ -418,7 +341,7 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (hasAutoSubmittedRef.current) return;
     
-    const shouldAutoSubmit = visible && fromVoiceRecording && audioBlob && !isProcessing && isPrescriptionDataEmpty(prescriptionData);
+    const shouldAutoSubmit = visible && fromVoiceRecording && audioBlob && !isProcessing && !prescriptionData;
     if (!shouldAutoSubmit) return;
 
     hasAutoSubmittedRef.current = true;
@@ -455,7 +378,7 @@ const ConsultationDrawer = ({
     if (hasAutoSubmittedRef.current) return;
     
     const shouldSubmitTyped =
-      visible && !fromVoiceRecording && typedInputText && !isProcessing && isPrescriptionDataEmpty(prescriptionData);
+      visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
@@ -862,7 +785,7 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     if (isAutoFocusShownRef.current) return;
-    if (isPrescriptionDataEmpty(prescriptionData) || activeIndex !== null || activeType !== null)
+    if (!prescriptionData || activeIndex !== null || activeType !== null)
       return;
 
     const fieldsToCheck = [
@@ -1053,8 +976,9 @@ const ConsultationDrawer = ({
             const actualVitals = vitals._doc || vitals;
             const cleanedVitals = {};
             
-            Object.keys(actualVitals).forEach(key => {
-              if (actualVitals[key] !== undefined && actualVitals[key] !== null) {
+            const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+            vitalKeys.forEach(key => {
+              if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
                 cleanedVitals[key] = actualVitals[key];
               }
             });
@@ -1069,7 +993,7 @@ const ConsultationDrawer = ({
             if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
               initiallyPopulatedSectionsRef.current.add('vaccinations');
             }
-            if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
+            if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
               initiallyPopulatedSectionsRef.current.add('medicalHistory');
               prescriptionData.medicalHistory.forEach(item => {
                 const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
@@ -1117,6 +1041,11 @@ const ConsultationDrawer = ({
             setPrescriptionData(validatedPrescriptionData);
       
             
+            // Convert API medicalHistory format to CashManagerContext format and populate it
+            if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+              const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+              setMedicalHistoryData(convertedData);
+            }
           }
           
           // For ambient mode, use conversations from history if available (when coming from patient detail)
@@ -1252,7 +1181,7 @@ const ConsultationDrawer = ({
               if (prescriptionDataFromResponse.vaccinations && Array.isArray(prescriptionDataFromResponse.vaccinations) && prescriptionDataFromResponse.vaccinations.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('vaccinations');
               }
-              if (prescriptionDataFromResponse?.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0) {
+              if (prescriptionDataFromResponse.medicalHistory && Array.isArray(prescriptionDataFromResponse.medicalHistory) && prescriptionDataFromResponse.medicalHistory.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('medicalHistory');
                 prescriptionDataFromResponse.medicalHistory.forEach(item => {
                   const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
@@ -1299,6 +1228,11 @@ const ConsultationDrawer = ({
             if (validatedPrescriptionDataFromResponse) {
               setPrescriptionData(validatedPrescriptionDataFromResponse);
               
+              // Convert API medicalHistory format to CashManagerContext format and populate it
+              if (validatedPrescriptionDataFromResponse?.medicalHistory && Array.isArray(validatedPrescriptionDataFromResponse.medicalHistory) && validatedPrescriptionDataFromResponse.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataFromResponse.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
             }
 
             let transcriptSource = response.data.source;
@@ -1526,7 +1460,7 @@ const ConsultationDrawer = ({
   };
 
   const preparePayloadForApi = () => {
-    const cleanedData = removeScItems(prescriptionData || {});
+    const cleanedData = removeScItems(prescriptionData);
     const { dynamicFields = {} } = cleanedData;
     // Merge any in-progress edits from the UI (input focused but not blurred yet)
     let dynamicFieldsWithPending = dynamicFields;
@@ -1601,22 +1535,16 @@ const ConsultationDrawer = ({
     };
   };
 
-  const removeScItems = (data = {}) => {
-    const safeSymptoms = Array.isArray(data.symptoms)
-      ? data.symptoms.filter((symptom) => !symptom?.SC)
-      : [];
-    const safeMedicalHistory = Array.isArray(data.medicalHistory)
-      ? data.medicalHistory.filter((history) => !history?.SC)
-      : [];
-
+  const removeScItems = (data) => {
+    // Create a new object with filtered arrays
     return {
       ...data,
-      symptoms: safeSymptoms,
-      medicalHistory: safeMedicalHistory,
+      symptoms: data.symptoms.filter((symptom) => !symptom.SC),
+      medicalHistory: data.medicalHistory.filter((history) => !history.SC),
     };
   };
 
-  const validatePrescriptionData = (data = {}) => {
+  const validatePrescriptionData = (data) => {
     if (!data || typeof data !== 'object') {
       return false;
     }
@@ -1640,7 +1568,8 @@ const ConsultationDrawer = ({
         const cleanedVitals = {};
         
 
-        Object.keys(actualVitals).forEach(key => {
+        const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+        vitalKeys.forEach(key => {
           if (actualVitals[key] !== undefined && actualVitals[key] !== null) {
             cleanedVitals[key] = actualVitals[key];
           }
@@ -1684,7 +1613,7 @@ const ConsultationDrawer = ({
     };
     
     // Clean the data first
-    const cleanedData = deepClean(data || {});
+    const cleanedData = deepClean(data);
     
     // Map instruction to notes for labInvestigation items
     const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
@@ -1710,11 +1639,6 @@ const ConsultationDrawer = ({
         })
       : [];
     
-    // Map lab results to standardized names (matching sidebar)
-    const mappedLabResults = Array.isArray(cleanedData.labResults)
-      ? mapLabResultsToStandardized(cleanedData.labResults)
-      : [];
-    
     // Ensure all required fields exist with proper defaults
     const validatedData = {
       symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
@@ -1725,7 +1649,6 @@ const ConsultationDrawer = ({
       examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
       followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
       labInvestigation: mappedLabInvestigation,
-      labResults: mappedLabResults,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
       vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
       others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
@@ -1733,19 +1656,7 @@ const ConsultationDrawer = ({
     };
     
     validatedData.labInvestigation = mappedLabInvestigation;
-    validatedData.labResults = mappedLabResults;
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
-    
-    if (validatedData.vitalsAndBodyComposition && Object.keys(validatedData.vitalsAndBodyComposition).length > 0) {
-      const patientInfo = patient_data ? {
-        age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-        gender: patient_data.pm_gender || patient_data.gender
-      } : {};
-      validatedData.vitalsAndBodyComposition = enrichVitalsWithCalculations(
-        validatedData.vitalsAndBodyComposition,
-        patientInfo
-      );
-    }
     
     return validatedData;
   };
@@ -2080,8 +1991,9 @@ const ConsultationDrawer = ({
               const actualVitals = vitals._doc || vitals;
               const cleanedVitals = {};
               
-              Object.keys(actualVitals).forEach(key => {
-                if (actualVitals[key] !== undefined && actualVitals[key] !== null) {
+              const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+              vitalKeys.forEach(key => {
+                if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
                   cleanedVitals[key] = actualVitals[key];
                 }
               });
@@ -2223,7 +2135,7 @@ const ConsultationDrawer = ({
               if (validatedPrescriptionData.vaccinations && Array.isArray(validatedPrescriptionData.vaccinations) && validatedPrescriptionData.vaccinations.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('vaccinations');
               }
-              if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0) {
+              if (validatedPrescriptionData.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('medicalHistory');
                 validatedPrescriptionData.medicalHistory.forEach(item => {
                   const type = item.type?.toLowerCase().replace(/\s+/g, '_') || 'others';
@@ -2285,6 +2197,11 @@ const ConsultationDrawer = ({
                 });
               }
               
+              // Convert medical history to CashManagerContext format for both ambient and dictate modes
+              if (validatedPrescriptionData?.medicalHistory && Array.isArray(validatedPrescriptionData.medicalHistory) && validatedPrescriptionData.medicalHistory.length > 0 && setMedicalHistoryData) {
+                const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
+                setMedicalHistoryData(convertedData);
+              }
               
               setPrescriptionData((prevData) => {
                 const apiDynamicFields = validatedPrescriptionData?.dynamicFields || {};
@@ -2299,6 +2216,13 @@ const ConsultationDrawer = ({
                   }
                 });
 
+                if (genRxDetails?._id) {
+                  const hasMeaningfulData = validatedPrescriptionData.symptoms?.length > 0 || 
+                                          validatedPrescriptionData.medications?.length > 0 || 
+                                          validatedPrescriptionData.vitalsAndBodyComposition || 
+                                          Object.keys(validatedPrescriptionData).length > 2;
+                  
+                  if (hasMeaningfulData) {
                     const formattedSymptomsCollectorData =
                       getFormattedSymptomsCollectorData(selectedSymptomsCollector);
                     const finalPrescriptionData =
@@ -2312,11 +2236,38 @@ const ConsultationDrawer = ({
 
                     return {
                       ...finalPrescriptionData,
-                  vitalsAndBodyComposition: validatedPrescriptionData?.vitalsAndBodyComposition || {},
+                      // Preserve medical history from previous data if it exists and new data doesn't have it
                       medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
-              });     
+                  } else {
+                    // Preserve medical history even when there's no meaningful data
+                    return {
+                      ...(prevData || {}),
+                      medicalHistory: prevData?.medicalHistory || validatedPrescriptionData?.medicalHistory || [],
+                      dynamicFields: mergedDynamicFields,
+                    };
+                  }
+                } else {
+                  const formattedSymptomsCollectorData =
+                    getFormattedSymptomsCollectorData(selectedSymptomsCollector);
+                  const finalPrescriptionData =
+                    formattedSymptomsCollectorData &&
+                    Object.keys(formattedSymptomsCollectorData)?.length > 0
+                      ? mergeData(
+                          validatedPrescriptionData,
+                          formattedSymptomsCollectorData
+                        )
+                      : validatedPrescriptionData;
+
+                  return {
+                    ...finalPrescriptionData,
+                    // Preserve medical history from previous data if it exists and new data doesn't have it
+                    medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
+                    dynamicFields: mergedDynamicFields,
+                  };
+                }
+              });
             } else {
               setPrescriptionData({
                 symptoms: [],
@@ -2470,7 +2421,7 @@ const ConsultationDrawer = ({
               if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('vaccinations');
               }
-              if (prescriptionData?.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
+              if (prescriptionData.medicalHistory && Array.isArray(prescriptionData.medicalHistory) && prescriptionData.medicalHistory.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('medicalHistory');
                 // Track which medical history types were initially populated
                 prescriptionData.medicalHistory.forEach(item => {
@@ -2516,10 +2467,13 @@ const ConsultationDrawer = ({
               
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
-                // Use validated payload as-is for dictate response (keeps vitals intact).
-                setPrescriptionData(validatedPrescriptionDataForDictate);
+                setPrescriptionData(validatedPrescriptionDataForDictate);   
                 
-                
+                // Convert API medicalHistory format to CashManagerContext format and populate it
+                if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
+                  const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataForDictate.medicalHistory, medicalHistoryData);
+                  setMedicalHistoryData(convertedData);
+                }
               }
             }
             
@@ -2763,7 +2717,6 @@ const ConsultationDrawer = ({
           type: response.data?.type || genRxDetails.type,
           _id: response.data?._id || genRxDetails._id,
         });
-        
       } else {
         throw new Error(response.error || "Failed to update Rx");
       }
@@ -2773,7 +2726,7 @@ const ConsultationDrawer = ({
     }
   };
 
-  const mergeData = (data1 = {}, data2 = {}) => {
+  const mergeData = (data1, data2) => {
     // Helper function to check if two items are duplicates
     const isDuplicate = (item1, item2) => {
       return (
@@ -2787,22 +2740,18 @@ const ConsultationDrawer = ({
     // Add SC flag to data2 items
     const data2WithSC = {
       ...data2,
-      symptoms: Array.isArray(data2?.symptoms)
-        ? data2.symptoms.map((symptom) => ({
+      symptoms: data2?.symptoms?.map((symptom) => ({
         ...symptom,
         SC: true,
-        }))
-        : [],
-      medicalHistory: Array.isArray(data2?.medicalHistory)
-        ? data2.medicalHistory.map((history) => ({
+      })),
+      medicalHistory: data2?.medicalHistory?.map((history) => ({
         ...history,
         SC: true,
-        }))
-        : [],
+      })),
     };
 
     // Merge symptoms arrays while removing duplicates
-    const mergedSymptoms = Array.isArray(data1?.symptoms) ? [...data1.symptoms] : [];
+    const mergedSymptoms = [...data1?.symptoms];
     data2WithSC?.symptoms?.forEach((symptom2) => {
       if (!mergedSymptoms.some((symptom1) => isDuplicate(symptom1, symptom2))) {
         mergedSymptoms.push(symptom2);
@@ -2810,8 +2759,8 @@ const ConsultationDrawer = ({
     });
 
     // Merge medicalHistory arrays while removing duplicates
-    const mergedMedicalHistory = Array.isArray(data1?.medicalHistory) ? [...data1.medicalHistory] : [];
-    data2WithSC.medicalHistory?.forEach((history2) => {
+    const mergedMedicalHistory = [...data1.medicalHistory];
+    data2WithSC.medicalHistory.forEach((history2) => {
       if (
         !mergedMedicalHistory.some((history1) =>
           isDuplicate(history1, history2)
@@ -3175,6 +3124,77 @@ const ConsultationDrawer = ({
     setActiveType(`${type}-lineItem`);
   };
 
+  const handleSymptomsUpdate = useCallback((symptomsArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('symptoms')) {
+        updatedData.symptoms = Array.isArray(symptomsArray) ? symptomsArray : [];
+      } else {
+        updatedData.symptoms = symptomsArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleVaccinationsUpdate = useCallback((vaccinationsArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('vaccinations')) {
+        updatedData.vaccinations = Array.isArray(vaccinationsArray) ? vaccinationsArray : [];
+      } else {
+        updatedData.vaccinations = vaccinationsArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleExaminationsUpdate = useCallback((examinationsArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('examinations')) {
+        updatedData.examinations = Array.isArray(examinationsArray) ? examinationsArray : [];
+      } else {
+        updatedData.examinations = examinationsArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleDiagnosisUpdate = useCallback((diagnosisArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
+      };
+      if (initiallyPopulatedSectionsRef.current.has('diagnosis')) {
+        updatedData.diagnosis = Array.isArray(diagnosisArray) ? diagnosisArray : [];
+      } else {
+        updatedData.diagnosis = diagnosisArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleInvestigationUpdate = useCallback((investigationArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      labInvestigation: investigationArray,
+    }));
+    setIsRxEdited(true);
+  }, []);
+
   const handleAdviceUpdate = useCallback((adviceArray) => {
     setPrescriptionData((prevData) => {
       const updatedData = {
@@ -3191,72 +3211,45 @@ const ConsultationDrawer = ({
     setIsRxEdited(true);
   }, []);
 
-  const saveVitalsToApi = useCallback(async (vitalsData) => {
-    if (!vitalsData || !patient_data?.patient_unique_id || Object.keys(vitalsData).length === 0) return;
-    
-    try {
-      const sanitizeVitalsValue = (key, value) => {
-        if (value === undefined || value === null) return "";
-        const str = String(value).trim();
-        if (key === 'bloodPressure' || key === 'blood_press') {
-          return str.replace(/[^0-9/.-]/g, '').replace(/\/+/g, '/');
-        }
-        return str.replace(/[^0-9.\-]/g, '');
+  const handleVitalsUpdate = useCallback((vitalsObject) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
       };
-      const cleanVitals = Object.fromEntries(
-        Object.entries(vitalsData || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
-      );
 
-      let systolic = cleanVitals.Systolic || cleanVitals.systolic || '';
-      let diastolic = cleanVitals.Diastolic || cleanVitals.diastolic || '';
-      let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
-      
-      if (blood_press && !systolic && !diastolic) {
-        const bpParts = String(blood_press).split('/');
-        if (bpParts.length === 2) {
-          systolic = bpParts[0].trim();
-          diastolic = bpParts[1].trim();
-        }
-      } else if (!blood_press && systolic && diastolic) {
-        blood_press = `${systolic}/${diastolic}`;
+      if (initiallyPopulatedSectionsRef.current.has('vitalsAndBodyComposition')) {
+        updatedData.vitalsAndBodyComposition = vitalsObject && typeof vitalsObject === 'object' ? vitalsObject : {};
+      } else {
+        updatedData.vitalsAndBodyComposition = vitalsObject || {};
       }
-      
-    const vitalsArray = [{
-      // Always record against today's date; API will upsert current date entry
-      date: moment().format('YYYY-MM-DD'),
-        temp: String(cleanVitals.temperature || '').trim(),
-        pres: String(cleanVitals.pulse || '').trim(),
-        resp_rate: String(cleanVitals.respRate || '').trim(),
-        systolic: String(systolic).trim(),
-        diastolic: String(diastolic).trim(),
-        blood_press: String(blood_press).trim(),
-        spo2: String(cleanVitals.spo2 || '').trim(),
-        height: String(cleanVitals.height || '').trim(),
-        weight: String(cleanVitals.weight || '').trim(),
-        ofc: String(cleanVitals.ofc || cleanVitals.OFC || '').trim(),
-        sugar: String(cleanVitals.sugar || '').trim(),
-        general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || '').trim(),
-        fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || '').trim(),
-        waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || '').trim(),
-        bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
-        bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
-        bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim()
-      }];
-      
-      const sendData = {
-        patient_unique_id: patient_data.patient_unique_id,
-        pm_pid: patient_data.pm_pid || 0,
-        pm_id: patient_data.pm_id || 0,
-        pam_id: patient_data.pam_id || 0,
-        patient_birth_weight: null,
-        data: vitalsArray
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicalHistoryUpdate = useCallback((medicalHistoryArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
       };
-      
-      await ApiVitals.addUpdateVitals(sendData);
-    } catch (error) {
-      console.error('Error saving vitals to API:', error);
+
+      if (initiallyPopulatedSectionsRef.current.has('medicalHistory')) {
+        updatedData.medicalHistory = Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [];
+      } else {
+        updatedData.medicalHistory = medicalHistoryArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+    
+    // Also update CashManagerContext format for the drawer
+    // Note: convertMedicalHistoryToContextFormat is defined later in the file, but it's a stable function
+    if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
+      // Use the function directly - it will be available at runtime
+      const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, medicalHistoryData);
+      setMedicalHistoryData(convertedData);
     }
-  }, [patient_data]);
+  }, [setMedicalHistoryData, medicalHistoryData]);
 
   const handleFollowUpUpdate = useCallback((followUpText) => {
     setPrescriptionData((prevData) => {
@@ -3268,6 +3261,22 @@ const ConsultationDrawer = ({
         updatedData.followUp = typeof followUpText === 'string' ? followUpText : '';
       } else {
         updatedData.followUp = followUpText || '';
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleLabResultsUpdate = useCallback((labResultsArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+      ...prevData,
+      };
+
+      if (initiallyPopulatedSectionsRef.current.has('labResults')) {
+        updatedData.labResults = Array.isArray(labResultsArray) ? labResultsArray : [];
+      } else {
+        updatedData.labResults = labResultsArray || [];
       }
       return updatedData;
     });
@@ -3287,6 +3296,32 @@ const ConsultationDrawer = ({
       }
       return updatedData;
     });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleCustomModuleUpdate = useCallback((moduleName, moduleArray) => {
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+      };
+      if (!updatedData.dynamicFields) {
+        updatedData.dynamicFields = {};
+      }
+      if (initiallyPopulatedSectionsRef.current.has(`dynamicFields.${moduleName}`)) {
+        updatedData.dynamicFields[moduleName] = Array.isArray(moduleArray) ? moduleArray : [];
+      } else {
+        updatedData.dynamicFields[moduleName] = moduleArray || [];
+      }
+      return updatedData;
+    });
+    setIsRxEdited(true);
+  }, []);
+
+  const handleMedicationsUpdate = useCallback((medicationsArray) => {
+    setPrescriptionData((prevData) => ({
+      ...prevData,
+      medications: medicationsArray,
+    }));
     setIsRxEdited(true);
   }, []);
 
@@ -3342,156 +3377,6 @@ const ConsultationDrawer = ({
       medicines: sanitizedMedications,
     });
     handleUpdateGenRX(quantityActionMedicine, sanitizedMedications);
-    
-    // Format medical history data for API if it exists
-    let formattedMedicalHistory = [];
-    if (medicalHistoryData && Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) {
-      formattedMedicalHistory = medicalHistoryData.map((section) => {
-        return {
-          title: section?.title || section?.section_name || "",
-          tmmhs_id: section?.tmmhs_id || 0,
-          no_know_history: section?.no_know_history !== undefined ? section?.no_know_history : false,
-          tags: !section?.no_know_history && Array.isArray(section?.tags) 
-            ? section.tags.filter(tag => tag?.enable === 'Y' || tag?.enable === 'N').map(tag => ({
-                tmmhst_id: tag?.tmmhst_id || 0,
-                title: tag?.title || "",
-                pms_default: tag?.pms_default || 0,
-                since: tag?.since || "",
-                status: tag?.status || "",
-                medication: tag?.medication || "",
-                note: tag?.note || "",
-                enable: tag?.enable || "Y"
-              }))
-            : []
-        };
-      });
-    }
-    
-    let vitalsForCase = [];
-    try {
-      const vitalsResp = await ApiVitals.getVitals({
-        patient_unique_id: patient_data?.patient_unique_id || 0,
-        pam_id: patient_data?.pam_id || 0,
-        mode: "ADD",
-        pm_pid: patient_data?.pm_pid || 0,
-        pm_id: patient_data?.pm_id || 0,
-      });
-      if (vitalsResp?.status && Array.isArray(vitalsResp.data) && vitalsResp.data.length > 0) {
-        const byDate = {};
-        vitalsResp.data.forEach((v) => {
-          const dateKey = v.date || moment().format("YYYY-MM-DD");
-          if (!byDate[dateKey] || (v.tcv_id && byDate[dateKey].tcv_id && v.tcv_id > byDate[dateKey].tcv_id)) {
-            byDate[dateKey] = v;
-          }
-        });
-        vitalsForCase = Object.values(byDate);
-      }
-      
-      // Merge Rx pad vitals with fetched vitals (which include sidebar edits)
-      if (prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0) {
-        const sanitizeVitalsValue = (key, value) => {
-          if (value === undefined || value === null) return "";
-          const str = String(value).trim();
-          if (key === 'bloodPressure' || key === 'blood_press') {
-            return str.replace(/[^0-9/.-]/g, '').replace(/\/+/g, '/');
-          }
-          if (key === 'general_rbs' || key === 'General RBS' || key === 'ofc' || key === 'OFC' || key === 'fib4' || key === 'FIB4') {
-            return str;
-          }
-          return str.replace(/[^0-9.\-]/g, '');
-        };
-        const cleanVitals = Object.fromEntries(
-          Object.entries(prescriptionData.vitalsAndBodyComposition || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
-        );
-
-        let systolic = cleanVitals.Systolic || cleanVitals.systolic || '';
-        let diastolic = cleanVitals.Diastolic || cleanVitals.diastolic || '';
-        let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
-        
-        if (blood_press && !systolic && !diastolic) {
-          const bpParts = String(blood_press).split('/');
-          if (bpParts.length === 2) {
-            systolic = bpParts[0].trim();
-            diastolic = bpParts[1].trim();
-          }
-        } else if (!blood_press && systolic && diastolic) {
-          blood_press = `${systolic}/${diastolic}`;
-        }
-        
-        const today = moment().format('YYYY-MM-DD');
-        const patientInfo = patient_data ? {
-          age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-          gender: patient_data.pm_gender || patient_data.gender
-        } : {};
-        
-        const rxPadVital = {
-          date: today,
-          temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
-          pres: String(cleanVitals.pulse || cleanVitals.pres || '').trim(),
-          resp_rate: String(cleanVitals.respRate || cleanVitals.resp_rate || '').trim(),
-          systolic: String(systolic).trim(),
-          diastolic: String(diastolic).trim(),
-          blood_press: String(blood_press).trim(),
-          spo2: String(cleanVitals.spo2 || cleanVitals.SPO2 || '').trim(),
-          height: String(cleanVitals.height || cleanVitals.Height || '').trim(),
-          weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
-          ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
-          sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
-          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
-          fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
-          waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
-          bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
-          bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
-          bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim()
-        };
-        
-        const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
-        const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today);
-        
-        if (existingTodayIndex >= 0) {
-          const existing = vitalsForCase[existingTodayIndex];
-          const merged = { ...existing };
-          Object.keys(enrichedRxPadVital).forEach(key => {
-            if (key !== 'date' && key !== 'tcv_id' && key !== 'tcbc_id' && key !== 'dev_unique_id' && key !== 'pam_id') {
-              const rxValue = enrichedRxPadVital[key];
-              if (key === 'general_rbs' || key === 'ofc' || key === 'fib4') {
-                merged[key] = rxValue !== undefined ? rxValue : '';
-              } else if (rxValue !== undefined && rxValue !== null && String(rxValue).trim() !== '') {
-                merged[key] = rxValue;
-              }
-            }
-          });
-          vitalsForCase[existingTodayIndex] = merged;
-        } else {
-          vitalsForCase.push(enrichedRxPadVital);
-        }
-        
-        // Save merged vitals to API
-        if (patient_data?.patient_unique_id) {
-          const mergedVitalsArray = existingTodayIndex >= 0 ? [vitalsForCase[existingTodayIndex]] : [enrichedRxPadVital];
-          const finalVital = mergedVitalsArray[0];
-          if (finalVital) {
-            finalVital.general_rbs = finalVital.general_rbs !== undefined ? String(finalVital.general_rbs).trim() : '';
-            finalVital.ofc = finalVital.ofc !== undefined ? String(finalVital.ofc).trim() : '';
-            finalVital.fib4 = finalVital.fib4 !== undefined ? String(finalVital.fib4).trim() : '';
-          }
-          await ApiVitals.addUpdateVitals({
-            patient_unique_id: patient_data.patient_unique_id,
-            pm_pid: patient_data.pm_pid || 0,
-            pm_id: patient_data.pm_id || 0,
-            pam_id: patient_data.pam_id || 0,
-            patient_birth_weight: null,
-            data: mergedVitalsArray
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching vitals for case manager payload:", err);
-    }
-
-    const labResultsDataForApi = formatLabResultsForApi(prescriptionData?.labResults || []);
-    await persistLabResultsToApi(labResultsDataForApi);
-
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -3506,9 +3391,6 @@ const ConsultationDrawer = ({
       consultation_date: consultationDate,
       smart_prescription_filename: genRxDetails?._id,
       labReportID: labReportID,
-      vitals: vitalsForCase,
-      ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
-      ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
     };
 
     const action =
@@ -3517,13 +3399,6 @@ const ConsultationDrawer = ({
         : await dispatch(editCaseManager(sendData));
 
     if (action.meta.requestStatus === "fulfilled") {
-      await dispatch(
-        viewCaseManager({
-          patient_unique_id: patient_data?.patient_unique_id,
-          tcm_id: action?.payload?.tcm_id || tcmId,
-        })
-      );
-
       message.open({
         key: MESSAGE_KEY,
         type: "",
@@ -4659,6 +4534,321 @@ const ConsultationDrawer = ({
     );
   };
 
+  const toggleDeleteModuleModal = useCallback(() => {
+    setIsDeleteModuleModalOpen(!isDeleteModuleModalOpen);
+  }, [isDeleteModuleModalOpen]);
+
+  const handleDeleteModule = useCallback(() => {
+    if (!moduleToDelete) return;
+    
+    setPrescriptionData((prevData) => {
+      const updatedData = {
+        ...prevData,
+        dynamicFields: { ...prevData.dynamicFields },
+      };
+
+      delete updatedData.dynamicFields[moduleToDelete];
+
+      return updatedData;
+    });
+    
+    // Remove from local modules and ref tracking
+    setLocalModules((prevModules) => prevModules.filter(mod => mod !== moduleToDelete));
+    initiallyPopulatedSectionsRef.current.delete(`dynamicFields.${moduleToDelete}`);
+    
+    setIsRxEdited(true);
+    toggleDeleteModuleModal();
+    setModuleToDelete(null);
+  }, [moduleToDelete, toggleDeleteModuleModal]);
+
+  const DELETE_MODULE_MODAL = useMemo(() => {
+    return (
+      <CommonModal
+        isModalOpen={isDeleteModuleModalOpen}
+        onCancel={toggleDeleteModuleModal}
+        modalWidth={550}
+        title={"Are you sure you want to delete this module?"}
+        modalBody={
+          <>
+            <div className="d-flex align-items-start alert-warning rounded-10px p-3 patient-details">
+              <img className="me-3" src={alertIcon} alt="Warning" />
+              <span>
+                This action will permanently delete the {moduleToDelete} and
+                cannot be undone. Please confirm to proceed
+              </span>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={handleDeleteModule}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                >
+                  Yes, Delete
+                </div>
+                <Button
+                  onClick={toggleDeleteModuleModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+    );
+  }, [isDeleteModuleModalOpen, moduleToDelete, handleDeleteModule, toggleDeleteModuleModal]);
+
+  const renderCustomModules = () => {
+    return Object.entries(prescriptionData?.dynamicFields || {}).map(
+      ([module, data]) => {
+        return (
+          Array.isArray(data) &&
+          data?.every((item) => typeof item === "string") && (
+            <>
+              {editingModule === module ? (
+                <div className="d-flex justify-content-between mb-4">
+                  <Input
+                    placeholder="Enter custom module name"
+                    value={updatedModuleName}
+                    onChange={(e) => setUpdatedModuleName(e.target.value)}
+                    className="custom-module-input"
+                  />
+                  <>
+                    <CheckOutlined
+                      className="input-action-icon tick-icon"
+                      onClick={() => handleEditModule(module)}
+                    />
+                    <CloseOutlined
+                      className="input-action-icon cross-icon"
+                      onClick={handleCancelEdit}
+                    />
+                  </>
+                </div>
+              ) : (
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="d-flex align-items-center title-digitise-section mb-2">
+                    {localModules?.includes(module)
+                      ? module
+                      : module
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (str) => str.toUpperCase())}
+                    {localModules?.includes(module) && (
+                      <i
+                        className={`icon-Edit fs-21 ms-2 cursor-pointer`}
+                        onClick={() => {
+                          setEditingModule(module);
+                          setUpdatedModuleName(module);
+                        }}
+                      ></i>
+                    )}
+                  </div>
+                  <Dropdown
+                    overlay={
+                      <Menu>
+                        <Menu.Item
+                          key="delete"
+                          onClick={() => {
+                            setModuleToDelete(module);
+                            toggleDeleteModuleModal();
+                          }}
+                          style={{
+                            fontFamily: "Poppins, sans-serif",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            color: "#ff4d4f",
+                            padding: "8px 12px",
+                          }}
+                        >
+                          <img
+                            src={deleteModuleIcon}
+                            width={16}
+                            height={16}
+                            alt="edit"
+                            style={{ margin: "0 8px 3px 0" }}
+                          />
+                          Delete{" "}
+                          {localModules?.includes(module)
+                            ? module
+                            : module
+                                .replace(/([A-Z])/g, " $1")
+                                .replace(/^./, (str) => str.toUpperCase())}{" "}
+                          Module
+                        </Menu.Item>
+                      </Menu>
+                    }
+                    trigger={["click"]}
+                    placement="bottomRight"
+                  >
+                    <i className={`icon-More fs-21 cursor-pointer`}></i>
+                  </Dropdown>
+                </div>
+              )}
+              <div className="digitised-section">
+                {isProcessing ? (
+                  <div className="shimmer-container">
+                    <div className="shimmer"></div>
+                  </div>
+                ) : data.length > 0 ? (
+                  <ul>
+                    {data.map((item, index) => {
+                      // Measure the width of the editable text
+                      let textWidth = 0;
+                      let lineItemWidth = 0;
+
+                      // For name or other primary data (editableText)
+                      if (activeIndex === index && activeType === module) {
+                        const tempSpan = document.createElement("span");
+                        tempSpan.style.visibility = "hidden";
+                        tempSpan.style.position = "absolute";
+                        tempSpan.style.whiteSpace = "nowrap";
+                        tempSpan.innerText = editableText || "";
+                        document.body.appendChild(tempSpan);
+                        textWidth = tempSpan.offsetWidth || 200;
+                        document.body.removeChild(tempSpan);
+                      }
+
+                      // For lineItem (editableLineItem)
+                      if (
+                        activeIndex === index &&
+                        activeType === `${module}-lineItem`
+                      ) {
+                        const tempSpanLineItem = document.createElement("span");
+                        tempSpanLineItem.style.visibility = "hidden";
+                        tempSpanLineItem.style.position = "absolute";
+                        tempSpanLineItem.style.whiteSpace = "nowrap";
+                        tempSpanLineItem.innerText = editableLineItem || "";
+                        document.body.appendChild(tempSpanLineItem);
+                        lineItemWidth = tempSpanLineItem.offsetWidth;
+                        document.body.removeChild(tempSpanLineItem);
+                      }
+
+                      return (
+                        <li key={index}>
+                          <div className="medicine-item">
+                            {activeIndex === index && activeType === module ? (
+                              <input
+                                type="text"
+                                value={editableText}
+                                className="editable-digitised-item"
+                                onChange={handleInputChange}
+                                onBlur={() =>
+                                  handleInputBlur(module, index, true)
+                                }
+                                autoFocus
+                                style={{
+                                  width: `clamp(12px, ${
+                                    textWidth + 10
+                                  }px, 100%)`,
+                                }}
+                                onPaste={(e) => handlePaste(e, module)}
+                                onKeyDown={(e) =>
+                                  handleKeyDown(e, module, index)
+                                }
+                                ref={(el) => (inputRefs.current[index] = el)}
+                              />
+                            ) : (
+                              <span
+                                onClick={() =>
+                                  handleItemClick(module, index, true)
+                                }
+                                className="digitised-item"
+                              >
+                                {item}
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <textarea
+                    type="text"
+                    className="editable-digitised-item w-100"
+                    onChange={handleInputChange}
+                    onFocus={() => {
+                      setActiveType(module);
+                      setActiveIndex(0);
+                    }}
+                    onBlur={() => handleInputBlur(module, 0, true)}
+                    style={{ border: "none" }}
+                    rows={3}
+                    placeholder={`Enter ${module} details here`}
+                    onPaste={(e) => handlePaste(e, module)}
+                    onKeyDown={(e) => handleKeyDown(e, module, 0)}
+                  />
+                )}
+              </div>
+            </>
+          )
+        );
+      }
+    );
+  };
+
+  const handleAddModule = () => {
+    if (!newModuleName?.trim()) return;
+    const moduleName = newModuleName.trim();
+    setPrescriptionData((prevData) => {
+      const updatedData = { ...prevData };
+      if (!updatedData["dynamicFields"]) {
+        updatedData["dynamicFields"] = {};
+      }
+      // Add the new module to dynamicFields
+      updatedData["dynamicFields"][moduleName] = [];
+
+      return updatedData;
+    });
+
+    // Track the new module name
+    setLocalModules((prevModules) => [...prevModules, moduleName]);
+    initiallyPopulatedSectionsRef.current.add(`dynamicFields.${moduleName}`);
+    handleCancel();
+  };
+
+  const handleEditModule = (module) => {
+    if (updatedModuleName?.trim() && updatedModuleName !== module) {
+      const newModuleName = updatedModuleName.trim();
+      setPrescriptionData((prevData) => {
+        const updatedData = {
+          ...prevData,
+          dynamicFields: { ...prevData.dynamicFields },
+        };
+
+        updatedData.dynamicFields[newModuleName] =
+          updatedData.dynamicFields[module];
+
+        delete updatedData.dynamicFields[module];
+
+        return updatedData;
+      });
+
+      setLocalModules((prevModules) =>
+        prevModules.map((mod) => (mod === module ? newModuleName : mod))
+      );
+      
+      // Update the ref tracking
+      if (initiallyPopulatedSectionsRef.current.has(`dynamicFields.${module}`)) {
+        initiallyPopulatedSectionsRef.current.delete(`dynamicFields.${module}`);
+        initiallyPopulatedSectionsRef.current.add(`dynamicFields.${newModuleName}`);
+      }
+    }
+    handleCancelEdit();
+  };
+
+  const handleCancelEdit = () => {
+    setEditingModule("");
+    setUpdatedModuleName("");
+  };
+
+  const handleCancel = () => {
+    setShowInput(false);
+    setNewModuleName("");
+  };
 
   const checkDataFillOrNot = () => {
     // Track cross button click while recording (back button)
@@ -4706,6 +4896,103 @@ const ConsultationDrawer = ({
     }
   };
 
+  // Helper function to convert API medicalHistory format to CashManagerContext format
+  const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
+    if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
+      return existingContextData || [];
+    }
+
+    // Map API types to tmmhs_id: Lifestyle=1, Medical Condition=2, Family History=3, Allergies=4, Surgical History=5
+    const typeToIdMap = {
+      'Lifestyle': 1,
+      'Medical Condition': 2,
+      'Family History': 3,
+      'Allergies': 4,
+      'Surgical History': 5,
+      'lifestyle': 1,
+      'medical_condition': 2,
+      'family_history': 3,
+      'allergies': 4,
+      'surgical_history': 5
+    };
+
+    // Group by type
+    const groupedByType = {};
+    apiMedicalHistory.forEach(item => {
+      const type = item.type || 'Lifestyle';
+      const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
+      if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
+        return; 
+      }
+      const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
+      const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
+                         type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
+                         type === 'Family History' || normalizedType === 'family_history' ? 'Family History' :
+                         type === 'Allergies' || normalizedType === 'allergies' ? 'Allergies' :
+                         type === 'Surgical History' || normalizedType === 'surgical_history' ? 'Surgical History' : 'Lifestyle';
+      
+      if (!groupedByType[mappedType]) {
+        groupedByType[mappedType] = {
+          tmmhs_id: mappedType,
+          section_name: sectionName,
+          tags: []
+        };
+      }
+      let tagTitle = item.name || '';
+      let tagEnable = item.enable || 'Y';
+      if (!item.enable) {
+        const nameToCheck = item.name || item.lineItem || '';
+        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
+          tagTitle = nameToCheck.trim().substring(3); 
+          tagEnable = 'N';
+        }
+      }
+      
+      // Create tag object
+      const tag = {
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
+        note: item.notes || '',
+        since: item.duration || '',
+        status: 'Active',
+        relationship: item.relation || ''
+      };
+      
+      groupedByType[mappedType].tags.push(tag);
+    });
+
+    // Convert to array format
+    const medicalHistoryDataArray = Object.values(groupedByType);
+
+    // Merge with existing medicalHistoryData if available
+    if (existingContextData && existingContextData.length > 0) {
+      const merged = existingContextData.map(existingSection => {
+        const apiSection = groupedByType[existingSection.tmmhs_id];
+        if (apiSection) {
+          // Merge tags, avoiding duplicates
+          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
+          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
+          return {
+            ...existingSection,
+            tags: [...existingSection.tags, ...newTags]
+          };
+        }
+        return existingSection;
+      });
+
+      // Add sections that don't exist in existing data
+      Object.values(groupedByType).forEach(apiSection => {
+        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
+          merged.push(apiSection);
+        }
+      });
+
+      return merged;
+    } else {
+      return medicalHistoryDataArray;
+    }
+  }, []);
 
   return (
     <Drawer
@@ -4912,7 +5199,7 @@ const ConsultationDrawer = ({
                   type="button"
                   className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
                   onClick={onEndVisitClick}
-                  disabled={isPrescriptionDataEmpty(prescriptionData)}
+                  disabled={!prescriptionData}
                 >
                   <i className="icon-exit me-2"></i>
                   End Visit
@@ -5284,23 +5571,277 @@ const ConsultationDrawer = ({
                     className={styles.prescriptionSection}
                     style={{ width: `${100 - leftWidthPercent}%` }}
                   >
-                    <DigitisedPrescription
-                      data={prescriptionData || {}}
-                      setData={setPrescriptionData}
-                      loading={false}
+                      <div className={styles.rxPadHeader}>
+                        <img src={require("../assets/images/document-normal.svg").default} alt="Rx Pad" className={styles.rxPadIcon} />
+                        <span className={styles.rxPadTitle}>Rx Pad</span>
+                      </div>
+                      
+                    {isProcessing ? (
+                      <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
+                        <GenRXLoaders
                           isProcessing={isProcessing}
                           showAbsHeaderInsideLoader={false}
-                      initiallyPopulatedSectionsRef={initiallyPopulatedSectionsRef}
-                      initialMedicalHistoryTypes={Array.from(
-                        initiallyPopulatedMedicalHistoryTypesRef.current
-                      )}
-                      localModules={localModules}
-                      setLocalModules={setLocalModules}
-                      onAdviceUpdate={handleAdviceUpdate}
-                      onFollowUpUpdate={handleFollowUpUpdate}
-                      onOthersUpdate={handleAdditionalNotesUpdate}
-                      onRxEdited={setIsRxEdited}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className={`${styles.rightSection} ${
+                          isProcessing ? styles.gradientBorder : ""
+                        }`}
+                        style={{
+                          background: isProcessing ? `url(${genRxBg})` : "",
+                        }}
+                      >
+                        {showInstructionMessage && (
+                          <div className={styles.rxPadInstruction}>
+                            <div className={styles.instructionIcon}>
+                              <img src={require("../assets/images/danger.svg").default} alt="Warning" className={styles.dangerIcon} />
+                            </div>
+                            <div className={styles.instructionText}>
+                              Dictate the Rx or start a conversation with Ambient Rx I'll automatically fill these below Rx details so you can stay focused on the patient.
+                            </div>
+                            <button 
+                              className={styles.closeButton}
+                              onClick={() => setShowInstructionMessage(false)}
+                              aria-label="Close instruction message"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        
+                        {(initiallyPopulatedSectionsRef.current.has('vitalsAndBodyComposition') ||
+                          (prescriptionData?.vitalsAndBodyComposition &&
+                          typeof prescriptionData.vitalsAndBodyComposition === 'object' && 
+                          prescriptionData.vitalsAndBodyComposition !== null && 
+                          Object.values(prescriptionData.vitalsAndBodyComposition).some(value => 
+                            value !== undefined && value !== null && value !== ''
+                            ))) && (
+                            <VitalsRichTextEditor
+                              vitalsAndBodyComposition={prescriptionData?.vitalsAndBodyComposition || {}}
+                              onUpdate={handleVitalsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('medicalHistory') ||
+                          (prescriptionData?.medicalHistory &&
+                          Array.isArray(prescriptionData.medicalHistory) && 
+                            prescriptionData.medicalHistory.length > 0)) && (
+                            <MedicalHistoryRichTextEditor
+                              medicalHistory={prescriptionData?.medicalHistory || []}
+                              onUpdate={handleMedicalHistoryUpdate}
+                              isProcessing={isProcessing}
+                              initiallyPopulatedTypes={Array.from(initiallyPopulatedMedicalHistoryTypesRef.current)}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('symptoms') ||
+                          (prescriptionData?.symptoms &&
+                          Array.isArray(prescriptionData.symptoms) && 
+                            prescriptionData.symptoms.length > 0)) && (
+                            <SymptomsRichTextEditor
+                              symptoms={prescriptionData?.symptoms || []}
+                              onUpdate={handleSymptomsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('examinations') ||
+                          (prescriptionData?.examinations &&
+                          Array.isArray(prescriptionData.examinations) && 
+                            prescriptionData.examinations.length > 0)) && (
+                            <ExaminationRichTextEditor
+                              examinations={prescriptionData?.examinations || []}
+                              onUpdate={handleExaminationsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('diagnosis') ||
+                          (prescriptionData?.diagnosis &&
+                          Array.isArray(prescriptionData.diagnosis) && 
+                            prescriptionData.diagnosis.length > 0)) && (
+                            <DiagnosisRichTextEditor
+                              diagnosis={prescriptionData?.diagnosis || []}
+                              onUpdate={handleDiagnosisUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('medications') ||
+                          (prescriptionData?.medications &&
+                          Array.isArray(prescriptionData.medications) && 
+                          prescriptionData.medications.length > 0)) && (
+                            <MedicationsTable
+                              medications={prescriptionData?.medications || []}
+                              onUpdate={handleMedicationsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('labInvestigation') ||
+                          (prescriptionData?.labInvestigation &&
+                          Array.isArray(prescriptionData.labInvestigation) && 
+                          prescriptionData.labInvestigation.length > 0)) && (
+                            <LabInvestigationTable
+                              labInvestigation={prescriptionData?.labInvestigation || []}
+                              onUpdate={handleInvestigationUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('labResults') ||
+                          (prescriptionData?.labResults &&
+                          Array.isArray(prescriptionData.labResults) && 
+                            prescriptionData.labResults.length > 0)) && (
+                            <LabResultsRichTextEditor
+                              labResults={prescriptionData?.labResults || []}
+                              onUpdate={handleLabResultsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('advice') ||
+                          (prescriptionData?.advice &&
+                            ((typeof prescriptionData.advice === 'string' && prescriptionData.advice.trim()) ||
+                              (Array.isArray(prescriptionData.advice) && prescriptionData.advice.length > 0)))) && (
+                            <AdviceRichTextEditor
+                              advice={prescriptionData?.advice 
+                                ? (typeof prescriptionData.advice === 'string' 
+                                    ? [{ lineItem: prescriptionData.advice }]
+                                    : prescriptionData.advice.map(adv => 
+                                        typeof adv === 'string' 
+                                          ? { lineItem: adv }
+                                          : adv
+                                      ))
+                                : []}
+                              onUpdate={handleAdviceUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+
+                        {(initiallyPopulatedSectionsRef.current.has('vaccinations') ||
+                          (prescriptionData?.vaccinations &&
+                            Array.isArray(prescriptionData.vaccinations) && 
+                            prescriptionData.vaccinations.length > 0)) && (
+                            <VaccinationsRichTextEditor
+                              vaccinations={prescriptionData?.vaccinations || []}
+                              onUpdate={handleVaccinationsUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+                        {(initiallyPopulatedSectionsRef.current.has('others') ||
+                          (prescriptionData?.others &&
+                          Array.isArray(prescriptionData.others) && 
+                            prescriptionData.others.length > 0)) && (
+                            <AdditionalNotesRichTextEditor
+                              others={prescriptionData?.others || []}
+                              onUpdate={handleAdditionalNotesUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+                        {(initiallyPopulatedSectionsRef.current.has('followUp') ||
+                          (prescriptionData?.followUp &&
+                          typeof prescriptionData.followUp === 'string' && 
+                            prescriptionData.followUp.trim())) && (
+                            <FollowUpRichTextEditor
+                              followUp={prescriptionData?.followUp || ''}
+                              onUpdate={handleFollowUpUpdate}
+                              isProcessing={isProcessing}
+                            />
+                          )}
+                        
+                        {/* Render Custom Modules */}
+                        {prescriptionData?.dynamicFields && 
+                          Object.entries(prescriptionData.dynamicFields).map(([moduleName, moduleData]) => {
+                            const isInitiallyPopulated = initiallyPopulatedSectionsRef.current.has(`dynamicFields.${moduleName}`);
+                            const hasContent = Array.isArray(moduleData) && moduleData.length > 0;
+                            
+                            if (!isInitiallyPopulated && !hasContent) {
+                              return null;
+                            }
+                            
+                            const isLocalModule = localModules?.includes(moduleName);
+                            
+                            return (
+                              <CustomModuleRichTextEditor
+                                key={moduleName}
+                                moduleName={moduleName}
+                                moduleData={moduleData || []}
+                                onUpdate={(moduleArray) => handleCustomModuleUpdate(moduleName, moduleArray)}
+                                onDelete={(module) => {
+                                  setModuleToDelete(module);
+                                  toggleDeleteModuleModal();
+                                }}
+                                onEdit={(module) => {
+                                  setEditingModule(module);
+                                  setUpdatedModuleName(module);
+                                }}
+                                isProcessing={isProcessing}
+                                isLocalModule={isLocalModule}
+                                editingModule={editingModule}
+                                updatedModuleName={updatedModuleName}
+                                onEditNameChange={setUpdatedModuleName}
+                                onEditSave={() => handleEditModule(editingModule)}
+                                onEditCancel={handleCancelEdit}
                               />
+                            );
+                          })}
+                        
+                        {showInput && (
+                          <>
+                            <div className="d-flex justify-content-between align-items-center mb-4">
+                              <Input
+                                placeholder="Enter custom module name"
+                                value={newModuleName}
+                                onChange={(e) =>
+                                  setNewModuleName(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddModule();
+                                  }
+                                }}
+                                className="custom-module-input"
+                              />
+                              <>
+                                <CheckOutlined
+                                  className="input-action-icon tick-icon"
+                                  onClick={handleAddModule}
+                                />
+                                <CloseOutlined
+                                  className="input-action-icon cross-icon"
+                                  onClick={handleCancel}
+                                />
+                              </>
+                            </div>
+                          </>
+                        )}
+                        <div
+                          className="cta-container mt-4 mb-4"
+                          onClick={() => setShowInput(true)}
+                        >
+                          <Button
+                            type="link"
+                            icon={<PlusOutlined />}
+                            className="add-custom-module-link"
+                          >
+                            Add Custom Module
+                          </Button>
+                        </div>
+                        <div className={styles.disclaimer}>
+                          <span style={{ fontWeight: 500 }}>Disclaimer:</span>{" "}
+                          Our AI model aims to be accurate, but sometimes it
+                          might make mistakes. Please double-check all details
+                          to ensure they are correct and complete.
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div
                     className={styles.dividerHandle}
@@ -5311,7 +5852,7 @@ const ConsultationDrawer = ({
                     </div>
                   </div>
                 </div>
-              )}
+            ) : null}
               <CommonModal
                 isModalOpen={isBackModalOpen}
                 onCancel={showHideBackModal}

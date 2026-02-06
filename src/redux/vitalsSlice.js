@@ -108,47 +108,18 @@ const vitalsSlice = createSlice({
             .addCase(getVitals.fulfilled, (state, action) => {
                 state.loading = false;
 
-                const deduplicateByDate = (vitals) => {
-                    const vitalsByDate = {};
-                    vitals.forEach(vital => {
-                        const dateKey = vital.date;
-                        const existing = vitalsByDate[dateKey];
-                        
-                        if (!existing) {
-                            vitalsByDate[dateKey] = vital;
-                        } else if ((vital.tcv_id > 0 || vital.tcbc_id > 0) && (existing.tcv_id === 0 && existing.tcbc_id === 0)) {
-                            vitalsByDate[dateKey] = vital;
-                        } else if ((existing.tcv_id > 0 || existing.tcbc_id > 0) && (vital.tcv_id === 0 && vital.tcbc_id === 0)) {
-                            // Keep existing
-                        } else {
-                            const existingId = Number(existing.tcv_id || 0);
-                            const vitalId = Number(vital.tcv_id || 0);
-                            if (vitalId > existingId) {
-                                vitalsByDate[dateKey] = vital;
-                            } else if (vitalId === existingId) {
-                                const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0).length;
-                                const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0).length;
-                                if (vitalDataCount > existingDataCount) {
-                                    vitalsByDate[dateKey] = vital;
-                                }
-                            }
-                        }
-                    });
-                    return Object.values(vitalsByDate);
-                };
-
                 if (action.meta.arg.mode === ADD && action.meta.arg.pam_id !== 0) {
                     const updatedWithPamId = action.payload.filter((e) =>
                         e.pam_id == action.meta.arg.pam_id
                     );
-                    state.selectedVitalsList = deduplicateByDate(updatedWithPamId);
+                    state.selectedVitalsList = [...updatedWithPamId];
 
                     const updatedWithoutPamId = action.payload.filter((e) =>
                         e.pam_id != action.meta.arg.pam_id
                     );
-                    state.vitalsPastList = deduplicateByDate(updatedWithoutPamId);
+                    state.vitalsPastList = [...updatedWithoutPamId];
                 } else {
-                    state.vitalsPastList = deduplicateByDate(action.payload);
+                    state.vitalsPastList = action.payload
                 }
             })
             .addCase(getVitals.rejected, (state) => {

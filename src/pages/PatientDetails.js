@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Button, Spin, Drawer } from "antd";
 import { isMobile } from 'react-device-detect';
@@ -38,8 +38,7 @@ import UploadDocument from "./medicalRecords/UploadDocument";
 import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import { fetchPrintSetting } from "./opdBilling/service";
-import { setBillPrintSettings } from "../redux/billingSlice";
-import ApiVitals from "../api/services/ApiVitals";
+import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
 
 const { Sider, Content } = Layout;
 
@@ -81,10 +80,9 @@ function PatientDetails() {
     const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
     const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
     const [isEditDocument, setIsEditDocument] = useState(false);
-    const [apiVitals, setApiVitals] = useState([]);
     const abhaRecordsRef = useRef(null);
     const [abhaHeaderActions, setAbhaHeaderActions] = useState(null);
-    const [abhaConsentsCount, setAbhaConsentsCount] = useState(0);
+    const [abhaConsentsCount, setAbhaConsentsCount] = useState(null);
     const [patientAdmissionStatus, setPatientAdmissionStatus] = useState(null);
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
 
@@ -164,94 +162,32 @@ function PatientDetails() {
     }
     }, []);
 
-    const fetchApiVitals = useCallback(async () => {
-        if (patient_data?.patient_unique_id) {
-            try {
-                const sendData = {
-                    patient_unique_id: patient_data.patient_unique_id,
-                    pam_id: patient_data.pam_id || 0,
-                    mode: 'ADD',
-                    pm_pid: patient_data.pm_pid || '',
-                    pm_id: patient_data.pm_id || 0
-                };
-                const response = await ApiVitals.getVitals(sendData);
-                if (response?.status && response?.data?.length > 0) {
-                    setApiVitals(response.data);
-                } else {
-                    setApiVitals([]);
-                }
-            } catch (error) {
-                console.error('Error fetching vitals:', error);
-            }
-        }
-    }, [patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
-
+    // Check patient admission status on mount
     useEffect(() => {
-        fetchApiVitals();
-    }, [fetchApiVitals]);
-
-    // Refetch vitals when viewing different visits (tcmData changes)
-    useEffect(() => {
-        fetchApiVitals();
-    }, [tcmData.tcm_id, fetchApiVitals]);
-
-    // Refetch vitals when page comes back into focus (user navigates back from prescription page)
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                fetchApiVitals();
-            }
-        };
-        const handleFocus = () => {
-            fetchApiVitals();
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('focus', handleFocus);
-        
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('focus', handleFocus);
-        };
-    }, [fetchApiVitals]);
-
-    const mergedVitals = useMemo(() => {
-        const caseManagerVitals = viewCaseManagerData?.vitals || [];
-        const allVitals = [...caseManagerVitals, ...apiVitals];
-        const uniqueVitalsByDate = allVitals.reduce((acc, vital) => {
-            const date = vital.date;
-            const existing = acc[date];
-            
-            if (!existing) {
-                acc[date] = vital;
-            } else {
-                // Compare by createdAt timestamp first
-                const existingDate = new Date(existing.createdAt || existing.date);
-                const vitalDate = new Date(vital.createdAt || vital.date);
-                
-                if (vitalDate > existingDate) {
-                    acc[date] = vital;
-                } else if (vitalDate.getTime() === existingDate.getTime()) {
-                    // If dates are the same, compare by tcv_id (higher = more recent)
-                    const existingTcvId = parseInt(existing.tcv_id) || 0;
-                    const vitalTcvId = parseInt(vital.tcv_id) || 0;
-                    
-                    if (vitalTcvId > existingTcvId) {
-                        acc[date] = vital;
-                    } else if (vitalTcvId === existingTcvId) {
-                        // If tcv_id is also same, prefer the one with more data
-                        const existingDataCount = Object.values(existing).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                        const vitalDataCount = Object.values(vital).filter(v => v && v !== '' && v !== 0 && v !== null).length;
-                        if (vitalDataCount > existingDataCount) {
-                            acc[date] = vital;
-                        }
+        const checkAdmissionStatus = async () => {
+            const patientId = patient_data?.patient_unique_id || patient_data?.pm_pid || "";
+            if (patientId) {
+                setIsCheckingAdmission(true);
+                try {
+                    const result = await dispatch(
+                        checkPatientAdmitted({
+                            patientId: patientId,
+                        })
+                    );
+                    if (result.payload) {
+                        setPatientAdmissionStatus(result.payload);
                     }
+                } catch (error) {
+                    console.warn("Could not check patient admission status:", error);
+                    setPatientAdmissionStatus(null);
+                } finally {
+                    setIsCheckingAdmission(false);
                 }
             }
-            return acc;
-        }, {});
-        return Object.values(uniqueVitalsByDate).sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [viewCaseManagerData?.vitals, apiVitals]);
+        };
+
+        checkAdmissionStatus();
+    }, [patient_data?.patient_unique_id, patient_data?.pm_pid, dispatch]);
 
     const getBillPrintSettings = async () => {
         const printSettingsResponse = await fetchPrintSetting(userId);
@@ -358,12 +294,8 @@ function PatientDetails() {
                             <div className="appointment-wrap PatientDetailsPageWrap">
                                 <div className='row'>
                                     <div className='col-lg-5 col-md-12 col-12'>
-                                        {(mergedVitals.length > 0 || viewCaseManagerData?.patient_birth_weight) && (
-                                            <VitalsBodyComposition 
-                                                loading={loading} 
-                                                passVitals={mergedVitals.slice(0, 2)} 
-                                                patientBirthWeight={viewCaseManagerData?.patient_birth_weight} 
-                                            />
+                                        {viewCaseManagerData && (viewCaseManagerData?.vitals?.length > 0 || viewCaseManagerData?.patient_birth_weight) && (
+                                            <VitalsBodyComposition loading={loading} passVitals={viewCaseManagerData ? [...viewCaseManagerData.vitals].slice(0, 2) : viewCaseManagerData} patientBirthWeight={viewCaseManagerData?.patient_birth_weight} />
                                         )}
                                         
                                         <MedicalHistory loading={loading} medicalHistoryData={viewCaseManagerData?.medical_history} doctorId={viewCaseManagerData?.doctor_data?.um_id} />

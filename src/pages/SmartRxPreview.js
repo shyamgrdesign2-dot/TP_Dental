@@ -60,30 +60,8 @@ function SmartRxPreview() {
     const { state } = useLocation();
     const { patient_data, isDigitiseRxSubmit} = state
 
-    const buildUrlWithLanguage = (url, language) => {
-        if (!url) return null;
-        try {
-            const urlObj = new URL(url);
-            urlObj.searchParams.delete('lg');
-            if (language) {
-                const encodedData = btoa(language.toString());
-                urlObj.searchParams.set('lg', encodedData);
-            }
-            return urlObj.toString();
-        } catch (error) {
-            console.error('Invalid print URL:', error);
-            return url;
-        }
-    };
-
-    const initialLanguage = defaultPrintSettings?.default_language || 1;
-
-    const [selectedLang, setSelectedLang] = useState(initialLanguage);
-    const basePrintUrl = state?.print_url || null;
-    const initialUrl = basePrintUrl ? buildUrlWithLanguage(basePrintUrl, initialLanguage) : null;
-
-    const [printUrl, setPrintUrl] = useState(initialUrl);
-    const [previewUrl, setPreviewUrl] = useState(initialUrl);
+    const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}` : null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);

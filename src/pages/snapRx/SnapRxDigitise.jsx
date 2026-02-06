@@ -4,10 +4,13 @@ import { Row, Col, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
-import documentIcon from "../../assets/images/document-normal.svg";
+import Card from "react-bootstrap/Card";
+import writtenRxIcon from "../../assets/images/written-rx.svg";
+import digitiseRxIcon from "../../assets/images/digitise-rx.svg";
+import cvtInfoIcon from "../../assets/images/cvt-info.svg";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
-import { getInvestigationAndMedicine, addCaseManager, editCaseManager } from "../../redux/caseManagerSlice";
+import { getInvestigationAndMedicine } from "../../redux/caseManagerSlice";
 import { placeIctOrder } from "../../redux/appointmentsSlice";
 import { env } from "../../EnvironmentConfig";
 import HeaderSmartRxDigitise from "../../common/HeaderSmartRxDigitise";
@@ -19,14 +22,9 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
-import ApiVitals from "../../api/services/ApiVitals";
-import { addPatientLabReports } from "../../api/services/ApiLabParams";
-import { mapLabResultsToStandardized } from "../../utils/mapLabResults";
-import moment from "moment";
-import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
-import CashManagerContext from "../../context/CashManagerContext";
 
 function SnapRxDigitise() {
+  const divRef = useRef(null);
   // Minimal resizable split state
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
@@ -51,12 +49,10 @@ function SnapRxDigitise() {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
+  const [divWidth, setDivWidth] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const smartRxFile = smartRxFilesData;
-  
-  const [medicalHistoryData, setMedicalHistoryData] = useState([]);
-  const [vitalsData, setVitalsData] = useState([]);
+  const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
 
   const baseUrlRxDigitise = env.digitization_api_url;
 
@@ -64,117 +60,15 @@ function SnapRxDigitise() {
   const normalizeEditedFlag = useCallback((src) => {
     if (!src || typeof src !== "object") return src;
     const meds = Array.isArray(src.medications) ? src.medications : [];
-
-    const vitalsSource = src.vitalsAndBodyComposition || src.vitals;
-    const mappedVitals = vitalsSource
-      ? {
-          temperature: vitalsSource.temperature || vitalsSource.temp || vitalsSource.Temp || "",
-          pulse: vitalsSource.pulse || vitalsSource.Pulse || vitalsSource.pres || "",
-          respRate: vitalsSource.respRate || vitalsSource.resp_rate || vitalsSource.respRate || vitalsSource.RespRate || vitalsSource.Resp_rate || "",
-          Systolic: vitalsSource.Systolic || vitalsSource.systolic || "",
-          Diastolic: vitalsSource.Diastolic || vitalsSource.diastolic || "",
-          bloodPressure: vitalsSource.bloodPressure || vitalsSource.blood_press || "",
-          spo2: vitalsSource.spo2 || vitalsSource.SPO2 || "",
-          height: vitalsSource.height || "",
-          weight: vitalsSource.weight || "",
-          ofc: vitalsSource.ofc || vitalsSource.OFC || "",
-          sugar: vitalsSource.sugar || vitalsSource.Sugar || "",
-          general_rbs: vitalsSource.general_rbs || vitalsSource.GeneralRBS || vitalsSource["General RBS"] || "",
-          fib4: vitalsSource.fib4 || vitalsSource.FIB4 || "",
-          waist_circumference: vitalsSource.waist_circumference || vitalsSource.WaistCircumference || "",
-          BMI: vitalsSource.BMI || vitalsSource.bmi || "",
-          BMR: vitalsSource.BMR || vitalsSource.bmr || "",
-          BSA: vitalsSource.BSA || vitalsSource.bsa || "",
-        }
-      : null;
-
-    const normalized = {
+    return {
       ...src,
       medications: meds.map((m) => ({ ...m, edited: false })),
-      ...(mappedVitals ? { vitalsAndBodyComposition: mappedVitals } : {}),
     };
-    
-    if (normalized.vitalsAndBodyComposition && Object.keys(normalized.vitalsAndBodyComposition).length > 0) {
-      const patientInfo = patient_data ? {
-        age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-        gender: patient_data.pm_gender || patient_data.gender
-      } : {};
-      normalized.vitalsAndBodyComposition = enrichVitalsWithCalculations(
-        normalized.vitalsAndBodyComposition,
-        patientInfo
-      );
-    }
-    
-    // Map lab results to standardized names (matching sidebar)
-    if (Array.isArray(normalized.labResults) && normalized.labResults.length > 0) {
-      normalized.labResults = mapLabResultsToStandardized(normalized.labResults);
-    }
-    
-    return normalized;
-  }, [patient_data]);
-
-  const formatMedicalHistoryForApi = useCallback((contextMedicalHistory = []) => {
-    if (!Array.isArray(contextMedicalHistory) || contextMedicalHistory.length === 0) {
-      return [];
-    }
-
-    return contextMedicalHistory.map((section) => ({
-      title: section?.title || section?.section_name || "",
-      tmmhs_id: section?.tmmhs_id || 0,
-      no_know_history: section?.no_know_history !== undefined ? section?.no_know_history : false,
-      tags:
-        !section?.no_know_history && Array.isArray(section?.tags)
-          ? section.tags
-              .filter((tag) => tag?.enable === "Y" || tag?.enable === "N")
-              .map((tag) => ({
-                tmmhst_id: tag?.tmmhst_id || 0,
-                title: tag?.title || "",
-                pms_default: tag?.pms_default || 0,
-                since: tag?.since || "",
-                status: tag?.status || "",
-                medication: tag?.medication || "",
-                note: tag?.note || "",
-                enable: tag?.enable || "Y",
-                relationship: tag?.relationship || "",
-              }))
-          : [],
-    }));
   }, []);
 
-  const formatLabResultsForApi = useCallback((labResults = []) => {
-    if (!Array.isArray(labResults) || labResults.length === 0) return [];
-    const today = moment().format("YYYY-MM-DD");
-    const groupedByDate = {};
-    labResults.forEach((result = {}) => {
-      const dateKey = result.date || today;
-      const testname = result.testname || result.name || "Result";
-      const value = result.value || "";
-      const units = result.units || "";
-      if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
-      // Extract value and units from display format (e.g., "23 mg/dl" -> value: "23", units: "mg/dl")
-      let cleanValue = value;
-      let cleanUnits = units;
-      if (value && !units) {
-        const parts = String(value).trim().split(/\s+/);
-        if (parts.length > 1) {
-          cleanValue = parts.slice(0, -1).join(" ");
-          cleanUnits = parts[parts.length - 1];
-        }
-      }
-      groupedByDate[dateKey].push({
-        reportName: result.reportName || "",
-        testName: testname,
-        value: cleanValue,
-        units: cleanUnits,
-        refRange: result.refRange || "",
-        arrowDirection: result.arrowDirection || "",
-      });
-    });
-    return Object.entries(groupedByDate).map(([date, inputs]) => ({
-      date,
-      inputs: inputs.filter(input => input.value && input.value.trim() !== ""),
-    })).filter(result => result.inputs.length > 0);
-  }, []);
+  useEffect(() => {
+    setDivWidth(divRef.current?.offsetWidth);
+  }, [divRef]);
 
   const onMouseMoveResizer = useCallback((e) => {
     if (!isResizingRef.current || !splitRef.current) return;
@@ -198,20 +92,17 @@ function SnapRxDigitise() {
     document.addEventListener("mouseup", stopResizing);
   }, [onMouseMoveResizer, stopResizing]);
 
-
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state?.type === "new") {
+    if (smartRxFile?.length > 0 && token && state.type === "new") {
       digitizeRx();
-    } else if (state?.type === "edit" && digitisedData) {
+    } else if (state.type === "edit" && digitisedData) {
       setData(normalizeEditedFlag(digitisedData?.editedData));
       setIsLoading(false);
-    } else if (state?.type === "review" && digitisedData) {
+    } else if (state.type === "review" && digitisedData) {
       setData(normalizeEditedFlag(digitisedData?.refinedData));
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, smartRxFile, digitisedData, state?.type]);
-
+  }, [token, smartRxFile, digitisedData]);
 
   useEffect(() => {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -296,8 +187,8 @@ function SnapRxDigitise() {
             consultation_id: state?.tcm_id,
             doctor_id: getDecodedToken()?.user_id,
           });
-        const isGroundingAccessable =
-          tokenData?.hospital_business_id === env.zydus_business_id &&
+        const isGroundingAccessableForZydus =
+          tokenData?.hospital_business_id == env.zydus_business_id &&
           isZydusUserAccessableFromGB;
 
         // Call placeIctOrder for Zydus users
@@ -313,7 +204,7 @@ function SnapRxDigitise() {
           if (actionIM.meta.requestStatus === "fulfilled") {
             
             let zydusSendData = {
-              action: tcm_id === 0 ? "add" : "edit",
+              action: tcm_id == 0 ? "add" : "edit",
               tcmId: tcm_id,
               siteId: siteId,
               departmentId: patient_data?.departmentId,
@@ -337,181 +228,6 @@ function SnapRxDigitise() {
           }
         }
 
-        // Fetch vitals for case manager payload 
-        let vitalsForCase = [];
-        try {
-          const vitalsResp = await ApiVitals.getVitals({
-            patient_unique_id: patient_data?.patient_unique_id || 0,
-            pam_id: patient_data?.pam_id || pam_id || 0,
-            mode: "ADD",
-            pm_pid: patient_data?.pm_pid || 0,
-            pm_id: patient_data?.pm_id || 0,
-          });
-          if (vitalsResp?.status && Array.isArray(vitalsResp.data) && vitalsResp.data.length > 0) {
-            const byDate = {};
-            vitalsResp.data.forEach((v) => {
-              const dateKey = v.date || moment().format("YYYY-MM-DD");
-              if (!byDate[dateKey]) {
-                byDate[dateKey] = v;
-              }
-            });
-            const patientInfo = patient_data ? {
-              age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-              gender: patient_data.pm_gender || patient_data.gender
-            } : {};
-            vitalsForCase = Object.values(byDate).map(v => enrichVitalsWithCalculations(v, patientInfo));
-          }
-          
-          // Merge Rx pad vitals with fetched vitals (which include sidebar edits)
-          if (data?.vitalsAndBodyComposition && Object.keys(data.vitalsAndBodyComposition).length > 0) {
-            const sanitizeVitalsValue = (key, value) => {
-              if (value === undefined || value === null) return "";
-              const str = String(value).trim();
-              if (key === 'bloodPressure' || key === 'blood_press') {
-                return str.replace(/[^0-9/.-]/g, '').replace(/\/+/g, '/');
-              }
-              return str.replace(/[^0-9.\-]/g, '');
-            };
-            const cleanVitals = Object.fromEntries(
-              Object.entries(data.vitalsAndBodyComposition || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
-            );
-
-            let systolic = cleanVitals.Systolic || cleanVitals.systolic || '';
-            let diastolic = cleanVitals.Diastolic || cleanVitals.diastolic || '';
-            let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
-            
-            if (blood_press && !systolic && !diastolic) {
-              const bpParts = String(blood_press).split('/');
-              if (bpParts.length === 2) {
-                systolic = bpParts[0].trim();
-                diastolic = bpParts[1].trim();
-              }
-            } else if (!blood_press && systolic && diastolic) {
-              blood_press = `${systolic}/${diastolic}`;
-            }
-            
-            const today = moment().format('YYYY-MM-DD');
-            const patientInfo = patient_data ? {
-              age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
-              gender: patient_data.pm_gender || patient_data.gender
-            } : {};
-            
-            const rxPadVital = {
-              date: today,
-              temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
-              pres: String(cleanVitals.pulse || cleanVitals.pres || '').trim(),
-              resp_rate: String(cleanVitals.respRate || cleanVitals.resp_rate || '').trim(),
-              systolic: String(systolic).trim(),
-              diastolic: String(diastolic).trim(),
-              blood_press: String(blood_press).trim(),
-              spo2: String(cleanVitals.spo2 || cleanVitals.SPO2 || '').trim(),
-              height: String(cleanVitals.height || cleanVitals.Height || '').trim(),
-              weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
-              ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
-              sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
-              general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
-              fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
-              waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
-              bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
-              bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
-              bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim()
-            };
-            
-            const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
-            const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format("YYYY-MM-DD")) === today);
-            
-            if (existingTodayIndex >= 0) {
-              const existing = vitalsForCase[existingTodayIndex];
-              const merged = { ...existing };
-              Object.keys(enrichedRxPadVital).forEach(key => {
-                if (key !== 'date' && key !== 'tcv_id' && key !== 'tcbc_id' && key !== 'dev_unique_id' && key !== 'pam_id') {
-                  const rxValue = enrichedRxPadVital[key];
-                  if (rxValue !== undefined && rxValue !== null && String(rxValue).trim() !== '') {
-                    merged[key] = rxValue;
-                  }
-                }
-              });
-              vitalsForCase[existingTodayIndex] = merged;
-            } else {
-              vitalsForCase.push(enrichedRxPadVital);
-            }
-            
-            // Save merged vitals to API
-            if (patient_data?.patient_unique_id) {
-              const mergedVitalsArray = existingTodayIndex >= 0 ? [vitalsForCase[existingTodayIndex]] : [enrichedRxPadVital];
-              await ApiVitals.addUpdateVitals({
-                patient_unique_id: patient_data.patient_unique_id,
-                pm_pid: patient_data.pm_pid || 0,
-                pm_id: patient_data.pm_id || 0,
-                pam_id: patient_data.pam_id || 0,
-                patient_birth_weight: null,
-                data: mergedVitalsArray
-              });
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching vitals for case manager payload:", err);
-        }
-
-        // Save medical history if it exists in the consultation
-        const labResultsDataForApi = formatLabResultsForApi(data?.labResults || []);
-        
-        // Save lab results to API
-        if (labResultsDataForApi.length > 0 && patient_data?.patient_unique_id) {
-          try {
-            const decodedToken = getDecodedToken();
-            const doctorId = decodedToken?.result?.user_id;
-            const payload = {
-              patientId: patient_data.patient_unique_id,
-              doctorId: doctorId,
-              results: labResultsDataForApi,
-            };
-            await addPatientLabReports(payload);
-          } catch (err) {
-            console.error("Error saving lab results to API:", err);
-          }
-        }
-
-        const hasTcm = tcm_id !== undefined && tcm_id !== null;
-        if (hasTcm && patient_data?.patient_unique_id && ((Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) || labResultsDataForApi.length > 0 || vitalsForCase.length > 0)) {
-          try {
-            const formattedMedicalHistory = formatMedicalHistoryForApi(medicalHistoryData);
-            if (formattedMedicalHistory.length > 0 || labResultsDataForApi.length > 0 || vitalsForCase.length > 0) {
-              const consultationDate = moment().format("YYYY-MM-DD HH:mm:ss");
-              const smartFileName =
-                smartRxFilesData?.[0]?.smart_prescription_filename ||
-                smartRxFilesData?.[0]?.filename ||
-                smartRxFilesData?.[0]?.name ||
-                data?.rxDigitizeEditedData?.fileName ||
-                data?.fileName ||
-                "";
-
-              const sendData = {
-                action: tcm_id === 0 ? "add" : "edit",
-                tcm_id: tcm_id,
-                patient_unique_id: patient_data.patient_unique_id,
-                pam_id: patient_data?.pam_id || pam_id || 0,
-                consultation_date: consultationDate,
-                ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
-                ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
-                ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
-                ...(smartFileName ? { smart_prescription_filename: smartFileName } : {}),
-              };
-
-              const updateAction =
-                tcm_id === 0
-                  ? await dispatch(addCaseManager(sendData))
-                  : await dispatch(editCaseManager(sendData));
-
-              if (updateAction.meta.requestStatus !== "fulfilled") {
-                console.error("Error saving medical history:", updateAction.error);
-              }
-            }
-          } catch (error) {
-            console.error("Error saving medical history to API:", error);
-          }
-        }
-        
         // // Navigate based on isCustomSSRX flag
         // if (isCustomSSRX) {
         //   navigate("/smart-rx/preview", {
@@ -575,141 +291,190 @@ function SnapRxDigitise() {
     }
   };
 
-  const contextApi = {
-    patient_data,
-    tcmId: tcm_id,
-    pamId: pam_id || patient_data?.pam_id || 0,
-    consultationDate: moment().format("YYYY-MM-DD HH:mm:ss"),
-    medicalHistoryData,
-    setMedicalHistoryData,
-    vitalsData,
-    setVitalsData,
-  };
-
   return (
-    <CashManagerContext.Provider value={contextApi}>
-      <div style={{ minHeight: "100vh" }}>
-        <HeaderSmartRxDigitise
-          onSave={handleSave}
-          isDigitiseRxLoading={isLoading}
-          patient_data={patient_data}
-          isSnapRx={true}
-        />
-        <div
-          ref={splitRef}
-          className={`${
-            isMobile ? "p-0" : ""
-          } w-100 bg-body prescription-wrapper srx-drx-container`}
-          style={{ position: "relative" }}
-        >
-          <Row gutter={0} justify="center" wrap={false}>
-            <Col
-              md={17}
-              lg={17}
-              xl={10}
-              style={{
-                flex: `0 0 ${leftWidthPercent}%`,
-                maxWidth: `${leftWidthPercent}%`,
-                padding: 0,
-              }}
-            >
-              <div className="snap-smart-left-panel">
-                <div className="snap-smart-left-content">
-                  {loading ? (
-                    <div className="d-flex flex-column justify-content-center align-items-center h-100">
-                      <Spin />
-                    </div>
-                  ) : (
-                    smartRxFile?.length > 0 &&
-                    smartRxFile?.map(({ fileUrl, smart_prescription_file }) => (
-                      <div key={fileUrl || smart_prescription_file}>
-                        {(isCustomSSRX ? smart_prescription_file : fileUrl) && (
-                          <img
-                            src={isCustomSSRX ? smart_prescription_file : fileUrl}
-                            alt="Smart Rx"
-                            className="written-rx-image"
-                          />
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </Col>
-            <Col
-              md={17}
-              lg={17}
-              xl={10}
-              style={{
-                flex: `0 0 ${100 - leftWidthPercent}%`,
-                maxWidth: `${100 - leftWidthPercent}%`,
-                padding: 0,
-              }}
-            >
-              <div className="snap-smart-right-panel">
-                <div className="snap-smart-right-header">
-                  <div className="snap-smart-header-title">
-                    <img src={documentIcon} alt="Rx Pad" className="me-2" />
-                    Digitized RX
-                  </div>
-                </div>
-                <div className="snap-smart-right-body">
-                  <DigitisedPrescription
-                    data={data}
-                    setData={setData}
-                    loading={isLoading}
-                    showAbsHeaderInsideLoader={isLoading}
-                    enableInstructionBanner={false}
-                    showHeader={false}
-                  />
-                </div>
-              </div>
-            </Col>
-          </Row>
-          {/* Draggable divider */}
-          <div
-            onMouseDown={startResizing}
+    <>
+      <HeaderSmartRxDigitise
+        onSave={handleSave}
+        isDigitiseRxLoading={isLoading}
+        patient_data={patient_data}
+        isSnapRx={true}
+      />
+      <div className="cvt-info">
+        <img src={cvtInfoIcon} alt="cvt-info-icon" className="me-2" />
+        <span className="cvt-info-text">
+          <span className="title-common">Disclaimer:</span> Our AI model aims to
+          be accurate, but sometimes it might make mistakes. Please double-check
+          all details to ensure they are correct and complete.
+        </span>
+        <i className="icon-Cross ms-1 fs-18" style={{ color: "#FEF4E6" }}></i>
+      </div>
+      <div
+        ref={splitRef}
+        className={`${
+          isMobile ? "p-0" : ""
+        } w-100 bg-body prescription-wrapper srx-drx-container`}
+        style={{ position: "relative" }}
+      >
+        <Row gutter={{ xl: 40, lg: 0 }} justify="center" wrap={false}>
+          <Col
+            md={17}
+            lg={17}
+            xl={10}
             style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: `${leftWidthPercent}%`,
-              transform: "translateX(-8px)",
-              width: 16,
-              cursor: "col-resize",
+              flex: `0 0 ${leftWidthPercent}%`,
+              maxWidth: `${leftWidthPercent}%`,
+            }}
+          >
+            <div className="appointment-wrap PatientDetailswrap m-0 drx-written-container">
+              <Card className="">
+                <>
+                  <Card.Header className="bg-white py-3">
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div className="title-digitise-card">
+                        <img
+                          src={writtenRxIcon}
+                          alt="rx-icon1"
+                          className="me-2"
+                        />
+                        {`Written Rx`}
+                      </div>
+                    </div>
+                  </Card.Header>
+                  <Card.Body className="p-0 cardbody-data written-rx ">
+                    {loading ? (
+                      <div className="d-flex flex-column justify-content-center">
+                        <div className="align-items-center text-center">
+                          <Spin />
+                        </div>
+                      </div>
+                    ) : (
+                      smartRxFile?.length > 0 &&
+                      smartRxFile?.map(
+                        ({ fileUrl, smart_prescription_file }) => (
+                          <div
+                            key={fileUrl || smart_prescription_file}
+                            style={{ padding: "5px" }}
+                          >
+                            {(isCustomSSRX
+                              ? smart_prescription_file
+                              : fileUrl) && (
+                              <img
+                                src={
+                                  isCustomSSRX
+                                    ? smart_prescription_file
+                                    : fileUrl
+                                }
+                                alt="Smart Rx"
+                                className="snap-rx-img"
+                                width="100%"
+                              />
+                            )}
+                          </div>
+                        )
+                      )
+                    )}
+                  </Card.Body>
+                </>
+              </Card>
+            </div>
+          </Col>
+          <Col
+            md={17}
+            lg={17}
+            xl={10}
+            style={{
+              flex: `0 0 ${100 - leftWidthPercent}%`,
+              maxWidth: `${100 - leftWidthPercent}%`,
+            }}
+          >
+            <div className="appointment-wrap PatientDetailswrap m-0 drx-h-full drx-digitize-container">
+              {isLoading ? (
+                <DigitisedPrescription
+                  data={data}
+                  setData={setData}
+                  loading={isLoading}
+                  showAbsHeaderInsideLoader={true}
+                />
+              ) : (
+                <Card className={isLoading ? "border-none" : null}>
+                  <>
+                    <Card.Header
+                      className={`bg-white py-3 ${
+                        isLoading ? "border-none" : null
+                      }`}
+                    >
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div className="title-digitise-card">
+                          <img
+                            src={digitiseRxIcon}
+                            alt="rx-icon2"
+                            className="me-2"
+                          />
+                          {`Digitised Rx`}
+                        </div>
+                      </div>
+                    </Card.Header>
+                    <Card.Body
+                      className="p-0 cardbody-data digitize-rx"
+                      style={{ border: "none" }}
+                    >
+                      <div style={!isLoading ? { padding: "5px" } : null}>
+                        <DigitisedPrescription
+                          data={data}
+                          setData={setData}
+                          loading={isLoading}
+                        />
+                      </div>
+                    </Card.Body>
+                  </>
+                </Card>
+              )}
+            </div>
+          </Col>
+        </Row>
+        {/* Draggable divider */}
+        <div
+          onMouseDown={startResizing}
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: `${leftWidthPercent}%`,
+            transform: "translateX(-8px)",
+            width: 16,
+            cursor: "col-resize",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 56,
+              borderRadius: 16,
+              background: "#fff",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+              border: "1px solid #E2E2EA",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              zIndex: 10,
             }}
           >
             <div
               style={{
-                width: 32,
-                height: 56,
-                borderRadius: 16,
-                background: "#fff",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
-                border: "1px solid #E2E2EA",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                width: 4,
+                height: 16,
+                background:
+                  "repeating-linear-gradient(to bottom, #C9CDD3, #C9CDD3 2px, transparent 2px, transparent 4px)",
+                borderRadius: 2,
               }}
-            >
-              <div
-                style={{
-                  width: 4,
-                  height: 16,
-                  background:
-                    "repeating-linear-gradient(to bottom, #C9CDD3, #C9CDD3 2px, transparent 2px, transparent 4px)",
-                  borderRadius: 2,
-                }}
-              />
-            </div>
+            />
           </div>
         </div>
       </div>
-    </CashManagerContext.Provider>
+    </>
   );
 }
 
