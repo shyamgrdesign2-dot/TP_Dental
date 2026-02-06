@@ -62,17 +62,32 @@ function SnapRxPreview() {
 
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
 
-  const [selectedLang, setSelectedLang] = useState(
-    defaultPrintSettings?.default_language && 
-    defaultPrintSettings?.default_language !== "English" 
-    ? defaultPrintSettings?.default_language 
-    : 1
-  );
-  const encodedData = btoa(selectedLang.toString());
-  const pam_id = state?.pam_id || patient_data?.pam_id || 0;
-  
-  const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state?.print_rx_url || state?.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
-  const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
+  const buildUrlWithLanguage = (url, language) => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.delete("lg");
+      urlObj.searchParams.delete("rx");
+      urlObj.searchParams.set("rx", "0");
+      if (language) {
+        const encodedData = btoa(language.toString());
+        urlObj.searchParams.set("lg", encodedData);
+      }
+      return urlObj.toString();
+    } catch (error) {
+      return url;
+    }
+  };
+
+  const initialLanguage = defaultPrintSettings?.default_language || 1;
+
+  const [selectedLang, setSelectedLang] = useState(initialLanguage);
+  const basePrintUrl = state?.print_rx_url || state?.print_url || null;
+  const initialUrl = basePrintUrl
+    ? buildUrlWithLanguage(basePrintUrl, initialLanguage)
+    : null;
+
+  const [printUrl, setPrintUrl] = useState(initialUrl);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
@@ -172,8 +187,7 @@ function SnapRxPreview() {
         if (state?.from === "/configure_print_setting") {
           // Only use page state to determine if we were configuring for digitized Rx
           // Don't use viewCaseManagerData?.isRxDigitize as it can be true even when configuring written Rx
-          const shouldShow = state?.page === "digitise";
-          setShowDigitalRx(shouldShow);
+          setShowDigitalRx(state?.page === "digitise");
         } else if (state?.page === "digitise") {
           // After digitization, show written Rx initially (but digitized prescription will load via rxDigitize=true when user toggles to Digital Rx)
           setShowDigitalRx(false);
@@ -248,10 +262,6 @@ function SnapRxPreview() {
       
       // Always remove rxDigitize first, then set it based on showDigitalRx
       urlObj.searchParams.delete('rxDigitize');
-      if (!showDigitalRx) {
-        urlObj.searchParams.delete('rx');
-        urlObj.searchParams.set('rx', '0');
-      }
       
       urlObj.searchParams.set('pam_id', pam_id.toString());
       urlObj.searchParams.set('lg', encodedData);
@@ -269,10 +279,6 @@ function SnapRxPreview() {
       let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
       // Remove rxDigitize parameter completely
       url = url.replace(/[?&]rxDigitize=[^&]*/g, '');
-      if (!showDigitalRx) {
-        url = url.replace(/[?&]rx=[^&]*/g, '');
-        url += (url.includes('?') ? '&' : '?') + "rx=0";
-      }
       // Only add rxDigitize=true for digital Rx
       if (showDigitalRx) {
         url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
@@ -375,25 +381,7 @@ function SnapRxPreview() {
   const onSelect = useCallback(
     (data) => {
       const encodedData = btoa(data.toString());
-      const baseUrl = currentSessionRx || (state?.print_rx_url || state?.print_url);
-      try {
-        const urlObj = new URL(baseUrl);
-        if (!showDigitalRx) {
-          urlObj.searchParams.delete('rx');
-          urlObj.searchParams.set('rx', '0');
-        }
-        urlObj.searchParams.set('pam_id', pam_id.toString());
-        urlObj.searchParams.set('lg', encodedData);
-        setPrintUrl(urlObj.toString());
-      } catch (error) {
-        let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
-        if (!showDigitalRx) {
-          url = url.replace(/[?&]rx=[^&]*/g, '');
-          url += (url.includes('?') ? '&' : '?') + "rx=0";
-        }
-        setPrintUrl(url);
-      }
-      
+      setPrintUrl(`${currentSessionRx || (state?.print_rx_url || state?.print_url)}&pam_id=${pam_id}&lg=${encodedData}`);
       setSelectedLang(data);
       updatePatientDefaultLanguage({
         patientId: patient_data?.patient_unique_id,
@@ -401,7 +389,7 @@ function SnapRxPreview() {
       });
       setCurrentSessionRx(null);
     },
-    [currentSessionRx, state?.print_rx_url, state?.print_url, patient_data?.patient_unique_id, pam_id, showDigitalRx]
+    [currentSessionRx, state?.print_rx_url, state?.print_url, patient_data?.patient_unique_id, pam_id]
   );
 
   const handleSendToWhatsapp = async () => {
@@ -877,7 +865,7 @@ function SnapRxPreview() {
                         .map((x, i) => i + 1)
                         .map((page) => (
                           <Page
-                            key={`page-${page}`}
+                            key={Math.random()}
                             className={
                               printBlob ? "react-pdf__Page_afterload" : null
                             }

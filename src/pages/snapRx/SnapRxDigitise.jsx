@@ -604,16 +604,13 @@ function SnapRxDigitise() {
             const formattedMedicalHistory = formatMedicalHistoryForApi(medicalHistoryData);
             if (formattedMedicalHistory.length > 0 || labResultsDataForApi.length > 0 || cleanedVitalsForCase.length > 0) {
               const consultationDate = moment().format("YYYY-MM-DD HH:mm:ss");
-              const smartRxFiles = smartRxFilesData
-                ?.map((file) => 
-                  file?.smart_prescription_filename || 
-                  file?.filename || 
-                  file?.name
-                )
-                .filter(Boolean) || [];
-              const smartFileName = smartRxFiles.length > 0 
-                ? smartRxFiles[0] 
-                : (data?.rxDigitizeEditedData?.fileName || data?.fileName || "");
+              const smartFileName =
+                smartRxFilesData?.[0]?.smart_prescription_filename ||
+                smartRxFilesData?.[0]?.filename ||
+                smartRxFilesData?.[0]?.name ||
+                data?.rxDigitizeEditedData?.fileName ||
+                data?.fileName ||
+                "";
 
               const sendData = {
                 action: tcm_id === 0 ? "add" : "edit",
@@ -624,10 +621,7 @@ function SnapRxDigitise() {
                 ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
                 ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
                 ...(cleanedVitalsForCase.length > 0 && { vitals: cleanedVitalsForCase }),
-                // Send ALL filenames as an array (like HeaderSmartPrescription.js does)
-                // This ensures the backend print service includes all pages in the PDF
-                ...(smartRxFiles.length > 0 ? { smart_prescription_filename: smartRxFiles } : 
-                    (smartFileName ? { smart_prescription_filename: [smartFileName] } : {})),
+                ...(smartFileName ? { smart_prescription_filename: smartFileName } : {}),
               };
 
               const updateAction =
@@ -659,19 +653,17 @@ function SnapRxDigitise() {
         //     },
         //   });
         // } else {
-        const navigationState = {
-          patient_data,
-          files: smartRxFilesData,
-          tcm_id,
-          pam_id: pam_id || patient_data?.pam_id,
-          print_url,
-          showProgressbar: false,
-          page: "digitise",
-        };
-        
         navigate("/snap-rx/preview", {
           replace: true,
-          state: navigationState,
+          state: {
+            patient_data,
+            files: smartRxFilesData,
+            tcm_id,
+            pam_id: pam_id || patient_data?.pam_id,
+            print_url,
+            showProgressbar: false,
+            page: "digitise",
+          },
         });
         // }
       }
