@@ -5,9 +5,8 @@ import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
 import documentIcon from "../assets/images/document-normal.svg";
-import { S_RX_DIGITIZATION, FETCH_SMART_RX } from "../utils/constants";
+import { S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
-import api from "../api/services/axiosService";
 import { useSelector, useDispatch } from "react-redux";
 import { env } from "../EnvironmentConfig";
 import { getInvestigationAndMedicine, addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
@@ -51,45 +50,7 @@ function SmartRxDigitise() {
   const [tokenData, setTokenData] = useState(null);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
-  const [uploadedFilenames, setUploadedFilenames] = useState([]);
-  
-  // Fetch file URLs when smartRxFilesData contains only filenames (strings)
-  useEffect(() => {
-    const fetchFileUrls = async () => {
-      if (!smartRxFilesData || !Array.isArray(smartRxFilesData) || smartRxFilesData.length === 0) {
-        setSmartRxFile([]);
-        return;
-      }
-      
-      // Check if files are strings (filenames) or objects with URLs
-      const isStringArray = smartRxFilesData.every(file => typeof file === 'string');
-      
-      if (isStringArray && tcm_id) {
-        // Files are filenames, need to fetch URLs from API
-        try {
-          const baseUrl = { customBaseUrl: env.casemanager_api_url };
-          const payload = { tcm_id };
-          const response = await api.post(FETCH_SMART_RX, payload, baseUrl);
-          
-          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-            setSmartRxFile(response.data);
-          } else {
-            setSmartRxFile(smartRxFilesData);
-          }
-        } catch (error) {
-          console.error("Error fetching file URLs:", error);
-          setSmartRxFile(smartRxFilesData);
-        }
-      } else {
-        // Files are already objects, use as is
-        setSmartRxFile(smartRxFilesData);
-      }
-    };
-    
-    fetchFileUrls();
-  }, [smartRxFilesData, tcm_id]);
+  const smartRxFile = smartRxFilesData;
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
@@ -190,13 +151,13 @@ function SmartRxDigitise() {
 
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state.type === "new") {
+    if (smartRxFile?.length > 0 && token && state?.type === "new") {
       uploadFiles();
-    } else if (state.type === "edit" && digitisedData) {
+    } else if (state?.type === "edit" && digitisedData) {
       uploadFiles();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, smartRxFile, digitisedData]);
+  }, [token, smartRxFile, digitisedData, state?.type]);
 
 
   useEffect(() => {
@@ -601,52 +562,26 @@ function SmartRxDigitise() {
           }
           return cleaned;
         });
-        const smartRxFiles = smartRxFilesData
-          ?.map((file) => 
-            file?.smart_prescription_filename || 
-            file?.filename || 
-            file?.name
-          )
-          .filter(Boolean) || [];
-        
-        const smartRxFileFilenames = smartRxFile
-          ?.map((file) => 
-            file?.smart_prescription_filename || 
-            file?.filename || 
-            file?.name
-          )
-          .filter(Boolean) || [];
-        let allFilenames = [];
-        if (uploadedFilenames.length > 0) {
-          allFilenames = uploadedFilenames;
-        } else if (smartRxFiles.length > 0) {
-          allFilenames = smartRxFiles;
-        } else if (smartRxFileFilenames.length > 0) {
-          allFilenames = smartRxFileFilenames;
-        } else {
-          const fallbackFileName = 
-            data?.rxDigitizeEditedData?.fileName ||
-            data?.fileName ||
-            "";
-          if (fallbackFileName) {
-            allFilenames = [fallbackFileName];
-          }
-        }
-
         if (
           hasTcm &&
           patient_data?.patient_unique_id &&
           (
             (Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0) ||
             labResultsDataForApi.length > 0 ||
-            cleanedVitalsForCase.length > 0 ||
-            allFilenames.length > 0
+            cleanedVitalsForCase.length > 0
           )
         ) {
           try {
             const formattedMedicalHistory = formatMedicalHistoryForApi(medicalHistoryData);
-            if (formattedMedicalHistory.length > 0 || labResultsDataForApi.length > 0 || cleanedVitalsForCase.length > 0 || allFilenames.length > 0) {
+            if (formattedMedicalHistory.length > 0 || labResultsDataForApi.length > 0 || cleanedVitalsForCase.length > 0) {
               const consultationDate = moment().format("YYYY-MM-DD HH:mm:ss");
+              const smartFileName =
+                smartRxFilesData?.[0]?.smart_prescription_filename ||
+                smartRxFilesData?.[0]?.filename ||
+                smartRxFilesData?.[0]?.name ||
+                data?.rxDigitizeEditedData?.fileName ||
+                data?.fileName ||
+                "";
 
               const sendData = {
                 action: tcm_id === 0 ? "add" : "edit",
@@ -657,8 +592,7 @@ function SmartRxDigitise() {
                 ...(formattedMedicalHistory.length > 0 && { medical_history: formattedMedicalHistory }),
                 ...(labResultsDataForApi.length > 0 && { labParamsData: labResultsDataForApi }),
                 ...(cleanedVitalsForCase.length > 0 && { vitals: cleanedVitalsForCase }),
-                // Send as array (like SnapRxDigitise and HeaderSmartPrescription do)
-                ...(allFilenames.length > 0 ? { smart_prescription_filename: allFilenames } : {}),
+                ...(smartFileName ? { smart_prescription_filename: smartFileName } : {}),
               };
 
               const updateAction =
@@ -667,12 +601,12 @@ function SmartRxDigitise() {
                   : await dispatch(editCaseManager(sendData));
 
               if (updateAction.meta.requestStatus !== "fulfilled") {
-                console.error("Error saving to case manager:", updateAction.error);
+                console.error("Error saving medical history:", updateAction.error);
               }
             }
-            } catch (error) {
-              console.error("Error saving medical history to API:", error);
-            }
+          } catch (error) {
+            console.error("Error saving medical history to API:", error);
+          }
         }
         
         let sendData = {
@@ -709,12 +643,6 @@ function SmartRxDigitise() {
     try {
       const response = await fetch(url);
       const blob = await response.blob();
-      
-      // Check if blob is an XML error (expired SAS token) instead of an image
-      if (blob.type === 'application/xml' || blob.type === 'text/xml') {
-        return null;
-      }
-      
       return new File([blob], fileName, { type: blob.type });
     } catch (error) {
       console.error("Error fetching image:", error);
@@ -764,33 +692,6 @@ function SmartRxDigitise() {
           },
         }
       );
-
-      // Extract filenames from upload response if available
-      // Check multiple possible paths in the response
-      let extractedFilenames = null;
-      if (response?.data?.data?.files) {
-        extractedFilenames = response.data.data.files;
-      } else if (response?.data?.data?.fileNames) {
-        extractedFilenames = response.data.data.fileNames;
-      } else if (response?.data?.files) {
-        extractedFilenames = response.data.files;
-      } else if (response?.data?.data?.refinedData?.fileName) {
-        extractedFilenames = [response.data.data.refinedData.fileName];
-      } else if (response?.data?.data?.refinedData?.fileNames) {
-        extractedFilenames = Array.isArray(response.data.data.refinedData.fileNames) 
-          ? response.data.data.refinedData.fileNames 
-          : [response.data.data.refinedData.fileNames];
-      }
-      
-      if (extractedFilenames) {
-        const filenamesArray = Array.isArray(extractedFilenames) 
-          ? extractedFilenames 
-          : [extractedFilenames];
-        const validFilenames = filenamesArray.filter(f => f && String(f).trim() !== '');
-        if (validFilenames.length > 0) {
-          setUploadedFilenames(validFilenames);
-        }
-      }
 
       // Update the digitized data
       if (response?.data?.data) {
