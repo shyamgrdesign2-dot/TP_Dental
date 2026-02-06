@@ -18,7 +18,7 @@ import successIcon from '../assets/images/success-icon.svg';
 import cvtInfoIcon from '../assets/images/cvt-info.svg';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, LANGUAGE_LIST, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
+import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -39,7 +39,6 @@ import {
   getClinic,
   getTokenData,
 } from "../utils/utils";
-import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -49,7 +48,7 @@ function SmartRxPreview() {
     const divRef = useRef(null);
     const printRef = useRef();
 
-    const { servicesList, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+    const { servicesList } = useSelector((state) => state.doctors);
     const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
     const {
         loading,
@@ -77,9 +76,7 @@ function SmartRxPreview() {
         }
     };
 
-    const initialLanguage = defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English"
-        ? defaultPrintSettings?.default_language
-        : 1;
+    const initialLanguage = defaultPrintSettings?.default_language || 1;
 
     const [selectedLang, setSelectedLang] = useState(initialLanguage);
     const basePrintUrl = state?.print_url || null;
@@ -96,6 +93,8 @@ function SmartRxPreview() {
     const [smartRxFile, setSmartRxFile] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [buttonText, setButtonText] = useState("Send to WhatsApp");
+
+    const { profile } = useSelector((state) => state.doctors);
 
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
@@ -209,21 +208,6 @@ function SmartRxPreview() {
           }
         }
     }, []);
-
-    useEffect(() => {
-        const fetchDefaultLanguage = async () => {
-            if (!patient_data?.patient_unique_id) return;
-            try {
-                const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
-                if (res?.settings?.defaultLanguage) {
-                    setSelectedLang(res.settings.defaultLanguage);
-                }
-            } catch (error) {
-                console.error("Error fetching patient default language:", error);
-            }
-        };
-        fetchDefaultLanguage();
-    }, [patient_data?.patient_unique_id]);
 
     const handleDownload = async () => {
         try {
@@ -434,22 +418,13 @@ function SmartRxPreview() {
 
     // Effect to update printUrl when showDigitalRx changes
     useEffect(() => {
-        if (!basePrintUrl) return;
-        const urlWithLanguage = buildUrlWithLanguage(basePrintUrl, selectedLang);
-        const updatedUrl = updateRxDigitizeInUrl(urlWithLanguage, showDigitalRx);
-        setPrintUrl(updatedUrl);
-        setPreviewUrl(updatedUrl);
-    }, [basePrintUrl, selectedLang, showDigitalRx]);
-
-    const handleLanguageSelect = useCallback((language) => {
-        setSelectedLang(language);
-        if (patient_data?.patient_unique_id) {
-            updatePatientDefaultLanguage({
-                patientId: patient_data.patient_unique_id,
-                default_language: language,
-            });
+        if (printUrl) {
+            // Only modify the URL if showDigitalRx is true, else keep printUrl unchanged
+            const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
+            setPreviewUrl(updatedUrl);
+            setPrintUrl(updatedUrl);
         }
-    }, [patient_data?.patient_unique_id]);
+    }, [showDigitalRx]);
 
     const configurePrintUrl = async () => {
         var sendData = {
@@ -563,7 +538,7 @@ function SmartRxPreview() {
 
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={state?.pam_id} isSnapRx={true} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={state?.pam_id} isSnapRx={true} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
                     <Col md={7} lg={7} xl={7}>
@@ -704,23 +679,14 @@ function SmartRxPreview() {
                     </Col>
                     <Col md={17} lg={17} xl={12}>
                         <div className={isMobile ? 'p-20' : ''}>
-                            <div className="d-flex align-itms-center justify-content-between flex-wrap gap-3">
+                            <div className="d-flex align-itms-center justify-content-between">
                                 <div className="titleprint">Preview</div>
-                                <div className="d-flex align-items-center flex-wrap gap-3">
-                                    { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
-                                        <div>
-                                            <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
-                                            <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
-                                        </div>
-                                    }
-                                    <Select
-                                        placeholder=""
-                                        className="appointmentselect"
-                                        value={LANGUAGE_LIST.find(item => item.value == selectedLang)}
-                                        onSelect={handleLanguageSelect}
-                                        options={LANGUAGE_LIST}
-                                    />
-                                </div>
+                               { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
+                                    <div>
+                                        <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
+                                        <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
+                                    </div>
+                                }
                             </div>
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
 

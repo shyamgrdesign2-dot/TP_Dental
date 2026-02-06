@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { Button, Row, Col, Spin, Select } from "antd";
+import { Button, Row, Col, Spin } from "antd";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
 import axios from "axios";
 import { saveAs } from "file-saver";
@@ -20,7 +20,8 @@ import wtsp from "../assets/images/wtsp.svg";
 import loadingImg from "../assets/images/loading.png";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -29,16 +30,29 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
-import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
+
+const buildUrlWithParams = (baseUrl, isAmbient) => {
+  if (!baseUrl) return null;
+  const url = new URL(baseUrl);
+  url.searchParams.delete('voiceRxDigitize');
+  url.searchParams.delete('ambientVoiceRxDigitize');
+  if (isAmbient) {
+    url.searchParams.set('ambientVoiceRxDigitize', 'true');
+    url.searchParams.set('rxDigitize', 'false');
+  } else {
+    url.searchParams.set('voiceRxDigitize', 'true');
+  }
+  return url.toString();
+};
 
 function GenRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
 
   const { loading } = useSelector((state) => state.caseManager);
-  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
+  const { profile } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
@@ -50,9 +64,7 @@ function GenRxPrescriptionPrintView() {
 
   // Initialize selected language from default print settings or patient default language
   const [selectedLang, setSelectedLang] = useState(
-    defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English" 
-      ? defaultPrintSettings?.default_language 
-      : 1
+    defaultPrintSettings?.default_language || 1
   );
   
   const buildUrlWithLanguage = (baseUrl, isAmbient, language) => {
@@ -102,23 +114,6 @@ function GenRxPrescriptionPrintView() {
     }
   }, []);
 
-
-  useEffect(() => {
-    const getPatientDefaultLanguage = async () => {
-      if (patient_data?.patient_unique_id) {
-        try {
-          const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
-          if (res?.settings?.defaultLanguage) {
-            setSelectedLang(res.settings.defaultLanguage);
-          }
-        } catch (error) {
-          console.error("Error fetching patient default language:", error);
-        }
-      }
-    };
-    getPatientDefaultLanguage();
-  }, [patient_data?.patient_unique_id]);
-
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
@@ -155,29 +150,14 @@ function GenRxPrescriptionPrintView() {
     setPrintBlob(blob);
   }
 
-  // Effect to update URLs when mode or language changes
+  // Effect to update URLs when mode changes or on initial load
   useEffect(() => {
     if (state?.print_url) {
-      const updatedUrl = buildUrlWithLanguage(state.print_url, isAmbientMode, selectedLang);
+      const updatedUrl = buildUrlWithParams(state.print_url, isAmbientMode);
       setPreviewUrl(updatedUrl);
       setPrintUrl(updatedUrl);
     }
-  }, [isAmbientMode, state?.print_url, selectedLang]);
-
-  const onLanguageSelect = useCallback((language) => {
-    setSelectedLang(language);
-    if (patient_data?.patient_unique_id) {
-      updatePatientDefaultLanguage({
-        patientId: patient_data.patient_unique_id,
-        default_language: language,
-      });
-    }
-    if (state?.print_url) {
-      const updatedUrl = buildUrlWithLanguage(state.print_url, isAmbientMode, language);
-      setPreviewUrl(updatedUrl);
-      setPrintUrl(updatedUrl);
-    }
-  }, [patient_data?.patient_unique_id, isAmbientMode, state?.print_url]);
+  }, [isAmbientMode, state?.print_url]);
 
   const handleSendToWhatsapp = async () => {
     const clinic_name = getClinicName(profile?.hospital_data);
@@ -408,16 +388,6 @@ function GenRxPrescriptionPrintView() {
             <div className={isMobile ? "p-20" : ""}>
               <div className="d-flex align-itms-center justify-content-between">
                 <div className="titleprint">Preview</div>
-                <div className="d-flex align-items-center">
-                  <label className="fontroboto">Select Language</label>
-                  <Select
-                    placeholder="English"
-                    className="ms-3 appointmentselect"
-                    value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
-                    onSelect={onLanguageSelect}
-                    options={LANGUAGE_LIST}
-                  />
-                </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
