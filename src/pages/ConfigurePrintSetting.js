@@ -782,58 +782,37 @@ function ConfigurePrintSetting() {
                 }
             }
 
-            const rxIdToUse = rxId || mergedCaseManagerData?.smart_prescription_filename;
-            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (mergedCaseManagerData?.isRxDigitize && !rxIdToUse);
-            const hasSmartPrescriptionFilename = !!(mergedCaseManagerData?.smart_prescription_filename || caseManagerData?.smart_prescription_filename);
-            const hasSmartRxFile = !!(smartRxFile && smartRxFile.length > 0);
-            const isSmartRx = hasSmartPrescriptionFilename || (hasSmartRxFile && !mergedCaseManagerData?.isRxDigitize);
-            const isSnapSmartVoiceAmbientFlow = isSnapRx || isSmartRx || isVoiceAmbientFlow;
+          
+            // For digitized prescriptions (page === "digitise"), remove SmartRx option if it exists
+            if (isAfterDigitization && copyPrintSettings?.prescription?.case_option) {
+                const smartRxOptionIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 11);
+                if (smartRxOptionIndex !== -1) {
+                    copyPrintSettings.prescription.case_option.splice(smartRxOptionIndex, 1);
+                }
+            }
             
-            if (copyPrintSettings?.prescription?.case_option) {
+            // For written Rx (non-digitized), add SmartRx option if smartRxFile exists
+            if (!isAfterDigitization && ((smartRxFile && smartRxFile.length > 0) || mergedCaseManagerData?.smart_prescription_filename) && copyPrintSettings?.prescription?.case_option) {
                 const smartRxOption = copyPrintSettings.prescription.case_option.find(option => option.id === 11);
                 
-
-                if (isAfterDigitization && smartRxOption) {
-                    const smartRxIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 11);
-                    if (smartRxIndex !== -1) {
-                        copyPrintSettings.prescription.case_option.splice(smartRxIndex, 1);
+                if (!smartRxOption && !isVoiceAmbientFlow) {
+                 
+                    const vaccinesIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 10);
+                    const insertIndex = vaccinesIndex !== -1 ? vaccinesIndex + 1 : copyPrintSettings.prescription.case_option.length;
+                
+                    copyPrintSettings.prescription.case_option.splice(insertIndex, 0, {
+                        id: 11,
+                        title: "SmartRx",
+                        format: "inline",
+                        enable: "Y",
+                        custom_status: "Y"
+                    });
+                } else if (smartRxOption && !isVoiceAmbientFlow) {
+                 
+                    if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
+                        smartRxOption.enable = "Y";
+                        smartRxOption.custom_status = "Y";
                     }
-                }
-                else if (isSnapRx && !isAfterDigitization && ((smartRxFile && smartRxFile.length > 0) || mergedCaseManagerData?.smart_prescription_filename) && !isVoiceAmbientFlow) {
-                    if (!smartRxOption) {
-                        const vaccinesIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 10);
-                        const insertIndex = vaccinesIndex !== -1 ? vaccinesIndex + 1 : copyPrintSettings.prescription.case_option.length;
-                    
-                        copyPrintSettings.prescription.case_option.splice(insertIndex, 0, {
-                            id: 11,
-                            title: "SmartRx",
-                            format: "inline",
-                            enable: "Y",
-                            custom_status: "Y"
-                        });
-                    } else {
-                        if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
-                            smartRxOption.enable = "Y";
-                            smartRxOption.custom_status = "Y";
-                        }
-                    }
-                }
-                if (isSnapSmartVoiceAmbientFlow) {
-                    const carePlanIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 19);
-                    if (carePlanIndex !== -1) {
-                        copyPrintSettings.prescription.case_option.splice(carePlanIndex, 1);
-                    }
-                }
-                const caseOptions = copyPrintSettings.prescription.case_option;
-                let lastNonPageBreakIndex = -1;
-                for (let i = caseOptions.length - 1; i >= 0; i--) {
-                    if (caseOptions[i]?.type !== "page_break") {
-                        lastNonPageBreakIndex = i;
-                        break;
-                    }
-                }
-                if (lastNonPageBreakIndex >= 0 && lastNonPageBreakIndex < caseOptions.length - 1) {
-                    copyPrintSettings.prescription.case_option = caseOptions.slice(0, lastNonPageBreakIndex + 1);
                 }
             }
 

@@ -54,7 +54,6 @@ const MedicationsTable = ({
   const [rowEditValues, setRowEditValues] = useState({});
   const [isTablet, setIsTablet] = useState(false);
   const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
-  const [editingItemIdForPopup, setEditingItemIdForPopup] = useState(null); // Store itemId when opening popup for replacement
   const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
   const [dontShowZydusWarning, setDontShowZydusWarning] = useState(() => {
@@ -406,8 +405,6 @@ const MedicationsTable = ({
         if (option?.key && typeof option.key === 'string') {
           const medication = JSON.parse(option.key);
           if (medication && medication.tmm_id === 0) {
-            const currentEditingItemId = (editingCell && editingCell.field === 'name') ? editingCell.itemId : editingRow || null;
-            setEditingItemIdForPopup(currentEditingItemId);
             setShowAddMedicinePopup(true);
             return;
           }
@@ -434,7 +431,7 @@ const MedicationsTable = ({
         addNewMedication(value, option);
       }
     },
-    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewMedication, editingCell, editingRow]
+    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewMedication]
   );
 
   const handleCellClick = async (itemId, field, currentValue) => {
@@ -610,7 +607,6 @@ const MedicationsTable = ({
     try {
       const medicineData = option?.key ? JSON.parse(option.key) : null;
       if (medicineData && medicineData.tmm_id === 0) {
-        setEditingItemIdForPopup(itemId);
         setShowAddMedicinePopup(true);
         return;
       }
@@ -649,7 +645,7 @@ const MedicationsTable = ({
     } catch (e) {
       handleNameSelect(itemId, value, option, isTabletMode);
     }
-  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect, editingCell, editingRow]);
+  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect]);
 
   // Handle editing entire row (tablet view)
   const handleRowEdit = (itemId) => {
@@ -1690,85 +1686,38 @@ const MedicationsTable = ({
        {showAddMedicinePopup && (
         <CustomMedicinePopup
           isOpen={showAddMedicinePopup}
-          onCancel={() => {
-            setShowAddMedicinePopup(false);
-            setEditingItemIdForPopup(null);
-          }}
+          onCancel={() => setShowAddMedicinePopup(false)}
           initialData={{ tmm_medicine_name: searchQuery }}
           onSuccess={(addedMedicine) => {
+            // Add the newly created medicine to the medications list
             const medicineName = addedMedicine?.tmm_medicine_name || addedMedicine?.medicine_name || '';
-            const generic = addedMedicine?.tmm_generic || addedMedicine?.generic_name || '';
+            const newMedication = {
+              id: Date.now().toString(),
+              name: medicineName,
+              corrected_name: addedMedicine?.tmm_generic || addedMedicine?.generic_name || '',
+              dosage: '',
+              frequency: '',
+              schedule: '',
+              duration: '',
+              quantity: 0,
+              notes: '',
+              lineItem: medicineName,
+              edited: false,
+            };
             
-            if (editingItemIdForPopup) {
-              const updatedMedications = medications.map((item) => {
-                if (item.id === editingItemIdForPopup) {
-                  const updated = {
-                    ...item, // Preserve all existing properties
-                    name: medicineName,
-                    corrected_name: generic || item.corrected_name || '',
-                    edited: false,
-                  };
-                  
-                  // Add metadata if available
-                  if (addedMedicine) {
-                    updated.metadata = {
-                      ...addedMedicine,
-                      selectedValue: medicineName,
-                    };
-                    if (addedMedicine.medicineUnit) {
-                      updated.metadata.medicineUnit = addedMedicine.medicineUnit;
-                    }
-                  }
-                  
-                  // Recalculate lineItem
-                  updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
-                  return updated;
-                }
-                return item;
-              });
-              
-              onUpdate(updatedMedications);
-              if (editingCell && editingCell.itemId === editingItemIdForPopup) {
-                setEditingCell(null);
-                setEditValue('');
-              }
-              if (editingRow === editingItemIdForPopup) {
-                setRowEditValues(prev => ({
-                  ...prev,
-                  name: medicineName,
-                }));
-              }
-              setEditingItemIdForPopup(null);
-            } else {
-              // Add the newly created medicine to the medications list
-              const newMedication = {
-                id: Date.now().toString(),
-                name: medicineName,
-                corrected_name: generic,
-                dosage: '',
-                frequency: '',
-                schedule: '',
-                duration: '',
-                quantity: 0,
-                notes: '',
-                lineItem: medicineName,
-                edited: false,
+            // Add metadata if available
+            if (addedMedicine) {
+              newMedication.metadata = {
+                ...addedMedicine,
+                selectedValue: medicineName,
               };
-              
-              // Add metadata if available
-              if (addedMedicine) {
-                newMedication.metadata = {
-                  ...addedMedicine,
-                  selectedValue: medicineName,
-                };
-                if (addedMedicine.medicineUnit) {
-                  newMedication.metadata.medicineUnit = addedMedicine.medicineUnit;
-                }
+              if (addedMedicine.medicineUnit) {
+                newMedication.metadata.medicineUnit = addedMedicine.medicineUnit;
               }
-              
-              const updatedMedications = [...medications, newMedication];
-              onUpdate(updatedMedications);
             }
+            
+            const updatedMedications = [...medications, newMedication];
+            onUpdate(updatedMedications);
             setSearchQuery('');
           }}
         />

@@ -158,8 +158,6 @@ function SmartRxDigitise() {
           cleanUnits = parts[parts.length - 1];
         }
       }
-      const numericMatch = String(cleanValue).trim().match(/^(\d+(?:\.\d+)?)/);
-      cleanValue = numericMatch ? numericMatch[1] : cleanValue;
       groupedByDate[dateKey].push({
         reportName: result.reportName || "",
         testName: testname,

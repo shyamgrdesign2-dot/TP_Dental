@@ -187,7 +187,6 @@ const ConsultationDrawer = ({
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const [labResultsSavedFromSidebar, setLabResultsSavedFromSidebar] = useState(false);
-  const [isEndingVisit, setIsEndingVisit] = useState(false);
   const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
   const clinic = getClinic(profile?.hospital_data);
   const { parentOptionsList: medicationParentOptionsList } = useSelector(
@@ -323,9 +322,6 @@ const ConsultationDrawer = ({
           cleanUnits = parts[parts.length - 1];
         }
       }
-      // Extract only numeric value (remove units from value field)
-      const numericMatch = String(cleanValue).trim().match(/^(\d+(?:\.\d+)?)/);
-      cleanValue = numericMatch ? numericMatch[1] : cleanValue;
       groupedByDate[dateKey].push({
         reportName: result.reportName || "",
         testName: testname,
@@ -1732,36 +1728,7 @@ const ConsultationDrawer = ({
     };
     
     validatedData.labInvestigation = mappedLabInvestigation;
-    let processedDynamicFields = {};
-    if (Array.isArray(cleanedData.dynamicFields)) {
-      cleanedData.dynamicFields.forEach((module) => {
-        if (module?.name && Array.isArray(module?.fields) && module.fields.length > 0) {
-          const hasNonEmptyFields = module.fields.some(
-            (field) => (field?.title || '').trim() || (field?.notes || '').trim()
-          );
-          if (hasNonEmptyFields) {
-            processedDynamicFields[module.name] = module.fields;
-          }
-        }
-      });
-    } else if (cleanedData.dynamicFields && typeof cleanedData.dynamicFields === 'object') {
-      Object.entries(cleanedData.dynamicFields).forEach(([moduleName, moduleData]) => {
-        if (Array.isArray(moduleData) && moduleData.length > 0) {
-          const hasNonEmptyItems = moduleData.some((item) => {
-            if (typeof item === 'string') {
-              return item.trim().length > 0;
-            } else if (item && typeof item === 'object') {
-              return (item?.title || '').trim() || (item?.notes || '').trim() || (item?.lineItem || '').trim();
-            }
-            return false;
-          });
-          if (hasNonEmptyItems) {
-            processedDynamicFields[moduleName] = moduleData;
-          }
-        }
-      });
-    }
-    validatedData.dynamicFields = processedDynamicFields;
+    validatedData.dynamicFields = cleanedData.dynamicFields || {};
     
     if (validatedData.vitalsAndBodyComposition && Object.keys(validatedData.vitalsAndBodyComposition).length > 0) {
       const patientInfo = patient_data ? {
@@ -2382,7 +2349,7 @@ const ConsultationDrawer = ({
                       ...finalPrescriptionData,
                       vitalsAndBodyComposition: finalVitals,
                       labResults: hasApiLabResults ? apiLabResults : (hasExistingLabResults ? existingLabResults : []),
-                      medicalHistory: validatedPrescriptionData.medicalHistory || [],
+                      medicalHistory: finalPrescriptionData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
               });
@@ -2936,14 +2903,24 @@ const ConsultationDrawer = ({
       }
     });
 
-    const apiMedicalHistory = Array.isArray(data2WithSC?.medicalHistory) ? data2WithSC.medicalHistory : [];
+    // Merge medicalHistory arrays while removing duplicates
+    const mergedMedicalHistory = Array.isArray(data1?.medicalHistory) ? [...data1.medicalHistory] : [];
+    data2WithSC.medicalHistory?.forEach((history2) => {
+      if (
+        !mergedMedicalHistory.some((history1) =>
+          isDuplicate(history1, history2)
+        )
+      ) {
+        mergedMedicalHistory.push(history2);
+      }
+    });
 
     // Return merged object
     return {
       ...data1,
       ...data2,
       symptoms: mergedSymptoms,
-      medicalHistory: apiMedicalHistory,
+      medicalHistory: mergedMedicalHistory,
       dynamicFields: data1?.dynamicFields || data2?.dynamicFields || {},
     };
   };
@@ -3411,11 +3388,8 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
-    if (isEndingVisit) return;
-    setIsEndingVisit(true);
-    try {
-      const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
-      const rxType = isAmbientRx ? "ambient" : "voice_rx";  
+    const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries
       .filter(query => query.isAudio && query.duration)
       .reduce((total, query) => {
@@ -3843,11 +3817,6 @@ const ConsultationDrawer = ({
       });
     } else {
       errorMessage(action.error);
-      setIsEndingVisit(false);
-    }
-    } catch (error) {
-      console.error('Error ending visit:', error);
-      setIsEndingVisit(false);
     }
   }
 
@@ -5112,8 +5081,7 @@ const ConsultationDrawer = ({
                   type="button"
                   className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
                   onClick={onEndVisitClick}
-                  loading={isEndingVisit}
-                  disabled={isEndingVisit || isPrescriptionDataEmpty(prescriptionData)}
+                  disabled={isPrescriptionDataEmpty(prescriptionData)}
                 >
                   <i className="icon-exit me-2"></i>
                   End Visit

@@ -140,8 +140,6 @@ const VoiceRxConsult = () => {
 
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
-    savedChunksRef.current = [];
-    savedRecordingTimeRef.current = 0;
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
@@ -858,7 +856,6 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-link text-decoration-underline ms-4 ${styles.quitButton}`}
                 onClick={handleQuitRecording}
-                style={{ color: 'red' }}
               >
                 Yes, Quit
               </button>
@@ -866,7 +863,6 @@ const VoiceRxConsult = () => {
                 type="button"
                 className={`btn btn-primary3 btn-41 px-4 ${styles.stayButton}`}
                 onClick={handleStayRecording}
-                style={{ color: 'white' }}
               >
                 No, Stay
               </button>

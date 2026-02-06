@@ -29,15 +29,12 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
 
     const onEndVisitClick = async () => {
         stopAllActiveRecorders();
-        const isVoiceOrAmbient = state?.fromVoiceRecording || state?.mode === 'ambient' || state?.mode === 'dictation' || window.TATVA_ACTIVE_VOICE_SERVICE;
         
         if (handleGoToAppointment) {
             handleGoToAppointment();
-            if (isVoiceOrAmbient) {
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
-            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 100);
         } else {
             var sendData = {
               patient_unique_id:
@@ -76,12 +73,10 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
               dispatch(resetUploadDocState());
               dispatch(resetDDxState());
               navigate("/", { replace: true });
-              // Reload page after navigation to ensure recorder cleanup (only for voice/ambient)
-              if (isVoiceOrAmbient) {
-                setTimeout(() => {
-                  window.location.reload();
-                }, 100);
-              }
+              // Reload page after navigation to ensure recorder cleanup
+              setTimeout(() => {
+                window.location.reload();
+              }, 100);
             } else {
               errorMessage(action.error);
             }
