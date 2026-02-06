@@ -202,7 +202,7 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, gynecHistoryData, isVoiceAmbientRx, smartRxFile, isAfterDigitization } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, isVoiceAmbientRx, smartRxFile, isAfterDigitization } = contextValue || {};
   
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
@@ -613,17 +613,6 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     },
   ];
 
-  // Precompute Gynec / Obs history presence for filters
-  const hasGynecHistoryData = !!gynecHistoryData;
-
-  const hasObsHistoryData = Array.isArray(obstetricDetails)
-    ? obstetricDetails.length > 0
-    : !!obstetricDetails;
-
-  const obsHistoryId = Array.isArray(obstetricDetails)
-    ? obstetricDetails[0]?.id
-    : obstetricDetails?.id;
-
   //Display Patient Info
   const caseOptionTable = [
     {
@@ -921,8 +910,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length) && option.id === 10) ||
                     ((caseManagerData?.smart_prescription_filename?.length || (smartRxFile && smartRxFile.length > 0)) && option.id === 11 && !isVoiceAmbientRx && !isAfterDigitization) ||
                     (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
-                    (hasGynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
-                    (option.id === 14 && isGynaecHistoryAccessable && hasObsHistoryData) ||
+                    (caseManagerData.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
+                    (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
                     (hasTodayLabResults && option.id === 15) ||
                     (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
                     (zydusSelectedLabParams?.length > 0 && option.id === 18) ||

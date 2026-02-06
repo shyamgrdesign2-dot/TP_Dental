@@ -36,8 +36,6 @@ import { getFormattedDate } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import { viewCaseManager } from "../redux/caseManagerSlice";
-import { getGynecDetails } from "../api/services/ApiGynec";
-import { getTodayVitals } from "../utils/getTodayVitals";
 
 function ConfigurePrintSetting() {
 
@@ -70,16 +68,7 @@ function ConfigurePrintSetting() {
     const [labParamsData, setLabParamsData] = useState(caseManagerData?.labParamsData || []);
     const todayVaccines = useTodayVaccines(mergedCaseManagerData);
     const growthChartDetails = useGrowthChart(mergedCaseManagerData);
-
-    const obstetricDoctorId =
-        mergedCaseManagerData?.doctor_Data?.um_id ||
-        mergedCaseManagerData?.doctor_data?.um_id ||
-        userId;
-
-    const obstetricDetails = useObstetric(
-        mergedCaseManagerData?.patient_data?.patient_unique_id,
-        obstetricDoctorId
-    );
+    const obstetricDetails = useObstetric(mergedCaseManagerData?.patient_data?.patient_unique_id, mergedCaseManagerData?.doctor_Data?.um_id);
     const medicalHistoryCheckboxOptions = mergedCaseManagerData?.medical_history?.map(e => {
         return { label: e?.title, value: e?.tmmhs_id }
     })
@@ -87,7 +76,6 @@ function ConfigurePrintSetting() {
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
-    const [gynecHistoryData, setGynecHistoryData] = useState(null);
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const footerImageShowRef = useRef(false);
 
@@ -669,106 +657,6 @@ function ConfigurePrintSetting() {
         }
     }, [mergedCaseManagerData?.patient_data?.patient_unique_id, mergedCaseManagerData?.patient_data?.pam_id]);
 
-    // For written Rx (snap & smart), ensure today's vitals are available using listVitals API
-    useEffect(() => {
-        const fetchTodayVitalsForWrittenRx = async () => {
-            const isWrittenRx =
-                !!(smartRxFile && smartRxFile.length > 0 && !isAfterDigitization);
-
-            if (!isWrittenRx) {
-                return;
-            }
-
-            const patientData = mergedCaseManagerData?.patient_data;
-            if (!patientData?.patient_unique_id) {
-                return;
-            }
-
-            const existingVitals = mergedCaseManagerData?.vitals || [];
-            const today = moment().format("YYYY-MM-DD");
-            const hasTodayVitals = Array.isArray(existingVitals) && existingVitals.some(v => {
-                const date = v.date || v.createdAt || v.created_at || v.createdDate;
-                return date && moment(date).format("YYYY-MM-DD") === today;
-            });
-
-            if (hasTodayVitals) {
-                return;
-            }
-
-            try {
-                const todayVitals = await getTodayVitals({
-                    patient_unique_id: patientData.patient_unique_id,
-                    pm_pid: patientData.pm_pid,
-                    pm_id: patientData.pm_id,
-                    pam_id: patientData.pam_id || patientData.pamId || patientData.pamID,
-                    pm_age: patientData.pm_age,
-                    pm_gender: patientData.pm_gender,
-                    ageYears: patientData.ageYears,
-                    age: patientData.age,
-                    gender: patientData.gender,
-                });
-
-                if (!todayVitals) {
-                    return;
-                }
-
-                const vitalsForCaseManager = {
-                    date: todayVitals.date,
-                    temp: todayVitals.temperature,
-                    pres: todayVitals.pulse,
-                    resp_rate: todayVitals.respRate,
-                    blood_press: todayVitals.bloodPressure,
-                    spo2: todayVitals.spo2,
-                    general_rbs: todayVitals["General RBS"],
-                    fib4: todayVitals.FIB4,
-                    waist_circumference: todayVitals["Waist Circumference"],
-                    ofc: todayVitals.ofc,
-                    height: todayVitals.height,
-                    weight: todayVitals.weight,
-                    bmi: todayVitals.BMI,
-                    bmr: todayVitals.BMR,
-                    bsa: todayVitals.BSA,
-                };
-
-                setMergedCaseManagerData(prev => {
-                    if (!prev) return prev;
-                    const prevVitals = Array.isArray(prev.vitals) ? prev.vitals : [];
-                    return {
-                        ...prev,
-                        vitals: [...prevVitals, vitalsForCaseManager],
-                    };
-                });
-            } catch {
-                // Ignore vitals errors here; absence of vitals will just hide the section
-            }
-        };
-
-        fetchTodayVitalsForWrittenRx();
-    }, [smartRxFile, isAfterDigitization, mergedCaseManagerData?.patient_data, mergedCaseManagerData?.vitals]);
-
-    // Fetch Gynec (Menstrual) History specifically for print settings / PDF flows
-    useEffect(() => {
-        const fetchGynecHistoryForPrint = async () => {
-            try {
-                const patientId = mergedCaseManagerData?.patient_data?.patient_unique_id;
-                const doctorId = mergedCaseManagerData?.doctor_Data?.um_id || userId;
-
-                if (!patientId || !doctorId) {
-                    return;
-                }
-                const data = await getGynecDetails(patientId, doctorId);
-                // Store gynec history separately so it isn't lost when mergedCaseManagerData is refreshed
-                setGynecHistoryData(data || null);
-            } catch (error) {
-                // ignore gynec history errors; absence of data will simply hide the section
-            }
-        };
-
-        if (mergedCaseManagerData?.patient_data?.patient_unique_id) {
-            fetchGynecHistoryForPrint();
-        }
-    }, [mergedCaseManagerData?.patient_data?.patient_unique_id, mergedCaseManagerData?.doctor_Data?.um_id, userId]);
-
     // Fetch care plan assignments for PDF rendering (used by Quixote/ViewPDF)
     useEffect(() => {
         const fetchAssignments = async () => {
@@ -799,28 +687,27 @@ function ConfigurePrintSetting() {
     const smartRxFileForContext = (isVoiceAmbientModeCheck && !isWrittenRxFlow) ? null : smartRxFile;
     
     const contextApi = { 
-        smartRxFile: smartRxFileForContext,
-        divWidth,
-        caseManagerData: mergedCaseManagerData,
-        certificateData,
-        printSettings,
-        setPrintSettings,
-        fileHeader,
-        setFileHeader,
-        fileFooter,
-        setFileFooter,
-        fileLogo,
-        setFileLogo,
-        fileWatermark,
-        setFileWatermark,
-        fileSignature,
-        setFileSignature,
-        medicalHistoryCheckboxOptions,
-        labParamsData,
-        zydusSelectedLabParams,
-        customModules,
+        smartRxFile: smartRxFileForContext, 
+        divWidth, 
+        caseManagerData: mergedCaseManagerData, 
+        certificateData, 
+        printSettings, 
+        setPrintSettings, 
+        fileHeader, 
+        setFileHeader, 
+        fileFooter, 
+        setFileFooter, 
+        fileLogo, 
+        setFileLogo, 
+        fileWatermark, 
+        setFileWatermark, 
+        fileSignature, 
+        setFileSignature, 
+        medicalHistoryCheckboxOptions, 
+        labParamsData, 
+        zydusSelectedLabParams, 
+        customModules, 
         carePlanAssignments,
-        gynecHistoryData,
         isVoiceAmbientRx: mergedCaseManagerData?.isVoiceAmbientRx || false,
         isAfterDigitization: isAfterDigitization
     };
