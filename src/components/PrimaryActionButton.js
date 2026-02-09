@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
 import smartPad from "../assets/images/smartPad.svg";
 import { isMobile } from "react-device-detect";
+import { isZydus } from "../utils/utils";
 
 /**
  * PrimaryActionButton Component
  * 
  * A reusable component that renders a primary action button with dropdown for additional options.
  * Handles the priority-based rendering: SmartRx > VoiceRx > SnapRx > Consult
+ * Special case: For Zydus accounts, Consult is always primary and other options go to dropdown
  * 
  * @param {Object} props
  * @param {boolean} props.isSmartRxAccessible - Whether SmartRx is accessible
@@ -75,36 +77,58 @@ const PrimaryActionButton = ({
     }
   }, [fullWidth]);
 
+  // Check if this is a Zydus account
+  const isZydusAccount = isZydus();
+
   // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > Consult
-  // Special handling: If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
+  // Special handling: 
+  // 1. If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
+  // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
   const allAvailableOptions = [];
+  const dropdownOptionsList = [];
   
-  if (isSmartRxAccessible && !isMobile) {
-    allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
-  }
-  
-  // Handle VoiceRx: If paid, it's primary; if not paid, Consult is primary and VoiceRx goes to dropdown
-  if (isVoiceRxAccessible && isVoiceRxPaid) {
-    allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
-  }
-  
-  if (isSnapRxAccessible) {
-    allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-  }
-  
-  // Consult is always available as fallback
-  // If VoiceRx is accessible but not paid, Consult becomes primary
-  allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
-  
-  // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
-  if (isVoiceRxAccessible && !isVoiceRxPaid) {
-    allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+  if (isZydusAccount) {
+    // For Zydus accounts: Consult is always primary, all other options go to dropdown
+    if (isSmartRxAccessible && !isMobile) {
+      dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+    if (isVoiceRxAccessible) {
+      dropdownOptionsList.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+    if (isSnapRxAccessible) {
+      dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+    // Consult is always primary for Zydus
+    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
+  } else {
+    // Normal priority logic: SmartRx > VoiceRx > SnapRx > Consult
+    if (isSmartRxAccessible && !isMobile) {
+      allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+    
+    // Handle VoiceRx: If paid, it's primary; if not paid, Consult is primary and VoiceRx goes to dropdown
+    if (isVoiceRxAccessible && isVoiceRxPaid) {
+      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
+    
+    if (isSnapRxAccessible) {
+      allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
+    }
+    
+    // Consult is always available as fallback
+    // If VoiceRx is accessible but not paid, Consult becomes primary
+    allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
+    
+    // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
+    if (isVoiceRxAccessible && !isVoiceRxPaid) {
+      allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+    }
   }
 
   // Primary button is the first available option (highest priority)
   const primaryOption = allAvailableOptions[0];
-  // Dropdown options are the remaining ones in priority order
-  const dropdownOptions = allAvailableOptions.slice(1);
+  // Dropdown options: For Zydus, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
+  const dropdownOptions = isZydusAccount ? dropdownOptionsList : allAvailableOptions.slice(1);
 
   // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > Consult
   const getMenuItems = () => {
@@ -127,18 +151,9 @@ const PrimaryActionButton = ({
       }
 
       items.push({
-        label: (
-          <span
-            style={{
-              display: "inline-block",
-              cursor: "pointer",
-            }}
-            onClick={handleClick}
-          >
-            {labelText}
-          </span>
-        ),
+        label: labelText,
         key: option.type,
+        onClick: handleClick,
       });
     });
 
@@ -316,7 +331,7 @@ const PrimaryActionButton = ({
     width: dropdownWidth,
     marginTop: fullWidth ? "0.3rem" : "-0.8rem",
     marginRight: fullWidth ? "1.5rem" :"-0.5rem",
-    left: fullWidth ? "0.8rem" : "-5px;"
+    left: fullWidth ? "1rem" : "-5px;"
   };
 
   // Determine placement based on fullWidth
