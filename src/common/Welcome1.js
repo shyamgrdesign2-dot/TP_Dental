@@ -69,6 +69,8 @@ function Welcome1(props) {
     
     const isTablet = useTabletViewport();
 
+    const clinicId = getTokenData()?.clinic_id;
+
     const handleClickOutside = (event) => {
         if (!consultButtonRef?.current?.contains(event.target)) {
           setClickedDownArrow(false);
@@ -387,7 +389,7 @@ function Welcome1(props) {
                                     )}
 
 
-                                    {!!viewCaseManagerData?.is_draft && viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB && 
+                                    {!!viewCaseManagerData?.is_draft && viewCaseManagerData?.doctor_data?.um_id === userId && viewCaseManagerData?.hm_id === clinicId && isSaveAsDraftRxAccessableFromGB && 
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
                                             onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
