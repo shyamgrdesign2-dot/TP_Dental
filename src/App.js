@@ -6,6 +6,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
@@ -81,6 +82,8 @@ const growthbook = new GrowthBook({
   clientKey: config?.GROWTHBOOK_CLIENTKEY,
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
 });
+
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
 function App() {
   const [redirectReady, setRedirectReady] = useState(false);
@@ -441,7 +444,7 @@ function App() {
                 handleUpgradeModal={handleUpgradeModal}
               />
             )}
-            <Routes>
+            <SentryRoutes>
               {/* Public route */}
               {/* <Route path="/login" element={<AuthContainer />} /> */}
               <Route path="/login" element={<Onboarding />} />
@@ -533,7 +536,7 @@ function App() {
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />
-            </Routes>
+            </SentryRoutes>
           </PersistGate>
         </Provider>
       </ErrorBoundary>
