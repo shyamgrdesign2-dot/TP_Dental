@@ -33,7 +33,7 @@ Sentry.init({
   tracePropagationTargets: [
     "localhost",
     window.location.origin,
-    /^https:\/\/.*\.tatvacare\.in/,
+    /^https:\/\/(?!pm-tatva-agents-uat\.tatvacare\.in)(?!backend\.getbeamer\.com).*\.tatvacare\.in/,
     /^https:\/\/.*\.azurecontainerapps\.io/,
     /^https:\/\/.*\.azurewebsites\.net/,
   ],
