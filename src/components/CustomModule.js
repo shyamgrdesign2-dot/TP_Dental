@@ -366,6 +366,13 @@ function CustomModule({ module }) {
         ...moduleData?.filter((e) => e.title || e.notes),
         ...updatedData,
       ];
+
+      // If no previous data found, show message
+      if (updatedModuleData.length === 0) {
+        message.info("No previous data found");
+        return;
+      }
+
       // Update the parent state with the new module contents
       updateCustomModuleContents(updatedModuleData);
     } else {
