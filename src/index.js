@@ -37,7 +37,7 @@ Sentry.init({
     /^https:\/\/.*\.azurecontainerapps\.io/,
     /^https:\/\/.*\.azurewebsites\.net/,
   ],
-  sendDefaultPii: true,
+  sendDefaultPii: false,
   environment: process.env.REACT_APP_ENV,
   beforeSend(event) {
     // Filter out development errors or specific error types
