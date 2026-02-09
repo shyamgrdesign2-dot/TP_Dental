@@ -356,17 +356,20 @@ function CustomModule({ module }) {
     };
     const action = await dispatch(userPreModulesRX(sendData));
     if (action.meta.requestStatus === "fulfilled") {
-      const updatedData = action.payload?.moduleContents[0]?.content.map(
-        (e) => {
-          return { ...e, unique_id: uuidv4(), notes: e.notes || "" };
-        }
-      );
+      // Check if moduleContents exists and has content
+      const moduleContent = action.payload?.moduleContents?.[0]?.content;
+      const updatedData = moduleContent && Array.isArray(moduleContent)
+        ? moduleContent.map((e) => {
+            return { ...e, unique_id: uuidv4(), notes: e.notes || "" };
+          })
+        : [];
+      
       // Find the module's existing content and update it
       const updatedModuleData = [
         ...moduleData?.filter((e) => e.title || e.notes),
         ...updatedData,
       ];
-
+      
       // If no previous data found, show message
       if (updatedModuleData.length === 0) {
         message.info("No previous data found");
