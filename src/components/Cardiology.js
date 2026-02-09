@@ -82,6 +82,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
+import PrimaryActionButton from "./PrimaryActionButton";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -3634,6 +3635,26 @@ function SmartDropdownButtons({
   handleStartConsult,
   handleStartVoiceRx,
 }) {
+
+  const handleStartSmartRx = () => {
+    window.Moengage.track_event("start_new_SmartRx_click", {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+    });
+    navigate("/smart-prescription", {
+      state: { patient_data: patient_data },
+    });
+  };
+
+  const handleStartSnapRx = () => {
+    window.Moengage.track_event("start_new_SnapRx_click", {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+    });
+    navigate("/snap-rx", {
+      state: { patient_data: patient_data },
+    });
+  };
   
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
@@ -3671,15 +3692,30 @@ function SmartDropdownButtons({
         <Button
           className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
           onClick={() => {
-            if (isVoiceRxPaid) {
+            // Determine primary action based on priority
+            if (isSmartSyncAccessableFromGB) {
+              handleStartSmartRx();
+            } else if (isSnapRxAccessableFromGB) {
+              handleStartSnapRx();
+            } else if ((isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid) {
               handleStartVoiceRx();
+            } else if (isFreeVoiceRxUser || tp_monetization_enable) {
+              handleStartConsult();
             } else {
               handleStartConsult();
             }
           }}
         >
           <span className="px-4" style={{ flex: 1, textAlign: "center" }}>
-            {isVoiceRxPaid ? "Start Voice Rx" : "Start New Consult"}
+            {isSmartSyncAccessableFromGB
+              ? "Start New SmartRx"
+              : isSnapRxAccessableFromGB
+              ? "Start New SnapRx"
+              : (isFreeVoiceRxUser || tp_monetization_enable) && isVoiceRxPaid
+              ? "Start Voice Rx"
+              : (isFreeVoiceRxUser || tp_monetization_enable)
+              ? "Start New Consult"
+              : "Start New Consult"}
           </span>
           <span
             ref={arrowRef}
@@ -3708,80 +3744,23 @@ function SmartDropdownButtons({
           </span>
         </Button>
       </div>
-      {open && 
+      {open && (
         <div className="smart-rx-buttons-group">
-          {isSmartSyncAccessableFromGB && 
-            <div>
-              <button
-                className={`smart-rx-buttons bottom-border ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "top-br" : "border-radius-all"}`}
-                onClick={() => {
-                  setOpen(false);
-                  window.Moengage.track_event("start_new_SmartRx_click", {
-                    doctor_id: profile?.doctor_unique_id,
-                    patient_id:
-                      patient_data !== undefined
-                        ? patient_data.patient_unique_id
-                        : 0,
-                  });
-                  navigate("/smart-prescription", {
-                    state: { patient_data: patient_data },
-                  });
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New SmartRx</span>
-              </button>
-            </div>
-          }
-          {isSnapRxAccessableFromGB &&
-            <div>
-              <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  window.Moengage.track_event("start_new_SnapRx_click", {
-                    doctor_id: profile?.doctor_unique_id,
-                    patient_id:
-                      patient_data !== undefined
-                        ? patient_data.patient_unique_id
-                        : 0,
-                  });
-                  navigate("/snap-rx", {
-                    state: { patient_data: patient_data },
-                  });
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New SnapRx</span>
-              </button>
-            </div>
-          }
-          {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid &&
-            <div>
-              <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  handleStartVoiceRx();
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
-              </button>
-            </div>
-          }
-          {isVoiceRxPaid && (
-            <div>
-              <button
-                className="smart-rx-buttons bottom-border"
-                onClick={() => {
-                  setOpen(false);
-                  handleStartConsult();
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
-              </button>
-            </div>
-          )}
+          <PrimaryActionButton
+            isSmartRxAccessible={isSmartSyncAccessableFromGB}
+            isSnapRxAccessible={isSnapRxAccessableFromGB}
+            isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+            isVoiceRxPaid={isVoiceRxPaid}
+            onSmartRxClick={handleStartSmartRx}
+            onSnapRxClick={handleStartSnapRx}
+            onVoiceRxClick={handleStartVoiceRx}
+            onConsultClick={handleStartConsult}
+            patient={patient_data}
+            onClose={() => setOpen(false)}
+            buttonStyle="cardiology"
+          />
         </div>
-      }
+      )}
     </div>
   );
 }

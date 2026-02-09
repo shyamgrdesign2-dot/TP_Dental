@@ -24,6 +24,7 @@ import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
 import { resetDDxState } from "../redux/ddxSlice";
+import PrimaryActionButton from "../components/PrimaryActionButton";
 
 function WalkInConsultationZydus() {
     const navigate = useNavigate();
@@ -348,126 +349,32 @@ function WalkInConsultationZydus() {
                             Patient Details
                         </Button>
                         {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
-                            <div className="d-flex btn btn-smart-rx-walkin">
-                                { isSmartSyncAccessableFromGB ?
-                                  (
-                                    <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
-                                      <img src={smartPad} alt="vitals" />
-                                      <button
-                                        className="btn btn-smartRx-text"
-                                      >
-                                        SmartRx
-                                      </button>
-                                    </div>
-                                  ) : isSnapRxAccessable ? (
-                                    <div style={{ paddingLeft: "6px" }} onClick={() => onSnapRxClick(patient)}>
-                                      <img src={smartPad} alt="vitals" />
-                                      <button
-                                        className="btn btn-smartRx-text"
-                                      >
-                                        SnapRx
-                                      </button>
-                                    </div>
-                                  ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
-                                    <Button
-                                      type="text"
-                                      className="btn btn-primary3 align-items-center d-flex"
-                                      icon={<i className="icon-Consult"></i>}
-                                      onClick={() =>
-                                        isVoiceRxPaid ? onVoiceRxClick(patient) : onConsultClick(patient)
-                                      }
-                                    >
-                                      {isVoiceRxPaid ? "Voice Rx" : "Start Consult"}
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      type="text"
-                                      className="btn btn-primary3 align-items-center d-flex"
-                                      icon={<i className="icon-Consult"></i>}
-                                      onClick={() => onConsultClick(patient)}
-                                    >
-                                      Start Consult
-                                    </Button>
-                                  )
-                                }
-                                <div className="consult-btns-group">
-                                  <Dropdown
-                                    menu={{
-                                      items: getMenuItems(patient),
-                                      style: { width: "8rem", marginTop: "-1rem", marginRight: "-0.3rem" }
-                                    }}
-                                    trigger={["click"]}
-                                    placement="bottomRight"
-                                  >
-                                    <a
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                      }}
-                                      style={{ padding: "5px" }}
-                                    >
-                                      <i
-                                        className="icon-right"
-                                        style={{
-                                          display: "block",
-                                          transform: `rotate(270deg)`,
-                                          color: "white",
-                                        }}
-                                      />
-                                    </a>
-                                  </Dropdown>
-                                </div>
-                              </div>
+                            <PrimaryActionButton
+                                isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                                isSnapRxAccessible={isSnapRxAccessable}
+                                isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+                                isVoiceRxPaid={isVoiceRxPaid}
+                                onSmartRxClick={onSmartRxClick}
+                                onSnapRxClick={onSnapRxClick}
+                                onVoiceRxClick={onVoiceRxClick}
+                                onConsultClick={onConsultClick}
+                                patient={patient}
+                                buttonStyle="walkin"
+                            />
                         ) :
                         (isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
-                          <div className="d-flex btn btn-smart-rx-walkin">
-                            {isSmartSyncAccessableFromGB ? (
-                              <div style={{ paddingLeft: "6px" }} onClick={() => onSmartRxClick(patient)}>
-                                <img src={smartPad} alt="vitals" />
-                                <button
-                                  className="btn btn-smartRx-text"
-                                >
-                                  SmartRx
-                                </button>
-                              </div>
-                            ) : (isFreeVoiceRxUser || tp_monetization_enable) ? (
-                              <Button
-                                type="text"
-                                className="btn btn-primary3 align-items-center d-flex"
-                                icon={<i className="icon-Consult"></i>}
-                                onClick={() =>
-                                  isVoiceRxPaid ? onVoiceRxClick(patient) : onConsultClick(patient)
-                                }
-                              >
-                                {isVoiceRxPaid ? "Voice Rx" : "Start Consult"}
-                              </Button>
-                            ) : null}
-                            {(isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (
-                              <div>
-                                <Dropdown
-                                  className="btn"
-                                  menu={{
-                                    items: getMenuItems(patient),
-                                  }}
-                                  trigger={["click"]}
-                                >
-                                  <a
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                    }}
-                                  >
-                                    <i
-                                      className="icon-right"
-                                      style={{
-                                        display: "block",
-                                        transform: `rotate(270deg)`,
-                                        color: "white",
-                                      }}
-                                    />
-                                  </a>
-                                </Dropdown>
-                              </div>
-                            )}
-                          </div>
+                            <PrimaryActionButton
+                                isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                                isSnapRxAccessible={isSnapRxAccessable}
+                                isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+                                isVoiceRxPaid={isVoiceRxPaid}
+                                onSmartRxClick={onSmartRxClick}
+                                onSnapRxClick={onSnapRxClick}
+                                onVoiceRxClick={onVoiceRxClick}
+                                onConsultClick={onConsultClick}
+                                patient={patient}
+                                buttonStyle="walkin"
+                            />
                         ) : (
                           <Button
                             type="text"
