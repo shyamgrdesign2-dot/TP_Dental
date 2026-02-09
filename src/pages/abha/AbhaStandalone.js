@@ -32,6 +32,7 @@ const MESSAGE_TYPES = {
   ABHA_CLOSE: "ABHA_CLOSE",
   ABHA_ERROR: "ABHA_ERROR",
   ABHA_LOADED: "ABHA_LOADED",
+  ABHA_BIOMETRIC_CAPTURE_CLICKED: "ABHA_BIOMETRIC_CAPTURE_CLICKED",
 };
 
 const FLOW_TYPES = {
@@ -137,24 +138,35 @@ const AbhaStandalone = () => {
 
   useEffect(() => {
     if (isAuthenticated && (flow === FLOW_TYPES.NEW_PATIENT || patientUniqueId)) {
-      switch (mode) {
-        case "link_mobile":
-          goToLink("mobile");
-          break;
-        case "link_address":
-          goToLink("address");
-          break;
-        case "link_number":
-          goToLink("number");
-          break;
-        case "create":
-        default:
-          goToCreate();
-          break;
+      const initialScreen = searchParams.get("initialScreen");
+      const initialAadhaar = searchParams.get("aadhaarNumber");
+      if (initialScreen === "biometric_verification" && initialAadhaar) {
+        goToBiometricVerification({
+          aadhaarNumber: initialAadhaar,
+          patient_unique_id: patientUniqueId,
+        });
+      } else if (initialScreen === "biometric_aadhaar_entry") {
+        goToBiometricAadhaarEntry({ patient_unique_id: patientUniqueId });
+      } else {
+        switch (mode) {
+          case "link_mobile":
+            goToLink("mobile");
+            break;
+          case "link_address":
+            goToLink("address");
+            break;
+          case "link_number":
+            goToLink("number");
+            break;
+          case "create":
+          default:
+            goToCreate();
+            break;
+        }
       }
       postMessageToParent(MESSAGE_TYPES.ABHA_LOADED, { mode, flow });
     }
-  }, [isAuthenticated, patientUniqueId, mode, flow, goToLink, goToCreate, postMessageToParent]);
+  }, [isAuthenticated, patientUniqueId, mode, flow, goToLink, goToCreate, goToBiometricVerification, goToBiometricAadhaarEntry, postMessageToParent]);
 
   const resetAbhaVerifyState = () => {
     abhaVerifyStateRef.current = {
@@ -183,6 +195,29 @@ const AbhaStandalone = () => {
   };
 
   const handleBiometricSelect = (data) => {
+    const isInIframe = typeof window !== "undefined" && window.parent !== window;
+    if (embedded && isInIframe && data?.aadhaarNumber) {
+      const params = new URLSearchParams();
+      const auth = searchParams.get("authToken");
+      if (auth) params.set("authToken", auth);
+      if (patientUniqueId) params.set("patientUniqueId", patientUniqueId);
+      params.set("flow", flow);
+      params.set("mode", mode);
+      params.set("biometricFlow", "true");
+      params.set("initialScreen", "biometric_verification");
+      params.set("aadhaarNumber", data.aadhaarNumber);
+      params.set("fromBiometricNewTab", "true");
+      if (callbackUrl) params.set("callbackUrl", callbackUrl);
+      if (origin) params.set("origin", origin);
+      params.set("embedded", "false");
+      const baseUrl = window.location.origin + window.location.pathname;
+      const url = `${baseUrl}?${params.toString()}`;
+      postMessageToParent(MESSAGE_TYPES.ABHA_BIOMETRIC_CAPTURE_CLICKED, {
+        url,
+        openInNewTab: true,
+        message: "Open this URL in a new browser tab (target=_blank) so the biometric device and Mantra RD Service can be used to complete the flow.",
+      });
+    }
     if (data?.aadhaarNumber) {
       goToBiometricVerification(data);
     } else {
@@ -373,31 +408,37 @@ const AbhaStandalone = () => {
 
     if (flow === FLOW_TYPES.LINK_EXISTING) {
       const abhaAddress = abhaDetails.linkedAddress || abhaDetails.abhaAddress;
-      
-      postMessageToParent(MESSAGE_TYPES.ABHA_SUCCESS, {
+      const fromBiometricNewTab = searchParams.get("fromBiometricNewTab") === "true";
+
+      if (!fromBiometricNewTab) {
+        postMessageToParent(MESSAGE_TYPES.ABHA_SUCCESS, {
+          linkedAddress: abhaAddress,
+          insertId: abhaDetails.insertId || abhaDetails.abhaInsertId,
+          flow,
+          message: `ABHA ID: ${abhaAddress} linked successfully`,
+        });
+      }
+
+      goToAbhaAddress({
+        ...abhaDetails,
+        showSuccessScreen: true,
         linkedAddress: abhaAddress,
-        insertId: abhaDetails.insertId || abhaDetails.abhaInsertId,
-        flow,
-        message: `ABHA ID: ${abhaAddress} linked successfully`,
+        showReturnToTabMessage: fromBiometricNewTab,
       });
 
-      goToAbhaAddress({ 
-        ...abhaDetails, 
-        showSuccessScreen: true,
-        linkedAddress: abhaAddress 
-      });
-      
-      setTimeout(() => {
-        if (callbackUrl) {
-          const params = new URLSearchParams({
-            status: "success",
-            abhaAddress,
-          });
-          window.location.href = `${decodeURIComponent(callbackUrl)}?${params.toString()}`;
-        } else {
-          handleClose();
-        }
-      }, 3000);
+      if (!fromBiometricNewTab) {
+        setTimeout(() => {
+          if (callbackUrl) {
+            const params = new URLSearchParams({
+              status: "success",
+              abhaAddress,
+            });
+            window.location.href = `${decodeURIComponent(callbackUrl)}?${params.toString()}`;
+          } else {
+            handleClose();
+          }
+        }, 3000);
+      }
     }
   };
 
@@ -658,35 +699,36 @@ const AbhaStandalone = () => {
             patientUniqueId={patientUniqueId || null}
           />
         );
-      case ABHA_SCREENS.BIOMETRIC_VERIFICATION:
+      case ABHA_SCREENS.BIOMETRIC_VERIFICATION: {
+        const fromBiometricNewTab = searchParams.get("fromBiometricNewTab") === "true";
+        const resetToCapture = () =>
+          goToBiometricVerification({
+            ...screenData,
+            fingerprintData: null,
+            biometricCaptured: false,
+            verificationStatus: "",
+            verificationError: "",
+            verificationData: null,
+            mobileNumber: screenData.mobileNumber || "",
+          });
         return (
           <BiometricVerification
             data={screenData}
             onGetBiometric={handleGetBiometric}
             onGoBack={() => {
               if (screenData.biometricCaptured) {
-                goToBiometricVerification({
-                  ...screenData,
-                  fingerprintData: null,
-                  biometricCaptured: false,
-                  verificationStatus: "",
-                  verificationError: "",
-                  verificationData: null,
-                  mobileNumber: screenData.mobileNumber || "",
-                });
+                resetToCapture();
               } else {
                 goToCreate({
                   initialAadhaar: screenData.aadhaarNumber || "",
                 });
               }
             }}
-            onTryAgain={() => {
-              goToCreate({
-                initialAadhaar: screenData.aadhaarNumber || "",
-              });
-            }}
+            onTryAgain={fromBiometricNewTab ? resetToCapture : () => goToCreate({ initialAadhaar: screenData.aadhaarNumber || "" })}
+            hideMainGoBack={fromBiometricNewTab}
           />
         );
+      }
       case ABHA_SCREENS.VERIFY_OTP: {
         const mergedOtpData = {
           ...screenData,
@@ -769,7 +811,15 @@ const AbhaStandalone = () => {
       case ABHA_SCREENS.ABHA_ADDRESS:
         // Check if we should show success screen first
         if (screenData?.showSuccessScreen) {
-          // For link_existing flow, show custom success message with ABHA ID
+          if (screenData?.showReturnToTabMessage) {
+            return (
+              <div className="abha_verified_container">
+                <img src={SuccessGif} alt="SUCCESS GIF" width={200} />
+                <div className="verified_label">ABHA has been created successfully.</div>
+                <div className="verified_label" style={{ marginTop: "8px", fontSize: "14px" }}>Please return to the previous tab.</div>
+              </div>
+            );
+          }
           if (flow === FLOW_TYPES.LINK_EXISTING && screenData?.linkedAddress) {
             return (
               <div className="abha_verified_container">

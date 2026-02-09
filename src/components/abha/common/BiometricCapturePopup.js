@@ -70,7 +70,6 @@ const BiometricCapturePopup = ({
       deviceInfoRef.current = null;
       parentSdkUsedRef.current = false;
 
-      // Abort any ongoing operations
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -195,16 +194,12 @@ const BiometricCapturePopup = ({
   const handleDiscoverAndCapture = async () => {
     try {
       setStatus("Discovering device...");
-      
-      // Discover device
       const deviceInfo = await discoverDevice((statusMsg) => {
         if (!statusMsg.includes("port:")) {
           setStatus(statusMsg);
         }
       });
-      
       deviceInfoRef.current = deviceInfo;
-      
       setTimeout(() => {
         handleCapture();
       }, 500);
