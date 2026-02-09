@@ -12,6 +12,7 @@ const BiometricVerification = ({
   onBiometricCaptureSuccess = () => {},
   onGoBack = () => {},
   onTryAgain = () => {},
+  hideMainGoBack = false,
 }) => {
   const { 
     aadhaarNumber = "", 
@@ -176,8 +177,8 @@ const BiometricVerification = ({
                 <button
                   className="abha_biometric_captured_button abha_biometric_error_button"
                   disabled
-                  style={{ 
-                    backgroundColor: "#fff1f0", 
+                  style={{
+                    backgroundColor: "#fff1f0",
                     border: "none",
                     color: "#ff4d4f"
                   }}
@@ -185,34 +186,49 @@ const BiometricVerification = ({
                   <img src={RedAlertIcon} alt="alert" className="abha_biometric_alert_icon" style={{ width: "20px", height: "20px" }} />
                   <span>{verificationError || "Could not verify aadhaar, please try again"}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={onTryAgain}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#722ed1",
-                    cursor: "pointer",
-                    padding: "8px 0",
-                    fontSize: "14px",
-                    textDecoration: "underline",
-                    marginTop: "8px",
-                  }}
-                >
-                  Try again
-                </button>
+                {hideMainGoBack ? (
+                  <button
+                    type="button"
+                    className="abha_go_back"
+                    onClick={onTryAgain}
+                    style={{ marginTop: "12px" }}
+                  >
+                    Go Back
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onTryAgain}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#722ed1",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                      fontSize: "14px",
+                      textDecoration: "underline",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Try again
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
 
-      <div className="border_top_container">
-        <span className="go_back_top_border"></span>
-      </div>
-      <button type="button" className="abha_go_back" onClick={onGoBack}>
-        Go Back
-      </button>
+      {!hideMainGoBack && (
+        <>
+          <div className="border_top_container">
+            <span className="go_back_top_border"></span>
+          </div>
+          <button type="button" className="abha_go_back" onClick={onGoBack}>
+            Go Back
+          </button>
+        </>
+      )}
     </div>
   );
 };
