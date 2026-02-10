@@ -190,9 +190,6 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     return customModules?.find((m) => m.module_id === moduleId) || null;
   };
 
-  // console.log(customModules,"customModules")
-  // console.log(hospitalSearchResults,"hospitalSearchResults")
-  // console.log(customizedPadRightList,"customizedPadRightList")
 
   const isModuleDisabled = (record) => {
     if (!record.is_custom_module) return false;
@@ -306,6 +303,18 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         const updatedRightPad = dataSourceRight.filter(
           (item) => item.tmdpm_id !== moduleToDelete.tmdpm_id
         );
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+        
+        await dispatch(customizedPad(sendData)).unwrap();
+
         setDataSourceRight(updatedRightPad);
 
         // Refresh modules list
