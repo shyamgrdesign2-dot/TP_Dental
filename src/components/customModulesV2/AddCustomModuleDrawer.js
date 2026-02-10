@@ -8,6 +8,7 @@ import ConfirmModuleModal from "./ConfirmModuleModal";
 import { addModule, getModules, searchModulesByHospital, cloneModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { getDecodedToken } from "../../utils/localStorage";
+import { getClinic } from "../../utils/utils";
 import "./AddCustomModuleDrawer.scss";
 
 const MAX_MODULES = 15;
@@ -63,6 +64,21 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
 
   const handleAddToRx = useCallback(
     async (module) => {
+      // Track MoEngage event for add to Rx from existing modules
+      if (window.Moengage) {
+        const clinic = getClinic(profile?.hospital_data);
+        const moeData = {
+          doctor_name: profile?.um_name || "",
+          doctor_um_id: userId || "",
+          specialty: profile?.dp_name || "",
+          doctor_mobile_no: profile?.um_contact || "",
+          sub_doctor: profile?.is_sub_doctor ? 1 : 0,
+          hospital_id: clinic?.hm_id || hospitalId || "",
+          created_by: module?.userId || "", // UM_ID of the creator
+        };
+        window.Moengage.track_event("TP_CMV2_AddtoRx", moeData);
+      }
+
       if (!module || !module.module_id) {
         message.error("Invalid module selected");
         return;
@@ -311,6 +327,20 @@ const AddCustomModuleDrawer = ({ open, onClose }) => {
       // Prevent multiple clicks by setting loading state immediately
       if (isCreatingModule) {
         return;
+      }
+
+      // Track MoEngage event for create and add to Rx
+      if (window.Moengage) {
+        const clinic = getClinic(profile?.hospital_data);
+        const moeData = {
+          doctor_name: profile?.um_name || "",
+          doctor_um_id: userId || "",
+          specialty: profile?.dp_name || "",
+          doctor_mobile_no: profile?.um_contact || "",
+          sub_doctor: profile?.is_sub_doctor ? 1 : 0,
+          hospital_id: clinic?.hm_id || hospitalId || "",
+        };
+        window.Moengage.track_event("TP_CMV2_Create&Add", moeData);
       }
 
       setIsCreatingModule(true);

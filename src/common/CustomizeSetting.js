@@ -190,11 +190,13 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     return customModules?.find((m) => m.module_id === moduleId) || null;
   };
 
+
   const isModuleDisabled = (record) => {
     if (!record.is_custom_module) return false;
     const moduleDef = getModuleDefinition(record.tmdpm_id);
     if (!moduleDef) return false;
-    return moduleDef.hasBeenUsed || moduleDef.hasBeenCloned || moduleDef.userId != userId;
+    const selfModule = !moduleDef?.origin_id;
+    return moduleDef.hasBeenUsed || moduleDef.hasBeenCloned || !selfModule ;
   };
 
   // Handle remove module from Rx pad
@@ -301,6 +303,18 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         const updatedRightPad = dataSourceRight.filter(
           (item) => item.tmdpm_id !== moduleToDelete.tmdpm_id
         );
+
+        const sendData = {
+          data: {
+            default: false,
+            reset: false,
+            left: customizedPadLeftList,
+            right: updatedRightPad,
+          },
+        };
+        
+        await dispatch(customizedPad(sendData)).unwrap();
+
         setDataSourceRight(updatedRightPad);
 
         // Refresh modules list
@@ -562,21 +576,6 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     }
     const action = await dispatch(customizedPad(sendData))
     if (action.meta.requestStatus === "fulfilled") {
-      const customModulesInPad = customModules?.map((cm) => ({
-        tmdpm_id: cm.module_id,
-        tmdpm_name: cm.name,
-        tmdpm_short_name: cm.name,
-        tmdpm_type: "R",
-        tmdpm_status: 0,
-        is_custom_module: true,
-  }))
-      const addCustomModulesPayload = {
-        default: false,
-        reset: false,
-        left: action.payload.left,
-        right: [...action.payload.right,...customModulesInPad]
-      }
-      const customModulesAction = await dispatch(customizedPad({data:addCustomModulesPayload}))
       const left = action.payload.left
       const right = action.payload.right
       if (right.findIndex(e => e.tmdpm_id === 5 && e.tmdpm_status === 0) === -1) {

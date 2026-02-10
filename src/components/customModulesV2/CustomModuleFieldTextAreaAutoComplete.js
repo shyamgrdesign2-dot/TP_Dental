@@ -51,6 +51,14 @@ const CustomModuleFieldTextAreaAutoComplete = ({
   const [options, setOptions] = useState([]);
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const textAreaRef = useRef(null);
+  const blurTimeoutRef = useRef(null);
+  const containerRef = useRef(null);
+  const focusedFieldIdRef = useRef(focusedFieldId);
+  
+  // Update ref when focusedFieldId changes
+  useEffect(() => {
+    focusedFieldIdRef.current = focusedFieldId;
+  }, [focusedFieldId]);
   
   // Only show dropdown if this field is the focused one
   const isFocused = focusedFieldId === fieldId;
@@ -348,8 +356,21 @@ const CustomModuleFieldTextAreaAutoComplete = ({
     return lines[lines.length - 1] || "";
   };
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div className="custom-module-dropdown-container" style={{ position: 'relative', width: '100%' }}>
+    <div 
+      ref={containerRef}
+      className="custom-module-dropdown-container" 
+      style={{ position: 'relative', width: '100%' }}
+    >
       <TextArea
         ref={textAreaRef}
         value={value || ""}
@@ -361,9 +382,17 @@ const CustomModuleFieldTextAreaAutoComplete = ({
         autoSize={{ minRows: 1, maxRows: 10 }}
         bordered={false}
         onFocus={() => {
-          // Notify parent that this field is now focused
+          // Clear any pending blur timeout from previous field
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+          }
+          
+          // Notify parent that this field is now focused - do this first
           if (onFocusChange && fieldId) {
             onFocusChange(fieldId);
+            // Update ref immediately to help with timing
+            focusedFieldIdRef.current = fieldId;
           }
           // Update search query based on current line when focused
           const currentLine = getCurrentLine();
@@ -371,17 +400,62 @@ const CustomModuleFieldTextAreaAutoComplete = ({
           // Dropdown visibility will be handled by the useEffect that watches isFocused
         }}
         onBlur={(e) => {
-          // Delay hiding dropdown to allow selection from dropdown
-          // Only clear focus if focus is not moving to dropdown
-          setTimeout(() => {
+          // Clear any existing timeout
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+          }
+          
+          // Delay hiding dropdown to allow selection from dropdown or focus to another field
+          blurTimeoutRef.current = setTimeout(() => {
+            // Use ref to get current focusedFieldId value (not stale closure value)
+            // Also check the prop value directly as a fallback for timing issues
+            const currentFocusedFieldId = focusedFieldIdRef.current || focusedFieldId;
             const activeElement = document.activeElement;
-            const dropdownElement = e.target.closest('.custom-module-dropdown-container')?.querySelector('.custom-module-dropdown');
-            if (!dropdownElement || !dropdownElement.contains(activeElement)) {
-              if (onFocusChange && fieldId === focusedFieldId) {
-                onFocusChange(null);
-              }
-              setDropdownVisible(false);
+            
+            // Check if focus moved to dropdown
+            const dropdownElement = containerRef.current?.querySelector('.custom-module-dropdown');
+            if (dropdownElement && dropdownElement.contains(activeElement)) {
+              blurTimeoutRef.current = null;
+              return; // Don't close if clicking in dropdown
             }
+            
+            // Check if focus moved to another field in the same table/drawer
+            // Look for other custom-module-dropdown-container elements
+            const allContainers = document.querySelectorAll('.custom-module-dropdown-container');
+            let focusMovedToAnotherField = false;
+            allContainers.forEach((container) => {
+              if (container !== containerRef.current && container.contains(activeElement)) {
+                focusMovedToAnotherField = true;
+              }
+            });
+            
+            // Check if another field is now focused (using both ref and prop to get current value)
+            // Check both to handle timing issues where ref might not be updated yet
+            const anotherFieldIsFocused = (currentFocusedFieldId && currentFocusedFieldId !== fieldId) ||
+                                         (focusedFieldId && focusedFieldId !== fieldId);
+            
+            // Only close if focus didn't move to another field or dropdown
+            // If another field is focused, don't close this dropdown
+            if (anotherFieldIsFocused || focusMovedToAnotherField) {
+              // Focus moved to another field, don't close
+              blurTimeoutRef.current = null;
+              return;
+            }
+            
+            // Double-check: if focusedFieldId prop changed, don't close
+            // This handles cases where the ref might not be updated yet
+            if (focusedFieldId && focusedFieldId !== fieldId) {
+              blurTimeoutRef.current = null;
+              return;
+            }
+            
+            // No other field is focused, safe to close
+            if (onFocusChange && fieldId === currentFocusedFieldId) {
+              onFocusChange(null);
+            }
+            setDropdownVisible(false);
+            
+            blurTimeoutRef.current = null;
           }, 200);
         }}
       />
@@ -395,6 +469,8 @@ const CustomModuleFieldTextAreaAutoComplete = ({
             right: 0,
             width: '100%',
             boxSizing: 'border-box',
+            zIndex: 1000,
+            backgroundColor: '#ffffff',
           }}
           onMouseDown={(e) => {
             // Prevent blur when clicking dropdown

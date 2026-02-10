@@ -6,6 +6,8 @@ import "./ModuleListItem.scss";
 import { useSelector, useDispatch } from "react-redux";
 import { addModule } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
+import { getClinic } from "../../utils/utils";
+import { getDecodedToken } from "../../utils/localStorage";
 import editIcon from "../../assets/images/edit-icon-blue.svg";
 import deleteIcon from "../../assets/images/delete-icon-blue.svg";
 import alertIcon from "../../assets/images/alertIcon.svg";
@@ -41,6 +43,22 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
   const { customModules, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
+  const decodedToken = getDecodedToken();
+  const clinic = getClinic(profile?.hospital_data);
+  const hospitalId = decodedToken?.result?.clinic_id;
+
+  // Helper function to get MoEngage data
+  const getMoeData = () => {
+    return {
+      doctor_name: profile?.um_name || "",
+      doctor_um_id: userId || "",
+      specialty: profile?.dp_name || "",
+      doctor_mobile_no: profile?.um_contact || "",
+      sub_doctor: profile?.is_sub_doctor ? 1 : 0,
+      hospital_id: clinic?.hm_id || hospitalId || "",
+    };
+  };
+
   // Calculate column count based on module version
   const getColumnCount = () => {
     if (module.version === "v2" && module.namedFields) {
@@ -167,6 +185,11 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
 
   // Handle delete module
   const handleDeleteModule = async () => {
+    // Track MoEngage event for delete module
+    if (window.Moengage) {
+      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+    }
+
     try {
       message.loading({ content: "Deleting module...", key: "deleteModule" });
 
@@ -364,6 +387,10 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
     if (key === "delete" && !isModuleDisabled) {
       handleDeleteModuleClick();
     } else if (key === "edit" && !isModuleDisabled) {
+      // Track MoEngage event for edit module
+      if (window.Moengage) {
+        window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+      }
       setCanEditName(true);
     }
   };
