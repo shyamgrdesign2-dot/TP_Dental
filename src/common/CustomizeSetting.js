@@ -190,11 +190,16 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
     return customModules?.find((m) => m.module_id === moduleId) || null;
   };
 
+  // console.log(customModules,"customModules")
+  // console.log(hospitalSearchResults,"hospitalSearchResults")
+  // console.log(customizedPadRightList,"customizedPadRightList")
+
   const isModuleDisabled = (record) => {
     if (!record.is_custom_module) return false;
     const moduleDef = getModuleDefinition(record.tmdpm_id);
     if (!moduleDef) return false;
-    return moduleDef.hasBeenUsed || moduleDef.hasBeenCloned || moduleDef.userId != userId;
+    const selfModule = !moduleDef?.origin_id;
+    return moduleDef.hasBeenUsed || moduleDef.hasBeenCloned || !selfModule ;
   };
 
   // Handle remove module from Rx pad
