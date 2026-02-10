@@ -41,9 +41,10 @@ const FLOW_TYPES = {
 };
 
 const BIOMETRIC_FLOW_ENABLED = true;
+const ABHA_STANDALONE_SUCCESS_SESSION_KEY = "abha_standalone_show_success";
 
 const AbhaStandalone = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [getToken, setToken] = useLocalStorage(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const dispatch = useDispatch();
@@ -125,6 +126,16 @@ const AbhaStandalone = () => {
   }, [authToken, setToken, getToken, postMessageToParent]);
 
   useEffect(() => {
+    const tokenFromUrl = searchParams.get("authToken");
+    const storedToken = getToken();
+    if (!tokenFromUrl && storedToken && typeof setSearchParams === "function") {
+      const params = new URLSearchParams(searchParams);
+      params.set("authToken", storedToken);
+      setSearchParams(params, { replace: true });
+    }
+  }, [searchParams, getToken, setSearchParams]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       if (flow === FLOW_TYPES.LINK_EXISTING && !patientUniqueId) {
         setError("Patient ID is required for linking ABHA to existing patient.");
@@ -138,6 +149,23 @@ const AbhaStandalone = () => {
 
   useEffect(() => {
     if (isAuthenticated && (flow === FLOW_TYPES.NEW_PATIENT || patientUniqueId)) {
+      try {
+        const stored = sessionStorage.getItem(ABHA_STANDALONE_SUCCESS_SESSION_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.showSuccess) {
+            goToAbhaAddress({
+              showSuccessScreen: true,
+              showReturnToTabMessage: !!parsed.showReturnToTabMessage,
+              linkedAddress: parsed.linkedAddress,
+            });
+            postMessageToParent(MESSAGE_TYPES.ABHA_LOADED, { mode, flow });
+            return;
+          }
+        }
+      } catch (e) {
+      }
+
       const initialScreen = searchParams.get("initialScreen");
       const initialAadhaar = searchParams.get("aadhaarNumber");
       if (initialScreen === "biometric_verification" && initialAadhaar) {
@@ -166,7 +194,7 @@ const AbhaStandalone = () => {
       }
       postMessageToParent(MESSAGE_TYPES.ABHA_LOADED, { mode, flow });
     }
-  }, [isAuthenticated, patientUniqueId, mode, flow, goToLink, goToCreate, goToBiometricVerification, goToBiometricAadhaarEntry, postMessageToParent]);
+  }, [isAuthenticated, patientUniqueId, mode, flow, goToLink, goToCreate, goToBiometricVerification, goToBiometricAadhaarEntry, goToAbhaAddress, postMessageToParent]);
 
   const resetAbhaVerifyState = () => {
     abhaVerifyStateRef.current = {
@@ -386,7 +414,26 @@ const AbhaStandalone = () => {
       );
     }
 
+    const fromBiometricNewTab = searchParams.get("fromBiometricNewTab") === "true";
+
     if (flow === FLOW_TYPES.NEW_PATIENT) {
+      if (fromBiometricNewTab) {
+        const abhaAddress = abhaDetails.linkedAddress || abhaDetails.abhaAddress;
+        goToAbhaAddress({
+          ...abhaDetails,
+          showSuccessScreen: true,
+          linkedAddress: abhaAddress,
+          showReturnToTabMessage: true,
+        });
+        try {
+          sessionStorage.setItem(
+            ABHA_STANDALONE_SUCCESS_SESSION_KEY,
+            JSON.stringify({ showSuccess: true, showReturnToTabMessage: true, linkedAddress: abhaAddress })
+          );
+        } catch (e) {
+        }
+        return;
+      }
       navigate("/add_patient?receptionist=true", {
         state: {
           from: "abha-standalone",
@@ -408,7 +455,6 @@ const AbhaStandalone = () => {
 
     if (flow === FLOW_TYPES.LINK_EXISTING) {
       const abhaAddress = abhaDetails.linkedAddress || abhaDetails.abhaAddress;
-      const fromBiometricNewTab = searchParams.get("fromBiometricNewTab") === "true";
 
       if (!fromBiometricNewTab) {
         postMessageToParent(MESSAGE_TYPES.ABHA_SUCCESS, {
@@ -425,6 +471,16 @@ const AbhaStandalone = () => {
         linkedAddress: abhaAddress,
         showReturnToTabMessage: fromBiometricNewTab,
       });
+
+      if (fromBiometricNewTab) {
+        try {
+          sessionStorage.setItem(
+            ABHA_STANDALONE_SUCCESS_SESSION_KEY,
+            JSON.stringify({ showSuccess: true, showReturnToTabMessage: true, linkedAddress: abhaAddress })
+          );
+        } catch (e) {
+        }
+      }
 
       if (!fromBiometricNewTab) {
         setTimeout(() => {
