@@ -183,10 +183,10 @@ function TabPrescription() {
   const { state } = location;
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
-  const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+  const tcmId = caseManagerData != null ? caseManagerData.tcm_id : 0;
+  const pamId = caseManagerData != null ? caseManagerData.pam_id : 0;
   const consultationDate =
-    caseManagerData !== undefined
+    caseManagerData != null
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
@@ -456,7 +456,7 @@ function TabPrescription() {
   }, [isCarePlanEnabled]);
 
   useEffect(() => {
-    if (caseManagerData !== undefined) {
+    if (caseManagerData != null) {
       if (
         caseManagerData.vitals.length > 0 &&
         customizedPadLeftList.findIndex(
@@ -604,9 +604,9 @@ function TabPrescription() {
       patient_unique_id: String(patient_data?.patient_unique_id),
       hm_id: String(decodedToken?.result?.clinic_id),
       pam_id:
-        patient_data !== undefined && patient_data.pam_id !== undefined
+        patient_data != null && patient_data.pam_id !== undefined
           ? String(patient_data.pam_id)
-          : caseManagerData !== undefined
+          : caseManagerData != null && caseManagerData.pam_id !== undefined
           ? String(caseManagerData.pam_id)
           : 0,
     };
@@ -903,7 +903,7 @@ function TabPrescription() {
   }, [selectedVitalsList]);
 
   useEffect(() => {
-    if (caseManagerData !== undefined) {
+    if (caseManagerData != null) {
       if (caseManagerData.private_notes && customizedPadLeftList.findIndex((e) => e.tmdpm_id === 8 && e.tmdpm_status === 0) !== -1 && privateNotesList.findIndex((e) => e.id === caseManagerData.private_notes.id) !== -1 && tcmId) {
         setPrivateNotesData(caseManagerData.private_notes);
       }
