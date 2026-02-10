@@ -11,8 +11,9 @@ import { useSelector } from "react-redux";
 
 export default function VisitGrowthChart() {
   const navigate = useNavigate();
-  const { state } = useLocation();
-  const { patient_data } = state;
+  const location = useLocation();
+  const locationState = location.state || {};
+  const { patient_data } = locationState;
   const { patients_details } = useSelector((state) => state.records);
 
   const [growthChartData, setGrowthChartData] = useState({});
