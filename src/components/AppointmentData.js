@@ -257,6 +257,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
   const isAppointmentAgentEnable = planDetails?.currentPlanStatus === "PAID" && !shouldAppointmentAgentDisabled();
+  // const isAppointmentAgentEnable = !shouldAppointmentAgentDisabled();
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -2147,21 +2148,23 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       filters:
         selectedTab !== TAB_ZYDUS_APPOINTMENT ? getVisitTypeFilters() : null,
       render: (text, record) => (
-        <div>
-          <span>
+        <div className="d-flex">
+          <div>
             {selectedTab !== TAB_ZYDUS_APPOINTMENT
               ? record.toct_type
               : record.appointmentStatus}
-          </span>
+              <br />{" "}
+              <small> {record.pt_name || "--"}</small>
+          </div>
           {advancedSettings?.billingStatusInAppointmentScreen &&
             record.billStatus && (
-              <span
+              <div
                 className={`bill-status ${
                   record.billStatus === "Unbilled" ? "bill-status-unbilled" : ""
                 }`}
               >
                 {record.billStatus}
-              </span>
+              </div>
             )}
         </div>
       ),
@@ -2242,7 +2245,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         return (
           <div>
             <span className="text-lowercase">
-              {record.apTime} {displayText}
+              {selectedTab === TAB_FINISHED ? record.finishedTime : record.apTime} {displayText}
             </span> <br />{" "}
             <small> {record.apDate}</small>
           </div>

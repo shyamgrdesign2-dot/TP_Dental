@@ -6,12 +6,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
 import { isChrome, isSafari, isBrowser } from "react-device-detect";
 import axios from 'axios';
-import { QRCodeSVG } from 'qrcode.react';
-import { Button as ButtonOPD } from "antd";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import jsQR from 'jsqr';
-import { useReactToPrint } from 'react-to-print';
+import { useQrPrintDownloadHandlers } from './qrPrintDownloadHelper';
 
 import Slider from "react-slick";
 
@@ -23,13 +19,15 @@ import playIcons from '../assets/images/tube-icon.svg';
 import qrIcon from '../assets/images/qr-icon.svg';
 import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
+import QrPrintDownloadModal from "./QrPrintDownloadModal";
 import videorotate from '../assets/images/videorotate.gif';
-import billingsIcon from "../assets/images/billings.svg";
 import upgradeIcon from "../assets/images/upgrade.svg";
 import profileBg from "../assets/images/profile-bg.svg";
 import goldCrown from "../assets/images/gold-crown.svg";
 import crownIcon from "../assets/images/crown.svg";
 import AISuite from "../assets/images/ai-suite.png";
+import Notification from "../assets/images/navbar-icons/notification.svg";
+import ReceiptText from "../assets/images/navbar-icons/receipt-text.svg";
 import iconMobile from "../assets/images/icon-mobile.svg";
 
 import config from "../config";
@@ -65,6 +63,8 @@ import { EVENTS } from "../utils/events";
 import {
   sendMessageToParent
 } from "../utils/utils";
+import { QRCodeSVG } from "qrcode.react";
+import { useReactToPrint } from "react-to-print";
 const CUSTOMIZED_PAD_SENDDATA = { data: { default: false, reset: true } }
 
 function Header({ locationPath }) {
@@ -859,6 +859,17 @@ function Header({ locationPath }) {
         ),
         key: "6",
       },
+      ...(!!tokenData?.admin && isOpdBillingAccessable ? [{
+        label: (
+          <a onClick={() => navigate("/billing-settings")}>
+            <div className="title-common me-4 d-flex align-items-center">
+            <img src={ReceiptText} alt="Billing" width={26} height={23} className="me-3" />Billing Setting
+            </div>
+            <i className="icon-right iconrotate180"></i>
+          </a>
+        ),
+        key: "billing-settings",
+      }] : []),
       ...(profile?.abhaEnable && isAbhaQRAccessableFromGB ? [{
         label: (
           <a onClick={handleShowAbhaQRCode}>
@@ -1050,47 +1061,10 @@ function Header({ locationPath }) {
     setOpdPlansUrl(url);
   };
 
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-    pageStyle: `
-      @media print {
-        .opd-plans-inner-contianer {
-          font-size: 2.5rem; /* Enlarge the whole container content */
-          padding: 40px;
-        }
-        .opd-title {
-          font-size: 3rem; /* Enlarge title */
-        }
-        .opd-byline {
-          font-size: 2rem; /* Enlarge byline */
-        }
-        .opd-logo img {
-          height: 3rem; /* Enlarge logo */
-        }
-        .opd-qr-image {
-          width: 300px !important; /* Enlarge QR Code */
-          height: 300px !important;
-        }
-        .opd-scan-text {
-          font-size: 1.8rem; /* Enlarge scan text */
-        }
-      }
-    `
+  const { handlePrint, handleDownload } = useQrPrintDownloadHandlers({
+    printRef,
+    fileName: 'OPD-Plans',
   });
-
-  // Download as PDF functionality
-  const handleDownload = async () => {
-    const element = printRef.current;
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('OPD-Plans.pdf');
-  };
 
   const handleAiSuite = useCallback(() => {
     setAiModal(!aiModal);
@@ -1163,55 +1137,20 @@ function Header({ locationPath }) {
               </div>
             )}
 
-            <Modal
-              open={(isQRCodeVisible && opdPlansUrl)}
-              centered
-              closeIcon={false}
-              onCancel={showHideBackModal}
-              footer={null}
-              title={null}
-              destroyOnClose
+            <QrPrintDownloadModal
+              open={!!isQRCodeVisible && !!opdPlansUrl}
+              onClose={showHideBackModal}
+              contentRef={printRef}
+              title="OPD Plans"
+              byName={profile?.um_name}
+              logoSrc={logoIcom}
+              qrValue={opdPlansUrl}
+              qrSize={180}
+              scanText="Scan the QR to view & buy OPD plans"
+              onPrint={handlePrint}
+              onDownload={handleDownload}
               className="opd-plan-qr"
-            >
-              <div className="opd-qr">
-                <button className="qr-close-btn" onClick={showHideBackModal}>
-                  <i style={{ fontSize: "2rem" }} className="icon-Cross"></i>
-                </button>
-                <div ref={printRef} className="opd-plans-inner-contianer">
-                  <div className="opd-title" style={{ fontWeight: "700", fontSize: "2rem", color: "#1F2933 !important" }}>
-                    OPD Plans
-                  </div>
-                  <div className="opd-byline" style={{ marginBottom: "2rem", marginTop: "0.4rem" }}>
-                    by <strong>{profile?.um_name}</strong>
-                  </div>
-                  <div className="d-flex align-items-center justify-content-center">
-                    <div className="opd-logo log-holder">
-                      <img src={logoIcom} style={{ height: "1.8rem" }} className="logo-text-icon" alt="Logo" />
-                    </div>
-                    <QRCodeSVG className="opd-qr-image" value={opdPlansUrl} size={180} />
-                  </div>
-                  <div className="opd-scan-text" style={{ marginTop: "2rem", fontSize: "1.2rem", color: "#454551 !important" }}>
-                    Scan the QR to view & buy OPD plans
-                  </div>
-                </div>
-                <div className="d-flex align-items-center justify-content-between gap-4 mt-4">
-                  <ButtonOPD
-                    onClick={handlePrint}
-                    className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
-                    style={{ width: "13rem", height: "3rem" }}
-                  >
-                    <span className="fs-18 align-items-center d-flex "><i className="icon-Print me-2"></i>Print</span>
-                  </ButtonOPD>
-                  <ButtonOPD
-                    onClick={handleDownload}
-                    className="btn btn-primary1 btn-41 align-items-center d-flex justify-content-center"
-                    style={{ width: "13rem", height: "3rem" }}
-                  >
-                    <span className="fs-18 align-items-center d-flex"><i className="icon-download me-2"></i>Download</span>
-                  </ButtonOPD>
-                </div>
-              </div>
-            </Modal>
+            />
 
             {/* ABHA QR Code Modal */}
             {isLoadingAbhaQR ? (
@@ -1534,35 +1473,20 @@ function Header({ locationPath }) {
               />
             )}
 
+            <div>
+              <Button
+                className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
+                onClick={() =>
+                  window.Moengage.track_event("announcement_button_clicked")
+                }
+                id="beamerButton"
+              >
+                <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
+              </Button>
+            </div>
+
             {SWITCH_TO_OLD_MODAL}
 
-            {!!tokenData?.admin && isOpdBillingAccessable &&
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      label: (
-                        <a onClick={() => navigate("/billing-settings")}>
-                          <div className="title-settings me-2 d-flex align-items-center">
-                            <img src={billingsIcon} alt="Billing" width={20} height={20} className="me-2" />
-                            Billing Settings
-                          </div>
-                          <i className="icon-right iconrotate180"></i>
-                        </a>
-                      ),
-                      key: "1",
-                    }
-                  ]
-                }}
-                trigger={['click']}
-                className="py-0 nav-link cursor-pointer"
-                overlayClassName="settings-dropdown"
-              >
-                <div className="d-flex align-items-center h-24 w-24">
-                  <i className="icon-setting me-2"></i>
-                </div>
-              </Dropdown>
-            }
 
             <Dropdown
               menu={{

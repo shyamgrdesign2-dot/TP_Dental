@@ -27,6 +27,8 @@ import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
+import { getDecodedToken } from "../utils/localStorage";
+import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 
@@ -34,7 +36,7 @@ function ConfigurePrintSetting() {
 
     const divRef = useRef(null);
 
-    const { defaultPrintSettings, userId } = useSelector((state) => state.doctors);
+    const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
     const { caseManagerData, certificateData, smartRxFile, pam_id } = state;
@@ -57,6 +59,7 @@ function ConfigurePrintSetting() {
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
+    const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
@@ -161,11 +164,36 @@ function ConfigurePrintSetting() {
         )
     );
 
+    // Fetch appointment agent link
+    useEffect(() => {
+        const fetchAppointmentLink = async () => {
+            try {
+                const decodedToken = getDecodedToken();
+                const clinicId = decodedToken?.result?.clinic_id;
+                if (clinicId) {
+                    const res = await fetchAgents(clinicId);
+                    if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+                        const appointmentLink = res.data[0]?.appointmentLinkShared;
+                        if (appointmentLink) {
+                            setAppointmentLinkShared(appointmentLink);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error while fetching appointment agent link: ", error);
+            }
+        };
+        fetchAppointmentLink();
+    }, []);
+
     useEffect(() => {
         const makeData = async () => {
+            const publishUrl = profile?.website_publish ? profile?.publish_url : null ;
+            const qrCodeUrl = publishUrl || appointmentLinkShared ;
+            const qrCode = qrCodeUrl ? await QRCode.toDataURL(qrCodeUrl) : null;
             const copyPrintSettings = JSON.parse(JSON.stringify({
                 ...defaultPrintSettings,
-                qrcode: await QRCode.toDataURL(`${config.doctor_website_url}${parseInt(defaultPrintSettings?.um_contact, 10).toString(36)}_${defaultPrintSettings?.hm_refer_code}`)
+                qrcode: qrCode  
             }))
             
             // Add Case Option ID 18 for Zydus Lab Results if it doesn't exist and we have Zydus data
@@ -219,7 +247,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings, hasOphthalModuleData]);
+    }, [defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;
