@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import {
   Routes,
   Route,
@@ -14,21 +14,6 @@ import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
-
-import AppointmentList from "./pages/AppointmentList";
-import PatientDetails from "./pages/PatientDetails";
-import Prescription from "./pages/Prescription";
-import SmartPrescription from "./pages/SmartPrescription";
-import SmartRxPreview from "./pages/SmartRxPreview";
-import TabPrescription from "./pages/tab_design/TabPrescription";
-import PrescriptionPrintView from "./pages/PrescriptionPrintView";
-import ConfigurePrintSetting from "./pages/ConfigurePrintSetting";
-import MedicalCertificate from "./pages/MedicalCertificate";
-import CertificatePrintView from "./pages/CertificatePrintView";
-import DoctorProfile from "./pages/DoctorProfile";
-import DoctorWebsiteSetting from "./pages/DoctorWebsiteSetting";
-import MessageCreateCampaign from "./pages/MessageCreateCampaign";
-
 import { store, persistor } from "./redux/store";
 import {
   FROM_NATIVE_APP,
@@ -38,44 +23,56 @@ import {
   TNC_VERSION,
 } from "./utils/constants";
 import { useLocalStorage } from "./utils/localStorage";
-
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./common/ErrorFallback";
 import TalkativeWidget from "./components/TalkativeWidget";
-import SmartRxDigitise from "./pages/SmartRxDigitise";
 import DemoExpirationBanner from "./common/DemoExpirationBanner";
 import PlanExpirationBanner from "./common/PlanExpirationBanner";
 import DoctorModal from "./common/DoctorModal";
 import ExpiredPlanCard from "./common/ExpiredPlanCard";
-import ApolloConsultations from "./pages/apolloConsultations/ApolloConsultations";
-import AuthContainer from "./pages/auth/auth";
-import GenRxPrescriptionPrintView from "./pages/GenRxPrescriptionPrintView";
-import BillingDashboard from "./pages/opdBilling/components/billingDashboard/BillingDashboard";
-import BillingSettings from "./pages/opdBilling/components/advanceBillSettings/BillingSettings";
-import AllPatients from "./pages/allPatients.js/AllPatients";
-import AddAppointment from "./pages/addAppointment/AddAppointment";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
-import GetUnlimitedAccess from "./pages/monetization/GetUnlimitedAccess";
 import { useTncConsent } from "./hooks/useTncConsent";
 import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
-import Onboarding from "./pages/onBoarding/components/Onboarding";
-import FinalSetup from "./pages/FinalSetup";
-import OurOffering from "./pages/ourOffering/OurOffering";
-import SnapRx from "./pages/snapRx/SnapRx";
-import UploadRx from "./pages/uploadRx";
-import OphthalSnapRx from "./pages/ophthalSnapRx/SnapRx";
-import OphthalUploadRx from "./pages/ophthalUploadRx";
 import BottomSheetManager from "./components/bottomSheetManager";
-import SnapRxPreview from "./pages/snapRx/SnapRxPreview";
-import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
-import AppointmentAgent from "./pages/appointmentAgent/AppointmentAgent";
-import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess";
-import VoiceRxConsult from "./pages/VoiceRxConsult";
-import OpdBill from "./pages/opdBilling/OpdBill";
-import HealthRecords from "./pages/abhaRecords/HealthRecords";
-import AbhaStandalone from "./pages/abha/AbhaStandalone";
-import AddNewPatient from "./pages/AddNewPatient";
+
+const AppointmentList = React.lazy(() => import("./pages/AppointmentList"));
+const PatientDetails = React.lazy(() => import("./pages/PatientDetails"));
+const Prescription = React.lazy(() => import("./pages/Prescription"));
+const SmartPrescription = React.lazy(() => import("./pages/SmartPrescription"));
+const SmartRxPreview = React.lazy(() => import("./pages/SmartRxPreview"));
+const TabPrescription = React.lazy(() => import("./pages/tab_design/TabPrescription"));
+const PrescriptionPrintView = React.lazy(() => import("./pages/PrescriptionPrintView"));
+const ConfigurePrintSetting = React.lazy(() => import("./pages/ConfigurePrintSetting"));
+const MedicalCertificate = React.lazy(() => import("./pages/MedicalCertificate"));
+const CertificatePrintView = React.lazy(() => import("./pages/CertificatePrintView"));
+const DoctorProfile = React.lazy(() => import("./pages/DoctorProfile"));
+const DoctorWebsiteSetting = React.lazy(() => import("./pages/DoctorWebsiteSetting"));
+const MessageCreateCampaign = React.lazy(() => import("./pages/MessageCreateCampaign"));
+const SmartRxDigitise = React.lazy(() => import("./pages/SmartRxDigitise"));
+const ApolloConsultations = React.lazy(() => import("./pages/apolloConsultations/ApolloConsultations"));
+const GenRxPrescriptionPrintView = React.lazy(() => import("./pages/GenRxPrescriptionPrintView"));
+const BillingDashboard = React.lazy(() => import("./pages/opdBilling/components/billingDashboard/BillingDashboard"));
+const BillingSettings = React.lazy(() => import("./pages/opdBilling/components/advanceBillSettings/BillingSettings"));
+const AllPatients = React.lazy(() => import("./pages/allPatients.js/AllPatients"));
+const AddAppointment = React.lazy(() => import("./pages/addAppointment/AddAppointment"));
+const GetUnlimitedAccess = React.lazy(() => import("./pages/monetization/GetUnlimitedAccess"));
+const Onboarding = React.lazy(() => import("./pages/onBoarding/components/Onboarding"));
+const FinalSetup = React.lazy(() => import("./pages/FinalSetup"));
+const OurOffering = React.lazy(() => import("./pages/ourOffering/OurOffering"));
+const SnapRx = React.lazy(() => import("./pages/snapRx/SnapRx"));
+const UploadRx = React.lazy(() => import("./pages/uploadRx"));
+const OphthalSnapRx = React.lazy(() => import("./pages/ophthalSnapRx/SnapRx"));
+const OphthalUploadRx = React.lazy(() => import("./pages/ophthalUploadRx"));
+const SnapRxPreview = React.lazy(() => import("./pages/snapRx/SnapRxPreview"));
+const SnapRxDigitise = React.lazy(() => import("./pages/snapRx/SnapRxDigitise"));
+const AppointmentAgent = React.lazy(() => import("./pages/appointmentAgent/AppointmentAgent"));
+const AppointmentSuccess = React.lazy(() => import("./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess"));
+const VoiceRxConsult = React.lazy(() => import("./pages/VoiceRxConsult"));
+const OpdBill = React.lazy(() => import("./pages/opdBilling/OpdBill"));
+const HealthRecords = React.lazy(() => import("./pages/abhaRecords/HealthRecords"));
+const AbhaStandalone = React.lazy(() => import("./pages/abha/AbhaStandalone"));
+const AddNewPatient = React.lazy(() => import("./pages/AddNewPatient"));
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -444,99 +441,101 @@ function App() {
                 handleUpgradeModal={handleUpgradeModal}
               />
             )}
-            <SentryRoutes>
-              {/* Public route */}
-              {/* <Route path="/login" element={<AuthContainer />} /> */}
-              <Route path="/login" element={<Onboarding />} />
-              <Route path="/our-offerings" element={<OurOffering />} />
-              <Route path="/final-setup" element={<FinalSetup />} />
+            <Suspense fallback={null}>
+              <SentryRoutes>
+                {/* Public route */}
+                {/* <Route path="/login" element={<AuthContainer />} /> */}
+                <Route path="/login" element={<Onboarding />} />
+                <Route path="/our-offerings" element={<OurOffering />} />
+                <Route path="/final-setup" element={<FinalSetup />} />
 
-              {/* Restricted route - authorized only to get/upload snapRx files */}
-              <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
-              <Route
-                path="ophthal-snap-rx/mobile-upload"
-                element={<OphthalUploadRx />}
-              />
+                {/* Restricted route - authorized only to get/upload snapRx files */}
+                <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
+                <Route
+                  path="ophthal-snap-rx/mobile-upload"
+                  element={<OphthalUploadRx />}
+                />
 
-              {/* ABHA Standalone - Can work with URL auth token */}
-              <Route path="/abha-standalone" element={<AbhaStandalone />} />
+                {/* ABHA Standalone - Can work with URL auth token */}
+                <Route path="/abha-standalone" element={<AbhaStandalone />} />
 
-              {/* Protected routes */}
-              <Route element={<PrivateRoute />}>
-                <Route path="/*" element={<AppointmentList />} />
-                <Route
-                  path="create-campaign"
-                  element={<MessageCreateCampaign />}
-                />
-                <Route path="patient_details" element={<PatientDetails />} />
-                <Route
-                  path="prescription"
-                  element={isMobile ? <TabPrescription /> : <Prescription />}
-                />
-                <Route
-                  path="prescription_print_view"
-                  element={<PrescriptionPrintView />}
-                />
-                <Route
-                  path="configure_print_setting"
-                  element={<ConfigurePrintSetting />}
-                />
-                <Route path="certificate" element={<MedicalCertificate />} />
-                <Route
-                  path="certificate_print_view"
-                  element={<CertificatePrintView />}
-                />
-                <Route
-                  path="smart-prescription"
-                  element={<SmartPrescription />}
-                />
-                <Route path="print-smart-rx" element={<SmartRxPreview />} />
-                <Route path="doctor_profile" element={<DoctorProfile />} />
-                <Route
-                  path="doctor_website_setting"
-                  element={<DoctorWebsiteSetting />}
-                />
-                <Route path="smart-rx-digitise" element={<SmartRxDigitise />} />
-                <Route
-                  path="apollo-consultations"
-                  element={<ApolloConsultations />}
-                />
-                <Route
-                  path="gen-rx-print"
-                  element={<GenRxPrescriptionPrintView />}
-                />
-                <Route
-                  path="billing-dashboard"
-                  element={<BillingDashboard />}
-                />
-                <Route path="all_patients" element={<AllPatients />} />
-                <Route path="billing-settings" element={<BillingSettings />} />
-                <Route path="add-appointment" element={<AddAppointment />} />
-                {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
-                <Route path="snap-rx" element={<SnapRx />} />
-                <Route path="snap-rx/preview" element={<SnapRxPreview />} />
-                <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
-                <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
-                <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
-                <Route
-                  path="get-unlimited-access"
-                  element={<GetUnlimitedAccess />}
-                />
-                <Route
-                  path="appointment-agent"
-                  element={<AppointmentAgent />}
-                />
-                <Route
-                  path="appointment-agent/success"
-                  element={<AppointmentSuccess />}
-                />
-                <Route
-                  path="abha-records/health-records"
-                  element={<HealthRecords />}
-                />
-              </Route>
-              <Route path="opd-bill" element={<OpdBill />} />
-            </SentryRoutes>
+                {/* Protected routes */}
+                <Route element={<PrivateRoute />}>
+                  <Route path="/*" element={<AppointmentList />} />
+                  <Route
+                    path="create-campaign"
+                    element={<MessageCreateCampaign />}
+                  />
+                  <Route path="patient_details" element={<PatientDetails />} />
+                  <Route
+                    path="prescription"
+                    element={isMobile ? <TabPrescription /> : <Prescription />}
+                  />
+                  <Route
+                    path="prescription_print_view"
+                    element={<PrescriptionPrintView />}
+                  />
+                  <Route
+                    path="configure_print_setting"
+                    element={<ConfigurePrintSetting />}
+                  />
+                  <Route path="certificate" element={<MedicalCertificate />} />
+                  <Route
+                    path="certificate_print_view"
+                    element={<CertificatePrintView />}
+                  />
+                  <Route
+                    path="smart-prescription"
+                    element={<SmartPrescription />}
+                  />
+                  <Route path="print-smart-rx" element={<SmartRxPreview />} />
+                  <Route path="doctor_profile" element={<DoctorProfile />} />
+                  <Route
+                    path="doctor_website_setting"
+                    element={<DoctorWebsiteSetting />}
+                  />
+                  <Route path="smart-rx-digitise" element={<SmartRxDigitise />} />
+                  <Route
+                    path="apollo-consultations"
+                    element={<ApolloConsultations />}
+                  />
+                  <Route
+                    path="gen-rx-print"
+                    element={<GenRxPrescriptionPrintView />}
+                  />
+                  <Route
+                    path="billing-dashboard"
+                    element={<BillingDashboard />}
+                  />
+                  <Route path="all_patients" element={<AllPatients />} />
+                  <Route path="billing-settings" element={<BillingSettings />} />
+                  <Route path="add-appointment" element={<AddAppointment />} />
+                  {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
+                  <Route path="snap-rx" element={<SnapRx />} />
+                  <Route path="snap-rx/preview" element={<SnapRxPreview />} />
+                  <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
+                  <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
+                  <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
+                  <Route
+                    path="get-unlimited-access"
+                    element={<GetUnlimitedAccess />}
+                  />
+                  <Route
+                    path="appointment-agent"
+                    element={<AppointmentAgent />}
+                  />
+                  <Route
+                    path="appointment-agent/success"
+                    element={<AppointmentSuccess />}
+                  />
+                  <Route
+                    path="abha-records/health-records"
+                    element={<HealthRecords />}
+                  />
+                </Route>
+                <Route path="opd-bill" element={<OpdBill />} />
+              </SentryRoutes>
+            </Suspense>
           </PersistGate>
         </Provider>
       </ErrorBoundary>
