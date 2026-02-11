@@ -37,7 +37,7 @@ Sentry.init({
   ],
   tracesSampleRate: tracesSampleRateValue,
   tracePropagationTargets: [],
-  sendDefaultPii: false,
+  sendDefaultPii: true,
   environment: appEnv,
   beforeSend(event) {
     // Filter out development errors or specific error types
