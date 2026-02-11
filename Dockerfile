@@ -5,13 +5,14 @@ FROM node:22 as build
 ##ARG REACT_APP_ENV
 ##ENV REACT_APP_ENV qa
 
-# Define a build argument for REACT_APP_ENV
+# Define build arguments for environment variables
 ARG REACT_APP_ENV
 ARG SENTRY_AUTH_TOKEN
+ARG GENERATE_SOURCEMAP
 
-# Set REACT_APP_ENV environment variable
 ENV REACT_APP_ENV $REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 
 # Set the working directory in the container
 WORKDIR /app
@@ -29,6 +30,7 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build the React app for production
 RUN npm run build
+RUN find /app/build -name "*.map" -type f -delete
 
 # Use Nginx as the production server
 FROM nginx:stable-alpine
