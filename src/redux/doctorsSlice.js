@@ -648,14 +648,16 @@ const doctorsSlice = createSlice({
         }
       })
       .addCase(upsertDoctorSettingFlag.fulfilled, (state, action) => {
-        const updatedFlags = [...state.profile.userSettingFlag];
+        const updatedFlags = Array.isArray(state.profile?.userSettingFlag)
+          ? [...state.profile.userSettingFlag]
+          : [];
         const index = updatedFlags.findIndex(item => item.type === action.meta.arg.type);
         if (index !== -1) {
           updatedFlags[index].status = 1;
         } else {
           updatedFlags.push({ type: action.meta.arg.type, status: 1 });
         }
-        state.profile.userSettingFlag = updatedFlags
+        state.profile = { ...state.profile, userSettingFlag: updatedFlags }
         console.log(state.profile)
       })
       .addCase(zydusRefIds.fulfilled, (state, action) => {
