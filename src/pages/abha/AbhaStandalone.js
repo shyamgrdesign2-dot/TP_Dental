@@ -238,6 +238,7 @@ const AbhaStandalone = () => {
       if (callbackUrl) params.set("callbackUrl", callbackUrl);
       if (origin) params.set("origin", origin);
       params.set("embedded", "false");
+      params.set("receptionist", "true");
       const baseUrl = window.location.origin + window.location.pathname;
       const url = `${baseUrl}?${params.toString()}`;
       postMessageToParent(MESSAGE_TYPES.ABHA_BIOMETRIC_CAPTURE_CLICKED, {
