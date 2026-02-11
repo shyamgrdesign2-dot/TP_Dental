@@ -16,7 +16,13 @@ import './assets/scss/app.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
-const isProd = process.env.REACT_APP_ENV === "prod";
+const appEnv = process.env.REACT_APP_ENV || "prod";
+const isProd = appEnv === "prod";
+const tracesSampleRateValue =
+  Number(
+    process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
+      (isProd ? 1.0 : 1.0)
+  ) || 1.0;
 
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
@@ -29,16 +35,10 @@ Sentry.init({
       matchRoutes,
     }),
   ],
-  tracesSampleRate: isProd ? 0.1 : 1.0,
-  tracePropagationTargets: [
-    "localhost",
-    window.location.origin,
-    /^https:\/\/(?!pm-tatva-agents-uat\.tatvacare\.in)(?!backend\.getbeamer\.com).*\.tatvacare\.in/,
-    /^https:\/\/.*\.azurecontainerapps\.io/,
-    /^https:\/\/.*\.azurewebsites\.net/,
-  ],
+  tracesSampleRate: tracesSampleRateValue,
+  tracePropagationTargets: [],
   sendDefaultPii: false,
-  environment: process.env.REACT_APP_ENV,
+  environment: appEnv,
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;
