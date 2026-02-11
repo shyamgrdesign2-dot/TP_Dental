@@ -236,6 +236,7 @@ function PatientForm({ mode = ADD, patient_data }) {
 
                     // Show modal if any of SmartRx, SnapRx, or VoiceRx is enabled (and not mobile)
                     const hasRxOptions = isSmartSyncAccessableFromGB || isSnapRxAccessable || isFreeVoiceRxUser || tp_monetization_enable;
+                    const fromWalkInMobile = location.state?.from === 'walk_in_consultation' && isMobileOnly;
                     if (isMobile || !hasRxOptions) {
                         mode === EDIT ?
                             navigate("/patient_details", {
@@ -244,7 +245,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                             }) :
                             navigate("/prescription", {
                                 replace: true,
-                                state: { patient_data: action.payload }
+                                state: { patient_data: action.payload, ...(fromWalkInMobile ? { fromWalkInMobile: true } : {}) }
                             });
                     } else {
                         if (mode !== EDIT) {

@@ -18,6 +18,7 @@ import ApiMedication from '../../api/services/ApiMedication';
 import { addPatientLabReports } from '../../api/services/ApiLabParams';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
 import { addUpdateVitals } from '../../redux/vitalsSlice';
+import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { errorMessage } from '../../utils/utils';
@@ -38,7 +39,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { profile } = useSelector((state) => state.doctors);
-  const { medicalHistoryData } = useContext(CashManagerContext) || {};
+  const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext) || {};
 
   const { state } = location;
   const {
@@ -154,6 +155,40 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       editContextRef.current.smartPrescriptionFilename = id;
     }
   }, [caseManagerData?.smart_prescription_filename]);
+
+  // New consultation (e.g. from walk-in add patient): no Voice RX input and no existing prescription.
+  // Initialize with empty template so Rx Pad content (Vitals, History, etc.) shows like on web.
+  useEffect(() => {
+    if (!visible || !patient_data) return;
+    if (prescriptionData != null) return;
+    if (existingData?.prescriptionData) return;
+    if (inputTextFromLocation || audioBlobFromLocation) return;
+    setPrescriptionData(getEmptyPrescriptionTemplate());
+  }, [visible, patient_data, prescriptionData, existingData?.prescriptionData, inputTextFromLocation, audioBlobFromLocation]);
+
+  // Load patient's last medical history when starting new consultation (matches web TabPrescription behavior)
+  useEffect(() => {
+    if (!visible || !patient_data?.patient_unique_id) return;
+    if (caseManagerData) return; // Only for new consultation (no existing case manager data)
+    if (!setMedicalHistoryData) return;
+    
+    const loadLastHistory = async () => {
+      try {
+        const action = await dispatch(
+          getPatientLastHistory({
+            patient_unique_id: patient_data.patient_unique_id,
+          })
+        );
+        if (action.meta.requestStatus === 'fulfilled' && action.payload) {
+          setMedicalHistoryData(JSON.parse(JSON.stringify(action.payload)));
+        }
+      } catch (error) {
+        console.error('Error loading patient last history:', error);
+      }
+    };
+    
+    loadLastHistory();
+  }, [visible, patient_data?.patient_unique_id, caseManagerData, dispatch, setMedicalHistoryData]);
 
   useEffect(() => {
     if (!visible || !patient_data?.patient_unique_id) return;
@@ -467,6 +502,23 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     };
     return cleanedData;
   };
+
+  // Empty prescription template (matches web: show form sections when starting new consultation with no Voice Rx input)
+  const getEmptyPrescriptionTemplate = () => ({
+    symptoms: [],
+    medications: [],
+    vitalsAndBodyComposition: {},
+    advice: [],
+    diagnosis: [],
+    examinations: [],
+    followUp: '',
+    labInvestigation: [],
+    labResults: [],
+    medicalHistory: [],
+    vaccinations: [],
+    others: [],
+    dynamicFields: {},
+  });
 
   // Match web ConsultationDrawer: format lab results for case manager API
   const formatLabResultsForApi = (labResults = []) => {
@@ -1119,6 +1171,59 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     }
   };
 
+  // Check if prescription is empty (matches web version)
+  const isPrescriptionDataEmpty = (data) => {
+    if (!data || typeof data !== "object") return true;
+    const {
+      symptoms,
+      medications,
+      vitalsAndBodyComposition,
+      advice,
+      diagnosis,
+      examinations,
+      followUp,
+      labInvestigation,
+      labResults,
+      medicalHistory,
+      vaccinations,
+      others,
+      dynamicFields,
+    } = data;
+
+    const hasSymptoms = Array.isArray(symptoms) && symptoms.length > 0;
+    const hasMedications = Array.isArray(medications) && medications.length > 0;
+    const hasVitals = vitalsAndBodyComposition && typeof vitalsAndBodyComposition === "object" && Object.keys(vitalsAndBodyComposition).length > 0;
+    const hasAdvice = Array.isArray(advice) && advice.length > 0;
+    const hasDiagnosis = Array.isArray(diagnosis) && diagnosis.length > 0;
+    const hasExaminations = Array.isArray(examinations) && examinations.length > 0;
+    const hasFollowUp = typeof followUp === "string" && followUp.trim().length > 0;
+    const hasLabInvestigation = Array.isArray(labInvestigation) && labInvestigation.length > 0;
+    const hasLabResults = Array.isArray(labResults) && labResults.length > 0;
+    const hasMedicalHistory = Array.isArray(medicalHistory) && medicalHistory.length > 0;
+    const hasVaccinations = Array.isArray(vaccinations) && vaccinations.length > 0;
+    const hasOthers = Array.isArray(others) && others.length > 0;
+    const hasDynamicFields = dynamicFields && typeof dynamicFields === "object" && Object.keys(dynamicFields).some(key => {
+      const value = dynamicFields[key];
+      return Array.isArray(value) && value.length > 0;
+    });
+
+    return !(
+      hasSymptoms ||
+      hasMedications ||
+      hasVitals ||
+      hasAdvice ||
+      hasDiagnosis ||
+      hasExaminations ||
+      hasFollowUp ||
+      hasLabInvestigation ||
+      hasLabResults ||
+      hasMedicalHistory ||
+      hasVaccinations ||
+      hasOthers ||
+      hasDynamicFields
+    );
+  };
+
   // Handle End Visit - matches web version's onEndVisitClick
   const handleEndVisit = async () => {
     if (!prescriptionData) {
@@ -1126,11 +1231,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       return;
     }
 
-    // Validate prescription ID is available for update
-    const rxId = genRxDetails?._id || caseManagerData?.smart_prescription_filename;
-    if (!rxId || typeof rxId !== 'string' || !rxId.trim()) {
-      message.error('Cannot save prescription: Missing prescription ID. Please try again.');
-      setIsEndingVisit(false);
+    // Validate prescription is not empty (matches web version)
+    if (isPrescriptionDataEmpty(prescriptionData)) {
+      message.error('Please fill your prescription to end visit.');
       return;
     }
 
@@ -1184,31 +1287,35 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         }),
       };
 
-      // Step 2: Update prescription via API
-      let updateResponse;
-      if (isAmbientMode && genRxDetails?.type === "ambient") {
-        updateResponse = await editAmbientRxDetails(
-          { editedData: updatedPrescriptionData },
-          rxId
-        );
-      } else {
-        updateResponse = await editGenRxDetails(
-          { editedData: updatedPrescriptionData },
-          rxId
-        );
-      }
+      // Step 2: Update prescription via API (only if Voice RX was used - genRxDetails exists)
+      // For manual entry (no Voice RX), skip this step and go straight to case manager
+      const rxId = genRxDetails?._id || caseManagerData?.smart_prescription_filename;
+      if (rxId && typeof rxId === 'string' && rxId.trim()) {
+        let updateResponse;
+        if (isAmbientMode && genRxDetails?.type === "ambient") {
+          updateResponse = await editAmbientRxDetails(
+            { editedData: updatedPrescriptionData },
+            rxId
+          );
+        } else {
+          updateResponse = await editGenRxDetails(
+            { editedData: updatedPrescriptionData },
+            rxId
+          );
+        }
 
-      if (updateResponse.status !== 204 && !updateResponse.success) {
-        throw new Error('Failed to update prescription');
-      }
+        if (updateResponse.status !== 204 && !updateResponse.success) {
+          throw new Error('Failed to update prescription');
+        }
 
-      // Update genRxDetails state with the prescription ID to ensure consistency
-      if (updateResponse?.data?._id || rxId) {
-        setGenRxDetails(prev => ({
-          ...prev,
-          _id: updateResponse?.data?._id || rxId,
-          type: updateResponse?.data?.type || prev?.type || (isAmbientMode ? 'ambient' : 'dictate'),
-        }));
+        // Update genRxDetails state with the prescription ID to ensure consistency
+        if (updateResponse?.data?._id || rxId) {
+          setGenRxDetails(prev => ({
+            ...prev,
+            _id: updateResponse?.data?._id || rxId,
+            type: updateResponse?.data?.type || prev?.type || (isAmbientMode ? 'ambient' : 'dictate'),
+          }));
+        }
       }
 
       // Step 3: Save case manager data (matches web version)
@@ -1567,6 +1674,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                 setPrescriptionData(updatedData);
               }}
               onEditWithVoice={(section) => {
+                // Quick Edit: save state and close pad
+                // In Voice RX flow: closes pad and shows Consultation Summary
+                // In fromWalkInMobile: closes pad and returns to normal prescription view
                 if (onQuickEdit) {
                   onQuickEdit({
                     prescriptionData,
@@ -1575,13 +1685,16 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                     conversations,
                     queries,
                   });
-                } else {
+                }
+                // Always close the pad after Quick Edit (works for both Voice RX and fromWalkInMobile)
+                if (onClose) {
                   onClose();
                 }
               }}
               onEndVisit={handleEndVisit}
               isProcessing={isProcessing}
               endVisitLoading={isEndingVisit}
+              isPrescriptionEmpty={isPrescriptionDataEmpty(prescriptionData)}
               patient_data={patient_data}
               caseManagerData={caseManagerData}
             />

@@ -154,15 +154,15 @@ function WalkInConsultationZydus() {
     }
     
     if (searchQuery.length === 10 && isNumeric(searchQuery)) {
-      navigate("/add_patient", { 
-        state: { patient_data: { pm_fullname: '', pm_contact_no: searchQuery } } 
+      navigate("/add_patient", {
+        state: { patient_data: { pm_fullname: '', pm_contact_no: searchQuery }, from: 'walk_in_consultation' }
       });
     } else if (searchQuery.length > 0 && isAlphabet(searchQuery)) {
-      navigate("/add_patient", { 
-        state: { patient_data: { pm_fullname: searchQuery, pm_contact_no: '' } } 
+      navigate("/add_patient", {
+        state: { patient_data: { pm_fullname: searchQuery, pm_contact_no: '' }, from: 'walk_in_consultation' }
       });
     } else {
-      navigate("/add_patient");
+      navigate("/add_patient", { state: { from: 'walk_in_consultation' } });
     }
   }, [searchQuery, profile, navigate]);
 

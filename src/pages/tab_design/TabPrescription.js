@@ -308,6 +308,8 @@ function TabPrescription() {
     const s = location?.state || {};
     // From End Visit Edit: show Consultation Summary and "Your Rx is ready" card first, not RX pad
     if (s.fromEndVisitEdit) return false;
+    // From Add New Patient on mobile walk-in: open mobile Rx pad so user gets mobile view
+    if (s.fromWalkInMobile) return true;
     return (
       s.caseManagerData?.smart_prescription_filename ||
       (s.inputText && typeof s.inputText === 'string' && s.inputText.trim().length > 0) ||
@@ -1215,6 +1217,27 @@ function TabPrescription() {
     setMobileQueries(state.queries || []);
     setIsGenRxDrawerVisible(false);
   }, []);
+
+  // On mobile, when coming from Add New Patient (walk-in), show only mobile Rx pad (no web sidebar)
+  const fromWalkInMobile = location.state?.fromWalkInMobile;
+  if (isMobileDevice && !isTablet && fromWalkInMobile) {
+    return (
+      <CashManagerContext.Provider value={contextApi}>
+        <MobileRxPad
+          visible={true}
+          onClose={() => {
+            setIsGenRxDrawerVisible(false);
+            const { fromWalkInMobile: _, ...restState } = location.state || {};
+            navigate('/prescription', { state: { ...restState, patient_data: patient_data || location.state?.patient_data }, replace: true });
+          }}
+          onDataReady={handleMobileRxDataReady}
+          onQuickEdit={handleQuickEditFromRxPad}
+          queries={mobileQueries}
+          existingData={mobileRxData}
+        />
+      </CashManagerContext.Provider>
+    );
+  }
 
   // On mobile, when in Voice Rx flow, show RX Pad (if open) or Consultation Summary (if closed)
   // This ensures we never show the tab view when in Voice Rx flow

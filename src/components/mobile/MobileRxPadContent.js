@@ -71,7 +71,7 @@ function enrichVitalsWithCalculations(vital, patientInfo = {}) {
   return out;
 }
 
-const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, patient_data, caseManagerData }) => {
+const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, isPrescriptionEmpty = false, patient_data, caseManagerData }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData, setVitalsData } = useContext(CashManagerContext) || {};
@@ -1436,7 +1436,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
 
       {/* Mobile-Only Sections - Keep Simple Rendering */}
       {renderSection(
-        'Gynae History', 
+        'Gynec History', 
         gynecHistoryIcon, 
         prescriptionData?.gynecHistory || caseManagerData?.gynecHistoryData, 
         renderGynaeHistory,
@@ -1484,8 +1484,8 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         <button 
           type="button"
           className="end-visit-btn"
-          onClick={() => !endVisitLoading && onEndVisit && onEndVisit()}
-          disabled={endVisitLoading}
+          onClick={() => !endVisitLoading && !isPrescriptionEmpty && onEndVisit && onEndVisit()}
+          disabled={endVisitLoading || isPrescriptionEmpty}
         >
           {endVisitLoading ? (
             <Spin size="small" className="end-visit-btn-spinner" />
