@@ -60,20 +60,21 @@ function PatientHistoryTab({
   //   </div>
   // );
 
-  const handleCardClick = () => {
-    message.open({
-      key: MESSAGE_KEY,
-      type: '',
-      className: 'message-appointment',
-      content: 'Feature coming in the next update',
-      duration: 3,
-    });
-  };
+  // Coming soon CTA - non clickable for now
+  // const handleCardClick = () => {
+  //   message.open({
+  //     key: MESSAGE_KEY,
+  //     type: '',
+  //     className: 'message-appointment',
+  //     content: 'Feature coming in the next update',
+  //     duration: 3,
+  //   });
+  // };
 
   return (
     <div className="patient-history-tab">
       <div className="billing-tab">
-        <div className="billing-tab-greyed-card" onClick={handleCardClick}>
+        <div className="billing-tab-greyed-card">
           <div className="billing-tab-content">
             <div className="billing-tab-icon-wrapper">
               <div className="billing-tab-icon">

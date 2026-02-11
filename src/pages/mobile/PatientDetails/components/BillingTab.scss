@@ -7,6 +7,7 @@
   justify-content: center;
   width: 100%;
   box-sizing: border-box;
+  border-radius: 16px !important;
 }
 
 .billing-tab-greyed-card {
@@ -36,6 +37,7 @@
     background: linear-gradient(135deg, rgba($theme, 0.03) 0%, rgba($theme, 0.06) 100%);
     pointer-events: none;
     z-index: 0;
+    border-radius: 16px !important;
   }
 
   &:active {
