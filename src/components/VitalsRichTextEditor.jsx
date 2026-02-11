@@ -229,12 +229,14 @@ const VitalsRichTextEditor = ({
                 initialVitals={mergedVitals}
                 onVitalsUpdate={onUpdate}
                 onVitalsSave={handleVitalsSave}
-                hideHeaderButton={true}
+                hideHeaderButton={false}
                 hideHeaderElements={false}
                 onVitalsDataChange={handleVitalsDataChange}
               />
             </div>
-            <div style={{
+            {/* Mobile bottom footer Done commented out; header Done in VitalsBox is used for save/close.
+                Structure and props kept so footer can be re-enabled later without breaking callers. */}
+            {/* <div style={{
               padding: '16px',
               borderTop: '1px solid rgba(0, 0, 0, 0.06)',
               background: '#fff',
@@ -256,7 +258,7 @@ const VitalsRichTextEditor = ({
               >
                 Done
               </Button>
-            </div>
+            </div> */}
           </div>
         </Drawer>
       ) : (
