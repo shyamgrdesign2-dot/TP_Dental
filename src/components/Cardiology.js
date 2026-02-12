@@ -46,6 +46,7 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   GB_SNAP_RX,
   GB_SNAP_RX_DIGITIZATION,
+  GB_VIDEO_CONSULT,
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
@@ -540,6 +541,7 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
+  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -554,7 +556,9 @@ function Cardiology(props) {
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
       fetchData();
-      checkVideoConsultStatus(viewCaseManagerData.tcm_id);
+      if (isVideoConsultAccessibleFromGB) {
+        checkVideoConsultStatus(viewCaseManagerData.tcm_id);
+      }
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -595,7 +599,7 @@ function Cardiology(props) {
     if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
       getGenRxDetails();
     }
-  }, [viewCaseManagerData, isSnapRxDigitizationAccessable]);
+  }, [viewCaseManagerData, isSnapRxDigitizationAccessable, isVideoConsultAccessibleFromGB]);
 
   // Function to update rxDigitize parameter in the URL
   const updateRxDigitizeInUrl = (url, showDigitalRx) => {
