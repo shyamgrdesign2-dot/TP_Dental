@@ -67,6 +67,9 @@ const MedicalHistoryRichTextEditor = ({
   const formatHistoryItem = useCallback((item) => {
     const name = item.name || '';
     const details = [];
+    if (item.enable === 'N') {
+      return `No ${name}`;
+    }
     
     if (item.duration) details.push(`Since: ${item.duration}`);
     if (item.relation) details.push(`Relation: ${item.relation}`);
@@ -158,7 +161,7 @@ const MedicalHistoryRichTextEditor = ({
       
       if (groupedHistory[type] && groupedHistory[type].length > 0) {
         newValues[type] = groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n');
-      } else if (localTextareaValues[type] === undefined) {
+      } else {
         newValues[type] = '';
       }
     });
@@ -364,17 +367,17 @@ const MedicalHistoryRichTextEditor = ({
               )
             );
             const isExpanded = expandedSections[type];
-            const hasLocalValue = localTextareaValues[type] !== undefined && localTextareaValues[type] !== '';
-            const wasInitiallyPopulated = initiallyPopulatedTypes.includes(type);
-            if (!hasContent && !hasTextContent && !hasLocalValue && !wasInitiallyPopulated) {
-              return null;
-            }
             const isEditableType = type === 'others';
             const textareaValue = localTextareaValues[type] !== undefined 
               ? localTextareaValues[type] 
               : (groupedHistory[type] && groupedHistory[type].length > 0
                 ? groupedHistory[type].map(item => `• ${formatHistoryItem(item)}`).join('\n')
                 : '');
+            const cleanedTextareaValue = textareaValue ? textareaValue.replace(/•/g, '').trim() : '';
+            const hasActualContent = cleanedTextareaValue !== '';
+            if (!hasContent && !hasTextContent && !hasActualContent) {
+              return null;
+            }
             const lineCount = textareaValue ? textareaValue.split('\n').length : 1;
             const calculatedRows = Math.max(1, Math.min(10, lineCount));
             

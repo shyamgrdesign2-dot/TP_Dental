@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
-import { errorMessage, makeDefaultLogo } from "../utils/utils";
+import { errorMessage, makeDefaultLogo, stopAllActiveRecorders } from "../utils/utils";
 import {
     sendCashsheetWhatsapp,
 } from "../redux/caseManagerSlice";
@@ -16,7 +16,7 @@ import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
 
-function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang }) {
+function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const { profile } = useSelector((state) => state.doctors);
@@ -28,6 +28,10 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const isReceptionist = urlParams.has("receptionist");
 
     const onEndVisitClick = async () => {
+        if (isVoiceOrAmbientFlow) {
+            stopAllActiveRecorders();
+        }
+        
         if (handleGoToAppointment) {
             handleGoToAppointment();
         } else {

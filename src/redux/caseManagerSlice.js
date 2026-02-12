@@ -8,6 +8,7 @@ const initialState = {
     loading: false,
     loadingEndVisit: false,
     error: null,
+    consultations: [],
 };
 
 export const oneClickAddTemplate = createAsyncThunk(
@@ -191,12 +192,41 @@ export const getInvestigationAndMedicine = createAsyncThunk(
     }
 );
 
+export const listConsultations = createAsyncThunk(
+    "caseManager/listConsultations",
+    async (data) => {
+        let result = {};
+        result = await ApiCaseManager.listConsultations(data);
+        if (result.status) {
+            return result.data;
+        } else {
+            throw Error(result.error);
+        }
+    }
+);
+
+export const draftToConsultation = createAsyncThunk(
+    "caseManager/draftToConsultation",
+    async (data) => {
+        let result = {};
+        result = await ApiCaseManager.draftToConsultation(data);
+        if (result.status) {
+            return result.data;
+        } else {
+            throw Error(result.error);
+        }
+    }
+);
+
 const caseManagerSlice = createSlice({
     name: "caseManager",
     initialState,
     reducers: {
         resetViewCaseManagerData: (state) => {
           state.viewCaseManagerData = null;
+        },
+        resetConsultations: (state) => {
+            state.consultations = [];
         },
       },
     extraReducers: (builder) => {
@@ -303,9 +333,19 @@ const caseManagerSlice = createSlice({
             .addCase(getSmartRxToken.rejected, (state) => {
                 state.loadingEndVisit = false;
             })
+            .addCase(listConsultations.pending, (state) => {
+                state.loading = true;
+            })
+            .addCase(listConsultations.fulfilled, (state, action) => {
+                state.loading = false;
+                state.consultations = action.payload;
+            })
+            .addCase(listConsultations.rejected, (state) => {
+                state.loading = false;
+            })
     },
 });
 
-export const { resetViewCaseManagerData } = caseManagerSlice.actions;
+export const { resetViewCaseManagerData, resetConsultations } = caseManagerSlice.actions;
 
 export default caseManagerSlice.reducer;

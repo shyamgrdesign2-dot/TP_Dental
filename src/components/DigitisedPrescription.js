@@ -156,6 +156,8 @@ const DigitisedPrescription = ({
   // Fuzzy search run-once guards for meds and tests
   const hasFuzzyRunMedsRef = useRef(false);
   const hasFuzzyRunTestsRef = useRef(false);
+  const lastFuzzyNamesRef = useRef("");
+  const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
@@ -499,26 +501,44 @@ const DigitisedPrescription = ({
 
         const correctedResults = await Promise.all(
           meds.map(async (med) => {
-            const currentName = (med?.name || "").trim();
-            if (!currentName)
-              return { correctedName: currentName, fullData: null };
+            // Use groundingMedicineName if present and non-empty, otherwise use name
+            const nameToUse = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+            if (!nameToUse)
+              return { correctedName: nameToUse, fullData: null };
             try {
-              const result = await ApiMedication.getFuzzySearch(currentName);
+              // Send groundingMedicineName to grounding API if present, otherwise send name
+              const searchName = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+              const result = await ApiMedication.getFuzzySearch(searchName);
               const corrected = result?.[0]?.tmm_medicine_name?.trim();
               return {
-                correctedName: corrected || currentName,
+                correctedName: corrected || nameToUse,
                 fullData: result?.[0] || null,
               };
-            } catch {
-              return { correctedName: currentName, fullData: null };
+            } catch (error) {    
+              return { correctedName: nameToUse, fullData: null };
             }
           })
         );
 
         const anyChanged = meds.some(
-          (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+          (m, i) => {
+            const currentDisplayName = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+            return currentDisplayName !== correctedResults[i].correctedName;
+          }
         );
-        if (!anyChanged) return;
+        if (!anyChanged) {
+          const correctedSig = meds.map((m) => {
+            const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+            return nameToUse;
+          }).join("|");
+          lastFuzzyNamesRef.current = correctedSig;
+          return;
+        }
+
+        const correctedSig = correctedResults
+          .map((r) => r.correctedName)
+          .join("|");
+        lastFuzzyNamesRef.current = correctedSig;
 
         setData((prev) => ({
           ...prev,
@@ -530,7 +550,7 @@ const DigitisedPrescription = ({
             metadata: {
               ...m.metadata,
               fuzzyCorrectedName: correctedResults[idx].correctedName,
-              originalName: m.name,
+              originalName: (m?.groundingMedicineName || "").trim() || m.name,
               isFuzzyCorrected: true,
               ...(correctedResults[idx].fullData || {}),
             },
@@ -923,7 +943,28 @@ const DigitisedPrescription = ({
     if (hasFuzzyRunMedsRef.current) return;
     const meds = data?.medications || [];
     if (!meds.length) return;
-    hasFuzzyRunMedsRef.current = true;
+    
+    // Use groundingMedicineName if present, otherwise use name for signature
+    const namesSignature = meds.map((m) => {
+      const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+      return nameToUse;
+    }).join("|");
+    if (!namesSignature) return;
+    
+    // If signature matches what we last processed, skip
+    if (namesSignature === lastFuzzyNamesRef.current) return;
+
+    const now = Date.now();
+    // Prevent rapid duplicate calls (e.g., StrictMode double effect)
+    if (
+      lastFuzzyCallRef.current.sig === namesSignature &&
+      now - lastFuzzyCallRef.current.ts < 800
+    ) {
+      return;
+    }
+    lastFuzzyCallRef.current = { sig: namesSignature, ts: now };
+
+    lastFuzzyNamesRef.current = namesSignature;
     getFuzzySearchMedicine(meds);
   }, [data?.medications]);
 

@@ -6,6 +6,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
@@ -66,6 +67,8 @@ import FinalSetup from "./pages/FinalSetup";
 import OurOffering from "./pages/ourOffering/OurOffering";
 import SnapRx from "./pages/snapRx/SnapRx";
 import UploadRx from "./pages/uploadRx";
+import OphthalSnapRx from "./pages/ophthalSnapRx/SnapRx";
+import OphthalUploadRx from "./pages/ophthalUploadRx";
 import BottomSheetManager from "./components/bottomSheetManager";
 import SnapRxPreview from "./pages/snapRx/SnapRxPreview";
 import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
@@ -86,6 +89,8 @@ const growthbook = new GrowthBook({
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
 });
 
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
 function App() {
   const [redirectReady, setRedirectReady] = useState(false);
   const [searchParams] = useSearchParams();
@@ -93,6 +98,7 @@ function App() {
   const authToken = searchParams.get("authToken");
   const redirectTo = searchParams.get("redirectTo");
   const uploadParams = searchParams.get("uploadParams");
+  const ophthalUploadParams = searchParams.get("ophthalUploadParams");
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
@@ -299,6 +305,12 @@ function App() {
     }
   }, [uploadParams]);
 
+  useEffect(() => {
+    if (ophthalUploadParams) {
+      localStorage.setItem("ophthalUploadParams", ophthalUploadParams);
+    }
+  }, [ophthalUploadParams]);
+
   // Add effect to handle redirectTo parameter
   useEffect(() => {
     if (redirectTo) {
@@ -463,7 +475,7 @@ function App() {
                 handleUpgradeModal={handleUpgradeModal}
               />
             )}
-            <Routes>
+            <SentryRoutes>
               {/* Public route */}
               {/* <Route path="/login" element={<AuthContainer />} /> */}
               <Route path="/login" element={<Onboarding />} />
@@ -472,6 +484,10 @@ function App() {
 
               {/* Restricted route - authorized only to get/upload snapRx files */}
               <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
+              <Route
+                path="ophthal-snap-rx/mobile-upload"
+                element={<OphthalUploadRx />}
+              />
 
               {/* ABHA Standalone - Can work with URL auth token */}
               <Route path="/abha-standalone" element={<AbhaStandalone />} />
@@ -543,6 +559,7 @@ function App() {
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
+                <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
                 <Route 
                   path="voice-rx-consult" 
                   element={
@@ -572,7 +589,7 @@ function App() {
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />
-            </Routes>
+            </SentryRoutes>
           </PersistGate>
         </Provider>
       </ErrorBoundary>

@@ -35,5 +35,56 @@ body{
     .headerprescription {
         height: 60px;
         box-shadow: -1px -1px 0px 0px #E2E2EA inset;
+
+        &.headerprescription--tablet {
+            background: #fff;
+            padding-left: 0;
+            padding-right: 0;
+
+            .headerprescription-actions-col {
+                flex: 1 1 auto;
+                min-width: 0;
+                display: flex;
+                justify-content: flex-end;
+            }
+
+            .headerprescription-actions {
+                flex-wrap: nowrap;
+                min-width: 0;
+
+                .btn:not(.btn-primary3):not(.btn-more) {
+                    padding: 0 12px 0 0;
+                }
+            }
+
+            .headerprescription-tablet-sep {
+                width: 1px;
+                height: 28.367px;
+                background: #D1D5DB;
+                flex-shrink: 0;
+                margin: 0 16px;
+            }
+
+            .save-as-draft-btn {
+                border-radius: 10px;
+                border: 1px solid #4B4AD5;
+                background: #fff;
+                height: 42px;
+                padding: 10px 16px;
+                font-weight: 600;
+
+                span {
+                    color: #4B4AD5 !important;
+                    font-size: 14px;
+                }
+            }
+
+            .patientName {
+                color: #44444F;
+                font-weight: 500;
+                max-width: 140px;
+            }
+
+        }
     }
 }

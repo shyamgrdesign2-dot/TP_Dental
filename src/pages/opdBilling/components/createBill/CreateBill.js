@@ -405,9 +405,9 @@ const CreateBill = ({
     if (editBillData?.paymentModes) {
       setTimeout(() => {
         setPaymentModes(editBillData?.paymentModes);
-      }, 100);
+      }, 300);
     }
-  }, [])
+  }, [editBillData]);
 
   useEffect(() => {
     const timeOutId = setTimeout(() => {
