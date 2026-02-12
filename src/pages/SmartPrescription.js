@@ -127,6 +127,10 @@ import { getDecodedToken } from "../utils/localStorage";
 import CustomSSknowMore from "./smartSync/components/CustomSSknowMore";
 import visitEnd from '../assets/images/end-visit.svg';
 import imgCloseVisit from '../assets/images/close-visit.svg';
+import VideoConsultButton from "../components/VideoConsultButton";
+import VideoConsultModal from "../components/VideoConsultModal";
+import { GB_VIDEO_CONSULT } from "../utils/constants";
+import ApiVideoConsult from "../api/services/ApiVideoConsult";
 
 function SmartPrescription() {
   const {
@@ -168,7 +172,7 @@ function SmartPrescription() {
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id } = state;
+  const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id, videoConsultData } = state;
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -236,10 +240,20 @@ function SmartPrescription() {
   // Add state for page addition dropdown
   const [showPageDropdown, setShowPageDropdown] = useState({});
   const [pageDropdownPosition, setPageDropdownPosition] = useState({});
+  const [buildNumber, setBuildNumber] = useState(null); //state for iscribe build version number
   
   // Add state for disclaimer visibility
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [knowMoreDrawer, setKnowMoreDrawer] = useState(false);
+
+  const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
+  const [videoConsultUrl, setVideoConsultUrl] = useState(null);
+  const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+
+  const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
+
   const handleKnowMoreDrawer = useCallback(() => {
     setKnowMoreDrawer((prev) => !prev);
   }, []);
@@ -389,6 +403,39 @@ function SmartPrescription() {
     dispatch(setUploadDocCategories(response));
   };
 
+  const handleVideoConsult = async () => {
+    setIsInitiatingCall(true);
+    
+    try {
+      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData?.pam_id);      
+      if (response.message === "success") {
+        if (response.action === "join-video-call" && response.callJoinUrlForDoctor) {
+          // Video call - open modal with iframe
+          setVideoConsultUrl(response.callJoinUrlForDoctor);
+          setVideoConsultAction(response.action);
+          setIsVideoModalVisible(true);
+        } else if (response.action === "join-audio-call") {
+          // Audio call - show message to user
+          message.info(response.displayMessage || "Audio call initiated successfully");
+        }
+        
+        trackEvent("TP_VideoConsult_Started_SmartRx", {
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_unique_id: profile?.doctor_unique_id,
+          page: "Smart Prescription",
+          call_type: response.action,
+        });
+      } else {
+        message.error("Failed to initiate consultation");
+      }
+    } catch (error) {
+      console.error('VC Error initiating call:', error);
+      message.error("Failed to start video consultation. Please try again.");
+    } finally {
+      setIsInitiatingCall(false);
+    }
+  };
+
   useEffect(() => {
     if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
       getAllObstetricDetails();
@@ -396,10 +443,10 @@ function SmartPrescription() {
   }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
 
   useEffect(() => {
-    if (uploadDocCategories.length === 0) {
+    if (uploadDocCategories?.length === 0) {
       getAllDocumentCategories();
     }
-    if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
+    if (patient_data?.patient_unique_id && allUploadedDocs?.length === 0) {
       getAllPatientDocs();
     }
   }, []);
@@ -562,7 +609,7 @@ function SmartPrescription() {
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
-        caseManagerData.vitals.length > 0 &&
+        caseManagerData.vitals?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
@@ -577,7 +624,7 @@ function SmartPrescription() {
         setVitalsData(updatedData);
       }
       if (
-        caseManagerData.medical_history.length > 0 &&
+        caseManagerData.medical_history?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
@@ -587,7 +634,7 @@ function SmartPrescription() {
         );
       }
       if (
-        caseManagerData.symptoms.length > 0 &&
+        caseManagerData.symptoms?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 5 && e.tmdpm_status === 0
         ) !== -1
@@ -595,7 +642,7 @@ function SmartPrescription() {
         setSymptomsData(caseManagerData.symptoms);
       }
       if (
-        caseManagerData.examination.length > 0 &&
+        caseManagerData.examination?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 10 && e.tmdpm_status === 0
         ) !== -1
@@ -603,7 +650,7 @@ function SmartPrescription() {
         setExaminationData(caseManagerData.examination);
       }
       if (
-        caseManagerData.surgeries.length > 0 &&
+        caseManagerData.surgeries?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 21 && e.tmdpm_status === 0
         ) !== -1
@@ -611,7 +658,7 @@ function SmartPrescription() {
         setSurgeriesData(caseManagerData.surgeries);
       }
       if (
-        caseManagerData.diagnosis.length > 0 &&
+        caseManagerData.diagnosis?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 11 && e.tmdpm_status === 0
         ) !== -1
@@ -619,7 +666,7 @@ function SmartPrescription() {
         setDiagnosisData(caseManagerData.diagnosis);
       }
       if (
-        caseManagerData.medicine.length > 0 &&
+        caseManagerData.medicine?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
@@ -674,7 +721,7 @@ function SmartPrescription() {
         setMedicationData([...updatedData]);
       }
       if (
-        caseManagerData.advice.length > 0 &&
+        caseManagerData.advice?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 13 && e.tmdpm_status === 0
         ) !== -1
@@ -682,7 +729,7 @@ function SmartPrescription() {
         setAdviceData(caseManagerData.advice);
       }
       if (
-        caseManagerData.investigation.length > 0 &&
+        caseManagerData.investigation?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
@@ -3224,6 +3271,9 @@ function SmartPrescription() {
           selectedTemplateId={selectedTemplateId}
           prepareMetadataForSubmissionData={prepareMetadataForSubmission()}
           selectedCarePlan={selectedCarePlan}
+          setBuildNumber={setBuildNumber}
+          handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
+          isVideoConsultLoading={isInitiatingCall}
         />
         
         {loading && <FullPageLoader />}
@@ -3976,6 +4026,20 @@ function SmartPrescription() {
           <CustomSSknowMore />
         </Drawer>
       </>
+      {isVideoConsultAvailable && (
+        <VideoConsultModal
+          visible={isVideoModalVisible}
+          onClose={() => {
+            setIsVideoModalVisible(false);
+            setVideoConsultUrl(null);
+            setVideoConsultAction(null);
+          }}
+          videoUrl={videoConsultUrl}
+          patientName={patient_data?.pm_fullname}
+          appointmentId={videoConsultData?.pam_id}
+          callAction={videoConsultAction}
+        />
+      )}
     </CashManagerContext.Provider>
   );
 }
