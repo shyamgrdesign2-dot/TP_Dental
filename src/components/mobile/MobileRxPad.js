@@ -190,28 +190,21 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     loadLastHistory();
   }, [visible, patient_data?.patient_unique_id, caseManagerData, dispatch, setMedicalHistoryData]);
 
-  useEffect(() => {
-    if (!visible || !patient_data?.patient_unique_id) return;
-    const loadTodayData = async () => {
-      const todayVitals = await getTodayVitals(patient_data);
-      const todayLabResults = await getTodayLabResults(patient_data);
-      
-      if (todayVitals) {
-        setPrescriptionData(prev => ({
-          ...prev,
-          vitalsAndBodyComposition: todayVitals
-        }));
-      }
-      
-      if (todayLabResults && Array.isArray(todayLabResults) && todayLabResults.length > 0) {
-        setPrescriptionData(prev => ({
-          ...prev,
-          labResults: todayLabResults
-        }));
-      }
-    };
-    loadTodayData();
-  }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
+  // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API).
+  // useEffect(() => {
+  //   if (!visible || !patient_data?.patient_unique_id) return;
+  //   const loadTodayData = async () => {
+  //     const todayVitals = await getTodayVitals(patient_data);
+  //     const todayLabResults = await getTodayLabResults(patient_data);
+  //     if (todayVitals) {
+  //       setPrescriptionData(prev => ({ ...prev, vitalsAndBodyComposition: todayVitals }));
+  //     }
+  //     if (todayLabResults && Array.isArray(todayLabResults) && todayLabResults.length > 0) {
+  //       setPrescriptionData(prev => ({ ...prev, labResults: todayLabResults }));
+  //     }
+  //   };
+  //   loadTodayData();
+  // }, [visible, patient_data?.patient_unique_id, patient_data?.pam_id, patient_data?.pm_pid, patient_data?.pm_id]);
   // Load existing Voice RX when opening for Edit or Repeat (caseManagerData.smart_prescription_filename, no new audio/input).
   // Matches web ConsultationDrawer getGenRxDetails: getGenRx -> optionally getAmbientRx -> parse -> setPrescriptionData, genRxDetails.
   // For Repeat (tcm_id 0): web also loads the old Rx; we match that behavior.
