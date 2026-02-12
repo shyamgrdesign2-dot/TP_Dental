@@ -11,7 +11,7 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX } from '../utils/constants';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -22,6 +22,8 @@ import {
   getTokenData,
   isZydus
 } from "../utils/utils";
+import api from '../api/services/axiosService';
+import { env } from '../EnvironmentConfig';
 import draftIcon from '../assets/images/draft-primary.svg';
 import useTabletViewport from '../hooks/useTabletViewport';
 
@@ -429,6 +431,45 @@ function Welcome1(props) {
                                                     </>
                                                   )
                                             }
+                                        </Button>
+                                    }
+                                    { viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+                                         <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
+                                            window.Moengage.track_event("repeat_rx_click", {
+                                                "doctor_id": profile?.doctor_unique_id,
+                                                "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
+                                                "rx_date": viewCaseManagerData?.consultation_date
+                                            });
+                                            
+                                            // Fetch smartRxFilesData similar to Cardiology.js
+                                            const baseUrl = { customBaseUrl: env.casemanager_api_url };
+                                            const payload = {
+                                                tcm_id: viewCaseManagerData?.tcm_id,
+                                            };
+                                            
+                                            let smartRxFile = null;
+                                            try {
+                                                if (viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg")) {
+                                                    const response = await api.post(FETCH_SMART_RX, payload, baseUrl);
+                                                    if (response?.data?.length) {
+                                                        smartRxFile = response.data;
+                                                    }
+                                                }
+                                            } catch (error) {
+                                                console.error("Error fetching smart Rx files:", error);
+                                            }
+                                            
+                                            navigate("/smart-prescription", {
+                                                state: {
+                                                    patient_data: patient_data,
+                                                    caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null },
+                                                    smartRxFilesData: smartRxFile,
+                                                    fromRepeatRx: true
+                                                }
+                                            });
+                                        }}>
+                                            <i className={'icon-reload me-2'}></i>
+                                            Copy Rx
                                         </Button>
                                     }
                                     {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && !isMobile ? (

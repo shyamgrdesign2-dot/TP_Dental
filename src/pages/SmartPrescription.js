@@ -172,9 +172,10 @@ function SmartPrescription() {
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id, videoConsultData } = state;
+  const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id, videoConsultData, fromRepeatRx } = state;
   const chartType = state?.chartType;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
+  // If fromRepeatRx is true, force tcmId to 0 to treat it as new consultation
+  const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : (caseManagerData.tcm_id || 0);
   const pamId = pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
   const consultationDate =
     caseManagerData !== undefined
@@ -363,6 +364,9 @@ function SmartPrescription() {
   
   // Add state to store canvas image data for preserving drawings
   const [canvasImageData, setCanvasImageData] = useState({});
+  
+  // Track the number of pages from original Rx when fromRepeatRx is true
+  const originalRxPagesCount = fromRepeatRx && smartRxFilesData?.length ? smartRxFilesData.length : 0;
 
   const { showSCPopup, isAutofillSelected, selectedSymptomsCollector, symptomCollector } =
     useSelector((state) => state.ddx);
@@ -2266,6 +2270,31 @@ function SmartPrescription() {
   };
 
   const handleClearAllPages = () => {
+    // If fromRepeatRx is true, preserve original Rx pages and only clear pages added after
+    if (fromRepeatRx && originalRxPagesCount > 0) {
+      // Only clear pages that are not from the original Rx
+      const pagesToKeep = pages.slice(0, originalRxPagesCount);
+      const dataPresentToKeep = dataPresentInCanvas.slice(0, originalRxPagesCount);
+      const metadataToKeep = pagesMetaData.slice(0, originalRxPagesCount);
+      
+      // Clear canvas refs only for pages after original Rx
+      pages.slice(originalRxPagesCount).forEach((pageId) => {
+        const canvas = canvasRefs.current[pageId];
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        delete canvasRefs.current[pageId];
+        delete ctxGlobalRefs.current[pageId];
+      });
+      
+      setPages(pagesToKeep);
+      setDataPresentInCanvas(dataPresentToKeep);
+      setPagesMetaData(metadataToKeep);
+      setSelectedPage(Math.min(selectedPage, pagesToKeep.length - 1));
+      return;
+    }
+    
     // Clear old canvas refs since we're resetting
     canvasRefs.current = {};
     ctxGlobalRefs.current = {};
@@ -2508,7 +2537,7 @@ function SmartPrescription() {
         if (!canvas) continue;
         const blob = await convertCanvasToJPEG(canvas);
         const name =
-          smartRxFiles && smartRxFiles[i]
+          smartRxFiles && smartRxFiles[i] && !fromRepeatRx
             ? smartRxFiles[i].smart_prescription_filename
             : `${uuidv4()}.jpeg`;
         // Create the File object
@@ -3546,7 +3575,12 @@ function SmartPrescription() {
                         <div className="d-flex">
                           <button
                             className="btn d-flex align-items-center btn-text"
+                            disabled={fromRepeatRx && index < originalRxPagesCount}
                             onClick={() => {
+                              // Prevent clearing original Rx pages when fromRepeatRx is true
+                              if (fromRepeatRx && index < originalRxPagesCount) {
+                                return;
+                              }
                               toggleDeletePopup();
                               setIsClearPopup(true);
                               handlePageChange(index)
@@ -3557,13 +3591,19 @@ function SmartPrescription() {
                               );
                               setUpdatedIndex(index);
                             }}
+                            style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                           >
                             <i className="icon-reload me-2 fs-5" />
                           </button>
                           {pages.length > 1 && (
                             <button
                               className="btn d-flex align-items-center btn-text"
+                              disabled={fromRepeatRx && index < originalRxPagesCount}
                               onClick={() => {
+                                // Prevent deleting original Rx pages when fromRepeatRx is true
+                                if (fromRepeatRx && index < originalRxPagesCount) {
+                                  return;
+                                }
                                 toggleDeletePopup();
                                 setIsClearPopup(false);
                                 setDeletePopupMsg(
@@ -3573,6 +3613,7 @@ function SmartPrescription() {
                                 );
                                 setUpdatedIndex(index);
                               }}
+                              style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                             >
                               <i className="icon-delete me-2 fs-5" />
                             </button>
