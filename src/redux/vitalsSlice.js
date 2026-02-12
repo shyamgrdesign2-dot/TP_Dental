@@ -137,5 +137,5 @@ const vitalsSlice = createSlice({
     },
 });
 
-export const { updateList } = vitalsSlice.actions
+export const { updateList, resetVitalsState } = vitalsSlice.actions
 export default vitalsSlice.reducer;

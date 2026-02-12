@@ -61,6 +61,7 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { resetVitalsState } from '../redux/vitalsSlice';
 
 var oneClickCosultationTemplateId = 0
 
@@ -1769,6 +1770,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         } else {
             if (send_path !== undefined) {
                 navigate(-1);
+                dispatch(resetVitalsState());
             } else {
                 navigate('/', { replace: true });
             }
@@ -1848,7 +1850,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </div>
                                             <div className="mt-4">
                                                 <div className="d-flex align-items-center mt-2 justify-content-end">
-                                                    <div onClick={() => send_path !== undefined ? navigate(-1) : navigate('/', { replace: true })} className="me-4 text-decoration-underline btn p-0 color-red">
+                                                    <div onClick={() => {
+                                                        dispatch(resetVitalsState());
+                                                        send_path !== undefined ? navigate(-1) : navigate('/', { replace: true })
+                                                    }} className="me-4 text-decoration-underline btn p-0 color-red">
                                                         {shouldEnableDraft ? "Go Back Without Saving" : "Yes, Leave"}
                                                     </div>
                                                     <Button onClick={() => {shouldEnableDraft && onSaveAsDraft(); showHideBackModal();}} className="lh-lg btn btn-primary3 btn-41 px-4">
