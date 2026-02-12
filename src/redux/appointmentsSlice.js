@@ -18,6 +18,7 @@ const initialState = {
   cancelledCount: 0,
   zydusEncounterCount: 0,
   zydusAappointmentCount: 0,
+  draftRxCount: 0,
   setOnLoad: true,
   appointmentsData: [],
   finishedData: [],
@@ -446,6 +447,7 @@ const appointmentsSlice = createSlice({
           state.finishedCount = action.payload.finished_count;
           state.cancelledCount = action.payload.cancelled_count;
           state.appointmentsData = updatedData;
+          state.draftRxCount = action.payload.draft_count || 0;
         } else {
           state.appointmentsData = [...state.appointmentsData, ...updatedData];
         }
@@ -458,6 +460,7 @@ const appointmentsSlice = createSlice({
           state.finishedCount = 0;
           state.cancelledCount = 0;
           state.appointmentsData = [];
+          state.draftRxCount = 0;
         }
       })
       .addCase(cancelAppointments.pending, (state) => {

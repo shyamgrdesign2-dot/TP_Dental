@@ -177,6 +177,21 @@ const obsHistoryCheckboxOptions = [
   },
 ];
 
+const vitalsCheckboxOptions = [
+  {
+    label: "BMI",
+    value: "bmi",
+  },
+  {
+    label: "BMR",
+    value: "bmr",
+  },
+  {
+    label: "BSA",
+    value: "bsa",
+  },
+];
+
 const diagnosisCheckboxOptions = [
   {
     label: "ICD Code",
@@ -186,11 +201,12 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules,carePlanAssignments } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData } = contextValue || {};
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
   const [showPageBreakerModal, setShowPageBreakerModal] = useState(false);
+  const [expandedOphthalmologySections, setExpandedOphthalmologySections] = useState({});
   let tokenData = null;
   try {
     const decodedToken = getDecodedToken();
@@ -201,7 +217,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   }
 
   const customModulesMap = new Map(
-    customModules.map((module) => [module.module_id, module.name])
+    customModules?.map((module) => [module.module_id, module.name])
   );
 
   const customModulesRxData = caseManagerData?.moduleContents?.filter((module) => module.content.length).map((content) => ({
@@ -308,6 +324,25 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     });
   };
 
+  const onOphthalmologyOptionChange = (checkedValues, i) => {
+    // Update the ophthalmology_option visibility based on checked values
+    const currentOption = printSettings.prescription.case_option[i];
+    if (currentOption.ophthalmology_option) {
+      currentOption.ophthalmology_option = currentOption.ophthalmology_option.map(subSection => {
+        const isChecked = checkedValues.includes(subSection.id);
+        return {
+          ...subSection,
+          visible: isChecked
+        };
+      });
+    }
+    setPrintSettings((prev) => {
+      return {
+        ...prev,
+      };
+    });
+  };
+
 
   const growthChartOptions = graphsToPrintData
     .map((item) => ({
@@ -327,6 +362,15 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
   const onObsHistoryOptionChange = (checkedValues, i) => {
     setPrintSettings((prev) => {
       prev.prescription.case_option[i].obs_history_option = checkedValues;
+      return {
+        ...prev,
+      };
+    });
+  };
+
+  const onVitalsOptionChange = (checkedValues, i) => {
+    setPrintSettings((prev) => {
+      prev.prescription.case_option[i].vitals_option = checkedValues;
       return {
         ...prev,
       };
@@ -438,6 +482,32 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     },
   ];
 
+   const vitalsAccordionItems = (record, i) => [
+     {
+       key: "1",
+       label: (
+         <div className="text-start">
+           <div className="fw-semibold">Customise Options</div>
+           <div className="subtitle-customize">
+             Select/deselect the parameters need to be printed
+           </div>
+         </div>
+       ),
+       children: (
+         <div className="d-flex align-items-center">
+           <Checkbox.Group
+             style={{ columnGap: "4px" }}
+             options={vitalsCheckboxOptions}
+             value={record?.vitals_option ? record?.vitals_option : ["bmi", "bmr", "bsa"]}
+             onChange={(checkedValues) =>
+               onVitalsOptionChange(checkedValues, i)
+             }
+           />
+         </div>
+       ),
+     },
+   ];
+
   const accordionItemsFollowUp = (record, i) => [
     {
       key: "1",
@@ -492,6 +562,133 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       ),
     },
   ];
+  
+  const ophthalmologyAccordionItems = (record, i) => {
+    const toggleSection = (sectionId) => {
+      const key = `${i}_${sectionId}`;
+      setExpandedOphthalmologySections(prev => ({
+        ...prev,
+        [key]: !prev[key]
+      }));
+    };
+
+    const handleMainSectionChange = (sectionId, checked) => {
+      const currentOption = printSettings.prescription.case_option[i];
+      if (currentOption.ophthalmology_option) {
+        const section = currentOption.ophthalmology_option.find(sub => sub.id === sectionId);
+        if (section) {
+          section.visible = checked;
+          // If section has subSections, update all subSections visibility
+          if (section.subSections && Array.isArray(section.subSections)) {
+            section.subSections.forEach(subSub => {
+              subSub.visible = checked;
+            });
+          }
+        }
+      }
+      setPrintSettings((prev) => ({ ...prev }));
+    };
+
+    const handleSubSectionChange = (sectionId, subSectionId, checked) => {
+      const currentOption = printSettings.prescription.case_option[i];
+      if (currentOption.ophthalmology_option) {
+        const section = currentOption.ophthalmology_option.find(sub => sub.id === sectionId);
+        if (section && section.subSections) {
+          const subSection = section.subSections.find(subSub => subSub.id === subSectionId);
+          if (subSection) {
+            subSection.visible = checked;
+            // Update parent section visibility based on sub-sections
+            const allSubSectionsVisible = section.subSections.every(subSub => subSub.visible !== false);
+            section.visible = allSubSectionsVisible;
+          }
+        }
+      }
+      setPrintSettings((prev) => ({ ...prev }));
+    };
+
+    const isSectionVisible = (section) => {
+      return section.visible !== false;
+    };
+
+    const isSubSectionVisible = (subSection) => {
+      return subSection.visible !== false;
+    };
+
+    // return [
+    //   {
+    //     key: "1",
+    //     label: (
+    //       <div className="text-start">
+    //         <div className="fw-semibold">Customise Options</div>
+    //         <div className="subtitle-customize">
+    //           Select/deselect ophthalmology sections to be printed
+    //         </div>
+    //       </div>
+    //     ),
+    //     // children: (
+    //     //   <>
+    //     //     <div className="pt-2" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    //     //       {record?.ophthalmology_option?.map((section) => {
+    //     //         const hasSubSections = section.subSections && Array.isArray(section.subSections) && section.subSections.length > 0;
+    //     //         const key = `${i}_${section.id}`;
+    //     //         const isExpanded = expandedOphthalmologySections[key];
+    //     //         const isChecked = isSectionVisible(section);
+
+    //     //         return (
+    //     //           <div key={section.id} style={{ display: 'flex', flexDirection: 'column' }}>
+    //     //             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    //     //               <Checkbox
+    //     //                 checked={isChecked}
+    //     //                 onChange={(e) => handleMainSectionChange(section.id, e.target.checked)}
+    //     //               >
+    //     //                 <span style={{ fontWeight: 500 }}>{section.label}</span>
+    //     //               </Checkbox>
+    //     //               {hasSubSections && (
+    //     //                 <span
+    //     //                   onClick={() => toggleSection(section.id)}
+    //     //                   style={{
+    //     //                     cursor: 'pointer',
+    //     //                     marginLeft: 'auto',
+    //     //                     fontSize: '12px',
+    //     //                     color: '#6B7280',
+    //     //                     transition: 'transform 0.2s',
+    //     //                     display: 'inline-flex',
+    //     //                     alignItems: 'center'
+    //     //                   }}
+    //     //                 >
+    //     //                   <i 
+    //     //                     className={`icon-right ${isExpanded ? 'iconrotate270' : 'iconrotatehistory90'}`}
+    //     //                     style={{ 
+    //     //                       fontSize: '12px',
+    //     //                       transition: 'transform 0.3s ease'
+    //     //                     }}
+    //     //                   ></i>
+    //     //                 </span>
+    //     //               )}
+    //     //             </div>
+    //     //             {hasSubSections && isExpanded && (
+    //     //               <div style={{ marginLeft: '24px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    //     //                 {section.subSections.map((subSection) => (
+    //     //                   <Checkbox
+    //     //                     key={subSection.id}
+    //     //                     checked={isSubSectionVisible(subSection)}
+    //     //                     onChange={(e) => handleSubSectionChange(section.id, subSection.id, e.target.checked)}
+    //     //                   >
+    //     //                     <span style={{ fontSize: '14px' }}>{subSection.label}</span>
+    //     //                   </Checkbox>
+    //     //                 ))}
+    //     //               </div>
+    //     //             )}
+    //     //           </div>
+    //     //         );
+    //     //       })}
+    //     //     </div>
+    //     //   </>
+    //     // ),
+    //   },
+    // ];
+  };
+
   const growthChartAccordionItems = (record, i) => [
     {
       key: "1",
@@ -583,6 +780,215 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
           );
         }
 
+        // Handle Ophthalmology option with sub-sections
+        if (record.id === 20 && record.ophthalmology_option) {
+          const recordIndex = printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id);
+          const expandKey = `ophth_${record.id}`;
+          const isExpanded = expandedOphthalmologySections[expandKey];
+
+          return (
+            <>
+              <div className="d-flex align-items-center justify-content-between text-start ophthal-option-row">
+                <div className="d-flex align-items-center ophthal-option-title">
+                  <div
+                    className="d-flex align-items-center cursor-pointer Preview-color-icon"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onCaseOptionChange(record, "visible", recordIndex);
+                    }}
+                  >
+                    <i
+                      className={`icon-Preview ${record.enable === "N" && "disable-preview"
+                        } me-1`}
+                    ></i>
+                    <span className="ophthal-option-text">{record.title}</span>
+                  </div>
+                </div>
+                <div className="d-flex align-items-center gap-2 ophthal-option-actions">
+                <Form.Item className="mb-0 form_addnewpatient ">
+                  <Radio.Group
+                    className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
+                      }`}
+                    onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    value={record.format}
+                  >
+                    <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
+                      {record?.id === 12 ? "Graph View" : "Inline"}
+                    </Radio.Button>
+                    {record?.id !== 12 &&
+                      <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
+                        List View
+                      </Radio.Button>
+                    }
+                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                      Table
+                    </Radio.Button>
+                  </Radio.Group>
+                </Form.Item>
+                <span
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setExpandedOphthalmologySections(prev => ({
+                        ...prev,
+                        [expandKey]: !prev[expandKey]
+                      }));
+                    }}
+                    style={{
+                      cursor: 'pointer',
+                      // marginRight: '8px',
+                      fontSize: '18px',
+                      color: '#6B7280',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px'
+                    }}
+                  >
+                    <i 
+                      className={`icon-right ${isExpanded ? 'iconrotate270' : 'iconrotatehistory90'}`}
+                      style={{ 
+                        fontSize: '18px',
+                        transition: 'transform 0.3s ease'
+                      }}
+                    ></i>
+                  </span>
+              </div>
+            </div>
+            {isExpanded && (
+              <div style={{ marginLeft: '-25px', marginTop: '8px' }}>
+                <DndContext 
+                  modifiers={[restrictToVerticalAxis]} 
+                  onDragEnd={(e) => onDragEndOphthalmologySubSections(e, recordIndex)}
+                >
+                  <SortableContext
+                    items={record.ophthalmology_option?.map((i) => i.id) || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                  {record.ophthalmology_option?.map((section) => {
+                    const SortableSubSectionRow = ({ section }) => {
+                      const {
+                        attributes,
+                        listeners,
+                        setNodeRef,
+                        setActivatorNodeRef,
+                        transform,
+                        transition,
+                        isDragging,
+                      } = useSortable({
+                        id: section.id,
+                      });
+                      
+                      const style = {
+                        transform: CSS.Translate.toString(transform),
+                        transition,
+                        ...(isDragging ? {
+                          position: "relative",
+                          zIndex: 9999,
+                          opacity: 0.5,
+                        } : {}),
+                      };
+
+                      return (
+                        <div 
+                          ref={setNodeRef} 
+                          style={{ ...style, marginBottom: '4px' }}
+                          {...attributes}
+                        >
+                            <div className="d-flex align-items-center justify-content-between text-start ophthal-option-row" style={{ padding: '8px 0' }}>
+                              <div className="d-flex align-items-center ophthal-option-title">
+                                <div 
+                                  style={{ 
+                                    width: '40px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    minWidth: '40px',
+                                    flexShrink: 0,
+                                    height: '100%',
+                                    position: 'relative',
+                                    top:"-30px",
+                                  }}
+                                >
+                                  <MenuOutlined
+                                    ref={setActivatorNodeRef}
+                                    {...listeners}
+                                    style={{
+                                      touchAction: "none",
+                                      cursor: "move",
+                                      color: '#8c8c8c',
+                                      fontSize: '16px',
+                                      display: 'inline-flex !important',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      opacity: '1 !important',
+                                      visibility: 'visible !important',
+                                      pointerEvents: 'auto',
+                                      userSelect: 'none',
+                                      WebkitUserSelect: 'none',
+                                      width: '16px',
+                                      height: '16px'
+                                    }}
+                                  />
+                                </div>
+                                <div
+                                  className="d-flex align-items-center cursor-pointer Preview-color-icon"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const currentOption = printSettings.prescription.case_option[recordIndex];
+                                    if (currentOption.ophthalmology_option) {
+                                      const sectionOption = currentOption.ophthalmology_option.find(sub => sub.id === section.id);
+                                      if (sectionOption) {
+                                        sectionOption.visible = sectionOption.visible === false ? true : false;
+                                        setPrintSettings((prev) => ({ ...prev }));
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <i
+                                    className={`icon-Preview ${section.visible === false && "disable-preview"} me-3`}
+                                  ></i>
+                                  <span className="ophthal-option-text">{section.label}</span>
+                                </div>
+                              </div>
+                              <div className="d-flex align-items-center gap-2 ophthal-option-actions">
+                                <Form.Item className="mb-0 form_addnewpatient">
+                                  <Radio.Group
+                                    className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""}`}
+                                    onChange={(e) => {
+                                      const currentOption = printSettings.prescription.case_option[recordIndex];
+                                      if (currentOption.ophthalmology_option) {
+                                        const sectionOption = currentOption.ophthalmology_option.find(sub => sub.id === section.id);
+                                        if (sectionOption) {
+                                          sectionOption.view = e.target.value === "inline" ? 1 : e.target.value === "listview" ? 2 : 3;
+                                          setPrintSettings((prev) => ({ ...prev }));
+                                        }
+                                      }
+                                    }}
+                                    value={section.view === 1 ? "inline" : section.view === 2 ? "listview" : "table"}
+                                  >
+                                    <Radio.Button className="w-100 text-center" value="inline">Inline</Radio.Button>
+                                    <Radio.Button className="w-100 text-center" value="listview">List View</Radio.Button>
+                                    <Radio.Button className="w-100 text-center" value="table">Table</Radio.Button>
+                                  </Radio.Group>
+                                </Form.Item>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      return <SortableSubSectionRow key={section.id} section={section} />;
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            )}
+          </>
+          );
+        }
+
         return (
           <>
             <div className="d-flex align-items-center justify-content-between text-start">
@@ -661,6 +1067,20 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
               </div>
             </div>
           )}
+          {record.id === 7 && (
+            <div style={{ marginLeft: -40, display: "flex" }}>
+              <div style={{ flex: 1 }}>
+                <div className="border mt-3 rounded-4 p-3 bg-white ">
+                  <Collapse
+                    items={vitalsAccordionItems(record, printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                    defaultActiveKey={["1"]}
+                    className="prescriptiontab-accordian"
+                    expandIconPosition={"end"}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           {record.id === 8 && (
             <div style={{ marginLeft: -40, display: "flex" }}>
               <div style={{ flex: 1 }}>
@@ -722,6 +1142,39 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
           ...prev,
           prescription: {
             case_option: arrayMove(prev.prescription.case_option, activeIndex, overIndex)
+          }
+        };
+      });
+    }
+  };
+
+  const onDragEndOphthalmologySubSections = ({ active, over }, recordIndex) => {
+    if (active.id !== over?.id) {
+      setPrintSettings((prev) => {
+        const currentOption = prev.prescription.case_option[recordIndex];
+        if (!currentOption || !currentOption.ophthalmology_option) {
+          return prev;
+        }
+        
+        const activeIndex = currentOption.ophthalmology_option.findIndex((i) => i.id === active.id);
+        const overIndex = currentOption.ophthalmology_option.findIndex((i) => i.id === over?.id);
+        
+        if (activeIndex === -1 || overIndex === -1) {
+          console.warn('Invalid drag operation: activeIndex or overIndex not found for ophthalmology sub-sections');
+          return prev;
+        }
+        
+        const newOphthalmologyOption = arrayMove(currentOption.ophthalmology_option, activeIndex, overIndex);
+        
+        return {
+          ...prev,
+          prescription: {
+            ...prev.prescription,
+            case_option: prev.prescription.case_option.map((option, index) => 
+              index === recordIndex 
+                ? { ...option, ophthalmology_option: newOphthalmologyOption }
+                : option
+            )
           }
         };
       });
@@ -835,7 +1288,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
                     (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                     (patientBills?.length > 0 && option.id === 17) ||
-                    ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false));
+                    ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false)) ||
+                    (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0)
                 }).map(option => ({ ...option, key: option.id }));
                 return filtered;
               })()}
@@ -930,26 +1384,27 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
             {(() => {
               const filteredItems = printSettings?.prescription?.case_option?.filter(option => 
                 option.type === "page_break" || 
-                (caseManagerData.symptoms.length > 0 && option.id === 1) ||
-                (caseManagerData.examination.length > 0 && option.id === 2) ||
-                (caseManagerData.diagnosis.length > 0 && option.id === 3) ||
-                (caseManagerData.medicine.length > 0 && option.id === 4) ||
-                (caseManagerData.advice.length > 0 && option.id === 5) ||
-                (caseManagerData.investigation.length > 0 && option.id === 6) ||
-                ((caseManagerData.vitals.length > 0 || caseManagerData?.patient_birth_weight) && option.id === 7) ||
-                (caseManagerData.medical_history.length > 0 && option.id === 8) ||
-                (caseManagerData.follow_up_date && option.id === 9) ||
-                (caseManagerData.visit_advice && option.id === 91) ||
+                (caseManagerData?.symptoms?.length > 0 && option.id === 1) ||
+                (caseManagerData?.examination?.length > 0 && option.id === 2) ||
+                (caseManagerData?.diagnosis?.length > 0 && option.id === 3) ||
+                (caseManagerData?.medicine?.length > 0 && option.id === 4) ||
+                (caseManagerData?.advice?.length > 0 && option.id === 5) ||
+                (caseManagerData?.investigation?.length > 0 && option.id === 6) ||
+                ((caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight) && option.id === 7) ||
+                (caseManagerData?.medical_history?.length > 0 && option.id === 8) ||
+                (caseManagerData?.follow_up_date && option.id === 9) ||
+                (caseManagerData?.visit_advice && option.id === 91) ||
                 (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length) && option.id === 10) ||
                 (caseManagerData?.smart_prescription_filename?.length && option.id === 11) ||
                 (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
-                (caseManagerData.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
+                (caseManagerData?.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
                 (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
-                (caseManagerData.labParamsData?.length > 0 && option.id === 15) ||
+                (caseManagerData?.labParamsData?.length > 0 && option.id === 15) ||
                 (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
                 (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
                 (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
-                (patientBills?.length > 0 && option.id === 17)
+                (patientBills?.length > 0 && option.id === 17) ||
+                (option.id === 20 && (ophthalModuleData && Object.keys(ophthalModuleData).length > 0 || true)) // Always show for testing
               ) || [];
 
               return (

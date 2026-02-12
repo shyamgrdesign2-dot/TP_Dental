@@ -9,22 +9,7 @@ import axios from "axios";
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
 import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-import newGif from "../assets/images/new-gif.gif";
-import ipdIcon from "../assets/images/ipd.svg";
-import patientsIcon from "../assets/images/all-patients.svg";
-import analyticsIcon from "../assets/images/analytics.svg";
-import pharmacyIcon from "../assets/images/pharmacy.svg";
-import billingsIcon from "../assets/images/billings.svg";
-import followUpIcon from "../assets/images/followup-home.svg";
-import ipdActiveIcon from "../assets/images/ipd-active.svg";
-import tatvaAiIcon from "../assets/images/website-images/tatvaAiIcon.svg";
-import patientsActiveIcon from "../assets/images/all-patients-active.svg";
-import analyticsActiveIcon from "../assets/images/analytics-active.svg";
-import pharmacyActiveIcon from "../assets/images/pharmacy-active.svg";
-import billingsActiveIcon from "../assets/images/billings-active.svg";
-import followUpActiveIcon from "../assets/images/follow-up-active.svg";
 import LockIcon from "../assets/images/lock-icon.svg";
-import tatvaAiActiveIcon from "../assets/images/website-images/tatvaAiActiveIcon.svg";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import FullPageLoader from "../pages/vaccination/components/Loader";
@@ -37,6 +22,71 @@ import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
+import {
+  Calendar,
+  CalendarPrimary,
+  Profile2User,
+  Profile2UserPrimary,
+  Chart,
+  ChartPrimary,
+  PieChart,
+  PieChartPrimary,
+  Shop,
+  ShopPrimary,
+  ReceiptText,
+  ReceiptTextPrimary,
+  CalendarTick,
+  CalendarTickPrimary,
+  HospitalBed,
+  HospitalBedPrimary,
+  Message2,
+  Message2Primary,
+  MessageProgramming,
+  MessageProgrammingPrimary
+} from "../assets/images/navbar-icons";
+
+// Icon mapping constants - using icons from navbar-icons
+const ICON_MAP = {
+  inactive: {
+    ipd: HospitalBed,
+    all_patients: Profile2User,
+    data_analytics: PieChart,
+    apollo_analytics: Chart,
+    pharmacy: Shop,
+    opd_billing: ReceiptText,
+    dr_followup_appointment: CalendarTick,
+    tatva_ai: Message2,
+  },
+  active: {
+    ipd: HospitalBedPrimary,
+    all_patients: Profile2UserPrimary,
+    data_analytics: PieChartPrimary,
+    apollo_analytics: ChartPrimary,
+    pharmacy: ShopPrimary,
+    opd_billing: ReceiptTextPrimary,
+    dr_followup_appointment: CalendarTickPrimary,
+    tatva_ai: Message2Primary,
+  },
+};
+
+// Helper functions
+const getIcon = (type, isHovered, isRouteActive = false) => {
+  const shouldUseActiveIcon = isHovered || isRouteActive;
+  const iconSet = shouldUseActiveIcon ? ICON_MAP.active : ICON_MAP.inactive;
+  return iconSet[type] || "";
+};
+
+// Helper to check if a route is active based on module type
+const isModuleRouteActive = (moduleType, location) => {
+  const routeMap = {
+    opd_billing: "/billing-dashboard",
+    all_patients: "/all_patients",
+    // Note: dr_followup_appointment, data_analytics, pharmacy, and ipd are external redirects
+    // They open in new tabs, so they should not be in the routeMap
+  };
+  const route = routeMap[moduleType];
+  return route ? location.pathname === route : false;
+};
 
 function SidebarDoctor() {
   const isNewIPDAccessableFromGB = useFeatureIsOn(GB_NEW_IPD);
@@ -63,6 +113,8 @@ function SidebarDoctor() {
   const [tokenData, setTokenData] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [tatvaHovered, SetTatvaHovered] = useState(null);
+  const [isAppointmentHovered, setIsAppointmentHovered] = useState(false);
+  const [isMessagesHovered, setIsMessagesHovered] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [askTatvaKnowMoreDrawer, setAskTatvaKnowMoreDrawer] = useState(false);
@@ -77,9 +129,24 @@ function SidebarDoctor() {
   const isApolloConsultationsEnabled = useFeatureIsOn("apollo-consultations");
 
   const location = useLocation();
-
+  const sidebarRef = React.useRef(null);
   const baseUrl = config.tatvaAi_api_url;
   const tatvaAiURL = config.tatvaAi_url;
+
+  // Scroll sidebar to top
+  const scrollToTop = () => {
+    if (sidebarRef.current) {
+      // Check if SidebarDoctor itself is scrollable
+      if (sidebarRef.current.scrollHeight > sidebarRef.current.clientHeight) {
+        sidebarRef.current.scrollTop = 0;
+      }
+      // Also check for scrollable-content child element
+      const scrollableContent = sidebarRef.current.querySelector('.scrollable-content');
+      if (scrollableContent) {
+        scrollableContent.scrollTop = 0;
+      }
+    }
+  };
 
   useEffect(() => {
     if (profile) {
@@ -136,6 +203,20 @@ function SidebarDoctor() {
   };
 
   const clickOldModule = async (moduleName) => {
+    // Check if this is an external redirect module
+    const isExternalModule = 
+      moduleName === S_PHARMACY || 
+      moduleName === S_IPD || 
+      moduleName === "ipd" ||
+      moduleName === "dr_followup_appointment" ||
+      moduleName === "data_analytics";
+    
+    // For external redirect modules: scroll to top and clear hover states
+    if (isExternalModule) {
+      scrollToTop();
+      setHoveredItem(null);
+    }
+
     if(moduleName === "ipd") {
       return check_SSO(moduleName);
     }
@@ -270,48 +351,6 @@ function SidebarDoctor() {
     }
   }
 
-  const getIcon = (type, isHovered) => {
-    if (isHovered) {
-      switch (type) {
-        case "ipd":
-          return ipdActiveIcon;
-        case "all_patients":
-          return patientsActiveIcon;
-        case "data_analytics":
-          return analyticsActiveIcon;
-        case "pharmacy":
-          return pharmacyActiveIcon;
-        case "opd_billing":
-          return billingsActiveIcon;
-        case "dr_followup_appointment":
-          return followUpActiveIcon;
-        case "tatva_ai":
-          return tatvaAiActiveIcon;
-        default:
-          return "";
-      }
-    } else {
-      switch (type) {
-        case "ipd":
-          return ipdIcon;
-        case "all_patients":
-          return patientsIcon;
-        case "data_analytics":
-          return analyticsIcon;
-        case "pharmacy":
-          return pharmacyIcon;
-        case "opd_billing":
-          return billingsIcon;
-        case "dr_followup_appointment":
-          return followUpIcon;
-        case "tatva_ai":
-          return tatvaAiIcon;
-        default:
-          return "";
-      }
-    }
-  };
-
   const handleTatvaAi = async () => {
     try {
       setLoading(true);
@@ -399,6 +438,10 @@ function SidebarDoctor() {
   }
 
   const tatvaAiRedirectOrDrawer = () => {
+    // Scroll to top and clear hover state for Ask Tatva (external redirect)
+    scrollToTop();
+    SetTatvaHovered(false);
+
     if (tp_monetization_enable) {
       if (ASK_TATVA_planDetails?.plan_tier === FREE && ASK_TATVA_planDetails?.credit_balance > 0) {
         if (isFirstClickOfDay(S_ASK_TATVA)) {
@@ -427,16 +470,42 @@ function SidebarDoctor() {
 
   return (
     <>
-      <div className="SidebarDoctor">
-        <div className="scrollable-content">
+      <div className="SidebarDoctor" ref={sidebarRef}>
+        {/* <div className="scrollable-content"> */}
           <NavLink
             to="/"
             replace={true}
-            className={({ isActive, isPending }) =>
-              isPending ? "pending" : isActive ? "active" : ""
-            }
+            className={({ isActive, isPending }) => {
+              // Appointment should be active when:
+              // 1. On "/" route (default)
+              // 2. When no other specific route is active (fallback to default)
+              const isOnHomeRoute = location.pathname === "/";
+              const hasNoActiveRoute = 
+                location.pathname !== "/billing-dashboard" &&
+                location.pathname !== "/all_patients" &&
+                location.pathname !== "/apollo-consultations" &&
+                location.pathname !== "/bulk_messages";
+              
+              if (isPending) return "pending";
+              if (isOnHomeRoute || (hasNoActiveRoute && !isActive)) return "active";
+              return isActive ? "active" : "";
+            }}
+            onMouseEnter={() => setIsAppointmentHovered(true)}
+            onMouseLeave={() => setIsAppointmentHovered(false)}
           >
-            <i className="icon-calendarfill"></i>
+            <img
+              src={
+                (location.pathname === "/" || 
+                 (location.pathname !== "/billing-dashboard" &&
+                  location.pathname !== "/all_patients" &&
+                  location.pathname !== "/apollo-consultations" &&
+                  location.pathname !== "/bulk_messages")) || 
+                isAppointmentHovered
+                  ? CalendarPrimary
+                  : Calendar
+              }
+              alt="appointment"
+            />
             <div className="mt-1 px-2">
               {isMobile ? (
                 "Appt"
@@ -449,17 +518,23 @@ function SidebarDoctor() {
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
+              // Ask Tatva should only show active on hover, not on click
               isPending ? "pending" : tatvaHovered ? "active" : ""
             }
           >
             <div
-              className={`d-flex align-items-center flex-column ${tatvaHovered ? "hoveredColor" : ""
-                }`}
+              className={`d-flex align-items-center flex-column ${
+                tatvaHovered ? "hoveredColor" : ""
+              }`}
               onMouseEnter={() => handleHover(true)} // Set the hovered item
               onMouseLeave={() => handleHover(false)} // Clear the hovered item
-              onClick={tatvaAiRedirectOrDrawer}
+              onClick={(e) => {
+                // Clear hover state immediately on click to prevent active styles
+                SetTatvaHovered(false);
+                tatvaAiRedirectOrDrawer();
+              }}
             >
-              <img src={getIcon("tatva_ai", tatvaHovered)} alt="tatva_ai" />
+              <img src={getIcon("tatva_ai", tatvaHovered, false)} alt="tatva_ai" />
               <div
                 className={`mt-1 px-2 ${tatvaHovered ? "hoveredColor" : ""}`}
                 style={{ fontSize: "12px", fontWeight: "500" }}
@@ -467,19 +542,6 @@ function SidebarDoctor() {
                 Ask Tatva
               </div>
             </div>
-            {/* <img
-              src={newGif}
-              className="mx-auto d-block text-center mb-2 position-absolute sidebar-message"
-              style={{ right: -4, top: 6, zIndex: -1 }}
-              alt="New"
-            /> */}
-            {/* <div className="trial-sidebar">
-              {(ASK_TATVA_planDetails?.plan_tier === FREE && ASK_TATVA_planDetails?.credit_balance > 0) ? (
-                <span>Trial</span>
-              ) : (ASK_TATVA_planDetails?.plan_tier === FREE && ASK_TATVA_planDetails?.credit_balance <= 0) && (
-                <img src={LockIcon} alt="Trial" />
-              )}
-            </div> */}
           </NavLink>
 
           {profile &&
@@ -490,61 +552,98 @@ function SidebarDoctor() {
               )
               ?.map((item, i) => {
                 const isHovered = hoveredItem === i;
+                const isRouteActive = isModuleRouteActive(item.type, location);
+                // Modules that redirect to external tabs should not stay active
+                // These include: Pharmacy, IPD, Follow Up, and Data Analytics
+                const isExternalRedirect = 
+                  item.type === S_PHARMACY || 
+                  item.type === S_IPD || 
+                  item.type === "ipd" ||
+                  item.type === "dr_followup_appointment" ||
+                  item.type === "data_analytics";
+                // Only show active for this specific module when its route is active
+                const shouldShowActive = isRouteActive && !isExternalRedirect && !isHovered;
+                
                 return (
-                  <div className="position-relative">
+                  <div key={i} className="position-relative">
                     <NavLink
-                      key={i}
-                      onClick={() => clickOldModule(item.type)}
+                      onClick={(e) => {
+                        // For external redirect modules, clear hover state immediately on click
+                        if (isExternalRedirect) {
+                          setHoveredItem(null);
+                        }
+                        clickOldModule(item.type);
+                      }}
                       replace={true}
-                      className={({ isActive, isPending }) =>
-                        item.type === "opd_billing" &&
-                          window.location.pathname === "/billing-dashboard"
-                          ? "active"
-                          : isHovered
-                            ? ""
-                            : isPending
-                              ? "pending"
-                              : isActive
-                                ? ""
-                                : "active"
-                      }
+                      className={({ isPending }) => {
+                        // For external redirect modules, only show active on hover, not on click
+                        if (isExternalRedirect) {
+                          return isPending ? "pending" : isHovered ? "active" : "";
+                        }
+                        
+                        // Only show active when the route specifically matches this module
+                        if (isRouteActive && !isHovered) {
+                          return isPending ? "pending" : "active";
+                        }
+                        
+                        // For hover state, don't show active className
+                        if (isHovered) {
+                          return isPending ? "pending" : "";
+                        }
+                        
+                        // Default: not active
+                        return isPending ? "pending" : "";
+                      }}
                       onMouseEnter={() => setHoveredItem(i)} // Set the hovered item
                       onMouseLeave={() => setHoveredItem(null)} // Clear the hovered item
                     >
                       <img
-                        src={getIcon(item.type, isHovered)}
+                        src={getIcon(item.type, isHovered, shouldShowActive)}
                         alt={`${item.type}`}
                       />
                       <div className="mt-1 px-2">{item.title}</div>
                     </NavLink>
                     {/* {moment(planDetails?.plan_active_date).diff("2025-07-01", 'days') > 0 && */}
-                      {tp_monetization_enable && (
-                        item.type === S_PHARMACY ? (
-                          <div className="trial-sidebar">
-                            {(EMR_planDetails?.plan_tier === TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) ? (
-                              <span>Trial</span>
-                            ) : (EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) && (
+                    {tp_monetization_enable &&
+                      (item.type === S_PHARMACY ? (
+                        <div className="trial-sidebar">
+                          {EMR_planDetails?.plan_tier === TRIAL &&
+                          PHARMACY_planDetails?.plan_tier === TRIAL ? (
+                            <span>Trial</span>
+                          ) : (
+                            EMR_planDetails?.plan_tier !== TRIAL &&
+                            PHARMACY_planDetails?.plan_tier === TRIAL && (
                               <img src={LockIcon} alt="Trial" />
-                            )}
-                          </div>
-                        ) : item.type === S_IPD ? (
-                          <div className="trial-sidebar">
-                            {(EMR_planDetails?.plan_tier === TRIAL && IPD_planDetails?.plan_tier === TRIAL) ? (
-                              <span>Trial</span>
-                            ) : (EMR_planDetails?.plan_tier !== TRIAL && IPD_planDetails?.plan_tier === TRIAL) && (
+                            )
+                          )}
+                        </div>
+                      ) : item.type === S_IPD ? (
+                        <div className="trial-sidebar">
+                          {EMR_planDetails?.plan_tier === TRIAL &&
+                          IPD_planDetails?.plan_tier === TRIAL ? (
+                            <span>Trial</span>
+                          ) : (
+                            EMR_planDetails?.plan_tier !== TRIAL &&
+                            IPD_planDetails?.plan_tier === TRIAL && (
                               <img src={LockIcon} alt="Trial" />
-                            )}
-                          </div>
-                        ) : item.type === S_OPD_BILLING && (
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        item.type === S_OPD_BILLING && (
                           <div className="trial-sidebar">
-                            {(EMR_planDetails?.plan_tier === TRIAL && BILLING_planDetails?.plan_tier === TRIAL) ? (
+                            {EMR_planDetails?.plan_tier === TRIAL &&
+                            BILLING_planDetails?.plan_tier === TRIAL ? (
                               <span>Trial</span>
-                            ) : (EMR_planDetails?.plan_tier !== TRIAL && BILLING_planDetails?.plan_tier === TRIAL) && (
-                              <img src={LockIcon} alt="Trial" />
+                            ) : (
+                              EMR_planDetails?.plan_tier !== TRIAL &&
+                              BILLING_planDetails?.plan_tier === TRIAL && (
+                                <img src={LockIcon} alt="Trial" />
+                              )
                             )}
                           </div>
                         )
-                      )}
+                      ))}
                   </div>
                 );
               })}
@@ -553,16 +652,22 @@ function SidebarDoctor() {
             <NavLink
               to="/apollo-consultations"
               replace={true}
-              className={({ isActive, isPending }) =>
-                isPending ? "pending" : isActive ? "active" : ""
-              }
-              onMouseEnter={() => setHoveredItem(true)} // Set the hovered item
+              className={({ isActive, isPending }) => {
+                // Apollo analytics should only be active when on its route, not when other external redirects are clicked
+                // If we're on "/" or other routes, don't show as active
+                if (location.pathname !== "/apollo-consultations") {
+                  return isPending ? "pending" : "";
+                }
+                return isPending ? "pending" : isActive ? "active" : "";
+              }}
+              onMouseEnter={() => setHoveredItem("apollo")} // Set the hovered item with specific identifier
               onMouseLeave={() => setHoveredItem(null)} // Clear the hovered item
             >
               <img
                 src={getIcon(
-                  "data_analytics",
-                  hoveredItem || location.pathname === "/apollo-consultations"
+                  "apollo_analytics",
+                  hoveredItem === "apollo",
+                  location.pathname === "/apollo-consultations"
                 )}
                 alt="apollo"
               />
@@ -571,21 +676,26 @@ function SidebarDoctor() {
               </div>
             </NavLink>
           )}
-        </div>
 
-        {loading && <FullPageLoader />}
-
-        {profile?.ownerDoctor === 1 && (
-          <NavLink
-            to="/bulk_messages"
-            replace={true}
-            style={{ marginTop: "8px" }}
-            className={({ isActive, isPending }) =>
-              isPending ? "pending" : isActive ? "active" : ""
-            }
-          >
-            <i className="icon-calendarfill"></i>
-            <div className="mt-1 px-2">
+          {profile?.ownerDoctor === 1 && (
+            <NavLink
+              to="/bulk_messages"
+              replace={true}
+              style={{ marginTop: "8px" }}
+              className={({ isActive, isPending }) =>
+                isPending ? "pending" : isActive ? "active" : ""
+              }
+              onMouseEnter={() => setIsMessagesHovered(true)}
+              onMouseLeave={() => setIsMessagesHovered(false)}
+            >
+              <img
+                src={
+                  location.pathname === "/bulk_messages" || isMessagesHovered
+                    ? MessageProgrammingPrimary
+                    : MessageProgramming
+                }
+                alt="messages"
+              />
               <div className="mt-1 px-2">
                 {isMobile ? (
                   "Message"
@@ -593,32 +703,12 @@ function SidebarDoctor() {
                   <div className="text-truncate">Messages</div>
                 )}
               </div>
-              {/* <img
-                src={newGif}
-                className="mx-auto d-block text-center mb-2 position-absolute sidebar-message"
-                style={{ right: -4, top: 6, zIndex: -1 }}
-                alt="New"
-              /> */}
-            </div>
-          </NavLink>
-        )}
-        <div>
-          <Button
-            className="btn btn-delete-prescription mx-auto d-block p-0 mt-2"
-            onClick={() =>
-              window.Moengage.track_event("announcement_button_clicked")
-            }
-            id="beamerButton"
-          >
-            <i className="icon-announcement fs-3"></i> <br />
-          </Button>
-          {/* <img
-            src={newGif}
-            width={42}
-            className="mx-auto d-block text-center mb-2"
-            alt="New"
-          /> */}
-        </div>
+            </NavLink>
+          )}
+        {/* </div> */}
+
+        {loading && <FullPageLoader />}
+        
       </div>
 
       <Drawer
@@ -629,7 +719,10 @@ function SidebarDoctor() {
         className=".modalWidth-800"
         width={600}
       >
-        <AskTatvaKnowMore handleAskTatvaKnowMore={handleAskTatvaKnowMore} onRedirect={checkTatvaAiPurchased} />
+        <AskTatvaKnowMore
+          handleAskTatvaKnowMore={handleAskTatvaKnowMore}
+          onRedirect={checkTatvaAiPurchased}
+        />
       </Drawer>
 
       <Drawer
@@ -640,7 +733,10 @@ function SidebarDoctor() {
         className=".modalWidth-800"
         width={600}
       >
-        <IPDKnowMore handleIPDKnowMore={handleIPDKnowMore} onRedirect={() => check_SSO(subModalData?.service_name)} />
+        <IPDKnowMore
+          handleIPDKnowMore={handleIPDKnowMore}
+          onRedirect={() => check_SSO(subModalData?.service_name)}
+        />
       </Drawer>
 
       <Drawer
@@ -651,13 +747,21 @@ function SidebarDoctor() {
         className=".modalWidth-800"
         width={600}
       >
-        <PharmacyKnowMore handlePharmacyKnowMore={handlePharmacyKnowMore} onRedirect={() => check_SSO(subModalData?.service_name)} />
+        <PharmacyKnowMore
+          handlePharmacyKnowMore={handlePharmacyKnowMore}
+          onRedirect={() => check_SSO(subModalData?.service_name)}
+        />
       </Drawer>
 
       <ExpiredSubModal
-        title={subModalData && subModalData?.hasOwnProperty('service_name') && subModalData?.service_name}
+        title={
+          subModalData &&
+          subModalData?.hasOwnProperty("service_name") &&
+          subModalData?.service_name
+        }
         isSubModalOpen={isSubModalOpen}
-        showHideSubModal={showHideSubModal} />
+        showHideSubModal={showHideSubModal}
+      />
     </>
   );
 }

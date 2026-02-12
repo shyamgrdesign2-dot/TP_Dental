@@ -14,6 +14,7 @@ import { isMobile } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
+import useTabletViewport from "../hooks/useTabletViewport";
 
 function Welcome(props) {
 
@@ -32,6 +33,8 @@ function Welcome(props) {
   const isFromAddAppointment = location.state?.from === "/add-appointment";
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+
+  const isTablet = useTabletViewport();
 
   const clickWalkInConsultation = () => {
     const businessId = decodedToken?.result?.hospital_business_id;
@@ -90,18 +93,13 @@ function Welcome(props) {
               ) : locationPath == "/bulk_messages" ? (
                 <h1>Messages</h1>
               ) : locationPath == "/billing-dashboard" ? (
-                <h1>OPD Billing</h1>
+                <h1>Bill History</h1>
               ) : (
                 <h1>Welcome Dr. {profile?.um_name?.split(/\s+/).filter(word => (word.toLowerCase() != "Dr".toLowerCase() && word.toLowerCase() != "Dr.".toLowerCase())).join(' ')}!</h1>
               )}
               {locationPath == "/" && <p>{"Your Appointments"}</p>}
               {locationPath == "/bulk_messages" && <p className="text-main fw-medium fs-14">{"Engage patients with timely updates and reminders"}</p>}
             </div>
-            <img
-              src={require("../assets/images/bg-welcome.png")}
-              className="welcomeig d-inline-block align-top"
-              alt="Welcome"
-            />
           </div>
           <div className="d-flex gap-1">
             <div>
@@ -113,7 +111,6 @@ function Welcome(props) {
                       className="px-3 btn-41 me-3 btn-outline-primary d-flex align-items-center rounded-10px"
                       style={{
                         background: 'rgba(255,255,255,0.5)',
-                        height: isMobile ? '3.5rem' : '41px'
                       }}
                       onClick={() => {
                         window.Moengage.track_event("TP_AddAppointment_addnewappointment", {
@@ -125,18 +122,15 @@ function Welcome(props) {
                         navigate('/add-appointment');
                       }}>
                       <i className="icon-Add me-2"></i>
-                      {"Add New Appointment"}
+                      {`Add ${isTablet ? "" : "New"} Appointment`}
                     </Button>
                   )}
                   
                   <Button
                     variant="primary"
                     className="px-3 btn-41"
-                    style={{
-                      height: isMobile ? '3.5rem' : '41px'
-                    }}
                     onClick={clickWalkInConsultation}>
-                    {"Start Walk-in Consultation"}
+                    {`Start Walk-in ${isTablet ? "" : "Consultation"}`}
                   </Button>
                 </div>
               }

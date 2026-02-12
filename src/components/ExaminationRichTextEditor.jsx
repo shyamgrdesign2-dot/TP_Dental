@@ -48,7 +48,18 @@ const ExaminationRichTextEditor = ({
     let editorItems = editorItemsRef.current || [];
     
     if (editorItems.length === 0 && currentItems.length > 0) {
-      editorItems = currentItems.map(exam => exam.name || exam.lineItem || '');
+      editorItems = currentItems.map(exam => {
+        const name = exam.name || exam.lineItem || '';
+        const parts = [];
+        
+        if (exam.notes) parts.push(exam.notes);
+        
+        if (parts.length > 0) {
+          return `${name} (${parts.join(', ')})`;
+        }
+        
+        return name;
+      });
       editorItemsRef.current = editorItems;
     }
     

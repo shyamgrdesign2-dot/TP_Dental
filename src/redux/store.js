@@ -32,6 +32,11 @@ import shortLinkSlice from "./shortLinkSlice";
 import monetizationSlice from "./monetizationSlice";
 import abhaSlice from "./abhaSlice";
 import ipdSlice from "./ipdSlice";
+import billingPackageSlice from "./billingPackageSlice";
+import ophthalSnapRxDigitizationSlice from "./ophthalSnapRxDigitizationSlice";
+import ophthalmologyExamSlice from "./ophthalmologyExamSlice";
+import slitLampTemplateSlice from "./slitLampTemplateSlice";
+import fundusTemplateSlice from "./fundusTemplateSlice";
 
 const persistConfig = {
   key: "root",
@@ -65,10 +70,15 @@ const rootReducer = combineReducers({
   customModules: customModuleReducer,
   billing: billingSlice,
   snapRx: snapRxDigitizationSlice,
+  ophthalSnapRx: ophthalSnapRxDigitizationSlice,
   shortLink: shortLinkSlice,
   monetization: monetizationSlice,
   abha: abhaSlice,
   ipd: ipdSlice,
+  billingPackage: billingPackageSlice,
+  ophthalmologyExam: ophthalmologyExamSlice,
+  slitLampTemplates: slitLampTemplateSlice,
+  fundusTemplates: fundusTemplateSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

@@ -27,12 +27,16 @@ import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
+import { getDecodedToken } from "../utils/localStorage";
+import { fetchAgents } from "./appointmentAgent/service";
+import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
+import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 
 function ConfigurePrintSetting() {
 
     const divRef = useRef(null);
 
-    const { defaultPrintSettings, userId } = useSelector((state) => state.doctors);
+    const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
     const { caseManagerData, certificateData, smartRxFile, pam_id } = state;
@@ -55,6 +59,8 @@ function ConfigurePrintSetting() {
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
+    const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
+    const [opthalModuleData, setOpthalModuleData] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -92,7 +98,33 @@ function ConfigurePrintSetting() {
         dispatch(getModules(userId));
       }, [userId]);
 
-    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments };
+    useEffect(() => {
+        const fetchOpthalPrescription = async () => {
+            const tcmId = caseManagerData?.tcm_id;
+            if (!tcmId) {
+                setOpthalModuleData(null);
+                return;
+            }
+            try {
+                const response = await getOpthalPrescriptionDetails({
+                    tcm_id: tcmId,
+                    patientId: caseManagerData?.patient_data?.patient_unique_id,
+                });
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                setOpthalModuleData(payload || null);
+            } catch (error) {
+                console.error("Error fetching opthal prescription details:", error);
+                setOpthalModuleData(null);
+            }
+        };
+        fetchOpthalPrescription();
+        return () => {
+            setOpthalModuleData(null);
+        };
+    }, [caseManagerData?.tcm_id]);
+
+    const contextApi = { smartRxFile, divWidth, caseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
 
     const TabsPrintSetting = [
         {
@@ -109,11 +141,59 @@ function ConfigurePrintSetting() {
         },
     ];
 
+    const hasOphthalValue = (value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    };
+
+    const hasOphthalArrayData = (items, keys) =>
+        Array.isArray(items) && items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+
+    const hasOphthalModuleData = !!(
+        opthalModuleData &&
+        (
+            hasOphthalArrayData(opthalModuleData.visualAcuity, ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]) ||
+            hasOphthalArrayData(opthalModuleData.autoRefraction, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.lensometerValues, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.glassPrescription, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(opthalModuleData.intraOcularPressure, ["nct", "gat", "cc", "cct", "ciop"]) ||
+            hasOphthalArrayData(opthalModuleData.slitLampExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalArrayData(opthalModuleData.fundusExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalValue(opthalModuleData.pd)
+        )
+    );
+
+    // Fetch appointment agent link
+    useEffect(() => {
+        const fetchAppointmentLink = async () => {
+            try {
+                const decodedToken = getDecodedToken();
+                const clinicId = decodedToken?.result?.clinic_id;
+                if (clinicId) {
+                    const res = await fetchAgents(clinicId);
+                    if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+                        const appointmentLink = res.data[0]?.appointmentLinkShared;
+                        if (appointmentLink) {
+                            setAppointmentLinkShared(appointmentLink);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error while fetching appointment agent link: ", error);
+            }
+        };
+        fetchAppointmentLink();
+    }, []);
+
     useEffect(() => {
         const makeData = async () => {
+            const publishUrl = profile?.website_publish ? profile?.publish_url : null ;
+            const qrCodeUrl = publishUrl || appointmentLinkShared ;
+            const qrCode = qrCodeUrl ? await QRCode.toDataURL(qrCodeUrl) : null;
             const copyPrintSettings = JSON.parse(JSON.stringify({
                 ...defaultPrintSettings,
-                qrcode: await QRCode.toDataURL(`${config.doctor_website_url}${parseInt(defaultPrintSettings?.um_contact, 10).toString(36)}_${defaultPrintSettings?.hm_refer_code}`)
+                qrcode: qrCode  
             }))
             
             // Add Case Option ID 18 for Zydus Lab Results if it doesn't exist and we have Zydus data
@@ -135,6 +215,28 @@ function ConfigurePrintSetting() {
                 }
             }
 
+            // Add Case Option ID 20 for Ophthalmology when module has data
+            if (hasOphthalModuleData && copyPrintSettings?.prescription?.case_option) {
+                const hasOphthalmologyOption = copyPrintSettings.prescription.case_option.find(option => option.id === 20);
+                if (!hasOphthalmologyOption) {
+                    // Add Ophthalmology option with default settings
+                    copyPrintSettings.prescription.case_option.push({
+                        id: 20,
+                        title: "Ophthal",
+                        format: "table", // table, listview, or inline
+                        enable: "Y",
+                        custom_status: "Y",
+                        ophthalmology_option: ophthalmologyDefaultPrintSettings.subSections
+                    });
+                } else {
+                    // Ensure ophthalmology_option exists even if option already exists
+                    const ophthOption = copyPrintSettings.prescription.case_option.find(option => option.id === 20);
+                    if (ophthOption && !ophthOption.ophthalmology_option) {
+                        ophthOption.ophthalmology_option = ophthalmologyDefaultPrintSettings.subSections;
+                    }
+                }
+            }
+
             setPrintSettings(copyPrintSettings);
             copyPrintSettings?.logo_enable == 'Y' && copyPrintSettings.logo_image && setFileLogo({ imageShow: true, showFile: copyPrintSettings.logo_image });
             copyPrintSettings?.water_mark_enable == 'Y' && copyPrintSettings.water_mark_image && setFileWatermark({ imageShow: true, showFile: copyPrintSettings.water_mark_image });
@@ -145,7 +247,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings]);
+    }, [defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;
@@ -189,6 +291,7 @@ function ConfigurePrintSetting() {
         );
         setPatientWalletBalance(patientWalletBalanceRes?.advanceDepositBalance);
     };
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -213,7 +316,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

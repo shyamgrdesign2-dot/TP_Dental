@@ -24,6 +24,34 @@ ApiAbha.verifyOtpForAadhaar = function (data) {
   );
 };
 
+ApiAbha.verifyFingerPrintForAadhaar = function (data) {
+  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  const authToken = token ? JSON.parse(token) : null;
+  
+  return axios.post(
+    `${config.abha_api_url}/api/v1/abdm/m1/enrollmentByAadhaar/verify-fingerPrint`,
+    data,
+    {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  ).then(response => {
+    return {
+      success: response.status === 200,
+      data: response.data,
+      message: response.data?.message || 'Success',
+    };
+  }).catch(error => {
+    return {
+      success: false,
+      message: error?.response?.data?.message || error?.message || 'Failed to verify fingerprint',
+      data: error?.response?.data,
+    };
+  });
+};
+
 ApiAbha.getSuggestionAbhaAddressList = function (data) {
   return api.post(
     `/api/v1/abdm/m1/enrollmentByAadhaar/suggestion-abhaAddressList`,
@@ -154,6 +182,21 @@ ApiAbha.downloadAbhaCard = function (data) {
   );
 }
 
+ApiAbha.getPHRQrScannerData = function () {
+  const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  const authToken = token ? JSON.parse(token) : null;
+  
+  return axios.get(
+    `${config.abha_api_url}/api/v1/abha/getPHRQrScannerData`,
+    {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
 export const getAbhaConsentList = async function (payload = {}) {
   const body = {
     search: payload.search !== undefined ? payload.search : "",
@@ -263,6 +306,14 @@ export const viewConsentRecord = async function (consentId, recordId) {
     console.error("Error while fetching consent record: ", error);
     throw error;
   }
+};
+
+ApiAbha.generateLinkCareContextToken = function (data) {
+  return api.post(
+    `/api/v1/abdm/m2/linkCareContext/generate-token`,
+    data,
+    baseUrl
+  );
 };
 
 export default ApiAbha;

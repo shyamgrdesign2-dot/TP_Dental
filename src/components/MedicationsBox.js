@@ -222,6 +222,24 @@ function MedicationsBox() {
     [doseCalculatorDrawer, searchMLQuery, searchParentQuery]
   );
 
+  const handleParentSearch = (value) => {
+    onSearchParent(value);
+    // Reset dropdown scroll to top whenever the search query changes
+    setTimeout(() => {
+      const dropdown =
+        document.querySelector(
+          ".medicine-parent-autocomplete-dropdown .rc-virtual-list-holder"
+        ) ||
+        document.querySelector(
+          ".medicine-parent-autocomplete-dropdown .ant-select-dropdown"
+        );
+
+      if (dropdown) {
+        dropdown.scrollTop = 0;
+      }
+    }, 0);
+  };
+
   const onSelectParent = async (data, item) => {
     if (JSON.parse(item.key).tmm_id === 0) {
       showHideAddMedicineModal()
@@ -2111,12 +2129,14 @@ function MedicationsBox() {
           <AutoComplete
             // defaultValue={searchParentQuery}
             value={searchParentQuery}
-            onSearch={onSearchParent}
+            onSearch={handleParentSearch}
             options={parentSearchOptions}
             className="autocomplete-custom w-100"
             onSelect={onSelectParent}
             defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
+            popupClassName={`medicine-parent-autocomplete-dropdown ${
+              !searchParentQuery ? "boxpopup" : ""
+            }`}
           >
             <Input
               placeholder="Search Medicines by Name"

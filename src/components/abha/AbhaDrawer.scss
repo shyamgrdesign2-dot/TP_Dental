@@ -353,6 +353,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0;
   }
 
   .abha_step_number {
@@ -366,6 +367,7 @@
     font-weight: 600;
     color: #fff !important;
     background: #7d6299;
+    margin-bottom: 0;
   }
 
   .abha_step_number.active {
@@ -376,7 +378,9 @@
 
   .abha_step_line {
     width: 2px;
-    height: 120px;
+    height: 80px;
+    margin-top: -10px;
+    margin-bottom: -10px;
     background: repeating-linear-gradient(
       to bottom,
       #7d6299,
@@ -1554,5 +1558,613 @@
   &:focus {
     outline: 2px solid #4b4ad5;
     outline-offset: 2px;
+  }
+}
+
+// Biometric Section Styles
+.abha_biometric_section {
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// OTP Flow Section Styles
+.abha_otp_flow_section {
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.abha_otp_flow_button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  background: #4b4ad51a;
+  border: none;
+  border-radius: 12px;
+  color: #4b4ad5 !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #4b4ad51f;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(75, 74, 213, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  .abha_otp_flow_button_content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .abha_otp_flow_icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  span {
+    color: #4b4ad5 !important;
+    font-family: "Poppins";
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 24px;
+    letter-spacing: 0.25px;
+  }
+
+  .abha_otp_flow_arrow {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+.abha_biometric_button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  background: #4b4ad51a;
+  border: none;
+  border-radius: 12px;
+  color: #4b4ad5 !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #4b4ad51f;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(75, 74, 213, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  .abha_biometric_button_content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .abha_biometric_icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  span {
+    color: #4b4ad5 !important;
+    font-family: "Poppins";
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 24px;
+    letter-spacing: 0.25px;
+  }
+
+  .abha_biometric_arrow {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+// Biometric Capture Button in Step Body
+.abha_step_body_number {
+  .abha_biometric_capture_button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 32px;
+    background: #ffffff;
+    border: 1px solid #4b4ad5;
+    border-radius: 10px;
+    color: #4b4ad5;
+    font-family: "Poppins";
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 0;
+
+    &:hover:not(:disabled) {
+      background: #f8f9ff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(75, 74, 213, 0.2);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #ffffff;
+      border-color: #4b4ad5;
+    }
+
+    .abha_biometric_icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    span {
+      color: #4b4ad5 !important;
+    }
+  }
+
+  .abha_biometric_success_container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .abha_biometric_captured_button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0;
+    width: 290px;
+    height: 45px;
+    background: rgba(61, 140, 64, 0.06);
+    border: none;
+    border-radius: 10px;
+    color: #3d8c40;
+    font-family: "Poppins";
+    font-weight: 600;
+    font-size: 14px;
+    cursor: default;
+    flex: 0 0 auto;
+
+    .abha_biometric_check_icon {
+      width: 20px;
+      height: 20px;
+      filter: brightness(0) saturate(100%) invert(47%) sepia(96%) saturate(527%) hue-rotate(89deg) brightness(94%) contrast(89%);
+    }
+
+    span {
+      color: #3d8c40 !important;
+    }
+
+    &.abha_biometric_error_button {
+      background: #fff1f0 !important;
+      border: none !important;
+      color: #ff4d4f !important;
+
+      .abha_biometric_alert_icon {
+        width: 20px;
+        height: 20px;
+        filter: none !important;
+      }
+
+      span {
+        color: #ff4d4f !important;
+      }
+    }
+  }
+
+  .abha_biometric_try_again_button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 24px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: #4b4ad5;
+    font-family: "Poppins";
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    .abha_biometric_retry_icon {
+      width: 10px;
+      height: 10px;
+      filter: brightness(0) saturate(100%) invert(39%) sepia(10%) saturate(2476%) hue-rotate(209deg) brightness(90%) contrast(88%);
+    }
+
+    span {
+      color: #4b4ad5 !important;
+    }
+  }
+}
+
+// Biometric Capture Popup Styles
+.biometric_capture_modal {
+  .ant-modal-content {
+    border-radius: 11px;
+    overflow: hidden;
+    width: 445px !important;
+    height: auto;
+    min-height: 395px;
+  }
+
+  .ant-modal-header {
+    border-bottom: none;
+    padding: 0;
+  }
+
+  .ant-modal-body {
+    padding: 17px;
+  }
+
+  .ant-modal-close {
+    background: #000000 !important;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    top: 11px;
+    right: 11px;
+
+    .ant-modal-close-x {
+      color: #ffffff !important;
+      font-size: 13px;
+      line-height: 22px;
+    }
+  }
+}
+
+.biometric_modal_close_icon {
+  color: #ffffff !important;
+  font-size: 13px;
+  line-height: 22px;
+  display: inline-block;
+}
+
+.biometric_capture_content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 17px;
+}
+
+.biometric_capture_header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 0;
+}
+
+.biometric_capture_header_row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.biometric_capture_header_divider {
+  width: 100%;
+  height: 1px;
+  background: #e2e2ea;
+  margin-top: 11px;
+  margin-bottom: 0;
+}
+
+.biometric_capture_header_icon {
+  width: 28px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.biometric_capture_icon {
+  width: 64px;
+  height: 64px;
+}
+
+.biometric_capture_title {
+  font-family: "Poppins";
+  font-weight: 600;
+  font-size: 14px;
+  color: #454551;
+  margin: 0;
+  text-align: left;
+}
+
+.biometric_capture_animation_area {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.biometric_animation_container {
+  position: relative;
+  width: 170px;
+  height: 171px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.biometric_animation_gif,
+.biometric_animation_lottie {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.biometric_capture_loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+
+  p {
+    font-family: "Poppins";
+    font-size: 10px;
+    color: #454551;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+.biometric_spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e8e3ff;
+  border-top-color: #4b4ad5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.biometric_capture_placeholder {
+  p {
+    font-family: "Poppins";
+    font-size: 10px;
+    color: #7b7d99;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+.biometric_capture_status_banner {
+  width: auto;
+  max-width: 153px;
+  height: fit-content;
+  min-height: 31px;
+  padding: 8px 11px;
+  border-radius: 6px;
+  font-family: "Poppins";
+  font-weight: 600;
+  font-size: 10px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+
+  &.ready {
+    background: rgba(164, 97, 216, 0.06);
+    color: #a461d8 !important;
+  }
+
+  &.success {
+    background: rgba(61, 140, 64, 0.06);
+    color: #3d8c40 !important;
+    font-size: 13px;
+    width: auto;
+    max-width: none;
+    height: 39px;
+    min-height: 39px;
+    padding: 0 11px;
+  }
+}
+
+.biometric_capture_note {
+  width: 100%;
+  background: rgba(237, 138, 0, 0.1);
+  border: 1px solid rgba(237, 138, 0, 0.2);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.biometric_note_title {
+  font-family: "Poppins";
+  font-weight: 600;
+  font-size: 10px;
+  color: #000000 !important;
+  margin-bottom: 8px;
+}
+
+.biometric_note_list {
+  margin: 0;
+  padding-left: 14px;
+  list-style-type: disc;
+
+  li {
+    font-family: "Poppins";
+    font-size: 9px;
+    color: #5a6774;
+    line-height: 1.6;
+    margin-bottom: 6px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      font-weight: 600;
+    }
+  }
+}
+
+// Terms and Conditions Popup Styles
+.terms_conditions_modal {
+  .ant-modal-content {
+    height: 522px;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+    height: 100%;
+  }
+
+  .ant-modal-close {
+    width: 32px;
+    height: 32px;
+    top: 16px;
+    right: 16px;
+    background-color: #000000;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: #333333;
+    }
+
+    .ant-modal-close-x,
+    .terms_conditions_close_icon {
+      color: #ffffff !important;
+      font-size: 18px;
+      line-height: 32px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+.terms_conditions_close_icon {
+  color: #ffffff !important;
+  font-size: 18px;
+  line-height: 32px;
+  display: inline-block;
+}
+
+.terms_conditions_content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.terms_conditions_header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.terms_conditions_title {
+  font-family: "Poppins";
+  font-weight: 600;
+  font-size: 20px;
+  color: #454551;
+  margin: 0;
+  text-align: left;
+}
+
+.terms_conditions_body {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 24px;
+}
+
+.terms_conditions_text {
+  font-family: "Poppins";
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #454551;
+  margin: 0;
+  text-align: left;
+}
+
+.terms_conditions_footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.terms_conditions_got_it_button {
+  width: 279px;
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  background-color: #4b4ad5;
+  color: #ffffff;
+  font-family: "Poppins";
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:active {
+    opacity: 0.8;
   }
 }

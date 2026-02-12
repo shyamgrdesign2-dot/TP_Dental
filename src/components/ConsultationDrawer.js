@@ -44,8 +44,6 @@ import {
   updateAmbientRx,
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
-import genRxRecordIcon from "../assets/images/gen-rx-record.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
@@ -57,19 +55,15 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import VoiceWaveVisualizer from "./WaveVisualizer";
-import GenRXLoaders from "./GenRxLoaders";
-import genRxSendCta from "../assets/images/genRxSendCta.svg";
 import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import tatvaAiChakra from "../assets/lotties/tatvaAiChakra.lottie";
 import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
@@ -127,8 +121,10 @@ import {
 } from "../redux/investigationSlice";
 import config from "../config";
 import { isMobile } from "react-device-detect";
+import { useGrounding } from "../hooks/useGrounding";
+import GenRXLoaders from "./GenRxLoaders";
+import genRxBg from "../assets/images/gen-rx-bg.gif";
 
-const GenRxTips = lazy(() => import("./GenRxTips"));
 
 const ConsultationDrawer = ({
   visible,
@@ -237,15 +233,73 @@ const ConsultationDrawer = ({
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
-  const { hospital_business_id } = tokenData || {};
-  const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
+  const isGroundingAccessable = useGrounding();
   const videoLink = {
     link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
     thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+    title: "Voice Rx Tutorial"
   };
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    let toParse = trimmed;
+    // Handle "Input: {...} , Previous Context: ..." format (e.g. dictate mode API response)
+    if (trimmed.includes("Input:") && trimmed.includes("{")) {
+      const startIdx = trimmed.indexOf("{");
+      if (startIdx >= 0) {
+        let depth = 0;
+        let endIdx = -1;
+        for (let i = startIdx; i < trimmed.length; i++) {
+          if (trimmed[i] === "{") depth++;
+          else if (trimmed[i] === "}") {
+            depth--;
+            if (depth === 0) {
+              endIdx = i;
+              break;
+            }
+          }
+        }
+        if (endIdx >= 0) {
+          toParse = trimmed.substring(startIdx, endIdx + 1);
+        }
+      }
+    }
+    if (!toParse.startsWith("{") || !toParse.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(toParse);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+  const isFirstTranscriptJSON = useMemo(() => {
+    if (Array.isArray(queries) && queries.length > 0) {
+      const firstQuery = queries[0];
+      const firstText = typeof firstQuery === 'string'
+        ? firstQuery
+        : (firstQuery?.text || firstQuery?.message || firstQuery?.content || '');
+      return isSymptomCollectorJSON(firstText);
+    }
+    if (fullTranscript) {
+      return isSymptomCollectorJSON(fullTranscript);
+    }
+    if (genRxDetails?.source) {
+      return isSymptomCollectorJSON(genRxDetails.source);
+    }
+    if (typedInputText) {
+      return isSymptomCollectorJSON(typedInputText);
+    }
+    return false;
+  }, [queries, fullTranscript, genRxDetails?.source, typedInputText, isSymptomCollectorJSON]);
 
 
   useEffect(() => {
@@ -303,6 +357,21 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (!visible) {
       hasAutoSubmittedRef.current = false;
+      stopAllActiveRecorders();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioStreamRef.current = null;
+      }
+      mediaRecorderRef.current = null;
+      window.mediaRecorderRef = null;
+      window.audioStreamRef = null;
     }
   }, [visible]);
 
@@ -345,7 +414,8 @@ const ConsultationDrawer = ({
   useEffect(() => {
     if (hasAutoSubmittedRef.current) return;
     
-    const shouldSubmitTyped = visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
+    const shouldSubmitTyped =
+      visible && !fromVoiceRecording && typedInputText && !isProcessing && !prescriptionData;
     if (!shouldSubmitTyped) return;
 
     hasAutoSubmittedRef.current = true;
@@ -376,11 +446,14 @@ const ConsultationDrawer = ({
   }, [prescriptionData]);
 
   useEffect(() => {
-    if (!isGroundingAccessable && !isApollo) return;
+    if (!isGroundingAccessable) return;
     const meds = prescriptionData?.medications || [];
     if (!meds.length) return;
     if (isFuzzyUpdatingRef.current) return;
-    const namesSignature = meds.map((m) => (m?.name || "").trim()).join("|");
+    const namesSignature = meds.map((m) => {
+      const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+      return nameToUse;
+    }).join("|");
     if (!namesSignature || namesSignature === lastFuzzyNamesRef.current) return;
 
     const now = Date.now();
@@ -398,10 +471,22 @@ const ConsultationDrawer = ({
 
   // Fuzzy-correct lab investigations (tests) names with guards
   useEffect(() => {
-    if (!isGroundingAccessable && !isApollo) return;
+    if (!isGroundingAccessable) return;
     const tests = prescriptionData?.labInvestigation || [];
     if (!tests.length) return;
     if (isFuzzyUpdatingTestsRef.current) return;
+    
+    // Skip fuzzy search if any test is a custom investigation (change === 1)
+    const hasCustomInvestigation = tests.some(
+      (t) => t?.metadata?.change === 1 || t?.change === 1
+    );
+    if (hasCustomInvestigation) {
+      // Update the signature to prevent re-triggering, but don't call fuzzy search
+      const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
+      lastFuzzyTestsRef.current = namesSignature;
+      return;
+    }
+    
     const namesSignature = tests.map((t) => (t?.name || "").trim()).join("|");
     if (!namesSignature || namesSignature === lastFuzzyTestsRef.current) return;
 
@@ -425,24 +510,28 @@ const ConsultationDrawer = ({
 
       const correctedResults = await Promise.all(
         meds.map(async (med) => {
-          const currentName = (med?.name || "").trim();
-          if (!currentName)
-            return { correctedName: currentName, fullData: null };
+          const nameToUse = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+          if (!nameToUse)
+            return { correctedName: nameToUse, fullData: null };
           try {
-            const result = await ApiMedication.getFuzzySearch(currentName);
+            const searchName = (med?.groundingMedicineName || "").trim() || (med?.name || "").trim();
+            const result = await ApiMedication.getFuzzySearch(searchName);
             const corrected = result?.[0]?.tmm_medicine_name?.trim();
             return {
-              correctedName: corrected || currentName,
-              fullData: result?.[0] || null,
+              correctedName: corrected || nameToUse,
+              fullData: {...result?.[0]} || null,
             };
           } catch (e) {
-            return { correctedName: currentName, fullData: null };
+            return { correctedName: nameToUse, fullData: null };
           }
         })
       );
 
       const anyChanged = meds.some(
-        (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
+        (m, i) => {
+          const currentDisplayName = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+          return currentDisplayName !== correctedResults[i].correctedName;
+        }
       );
       if (!anyChanged) return;
 
@@ -460,7 +549,7 @@ const ConsultationDrawer = ({
           metadata: {
             ...m.metadata,
             fuzzyCorrectedName: correctedResults[idx].correctedName,
-            originalName: m.name,
+            originalName: (m?.groundingMedicineName || "").trim() || m.name,
             isFuzzyCorrected: true,
             ...(correctedResults[idx].fullData || {}),
           },
@@ -487,7 +576,7 @@ const ConsultationDrawer = ({
             const corrected = result?.[0]?.investigation_name?.trim();
             return {
               correctedName: corrected || currentName,
-              fullData: result?.[0] || null,
+              fullData: {...result?.[0]} || null,
             };
           } catch (e) {
             return { correctedName: currentName, fullData: null };
@@ -498,7 +587,7 @@ const ConsultationDrawer = ({
       const anyChanged = tests.some(
         (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
       );
-      if (!anyChanged) return;
+      // if (!anyChanged) return;
 
       const correctedSig = correctedResults
         .map((r) => r.correctedName)
@@ -827,10 +916,13 @@ const ConsultationDrawer = ({
 
   useEffect(() => {
     if (
-      isAutofillSelected &&
-      selectedSymptomsCollector &&
-      Object.keys(selectedSymptomsCollector)?.length > 0
+      typedInputText ||
+      !isAutofillSelected ||
+      !selectedSymptomsCollector ||
+      Object.keys(selectedSymptomsCollector)?.length === 0
     ) {
+      return;
+    }
       const formattedSymptomsCollectorData = getFormattedSymptomsCollectorData(
         selectedSymptomsCollector
       );
@@ -841,8 +933,7 @@ const ConsultationDrawer = ({
       if (!caseManagerData?.smart_prescription_filename) {
         handleVoiceDigitize(null, null, true);
       }
-    }
-  }, [selectedSymptomsCollector, isAutofillSelected]);
+  }, [selectedSymptomsCollector, isAutofillSelected, typedInputText]);
 
   useEffect(() => {
     let interval;
@@ -898,7 +989,19 @@ const ConsultationDrawer = ({
           } else if (response.data.digitizeData) {
             prescriptionData = response.data.digitizeData;
           } else if (response.data.digitize) {
-            prescriptionData = response.data.digitize;
+            const digitizeObj = response.data.digitize;
+            if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+              const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+              if (numericKeys.length > 0) {
+                prescriptionData = digitizeObj[numericKeys[0]];
+              } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                prescriptionData = digitizeObj;
+              } else {
+                prescriptionData = digitizeObj;
+              }
+            } else {
+              prescriptionData = digitizeObj;
+            }
           } else {
             const ambientEntries = response.data.rxDigitizationHistory?.filter(h => h.category === "ambient-rx") || [];
             const latestAmbientEntry = ambientEntries[ambientEntries.length - 1];
@@ -1255,6 +1358,8 @@ const ConsultationDrawer = ({
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
+      window.mediaRecorderRef = mediaRecorderRef;
+      window.audioStreamRef = audioStreamRef;
     } catch (error) {
       console.error("Error accessing microphone:", error);
     }
@@ -1285,6 +1390,8 @@ const ConsultationDrawer = ({
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
+    window.mediaRecorderRef = null;
+    window.audioStreamRef = null;
   };
 
   const handleSend = async () => {
@@ -1364,6 +1471,14 @@ const ConsultationDrawer = ({
             try {
               if (isRecording) {
                 mediaRecorderRef.current?.stop();
+                if (audioStreamRef.current) {
+                  audioStreamRef.current.getTracks().forEach((track) => track.stop());
+                  audioStreamRef.current = null;
+                }
+                window.mediaRecorderRef = null;
+                window.audioStreamRef = null;
+                setIsRecording(false);
+                setIsPaused(false);
                 await new Promise((resolve) => setTimeout(resolve, 100)); // Ensure audio is processed
 
                 const mimeType =
@@ -1372,6 +1487,7 @@ const ConsultationDrawer = ({
                   type: mimeType,
                 });
 
+                stopAllActiveRecorders();
                 await handleVoiceDigitize(audioBlob, "");
               } else {
                 await handleVoiceDigitize(null, inputText || editableQuery);
@@ -1553,10 +1669,23 @@ const ConsultationDrawer = ({
     const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
       ? cleanedData.labInvestigation.map(item => {
           const { instruction, ...restItem } = item;
-          return {
+          const mappedItem = {
             ...restItem,
             notes: item.notes || item.instruction || ''
           };
+          // Preserve hm_type and um_id at top level for API compatibility
+          // Check both top level and metadata
+          if (item.hm_type !== undefined) {
+            mappedItem.hm_type = item.hm_type;
+          } else if (item.metadata?.hm_type !== undefined) {
+            mappedItem.hm_type = item.metadata.hm_type;
+          }
+          if (item.um_id !== undefined) {
+            mappedItem.um_id = item.um_id;
+          } else if (item.metadata?.um_id !== undefined) {
+            mappedItem.um_id = item.metadata.um_id;
+          }
+          return mappedItem;
         })
       : [];
     
@@ -1614,6 +1743,8 @@ const ConsultationDrawer = ({
       } else if (transcribedText) {
         // Append transcript text with proper key for API
         formData.append("voice_prescription_text", transcribedText);
+        // When data is in JSON format (text-only, no audio), source_duration should be 0
+        formData.append("source_duration", "0");
         }
         
         const patientId = patient_data?.patient_unique_id || "";
@@ -1645,9 +1776,12 @@ const ConsultationDrawer = ({
             
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             newFormData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
@@ -1677,9 +1811,12 @@ const ConsultationDrawer = ({
           } else {
             // Ensure voice_prescription_previous_context is included with latest data
             const data = preparePayloadForApi();
+            const previousContextPayload = {
+              digitize: data
+            };
             formData.append(
               "voice_prescription_previous_context",
-              JSON.stringify(data)
+              JSON.stringify(previousContextPayload)
             );
             
             // Ensure all required fields are in FormData
@@ -1788,7 +1925,19 @@ const ConsultationDrawer = ({
               // Priority 3: Check for digitize object (single digitization)
               else if (finalResponseData.digitize || actualData?.digitize || responseData?.digitize) {
                 // Extract prescription data from digitize object
-                prescriptionData = finalResponseData.digitize || actualData?.digitize || responseData.digitize;
+                const digitizeObj = finalResponseData.digitize || actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               } else if (finalResponseData.rxDigitizationHistory && Array.isArray(finalResponseData.rxDigitizationHistory) && finalResponseData.rxDigitizationHistory.length > 0) {
                 // Find the latest ambient entry (for get/edit operations)
                 const ambientEntries = responseData.rxDigitizationHistory.filter(h => h.category === "ambient-rx");
@@ -1858,12 +2007,21 @@ const ConsultationDrawer = ({
                        responseData?.rxDigitizationHistory?.[0]?.payload?.medications) {                                                                           
               prescriptionData = responseData.rxDigitizationHistory[0].payload;
             }
-              else if (actualData?.digitize) {
-                prescriptionData = actualData.digitize;
+              else if (actualData?.digitize || responseData?.digitize) {
+                const digitizeObj = actualData?.digitize || responseData?.digitize;
+                if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                  const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                  if (numericKeys.length > 0) {
+                    prescriptionData = digitizeObj[numericKeys[0]];
+                  } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                    prescriptionData = digitizeObj;
+                  } else {
+                    prescriptionData = digitizeObj;
+                  }
+                } else {
+                  prescriptionData = digitizeObj;
+                }
               }
-              else if (responseData?.digitize) {
-              prescriptionData = responseData.digitize;
-            }
               else if (actualData?.prescription) {
                 prescriptionData = actualData.prescription;
               }
@@ -2242,9 +2400,11 @@ const ConsultationDrawer = ({
           const duration = audioBuffer.duration;
           formData.append("file", audioBlobParam);
           formData.append("voice_prescription_filename", `${uuidv4()}.webm`);
-          formData.append("source_duration", duration);
+          formData.append("source_duration", duration.toString());
         } else {
           formData.append("voice_prescription_text", transcribedText);
+          // When data is in JSON format (text-only, no audio), source_duration should be 0
+          formData.append("source_duration", "0");
         }
         if (genRxDetails?._id) {
           const data = preparePayloadForApi();
@@ -2650,7 +2810,7 @@ const ConsultationDrawer = ({
 
     // Merge medicalHistory arrays while removing duplicates
     const mergedMedicalHistory = [...data1.medicalHistory];
-    data2WithSC.medicalHistory.forEach((history2) => {
+    data2WithSC?.medicalHistory?.forEach((history2) => {
       if (
         !mergedMedicalHistory.some((history1) =>
           isDuplicate(history1, history2)
@@ -3216,6 +3376,7 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
+    stopAllActiveRecorders();
     const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries
@@ -3351,7 +3512,7 @@ const ConsultationDrawer = ({
         dispatch(setSelectAutofill(false));
       }
 
-      if (isGroundingAccessable && patient_data?.departmentId) {
+      if (isGroundingAccessableForZydus && patient_data?.departmentId) {
         let sendInvestigationAndMedicine = {
           patient_unique_id:
             patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -4828,12 +4989,21 @@ const ConsultationDrawer = ({
           tags: []
         };
       }
+      let tagTitle = item.name || '';
+      let tagEnable = item.enable || 'Y';
+      if (!item.enable) {
+        const nameToCheck = item.name || item.lineItem || '';
+        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
+          tagTitle = nameToCheck.trim().substring(3); 
+          tagEnable = 'N';
+        }
+      }
       
       // Create tag object
       const tag = {
-        tmmhst_id: Date.now() + Math.random(), // Generate unique ID
-        title: item.name || '',
-        enable: 'Y',
+        tmmhst_id: Date.now() + Math.random(),
+        title: tagTitle,
+        enable: tagEnable,
         note: item.notes || '',
         since: item.duration || '',
         status: 'Active',
@@ -4906,8 +5076,8 @@ const ConsultationDrawer = ({
                   <div className={styles.modeIndicator}>
                     {isAmbientMode ? (
                       <>
-                        <img src={ambientActiveIcon} alt="Ambient mode" className={styles.modeIcon} />
-                        <span className={styles.modeText}>Ambient Mode</span>
+                        <img src={ambientActiveIcon} alt="Conversation mode" className={styles.modeIcon} />
+                        <span className={styles.modeText}>Coversation Mode</span>
                       </>
                     ) : (
                       <>
@@ -4919,7 +5089,7 @@ const ConsultationDrawer = ({
                 )}
             </div>
             <div className="d-flex align-items-center gap-2">
-              {isGroundingAccessable && (
+              {isGroundingAccessableForZydus && (
                 <button
                   type="button"
                   style={{
@@ -5093,133 +5263,8 @@ const ConsultationDrawer = ({
               <SCBanner handleBanner={() => setShowSCBanner(false)} />
             </div>
           )}
-          <div
-            className={!showPrescription ? styles.gradientBorder : ""}
-            style={{ background: !showPrescription ? `url(${genRxBg})` : "" }}
-          >
-            <div className={styles.container}>
-              {!showPrescription ? (
-                <>
-                  <div style={{ padding: 24 }}>
-                    <h1 className={styles.title}>
-                      {isAmbientMode ? "Ambient Voice Rx" : "Voice Rx"}
-                    </h1>
-                    <div className={styles.subtitle}>
-                      {isAmbientMode 
-                        ? "Record conversation between doctor and patient for prescription generation"
-                        : "Dictate the complete prescription effortlessly"
-                      }
-                    </div>
-                  </div>
-                  {!isTyping && !isRecording && <GenRxTips />}
-
-                  {isRecording ? (
-                    <div
-                      className={styles.recordingContainer}
-                      style={{ marginLeft: 20, marginBottom: 20 }}
-                    >
-                      <div className="d-flex align-items-center justify-content-between">
-                        <span>{formatTime(recordingTime)}</span>
-                        <VoiceWaveVisualizer
-                          isRecording={isRecording}
-                          isPaused={isPaused}
-                        />
-                        <div className={styles.controlButtons}>
-                          {isPaused ? (
-                            <button
-                              className={styles.micBtn}
-                              onClick={handlePauseResume}
-                            >
-                              <img src={micIcon} alt="resume" />
-                            </button>
-                          ) : (
-                            <div onClick={handlePauseResume} role="button">
-                              <img src={pauseIcon} alt="pause" />
-                            </div>
-                          )}
-                          <div
-                            role="button"
-                            onClick={handleSend}
-                            style={{ width: 32 }}
-                          >
-                            <img src={genRxSendCta} alt="send" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className={styles.controlButtons}>
-                        <div
-                          role="button"
-                          onClick={handleStopRecording}
-                          className={styles.deleteButton}
-                        >
-                          <img src={deleteIcon} alt="delete" />
-                        </div>
-                        <span className={styles.recordingStatus}>
-                          {isPaused
-                            ? "Tap on the mic to continue recording!"
-                            : "Listening..."}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {!isTyping && (
-                        <div className={styles.tapToSpeak}>
-                          <div
-                            role="button"
-                            className={styles.animatedButton}
-                            onClick={handleStartRecording}
-                          >
-                            <DotLottieReact
-                              src={tatvaAiChakra}
-                              loop
-                              autoplay
-                              style={{ width: "150px", height: "105px" }}
-                            />
-                          </div>
-                          <p className={styles.tapText}>Tap to Speak</p>
-                        </div>
-                      )}
-                      <div style={{ padding: "24px 15px" }}>
-                        <div className={styles.inputContainerChat}>
-                          <TextArea
-                            ref={textAreaRef}
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            onClick={() => setIsTyping(true)}
-                            onBlur={() =>
-                              setTimeout(() => setIsTyping(false), 200)
-                            }
-                            placeholder={isTyping ? "" : "Or type here instead"}
-                            className={styles.textArea}
-                            autoSize={{ minRows: 1, maxRows: 6 }}
-                          />
-                          {isTyping && (
-                            <div className={styles.controls}>
-                              <div
-                                role="button"
-                                onMouseDown={handleStartRecording}
-                                onTouchStart={handleStartRecording}
-                              >
-                                <img src={genRxRecordIcon} alt="MIC" />
-                              </div>
-                              <div
-                                role="button"
-                                onMouseDown={handleSend}
-                                onTouchStart={handleSend}
-                                style={{ width: 32 }}
-                              >
-                                <img src={genRxSendCta} alt="send" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
+          <div className={styles.container}>
+            {showPrescription ? (
                   <div
                     className={`${styles.splitView} w-100`}
                     ref={splitRef}
@@ -5244,7 +5289,7 @@ const ConsultationDrawer = ({
                         
                                                 {/* Transcript Cards */}
                         {/* First transcript card - show initial transcript */}
-                        {((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
+                        {!isFirstTranscriptJSON && ((Array.isArray(queries) && queries.length > 0) || fullTranscript || genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (() => {
                           const firstQuery = Array.isArray(queries) && queries.length > 0 ? queries[0] : null;
                           const isFirstAudio = firstQuery && typeof firstQuery === 'object' && firstQuery.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations
@@ -5354,7 +5399,7 @@ const ConsultationDrawer = ({
                         })()}
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
-                        {!isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
+                        {!isFirstTranscriptJSON && !isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
                             <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
@@ -5366,6 +5411,10 @@ const ConsultationDrawer = ({
                         {/* Additional transcript cards for new transcripts (both dictate and ambient mode) */}                                                                 
                         {Array.isArray(queries) && queries.length > 1 && queries.slice(1).map((query, idx) => {                               
                           const cardIndex = idx + 1;
+                          const queryTextForCheck = typeof query === 'string' ? query : (query?.text || query?.message || query?.content || '');
+                          if (isSymptomCollectorJSON(queryTextForCheck)) {
+                            return <React.Fragment key={cardIndex} />;
+                          }
                           const isCardExpanded = expandedTranscripts.has(cardIndex);
                           const isAudio = query && typeof query === 'object' && query.isAudio;
                           // Check if it's text-only: not audio, and either a string or object without audio/conversations
@@ -5858,8 +5907,7 @@ const ConsultationDrawer = ({
                     </div>
                   </div>
                 </div>
-              )}
-              {DELETE_MODULE_MODAL}
+            ) : null}
               <CommonModal
                 isModalOpen={isBackModalOpen}
                 onCancel={showHideBackModal}
@@ -5910,7 +5958,6 @@ const ConsultationDrawer = ({
                   </>
                 }
               />
-            </div>
           </div>
         </>
       </Suspense>

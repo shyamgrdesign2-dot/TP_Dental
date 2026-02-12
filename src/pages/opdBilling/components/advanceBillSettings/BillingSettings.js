@@ -23,9 +23,9 @@ import { useDispatch } from "react-redux";
 import { getClinic, trackEvent, getClinicName } from "../../../../utils/utils";
 import { useSelector } from "react-redux";
 
-import playIcons from '../../../../assets/images/tube-icon.svg';
-import tutorial from '../../../../assets/images/tutorial-icon.svg';
-import videorotate from '../../../../assets/images/videorotate.gif';
+import playIcons from "../../../../assets/images/tube-icon.svg";
+import tutorial from "../../../../assets/images/tutorial-icon.svg";
+import videorotate from "../../../../assets/images/videorotate.gif";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 
@@ -330,8 +330,8 @@ const BillingSettings = () => {
     );
   }, [isDeleteModuleModalOpen]);
 
-   //PopOverVideo function
-   const showHideVideoListPopover = useCallback(() => {
+  //PopOverVideo function
+  const showHideVideoListPopover = useCallback(() => {
     setPopOverVideo(!popOverVideo);
   }, [popOverVideo]);
 
@@ -339,7 +339,10 @@ const BillingSettings = () => {
   const VIDEO_CONTENT = useCallback(() => {
     return (
       <>
-        <div className="video-contant rounded-4 p-20 zindex-99999" key="oneclickrx-video">
+        <div
+          className="video-contant rounded-4 p-20 zindex-99999"
+          key="oneclickrx-video"
+        >
           <div className="align-items-center d-flex justify-content-between border-bottom mb-20 pb-2">
             <div className="title-common lh-base">Video Tutorial</div>
             <Button
@@ -472,9 +475,13 @@ const BillingSettings = () => {
             pagination={{
               current: params.page,
               pageSize: params.limit,
-              total: billItemsSummary?.count, // Your total count
+              total: billItemsSummary?.total,
+              showSizeChanger: false,
             }}
             loading={loading}
+            scroll={{
+              y: "calc(100vh - 300px)",
+            }}
           />
         </div>
       </div>

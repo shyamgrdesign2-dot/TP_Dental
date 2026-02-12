@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import Card from "react-bootstrap/Card";
@@ -24,6 +24,13 @@ import medicalHistoryIcon from "../assets/images/Medical-History.svg";
 import vaccinationIcon from "../assets/images/Vaccination.svg";
 import customModuleIcon from "../assets/images/custom-module.svg";
 import videoIcon from "../assets/images/video_icon.svg";
+import visualAcuityIcon from "../assets/images/visual-acuity-test.svg";
+import autoRefractionIcon from "../assets/images/auto-refraction-test.svg";
+import lensometerIcon from "../assets/images/lensometer-values.svg";
+import glassPrescriptionIcon from "../assets/images/glass-prescription.svg";
+import iopIcon from "../assets/images/intra-ocular-pressure.svg";
+import slitLampIcon from "../assets/images/slit-lamp-examination.svg";
+import fundusIcon from "../assets/images/fundus-examination.svg";
 import {
   getClinic,
   getTokenData,
@@ -61,11 +68,17 @@ import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
+import draftIcon from "../assets/images/draft-document.svg";
+
 import {
   getSnapRxDigitization,
   getSnapRxFiles,
 } from "../pages/snapRx/services/snapRxService";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
+import AbhaSyncButton from "./AbhaSyncButton";
+import { viewCaseManager } from "../redux/caseManagerSlice";
+import { message } from "antd";
+import { useGrounding } from "../hooks/useGrounding";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -88,7 +101,409 @@ function Cardiology(props) {
     viewCaseManagerData,
     nextPress,
     prevPress,
+    currentPageDisplay,
+    isFirstConsultation,
+    isLastConsultation,
+    opthalPrescriptionHistory,
   } = props;
+  const {is_draft} = viewCaseManagerData || {};
+
+  const normalizeEyeLabel = useCallback((eye) => {
+    const normalized = String(eye || "").toUpperCase();
+    if (normalized === "RE") return "OD";
+    if (normalized === "LE") return "OS";
+    return normalized || "";
+  }, []);
+
+  const displayValue = useCallback((value) => {
+    if (value === 0 || value === "0") return "0";
+    if (value === null || value === undefined || value === "") return "-";
+    return value;
+  }, []);
+
+  const hasOpthalValue = useCallback((value) => {
+    if (value === 0 || value === "0") return true;
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed === "" || /^[-–—]+$/.test(trimmed)) return false;
+      if (/^(n\/?a|nil)$/i.test(trimmed)) return false;
+      return true;
+    }
+    return Boolean(value);
+  }, []);
+
+  const hasOpthalArrayData = useCallback(
+    (items, keys) =>
+      Array.isArray(items) &&
+      items.some((item) => keys.some((key) => hasOpthalValue(item?.[key]))),
+    [hasOpthalValue]
+  );
+
+  const currentOpthal = useMemo(() => {
+    const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+    if (!tcmId || !Array.isArray(opthalPrescriptionHistory)) {
+      return null;
+    }
+    const match = opthalPrescriptionHistory.find(
+      (item) => item?.tcm_id === tcmId
+    );
+    return match?.data || null;
+  }, [opthalPrescriptionHistory, viewCaseManagerData?.tcm_id, tcmData?.tcm_id]);
+
+  const hasOpthalData = useMemo(() => {
+    if (!currentOpthal) return false;
+    const hasArrays = [
+      hasOpthalArrayData(currentOpthal.visualAcuity, [
+        "ucDistance",
+        "ucNear",
+        "pinhole",
+        "cDistance",
+        "cNear",
+      ]),
+      hasOpthalArrayData(currentOpthal.autoRefraction, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.lensometerValues, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.glassPrescription, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]),
+      hasOpthalArrayData(currentOpthal.intraOcularPressure, [
+        "nct",
+        "gat",
+        "cc",
+        "cct",
+        "ciop",
+      ]),
+      hasOpthalArrayData(currentOpthal.slitLampExamination, [
+        "OD",
+        "OS",
+        "od",
+        "os",
+        "remarks",
+      ]),
+      hasOpthalArrayData(currentOpthal.fundusExamination, [
+        "OD",
+        "OS",
+        "od",
+        "os",
+        "remarks",
+      ]),
+    ].some(Boolean);
+    return hasArrays || hasOpthalValue(currentOpthal.pd);
+  }, [currentOpthal, hasOpthalArrayData, hasOpthalValue]);
+
+  const renderOpthalTable = (headers, rows) => (
+    <table className="opthal-summary-table">
+      <thead>
+        <tr>
+          {headers.map((header) => (
+            <th key={header}>{header}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, rowIndex) => (
+          <tr key={`${rowIndex}-${row[0]}`}>
+            {row.map((cell, cellIndex) => (
+              <td key={`${rowIndex}-${cellIndex}`}>{displayValue(cell)}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  const renderEyeRows = (rows, columns) => {
+    const eyes = ["OD", "OS"];
+    return eyes.map((eye) => {
+      const entry = (rows || []).find(
+        (item) => normalizeEyeLabel(item?.eye) === eye
+      );
+      return [eye, ...columns.map((key) => entry?.[key])];
+    });
+  };
+
+  const renderOpthalSummary = () => {
+    if (!hasOpthalData) {
+      return null;
+    }
+
+    const hasVisualAcuityData = hasOpthalArrayData(
+      currentOpthal?.visualAcuity,
+      ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]
+    );
+    const hasAutoRefractionData = hasOpthalArrayData(
+      currentOpthal?.autoRefraction,
+      ["sphere", "cylinder", "axis", "add", "distance", "near"]
+    );
+    const hasLensometerValuesData = hasOpthalArrayData(
+      currentOpthal?.lensometerValues,
+      ["sphere", "cylinder", "axis", "add", "distance", "near"]
+    );
+    const hasGlassPrescriptionData =
+      hasOpthalArrayData(currentOpthal?.glassPrescription, [
+        "sphere",
+        "cylinder",
+        "axis",
+        "add",
+        "distance",
+        "near",
+      ]) || hasOpthalValue(currentOpthal?.pd);
+    const hasIntraOcularPressureData = hasOpthalArrayData(
+      currentOpthal?.intraOcularPressure,
+      ["nct", "gat", "cc", "cct", "ciop"]
+    );
+    const hasSlitLampExaminationData = hasOpthalArrayData(
+      currentOpthal?.slitLampExamination,
+      ["OD", "OS", "od", "os", "remarks"]
+    );
+    const hasFundusExaminationData = hasOpthalArrayData(
+      currentOpthal?.fundusExamination,
+      ["OD", "OS", "od", "os", "remarks"]
+    );
+
+    const visualRows = renderEyeRows(currentOpthal?.visualAcuity, [
+      "ucDistance",
+      "ucNear",
+      "pinhole",
+      "cDistance",
+      "cNear",
+    ]);
+
+    const undilatedRows = (currentOpthal?.autoRefraction || []).filter(
+      (item) => String(item?.type || "").toLowerCase() === "undilated"
+    );
+    const dilatedRows = (currentOpthal?.autoRefraction || []).filter(
+      (item) => String(item?.type || "").toLowerCase() === "dilated"
+    );
+    const undilatedHasData = hasOpthalArrayData(undilatedRows, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+    const dilatedHasData = hasOpthalArrayData(dilatedRows, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+
+    const lensometerRows = renderEyeRows(currentOpthal?.lensometerValues, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+
+    const glassRows = renderEyeRows(currentOpthal?.glassPrescription, [
+      "sphere",
+      "cylinder",
+      "axis",
+      "add",
+      "distance",
+      "near",
+    ]);
+
+    const iopRows = renderEyeRows(currentOpthal?.intraOcularPressure, [
+      "nct",
+      "gat",
+      "cc",
+      "ciop",
+    ]).map((row) => {
+      if (row[3] === undefined || row[3] === null || row[3] === "") {
+        row[3] = currentOpthal?.intraOcularPressure?.find(
+          (item) => normalizeEyeLabel(item?.eye) === row[0]
+        )?.cct;
+      }
+      return row;
+    });
+
+    const slitLampRows = (currentOpthal?.slitLampExamination || [])
+      .filter(
+        (item) =>
+          hasOpthalValue(item?.OD ?? item?.od) ||
+          hasOpthalValue(item?.OS ?? item?.os) ||
+          hasOpthalValue(item?.remarks)
+      )
+      .map((item) => [
+        item?.section,
+        item?.OD || item?.od,
+        item?.OS || item?.os,
+        item?.remarks,
+      ]);
+
+    const fundusRows = (currentOpthal?.fundusExamination || [])
+      .filter(
+        (item) =>
+          hasOpthalValue(item?.OD ?? item?.od) ||
+          hasOpthalValue(item?.OS ?? item?.os) ||
+          hasOpthalValue(item?.remarks)
+      )
+      .map((item) => [
+        item?.section,
+        item?.OD || item?.od,
+        item?.OS || item?.os,
+        item?.remarks,
+      ]);
+
+    return (
+      <div className="opthal-summary">
+        {hasVisualAcuityData && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img src={visualAcuityIcon} alt="" className="opthal-section-icon" />
+              <div className="opthal-section-title">Visual Acuity Test</div>
+            </div>
+            {renderOpthalTable(
+              ["Eye", "UC Distance", "UC Near", "Pinhole", "C Distance", "C Near"],
+              visualRows
+            )}
+          </div>
+        )}
+
+        {hasAutoRefractionData && (undilatedHasData || dilatedHasData) && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img src={autoRefractionIcon} alt="" className="opthal-section-icon" />
+              <div className="opthal-section-title">Auto Refraction Test</div>
+            </div>
+            {undilatedHasData && (
+              <>
+                <div className="opthal-section-subtitle">Undilated</div>
+                {renderOpthalTable(
+                  ["Eye", "Sphere", "Cylinder", "Axis", "Add", "Distance", "Near"],
+                  renderEyeRows(undilatedRows, [
+                    "sphere",
+                    "cylinder",
+                    "axis",
+                    "add",
+                    "distance",
+                    "near",
+                  ])
+                )}
+              </>
+            )}
+            {dilatedHasData && (
+              <>
+                <div className="opthal-section-subtitle">Dilated</div>
+                {renderOpthalTable(
+                  ["Eye", "Sphere", "Cylinder", "Axis", "Add", "Distance", "Near"],
+                  renderEyeRows(dilatedRows, [
+                    "sphere",
+                    "cylinder",
+                    "axis",
+                    "add",
+                    "distance",
+                    "near",
+                  ])
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {hasLensometerValuesData && (
+            <div className="opthal-section">
+              <div className="opthal-section-header">
+                <img src={lensometerIcon} alt="" className="opthal-section-icon" />
+                <div className="opthal-section-title">Lensometer Values</div>
+              </div>
+              {renderOpthalTable(
+                ["Eye", "Sphere", "Cylinder", "Axis", "Add", "Distance", "Near"],
+                lensometerRows
+              )}
+            </div>
+          )}
+
+        {hasGlassPrescriptionData && (
+            <div className="opthal-section">
+              <div className="opthal-section-header">
+                <img src={glassPrescriptionIcon} alt="" className="opthal-section-icon" />
+                <div className="opthal-section-title">Glass Prescription</div>
+              </div>
+              {renderOpthalTable(
+                ["Eye", "Sphere", "Cylinder", "Axis", "Add", "Distance", "Near"],
+                glassRows
+              )}
+              {hasOpthalValue(currentOpthal?.pd) && (
+                <div className="opthal-pd-row">
+                  <div className="opthal-pd-label">PD</div>
+                  <div className="opthal-pd-value">
+                    {displayValue(currentOpthal?.pd)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        {hasIntraOcularPressureData && (
+            <div className="opthal-section">
+              <div className="opthal-section-header">
+                <img src={iopIcon} alt="" className="opthal-section-icon" />
+                <div className="opthal-section-title">
+                  Intra Ocular Pressure (IOP)
+                </div>
+              </div>
+              {renderOpthalTable(
+                ["Eye", "NCT", "GAT", "CCT", "CIOP"],
+                iopRows
+              )}
+            </div>
+          )}
+
+        {hasSlitLampExaminationData && slitLampRows.length > 0 && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img src={slitLampIcon} alt="" className="opthal-section-icon" />
+              <div className="opthal-section-title">Slit Lamp Examination</div>
+            </div>
+            {renderOpthalTable(
+              ["Name", "OD", "OS", "Remarks"],
+              slitLampRows
+            )}
+          </div>
+        )}
+
+        {hasFundusExaminationData && fundusRows.length > 0 && (
+          <div className="opthal-section">
+            <div className="opthal-section-header">
+              <img src={fundusIcon} alt="" className="opthal-section-icon" />
+              <div className="opthal-section-title">Fundus Examination</div>
+            </div>
+            {renderOpthalTable(
+              ["Name", "OD", "OS", "Remarks"],
+              fundusRows
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const [customModulesRxData, setCustomModulesRxData] = useState([]);
 
@@ -121,13 +536,13 @@ function Cardiology(props) {
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
-
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
+  const isGroundingAccessable = useGrounding();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
@@ -303,6 +718,25 @@ function Cardiology(props) {
     setSnapRxFile(response?.uploaded_files || []);
   };
 
+
+  const isSymptomCollectorJSON = useCallback((text) => {
+    if (typeof text !== "string") return false;
+    const trimmed = text.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") return false;
+      return (
+        Array.isArray(parsed.symptoms) ||
+        Array.isArray(parsed.medicalHistory) ||
+        typeof parsed.notes === "string" ||
+        typeof parsed.others === "string"
+      );
+    } catch (error) {
+      return false;
+    }
+  }, []);
+
   const getGenRxDetails = async () => {
     try {
       setIsGenRxTableView(false);
@@ -348,9 +782,21 @@ function Cardiology(props) {
             } else if (response.data.digitizeData) {
               prescriptionData = response.data.digitizeData;
             } else {
-              // Fallback to history digitize data
+
               const latestHistory = response.data?.history?.[response.data.history.length - 1];
-              prescriptionData = latestHistory?.digitize || null;
+              const digitizeObj = latestHistory?.digitize;
+              if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                if (numericKeys.length > 0) {
+                  prescriptionData = digitizeObj[numericKeys[0]];
+                } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                  prescriptionData = digitizeObj;
+                } else {
+                  prescriptionData = digitizeObj;
+                }
+              } else {
+                prescriptionData = digitizeObj || null;
+              }
             }
             
             setGenRxData(prescriptionData);
@@ -712,6 +1158,7 @@ function Cardiology(props) {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
+          isEditRx: true,
         },
       });
     }
@@ -1009,7 +1456,19 @@ function Cardiology(props) {
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {item?.name || 'N/A'}
+                  {capitalize(
+                    (() => {
+                      if (isGroundingAccessable) {
+                        const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                        if (isFuzzySearchEmpty) {
+                          return item?.groundingMedicineName || item.name || "";
+                        }
+                        return item.name || item?.groundingMedicineName || "";
+                      }
+                      return item?.groundingMedicineName || item.name || "";
+                    })().trim() || '-', 
+                    true
+                  )}
                 </td>
                 <td style={getColumnStyle('unit')}>
                   {item?.unitPerDose || item?.dosage || '-'}
@@ -1229,7 +1688,16 @@ function Cardiology(props) {
               item.name &&
               detailText.trim().toLowerCase().startsWith(item.name.trim().toLowerCase());
 
-            const baseName = item.name || "N/A";
+            const baseName = (() => {
+              if (isGroundingAccessable) {
+                const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                if (isFuzzySearchEmpty) {
+                  return item?.groundingMedicineName || item.name || "N/A";
+                }
+                return item.name || item?.groundingMedicineName || "N/A";
+              }
+              return item?.groundingMedicineName || item.name || "N/A";
+            })();
 
             let formattedMain = baseName;
             if (detailText) {
@@ -1437,6 +1905,19 @@ function Cardiology(props) {
     });
   };
 
+  const DraftRxAlert = () => {
+    const sameDoctor = viewCaseManagerData?.doctor_data?.um_id === userId;
+    return (
+      <div className="draft-rx-alert">
+        <img src={draftIcon} alt="Draft" className="me-1" />
+        This Rx is in <span className="fw-bold">draft</span>!{" "}
+        {sameDoctor && (
+          <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -1477,33 +1958,61 @@ function Cardiology(props) {
                         </svg>
                       </span>
                     )}
+                    {(() => {
+                      const isSnapRx = viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx");
+                      const isSmartRx = viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg");
+                      const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
+                      
+                      if (!isVoiceRx && 
+                          viewCaseManagerData?.abha_context_link !== undefined && 
+                          viewCaseManagerData?.abhaSync !== undefined) {
+                        return (
+                          <AbhaSyncButton
+                            abhaContextLink={viewCaseManagerData.abha_context_link}
+                            abhaSync={viewCaseManagerData.abhaSync}
+                            patientUniqueId={patient_data?.patient_unique_id}
+                            caseId={viewCaseManagerData?.tcm_id}
+                            onSyncComplete={async (data) => {
+                              // Check if sync was successful or had an error
+                              if (data?.error) {
+                                // Show error message (including duplicate error message)
+                                message.warning(data.error);
+                                return;
+                              }
+                              
+                              // Refresh the case manager data after sync to get updated abha_context_link
+                              try {
+                                const sendData = {
+                                  patient_unique_id: patient_data?.patient_unique_id || 0,
+                                  tcm_id: viewCaseManagerData?.tcm_id
+                                };
+                                await dispatch(viewCaseManager(sendData));
+                                message.success('Prescription synced successfully');
+                              } catch (error) {
+                                console.error('Error refreshing case manager data:', error);
+                                message.error('Sync completed but failed to refresh data');
+                              }
+                            }}
+                          />
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
                 <div className="align-items-center d-flex">
                   <Button
                     className="btn border rounded-3 px-1 me-2 antdesable-custom"
-                    onClick={nextPress}
-                    disabled={
-                      !loading &&
-                      tcmData.page > 1 &&
-                      viewCaseManagerData?.next_tcm_id
-                        ? false
-                        : true
-                    }
+                    onClick={prevPress}
+                    disabled={loading || isFirstConsultation}
                   >
                     <i className="icon-right d-block"></i>
                   </Button>
-                  <span className="fw-normal fs-14 fontroboto">{`${tcmData.page}/${viewCaseManagerData?.total_consultation}`}</span>
+                  <span className="fw-normal fs-14 fontroboto">{currentPageDisplay || '0/0'}</span>
                   <Button
                     className="btn border rounded-3 antdesable-custom p-1 ms-2"
-                    onClick={prevPress}
-                    disabled={
-                      !loading &&
-                      tcmData.page < viewCaseManagerData?.total_consultation &&
-                      viewCaseManagerData?.prev_tcm_id
-                        ? false
-                        : true
-                    }
+                    onClick={nextPress}
+                    disabled={loading || isLastConsultation}
                   >
                     <i
                       className="icon-right"
@@ -1512,7 +2021,7 @@ function Cardiology(props) {
                   </Button>
                 </div>
                 <div>
-                  <button
+                  {!is_draft && <button
                     className="btn p-0 ms-3"
                     style={{
                       visibility:
@@ -1524,7 +2033,7 @@ function Cardiology(props) {
                     onClick={handleEditRxClick}
                   >
                     <i className="icon-Edit"></i>
-                  </button>
+                  </button>}
                   <button
                     className="btn p-0 ms-3"
                     onClick={() =>
@@ -1831,6 +2340,7 @@ function Cardiology(props) {
                             : renderGenRxItems("medications")}
                         </>
                       )}
+                    {renderOpthalSummary()}
 
                     {genRxData?.labInvestigation &&
                       genRxData?.labInvestigation.length > 0 && (
@@ -1942,11 +2452,18 @@ function Cardiology(props) {
                       ))
                     ) : (
                     
-                      genRxQueries?.map((query, index) => (
-                        <div key={index} className="gen-rx-transcript">
-                          {query}
-                        </div>
-                      ))
+                      genRxQueries
+                        ?.filter((query) => {
+                          if (typeof query === "string") {
+                            return !isSymptomCollectorJSON(query);
+                          }
+                          return true;
+                        })
+                        ?.map((query, index) => (
+                          <div key={index} className="gen-rx-transcript">
+                            {query}
+                          </div>
+                        ))
                     )}
                   </div>
                 )}
@@ -2075,6 +2592,7 @@ function Cardiology(props) {
                             : renderItems("medications")}
                         </>
                       )}
+                    {renderOpthalSummary()}
 
                     {rxDigitisedData?.editedData?.tests &&
                       hasValidContent(rxDigitisedData.editedData, "tests") && (
@@ -2350,6 +2868,7 @@ function Cardiology(props) {
                             : renderItems("medications")}
                         </>
                       )}
+                    {renderOpthalSummary()}
 
                     {snapRxDigitisedData?.tests &&
                       hasValidContent(snapRxDigitisedData, "tests") && (
@@ -2491,6 +3010,7 @@ function Cardiology(props) {
               </div>
             ) : (
               <Card.Body className="p-0 cardbody-data">
+                {!!is_draft && <DraftRxAlert />}
                 <div>
                   <div className="p-3 pb-0">
                     {viewCaseManagerData.symptoms.length > 0 && (
@@ -2621,6 +3141,7 @@ function Cardiology(props) {
                       </div>
                     </div>
                   )}
+                  {renderOpthalSummary()}
                   <div className="p-3">
                     {viewCaseManagerData.advice.length > 0 && (
                       <div className="d-flex align-items-start mb-4">
@@ -2689,53 +3210,141 @@ function Cardiology(props) {
                       </div>
                     )}
                     {customModulesRxData.length > 0 &&
-                      customModulesRxData?.map(
-                        (item) =>
-                          item.module_name && (
-                            <div className="d-flex align-items-start mb-4">
+                      customModulesRxData
+                        ?.filter((item) => {
+                          // Only show modules that have content
+                          if (!item.content || item.content.length === 0) return false;
+                          
+                          // Check if V2 module has any non-empty fields
+                          if (item.module_version === "v2") {
+                            return item.content.some((row) => {
+                              const { id, ...fields } = row;
+                              return Object.values(fields).some(
+                                (value) => value && value.toString().trim().length > 0
+                              );
+                            });
+                          }
+                          
+                          // For V1 modules, check if title or notes exist
+                          return item.content.some((c) => c.title?.trim() || c.notes?.trim());
+                        })
+                        .map((item) => {
+                          // Get module definition to access namedFields for V2
+                          const moduleDefinition = customModulesRxData.find(
+                            (m) => m.module_id === item.module_id
+                          );
+                          
+                          return (
+                            <div className="d-flex align-items-start mb-4" key={item.module_id}>
                               <img
                                 className="me-2"
                                 src={customModuleIcon}
                                 alt={item.module_name}
                               />
-                              <div>
+                              <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
                                 <div className="title">{item.module_name}</div>
-                                {item.content.map((c, i) => {
-                                  return (
-                                    <span key={i}>
-                                      {c.title && (
-                                        <>
-                                          <span>{c.title}</span>
-                                          {c.notes?.trim() ? <br /> : ""}
-                                        </>
-                                      )}
-                                      {c.notes?.trim() && (
-                                        <div>
-                                          {c.notes
-                                            ?.trim()
-                                            ?.replace(/\n+/g, "\n")
-                                            .split("\n")
-                                            .map((line, index) => (
-                                              <React.Fragment key={index}>
-                                                {line}
-                                                {index !==
-                                                  c.notes
-                                                    ?.trim()
-                                                    ?.replace(/\n+/g, "\n")
-                                                    .split("\n").length -
-                                                    1 && <br />}
-                                              </React.Fragment>
-                                            ))}
+                                {item.module_version === "v2" ? (
+                                  // V2 Module Rendering - Ant Design Table Format
+                                  (() => {
+                                    const namedFields = moduleDefinition?.namedFields || [];
+                                    const filteredContent = item.content.filter((row) => {
+                                      const { id, ...fields } = row;
+                                      return Object.values(fields).some(
+                                        (value) => value && value.toString().trim().length > 0
+                                      );
+                                    });
+
+                                    if (filteredContent.length === 0) return null;
+
+                                    // Get all field names from namedFields or from first row
+                                    const fieldNames = namedFields.length > 0
+                                      ? namedFields.map(f => f.fieldName)
+                                      : Object.keys(filteredContent[0] || {}).filter(k => k !== 'id');
+
+                                    // Create columns for Ant Design Table
+                                    const tableColumns = fieldNames.map((fieldName, idx) => {
+                                      const field = namedFields.find(f => f.fieldName === fieldName);
+                                      const headerLabel = field?.fieldLabel || fieldName;
+                                      return {
+                                        title: headerLabel.toUpperCase(),
+                                        dataIndex: fieldName,
+                                        key: fieldName,
+                                        render: (text) => text || '-',
+                                        onHeaderCell: () => ({
+                                          style: {
+                                            backgroundColor: '#f5f5f5',
+                                            fontWeight: 600,
+                                          },
+                                        }),
+                                      };
+                                    });
+
+                                    // Transform data for table (remove id field)
+                                    const tableData = filteredContent.map((row, index) => {
+                                      const { id, ...fields } = row;
+                                      return {
+                                        key: `row-${index}`,
+                                        ...fields,
+                                      };
+                                    });
+
+                                    return (
+                                      <div className="mt-2">
+                                        <div className="border-top border-bottom border-start border-end" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                                          <Table
+                                            className="table-border"
+                                            columns={tableColumns}
+                                            dataSource={tableData}
+                                            pagination={false}
+                                            size="small"
+                                            style={{ width: '100%' }}
+                                          />
                                         </div>
-                                      )}
-                                      {item.content.length - 1 !== i && <br />}
-                                    </span>
-                                  );
-                                })}
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  // V1 Module Rendering (Original)
+                                  item.content
+                                    .filter((c) => c.title?.trim() || c.notes?.trim())
+                                    .map((c, i) => {
+                                      return (
+                                        <span key={i}>
+                                          {c.title && (
+                                            <>
+                                              <span>{c.title}</span>
+                                              {c.notes?.trim() ? <br /> : ""}
+                                            </>
+                                          )}
+                                          {c.notes?.trim() && (
+                                            <div>
+                                              {c.notes
+                                                ?.trim()
+                                                ?.replace(/\n+/g, "\n")
+                                                .split("\n")
+                                                .map((line, index) => (
+                                                  <React.Fragment key={index}>
+                                                    {line}
+                                                    {index !==
+                                                      c.notes
+                                                        ?.trim()
+                                                        ?.replace(/\n+/g, "\n")
+                                                        .split("\n").length -
+                                                        1 && <br />}
+                                                  </React.Fragment>
+                                                ))}
+                                            </div>
+                                          )}
+                                          {i < item.content.filter(c => c.title?.trim() || c.notes?.trim()).length - 1 && <br />}
+                                        </span>
+                                      );
+                                    })
+                                )}
                               </div>
                             </div>
-                          )
-                      )}
+                          );
+                        })
+                    }
                   </div>
                 </div>
               </Card.Body>

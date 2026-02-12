@@ -11,6 +11,10 @@ const baseUserManagementUrl = {
     }
 };
 
+const baseUserManagementUrlV2 = {
+    customBaseUrl: config.user_management_api_url,
+};
+
 const cloneBaseUserManagementUrl = {
     customBaseUrl: config.user_management_api_url,
     headers: {
@@ -69,8 +73,8 @@ ApiMonetization.updateCredits = function (data) {
     return api.put(`/api/v1/monetization/credits?service_name=${data?.service_name}`, { action: "DECREASE" }, baseUrl);
 };
 
-ApiMonetization.extendFreeTrial = function (b2c_id) {
-    return api.get(`/user/pm/info/extend?b2c_id=${b2c_id}`, cloneBaseUserManagementUrl);
+ApiMonetization.extendFreeTrial = function () {
+    return api.get(`user/v2/pm/info/extend`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.billingHistory = function (b2c_id) {
@@ -78,23 +82,27 @@ ApiMonetization.billingHistory = function (b2c_id) {
 };
 
 ApiMonetization.interest = function (data) {
-    return api.post(`/user/tatva/interest`, data, baseUserManagementUrl);
+    return api.post(`/user/tatva/v2/interest`, data, baseUserManagementUrlV2);
 };
 
 ApiMonetization.invoiceGenerate = function (invoice_id) {
-    return api.get(`/user/tatva/invoice/${invoice_id}`, baseUserManagementUrl);
+    return api.get(`/user/tatva/v2/invoice/${invoice_id}`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.receiptGenerate = function (receipt_id) {
-    return api.get(`/user/tatva/receipt/${receipt_id}`, baseUserManagementUrl);
+    return api.get(`/user/tatva/v2/receipt/${receipt_id}`, baseUserManagementUrlV2);
 };
 
 ApiMonetization.discountCode = function (data) {
-    return api.post(`/user/tatva/discount/add`, data, baseUserManagementUrl);
+    return api.post(`/user/tatva/discount/v2/add`, data, baseUserManagementUrlV2);
 };
 
 ApiMonetization.discountCodeValidate = function (data) {
-    return api.get(`/user/tatva/discount/validate?code=${data?.code}&id=${data?.id}`, baseUserManagementUrl);
+    return api.get(`/user/tatva/discount/v2/validate?code=${data?.code}&id=${data?.id}`, baseUserManagementUrlV2);
+};
+
+ApiMonetization.extendCredits = function (data) {
+    return api.put(`/api/v1/monetization/extend-credits?service_name=${data?.service_name}`, {}, baseUrl);
 };
 
 export default ApiMonetization;

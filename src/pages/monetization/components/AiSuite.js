@@ -65,7 +65,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAIReceptionistKnowMoreDrawer, setIsAIReceptionistKnowMoreDrawer] = useState(false);
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-    const isGroundingAccessable =
+    const isGroundingAccessableForZydus =
         tokenData?.hospital_business_id == env.zydus_business_id &&
         isZydusUserAccessableFromGB;
 
@@ -274,7 +274,7 @@ function AiSuite({ aiModal, handleAiSuite }) {
                 </div>
                 <div className="px-4 h-100 bg-white overflow-y-auto" style={{ maxHeight: 'calc(100vh - 60px)' }}>
                     {
-                        isGroundingAccessable && (
+                        isGroundingAccessableForZydus && (
                             <div className={`ai-suite my-4`}>
                                 <div className="d-flex align-items-center mb-3">
                                     <img style={{ background: '#EDDFF780', padding: 6 }} className="rounded-10px me-2" src={RxVoice} alt="item.type" />

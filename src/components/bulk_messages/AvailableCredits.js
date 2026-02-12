@@ -29,10 +29,7 @@ function AvailableCredits({ handleAvailableCredit }) {
     const [redeem, setRedeem] = useState(false);
 
     useEffect(() => {
-        const sendData = {
-            doctor_unique_id: '9QmdYlBWCcNyZzp'
-        };
-        dispatch(states(sendData));
+        dispatch(states());
     }, []);
 
     useEffect(() => {

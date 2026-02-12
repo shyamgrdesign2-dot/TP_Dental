@@ -6,6 +6,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
@@ -34,6 +35,7 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
+  TNC_VERSION,
 } from "./utils/constants";
 import { useLocalStorage } from "./utils/localStorage";
 
@@ -55,19 +57,21 @@ import AddAppointment from "./pages/addAppointment/AddAppointment";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import GetUnlimitedAccess from "./pages/monetization/GetUnlimitedAccess";
+import { useTncConsent } from "./hooks/useTncConsent";
 import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
 import Onboarding from "./pages/onBoarding/components/Onboarding";
 import FinalSetup from "./pages/FinalSetup";
 import OurOffering from "./pages/ourOffering/OurOffering";
 import SnapRx from "./pages/snapRx/SnapRx";
 import UploadRx from "./pages/uploadRx";
+import OphthalSnapRx from "./pages/ophthalSnapRx/SnapRx";
+import OphthalUploadRx from "./pages/ophthalUploadRx";
 import BottomSheetManager from "./components/bottomSheetManager";
 import SnapRxPreview from "./pages/snapRx/SnapRxPreview";
 import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
 import AppointmentAgent from "./pages/appointmentAgent/AppointmentAgent";
 import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess";
 import VoiceRxConsult from "./pages/VoiceRxConsult";
-import VoiceRecordingPage from "./pages/VoiceRecordingPage";
 import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
@@ -79,6 +83,8 @@ const growthbook = new GrowthBook({
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
 });
 
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
 function App() {
   const [redirectReady, setRedirectReady] = useState(false);
   const [searchParams] = useSearchParams();
@@ -86,6 +92,7 @@ function App() {
   const authToken = searchParams.get("authToken");
   const redirectTo = searchParams.get("redirectTo");
   const uploadParams = searchParams.get("uploadParams");
+  const ophthalUploadParams = searchParams.get("ophthalUploadParams");
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
@@ -140,6 +147,8 @@ function App() {
       window.location.href = "/login";
     } catch (error) {
       console.error("Error during logout:", error);
+      localStorage.clear();
+      sessionStorage.clear();
       window.location.href = "/login";
     } finally {
       window.isLoggingOut = false;
@@ -153,6 +162,7 @@ function App() {
       setFromNativeFlag(fromNative)
     }
   }, []);
+
   useEffect(() => {
     const checkUserStatus = async () => {
       const token = getToken();
@@ -189,15 +199,23 @@ function App() {
   useEffect(() => {
     const isUserLocked = async () => {
       try {
-        const decoded = jwtDecode(authToken);
-        const phoneNumber = decoded?.result?.mobile_no;
-        // Check document status
+        const rawToken = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        if (!rawToken) return;
+        let token;
+        try {
+          token = JSON.parse(rawToken);
+        } catch (e) {
+          console.error("Error parsing token:", e);
+          return;
+        }
+        const cleanedToken = token?.replace(/['"]+/g, '');
+        // Check account status
         const docResponse = await axios.get(
-          `${config.user_management_api_url}/user/pm/info/status?mblNo=${phoneNumber}`,
+          `${config.user_management_api_url}/user/v2/pm/info/status`,
           {
             headers: {
-              api_key: config.api_key,
-              api_secret_key: config.api_secret_key,
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${cleanedToken}`,
             },
           }
         );
@@ -226,6 +244,7 @@ function App() {
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
+          clinic_id: `${decodedToken?.result?.clinic_id}`,
         });
       } catch (e) {
         console.log(e);
@@ -238,26 +257,33 @@ function App() {
     if (authToken) {
       setToken(authToken);
       localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+    }
+  }, [authToken]);
 
-      // Clean up URL but preserve other params
+  useTncConsent({
+    authToken,
+    getToken,
+    setToken,
+    isLoginPage,
+    isReceptionist,
+    pathname: location.pathname,
+  });
+
+  useEffect(() => {
+    if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
-      if (!isReceptionist) {
-        params.delete("authToken");
-        // Navigate to appointment list
-        // add condition for user comming from Medeco to practice offering page
-        // Don't redirect if we're on abha-standalone page
-        if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
-          navigate(
-            {
-              pathname: "/",
-              search: params.toString(),
-            },
-            { replace: true }
-          );
-        }
+      params.delete("authToken");
+      if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
+        navigate(
+          {
+            pathname: "/",
+            search: params.toString(),
+          },
+          { replace: true }
+        );
       }
     }
-  }, [authToken, setToken, navigate, location.pathname]);
+  }, [authToken, navigate, location.pathname, isReceptionist]);
 
   useEffect(() => {
     if (uploadParams) {
@@ -270,6 +296,12 @@ function App() {
       // );
     }
   }, [uploadParams]);
+
+  useEffect(() => {
+    if (ophthalUploadParams) {
+      localStorage.setItem("ophthalUploadParams", ophthalUploadParams);
+    }
+  }, [ophthalUploadParams]);
 
   // Add effect to handle redirectTo parameter
   useEffect(() => {
@@ -412,7 +444,7 @@ function App() {
                 handleUpgradeModal={handleUpgradeModal}
               />
             )}
-            <Routes>
+            <SentryRoutes>
               {/* Public route */}
               {/* <Route path="/login" element={<AuthContainer />} /> */}
               <Route path="/login" element={<Onboarding />} />
@@ -421,6 +453,10 @@ function App() {
 
               {/* Restricted route - authorized only to get/upload snapRx files */}
               <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
+              <Route
+                path="ophthal-snap-rx/mobile-upload"
+                element={<OphthalUploadRx />}
+              />
 
               {/* ABHA Standalone - Can work with URL auth token */}
               <Route path="/abha-standalone" element={<AbhaStandalone />} />
@@ -480,8 +516,8 @@ function App() {
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
+                <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
                 <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
-                <Route path="voice-recording" element={<VoiceRecordingPage />} />
                 <Route
                   path="get-unlimited-access"
                   element={<GetUnlimitedAccess />}
@@ -500,7 +536,7 @@ function App() {
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />
-            </Routes>
+            </SentryRoutes>
           </PersistGate>
         </Provider>
       </ErrorBoundary>

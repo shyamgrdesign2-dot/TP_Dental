@@ -9,6 +9,9 @@ const baseUserManagementUrl = {
         api_secret_key: config.api_secret_key,
     }
 };
+const baseUserManagementUrlV2 = {
+    customBaseUrl: config.user_management_api_url,
+};
 
 const ApiBulkMessages = {};
 
@@ -72,8 +75,8 @@ ApiBulkMessages.paymentHistory = function (data) {
     return api.post(`/api/v1/payment/paymentHistory`, data, baseUrl);
 };
 
-ApiBulkMessages.states = function (data) {
-    return api.post(`/user/pm/info/states`, data, baseUserManagementUrl);
+ApiBulkMessages.states = function () {
+    return api.post(`/user/v2/pm/info/states`, {}, baseUserManagementUrlV2);
 };
 
 export default ApiBulkMessages;

@@ -3,7 +3,7 @@ import "./VaccineTable.scss";
 import { dateFormatter } from "../../VaccinationHelper";
 import moment from "moment";
 
-const VaccineTable = ({ dataSource, columns, isPreview }) => {
+const VaccineTable = ({ dataSource, columns, isPreview, isOtherVaccines }) => {
   const groupDataByCommonIDs = (data) => {
     const groupedData = [];
     const idSet = new Set();
@@ -40,9 +40,10 @@ const VaccineTable = ({ dataSource, columns, isPreview }) => {
   const renderTableData = () => {
     const groupedData = groupDataByCommonIDs(dataSource);
 
-    return groupedData.map((group, groupIndex) => (
-      <React.Fragment key={groupIndex}>
-        {group.map((item, itemIndex) => {
+    return groupedData.map((group, groupIndex) => {
+      return (
+        <React.Fragment key={groupIndex}>
+          {group.map((item, itemIndex) => {
           const updatedDueDate = item.tvd_due_date
             ? moment(item.tvd_due_date)
             : null;
@@ -68,7 +69,7 @@ const VaccineTable = ({ dataSource, columns, isPreview }) => {
               </td>
               <td className="cell">
                 <div className="dateCell">
-                  {dateFormatter(new Date(item.tvd_due_date)) || item.dueDate}
+                  {isOtherVaccines || item?.isOtherVaccines ? item.tvd_due_date ? dateFormatter(new Date(item.tvd_due_date)) : "" : dateFormatter(new Date(item.tvd_due_date)) || item.dueDate}
                   {(overDueForGivenVaccine || overDueForNotGivenVaccine) &&
                   isPreview ? (
                     <span className="overDue">Over Due</span>
@@ -88,9 +89,10 @@ const VaccineTable = ({ dataSource, columns, isPreview }) => {
               <td className="cell">{item.tvp_remarks || item.tvd_remarks}</td>
             </tr>
           );
-        })}
-      </React.Fragment>
-    ));
+          })}
+        </React.Fragment>
+      );
+    });
   };
 
   return (

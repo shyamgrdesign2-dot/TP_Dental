@@ -196,7 +196,9 @@ function SidebarPatient({
     )
 
     const genderAge = (patient_data) => {
-        var value = `${patient_data?.pm_gender[0].toUpperCase()}, `
+        var value = patient_data?.pm_gender && patient_data.pm_gender.length > 0
+            ? `${patient_data.pm_gender[0].toUpperCase()}, `
+            : "";
         if (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) {
             if (patient_data?.ageYears != 0) {
                 value += `${patient_data?.ageYears}y`

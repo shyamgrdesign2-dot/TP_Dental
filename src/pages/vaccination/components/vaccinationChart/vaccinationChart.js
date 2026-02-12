@@ -47,18 +47,11 @@ const columns = [
   },
 ];
 
-const VaccinationChart = ({ vaccinesData, patientDetails, profile }) => {
-  function divideArray(array) {
-    const subarrays = [];
-    const rows = 13;
-    for (let i = 0; i < array.length; i += rows) {
-      const subarray = array.slice(i, i + rows);
-      subarrays.push(subarray);
-    }
-    return subarrays;
-  }
-
-  const vaccinePrintData = divideArray(vaccinesData);
+const VaccinationChart = ({ 
+  vaccinesData, 
+  patientDetails, 
+  profile,
+}) => {
   const dob = moment(patientDetails?.vac_dob, "DD-MMM-YYYY");
   const now = moment();
 
@@ -80,13 +73,11 @@ const VaccinationChart = ({ vaccinesData, patientDetails, profile }) => {
   }
 
   return (
-    <>
+    <div className="vaccination-chart">
       {vaccinesData?.length ? (
-        vaccinePrintData?.map((ds, i) => (
-          <div
-            key={i}
-            className="d-flex flex-column align-items-center print-template"
-          >
+        <>
+          {/* Header */}
+          <div className="vaccination-header">
             <div className="header">Vaccination Chart</div>
             <div className="details">
               <img
@@ -106,32 +97,28 @@ const VaccinationChart = ({ vaccinesData, patientDetails, profile }) => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Vaccine Table Section */}
+          <div className="vaccine-table-section">
             <div className="vaccine-table-wrapper">
-              <VaccineTable dataSource={ds} columns={columns} />
-              <p
-                style={{
-                  color: "#A2A2A8 !important",
-                  fontSize: "10px",
-                  marginTop: 20,
-                }}
-              >
-                *Not needed if Rv1 is used **Not needed if live vaccine is used
-                for first dose
-              </p>
+              <VaccineTable dataSource={vaccinesData} columns={columns} />
             </div>
-            {i === vaccinePrintData?.length - 1 && (
-              <div className="nameStyle">{profile?.um_name}</div>
-            )}
+            <p className="vaccine-footer-note">
+              *Not needed if Rv1 is used **Not needed if live vaccine is used
+              for first dose
+            </p>
           </div>
-        ))
+
+          {/* Doctor Name */}
+          <div className="nameStyle">{profile?.um_name}</div>
+        </>
       ) : (
-        <div className="d-flex flex-column align-items-center print-template">
-          <div className="noVaccineData">
-            No vaccination has been given to this user
-          </div>
+        <div className="noVaccineData">
+          No vaccination has been given to this user
         </div>
       )}
-    </>
+    </div>
   );
 };
 

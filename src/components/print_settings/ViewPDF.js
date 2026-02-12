@@ -6,6 +6,9 @@ import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
 import ObsHistoryTableView from './obsHistory/table';
+import OphthalmologyInlineView from './ophthalmology/inline';
+import OphthalmologyListView from './ophthalmology/list';
+import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
 
 const PX_TO_PT = 0.75
@@ -127,11 +130,11 @@ Font.register({
 
 // Gujarati
 Font.register({
-    family: 'AnekGujarati',
+    family: 'BalooBhai2',
     fonts: [
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Regular.ttf'), fontWeight: 400 }, // Regular
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Medium.ttf'), fontWeight: 500 }, // Medium
-        { src: require('../../assets/fonts/print-fonts/AnekGujarati-Bold.ttf'), fontWeight: 700 }, // Bold
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Regular.ttf'), fontWeight: 400 }, // Regular
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Medium.ttf'), fontWeight: 500 }, // Medium
+        { src: require('../../assets/fonts/print-fonts/BalooBhai2-Bold.ttf'), fontWeight: 700 }, // Bold
     ],
 });
 
@@ -258,10 +261,30 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
-    const gynecHistoryData = caseManagerData?.gynecHistoryData
     const labParamsData = caseManagerData?.labParamsData
+    const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
+    const hasOphthalValue = (value) => {
+        if (value === 0 || value === "0") return true;
+        if (value === null || value === undefined) return false;
+        return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
+    };
+    const hasOphthalArrayData = (items, keys) =>
+        Array.isArray(items) && items.some((item) => keys.some((key) => hasOphthalValue(item?.[key])));
+    const hasOphthalModuleData = !!(
+        ophthalModuleData &&
+        (
+            hasOphthalArrayData(ophthalModuleData.visualAcuity, ["ucDistance", "ucNear", "pinhole", "cDistance", "cNear"]) ||
+            hasOphthalArrayData(ophthalModuleData.autoRefraction, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.lensometerValues, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.glassPrescription, ["sphere", "cylinder", "axis", "add", "distance", "near"]) ||
+            hasOphthalArrayData(ophthalModuleData.intraOcularPressure, ["nct", "gat", "cc", "cct", "ciop"]) ||
+            hasOphthalArrayData(ophthalModuleData.slitLampExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalArrayData(ophthalModuleData.fundusExamination, ["OD", "OS", "remarks"]) ||
+            hasOphthalValue(ophthalModuleData.pd)
+        )
+    );
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
@@ -396,7 +419,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const getFont = () => {
         var value = printSettings?.page_format?.font_family;
         if (selectedLang == 2) {
-        value = "AnekGujarati";
+        value = "BalooBhai2";
         } else if (selectedLang == 3 || selectedLang == 4) {
         value = "AnekDevanagari";
         } else if (selectedLang == 5) {
@@ -569,8 +592,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const labParamsPatchTableData = labParamsPatchData ? syncLabResultsData(labParamsPatchData) : null;
 
     const getCustomModuleName = (id) => {
-        const customModule = customModules.find((module) => module.module_id === id);
-        return customModule?.name ? customModule?.printConfig?.nameOverride !== undefined ? customModule?.printConfig?.nameOverride : customModule?.name : caseManagerData?.moduleContents?.find((module) => module.module_id === id)?.module_name;
+        // Safety check: ensure customModules is an array before calling .find()
+        const customModule = Array.isArray(customModules) ? customModules.find((module) => module.module_id === id) : null;
+        
+        if (customModule?.name) {
+            return customModule?.printConfig?.nameOverride !== undefined 
+                ? customModule?.printConfig?.nameOverride 
+                : customModule?.name;
+        }
+        
+        // Fallback: try to get name from caseManagerData.moduleContents
+        if (caseManagerData?.moduleContents && Array.isArray(caseManagerData.moduleContents)) {
+            const moduleContent = caseManagerData.moduleContents.find((module) => module.module_id === id);
+            return moduleContent?.module_name;
+        }
+        
+        return undefined;
     }
 
     const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {
@@ -699,10 +736,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             ?.forEach(module => {
                 printSettings?.prescription?.case_option?.push({
                     id: module?.module_id,
+                    title: module?.module_name,
                     format: 'inline',
                     showDefault: true,
                     enable: 'Y',
-                    custom_status: 'Y'
+                    custom_status: 'Y',
+                    is_custom_module: true,
                 });
             });
     }
@@ -718,7 +757,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, growthChartData) ||
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
             // (zydusLabData?.data?.length > 0) ||
             
             // Check smart sync data
@@ -728,7 +767,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     // Utility function to check if any custom module options are enabled and have data
-    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, growthChartData) => {
+    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) => {
         if (!printSettings?.prescription?.case_option) return false;
         
         return printSettings?.prescription?.case_option?.some(option => {
@@ -768,7 +807,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 case 9: // Follow Up Date
                     return caseManagerData?.follow_up_date;
                 case 10: // Vaccines
-                    return (transformGivenVaccines?.template?.length > 0);
+                    return (transformGivenVaccines?.template?.length > 0 || todayVaccines?.due?.length > 0 || todayVaccines?.given?.length > 0);
                 // case 11: // smartSync
                 //     return caseManagerData?.visit_advice;
                 case 12: // Growth Chart
@@ -789,6 +828,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return activeCarePlans.length > 0;
                 case 91: // Vaccines
                     return caseManagerData?.visit_advice;
+                case 20: // Ophthalmology Module
+                    return hasOphthalModuleData;
                 default:
                     return false;
             }
@@ -1122,10 +1163,29 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     return patientBills?.length > 0;
                                 case 18: 
                                     return advanceReceipts?.length > 0;
+                                case 20:
+                                    return hasOphthalModuleData;
                                 default:
                                     if (option.is_custom_module) {
                                         const customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                                        return customModule?.content?.length > 0;
+                                        if (!customModule?.content?.length) {
+                                            return false;
+                                        }
+                                        
+                                        // Find module definition to check version
+                                        const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id) || (m.origin_id === customModule.module_id) );
+                                        const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                                        
+                                        if (isV2) {
+                                            // V2: Check if any named field has content
+                                            const namedFields = moduleDefinition.namedFields;
+                                            return customModule.content.some((item) => 
+                                                namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
+                                            );
+                                        } else {
+                                            // V1: Check for title or notes
+                                            return customModule.content.some((item) => item?.title || item?.notes);
+                                        }
                                     }
                                     return false;
                             }
@@ -1145,11 +1205,27 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             return false;
                         };
-                        return printSettings?.prescription?.case_option?.map((option, index) => {
-                            let customModule = caseManagerData?.moduleContents?.find(e => e.module_id === option?.id);
-                            if(customModule) {
-                                customModule = { ...customModule, name: getCustomModuleName(option?.id) };
+                        
+                        const hasEnabledItemsAfterPageBreak = (pageBreakIndex) => {
+                            for (let i = pageBreakIndex + 1; i < printSettings?.prescription?.case_option?.length; i++) {
+                                const nextOption = printSettings?.prescription?.case_option[i];
+                                if (nextOption?.type === "page_break") {
+                                    continue;
+                                }
+                                if (nextOption?.enable === "Y") {
+                                    const hasData = hasModuleData(nextOption, caseManagerData);
+                                    if (hasData) {
+                                        return true;
+                                    }
+                                }
                             }
+                            return false;
+                        };
+                        return printSettings?.prescription?.case_option?.map((option, index) => {
+                            const customModule = caseManagerData?.moduleContents?.find(e => {
+                                return e.module_id === option?.id
+                            });
+
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
                                 if (isLastPageBreak) {
@@ -1173,6 +1249,36 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             if (option?.type !== "page_break" && option?.enable === "Y") {
                                 hasRenderedPageBreak = false;
                             }
+                            
+                            const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
+                            
+                            // // Check if this is a custom module and if it has data
+                            // const hasCustomModuleData = (() => {
+                            //     if (option?.is_custom_module !== true || !customModule?.content) {
+                            //         return false;
+                            //     }
+                                
+                            //     // Find module definition to check version
+                            //     const moduleDefinition = customModules?.find(m => (m.module_id === customModule.module_id || m.origin_id === customModule.origin_id) );
+                            //     const isV2 = moduleDefinition?.version === 'v2' && moduleDefinition?.namedFields;
+                                
+                            //     if (isV2) {
+                            //         // V2: Check if any named field has content
+                            //         const namedFields = moduleDefinition.namedFields;
+                            //         return customModule.content.some((item) => 
+                            //             namedFields.some(field => item[field.fieldName]?.trim?.().length > 0)
+                            //         );
+                            //     } else {
+                            //         // V1: Check for title or notes
+                            //         return customModule.content.some((item) => item?.title || item?.notes);
+                            //     }
+                            // })();
+                            
+                            // // Skip rendering if it's a custom module with no data
+                            // if (option?.is_custom_module === true && !hasCustomModuleData) {
+                            //     return null;
+                            // }
+                            
                             return (
                                 <View key={option.id} style={{
                                     marginTop: index === 0 ? (printSettings?.header_footer?.show_patient_info === 'first' ||
@@ -1848,9 +1954,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             ['ofc', item.ofc ? `OFC: ${item.ofc}cms` : ''],
                                                             ['height', item.height ? `Height: ${item.height}cms` : ''],
                                                             ['weight', item.weight ? `Weight: ${item.weight}kgs` : ''],
-                                                            ['bmi', item.bmi ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²` : ''],
-                                                            ['bmr', item.bmr ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
-                                                            ['bsa', item.bsa ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
+                                                            ['bmi', item.bmi && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmi')) ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²` : ''],
+                                                            ['bmr', item.bmr && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmr')) ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals` : ''],
+                                                            ['bsa', item.bsa && (option?.vitals_option === undefined || option?.vitals_option?.includes('bsa')) ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²` : ''],
                                                         ];
                                                         const priorityOrder = ['weight', 'height', 'ofc'];
                                                         const orderedVitals = isPediatricAccessable
@@ -1934,9 +2040,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ofc: ofc ? `OFC: ${ofc}cms` : '',
                                                                 height: height ? `Height: ${height}cms` : '',
                                                                 weight: weight ? `Weight: ${weight}kgs` : '',
-                                                                bmi: bmi ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
-                                                                bmr: bmr ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
-                                                                bsa: bsa ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
+                                                                bmi: bmi && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmi')) ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²` : '',
+                                                                bmr: bmr && (option?.vitals_option === undefined || option?.vitals_option?.includes('bmr')) ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals` : '',
+                                                                bsa: bsa && (option?.vitals_option === undefined || option?.vitals_option?.includes('bsa')) ? `BSA: ${parseFloat(bsa).toFixed(2)}m²` : '',
                                                             }))(item)
                                                         ).filter(([_, value]) => value);
 
@@ -1996,6 +2102,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             })}
                                                         </View>
                                                         {initialRows.map((item, i) => {
+                                                            const requiredNames = ['BMI (kg/m²)', 'BMR (kcals)', 'BSA (m²)'];
+                                                            
+                                                            if (requiredNames.includes(item?.name)) {
+                                                                const nameToVitalsKey = {
+                                                                    'BMI (kg/m²)': 'bmi',
+                                                                    'BMR (kcals)': 'bmr',
+                                                                    'BSA (m²)': 'bsa'
+                                                                };
+                                                                const vitalsKey = nameToVitalsKey[item?.name];
+                                                                // Only filter if vitals_option is defined, if undefined show all
+                                                                if (option?.vitals_option !== undefined && (!vitalsKey || !option?.vitals_option?.includes(vitalsKey))) {
+                                                                    return null;
+                                                                }
+                                                            }
+                                                            
                                                             return (
                                                                 (item['0'] != '-' || (item.hasOwnProperty('1') && item['1'] != '-') || (item.hasOwnProperty('2') && item['2'] != '-')) && (
                                                                     <View style={styles.row} key={i} wrap={false}>
@@ -5213,6 +5334,72 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             ))
                                         }
                                     </>
+                                ) : option?.id === 20 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {hasOphthalModuleData &&
+                                            (option?.format === "inline" ? (
+                                                <OphthalmologyInlineView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
+                                                />
+                                            ) : option?.format === "listview" ? (
+                                                <OphthalmologyListView 
+                                                    PX_TO_PT={PX_TO_PT} 
+                                                    styles={styles} 
+                                                    printSettings={printSettings} 
+                                                    ophthalModuleData={ophthalModuleData}
+                                                    options={option?.ophthalmology_option || option?.subSections}
+                                                />
+                                            ) : (
+                                                <>
+                                                    {(option?.ophthalmology_option || option?.subSections || []).map((section) => {
+                                                        if (section?.visible === false) {
+                                                            return null;
+                                                        }
+                                                        const sectionOptions = [section];
+                                                        const sectionView = section?.view ?? 3;
+                                                        if (sectionView === 1) {
+                                                            return (
+                                                                <OphthalmologyInlineView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        if (sectionView === 2) {
+                                                            return (
+                                                                <OphthalmologyListView 
+                                                                    key={section.id}
+                                                                    PX_TO_PT={PX_TO_PT} 
+                                                                    styles={styles} 
+                                                                    printSettings={printSettings} 
+                                                                    ophthalModuleData={ophthalModuleData}
+                                                                    options={sectionOptions}
+                                                                />
+                                                            );
+                                                        }
+                                                        return (
+                                                            <OphthalmologyTableView 
+                                                                key={section.id}
+                                                                PX_TO_PT={PX_TO_PT} 
+                                                                styles={styles} 
+                                                                printSettings={printSettings} 
+                                                                ophthalModuleData={ophthalModuleData}
+                                                                options={sectionOptions}
+                                                            />
+                                                        );
+                                                    })}
+                                                </>
+                                            ))
+                                        }
+                                    </>
                                 ) : option?.id === 16 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         {caseManagerData.surgeries.length > 0 && (
@@ -5729,58 +5916,217 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         )}
                                     </>
                                 ) : option?.is_custom_module === true && option?.enable === 'Y' && option?.custom_status === 'Y' && customModule?.content?.length > 0 ? (
-                                    option?.format === 'inline' ? (
-                                        <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
-                                            {customModule?.content?.map((item, i) => {
-                                                return (
-                                                    <Text key={i}>
-                                                        {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
-                                                        {item.notes &&
-                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                {`${item?.title ? '(' : ''}`}
-                                                                {item.notes?.replace(/ /g, '\u00A0')}
-                                                                {`${item?.title ? ')' : ''}`}
-                                                            </Text>
+                                    (() => {
+                                        // Check if this is V2 module directly from customModule
+                                        const isV2 = customModule?.module_version === 'v2';
+                                        
+                                        // Get field names directly from the first content item (if v2)
+                                        const getFieldKeys = (item) => {
+                                            if (!item || typeof item !== 'object') return [];
+                                            // Exclude 'id' and any other non-field keys
+                                            return Object.keys(item).filter(key => key !== 'id');
+                                        };
+                                        
+                                        // Get field keys from first content item (for v2)
+                                        const fieldKeys = isV2 && customModule?.content?.length > 0 
+                                            ? getFieldKeys(customModule.content[0]) 
+                                            : [];
+
+                                        // Helper to check if V2 content has any data
+                                        const hasV2Content = (item) => {
+                                            if (!isV2) return false;
+                                            return fieldKeys.some(fieldKey => item[fieldKey]?.trim?.().length > 0);
+                                        };
+
+                                        // Helper to check if V1 content has any data
+                                        const hasV1Content = (item) => {
+                                            return item.title || item.notes;
+                                        };
+
+                                        // Render based on format
+                                        if (option?.format === 'inline') {
+                                            const moduleName = customModule?.name || customModule?.module_name;
+                                            return (
+                                                <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
+                                                    {customModule?.content?.map((item, i) => {
+                                                        if (isV2) {
+                                                            // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
+                                                            const fieldEntries = fieldKeys
+                                                                .map(fieldKey => ({
+                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    value: item[fieldKey]
+                                                                }))
+                                                                .filter(entry => entry.value?.trim?.().length > 0);
+                                                            
+                                                            if (fieldEntries.length === 0) return null;
+
+                                                            return (
+                                                                <Text key={i}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>(</Text>
+                                                                    {fieldEntries.map((entry, idx) => (
+                                                                        <Text key={idx}>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
+                                                                                {entry.label}:&nbsp;
+                                                                            </Text>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                                {entry.value}
+                                                                            </Text>
+                                                                            {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
+                                                                        </Text>
+                                                                    ))}
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>)</Text>
+                                                                    {i < customModule?.content.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}> | </Text>}
+                                                                </Text>
+                                                            );
+                                                        } else {
+                                                            // V1: Original rendering
+                                                            return (
+                                                                <Text key={i}>
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.notes &&
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                            {`${item?.title ? '(' : ''}`}
+                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {`${item?.title ? ')' : ''}`}
+                                                                        </Text>
+                                                                    }
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{customModule?.content.length - 1 != i ? ',' : ''}&nbsp;</Text>
+                                                                </Text>
+                                                            );
                                                         }
-                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>{customModule?.content.length - 1 != i ? ',' : ''}&nbsp;</Text>
-                                                    </Text>
-                                                )
-                                            })}
-                                        </Text>
-                                    ) : option?.format === 'listview' ? (
-                                        <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{customModule?.name}:&nbsp;</Text>
-                                            {customModule?.content.map((item, i) => {
-                                                return (
-                                                    <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
-                                                        <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                        {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
-                                                        {item.notes &&
-                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                                {`${item?.title ? '(' : ''}`}
-                                                                {item.notes?.replace(/ /g, '\u00A0')}
-                                                                {`${item?.title ? ')' : ''}`}
-                                                            </Text>
+                                                    })}
+                                                </Text>
+                                            );
+                                        } else if (option?.format === 'listview') {
+                                            const moduleName = customModule?.name || customModule?.module_name;
+                                            return (
+                                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>{moduleName}:&nbsp;</Text>
+                                                    {customModule?.content.map((item, i) => {
+                                                        if (isV2) {
+                                                            // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
+                                                            const fieldEntries = fieldKeys
+                                                                .map(fieldKey => ({
+                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    value: item[fieldKey]
+                                                                }))
+                                                                .filter(entry => entry.value?.trim?.().length > 0);
+                                                            
+                                                            if (fieldEntries.length === 0) return null;
+
+                                                            return (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;&nbsp;&nbsp;{i + 1}.</Text>
+                                                                    {fieldEntries.map((entry, idx) => (
+                                                                        <Text key={idx}>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>
+                                                                                {entry.label}:&nbsp;
+                                                                            </Text>
+                                                                            <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                                {entry.value}
+                                                                            </Text>
+                                                                            {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
+                                                                        </Text>
+                                                                    ))}
+                                                                </Text>
+                                                            );
+                                                        } else {
+                                                            // V1: Original rendering
+                                                            return (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.notes &&
+                                                                        <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                            {`${item?.title ? '(' : ''}`}
+                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {`${item?.title ? ')' : ''}`}
+                                                                        </Text>
+                                                                    }
+                                                                </Text>
+                                                            );
                                                         }
-                                                    </Text>
-                                                )
-                                            })}
-                                        </View>
-                                    ) : (customModule?.content?.some((item) => item.title || item.notes) &&
-                                        <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                            <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(customModule?.name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{customModule?.name}:&nbsp;</Text>
-                                            <View style={styles.table}>
-                                                <View style={styles.headerRowFixed} fixed/>
-                                                {customModule?.content.map((item, i) => (
-                                                    <View style={styles.row} key={i} wrap={false}>
-                                                        {customModule?.content?.some((item) => item.title) &&<Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.title || '-'}&nbsp;</Text>}
-                                                        {customModule?.content?.some((item) => item.notes) &&<Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.notes?.replace(/ /g, '\u00A0') || '-'}&nbsp;</Text>}
+                                                    })}
+                                                </View>
+                                            );
+                                        } else {
+                                            // Table format
+                                            const moduleName = customModule?.name || customModule?.module_name;
+                                            return (
+                                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{moduleName}:&nbsp;</Text>
+                                                    <View style={styles.table}>
+                                                        <View style={styles.headerRowFixed} fixed/>
+                                                        {customModule.module_version === "v2" && (
+                                                            // V2: Render column headers with field keys
+                                                            <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                {fieldKeys.map((fieldKey, idx) => {
+                                                                    const flexPerColumn = 1 / fieldKeys.length;
+                                                                    return (
+                                                                        <Text 
+                                                                            key={idx}
+                                                                            style={[
+                                                                                styles.dynamicModuleCell, 
+                                                                                { 
+                                                                                    flex: flexPerColumn, 
+                                                                                    color: '#171725', 
+                                                                                    fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
+                                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                    fontWeight: 700,
+                                                                                    textTransform: 'uppercase'
+                                                                                }
+                                                                            ]}
+                                                                        >
+                                                                            {fieldKey.toUpperCase()}&nbsp;
+                                                                        </Text>
+                                                                    );
+                                                                })}
+                                                            </View>
+                                                        )}
+                                                        {customModule?.content.map((item, i) => {
+                                                            if (customModule.module_version === "v2") {
+
+                                                                // V2: Render all fields in columns using fieldKeys from content
+                                                                const fieldValues = fieldKeys.map(fieldKey => item[fieldKey] || '-');
+                                                                const flexPerColumn = 1 / fieldKeys.length;
+                                                                
+                                                                return (
+                                                                    <View style={styles.row} key={i} wrap={false}>
+                                                                        {fieldValues.map((value, idx) => (
+                                                                            <Text 
+                                                                                key={idx}
+                                                                                style={[
+                                                                                    styles.dynamicModuleCell, 
+                                                                                    { 
+                                                                                        flex: flexPerColumn, 
+                                                                                        color: '#171725', 
+                                                                                        fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), 
+                                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                        fontWeight: 500 
+                                                                                    }
+                                                                                ]}
+                                                                            >
+                                                                                {value}&nbsp;
+                                                                            </Text>
+                                                                        ))}
+                                                                    </View>
+                                                                );
+                                                            } else {
+                                                                // V1: Original rendering
+                                                                return (
+                                                                    <View style={styles.row} key={i} wrap={false}>
+                                                                        {customModule?.content?.some((item) => item.title) && <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.title || '-'}&nbsp;</Text>}
+                                                                        {customModule?.content?.some((item) => item.notes) && <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.notes?.replace(/ /g, '\u00A0') || '-'}&nbsp;</Text>}
+                                                                    </View>
+                                                                );
+                                                            }
+                                                        })}
                                                     </View>
-                                                ))}
-                                            </View>
-                                        </View>
-                                    )
+                                                </View>
+                                            );
+                                        }
+                                    })()
                                 ) : option?.id === 17 && option?.enable === 'Y' && option?.custom_status === 'Y' && (patientBills?.length > 0 || advanceReceipts?.length > 0) ? (
                                     <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                         <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Payment:&nbsp;</Text>
@@ -5894,7 +6240,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}
@@ -5943,7 +6289,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}
@@ -5960,7 +6306,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}

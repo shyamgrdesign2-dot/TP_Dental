@@ -37,7 +37,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const tokenData = getTokenData();
-  const isGroundingAccessable =
+  const isGroundingAccessableForZydus =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   
@@ -182,7 +182,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
             >
               <TabPane tab="Basic Info" key="basicGenRxInfo" />
               <TabPane tab="How it works" key="howGenRxWorks" />
-              {isGroundingAccessable && (
+              {isGroundingAccessableForZydus && (
                 <TabPane tab="AI Data Engine" key="aiDataEngine" />
               )}
               <TabPane tab="Tips for better Rx" key="genRxTips" />
@@ -254,7 +254,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
             </div>
           </div>
 
-          {isGroundingAccessable && (
+          {isGroundingAccessableForZydus && (
             <div style={{ padding: "0 30px", width: "100%" }}>
               <span
                 id="aiDataEngine"

@@ -20,13 +20,17 @@ import SuccessPopup from "../SuccessPopup.js";
 import { updateDueDate, updateVaccine, fetchFrequentlyUsedVaccines } from "../../service.js";
 import dayjs from "dayjs";
 import { useLocation } from "react-router-dom";
-import { errorMessage, getClinicName } from "../../../../utils/utils.js";
+import { errorMessage, getClinicName, trackEvent } from "../../../../utils/utils.js";
 import {
   addDueVaccines,
   addGivenVaccines,
 } from "../../../../redux/vaccineSlice.js";
 import { useDispatch, useSelector } from "react-redux";
-import { isVaccineModifiedRecently } from "../../VaccinationHelper.js";
+import {
+  isVaccineModifiedRecently,
+  normalizeVaccineName,
+  getVaccineNameVariants,
+} from "../../VaccinationHelper.js";
 import CommonModal from "../../../../common/CommonModal.js";
 import alertIcon from "../../../../assets/images/alertIcon.svg";
 import successIcon from "../../../../assets/images/end-visit.svg";
@@ -41,6 +45,15 @@ const vaccineSites = [
   { label: "Right Thigh", value: "Right Thigh" },
 ];
 
+const otherVaccineSites = [
+  { label: "Intramuscular", value: "Intramuscular" },
+  { label: "Subcutaneous", value: "Subcutaneous" },
+  { label: "Oral", value: "Oral" },
+  { label: "Intranasal", value: "Intranasal" },
+  { label: "Intradermal", value: "Intradermal" },
+  { label: "Others", value: "Others" },
+];
+
 const UpdateVaccine = ({
   show,
   setShow,
@@ -52,6 +65,7 @@ const UpdateVaccine = ({
   setSelectAll,
   setCardClicked,
   setLoading,
+  source,
 }) => {
   const dispatch = useDispatch();
   const { TextArea } = Input;
@@ -167,16 +181,53 @@ const UpdateVaccine = ({
     }
 
     const options = selectedVaccines.reduce((acc, vaccine) => {
-      const filteredBrands = brands?.filter((brand) =>
-        vaccine?.tvac_name === "Influenza"
-          ? brand?.tvc_default_vac === "Influenza-1"
-          : brand?.tvc_default_vac === vaccine?.tvac_name
-      );
+      if (!vaccine?.tvac_name) {
+        acc[vaccine?.tvac_name] = [];
+        return acc;
+      }
 
-      acc[vaccine.tvac_name] = filteredBrands?.map((brand) => ({
-        label: brand?.tvc_name,
-        value: brand?.tvc_id,
-      }));
+      const normalizedVaccineName = normalizeVaccineName(vaccine.tvac_name);
+      const vaccineNameVariants = getVaccineNameVariants(vaccine.tvac_name);
+      
+      const filteredBrands = brands?.filter((brand) => {
+        if (!brand?.tvc_default_vac) return false;
+        
+        const brandDefaultVac = brand.tvc_default_vac.trim();
+        const normalizedBrandVac = normalizeVaccineName(brandDefaultVac);
+        const brandVariants = getVaccineNameVariants(brandDefaultVac);
+        
+        const exactMatch = vaccineNameVariants.some(
+          (variant) => brandDefaultVac.toLowerCase() === variant.toLowerCase()
+        );
+        
+        const normalizedMatch = normalizedBrandVac.toLowerCase() === normalizedVaccineName.toLowerCase();
+        
+        const crossVariantMatch = vaccineNameVariants.some((vaccineVariant) =>
+          brandVariants.some((brandVariant) =>
+            vaccineVariant.toLowerCase() === brandVariant.toLowerCase()
+          )
+        );
+        
+        const crossNormalizedMatch = vaccineNameVariants.some(
+          (variant) => normalizedBrandVac.toLowerCase() === normalizeVaccineName(variant).toLowerCase()
+        );
+        
+        return exactMatch || normalizedMatch || crossVariantMatch || crossNormalizedMatch;
+      }) || [];
+
+      const uniqueBrandsMap = new Map();
+      
+      filteredBrands.forEach((brand) => {
+        const brandName = brand?.tvc_name?.trim();
+        if (brandName && !uniqueBrandsMap.has(brandName)) {
+          uniqueBrandsMap.set(brandName, {
+            label: brandName,
+            value: brand?.tvc_id,
+          });
+        }
+      });
+
+      acc[vaccine.tvac_name] = Array.from(uniqueBrandsMap.values());
 
       return acc;
     }, {});
@@ -265,6 +316,17 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_Update_Given", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines ? "Other Vaccines" : "IAP Vaccines",
+          vaccineCompanyId: selectedVaccines?.map((vaccine) => vaccineDetails?.[vaccine?.tvac_name]?.vaccine_company_id)?.join(","),
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }
@@ -378,6 +440,18 @@ const UpdateVaccine = ({
           setSelectedCards([]);
           setSelectAll(false);
         }, 1000);
+        trackEvent("TP_Vac_DueDate", {
+          patientName: patient_data?.pm_fullname || "",
+          patientId: patient_data?.patient_unique_id || "",
+          doctorSpeciality: profile?.dp_name,
+          doctorId: profile?.doctor_unique_id,
+          doctorContact: profile?.um_contact,
+          doctorName: profile?.um_name,
+          source: source,
+          Type: selectedVaccines?.[0]?.isOtherVaccines
+            ? "Other Vaccines"
+            : "IAP Vaccines",
+        });
       } else {
         errorMessage({ name: "TypeError" });
       }
@@ -599,21 +673,109 @@ const UpdateVaccine = ({
             {selectedDate === "given" ? (
               <>
                 {selectedVaccines?.map((vaccine, i) => {
+                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
+                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const selectedBrand = vaccineDetails?.[vaccine?.tvac_name]
                     ?.vaccine_company_id
-                    ? vaccineOptions?.[vaccine?.tvac_name]?.find(
+                    ? [...regularOptions, ...frequentOptions]?.find(
                         (item) =>
                           item.value ===
                           vaccineDetails?.[vaccine?.tvac_name]
                             ?.vaccine_company_id
                       )?.label
                     : undefined;
-                  const regularOptions = vaccineOptions?.[vaccine?.tvac_name] || [];
-                  const frequentOptions = frequentlyUsedBrands?.[vaccine?.tvac_name] || [];
                   const isUserTyping = isTyping[i];
-                  const mergedOptions = isUserTyping
-                    ? regularOptions
-                    : frequentOptions?.length > 0 ? frequentOptions : regularOptions;
+                  
+                  // Remove frequentOptions from regularOptions to avoid duplicates
+                  const frequentValues = new Set(frequentOptions.map(opt => opt.label));
+                  const filteredRegularOptions = regularOptions.filter(
+                    opt => !frequentValues.has(opt.label)
+                  );
+                  // Options for the Select component - only regular options when showing custom dropdown
+                  const selectOptions = (() => {
+                    if (isUserTyping) {
+                      return regularOptions; // Show all options when typing
+                    }
+                    // When we have frequent options, we'll show them separately in dropdownRender
+                    // So only pass filtered regular options (without frequent ones) to Select
+                    if (frequentOptions?.length > 0) {
+                      return filteredRegularOptions;
+                    }
+                    return regularOptions;
+                  })();
+                  
+                  // Custom dropdown render with sticky header
+                  const customDropdownRender = (menu) => {
+                    if (isUserTyping || frequentOptions?.length === 0) {
+                      return menu;
+                    }
+                    
+                    return (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        <div
+                          style={{
+                            backgroundColor: '#f5f5f5',
+                            padding: '8px 12px',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            color: '#666',
+                            borderBottom: '1px solid #e8e8e8',
+                            margin: 0
+                          }}
+                        >
+                          FREQUENTLY USED
+                        </div>
+                        {frequentOptions.map((option) => {
+                          const isSelected = selectedBrand === option.label || selectedBrand === option.value;
+                          return (
+                            <div
+                              key={option.value}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDetails(
+                                  vaccine?.tvac_name,
+                                  "vaccine_company_id",
+                                  option.value,
+                                  option,
+                                  i
+                                );
+                                setIsOpen((prev) => {
+                                  const newState = [...prev];
+                                  newState[i] = false;
+                                  return newState;
+                                });
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                backgroundColor: isSelected ? '#e6f7ff' : 'transparent'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSelected) {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }
+                              }}
+                            >
+                              {option.label}
+                            </div>
+                          );
+                        })}
+                        <div
+                          style={{
+                            height: '1px',
+                            backgroundColor: '#e8e8e8',
+                            margin: '8px 0'
+                          }}
+                        />
+                        {menu}
+                      </div>
+                    );
+                  };
                   return (
                     <>
                       <div className="d-flex justify-content-between">
@@ -656,6 +818,7 @@ const UpdateVaccine = ({
                         className="custom-select-style"
                         optionFilterProp="children"
                         value={selectedBrand}
+                        defaultActiveFirstOption={false}
                         filterOption={(input, option) =>
                           (option?.label ?? "")
                             ?.toLowerCase()
@@ -666,7 +829,8 @@ const UpdateVaccine = ({
                             .toLowerCase()
                             .localeCompare((optionB?.label ?? "").toLowerCase())
                         }
-                        options={mergedOptions}
+                        options={selectOptions}
+                        dropdownRender={customDropdownRender}
                         onSearch={(value) => {
                           if (value && value.trim().length > 0) {
                             setIsTyping((prev) => ({ ...prev, [i]: true }));
@@ -674,16 +838,16 @@ const UpdateVaccine = ({
                             setIsTyping((prev) => ({ ...prev, [i]: false }));
                           }
                         }}
-                        onChange={(value, option) =>
+                        onChange={(value, option) => {
                           handleDetails(
                             vaccine?.tvac_name,
                             "vaccine_company_id",
                             value,
                             option,
                             i
-                          )
-                        }
-                        defaultValue={vaccine?.brandId}
+                          );
+                        }}
+                        defaultValue={vaccine?.brandName || vaccine?.brandId}
                         ref={(ref) => {
                           if (ref) selectRefs.current[i] = ref;
                         }}
@@ -717,7 +881,7 @@ const UpdateVaccine = ({
                               vaccine?.tvpv_site ||
                               undefined
                             }
-                            options={vaccineSites}
+                            options={vaccine?.isOtherVaccines ? otherVaccineSites : vaccineSites}
                             defaultValue={vaccine?.tvpv_site || undefined}
                             onChange={(value) =>
                               handleDetails(

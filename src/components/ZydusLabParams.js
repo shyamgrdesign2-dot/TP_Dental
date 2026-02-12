@@ -137,6 +137,38 @@ const ZydusLabParams = ({
         }));
     };
 
+    // Check if all sections are currently expanded
+    const areAllSectionsExpanded = () => {
+        if (!organizedData.tests || Object.keys(organizedData.tests).length === 0) {
+            return false;
+        }
+        const allServiceNames = Object.keys(organizedData.tests);
+        return allServiceNames.every(serviceName => expandedSections[serviceName] === true);
+    };
+
+    // Toggle between expand all and collapse all
+    const toggleAllSections = () => {
+        if (organizedData.tests && Object.keys(organizedData.tests).length > 0) {
+            const isAllExpanded = areAllSectionsExpanded();
+            
+            if (isAllExpanded) {
+                // Collapse all sections
+                const allCollapsed = {};
+                Object.keys(organizedData.tests).forEach(serviceName => {
+                    allCollapsed[serviceName] = false;
+                });
+                setExpandedSections(allCollapsed);
+            } else {
+                // Expand all sections
+                const allExpandedState = {};
+                Object.keys(organizedData.tests).forEach(serviceName => {
+                    allExpandedState[serviceName] = true;
+                });
+                setExpandedSections(allExpandedState);
+            }
+        }
+    };
+
     const handleDateSelection = (date, checked) => {
         setHasUserInteracted(true);
         setSelectedDates(prev => {
@@ -1042,14 +1074,31 @@ const ZydusLabParams = ({
                     />
                     <div className="modal-title">Zydus Test Reports</div>
                 </div>
-                <Button 
-                    className='btn btn-primary3 btn-41 px-4 me-20' 
-                    onClick={handleSave}
-                    disabled={organizedData.dates.length === 0 || (selectedDates.length === 0 && !labReportID)}
-                >
-                    <i className="icon-Save me-2"></i>
-                    Save
-                </Button>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    <button
+                        className='btn d-flex align-items-center btn-text' 
+                        onClick={toggleAllSections}
+                        disabled={organizedData.dates.length === 0 || Object.keys(organizedData.tests || {}).length === 0}
+                    >
+                        {areAllSectionsExpanded() ? (
+                            <span>
+                                Collapse All
+                            </span>
+                        ) : (
+                            <span>
+                                View All
+                            </span>
+                        )}
+                    </button>
+                    <Button 
+                        className='btn btn-primary3 btn-41 px-4 me-20' 
+                        onClick={handleSave}
+                        disabled={organizedData.dates.length === 0 || (selectedDates.length === 0 && !labReportID)}
+                    >
+                        <i className="icon-Save me-2"></i>
+                        Save
+                    </Button>
+                </div>
             </div>
             {organizedData.dates.length > 0 && !loading && selectedDates.length >= 5 && (
                 <div style={{ 

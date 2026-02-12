@@ -28,7 +28,10 @@ import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
 import visitEnd from "../../../../../assets/images/end-visit.svg";
 import { MESSAGE_KEY } from "../../../../../utils/constants";
 import { PaymentOptions } from "../../../utils/constants";
-import { formatDateWithOrdinal } from "../../../utils/helper";
+import {
+  formatDateWithOrdinal,
+  calculateTotalPaidAmount,
+} from "../../../utils/helper";
 import RefIdPopup from "../../refIdPopup/RefIdPopup";
 import {
   getClinic,
@@ -39,6 +42,7 @@ import {
 const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD MMM, YY";
 const { TextArea } = Input;
+const MAX_REMARKS_LENGTH = 400;
 
 function RefundBill({
   handleRefundBillDrawer,
@@ -47,7 +51,9 @@ function RefundBill({
   getPatientBills,
   onRefundSuccess,
   patientAdvanceData,
+  billType = "opd",
 }) {
+  const totalPaidAmount = calculateTotalPaidAmount(billData);
   const scrollContainerRef = useRef(null);
   const inputRef = useRef([]);
   const dispatch = useDispatch();
@@ -55,7 +61,7 @@ function RefundBill({
   const [shouldShowRefIdPopup, setShowRefIdPopup] = useState(-1);
   const [totalRefundAmount, setTotalRefundAmount] = useState(0);
   const [paymentModes, setPaymentModes] = useState([
-    { paymentMode: "Cash", amount: billData?.paidAmount, refId: "" },
+    { paymentMode: "Cash", amount: totalPaidAmount, refId: "" },
   ]);
   const [isPaymentModeItemMissing, setPaymentModeItemMissing] = useState(false);
   const usedPaymentModes = paymentModes.map((p) => p.paymentMode);
@@ -68,6 +74,7 @@ function RefundBill({
   );
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
+  const [remarks, setRemarks] = useState("");
 
   const handleModeChange = (value, index, type) => {
     const updatedModes = [...paymentModes];
@@ -105,8 +112,9 @@ function RefundBill({
       const payload = {
         billId: billData.id,
         paymentModes: [...paymentModes],
+        notes: remarks?.trim() || "",
       };
-      const response = await processBillRefund(payload);
+      const response = await processBillRefund(payload, billType);
       if (response.status === 204) {
         const isAdvanceDeposit = !!paymentModes?.find(
           (item) => item.paymentMode === "Advance Deposit"
@@ -183,6 +191,13 @@ function RefundBill({
     setPaymentModes(updatedModes);
   };
 
+  const handleRemarksChange = (e) => {
+    const value = e.target.value;
+    if (value.length <= MAX_REMARKS_LENGTH) {
+      setRemarks(value);
+    }
+  };
+
   const columns = [
     {
       title: "BILL NO & DATE",
@@ -226,7 +241,9 @@ function RefundBill({
       dataIndex: "paid_Amount",
       key: "paid_Amount",
       ellipsis: true,
-      render: (text, record) => <div> {record?.paidAmount} </div>,
+      render: (text, record) => {
+        return <div>{totalPaidAmount.toFixed(2)}</div>;
+      },
     },
     {
       title: "STATUS",
@@ -340,14 +357,14 @@ function RefundBill({
                             className="d-flex w-100"
                             style={{
                               border:
-                                totalRefundAmount !== billData?.paidAmount ||
+                                totalRefundAmount !== totalPaidAmount ||
                                 (isPaymentModeItemMissing &&
                                   (payment?.amount === 0 ||
                                     payment?.amount === ""))
                                   ? "solid 1px red"
                                   : "",
                               borderRadius:
-                                totalRefundAmount !== billData?.paidAmount ||
+                                totalRefundAmount !== totalPaidAmount ||
                                 (isPaymentModeItemMissing &&
                                   (payment?.amount === 0 ||
                                     payment?.amount === ""))
@@ -435,12 +452,12 @@ function RefundBill({
                     </div>
                   </div>
                 ))}
-                {totalRefundAmount !== billData?.paidAmount && (
+                {totalRefundAmount !== totalPaidAmount && (
                   <div className="d-flex align-items-start gap-2">
                     <span className="icon-info fs-18 mt-1 bdg-danger" />
                     <span className="bdg-danger">
                       Refund amount should be{" "}
-                      <b style={{ fontWeight: 600 }}>₹{billData?.paidAmount}</b>
+                      <b style={{ fontWeight: 600 }}>₹{totalPaidAmount}</b>
                       {` (Amount less or greater than the bill amount are not
                       allowed)`}
                     </span>
@@ -461,17 +478,29 @@ function RefundBill({
             </div>
           </div>
           <div className="d-flex gap-2 mx-4 my-2 p-2">
-            <TextArea
-              className="h-100 align-self-center"
-              placeholder="Add Notes(optional)"
-              // defaultValue={item.tmm_remarks}
-              // value={item.tmm_remarks}
-              autoSize={{
-                minRows: 1,
-                maxRows: 2,
-              }}
-              // onChange={(e) => onChangeNoteChild()}
-            />
+            <div className="w-100 position-relative">
+              <TextArea
+                className="h-100 align-self-center"
+                placeholder="Add Notes(optional)"
+                value={remarks}
+                autoSize={{
+                  minRows: 1,
+                  maxRows: 2,
+                }}
+                onChange={handleRemarksChange}
+              />
+              <div
+                className="position-absolute"
+                style={{
+                  bottom: 8,
+                  right: 12,
+                  fontSize: "12px",
+                  color: "#8E8E93",
+                }}
+              >
+                {remarks.length}/{MAX_REMARKS_LENGTH}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -487,7 +516,7 @@ function RefundBill({
             isReceptionist ? "receptionist-btn" : ""
           }`}
           onClick={handleRefundBill}
-          disabled={totalRefundAmount !== billData?.paidAmount}
+          disabled={totalRefundAmount !== totalPaidAmount}
         >
           Refund the Bill
         </button>

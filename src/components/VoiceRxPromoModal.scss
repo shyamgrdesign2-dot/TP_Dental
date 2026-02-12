@@ -1,0 +1,533 @@
+.monetization-popup-modal {
+  .ant-modal-content {
+    padding: 0;
+    border-radius: 29.775px;
+    overflow: hidden;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+  }
+}
+
+.monetization-popup-container {
+  position: relative;
+  width: 931px;
+  height: 539px;
+  background: linear-gradient(237.221deg, #ec6d62 7.3355%, #b00706 76.585%);
+  border-radius: 29.775px;
+  overflow: hidden;
+  display: flex;
+  
+  // Star background - top
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 127px;
+    background-image: var(--star-bg-top, url('../assets/images/star-bg-top.png'));
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    // opacity: 0.2;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  // Star background - bottom
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 70px;
+    background-image: var(--star-bg-bottom, url('../assets/images/star-bg-bottom.png'));
+    background-size: cover;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    // opacity: 0.2;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+.monetization-popup-close {
+  position: absolute;
+  top: 17.84px;
+  right: 18.5px;
+  width: 30.5px;
+  height: 30.5px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.monetization-popup-christmas-tree {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 205.513px;
+  height: 440.234px;
+  // opacity: 0.7;
+  background-size: cover;
+  background-position: bottom right;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 0;
+  background-image: var(--christmas-tree, url('../assets/images/christmas-tree.png'));
+}
+
+.monetization-popup-left {
+  flex: 1;
+  padding: 85.7px 22.08px 85.7px 60.08px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  z-index: 2;
+}
+
+.monetization-popup-content-wrapper {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 460px;
+}
+
+.monetization-popup-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 64px;
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+
+.monetization-popup-description {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 32px;
+  color: rgba(255, 255, 255, 0.85) !important;
+  margin: 0;
+  padding: 0;
+
+  strong {
+    font-weight: 600;
+    color: #ffffff;
+  }
+}
+
+.monetization-popup-offer-box {
+  margin-top: 16px;
+  width: 456px;
+  height: 196px;
+  background-image: url('../assets/images/coupon.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.monetization-popup-offer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  width: 384.48px;
+}
+
+.monetization-popup-offer-header {
+  display: flex;
+  align-items: center;
+  gap: 5.383px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 24.224px;
+  line-height: normal;
+  color: #604407 !important;
+  text-align: center;
+
+  .monetization-popup-offer-icon {
+    font-size: 24.224px;
+  }
+
+  .monetization-popup-offer-text {
+    color: #604407 !important;
+    font-family: 'Poppins', sans-serif;
+    font-size: 24.224px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+    
+    strong {
+      font-weight: 700;
+    }
+  }
+}
+
+.monetization-popup-offer-subtext {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: normal;
+  color: #604407 !important;
+  text-align: center;
+  margin: 0;
+
+  strong {
+    font-weight: 600;
+  }
+}
+
+.monetization-popup-offer-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #604407 50%, transparent 100%);
+}
+
+.monetization-popup-claim-button {
+  width: 100%;
+  height: 56.96px;
+  background: #3d8c40 !important;
+  border: none !important;
+  border-radius: 12.206px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 14.972px;
+  color: #ffffff !important; 
+  transition: all 0.2s ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: relative !important;
+  overflow: hidden !important;
+  cursor: pointer;
+
+  // Professional shimmer effect
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 40%,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0.1) 60%,
+      transparent 100%
+    );
+    transform: translateX(-100%) skewX(-25deg);
+    animation: monetization-shimmer 3s infinite;
+    z-index: 1;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  // Ensure text appears above shimmer
+  &,
+  > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  // Disabled state
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    background: #3d8c40 !important;
+
+    &::before {
+      animation: none;
+      display: none;
+    }
+
+    &:hover {
+      background: #3d8c40 !important;
+      box-shadow: none;
+    }
+  }
+}
+
+@keyframes monetization-shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-25deg);
+  }
+  100% {
+    transform: translateX(400%) skewX(-25deg);
+  }
+}
+
+.monetization-popup-right {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(5px);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 23.765px;
+  margin: 50.11px 54.5px 29.83px 18.5px;
+  width: 315px;
+}
+
+.monetization-popup-features-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 289px;
+}
+
+.monetization-popup-features-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 27.725px;
+  color: rgba(0, 0, 0, 0.8);
+  margin: 0;
+  padding: 0;
+}
+
+.monetization-popup-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.monetization-popup-feature-item {
+  display: flex;
+  gap: 11.882px;
+  align-items: center;
+  padding: 1.98px 0;
+
+  span {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 23.765px;
+    color: rgba(0, 0, 0, 0.8);
+
+    strong {
+      font-weight: 600;
+    }
+  }
+}
+
+.monetization-popup-check-icon {
+  width: 27.725px;
+  height: 27.725px;
+  flex-shrink: 0;
+}
+
+.monetization-popup-video-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.monetization-popup-video-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 27.725px;
+  color: rgba(0, 0, 0, 0.8);
+  margin: 0;
+  padding: 0;
+}
+
+.monetization-popup-video-thumbnail {
+  width: 279px;
+  height: 147px;
+  background: #f1f1f5;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  background-image: url("https://i.ytimg.com/vi/vIeSUFJ7JgE/maxresdefault.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.monetization-popup-video-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.monetization-popup-play-button {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: white;
+    transform: scale(1.1);
+  }
+
+  svg {
+    margin-left: 4px;
+  }
+}
+
+.monetization-popup-know-more-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: normal;
+  color: #4b4ad5 !important;
+  text-decoration: underline;
+  text-underline-position: from-font;
+  cursor: pointer;
+  margin-top: 4px;
+
+  span {
+    color: #4b4ad5 !important;
+  }
+
+  &:hover {
+    color: #3a39a8;
+  }
+}
+
+.monetization-popup-divider {
+  width: 253.52px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.00) 0%, rgba(0, 0, 0, 0.20) 50%, rgba(0, 0, 0, 0.00) 100%);
+  margin: 4px 0;
+}
+
+.monetization-popup-contact-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.monetization-popup-contact-header {
+  display: flex;
+  align-items: center;
+  gap: 4.091px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: 10.91px;
+  line-height: 17.728px;
+  color: rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.0682px;
+
+  svg {
+    width: 13.637px;
+    height: 13.637px;
+  }
+}
+
+.monetization-popup-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 5.455px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  font-size: 10.91px;
+  line-height: 17.728px;
+  color: rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.0682px;
+
+  a {
+    color: rgba(0, 0, 0, 0.8);
+    text-decoration: underline;
+    text-underline-position: from-font;
+    cursor: pointer;
+
+    &:hover {
+      color: #4b4ad5;
+    }
+  }
+
+  span {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 400;
+    font-size: 12.274px;
+    color: rgba(0, 0, 0, 0.8);
+  }
+}
+
+// // Responsive adjustments
+// @media (max-width: 1024px) {
+//   .monetization-popup-container {
+//     width: 90vw;
+//     max-width: 931px;
+//     height: auto;
+//     min-height: 539px;
+//     flex-direction: column;
+//   }
+
+//   .monetization-popup-left {
+//     padding: 60px 40px;
+//   }
+
+//   .monetization-popup-content-wrapper {
+//     width: 100%;
+//   }
+
+//   .monetization-popup-offer-box {
+//     width: 100%;
+//     max-width: 456px;
+//   }
+// }
+
+.monetization-popup-loading-icon {
+  font-size: 18px;
+  color: #ffffff !important;
+}
+
+.monetization-popup-loading-text {
+  margin-left: 8px;
+  color: #ffffff !important;
+}

@@ -61,6 +61,7 @@ function BillingDashboard({ patientData, fromPath }) {
   const [createBillDrawer, setCreateBillDrawer] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [billingDrawer, setBillingDrawer] = useState(false);
+  const [billData, setBillData] = useState(null);
   const { advancedSettings } = useSelector(
     (state) => state.billing
   );
@@ -147,7 +148,7 @@ function BillingDashboard({ patientData, fromPath }) {
     }
   };
 
-  const handleCreateBillDrawer = useCallback(async () => {
+  const handleCreateBillDrawer = useCallback(async (record, isPreviewScreen = false) => {
     const isPurchased = await checkBillingPurchased()
     if (isPurchased) {
       const clinic = getClinic();
@@ -163,6 +164,9 @@ function BillingDashboard({ patientData, fromPath }) {
         receptionistName: receptionistName,
       });
       setCreateBillDrawer(!createBillDrawer);
+      if (billData && Object.keys(billData).length > 0 && !isPreviewScreen) {
+        setBillData(null);
+      }
     }
   }, [createBillDrawer]);
 
@@ -305,8 +309,9 @@ function BillingDashboard({ patientData, fromPath }) {
         <div className="w-100 bg-body wrapper">
           <>
             <div
-              className={`welcomesection position-relative mb-3 ${isReceptionist ? "receptionist-welcome" : ""
-                }`}
+              className={`welcomesection position-relative mb-3 ${
+                isReceptionist ? "receptionist-welcome" : ""
+              }`}
             >
               <div className="bg-welcome d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
@@ -370,7 +375,10 @@ function BillingDashboard({ patientData, fromPath }) {
                     </div>
                   )} */}
 
-                  <button className="btn d-flex align-items-center btn-text mx-3 tutorial p-0" onClick={handleBillingKnowMore}>
+                  <button
+                    className="btn d-flex align-items-center btn-text mx-3 tutorial p-0"
+                    onClick={handleBillingKnowMore}
+                  >
                     <span className="text-decoration-none rounded-5 pe-3 bg-white shadow2">
                       <img height={42} src={tutorial} />
                       Tutorial
@@ -387,24 +395,26 @@ function BillingDashboard({ patientData, fromPath }) {
                         <span>Manage Form 3c Bills</span>
                       </Button>
                     )}
-                  {selectedTab !== "billingtable" && !patientData && (
+                  {selectedTab !== "billingtable" && selectedTab !== "ipdbillingtable"   && !patientData && (
                     <Button
-                      className={`btn-create-bill ${isReceptionist ? "receptionist-btn" : ""
-                        }`}
+                      className={`btn-create-bill ${
+                        isReceptionist ? "receptionist-btn" : ""
+                      }`}
                       onClick={handleAddAdvanceDrawer}
                     >
                       <span style={{ fontSize: "22px" }}>{"+"}</span>
                       <span>{"Add Advance Deposit"}</span>
                     </Button>
                   )}
-                  {(selectedTab === "billingtable" || patientData) && (
+                  {(selectedTab === "billingtable" || selectedTab === "ipdbillingtable" || patientData) && (
                     <Button
-                      className={`btn-create-bill ${isReceptionist ? "receptionist-btn" : ""
-                        }`}
+                      className={`btn-create-bill ${
+                        isReceptionist ? "receptionist-btn" : ""
+                      }`}
                       onClick={handleCreateBillDrawer}
                     >
                       <span style={{ fontSize: "22px" }}>+</span>
-                      <span>Create New Bill</span>
+                      <span>Create New OPD Bill</span>
                     </Button>
                   )}
                 </div>
@@ -419,8 +429,12 @@ function BillingDashboard({ patientData, fromPath }) {
             handleTotalAdvanceUpdate={handleTotalAdvanceUpdate}
             totalAdvanceBalance={totalAdvanceBalance}
             createBillDrawer={createBillDrawer}
+            setCreateBillDrawer={setCreateBillDrawer}
             addAdvanceDrawer={addAdvanceDrawer}
             showHideSubModal={showHideSubModal}
+            fromPath={fromPath}
+            billData={billData}
+            setBillData={setBillData}
           />
         </div>
 
@@ -437,6 +451,8 @@ function BillingDashboard({ patientData, fromPath }) {
               handleForm3cBill={handleManage3cBill}
               handleAddForm3cDrawer={handleAddForm3cDrawer}
               form3cData={form3cData}
+              handleEditBillDrawer={handleCreateBillDrawer}
+              setEditBillData={setBillData}
             />
           </Drawer>
         )}
@@ -453,6 +469,7 @@ function BillingDashboard({ patientData, fromPath }) {
               handleAddForm3cDrawer={handleAddForm3cDrawer}
               setForm3cData={setForm3cData}
               onSuccess={handleForm3cSuccess}
+              billType={selectedTab === "ipdbillingtable" ? "ipd" : "opd"}
             />
           </Drawer>
         )}
@@ -490,6 +507,9 @@ function BillingDashboard({ patientData, fromPath }) {
               patientData={patientData}
               isDashboard={true}
               isPreviewFromTable={true}
+              editBillData={billData}
+              admissionId={billData?.admissionId}
+              setEditedBillData={setBillData}
             />
           </Drawer>
         )}
@@ -511,7 +531,8 @@ function BillingDashboard({ patientData, fromPath }) {
           wrapper: { zIndex: 9999 },
         }}
         isSubModalOpen={isSubModalOpen}
-        showHideSubModal={showHideSubModal} />
+        showHideSubModal={showHideSubModal}
+      />
     </>
   );
 }

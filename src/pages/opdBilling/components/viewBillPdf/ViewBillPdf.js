@@ -127,6 +127,24 @@ const ViewBillPdf = ({
   gstIn,
   showCreatedBy,
 }) => {
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
+  
+  let editDoctorFromList = null;
+  
+  if (isReceptionist) {
+    const umIds = urlParams.get("um_id")?.split(",") || [];
+    const umNames = urlParams.get("um_name")?.split(",") || [];
+    const doctorsList = umIds.map((id, index) => ({
+      value: parseInt(id),
+      label: umNames[index],
+    }));
+    editDoctorFromList = billData?.doctorId
+      ? doctorsList?.find((d) => String(d?.value) === String(billData?.doctorId))
+      : null;
+  }
+  const isIpdBill = !!billData?.admissionId;
   const [fileWatermark, setFileWatermark] = useState(null);
   const paddingStyles = calculatePadding(printSettings?.headerFooter);
 
@@ -152,6 +170,7 @@ const ViewBillPdf = ({
             billData={billData}
             profile={profile}
             gstIn={gstIn}
+            isIpdBill={isIpdBill}
           />
 
           {isDepositReceipt ? (
@@ -165,9 +184,10 @@ const ViewBillPdf = ({
               pageFormat={printSettings?.pageFormat}
               billData={billData}
               totalAdvanceBalance={totalAdvanceBalance}
+              isIpdBill={isIpdBill}
             />
           )}
-          <BillOtherSettings printSettings={printSettings} profile={profile} />
+          <BillOtherSettings printSettings={printSettings} profile={profile} doctorName={editDoctorFromList?.label} />
         </View>
         <BillFooter
           printSettings={printSettings}

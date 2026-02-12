@@ -20,6 +20,7 @@ import { getDecodedToken } from '../utils/localStorage';
 import CommonModal from '../common/CommonModal';
 import config from '../config';
 import { useLocation } from 'react-router-dom';
+import { useGrounding } from '../hooks/useGrounding';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -58,7 +59,10 @@ const LabInvestigationTable = ({
   );
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
-  const isGroundingAccessable = (tokenData?.hospital_business_id === env.zydus_business_id && isZydusUserAccessableFromGB) || isApollo;
+  const isGroundingAccessable = useGrounding();
+  const isGroundingAccessableForZydus =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    isZydusUserAccessableFromGB;
   
   // Detect tablet view (iPad mini: 768-1024px, iPad Air: 1025-1180px, iPad Pro: 1181-1366px)
   useEffect(() => {
@@ -253,6 +257,8 @@ const LabInvestigationTable = ({
         name: investigationName,
         notes: '',
         lineItem: investigationName,
+        hm_type: investigation?.hm_type,
+        um_id: investigation?.um_id,
       };
       
       // Add metadata if available
@@ -261,6 +267,13 @@ const LabInvestigationTable = ({
           ...investigation,
           selectedValue: investigationName,
         };
+        // Preserve hm_type and um_id at top level for API compatibility
+        if (investigation.hm_type !== undefined) {
+          newInvestigation.hm_type = investigation.hm_type;
+        }
+        if (investigation.um_id !== undefined) {
+          newInvestigation.um_id = investigation.um_id;
+        }
       }
       
       const updatedInvestigations = [...labInvestigation, newInvestigation];
@@ -296,8 +309,7 @@ const LabInvestigationTable = ({
         const isZydusInvestigation = ((investigation?.hm_type == 1 || investigation?.hm_type == 2) && investigation?.um_id === 0);
         
         if (
-          isGroundingAccessable &&
-          !isApollo &&
+          isGroundingAccessableForZydus &&
           !isZydusInvestigation &&
           !dontShowZydusWarning
         ) {
@@ -315,7 +327,7 @@ const LabInvestigationTable = ({
         addNewInvestigation(value, option);
       }
     },
-    [isGroundingAccessable, dontShowZydusWarning, addNewInvestigation]
+    [isGroundingAccessableForZydus, dontShowZydusWarning, addNewInvestigation]
   );
 
 
@@ -428,6 +440,13 @@ const LabInvestigationTable = ({
               ...investigationData,
               selectedValue: investigationName,
             };
+            // Preserve hm_type and um_id at top level for API compatibility
+            if (investigationData.hm_type !== undefined) {
+              updated.hm_type = investigationData.hm_type;
+            }
+            if (investigationData.um_id !== undefined) {
+              updated.um_id = investigationData.um_id;
+            }
           }
           
           // Recalculate lineItem
@@ -517,8 +536,7 @@ const LabInvestigationTable = ({
       const isZydusInvestigation = ((investigationData?.hm_type == 1 || investigationData?.hm_type == 2) && investigationData?.um_id === 0);
       
       if (
-        isGroundingAccessable &&
-        !isApollo &&
+        isGroundingAccessableForZydus &&
         !isZydusInvestigation &&
         !dontShowZydusWarning
       ) {
@@ -562,14 +580,14 @@ const LabInvestigationTable = ({
           clinic_name: clinic?.hm_name,
           medicine_name: value,
           grounding_element: "Lab Investigations",
-          user: userType === "Z" ? "Zydus" : "Apollo",
+          // user: userType === "Z" ? "Zydus" : "Apollo",
         });
       }
     } catch (e) {
       // Fallback: just update the investigation
       handleNameSelect(itemId, value, option, isTabletMode);
     }
-  }, [isGroundingAccessable, dontShowZydusWarning, handleNameSelect]);
+  }, [isGroundingAccessableForZydus, dontShowZydusWarning, handleNameSelect]);
 
   const handleRowEdit = (itemId) => {
     const item = labInvestigation.find(inv => inv.id === itemId);

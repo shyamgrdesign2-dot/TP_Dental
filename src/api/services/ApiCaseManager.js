@@ -2,6 +2,7 @@ import api from "./axiosService";
 import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.casemanager_api_url }
+const consultationBaseUrl = { customBaseUrl: config.consultation_api_url }
 
 const ApiCaseManager = {};
 
@@ -65,12 +66,12 @@ ApiCaseManager.getInvestigationAndMedicine = function (data) {
     return api.post(`/api/v1/casemanager/getInvestigationAndMedicine`, data, baseUrl);
 };
 
-// ApiCaseManager.saveSmartRx = function (data) {
-//     return api.post(`/api/v1/casemanager/smartrx`, data, smartrxUrl);
-// };
+ApiCaseManager.listConsultations = function (data) {
+    return api.post(`/api/v1/casemanager/listConsultations`, data, consultationBaseUrl);
+};
 
-// ApiCaseManager.sendSmartRxLinkOnWhatsapp = function (data) {
-//     return api.post(`/api/v1/casemanager/smart-rx/send`, data, smartrxUrl);
-// };
+ApiCaseManager.draftToConsultation = function (data) {
+    return api.post(`/api/v1/casemanager/draft-to-consultation`, data, baseUrl);
+};
 
 export default ApiCaseManager;

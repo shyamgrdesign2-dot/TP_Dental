@@ -86,6 +86,12 @@ body {
             }
         }
 
+        &.btn-resume-draft-rx {
+            background-color: transparent;
+            border-radius: 10px;
+            padding: 10px 15px;
+        }
+
         &.btn-down-arrow {
             border-radius: 0 10px 10px 0;
             border-left: none;

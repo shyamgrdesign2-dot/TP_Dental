@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useContext } from "react";
 import { Container, Navbar, Row, Col } from "react-bootstrap";
-import { Button, Dropdown, Menu, Popover, Spin } from "antd";
+import { Button, Dropdown, Menu, Popover, Spin, Radio, Checkbox, Divider } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
+import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 
 import CashManagerContext from "../../../../context/CashManagerContext";
 import ProfilePopover from "../../../../common/ProfilePopover";
@@ -16,6 +17,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
 import DemoExpirationBanner from "../../../../common/DemoExpirationBanner";
 import PlanExpirationBanner from "../../../../common/PlanExpirationBanner";
+import { trackEvent } from "../../../../utils/utils";
 
 function VaccineHeader({
   handleDrawerVaccination,
@@ -32,6 +34,12 @@ function VaccineHeader({
   isObstetric,
   isGrowthChart,
   isPregnancyCompleted,
+  splitVaccineData,
+  activeVaccineTab,
+  setActiveVaccineTab,
+  printVaccineCategory,
+  setPrintVaccineCategory,
+  source,
 }) {
   const vaccinationVideo = {
     link: "https://www.youtube.com/embed/o6ALwX9hPMM",
@@ -59,12 +67,18 @@ function VaccineHeader({
   const navigate = useNavigate();
   const location = useLocation();
   let { patient_data } = useContext(CashManagerContext);
+  const { profile } = useSelector((state) => state.doctors);
   const { isPatientDiagnosisUpdated } = useSelector((state) => state.obstetric);
 
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [shouldShowPreview, setShowPreview] = useState(false);
   const [shouldShowVideo, setShowVideo] = useState(false);
   const [popOverVideo, setPopOverVideo] = useState(false);
+  const [printStatusAll, setPrintStatusAll] = useState(true);
+  const [printStatusGiven, setPrintStatusGiven] = useState(true);
+  
+  // Use prop if provided, otherwise default to "iap"
+  const currentPrintCategory = printVaccineCategory || "iap";
 
   const showHideBackModal = useCallback(() => {
     setIsBackModalOpen(!isBackModalOpen);
@@ -82,8 +96,58 @@ function VaccineHeader({
     setPrintType(e?.key);
   }
 
+  const getPrintChoice = () => {
+    let choice = "";
+    switch (currentPrintCategory) {
+      case "iap":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "IAP - All" : "IAP - Given";
+        break;
+      case "other":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "Other - All" : "Other - Given";
+        break;
+      case "both":
+        choice = !printStatusGiven || (printStatusGiven && printStatusAll) ? "Both - All" : "Both - Given";
+        break;
+
+      default:
+        choice = "All";
+        break;
+    }
+    return choice;
+  };
+
+  const handleDownload = () => {
+    // Set print type based on status selection
+    if (printStatusGiven && !printStatusAll) {
+      setPrintType("2"); // Given only
+    } else {
+      setPrintType("1"); // All
+    }
+    trackEvent("TP_Vac_Print", {
+      patientName: patient_data?.pm_fullname || "",
+      patientId: patient_data?.patient_unique_id || "",
+      doctorSpeciality: profile?.dp_name,
+      doctorId: profile?.doctor_unique_id,
+      doctorContact: profile?.um_contact,
+      doctorName: profile?.um_name,
+      source: source,
+      choice: getPrintChoice(),
+    });
+  };
+
   function previewBtnHandler() {
     setShowPreview((prevState) => !prevState);
+    if (!shouldShowPreview) {
+      trackEvent("TP_Vac_preview", {
+        patientName: patient_data?.pm_fullname || "",
+        patientId: patient_data?.patient_unique_id || "",
+        doctorSpeciality: profile?.dp_name,
+        doctorId: profile?.doctor_unique_id,
+        doctorContact: profile?.um_contact,
+        doctorName: profile?.um_name,
+        source: source,
+      });
+    }
   }
 
   const showHideVideoListPopover = useCallback(() => {
@@ -91,23 +155,107 @@ function VaccineHeader({
   }, [popOverVideo]);
 
   const vaccinePrint = (
-    <Menu>
-      <Menu.Item
-        key="1"
-        className="btn btn-41 btn-input printMenu"
-        onClick={handleMenuClick}
+    <div className="vaccine-print-dropdown">
+      <div className="vaccine-category-section">
+        <Radio.Group
+          value={currentPrintCategory}
+          onChange={(e) => {
+            if (setPrintVaccineCategory) {
+              setPrintVaccineCategory(e.target.value);
+            }
+          }}
+          className="vaccine-category-radio"
+        >
+          <div className="radio-option-wrapper">
+            <Radio value="iap">{VaccinationCategoryEnum[0].value}</Radio>
+            {currentPrintCategory === "iap" && (
+              <div className="vaccine-status-section">
+                <div className="status-label">Selected Specific Status</div>
+                <div className="status-checkboxes">
+                  <Checkbox
+                    checked={printStatusAll}
+                    onChange={(e) => setPrintStatusAll(e.target.checked)}
+                  >
+                    All
+                  </Checkbox>
+                  <Checkbox
+                    checked={printStatusGiven}
+                    onChange={(e) => setPrintStatusGiven(e.target.checked)}
+                  >
+                    Given
+                  </Checkbox>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Divider style={{ margin: "8px 0" }}>
+            <span style={{ fontSize: "12px", color: "#8E8E93" }}>or</span>
+          </Divider>
+
+          <div className="radio-option-wrapper">
+            <Radio value="other">{VaccinationCategoryEnum[1].value}</Radio>
+            {currentPrintCategory === "other" && (
+              <div className="vaccine-status-section">
+                <div className="status-label">Selected Specific Status</div>
+                <div className="status-checkboxes">
+                  <Checkbox
+                    checked={printStatusAll}
+                    onChange={(e) => setPrintStatusAll(e.target.checked)}
+                  >
+                    All
+                  </Checkbox>
+                  <Checkbox
+                    checked={printStatusGiven}
+                    onChange={(e) => setPrintStatusGiven(e.target.checked)}
+                  >
+                    Given
+                  </Checkbox>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Divider style={{ margin: "8px 0" }}>
+            <span style={{ fontSize: "12px", color: "#8E8E93" }}>or</span>
+          </Divider>
+
+          <div className="radio-option-wrapper">
+            <Radio value="both">Both IAP & Other Vaccines</Radio>
+            {currentPrintCategory === "both" && (
+              <div className="vaccine-status-section">
+                <div className="status-label">Selected Specific Status</div>
+                <div className="status-checkboxes">
+                  <Checkbox
+                    checked={printStatusAll}
+                    onChange={(e) => setPrintStatusAll(e.target.checked)}
+                  >
+                    All
+                  </Checkbox>
+                  <Checkbox
+                    checked={printStatusGiven}
+                    onChange={(e) => setPrintStatusGiven(e.target.checked)}
+                  >
+                    Given
+                  </Checkbox>
+                </div>
+              </div>
+            )}
+          </div>
+        </Radio.Group>
+      </div>
+
+      <Button
+        type="primary"
+        className="download-btn"
+        onClick={handleDownload}
+        loading={printLoader}
       >
-        All
-      </Menu.Item>
-      <Menu.Item
-        key="2"
-        className="btn-41 btn btn-input"
-        style={{ border: "0 !important" }}
-        onClick={handleMenuClick}
-      >
-        Given
-      </Menu.Item>
-    </Menu>
+        Print
+        <i className="ms-2 icon-Print" />
+        {/* <i className="icon-download ms-2" /> */}
+      </Button>
+    </div>
   );
 
   const growthPrint = (
@@ -279,7 +427,13 @@ function VaccineHeader({
                   <div className="growth-chart-type">WHO-IAP Chart</div>
                 )}
                 {!isObstetric && (
-                <Dropdown overlay={isVaccination ? vaccinePrint : growthPrint}>
+                  <Dropdown
+                    {...(isVaccination
+                      ? { dropdownRender: () => vaccinePrint }
+                      : { overlay: growthPrint })}
+                    trigger={["click"]}
+                    overlayClassName={isVaccination ? "vaccine-print-dropdown-wrapper" : ""}
+                  >
                     <div className="btn-41 btn px-4 me-4 ant-btn-text btn-input d-flex align-items-center gap-2">
                       <i className="icon-Print" />
                       <span className="btn-input">Print</span>
@@ -333,6 +487,9 @@ function VaccineHeader({
               vaccinesData={vaccinesData}
               onCancel={previewBtnHandler}
               shouldShowPreview={shouldShowPreview}
+              splitVaccineData={splitVaccineData}
+              activeVaccineTab={activeVaccineTab}
+              setActiveVaccineTab={setActiveVaccineTab}
             />
           ) : null}
         </Container>
