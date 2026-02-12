@@ -558,8 +558,6 @@ function Cardiology(props) {
       fetchData();
       if (isVideoConsultAccessibleFromGB) {
         checkVideoConsultStatus(viewCaseManagerData.tcm_id);
-      } else {
-        setHasVideoConsult(false);
       }
     }
     if (
@@ -639,6 +637,8 @@ function Cardiology(props) {
       const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
       if (response?.data?.pam_status_type_appointment === 1) {
         setHasVideoConsult(true);
+      } else {
+        setHasVideoConsult(false);
       }
     } catch (error) {
       console.error("Error checking video consult status:", error);
