@@ -63,7 +63,7 @@ import {
 
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
-import { errorMessage, trackEvent } from "../utils/utils";
+import { errorMessage } from "../utils/utils";
 import { MESSAGE_KEY } from "../utils/constants";
 import CommonModal from "../common/CommonModal";
 import alertIcon from "../assets/images/alertIcon.svg";
