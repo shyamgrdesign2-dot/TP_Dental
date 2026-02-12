@@ -11,7 +11,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
 
-import { getPatientBirthWeight, getVitals } from "../../redux/vitalsSlice";
+import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
 
 import CashManagerContext from "../../context/CashManagerContext";
@@ -226,6 +226,10 @@ function TabPrescription() {
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  useEffect(() => {
+    dispatch(resetVitalsState());
+  }, []);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"
