@@ -968,8 +968,6 @@ const AbhaStandalone = () => {
           onClose={() => setBiometricPopupOpen(false)}
           onCaptureSuccess={handleBiometricCaptureSuccess}
           onCaptureError={handleBiometricCaptureError}
-          embedded={embedded}
-          parentOrigin={origin || undefined}
         />
       )}
     </div>
