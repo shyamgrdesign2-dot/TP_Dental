@@ -1,8 +1,8 @@
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
-import { env } from "../../EnvironmentConfig";
+import config from "../../config";
 
 const getBaseUrl = () => {
-  return env.visit_api_url || "https://pm-visit-integration-uat.tatvacare.in";
+  return config.visit_api_url;
 };
 
 const getAuthToken = () => {
