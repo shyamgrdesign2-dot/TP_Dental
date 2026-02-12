@@ -27,6 +27,7 @@ import MobileRxPadProcessing from './MobileRxPadProcessing';
 import MobileRxPadSkeleton from './MobileRxPadSkeleton';
 import MobileRxPadContent from './MobileRxPadContent';
 import MobileEndVisitScreen from './MobileEndVisitScreen';
+import RxPadInfoBottomSheet from './RxPadInfoBottomSheet';
 import documentNormalSvg from '../../assets/mobile/document-normal.svg';
 import minimiseIcon from '../../assets/images/minimise.svg';
 import infoIcon from '../../assets/mobile/Icon (2).svg';
@@ -66,6 +67,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(false);
   const [showEndVisitScreen, setShowEndVisitScreen] = useState(false);
+  const [showInfoBottomSheet, setShowInfoBottomSheet] = useState(false);
   const [endVisitCaseManagerData, setEndVisitCaseManagerData] = useState(null); // Store saved caseManagerData with print_url
   const [isEndingVisit, setIsEndingVisit] = useState(false); // Loading state for saving
   // Initialize with existing data if in review mode, otherwise wait for API
@@ -190,7 +192,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     loadLastHistory();
   }, [visible, patient_data?.patient_unique_id, caseManagerData, dispatch, setMedicalHistoryData]);
 
-  // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API).
+  // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API). See MobileRxPadContent.js for reference.
   // useEffect(() => {
   //   if (!visible || !patient_data?.patient_unique_id) return;
   //   const loadTodayData = async () => {
@@ -1648,7 +1650,14 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           <div className="rx-pad-title-section">
             <img src={documentNormalSvg} alt="Rx Pad" className="rx-pad-icon" />
             <span className="rx-pad-title">Rx Pad</span>
-            <img src={infoIcon} alt="Info" className="rx-pad-info-icon" />
+            <button 
+              className="rx-pad-info-button" 
+              onClick={() => setShowInfoBottomSheet(true)}
+              type="button"
+              aria-label="Info"
+            >
+              <img src={infoIcon} alt="Info" className="rx-pad-info-icon" />
+            </button>
           </div>
           <button className="rx-pad-close-button" onClick={onClose} type="button">
             <img src={minimiseIcon} alt="Minimise" className="rx-pad-close-icon" />
@@ -1710,6 +1719,12 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       print_url={getPrintUrl()}
       isAmbientRx={isAmbientMode}
       caseManagerData={endVisitCaseManagerData || caseManagerData}
+    />
+
+    {/* Info Bottom Sheet */}
+    <RxPadInfoBottomSheet
+      visible={showInfoBottomSheet}
+      onClose={() => setShowInfoBottomSheet(false)}
     />
     </>
   );

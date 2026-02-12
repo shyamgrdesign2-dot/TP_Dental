@@ -55,6 +55,23 @@
         margin: 0;
       }
 
+      .rx-pad-info-button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+
+        &:active {
+          opacity: 0.6;
+        }
+      }
+
       .rx-pad-info-icon {
         width: 16px;
         height: 16px;
