@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE } from "../utils/constants";
 
-import { getPatientBirthWeight, getVitals } from "../redux/vitalsSlice";
+import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
   getPatientLastHistory,
   listPrivateNotes,
@@ -215,6 +215,10 @@ function Prescription() {
     
     return combined;
   }, [customModules, hospitalSearchResults, userId]);
+
+  useEffect(() => {
+    dispatch(resetVitalsState());
+  }, []);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"

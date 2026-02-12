@@ -88,6 +88,7 @@ const vitalsSlice = createSlice({
             }
             state.todayData = { ...state.todayData, weight: weight };
         },
+        resetVitalsState: () => initialState,
     },
     extraReducers: (builder) => {
         builder
@@ -137,5 +138,5 @@ const vitalsSlice = createSlice({
     },
 });
 
-export const { updateList } = vitalsSlice.actions
+export const { updateList, resetVitalsState } = vitalsSlice.actions
 export default vitalsSlice.reducer;
