@@ -332,7 +332,36 @@
         justify-content: space-between;
         grid-column: 1 / -1;
         padding-top: 8px;
+        padding-left: 0;
+        margin-left: 0;
         border-top: 1px solid #E5E7EB;
+        min-height: 32px;
+
+        .field-label {
+          margin: 0;
+          padding: 0;
+          line-height: 22px;
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+
+        .ant-switch {
+          flex-shrink: 0;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          vertical-align: middle !important;
+        }
+
+        .ant-switch-small {
+          height: 22px !important;
+          min-height: 22px !important;
+          line-height: 22px !important;
+          min-width: 48px !important;
+          width: 48px !important;
+        }
       }
 
       .field-input {
