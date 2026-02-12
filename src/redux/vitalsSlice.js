@@ -88,6 +88,7 @@ const vitalsSlice = createSlice({
             }
             state.todayData = { ...state.todayData, weight: weight };
         },
+        resetVitalsState: () => initialState,
     },
     extraReducers: (builder) => {
         builder
