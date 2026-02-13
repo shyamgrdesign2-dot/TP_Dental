@@ -1434,7 +1434,9 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
           );
         })}
 
-      {/* Mobile-Only Sections - Keep Simple Rendering */}
+      {/* Mobile-Only Sections - Gynec & Obstetric History
+          Hide these cards entirely when there is no data to show, so
+          empty modules are not visible on the Rx Pad. */}
       {renderSection(
         'Gynec History', 
         gynecHistoryIcon, 
@@ -1449,8 +1451,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             <img src={editIcon} alt="Edit" className="add-edit-icon" />
             <span>Add/Edit</span>
           </button>
-        ),
-        true
+        )
       )}
       {renderSection(
         'Obstetric History', 
@@ -1466,8 +1467,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
             <img src={editIcon} alt="Edit" className="add-edit-icon" />
             <span>Add/Edit</span>
           </button>
-        ),
-        true
+        )
       )}
       {renderSection('Surgeries & Procedures', surgeryIcon, prescriptionData?.surgeriesAndProcedures || caseManagerData?.surgeries, renderSurgeries)}
       
