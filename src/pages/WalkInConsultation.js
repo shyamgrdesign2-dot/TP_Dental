@@ -397,21 +397,6 @@ function WalkInConsultation() {
                 setAutoCompleteFlag={setAutoCompleteFlag}
                 buttonStyle="walkin"
               />
-            ) :
-            (isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
-              <PrimaryActionButton
-                isSmartRxAccessible={isSmartSyncAccessableFromGB}
-                isSnapRxAccessible={isSnapRxAccessable}
-                isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
-                isVoiceRxPaid={isVoiceRxPaid}
-                onSmartRxClick={onSmartRxClick}
-                onSnapRxClick={onSnapRxClick}
-                onVoiceRxClick={onVoiceRxClick}
-                onConsultClick={onConsultClick}
-                patient={patient}
-                setAutoCompleteFlag={setAutoCompleteFlag}
-                buttonStyle="walkin"
-              />
             ) : (
               <Button
                 type="text"
