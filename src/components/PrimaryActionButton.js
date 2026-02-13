@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
 import smartPad from "../assets/images/smartPad.svg";
+import { isMobile } from "react-device-detect";
 
 /**
  * PrimaryActionButton Component
@@ -21,6 +22,7 @@ import smartPad from "../assets/images/smartPad.svg";
  * @param {Function} props.setAutoCompleteFlag - Optional: Function to set auto complete flag (for WalkInConsultation)
  * @param {string} props.buttonStyle - Button style variant: 'walkin' (default) or 'cardiology'
  * @param {Function} props.onClose - Optional: Function to call when closing (for Cardiology modal)
+ * @param {boolean} props.fullWidth - Optional: Whether button should take full width (for modal use)
  */
 const PrimaryActionButton = ({
   isSmartRxAccessible = false,
@@ -35,11 +37,14 @@ const PrimaryActionButton = ({
   setAutoCompleteFlag,
   buttonStyle = "walkin", // 'walkin' or 'cardiology'
   onClose,
+  fullWidth = false,
 }) => {
   // Check if mobile (screen width < 768)
   const [isMobileScreen, setIsMobileScreen] = useState(
     typeof window !== "undefined" && window.innerWidth < 768
   );
+  const buttonRef = useRef(null);
+  const [dropdownWidth, setDropdownWidth] = useState("7.3rem");
 
   useEffect(() => {
     const handleResize = () => {
@@ -52,14 +57,32 @@ const PrimaryActionButton = ({
     }
   }, []);
 
+  useEffect(() => {
+    const updateDropdownWidth = () => {
+      if (fullWidth && buttonRef.current) {
+        const width = buttonRef.current.offsetWidth;
+        setDropdownWidth(`${width}px`);
+      } else {
+        setDropdownWidth("7.3rem");
+      }
+    };
+
+    updateDropdownWidth();
+
+    if (fullWidth && typeof window !== "undefined") {
+      window.addEventListener("resize", updateDropdownWidth);
+      return () => window.removeEventListener("resize", updateDropdownWidth);
+    }
+  }, [fullWidth]);
+
   // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > Consult
   const allAvailableOptions = [];
   
-  if (isSmartRxAccessible) {
+  if (isSmartRxAccessible && !isMobile) {
     allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
   }
   if (isVoiceRxAccessible) {
-    allAvailableOptions.push({ type: "voicerx", label: "Voice Rx", handler: onVoiceRxClick });
+    allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
   }
   if (isSnapRxAccessible) {
     allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
@@ -72,17 +95,26 @@ const PrimaryActionButton = ({
   // Dropdown options are the remaining ones in priority order
   const dropdownOptions = allAvailableOptions.slice(1);
 
-  // Generate dropdown menu items - matching original getMenuItems logic
+  // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > Consult
   const getMenuItems = () => {
     if (dropdownOptions.length === 0) return [];
 
     const items = [];
-    const snapRxOption = dropdownOptions.find(opt => opt.type === "snaprx");
-    const voiceRxOption = dropdownOptions.find(opt => opt.type === "voicerx");
-    const consultOption = dropdownOptions.find(opt => opt.type === "consult");
+    
+    // Iterate through dropdownOptions in priority order (already sorted correctly)
+    dropdownOptions.forEach((option) => {
+      const handleClick = () => {
+        if (setAutoCompleteFlag) setAutoCompleteFlag(false);
+        if (onClose) onClose();
+        if (option.handler && patient) option.handler(patient);
+      };
 
-    // If primary is SmartRx and SnapRx is available, add SnapRx first
-    if (primaryOption.type === "smartrx" && snapRxOption) {
+      // Determine label text based on option type
+      let labelText = option.label;
+      if (option.type === "voicerx") {
+        labelText = "Voice Rx";
+      }
+
       items.push({
         label: (
           <span
@@ -90,184 +122,14 @@ const PrimaryActionButton = ({
               display: "inline-block",
               cursor: "pointer",
             }}
-            onClick={() => {
-              if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-              if (onClose) onClose();
-              if (snapRxOption.handler && patient) snapRxOption.handler(patient);
-            }}
+            onClick={handleClick}
           >
-            SnapRx
+            {labelText}
           </span>
         ),
-        key: "snaprx",
+        key: option.type,
       });
-    }
-
-    // Handle VoiceRx and Consult based on isVoiceRxPaid and what's available
-    if (isVoiceRxAccessible && primaryOption.type !== "voicerx") {
-      // VoiceRx is accessible and not primary
-      if (voiceRxOption && consultOption) {
-        // Both VoiceRx and Consult in dropdown
-        if (isVoiceRxPaid) {
-          // VoiceRx first, then Consult
-          items.push({
-            label: (
-              <span
-                style={{
-                  display: "inline-block",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                  if (onClose) onClose();
-                  if (voiceRxOption.handler && patient) voiceRxOption.handler(patient);
-                }}
-              >
-                Voice Rx
-              </span>
-            ),
-            key: "voicerx",
-          });
-          items.push({
-            label: (
-              <span
-                style={{
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                  if (onClose) onClose();
-                  if (consultOption.handler && patient) consultOption.handler(patient);
-                }}
-              >
-                Consult
-              </span>
-            ),
-            key: "consult",
-          });
-        } else {
-          // Consult first, then VoiceRx
-          items.push({
-            label: (
-              <span
-                style={{
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                  if (onClose) onClose();
-                  if (consultOption.handler && patient) consultOption.handler(patient);
-                }}
-              >
-                Consult
-              </span>
-            ),
-            key: "consult",
-          });
-          items.push({
-            label: (
-              <span
-                style={{
-                  display: "inline-block",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                  if (onClose) onClose();
-                  if (voiceRxOption.handler && patient) voiceRxOption.handler(patient);
-                }}
-              >
-                Voice Rx
-              </span>
-            ),
-            key: "voicerx",
-          });
-        }
-      } else if (voiceRxOption && !consultOption) {
-        // Only VoiceRx in dropdown (Consult is primary)
-        items.push({
-          label: (
-            <span
-              style={{
-                display: "inline-block",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                if (onClose) onClose();
-                if (voiceRxOption.handler && patient) voiceRxOption.handler(patient);
-              }}
-            >
-              Voice Rx
-            </span>
-          ),
-          key: "voicerx",
-        });
-      } else if (consultOption && !voiceRxOption) {
-        // Only Consult in dropdown (VoiceRx is primary or not accessible)
-        items.push({
-          label: (
-            <span
-              style={{
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                if (onClose) onClose();
-                if (consultOption.handler && patient) consultOption.handler(patient);
-              }}
-            >
-              Consult
-            </span>
-          ),
-          key: "consult",
-        });
-      }
-    } else {
-      // VoiceRx is not accessible or is primary - add remaining options
-      // Add SnapRx if not already added and it's in dropdown
-      if (snapRxOption && primaryOption.type !== "smartrx") {
-        items.push({
-          label: (
-            <span
-              style={{
-                display: "inline-block",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                if (onClose) onClose();
-                if (snapRxOption.handler && patient) snapRxOption.handler(patient);
-              }}
-            >
-              SnapRx
-            </span>
-          ),
-          key: "snaprx",
-        });
-      }
-      
-      // Add Consult if it's in dropdown
-      if (consultOption) {
-        items.push({
-          label: (
-            <span
-              style={{
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                if (setAutoCompleteFlag) setAutoCompleteFlag(false);
-                if (onClose) onClose();
-                if (consultOption.handler && patient) consultOption.handler(patient);
-              }}
-            >
-              Consult
-            </span>
-          ),
-          key: "consult",
-        });
-      }
-    }
+    });
 
     return items;
   };
@@ -301,20 +163,16 @@ const PrimaryActionButton = ({
     if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return (
         <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
-          <img src={smartPad} alt="vitals" />
+          {/* <img src={smartPad} alt="vitals" /> */}
           <button className="btn btn-smartRx-text">{primaryOption.label}</button>
         </div>
       );
     } else {
       return (
-        <Button
-          type="text"
-          className="btn btn-primary3 align-items-center d-flex"
-          icon={<i className="icon-Consult"></i>}
-          onClick={handlePrimaryClick}
-        >
-          {getPrimaryButtonText()}
-        </Button>
+        <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
+          {/* <img src={smartPad} alt="vitals" /> */}
+          <button className="btn btn-smartRx-text">{getPrimaryButtonText()}</button>
+        </div>
       );
     }
   }
@@ -325,20 +183,16 @@ const PrimaryActionButton = ({
     if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return (
         <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
-          <img src={smartPad} alt="vitals" />
+          {/* <img src={smartPad} alt="vitals" /> */}
           <button className="btn btn-smartRx-text">{primaryOption.label}</button>
         </div>
       );
     } else {
       return (
-        <Button
-          type="text"
-          className="btn btn-primary3 align-items-center d-flex"
-          icon={<i className="icon-Consult"></i>}
-          onClick={handlePrimaryClick}
-        >
-          {getPrimaryButtonText()}
-        </Button>
+        <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
+          {/* <img src={smartPad} alt="vitals" /> */}
+        <button className="btn btn-smartRx-text">{getPrimaryButtonText()}</button>
+      </div>
       );
     }
   }
@@ -397,32 +251,100 @@ const PrimaryActionButton = ({
   }
 
   // WalkIn style: Primary button + dropdown arrow
+  const containerStyle = fullWidth 
+    ? { 
+        width: "100%", 
+        justifyContent: "space-between",
+        position: "relative"
+      } 
+    : {};
+  
+  const primaryButtonStyle = fullWidth
+    ? {
+        width: "80%",
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: "6px",
+        justifyContent: "flex-start"
+      }
+    : { paddingLeft: "6px" };
+
+  const dropdownMenuStyle = {
+    width: dropdownWidth,
+    marginTop: fullWidth ? "0.3rem" : "-0.8rem",
+    marginRight: fullWidth ? "1.5rem" :"-0.5rem",
+    left: fullWidth ? "0.8rem" : "-5px;"
+  };
+
+  // Determine placement based on fullWidth
+  const dropdownPlacement = fullWidth ? "bottomRight" : "bottomRight";
+
   return (
-    <div className="d-flex btn btn-smart-rx-walkin">
+    <div 
+      ref={buttonRef}
+      className="d-flex btn btn-smart-rx-walkin"
+      style={{ ...containerStyle, position: "relative", zIndex: 1 }}
+    >
       {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" ? (
-        <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
-          <img src={smartPad} alt="vitals" />
-          <button className="btn btn-smartRx-text">{primaryOption.label}</button>
+        <div style={primaryButtonStyle} onClick={handlePrimaryClick}>
+          {/* <img src={smartPad} alt="vitals" /> */}
+          <button 
+            className="btn btn-smartRx-text"
+            style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
+          >
+            {primaryOption.label}
+          </button>
         </div>
       ) : (
-        <Button
-          type="text"
-          className="btn btn-primary3 align-items-center d-flex"
-          icon={<i className="icon-Consult"></i>}
-          onClick={handlePrimaryClick}
-        >
-          {getPrimaryButtonText()}
-        </Button>
+        <div style={primaryButtonStyle} onClick={handlePrimaryClick}>
+          {/* <img src={smartPad} alt="vitals" /> */}
+          <button 
+            className="btn btn-smartRx-text"
+            style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
+          >
+            {getPrimaryButtonText()}
+          </button>
+        </div>
       )}
 
-      <div className="consult-btns-group">
+      <div
+        style={{
+          width: "1px",
+          backgroundColor: "rgba(255, 255, 255, 0.3)",
+          height: "100%",
+          margin: fullWidth ? "0 4px" : "0 4px",
+          flexShrink: 0
+        }}
+      />
+
+      <div 
+        className="consult-btns-group" 
+        style={{ 
+          ...(fullWidth ? { width: "20%", display: "flex", justifyContent: "center", alignItems: "center" } : {}),
+          position: "relative",
+          zIndex: 1000
+        }}
+      >
         <Dropdown
           menu={{
             items: getMenuItems(),
-            style: { width: "8rem", marginTop: "-1rem", marginRight: "-0.3rem" },
+            style: dropdownMenuStyle,
           }}
           trigger={["click"]}
-          placement="bottomRight"
+          placement={dropdownPlacement}
+          overlayStyle={fullWidth ? { 
+            width: dropdownWidth, 
+            minWidth: dropdownWidth,
+            zIndex: 1050
+          } : {
+            zIndex: 1050
+          }}
+          overlayClassName="primary-action-dropdown"
+          getPopupContainer={(trigger) => {
+            // For autocomplete rows, render to body to avoid clipping
+            // For modal (fullWidth), also render to body for proper positioning
+            return document.body;
+          }}
         >
           <a
             onClick={(e) => {

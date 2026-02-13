@@ -101,6 +101,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import docimg from "../assets/images/docimg.png";
 import welcomdoc from "../assets/images/welcom-doc.svg";
 import symptoms from "../assets/images/symptoms-green.svg";
+import PrimaryActionButton from "./PrimaryActionButton";
 import suporticon from "../assets/images/suport-icon.svg";
 import windoc from "../assets/images/win-doc.png";
 import AbhaIcon from '../assets/images/abha-svg.svg';
@@ -2398,112 +2399,50 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                <div className="d-flex" style={{ flex: "0 0 auto" }}>
-                  {selectedTab !== TAB_CANCELLED && (
-                    <button
-                      // className="btn btn-outline-primary btn-smart-rx"
-                      className={`btn btn-outline-primary ${
-                        selectedTab === TAB_FINISHED
-                          ? "btn-print-rx"
-                          : "btn-smart-rx"
-                      }`}
-                      onClick={() =>
-                        (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB)
-                          ? onSmartRxClick(record)
-                          : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
-                            ? handleSnapRxClick(record)
-                            : (selectedTab === TAB_QUEUE && ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER))
-                              ? (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
-                              : onPrintRxUrlClick(record)
-                      }
-                    >
-                      {
-                        selectedTab === TAB_FINISHED
-                          ? "PrintRx"
-                          : (isSmartSyncAccessableFromGB && "SmartRx") ||
-                            (isSnapRxAccessable && "SnapRx") ||
-                            (((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
-                            ""
-                      }
-                    </button>
-                  )}
-                  {selectedTab === TAB_QUEUE && (
-                    <button
-                      className="btn btn-outline-primary btn-down-arrow"
-                      onClick={() =>
-                        setOpenRowIndex(openRowIndex === index ? null : index)
-                      }
-                    >
-                      <span
-                        role="img"
-                        aria-label="down"
-                        className="anticon anticon-down ant-select-suffix"
+                selectedTab === TAB_QUEUE && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                  <PrimaryActionButton
+                    isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                    isSnapRxAccessible={isSnapRxAccessable}
+                    isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+                    isVoiceRxPaid={isVoiceRxPaid}
+                    onSmartRxClick={onSmartRxClick}
+                    onSnapRxClick={handleSnapRxClick}
+                    onVoiceRxClick={onVoiceRxClick}
+                    onConsultClick={onConsultClick}
+                    patient={record}
+                    buttonStyle="walkin"
+                  />
+                ) : (
+                  <div className="d-flex" style={{ flex: "0 0 auto" }}>
+                    {selectedTab !== TAB_CANCELLED && (
+                      <button
+                        className={`btn btn-outline-primary ${
+                          selectedTab === TAB_FINISHED
+                            ? "btn-print-rx"
+                            : "btn-smart-rx"
+                        }`}
+                        onClick={() =>
+                          (selectedTab === TAB_QUEUE && isSmartSyncAccessableFromGB)
+                            ? onSmartRxClick(record)
+                            : (selectedTab === TAB_QUEUE && isSnapRxAccessable)
+                              ? handleSnapRxClick(record)
+                              : (selectedTab === TAB_QUEUE && ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER))
+                                ? (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
+                                : onPrintRxUrlClick(record)
+                        }
                       >
-                        <i
-                          className="icon-right"
-                          style={{
-                            display: "block",
-                            transform: `rotate(270deg)`,
-                          }}
-                        />
-                      </span>
-                    </button>
-                  )}
-                  {openRowIndex === index && 
-                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) ? "65%" : "52%")}} ref={consultButtonRef}>
-                      {(isSmartSyncAccessableFromGB && isSnapRxAccessable) && 
-                        <button
-                          // ref={snapRxButtonRef}
-                          className="btn-consult top-br with-divider"
-                          onClick={() => {
-                            selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 3) :
-                            handleSnapRxClick(record)}
-                          }
-                        >
-                          SnapRx
-                        </button>
-                      }
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && isVoiceRxPaid && (
-                        <button
-                          className={`btn-consult ${(isSmartSyncAccessableFromGB && isSnapRxAccessable) ? "middle-br" : (isSnapRxAccessable || isSmartSyncAccessableFromGB) ? "top-br with-divider" : "top-br with-divider"}`}
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      )}
-                      {((isSmartSyncAccessableFromGB || isSnapRxAccessable) || ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) && (
-                        <button
-                          className={`btn-consult ${
-                            ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || 
-                             ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable) && isVoiceRxPaid) ||
-                             ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) 
-                              ? "bottom-br" 
-                              : "border-radius-all"
-                          }`}
-                          onClick={() => onConsultClick(record)}
-                        >
-                          Consult
-                        </button>
-                      )}
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable)) && !isVoiceRxPaid && (
-                        <button
-                          className="btn-consult border-radius-all"
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      )}
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && !isVoiceRxPaid && (
-                        <button
-                          className="btn-consult bottom-br"
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      )}
-                    </div>
-                  }
-                </div>
+                        {
+                          selectedTab === TAB_FINISHED
+                            ? "PrintRx"
+                            : (isSmartSyncAccessableFromGB && "SmartRx") ||
+                              (isSnapRxAccessable && "SnapRx") ||
+                              (((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
+                              ""
+                        }
+                      </button>
+                    )}
+                  </div>
+                )
               )
             ) : (((isSmartSyncAccessableFromGB || isFreeVoiceRxUser || tp_monetization_enable) && selectedTab === TAB_ZYDUS_ENCOUNTER) || 
             (isSmartSyncAccessableFromGB || isFreeVoiceRxUser || tp_monetization_enable)) &&
@@ -2519,120 +2458,132 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </button>
                 </>
               ) : (
-                <div className="d-flex" style={{ flex: "0 0 auto" }}>
-                  {(selectedTab !== TAB_CANCELLED && !finishedData.some(
-                    (x) => x.pam_ref_id == record.encounterId)) && (
-                    <button
-                      // className="btn btn-outline-primary btn-smart-rx"
-                      className={`btn btn-outline-primary ${
-                        selectedTab === TAB_FINISHED
-                          ? "btn-print-rx"
-                          : "btn-smart-rx"
-                      }`}
-                      onClick={() =>
-                        (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER)
-                          ? (isSmartSyncAccessableFromGB
-                              ? (selectedTab === TAB_ZYDUS_ENCOUNTER
-                                  ? onZydus_Consult_PatientDetails_Click(record, 5)
-                                  : onSmartRxClick(record))
-                              : isSnapRxAccessable
-                                ? handleSnapRxClick(record)
-                                : (isFreeVoiceRxUser || tp_monetization_enable)
-                                  ? selectedTab === TAB_ZYDUS_ENCOUNTER 
-                                    ? onZydus_Consult_PatientDetails_Click(record, 1) 
-                                    : (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
-                                  : onPrintRxUrlClick(record))
-                          : onPrintRxUrlClick(record)
-                      }
-                    >
-                      {
-                        selectedTab === TAB_FINISHED
-                          ? "PrintRx"
-                          : (isSmartSyncAccessableFromGB && "SmartRx") ||
-                            (isSnapRxAccessable && "SnapRx") ||
-                            ((isFreeVoiceRxUser || tp_monetization_enable) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
-                            ""
-                      }                    
-                    </button>
-                  )}
-                  {(selectedTab === TAB_QUEUE || (selectedTab === TAB_ZYDUS_ENCOUNTER && !finishedData.some(
-                    (x) => x.pam_ref_id == record.encounterId))) && (
-                    <button
-                      className="btn btn-outline-primary btn-down-arrow"
-                      onClick={() =>
-                        setOpenRowIndex(openRowIndex === index ? null : index)
-                      }
-                    >
-                      <span
-                        role="img"
-                        aria-label="down"
-                        className="anticon anticon-down ant-select-suffix"
+                selectedTab === TAB_QUEUE && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                  <PrimaryActionButton
+                    isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                    isSnapRxAccessible={isSnapRxAccessable}
+                    isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
+                    isVoiceRxPaid={isVoiceRxPaid}
+                    onSmartRxClick={onSmartRxClick}
+                    onSnapRxClick={handleSnapRxClick}
+                    onVoiceRxClick={onVoiceRxClick}
+                    onConsultClick={onConsultClick}
+                    patient={record}
+                    buttonStyle="walkin"
+                  />
+                ) : (
+                  <div className="d-flex" style={{ flex: "0 0 auto" }}>
+                    {(selectedTab !== TAB_CANCELLED && !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId)) && (
+                      <button
+                        className={`btn btn-outline-primary ${
+                          selectedTab === TAB_FINISHED
+                            ? "btn-print-rx"
+                            : "btn-smart-rx"
+                        }`}
+                        onClick={() =>
+                          (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER)
+                            ? (isSmartSyncAccessableFromGB
+                                ? (selectedTab === TAB_ZYDUS_ENCOUNTER
+                                    ? onZydus_Consult_PatientDetails_Click(record, 5)
+                                    : onSmartRxClick(record))
+                                : isSnapRxAccessable
+                                  ? handleSnapRxClick(record)
+                                  : (isFreeVoiceRxUser || tp_monetization_enable)
+                                    ? selectedTab === TAB_ZYDUS_ENCOUNTER 
+                                      ? onZydus_Consult_PatientDetails_Click(record, 1) 
+                                      : (isVoiceRxPaid ? onVoiceRxClick(record) : onConsultClick(record))
+                                    : onPrintRxUrlClick(record))
+                            : onPrintRxUrlClick(record)
+                        }
                       >
-                        <i
-                          className="icon-right"
-                          style={{
-                            display: "block",
-                            transform: `rotate(270deg)`,
-                          }}
-                        />
-                      </span>
-                    </button>
-                  )}
-                  {openRowIndex === index && 
-                    <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) ? "65%" : "52%")}} ref={consultButtonRef}>
-                      {(isSnapRxAccessable) && 
-                        <button
-                          className="btn-consult top-br with-divider"
-                          onClick={() => {
-                            selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 3) : handleSnapRxClick(record)}
-                          }
+                        {
+                          selectedTab === TAB_FINISHED
+                            ? "PrintRx"
+                            : (isSmartSyncAccessableFromGB && "SmartRx") ||
+                              (isSnapRxAccessable && "SnapRx") ||
+                              ((isFreeVoiceRxUser || tp_monetization_enable) && (isVoiceRxPaid ? "Voice Rx" : "Consult")) ||
+                              ""
+                        }                    
+                      </button>
+                    )}
+                    {(selectedTab === TAB_ZYDUS_ENCOUNTER && !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId)) && (
+                      <button
+                        className="btn btn-outline-primary btn-down-arrow"
+                        onClick={() =>
+                          setOpenRowIndex(openRowIndex === index ? null : index)
+                        }
+                      >
+                        <span
+                          role="img"
+                          aria-label="down"
+                          className="anticon anticon-down ant-select-suffix"
                         >
-                          SnapRx
-                        </button>
-                      }
-                      {/* Only show Voice Rx in dropdown if main button is NOT Voice Rx (i.e., when SmartRx/SnapRx is main button) */}
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && isVoiceRxPaid && 
-                        <button
-                          className={`btn-consult ${(isSnapRxAccessable) ? "middle-br" : "top-br with-divider"}`}
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      }
-                      {((isSmartSyncAccessableFromGB || isSnapRxAccessable) || ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) && (
-                        <button
-                          className={`btn-consult ${
-                            ((isSnapRxAccessable) || 
-                             ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable) && isVoiceRxPaid) ||
-                             ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) 
-                              ? "bottom-br" 
-                              : "border-radius-all"
-                          }`}
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 1) : onConsultClick(record)}
-                        >
-                          Consult
-                        </button>
-                      )}
-            
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable)) && !isVoiceRxPaid && 
-                        <button
-                          className="btn-consult border-radius-all"
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      }
-                      {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && !isVoiceRxPaid && 
-                        <button
-                          className="btn-consult bottom-br"
-                          onClick={() => selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydus_Consult_PatientDetails_Click(record, 4) : onVoiceRxClick(record)}
-                        >
-                          Voice Rx
-                        </button>
-                      }
-                    </div>
-                  }
-                </div>
+                          <i
+                            className="icon-right"
+                            style={{
+                              display: "block",
+                              transform: `rotate(270deg)`,
+                            }}
+                          />
+                        </span>
+                      </button>
+                    )}
+                    {openRowIndex === index && selectedTab === TAB_ZYDUS_ENCOUNTER && 
+                      <div className="rx-btns-grp" style={{width: ((isSnapRxAccessable && isSmartSyncAccessableFromGB) || ((isFreeVoiceRxUser || tp_monetization_enable) || selectedTab === TAB_ZYDUS_ENCOUNTER) ? "65%" : "52%")}} ref={consultButtonRef}>
+                        {(isSnapRxAccessable) && 
+                          <button
+                            className="btn-consult top-br with-divider"
+                            onClick={() => {
+                              onZydus_Consult_PatientDetails_Click(record, 3)
+                            }}
+                          >
+                            SnapRx
+                          </button>
+                        }
+                        {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && isVoiceRxPaid && 
+                          <button
+                            className={`btn-consult ${(isSnapRxAccessable) ? "middle-br" : "top-br with-divider"}`}
+                            onClick={() => onZydus_Consult_PatientDetails_Click(record, 4)}
+                          >
+                            Voice Rx
+                          </button>
+                        }
+                        {((isSmartSyncAccessableFromGB || isSnapRxAccessable) || ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) && (
+                          <button
+                            className={`btn-consult ${
+                              ((isSnapRxAccessable) || 
+                               ((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable) && isVoiceRxPaid) ||
+                               ((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable) && isVoiceRxPaid)) 
+                                ? "bottom-br" 
+                                : "border-radius-all"
+                            }`}
+                            onClick={() => onZydus_Consult_PatientDetails_Click(record, 1)}
+                          >
+                            Consult
+                          </button>
+                        )}
+                        {((isFreeVoiceRxUser || tp_monetization_enable) && (!isSmartSyncAccessableFromGB && !isSnapRxAccessable)) && !isVoiceRxPaid && 
+                          <button
+                            className="btn-consult border-radius-all"
+                            onClick={() => onZydus_Consult_PatientDetails_Click(record, 4)}
+                          >
+                            Voice Rx
+                          </button>
+                        }
+                        {((isFreeVoiceRxUser || tp_monetization_enable) && (isSmartSyncAccessableFromGB || isSnapRxAccessable)) && !isVoiceRxPaid && 
+                          <button
+                            className="btn-consult bottom-br"
+                            onClick={() => onZydus_Consult_PatientDetails_Click(record, 4)}
+                          >
+                            Voice Rx
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                )
               )
             ) : (
               <>
