@@ -74,6 +74,14 @@ function MobileEndVisitScreen({
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
 
+  // viewCaseManager expects numeric tcm_id; coerce so API never receives string
+  const toNumericTcmId = (id) => {
+    if (id == null) return null;
+    if (typeof id === 'number' && !Number.isNaN(id)) return id;
+    const parsed = parseInt(id, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
   // Get token data (same as web version)
   useEffect(() => {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -96,25 +104,30 @@ function MobileEndVisitScreen({
       if (caseManagerData && caseManagerData.tcm_id) {
         finalCaseManagerData = caseManagerData;
         finalPrintUrl = caseManagerData.print_url || caseManagerData.print_rx_url || print_url;
-      } else if (tcm_id && patient_data?.patient_unique_id && visible) {
-        // Fetch caseManagerData if we have tcm_id but no caseManagerData
-        setIsFetchingData(true);
-        try {
-          const sendData = {
-            patient_unique_id: patient_data.patient_unique_id,
-            tcm_id: tcm_id,
-          };
-          const action = await dispatch(viewCaseManager(sendData));
+      } else if (tcm_id != null && patient_data?.patient_unique_id && visible) {
+        // Fetch caseManagerData if we have tcm_id but no caseManagerData; viewCaseManager expects numeric tcm_id
+        const numericTcmId = toNumericTcmId(tcm_id);
+        if (numericTcmId == null) {
+          finalPrintUrl = print_url;
+        } else {
+          setIsFetchingData(true);
+          try {
+            const sendData = {
+              patient_unique_id: patient_data.patient_unique_id,
+              tcm_id: numericTcmId,
+            };
+            const action = await dispatch(viewCaseManager(sendData));
           if (action.meta.requestStatus === 'fulfilled' && action.payload) {
             finalCaseManagerData = action.payload;
             finalPrintUrl = action.payload.print_url || action.payload.print_rx_url || print_url;
           } else {
             finalPrintUrl = print_url;
           }
-        } catch (error) {
-          finalPrintUrl = print_url;
-        } finally {
-          setIsFetchingData(false);
+          } catch (error) {
+            finalPrintUrl = print_url;
+          } finally {
+            setIsFetchingData(false);
+          }
         }
       } else {
         finalPrintUrl = print_url;
@@ -162,12 +175,13 @@ function MobileEndVisitScreen({
 
   // Edit handler (same as web version)
   const handleEdit = async () => {
-    if (!viewCaseManagerData && tcm_id && patient_data?.patient_unique_id) {
-      // Fetch caseManagerData if not available
+    const numericTcmId = toNumericTcmId(tcm_id);
+    if (!viewCaseManagerData && numericTcmId != null && patient_data?.patient_unique_id) {
+      // Fetch caseManagerData if not available; viewCaseManager expects numeric tcm_id
       try {
         const sendData = {
           patient_unique_id: patient_data.patient_unique_id,
-          tcm_id: tcm_id,
+          tcm_id: numericTcmId,
         };
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === 'fulfilled' && action.payload) {

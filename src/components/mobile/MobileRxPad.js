@@ -102,6 +102,8 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const onDataReadyCalledRef = useRef(false); // Track if onDataReady was called for current input
   const hasLoadedForEditRef = useRef(null); // Track loaded smart_prescription_filename for edit to avoid duplicate fetch
   const editContextRef = useRef({ smartPrescriptionFilename: null }); // Persist prescription ID for edit mode
+  // Numeric tcm_id from addCaseManager/editCaseManager response; used for viewCaseManager and getTcmId so we never use viewCaseManager's string tcm_id
+  const endVisitTcmIdRef = useRef(null);
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
 
@@ -1333,8 +1335,10 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         return;
       }
       
-      // Default to 0 for new prescriptions
-      tcmId = tcmId || 0;
+      // Default to 0 for new prescriptions; coerce to number so API always receives numeric tcm_id
+      const rawTcmId = tcmId ?? 0;
+      tcmId = (rawTcmId !== '' && rawTcmId != null) ? (typeof rawTcmId === 'number' ? rawTcmId : parseInt(rawTcmId, 10)) : 0;
+      if (Number.isNaN(tcmId)) tcmId = 0;
       const consultationDate = caseManagerData?.consultation_date || moment().format('YYYY-MM-DD HH:mm:ss');
       const pamId = patient_data?.pam_id || 0;
       const labReportID = caseManagerData?.labReportID || null;
@@ -1546,8 +1550,11 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           : await dispatch(editCaseManager(sendData));
 
       if (action.meta.requestStatus === "fulfilled") {
-        const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-        
+        // Use numeric tcm_id from addCaseManager/editCaseManager; viewCaseManager expects number
+        const fromPayload = action?.payload?.tcm_id ?? tcmId;
+        const numericTcmId = typeof fromPayload === 'number' ? fromPayload : parseInt(fromPayload, 10);
+        endVisitTcmIdRef.current = Number.isNaN(numericTcmId) ? tcmId : numericTcmId;
+
         // Show styled success message (matches web version)
         message.open({
           key: MESSAGE_KEY,
@@ -1574,24 +1581,25 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         });
         
         // Fetch updated case (viewCaseManager) then set endVisitCaseManagerData.
-        // Ensure smart_prescription_filename is always set so "Edit prescription" from End Visit
-        // can load the correct Gen Rx via getGenRx(id). Backend may not return it in payload.
+        // Use endVisitTcmIdRef so viewCaseManager always gets numeric tcm_id; override tcm_id in state so Edit/Repeat never see viewCaseManager's string tcm_id.
         setTimeout(async () => {
           try {
             const viewAction = await dispatch(viewCaseManager({
               patient_unique_id: patient_data?.patient_unique_id || 0,
-              tcm_id: generatedTcmId,
+              tcm_id: endVisitTcmIdRef.current,
             }));
             const base = (viewAction.meta.requestStatus === 'fulfilled' && viewAction.payload)
               ? viewAction.payload
               : action.payload;
             setEndVisitCaseManagerData({
               ...base,
+              tcm_id: endVisitTcmIdRef.current,
               smart_prescription_filename: base?.smart_prescription_filename || genRxDetails?._id,
             });
           } catch (error) {
             setEndVisitCaseManagerData({
               ...(action.payload || {}),
+              tcm_id: endVisitTcmIdRef.current,
               smart_prescription_filename: action.payload?.smart_prescription_filename || genRxDetails?._id,
             });
           }
@@ -1625,12 +1633,19 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     return null;
   };
 
-  // Get tcm_id
+  // Get tcm_id: prefer numeric id from addCaseManager/editCaseManager (ref) so viewCaseManager never receives string.
+  // Never return NaN so downstream (MobileEndVisitScreen) never sends invalid id.
   const getTcmId = () => {
-    if (endVisitCaseManagerData?.tcm_id) {
-      return endVisitCaseManagerData.tcm_id;
+    if (endVisitTcmIdRef.current != null) {
+      return endVisitTcmIdRef.current;
     }
-    return caseManagerData?.tcm_id || genRxDetails?._id || null;
+    if (endVisitCaseManagerData?.tcm_id != null) {
+      const id = endVisitCaseManagerData.tcm_id;
+      if (typeof id === 'number' && !Number.isNaN(id)) return id;
+      const parsed = parseInt(id, 10);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    return caseManagerData?.tcm_id ?? genRxDetails?._id ?? null;
   };
 
   return (
@@ -1709,6 +1724,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     <MobileEndVisitScreen
       visible={showEndVisitScreen}
       onClose={() => {
+        endVisitTcmIdRef.current = null;
         setShowEndVisitScreen(false);
         onClose();
       }}
