@@ -7,6 +7,7 @@ import { isMobile } from 'react-device-detect';
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
 import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from '../../../utils/constants';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
+import FreeTrialButton from '../../monetization/components/FreeTrialButton';
 import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
 import userGrayIcon from '../../../assets/mobile/user_gray.svg';
 import imageBackground from '../../../assets/mobile/Image Background.svg';
@@ -61,6 +62,13 @@ function MobileVoiceRxConsult() {
       (VOICE_RX_planDetails?.plan_tier === FREE &&
         VOICE_RX_planDetails?.credit_balance <= 0));
 
+  // Same as web: only mount modal for AI Voice Rx with credit_balance in [0,1,2,5] (per plan master)
+  const showVoiceRxTrialModal =
+    !isFreeVoiceRxUser &&
+    VOICE_RX_planDetails?.service_type === 'ai' &&
+    [0, 1, 2, 5].includes(VOICE_RX_planDetails?.credit_balance);
+
+  // Auto-open popup on page load when plan is FREE or FAILED_VERIFICATION (matches web)
   useEffect(() => {
     if (
       VOICE_RX_planDetails !== undefined &&
@@ -223,6 +231,14 @@ function MobileVoiceRxConsult() {
           <img src={arrowLeftIcon} alt="Back" />
         </button>
         <h1 className="header-title">Consultation</h1>
+        {showVoiceRxTrialModal && (
+          <div className="mobile-voice-rx-header-trial">
+            <FreeTrialButton
+              title={S_VOICE_RX}
+              showHideSubModal={showHideSubModal}
+            />
+          </div>
+        )}
       </div>
 
       {patient_data && (
@@ -419,7 +435,7 @@ function MobileVoiceRxConsult() {
         />
       )}
 
-      {!isFreeVoiceRxUser && (
+      {showVoiceRxTrialModal && (
         <ExpiredSubModal
           title={S_VOICE_RX}
           styles={{
