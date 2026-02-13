@@ -4,11 +4,8 @@ import { Row, Col, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
-import Card from "react-bootstrap/Card";
 import api from "../api/services/axiosService";
-import writtenRxIcon from "../assets/images/written-rx.svg";
-import digitiseRxIcon from "../assets/images/digitise-rx.svg";
-import cvtInfoIcon from "../assets/images/cvt-info.svg";
+import documentIcon from "../assets/images/document-normal.svg";
 import { FETCH_SMART_RX, S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
@@ -90,6 +87,30 @@ function SmartRxDigitise() {
     document.addEventListener("mousemove", onMouseMoveResizer);
     document.addEventListener("mouseup", stopResizing);
   }, [onMouseMoveResizer, stopResizing]);
+
+  // Keep only non-empty vitals (same as ConsultationDrawer) and optional API key mapping
+  const vitalsOnlyNonEmpty = useCallback((v) => {
+    if (!v || typeof v !== "object") return {};
+    const actual = v._doc || v;
+    const keyMap = { respiratoryRate: "respRate", randomBloodSugar: "sugar", headCircumference: "ofc", genralRBS: "general_rbs" };
+    const result = {};
+    Object.entries(actual).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "" && String(value).trim() !== "") {
+        result[keyMap[key] || key] = value;
+      }
+    });
+    return result;
+  }, []);
+
+  // Filter vitals to non-empty only before passing to Rx Pad (API already returns vitalsAndBodyComposition, examinations, labInvestigation)
+  const canonicalFromApi = useCallback((src) => {
+    if (!src || typeof src !== "object") return src;
+    const out = { ...src };
+    if (out.vitalsAndBodyComposition) {
+      out.vitalsAndBodyComposition = vitalsOnlyNonEmpty(out.vitalsAndBodyComposition);
+    }
+    return out;
+  }, [vitalsOnlyNonEmpty]);
 
   useEffect(() => {
     if (smartRxFile?.length > 0 && token && state.type === "new") {
@@ -316,9 +337,9 @@ function SmartRxDigitise() {
         }
       );
 
-      // Update the digitized data
+      // Update the digitized data (normalize to canonical shape for Rx Pad)
       if (response?.data?.data) {
-        setData(response.data.data.refinedData);
+        setData(canonicalFromApi(response.data.data.refinedData));
         setIsLoading(false);
       }
     } catch (error) {
@@ -333,23 +354,14 @@ function SmartRxDigitise() {
         patient_data={patient_data}
         tcm_id={tcm_id}
       />
-      <div className="cvt-info">
-        <img src={cvtInfoIcon} alt="cvt-info-icon" className="me-2" />
-        <span className="cvt-info-text">
-          <span className="title-common">Disclaimer:</span> Our AI model aims to
-          be accurate, but sometimes it might make mistakes. Please double-check
-          all details to ensure they are correct and complete.
-        </span>
-        <i className="icon-Cross ms-1 fs-18" style={{ color: "#FEF4E6" }}></i>
-      </div>
       <div
         ref={splitRef}
         className={`${
           isMobile ? "p-0" : ""
-        } w-100 bg-body wrapper2 prescription-wrapper`}
+        } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise`}
         style={{ position: "relative" }}
       >
-        <Row gutter={{ xl: 40, lg: 0 }} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false}>
           <Col
             md={17}
             lg={17}
@@ -357,47 +369,31 @@ function SmartRxDigitise() {
             style={{
               flex: `0 0 ${leftWidthPercent}%`,
               maxWidth: `${leftWidthPercent}%`,
+              padding: 0,
             }}
           >
-            <div className="appointment-wrap PatientDetailswrap m-0">
-              <Card className="">
-                <>
-                  <Card.Header className="bg-white py-3">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="title-digitise-card">
+            <div className="snap-smart-left-panel">
+              <div className="snap-smart-left-content">
+                {loading ? (
+                  <div className="d-flex flex-column justify-content-center align-items-center h-100 min-h-200">
+                    <Spin />
+                  </div>
+                ) : (
+                  smartRxFile?.length > 0 &&
+                  smartRxFile?.map(({ smart_prescription_file }) => (
+                    <div key={smart_prescription_file}>
+                      {smart_prescription_file && (
                         <img
-                          src={writtenRxIcon}
-                          alt="rx-icon1"
-                          className="me-2"
+                          src={smart_prescription_file}
+                          alt="Smart Rx"
+                          className="written-rx-image"
+                          width="100%"
                         />
-                        {`Handwritten Rx`}
-                      </div>
+                      )}
                     </div>
-                  </Card.Header>
-                  <Card.Body className="p-0 cardbody-data scrollable-body">
-                    {loading ? (
-                      <div className="d-flex flex-column justify-content-center">
-                        <div className="align-items-center text-center">
-                          <Spin />
-                        </div>
-                      </div>
-                    ) : (
-                      smartRxFile?.length > 0 &&
-                      smartRxFile?.map(({ smart_prescription_file }) => (
-                        <div style={{ padding: "5px" }}>
-                          {smart_prescription_file && (
-                            <img
-                              src={smart_prescription_file}
-                              alt="Smart Rx"
-                              width="100%"
-                            />
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </Card.Body>
-                </>
-              </Card>
+                  ))
+                )}
+              </div>
             </div>
           </Col>
           <Col
@@ -407,43 +403,26 @@ function SmartRxDigitise() {
             style={{
               flex: `0 0 ${100 - leftWidthPercent}%`,
               maxWidth: `${100 - leftWidthPercent}%`,
+              padding: 0,
             }}
           >
-            <div className="appointment-wrap PatientDetailswrap m-0">
-              {isLoading ? (
+            <div className="snap-smart-right-panel drx-h-full drx-digitize-container">
+              <div className="snap-smart-right-header">
+                <div className="snap-smart-header-title">
+                  <img src={documentIcon} alt="Rx Pad" className="me-2" />
+                  Digitized RX
+                </div>
+              </div>
+              <div className="snap-smart-right-body">
                 <DigitisedPrescription
                   data={data}
                   setData={setData}
                   loading={isLoading}
                   showAbsHeaderInsideLoader={true}
+                  showHeader={false}
+                  showInstructionMessage={false}
                 />
-              ) : (
-                <Card className="">
-                  <>
-                    <Card.Header className="bg-white py-3">
-                      <div className="d-flex align-items-center justify-content-between">
-                        <div className="title-digitise-card">
-                          <img
-                            src={digitiseRxIcon}
-                            alt="rx-icon2"
-                            className="me-2"
-                          />
-                          {`Digitised Rx`}
-                        </div>
-                      </div>
-                    </Card.Header>
-                    <Card.Body className="p-0 cardbody-data scrollable-body">
-                      <div style={{ padding: "5px" }}>
-                        <DigitisedPrescription
-                          data={data}
-                          setData={setData}
-                          loading={isLoading}
-                        />
-                      </div>
-                    </Card.Body>
-                  </>
-                </Card>
-              )}
+              </div>
             </div>
           </Col>
         </Row>
