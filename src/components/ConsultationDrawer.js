@@ -1267,11 +1267,16 @@ const ConsultationDrawer = ({
       labInvestigation: mappedLabInvestigation,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
       vaccinations: Array.isArray(cleanedData.vaccinations) ? cleanedData.vaccinations : [],
-      others: Array.isArray(cleanedData.others) ? cleanedData.others : [],
+      others: Array.isArray(cleanedData.others)
+        ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
+        : [],
       ...cleanedData
     };
     
     validatedData.labInvestigation = mappedLabInvestigation;
+    validatedData.others = Array.isArray(cleanedData.others)
+      ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
+      : [];
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
     
     return validatedData;
@@ -2010,8 +2015,13 @@ const ConsultationDrawer = ({
   ) => {
     try {
       let response;
+      // others: backend expects string[] only, e.g. ["Cross refer to her to her"] — no { value } wrapping
+      const othersAsStrings = Array.isArray(prescriptionData?.others)
+        ? prescriptionData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
+        : [];
       const updatedPrescriptionData = {
         ...prescriptionData,
+        others: othersAsStrings,
         medications: sanitizedMedications.map((item, index) => {
           const quantityValue =
             quantityActionMedicine?.medicines?.[index]?.quantity;

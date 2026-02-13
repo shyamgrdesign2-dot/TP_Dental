@@ -226,22 +226,43 @@ const DigitisedPrescription = ({
   const sectionRefs = useRef({});
   const [visibleSection, setVisibleSection] = useState(null);
 
+  // Support both old and new structure (vitals/vitalsAndBodyComposition, examination/examinations, medicine/medications, tests/labInvestigation)
+  const sectionData = useMemo(() => {
+    const vitals = data?.vitalsAndBodyComposition || data?.vitals;
+    const examinations = data?.examinations || data?.examination;
+    const medications = data?.medications || data?.medicine;
+    const labInvestigation = data?.labInvestigation || data?.tests;
+    return {
+      vitalsAndBodyComposition: vitals,
+      examinations,
+      medications,
+      labInvestigation,
+      symptoms: data?.symptoms,
+      medicalHistory: data?.medicalHistory,
+      diagnosis: data?.diagnosis,
+      vaccinations: data?.vaccinations,
+      advice: data?.advice,
+      followUp: data?.followUp,
+      dynamicFields: data?.dynamicFields,
+      others: data?.others,
+      labResults: data?.labResults,
+    };
+  }, [data]);
+
   const renderedSections = useMemo(() => {
     const order = [];
-    if (
-      data?.vitalsAndBodyComposition &&
-      typeof data.vitalsAndBodyComposition === "object" &&
-      Object.values(data.vitalsAndBodyComposition || {}).some((v) => v != null && String(v).trim?.()?.length)
-    ) {
+    const vitalsObj = sectionData.vitalsAndBodyComposition;
+    if (vitalsObj && typeof vitalsObj === "object" && Object.values(vitalsObj || {}).some((v) => v != null && String(v).trim?.()?.length)) {
       order.push("vitalsAndBodyComposition");
     }
     ARRAY_SECTIONS.forEach((s) => {
-      if (Array.isArray(data?.[s]) && data[s].length > 0) {
+      const arr = s === "examinations" ? sectionData.examinations : s === "medications" ? sectionData.medications : s === "labInvestigation" ? sectionData.labInvestigation : sectionData[s];
+      if (Array.isArray(arr) && arr.length > 0) {
         order.push(s);
       }
     });
     return order;
-  }, [data]);
+  }, [sectionData]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -278,7 +299,7 @@ const DigitisedPrescription = ({
     if (!visibleSection) return;
     if (!ARRAY_SECTIONS.includes(visibleSection)) return;
     if (!ioAutoFocusEnabled) return;
-    const arr = data?.[visibleSection];
+    const arr = visibleSection === "examinations" ? sectionData.examinations : visibleSection === "medications" ? sectionData.medications : visibleSection === "labInvestigation" ? sectionData.labInvestigation : data?.[visibleSection];
     if (!Array.isArray(arr) || arr.length === 0) return;
     const lastIndex = arr.length - 1;
     const lastItem = arr[lastIndex];
@@ -533,7 +554,7 @@ const DigitisedPrescription = ({
   const getFuzzySearchMedicine = useCallback(
     async (medsSnapshot) => {
       try {
-        const meds = medsSnapshot || data?.medications || [];
+        const meds = medsSnapshot || sectionData.medications || [];
         if (!meds.length) return;
 
         const correctedResults = await Promise.all(
@@ -595,13 +616,13 @@ const DigitisedPrescription = ({
         }));
       } finally {}
     },
-    [data?.medications, setData]
+    [sectionData.medications, setData]
   );
 
   const getFuzzySearchLabs = useCallback(
     async (labsSnapshot) => {
       try {
-        const labs = labsSnapshot || data?.labInvestigation || [];
+        const labs = labsSnapshot || sectionData.labInvestigation || [];
         if (!labs.length) return;
         const correctedResults = await Promise.all(
           labs.map(async (it) => {
@@ -643,14 +664,14 @@ const DigitisedPrescription = ({
         }));
       } finally {}
     },
-    [data?.labInvestigation, setData]
+    [sectionData.labInvestigation, setData]
   );
 
   // Fuzzy-correct medication names ONCE when medications first become available
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunMedsRef.current) return;
-    const meds = data?.medications || [];
+    const meds = sectionData.medications || [];
     if (!meds.length) return;
     
     // Use groundingMedicineName if present, otherwise use name for signature
@@ -675,17 +696,17 @@ const DigitisedPrescription = ({
 
     lastFuzzyNamesRef.current = namesSignature;
     getFuzzySearchMedicine(meds);
-  }, [data?.medications]);
+  }, [sectionData.medications]);
 
   // Fuzzy-correct lab investigations ONCE when labInvestigation first become available
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunTestsRef.current) return;
-    const labs = data?.labInvestigation || [];
+    const labs = sectionData.labInvestigation || [];
     if (!labs.length) return;
     hasFuzzyRunTestsRef.current = true;
     getFuzzySearchLabs(labs);
-  }, [data?.labInvestigation]);
+  }, [sectionData.labInvestigation]);
 
   const onSearchParent = (query) => {
     setSearchParentQuery((query || "").trimStart());
@@ -1332,13 +1353,18 @@ const DigitisedPrescription = ({
   };
 
   const hasValidContent = (type) => {
-    if (!data[type]) return false;
+    const source = type === "vitalsAndBodyComposition" ? sectionData.vitalsAndBodyComposition
+      : type === "examinations" ? sectionData.examinations
+      : type === "medications" ? sectionData.medications
+      : type === "labInvestigation" ? sectionData.labInvestigation
+      : data?.[type];
+    if (!source) return false;
     if (type === "vitalsAndBodyComposition") {
-      return typeof data[type] === "object" && Object.values(data[type] || {}).some((v) => v != null && String(v).trim?.()?.length > 0);
+      return typeof source === "object" && Object.values(source || {}).some((v) => v != null && String(v).trim?.()?.length > 0);
     }
-    if (type === "followUp") return typeof data[type] === "string" && data[type].trim().length > 0;
-    if (!Array.isArray(data[type])) return false;
-    return data[type].some((item) => {
+    if (type === "followUp") return typeof source === "string" && source.trim().length > 0;
+    if (!Array.isArray(source)) return false;
+    return source.some((item) => {
       if (typeof item === "string") return item.trim().length > 0;
       const relevant = {
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
@@ -1492,7 +1518,7 @@ const DigitisedPrescription = ({
           <>
           {hasValidContent("vitalsAndBodyComposition") && (
             <VitalsRichTextEditor
-              vitalsAndBodyComposition={data.vitalsAndBodyComposition || {}}
+              vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
               onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
               isProcessing={loading}
             />
@@ -1514,9 +1540,9 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.examinations && hasValidContent("examinations") && (
+          {(sectionData.examinations?.length > 0) && hasValidContent("examinations") && (
             <ExaminationRichTextEditor
-              examinations={data.examinations}
+              examinations={sectionData.examinations}
               onUpdate={(arr) => setData((prev) => ({ ...prev, examinations: arr || [] }))}
               isProcessing={loading}
             />
@@ -1530,22 +1556,18 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.medications &&
-            hasValidContent("medications") &&
-            Array.isArray(data?.medications) &&
-            data?.medications.length > 0 && (
+          {sectionData.medications?.length > 0 &&
+            hasValidContent("medications") && (
               <MedicationsTable
-                medications={data?.medications}
+                medications={sectionData.medications}
                 onUpdate={handleMedicationsUpdate}
                 isProcessing={false}
               />
             )}
 
-          {data?.labInvestigation &&
-            Array.isArray(data?.labInvestigation) &&
-            data?.labInvestigation.length > 0 && (
+          {sectionData.labInvestigation?.length > 0 && (
               <LabInvestigationTable
-                labInvestigation={data?.labInvestigation}
+                labInvestigation={sectionData.labInvestigation}
                 onUpdate={handleInvestigationUpdate}
                 isProcessing={false}
               />
