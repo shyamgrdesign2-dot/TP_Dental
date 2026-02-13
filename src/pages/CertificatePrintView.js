@@ -203,37 +203,37 @@ function CertificatePrintView() {
                     {/* Actions Section - Mobile */}
                     <div className="certificate-actions-section">
                         <div className="certificate-actions-title">Actions</div>
-                        <button
-                            type="button"
-                            className="certificate-action-button"
+                        <Button
+                            type="text"
+                            className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100 certificate-cta-btn"
+                            icon={<i className="icon-Print"></i>}
                             onClick={() => {
                                 (browserName == "Chrome WebView" || browserName == "WebKit") ? printInAppContent() : printContent()
                             }}
                         >
-                            <i className="icon-Print certificate-action-icon"></i>
-                            <span className="certificate-action-text">Print</span>
-                            <i className="icon-right certificate-action-arrow"></i>
-                        </button>
-                        <button
-                            type="button"
-                            className="certificate-action-button"
+                            <span className="fw-semibold">Print Certificate</span>
+                            <i className="icon-right iconrotate180 ms-auto"></i>
+                        </Button>
+                        <Button
+                            type="text"
+                            className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100 certificate-cta-btn"
+                            icon={<i className="icon-download"></i>}
                             onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                         >
-                            <i className="icon-download certificate-action-icon"></i>
-                            <span className="certificate-action-text">Download</span>
-                            <i className="icon-right certificate-action-arrow"></i>
-                        </button>
+                            <span className="fw-semibold">Download Certificate</span>
+                            <i className="icon-right iconrotate180 ms-auto"></i>
+                        </Button>
                         {viewable === undefined && (
-                            <button
-                                type="button"
-                                className="certificate-action-button"
+                            <Button
+                                type="text"
+                                className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100 certificate-cta-btn"
+                                icon={<i className="icon-Edit"></i>}
                                 onClick={onEditCertificateClick}
-                                disabled={loading}
+                                loading={loading}
                             >
-                                <i className="icon-Edit certificate-action-icon"></i>
-                                <span className="certificate-action-text">Edit Certificate</span>
-                                <i className="icon-right certificate-action-arrow"></i>
-                            </button>
+                                <span className="fw-semibold">Edit Certificate</span>
+                                <i className="icon-right iconrotate180 ms-auto"></i>
+                            </Button>
                         )}
                         
                         {viewable === undefined && (
@@ -307,7 +307,7 @@ function CertificatePrintView() {
                                         className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                         icon={<i className="icon-Print"></i>}
                                     >
-                                        <span className="fw-semibold">Print</span>
+                                        <span className="fw-semibold">Print Certificate</span>
                                         <i className="icon-right iconrotate180 ms-auto"></i>
                                     </Button>
                                     <Button
@@ -316,7 +316,7 @@ function CertificatePrintView() {
                                         icon={<i className="icon-download"></i>}
                                         onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                                     >
-                                        <span className="fw-semibold">Download</span>
+                                        <span className="fw-semibold">Download Certificate</span>
                                         <i className="icon-right iconrotate180 ms-auto"></i>
                                     </Button>
                                     {viewable === undefined && (
