@@ -258,9 +258,13 @@ function PatientDetails() {
   };
 
   const handleStartWalkInConsultation = () => {
-    // Navigate to walk-in consultation page
-    navigate('/walk_in_consultation', {
-      state: { patient_data: patient_data },
+    // From patient details: go directly to voice-rx-consult (not patients listing)
+    navigate('/voice-rx-consult', {
+      state: {
+        patient_data: patient_data,
+        isFromTabView: true,
+        from: 'patient_details_walk_in',
+      },
     });
   };
 
