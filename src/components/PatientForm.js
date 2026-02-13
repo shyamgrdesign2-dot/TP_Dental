@@ -258,17 +258,26 @@ function PatientForm({ mode = ADD, patient_data }) {
 
                     // Show modal if any of SmartRx, SnapRx, or VoiceRx is enabled (and not mobile)
                     const hasRxOptions = isSmartSyncAccessableFromGB || isSnapRxAccessable || isFreeVoiceRxUser || tp_monetization_enable;
-                    const fromWalkInMobile = location.state?.from === 'walk_in_consultation' && isMobileOnly;
+                    const fromWalkIn = location.state?.from === 'walk_in_consultation';
+                    const fromWalkInMobile = fromWalkIn && isMobileOnly;
                     if (isMobile || !hasRxOptions) {
-                        mode === EDIT ?
+                        if (mode === EDIT) {
                             navigate("/patient_details", {
                                 replace: true,
                                 state: { patient_data: mergedPatientForDetails }
-                            }) :
+                            });
+                        } else if (fromWalkIn && isMobileOnly) {
+                            // Mobile + from Start Walk-in: redirect to Voice Rx consult (same as web flow)
+                            navigate("/voice-rx-consult", {
+                                replace: true,
+                                state: { patient_data: action.payload, isFromTabView: true }
+                            });
+                        } else {
                             navigate("/prescription", {
                                 replace: true,
                                 state: { patient_data: action.payload, ...(fromWalkInMobile ? { fromWalkInMobile: true } : {}) }
                             });
+                        }
                     } else {
                         if (mode !== EDIT) {
                             setIsModalOpen(true);
