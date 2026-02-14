@@ -482,6 +482,14 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       return false;
     }
     const mappedLabResults = Array.isArray(data.labResults) ? data.labResults : [];
+    // Normalize labInvestigation: map instruction → notes so voice/API note shows on Rx Pad (match ConsultationDrawer)
+    const mappedLabInvestigation = Array.isArray(data.labInvestigation)
+      ? data.labInvestigation.map((item) => {
+          const obj = typeof item === 'object' && item !== null ? { ...item } : { name: item, lineItem: item };
+          const noteText = obj.notes ?? obj.instruction ?? '';
+          return { ...obj, notes: noteText, instruction: noteText };
+        })
+      : [];
     const cleanedData = {
       symptoms: Array.isArray(data.symptoms) ? data.symptoms : [],
       medications: Array.isArray(data.medications) ? data.medications : [],
@@ -490,7 +498,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       diagnosis: Array.isArray(data.diagnosis) ? data.diagnosis : [],
       examinations: Array.isArray(data.examinations) ? data.examinations : [],
       followUp: typeof data.followUp === 'string' ? data.followUp : "",
-      labInvestigation: Array.isArray(data.labInvestigation) ? data.labInvestigation : [],
+      labInvestigation: mappedLabInvestigation,
       labResults: mappedLabResults,
       medicalHistory: Array.isArray(data.medicalHistory) ? data.medicalHistory : [],
       vaccinations: Array.isArray(data.vaccinations) ? data.vaccinations : [],

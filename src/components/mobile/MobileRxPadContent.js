@@ -336,12 +336,14 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     const i = labInvestigationEdit.index;
     if (i < 0 || i >= arr.length) return;
     const existing = arr[i] && typeof arr[i] === 'object' ? arr[i] : { name: arr[i], lineItem: arr[i] };
+    const notesText = (value.notes || '').trim();
+    const lineItemWithNotes = notesText ? `${value.name} (${notesText})` : value.name;
     arr[i] = {
       ...existing,
       name: value.name,
-      lineItem: value.name,
-      notes: value.notes || '',
-      instruction: value.notes || '',
+      lineItem: lineItemWithNotes,
+      notes: notesText,
+      instruction: notesText,
       ...(value.hm_type !== undefined && { hm_type: value.hm_type }),
       ...(value.um_id !== undefined && { um_id: value.um_id }),
     };
@@ -600,13 +602,13 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
       <div className="lab-investigation-list">
         {list.map((item, index) => {
           const name = typeof item === 'string' ? item : item?.name || item?.lineItem;
-          const notes = item?.notes;
+          const notes = (typeof item === 'object' && item !== null) ? (item.notes ?? item.instruction ?? '') : '';
 
           return (
             <div key={item?.id || index} className="lab-investigation-card">
               <div className="lab-content">
                 <div className="lab-name">{name}</div>
-                {notes && <div className="lab-notes">Note: {notes}</div>}
+                {notes ? <div className="lab-notes">Note: {notes}</div> : null}
               </div>
               <span className="lab-actions-divider" aria-hidden />
               <div className="lab-actions">
