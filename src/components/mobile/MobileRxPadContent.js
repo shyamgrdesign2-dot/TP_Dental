@@ -9,6 +9,7 @@ import { removeBeforeWhiteSpace } from '../../utils/utils';
 import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from '../../utils/medicalHistoryConverters';
 import CashManagerContext from '../../context/CashManagerContext';
 import { getGynecDetails } from '../../api/services/ApiGynec';
+import ApiMedication from '../../api/services/ApiMedication';
 import { useAccess } from '../../pages/vaccination/useAccess';
 import { getDecodedToken } from '../../utils/localStorage';
 import { PATIENT_DETAILS_SIDEBAR_KEYS } from '../../utils/constants';
@@ -348,7 +349,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     setLabInvestigationEdit({ visible: false, index: -1 });
   };
 
-  const handleMedicationSave = (value) => {
+  const handleMedicationSave = async (value) => {
     if (!onUpdate) return;
     const arr = [...(prescriptionData?.medications || [])];
     const i = medicationEdit.index;
@@ -357,9 +358,37 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     } else {
       arr.push(value);
     }
-    onUpdate({ ...prescriptionData, medications: arr });
     setMedicationEdit({ visible: false, index: -1, prefillName: null, prefillMetadata: null });
     setMedicationSearch('');
+
+    // Calculate quantity via API (match web: getQuantity at save; mobile runs it after add/edit so quantity shows in Rx Pad)
+    try {
+      const sanitized = (arr || []).map((item) => {
+        const quantityValue = item?.quantity;
+        let quantity = 0;
+        if (typeof quantityValue === 'number' && Number.isFinite(quantityValue)) quantity = quantityValue;
+        else if (quantityValue != null) {
+          const parsed = Number(quantityValue);
+          quantity = Number.isFinite(parsed) ? parsed : 0;
+        }
+        return { ...item, quantity };
+      });
+      const res = await ApiMedication.getQuantity({ medicines: sanitized });
+      const medicines = res?.medicines || res?.data?.medicines;
+      const merged = sanitized.map((item, index) => {
+        const quantityValue = medicines?.[index]?.quantity;
+        let quantity = 0;
+        if (typeof quantityValue === 'number' && Number.isFinite(quantityValue)) quantity = quantityValue;
+        else if (quantityValue != null) {
+          const parsed = Number(quantityValue);
+          quantity = Number.isFinite(parsed) ? parsed : 0;
+        }
+        return { ...item, quantity };
+      });
+      onUpdate({ ...prescriptionData, medications: merged });
+    } catch {
+      onUpdate({ ...prescriptionData, medications: arr });
+    }
   };
 
   const handleMedicationAddFromSearch = useCallback((value, option) => {
@@ -517,7 +546,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
           const duration = med?.duration;
           const quantity = med?.quantity;
           const notes = med?.notes || med?.instructions;
-          const details = [dosage, frequency, schedule, duration, quantity != null && quantity !== '' ? `Qty: ${quantity}` : null].filter(Boolean).join(' | ');
+          const details = [dosage, frequency, schedule, duration, quantity != null && quantity !== '' && Number(quantity) > 0 ? `Qty: ${quantity}` : null].filter(Boolean).join(' | ');
           return (
             <div key={med?.id || index} className="medication-card">
               <div className="med-content">

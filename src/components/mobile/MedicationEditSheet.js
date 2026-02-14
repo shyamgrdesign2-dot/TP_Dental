@@ -4,8 +4,9 @@ import { AutoComplete, Input, Button, Drawer, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
-import { removeBeforeWhiteSpace, onlyNumberFormat, frequencyFormat, frequencyCombination } from '../../utils/utils';
+import { removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, frequencyFormat, frequencyCombination } from '../../utils/utils';
 import { EXTRA_OPTIONS } from '../../utils/constants';
+import ApiMedication from '../../api/services/ApiMedication';
 import AddCustomMedicineSheet from './AddCustomMedicineSheet';
 import './MedicationEditSheet.scss';
 
@@ -14,6 +15,19 @@ const DURATION_UNITS = [
   { value: 'Week(s)', label: 'Weeks' },
   { value: 'Month(s)', label: 'Months' },
   { value: 'Year(s)', label: 'Years' },
+];
+
+// Default unit options for Unit Per Dose (match web MedicationsTable)
+const DEFAULT_UNIT_OPTIONS = [
+  { tmu_id: 1, tmu_title: 'Tablet' },
+  { tmu_id: 2, tmu_title: 'Tablets' },
+  { tmu_id: 3, tmu_title: 'units' },
+  { tmu_id: 4, tmu_title: 'unit' },
+  { tmu_id: 5, tmu_title: 'ml' },
+  { tmu_id: 6, tmu_title: 'mg' },
+  { tmu_id: 7, tmu_title: 'g' },
+  { tmu_id: 8, tmu_title: 'capsule' },
+  { tmu_id: 9, tmu_title: 'capsules' },
 ];
 
 /**
@@ -41,10 +55,48 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
   const [durationOptions, setDurationOptions] = useState(
     EXTRA_OPTIONS.map((o) => ({ value: o.value, label: o.label }))
   );
+  const [unitPerDoseOptions, setUnitPerDoseOptions] = useState([]);
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [addCustomInitialName, setAddCustomInitialName] = useState('');
+  const quantityCalcRef = useRef(null);
 
   const isAdd = !item;
+
+  // Calculate quantity in sheet when name + duration (and optionally frequency) are present
+  useEffect(() => {
+    if (!visible) return;
+    const medicineName = (name || '').trim();
+    const durationStr = (duration || '').trim();
+    if (!medicineName || !durationStr) return;
+
+    if (quantityCalcRef.current) clearTimeout(quantityCalcRef.current);
+    quantityCalcRef.current = setTimeout(async () => {
+      try {
+        const payload = {
+          name: medicineName,
+          dosage: (dosage || '').trim(),
+          frequency: (frequency || '').trim(),
+          schedule: schedule || '',
+          duration: durationStr,
+          quantity: 0,
+          notes: (notes || '').trim(),
+          ...(selectedMedication && { metadata: selectedMedication }),
+        };
+        const res = await ApiMedication.getQuantity({ medicines: [payload] });
+        const medicines = res?.medicines || res?.data?.medicines;
+        const calculated = medicines?.[0]?.quantity;
+        if (calculated != null && Number.isFinite(Number(calculated))) {
+          setQuantity(String(Number(calculated)));
+        }
+      } catch {
+        // keep current quantity
+      }
+      quantityCalcRef.current = null;
+    }, 600);
+    return () => {
+      if (quantityCalcRef.current) clearTimeout(quantityCalcRef.current);
+    };
+  }, [visible, name, dosage, frequency, schedule, duration, selectedMedication]);
 
   // Sync form from item (Edit) or prefill (Add) or reset (Add empty)
   useEffect(() => {
@@ -53,7 +105,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
       setName(item?.name || item?.lineItem || '');
       setDosage(item?.dosage || '');
       setFrequency(item?.frequency || '');
-      setSchedule(item?.schedule || undefined);
+      setSchedule(item?.schedule && item.schedule !== 'None' ? item.schedule : undefined);
       setDuration((item?.duration || '').toString());
       setQuantity((item?.quantity != null && item?.quantity !== '') ? String(item.quantity) : '');
       setNotes(item?.notes || '');
@@ -188,7 +240,22 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
     }
   }, []);
 
-  const handleSave = () => {
+  const medicineUnits = selectedMedication?.medicineUnit || DEFAULT_UNIT_OPTIONS;
+  const onSearchUnitPerDose = useCallback((query) => {
+    const updateQuery = (onlyDecimalFormat(query || '') || '').trim();
+    setDosage(query ?? '');
+    if (updateQuery && Array.isArray(medicineUnits) && medicineUnits.length > 0) {
+      const opts = medicineUnits.map((e) => ({
+        value: `${updateQuery} ${e.tmu_title}`,
+        label: `${updateQuery} ${e.tmu_title}`,
+      }));
+      setUnitPerDoseOptions(opts);
+    } else {
+      setUnitPerDoseOptions([]);
+    }
+  }, [medicineUnits]);
+
+  const handleSave = async () => {
     const medicineName = (name || '').trim();
     if (!medicineName) {
       setNameError('Medicine name is required');
@@ -197,17 +264,17 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
     setNameError('');
 
     const durationStr = (duration || '').trim();
-    const lineItem = `${medicineName} (${[dosage, quantity, frequency, schedule, durationStr, notes].filter(Boolean).join(', ')})`;
+    let quantityNum = quantity !== '' ? (isNaN(Number(quantity)) ? 0 : Number(quantity)) : 0;
 
     const payload = {
       id: item?.id || Date.now().toString(),
       name: medicineName,
-      lineItem,
+      lineItem: '',
       dosage: (dosage || '').trim(),
       frequency: (frequency || '').trim(),
       schedule: schedule || '',
       duration: durationStr,
-      quantity: quantity !== '' ? (isNaN(Number(quantity)) ? 0 : Number(quantity)) : 0,
+      quantity: quantityNum,
       notes: (notes || '').trim(),
       ...(selectedMedication && { metadata: selectedMedication }),
       ...(selectedMedication && (selectedMedication.tmm_generic || selectedMedication.generic_name) && {
@@ -215,6 +282,19 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
       }),
     };
 
+    // Ensure quantity is calculated from API before save (in case auto-calc did not run or user changed fields)
+    try {
+      const res = await ApiMedication.getQuantity({ medicines: [{ ...payload, quantity: payload.quantity || 0 }] });
+      const medicines = res?.medicines || res?.data?.medicines;
+      const calculated = medicines?.[0]?.quantity;
+      if (calculated != null && Number.isFinite(Number(calculated))) {
+        payload.quantity = Number(calculated);
+      }
+    } catch {
+      // keep quantityNum
+    }
+
+    payload.lineItem = `${medicineName} (${[payload.dosage, payload.quantity, payload.frequency, payload.schedule, payload.duration, payload.notes].filter(Boolean).join(', ')})`;
     onSave?.(payload);
     onClose?.();
   };
@@ -284,13 +364,32 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
 
           <div className="medication-edit-sheet-field">
             <label className="medication-edit-sheet-label">Unit per dose</label>
-            <Input
+            <AutoComplete
               value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              placeholder="e.g. 1 Tablet"
-              className="medication-edit-sheet-input"
-              maxLength={200}
-            />
+              onSearch={(v) => onSearchUnitPerDose(v)}
+              onSelect={(v) => {
+                setDosage(v);
+                setUnitPerDoseOptions([]);
+              }}
+              onFocus={() => {
+                if (dosage) onSearchUnitPerDose(dosage);
+              }}
+              options={unitPerDoseOptions}
+              defaultActiveFirstOption
+              getPopupContainer={() => document.body}
+              allowClear
+              onClear={() => {
+                setDosage('');
+                setUnitPerDoseOptions([]);
+              }}
+              className="medication-edit-sheet-autocomplete"
+            >
+              <Input
+                placeholder="e.g., 1 Tablet"
+                className="medication-edit-sheet-input"
+                maxLength={200}
+              />
+            </AutoComplete>
           </div>
 
           <div className="medication-edit-sheet-field">
@@ -309,7 +408,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
               className="medication-edit-sheet-autocomplete"
             >
               <Input
-                placeholder="e.g. 1-0-1"
+                placeholder="e.g 1-0-1"
                 className="medication-edit-sheet-input"
                 maxLength={200}
               />
@@ -319,10 +418,10 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
           <div className="medication-edit-sheet-field">
             <label className="medication-edit-sheet-label">When</label>
             <Select
-              value={schedule || undefined}
+              value={schedule && schedule !== 'None' ? schedule : undefined}
               onChange={setSchedule}
               onClear={() => setSchedule(undefined)}
-              placeholder="e.g. Before Food"
+              placeholder="e.g Before Food"
               allowClear
               options={scheduleOptions}
               className="medication-edit-sheet-select"
@@ -345,7 +444,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
               className="medication-edit-sheet-autocomplete"
             >
               <Input
-                placeholder="e.g. 5 Days"
+                placeholder="e.g 1 Day"
                 className="medication-edit-sheet-input"
                 maxLength={100}
               />
@@ -357,7 +456,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
             <Input
               value={quantity}
               onChange={(e) => setQuantity(onlyNumberFormat(e.target.value))}
-              placeholder="e.g. 10"
+              placeholder="e.g., 10"
               className="medication-edit-sheet-input"
               maxLength={20}
             />
@@ -368,7 +467,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
             <Input.TextArea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional instructions"
+              placeholder="Enter notes"
               className="medication-edit-sheet-textarea"
               rows={2}
               maxLength={1000}
