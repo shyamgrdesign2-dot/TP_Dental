@@ -19,6 +19,7 @@ import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useAccess } from "../pages/vaccination/useAccess";
+import { isMobile, isTablet } from "react-device-detect";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
@@ -35,6 +36,40 @@ function resolveVitalsIds(listVitalsTodayIds, patientUniqueId, firstRow) {
     dev_unique_id: fromRow.dev_unique_id ?? fromRedux?.dev_unique_id ?? 0
   };
 }
+
+// Strip unit suffix from vital value (mobile only) so input shows number only
+const stripUnitFromVitalValue = (val, field) => {
+    if (val == null || val === '') return val;
+    const s = String(val).trim();
+    if (s === '') return val;
+    const unitPatterns = {
+        weight: /\s*(kgs?|kg)\s*$/i,
+        height: /\s*(cms?|cm)\s*$/i,
+        ofc: /\s*(cms?|cm)\s*$/i,
+        waist_circumference: /\s*(cms?|cm)\s*$/i,
+        temp: /\s*(\u00B0?\s*F|Frh)\s*$/i,
+        systolic: /\s*(mmHg|mmH)\s*$/i,
+        diastolic: /\s*(mmHg|mmH)\s*$/i,
+        spo2: /\s*%\s*$/i,
+        general_rbs: /\s*mg\/dl\s*$/i,
+        pres: /\s*\/min\s*$/i,
+        resp_rate: /\s*\/min\s*$/i,
+    };
+    const re = unitPatterns[field];
+    if (!re) return val;
+    const cleaned = s.replace(re, '').trim();
+    return cleaned !== '' ? cleaned : val;
+};
+
+const stripUnitsFromVitalItem = (item) => {
+    if (!item || typeof item !== 'object') return item;
+    const fields = ['weight', 'height', 'ofc', 'waist_circumference', 'temp', 'systolic', 'diastolic', 'spo2', 'general_rbs', 'pres', 'resp_rate'];
+    const out = { ...item };
+    fields.forEach((f) => {
+        if (out[f] != null && out[f] !== '') out[f] = stripUnitFromVitalValue(out[f], f);
+    });
+    return out;
+};
 
 const VitalsBox = forwardRef((props, ref) => {
 
@@ -184,18 +219,24 @@ const VitalsBox = forwardRef((props, ref) => {
         if (isVoiceAmbientSnapSmartFlow || noContextSetVitals) {
             const hasData = initialVitals && Object.keys(initialVitals).filter(k => k !== 'date').some(k => (initialVitals[k] && String(initialVitals[k]).trim()));
             if (hasData && rowFromInitialVitals) {
-                setChildVitalsData([rowFromInitialVitals]);
+                const row = isMobile && !isTablet ? stripUnitsFromVitalItem(rowFromInitialVitals) : rowFromInitialVitals;
+                setChildVitalsData([row]);
             } else {
                 setChildVitalsData([emptyVitalsRow]);
             }
             return;
         }
         if (selectedVitalsList.length === 0 && hasInitialData && rowFromInitialVitals) {
-            setChildVitalsData([rowFromInitialVitals]);
+            const row = isMobile && !isTablet ? stripUnitsFromVitalItem(rowFromInitialVitals) : rowFromInitialVitals;
+            setChildVitalsData([row]);
             return;
         }
         // Consult: sync from context when it has data; otherwise keep existing childVitalsData (don't overwrite with [])
-        setChildVitalsData((prev) => (Array.isArray(vitalsData) && vitalsData.length > 0 ? [...vitalsData] : prev));
+        // On mobile, strip units from values so only numbers appear in input fields
+        const nextData = Array.isArray(vitalsData) && vitalsData.length > 0
+            ? (isMobile && !isTablet ? vitalsData.map(stripUnitsFromVitalItem) : [...vitalsData])
+            : null;
+        setChildVitalsData((prev) => (nextData !== null ? nextData : prev));
     }, [isVoiceAmbientSnapSmartFlow, vitalsData, rowFromInitialVitals, initialVitals, emptyVitalsRow, selectedVitalsList.length, setVitalsData]);
 
     useEffect(() => {
