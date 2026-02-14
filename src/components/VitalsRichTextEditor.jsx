@@ -142,7 +142,7 @@ const VitalsRichTextEditor = ({
     const vitalsHiddenIds = ['tcv_id', 'tcbc_id', 'dev_unique_id', 'pam_id'];
     const date = currentVitals.date || moment().format('YYYY-MM-DD');
     const formattedDate = moment(date, ['YYYY-MM-DD', 'DD MMM YYYY', 'DD MMM, YY']).format('DD MMM YYYY');
-    
+    const toCanonical = (k) => k.toLowerCase().replace(/\s+/g, '');
     const vitalFieldMap = {
       'temp': { label: 'Temperature', unit: 'Frh' },
       'temperature': { label: 'Temperature', unit: 'Frh' },
@@ -171,54 +171,55 @@ const VitalsRichTextEditor = ({
       'bsa': { label: 'BSA', unit: 'm²' },
       'BSA': { label: 'BSA', unit: 'm²' },
     };
-    
     const fieldOrder = [
       'temperature', 'pulse', 'respRate', 'Systolic', 'Diastolic', 'spo2',
       'General RBS', 'FIB4', 'Waist Circumference', 'ofc',
       'height', 'weight', 'BMI', 'BMR', 'BSA'
     ];
-    
     const vitalPairs = [];
-    const processedKeys = new Set();
-    
+    const processedCanonical = new Set();
     fieldOrder.forEach(fieldKey => {
       const value = currentVitals[fieldKey];
       if (value !== undefined && value !== null) {
         const strValue = String(value).trim();
-        if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null' && !processedKeys.has(fieldKey)) {
+        const canonical = toCanonical(fieldKey);
+        if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null' && !processedCanonical.has(canonical)) {
           const fieldInfo = vitalFieldMap[fieldKey];
           if (fieldInfo) {
             const cleanValue = extractNumericValue(strValue, fieldInfo.unit);
-            const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit) 
-              ? `${cleanValue} ${fieldInfo.unit}` 
+            const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit)
+              ? `${cleanValue} ${fieldInfo.unit}`
               : cleanValue;
             vitalPairs.push(`${fieldInfo.label}: ${displayValue}`);
-            processedKeys.add(fieldKey);
+            processedCanonical.add(canonical);
           }
         }
       }
     });
 
-    // Skip BP/blood_press in Rx pad; only Systolic and Diastolic are shown above
     const bpDisplayKeys = ['blood_press', 'bloodPressure', 'BP'];
-
-    Object.entries(currentVitals).forEach(([key, value]) => {
-      if (key === 'date' || processedKeys.has(key) || vitalsHiddenIds.includes(key) || bpDisplayKeys.includes(key)) return; // Don't show internal IDs or BP in Rx Pad
+    const allKeys = new Set([...Object.keys(currentVitals), ...Array.from(editorKeysRef.current)]);
+    allKeys.forEach((key) => {
+      if (key === 'date' || vitalsHiddenIds.includes(key) || bpDisplayKeys.includes(key)) return;
+      const canonical = toCanonical(key);
+      if (processedCanonical.has(canonical)) return;
+      const value = currentVitals[key];
       const strValue = String(value || '').trim();
       if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null') {
         const fieldInfo = vitalFieldMap[key];
         if (fieldInfo) {
           const cleanValue = extractNumericValue(strValue, fieldInfo.unit);
-          const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit) 
-            ? `${cleanValue} ${fieldInfo.unit}` 
+          const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit)
+            ? `${cleanValue} ${fieldInfo.unit}`
             : cleanValue;
           vitalPairs.push(`${fieldInfo.label}: ${displayValue}`);
         } else {
           const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/\b(bp|rr|spo2|rbs|ofc|fib4)\b/gi, match => match.toUpperCase()).replace(/\s+/g, ' ').trim();
           vitalPairs.push(`${formattedKey}: ${strValue}`);
         }
+        processedCanonical.add(canonical);
       }
-      });
+    });
 
     if (vitalPairs.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
