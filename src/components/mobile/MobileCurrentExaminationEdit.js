@@ -32,6 +32,8 @@ function MobileCurrentExaminationEdit({
   onClose,
   patient_data,
   editIndex = -1,
+  prefillObstetricData,
+  setPrefillObstetricData,
   onSave
 }) {
   const dispatch = useDispatch();
@@ -70,6 +72,9 @@ function MobileCurrentExaminationEdit({
       } else {
         resetForm();
       }
+    } else {
+      // When sheet closes, clear discard modal so it doesn't show on next open
+      setDiscardChangesModalVisible(false);
     }
   }, [visible, editIndex]);
 
@@ -78,37 +83,46 @@ function MobileCurrentExaminationEdit({
     calculateBMI();
   }, [mothersHeight, mothersWeight]);
 
-  // Prefill examination data from patient profile (only when adding new examination)
+  // Prefill examination data when adding new visit - same as web (from parent prefill or fetch)
   useEffect(() => {
+    if (!visible || editIndex >= 0) return;
+
+    const applyPrefill = (data) => {
+      if (!data) return;
+      if (data.height) setMothersHeight(String(data.height));
+      if (data.weight) setMothersWeight(String(data.weight));
+      if (data.bloodPressure) {
+        const parts = String(data.bloodPressure).split('/');
+        const sys = parts[0];
+        const dia = parts[1];
+        if (sys) setSystolic(sys.trim());
+        if (dia) setDiastolic(dia.trim());
+      }
+    };
+
+    // Prefer parent prefill (same as web) so Add visit gets height/weight/BP without delay
+    const fromParent = prefillObstetricData && (
+      prefillObstetricData.height ||
+      prefillObstetricData.weight ||
+      prefillObstetricData.bloodPressure
+    );
+    if (fromParent) {
+      applyPrefill(prefillObstetricData);
+      return;
+    }
+
+    // Fallback: fetch when parent hasn't passed prefill yet
     const fetchAndApplyPrefillData = async () => {
-      if (!visible || editIndex >= 0 || !patient_data?.patient_unique_id) return;
-      
+      if (!patient_data?.patient_unique_id) return;
       try {
         const prefillData = await fetchPrefillObstetricDetails(patient_data.patient_unique_id);
-        if (prefillData) {
-          // Only apply prefill data if the fields are currently empty
-          if (!mothersHeight && prefillData.height) {
-            setMothersHeight(String(prefillData.height));
-          }
-          
-          if (!mothersWeight && prefillData.weight) {
-            setMothersWeight(String(prefillData.weight));
-          }
-          
-          // Parse blood pressure (format: "120/80")
-          if ((!systolic || !diastolic) && prefillData.bloodPressure) {
-            const [sys, dia] = prefillData.bloodPressure.split('/');
-            if (!systolic && sys) setSystolic(sys.trim());
-            if (!diastolic && dia) setDiastolic(dia.trim());
-          }
-        }
+        applyPrefill(prefillData);
       } catch (error) {
         // Silently fail - prefill is optional
       }
     };
-    
     fetchAndApplyPrefillData();
-  }, [visible, editIndex, patient_data?.patient_unique_id]);
+  }, [visible, editIndex, patient_data?.patient_unique_id, prefillObstetricData]);
 
   const calculateBMI = () => {
     const height = parseFloat(mothersHeight) || 0;
@@ -228,14 +242,18 @@ function MobileCurrentExaminationEdit({
         newExaminationHistory = [...examinationHistory, examData];
       }
 
-      // Build payload with all required fields
+      // Build payload: match web order (newest first) for API consistency
+      const payloadHistory =
+        editIndex >= 0
+          ? newExaminationHistory.reverse()
+          : [...newExaminationHistory].reverse();
       const currentPregnancy = allObstetricDetails?.currentPregnancy || {};
       const payload = {
         ...allObstetricDetails,
         currentPregnancy: {
           ...currentPregnancy,
           patientId: patient_data.patient_unique_id,
-          examinationHistory: editIndex >= 0 ? newExaminationHistory.reverse() : newExaminationHistory,
+          examinationHistory: payloadHistory,
           ancHistory: currentPregnancy?.ancHistory || [],
           immunisationHistory: currentPregnancy?.immunisationHistory || [],
         },
@@ -278,10 +296,23 @@ function MobileCurrentExaminationEdit({
         message.success(editIndex >= 0 ? 'Examination updated' : 'Examination added');
         setPrefillExamData({}); // Reset prefill tracking
 
+        // Update parent prefill (same as web) so next "Add visit" shows latest height/weight/BP
+        if (setPrefillObstetricData && (mothersHeight || mothersWeight || systolic || diastolic)) {
+          setPrefillObstetricData(prev => ({
+            ...prev,
+            ...(mothersHeight && { height: mothersHeight }),
+            ...(mothersWeight && { weight: mothersWeight }),
+            ...(systolic && diastolic && { bloodPressure: `${systolic}/${diastolic}` }),
+          }));
+        }
+
+        // Reset dirty and modal state so "Unsaved Changes" popup doesn't show after save or on re-open
+        setIsDirty(false);
+        setDiscardChangesModalVisible(false);
         if (onSave) {
           onSave(payload.currentPregnancy);
         }
-        handleClose();
+        onClose?.();
       } else {
         errorMessage('Failed to save examination');
       }
@@ -326,10 +357,12 @@ function MobileCurrentExaminationEdit({
 
         message.success('Examination deleted');
 
+        setIsDirty(false);
+        setDiscardChangesModalVisible(false);
         if (onSave) {
           onSave(payload.currentPregnancy);
         }
-        handleClose();
+        onClose?.();
       } else {
         errorMessage('Failed to delete examination');
       }
@@ -345,7 +378,7 @@ function MobileCurrentExaminationEdit({
       setDiscardChangesModalVisible(true);
     } else {
       resetForm();
-      onClose();
+      onClose?.();
     }
   };
 
@@ -353,7 +386,7 @@ function MobileCurrentExaminationEdit({
     setDiscardChangesModalVisible(false);
     setIsDirty(false);
     resetForm();
-    onClose();
+    onClose?.();
   };
 
   // Number only input handler

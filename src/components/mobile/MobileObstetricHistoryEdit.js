@@ -136,6 +136,8 @@ function MobileObstetricHistoryEdit({
       try {
         const prefillData = await fetchPrefillObstetricDetails(patient_data.patient_unique_id);
         if (prefillData) {
+          // Store full prefill for examination sheet (height, weight, bloodPressure) - same as web
+          setPrefillObstetricData(prev => ({ ...prefillData, ...prev }));
           // Only apply prefill data if the fields are currently empty
           if (!lmp && prefillData.lmp) {
             setLmp(moment(prefillData.lmp).toISOString());
@@ -1085,6 +1087,8 @@ function MobileObstetricHistoryEdit({
         }}
         patient_data={patient_data}
         editIndex={examinationEditIndex}
+        prefillObstetricData={prefillObstetricData}
+        setPrefillObstetricData={setPrefillObstetricData}
         onSave={(updatedPregnancy) => {
           // Data is already saved to Redux and API by the child component
           setExaminationDrawerVisible(false);
