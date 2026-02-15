@@ -293,137 +293,135 @@
     }
   }
 
-  // Dropdown menu styling
-  .ant-dropdown {
-    // High z-index to be visible, but can still be covered by sticky headers if needed
-    z-index: 1050 !important;
+}
+.module-list-item-dropdown {
+  // High z-index to be visible, but can still be covered by sticky headers if needed
+  z-index: 1050 !important;
 
-    .ant-dropdown-menu {
-      border-radius: 8px;
-      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
-      padding: 8px 0;
-      font-family: "Poppins", sans-serif;
+  .ant-dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    padding: 8px 0;
+    font-family: "Poppins", sans-serif;
 
-      .ant-dropdown-menu-item {
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 500;
-        color: #454551;
-        transition: all 0.2s ease-in-out;
+    .ant-dropdown-menu-item {
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #454551;
+      transition: all 0.2s ease-in-out;
 
-        &:hover:not(.ant-dropdown-menu-item-disabled) {
-          background: #f5f5f5;
-          color: #4b4ad5;
+      &:hover:not(.ant-dropdown-menu-item-disabled) {
+        background: #f5f5f5;
+        color: #4b4ad5;
+      }
+
+      // Disabled state styling (like in the second image)
+      &.ant-dropdown-menu-item-disabled {
+        color: #d1d1d6 !important;
+        cursor: not-allowed;
+        opacity: 0.5;
+
+        &:hover {
+          background: transparent;
         }
 
-        // Disabled state styling (like in the second image)
+        .anticon {
+          color: #d1d1d6 !important;
+        }
+      }
+
+      // Danger item (delete)
+      &.ant-dropdown-menu-item-danger {
+        color: #ff4d4f;
+
+        &:hover:not(.ant-dropdown-menu-item-disabled) {
+          background: #fff1f0;
+          color: #ff4d4f;
+        }
+        
         &.ant-dropdown-menu-item-disabled {
           color: #d1d1d6 !important;
-          cursor: not-allowed;
-          opacity: 0.5;
-
+          
           &:hover {
             background: transparent;
           }
-
-          .anticon {
-            color: #d1d1d6 !important;
-          }
         }
+      }
 
-        // Danger item (delete)
-        &.ant-dropdown-menu-item-danger {
-          color: #ff4d4f;
-
-          &:hover:not(.ant-dropdown-menu-item-disabled) {
-            background: #fff1f0;
-            color: #ff4d4f;
-          }
-          
-          &.ant-dropdown-menu-item-disabled {
-            color: #d1d1d6 !important;
-            
-            &:hover {
-              background: transparent;
-            }
-          }
-        }
-
-        span {
-          display: flex;
-          align-items: center;
-          
-          .anticon {
-            font-size: 16px;
-            margin-right: 0 !important; // Override inline style
-          }
+      span {
+        display: flex;
+        align-items: center;
+        
+        .anticon {
+          font-size: 16px;
+          margin-right: 0 !important; // Override inline style
         }
       }
     }
   }
+}
 
-  // Tooltip styling for disabled menu items (ModuleListItem)
-  .ant-tooltip {
-    &.module-list-item-disabled-tooltip {
-      .ant-tooltip-inner {
-        background-color: #ffffff;
-        color: #171725;
-        padding: 18px 20px ; // will be overridden below if needed
-        border-radius: 18px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
-        font-family: "Poppins", sans-serif;
-        max-width: 420px;
-      }
+.ant-tooltip {
+  &.module-list-item-disabled-tooltip {
+    .ant-tooltip-inner {
+      background-color: #ffffff;
+      color: #171725;
+      padding: 18px 20px ; // will be overridden below if needed
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+      font-family: "Poppins", sans-serif;
+      max-width: 420px;
+    }
 
-      .module-disabled-tooltip__header {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 14px;
+    .module-disabled-tooltip__header {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 14px;
 
-        &-label {
-          color: #4a4a4a;
-        }
-
-        &-name {
-          color: #111827;
-        }
-      }
-
-      .module-disabled-tooltip__note {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        background: #fff6e8;
-        border-radius: 16px;
-        padding: 12px 14px;
-      }
-
-      .module-disabled-tooltip__note-icon {
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-      }
-
-      .module-disabled-tooltip__note-text {
-        font-size: 14px;
-        line-height: 1.6;
+      &-label {
         color: #4a4a4a;
       }
 
-      .module-disabled-tooltip__note-title {
-        font-weight: 600;
-        margin-right: 4px;
+      &-name {
+        color: #111827;
       }
+    }
 
-      .module-disabled-tooltip__note-strong {
-        font-weight: 600;
-      }
+    .module-disabled-tooltip__note {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #fff6e8;
+      border-radius: 16px;
+      padding: 12px 14px;
+    }
 
-      .ant-tooltip-arrow {
-        &::before {
-          background-color: #ffffff;
-          box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
-        }
+    .module-disabled-tooltip__note-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .module-disabled-tooltip__note-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #4a4a4a;
+    }
+
+    .module-disabled-tooltip__note-title {
+      font-weight: 600;
+      margin-right: 4px;
+    }
+
+    .module-disabled-tooltip__note-strong {
+      font-weight: 600;
+    }
+
+    .ant-tooltip-arrow {
+      &::before {
+        background-color: #ffffff;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
       }
     }
   }
