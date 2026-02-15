@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useSelector } from 'react-redux';
+import { message } from 'antd';
 import VisitMedicalRecords from '../../../medicalRecords/components/visitMedicalRecords/VisitMedicalRecords';
-import { isAndroid, isBrowser } from 'react-device-detect';
 import { generateUniqueFileName, getCorrectedFileName } from '../../../medicalRecords/utils/helper';
 import addMedRecordIcon from '../../../../assets/mobile/add_medRecord.svg';
 import './MedicalRecordsTab.scss';
@@ -19,10 +19,9 @@ const MedicalRecordsTab = React.memo(function MedicalRecordsTab({
   const { allUploadedDocs } = useSelector((state) => state.uploadDoc);
   const fileInputRef = useRef(null);
 
+  // Direct system picker (Camera/Video/Files). No our modal — avoids infinite loading and matches desired UX.
   const handleFABClick = () => {
-    if (isAndroid && !isBrowser) {
-      handleUploadDocPopup();
-    } else if (fileInputRef.current) {
+    if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
@@ -56,6 +55,8 @@ const MedicalRecordsTab = React.memo(function MedicalRecordsTab({
         });
         setFilesData(updatedFiles);
         handleDrawerUploadDoc();
+      } else {
+        message.info('No file selected. Enable camera in Settings if needed.');
       }
     }
     event.target.value = null;
