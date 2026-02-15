@@ -438,11 +438,12 @@ function PatientDetails() {
       label: 'Past Visits',
       icon: PastVisitTabIcon,
     },
-    {
-      key: PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY,
-      label: 'Patient History',
-      icon: PatientHistoryTabIcon,
-    },
+    // Coming soon - commented out
+    // {
+    //   key: PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY,
+    //   label: 'Patient History',
+    //   icon: PatientHistoryTabIcon,
+    // },
     {
       key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE,
       label: 'Certificate',
@@ -453,15 +454,16 @@ function PatientDetails() {
       label: `Medical Records${allUploadedDocs?.length > 0 ? ` (${allUploadedDocs.length})` : ''}`,
       icon: MedicalRecordsTabIcon,
     },
-    ...(isOpdBillingAccessable || isMobile
-      ? [
-          {
-            key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
-            label: 'Add Bill/Payment',
-            icon: MedicalRecordsTabIcon,
-          },
-        ]
-      : []),
+    // Coming soon - commented out
+    // ...(isOpdBillingAccessable || isMobile
+    //   ? [
+    //       {
+    //         key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
+    //         label: 'Add Bill/Payment',
+    //         icon: MedicalRecordsTabIcon,
+    //       },
+    //     ]
+    //   : []),
   ], [allUploadedDocs?.length, isOpdBillingAccessable, isMobile]);
 
   return (
@@ -519,6 +521,7 @@ function PatientDetails() {
           />
         </div>
 
+        {/* Coming soon - commented out
         <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.PATIENT_HISTORY ? 'block' : 'none' }}>
           <PatientHistoryTab
             patient_data={patient_data}
@@ -531,6 +534,7 @@ function PatientDetails() {
             onSectionClick={handleHistorySectionClick}
           />
         </div>
+        */}
 
         <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE ? 'block' : 'none' }}>
           <CertificateTab patient_data={patient_data} />
@@ -547,9 +551,11 @@ function PatientDetails() {
           />
         </div>
 
+        {/* Coming soon - commented out
         <div style={{ display: selectedTab === PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT ? 'block' : 'none' }}>
           <BillingTab patientData={patient_data} fromPath="patientDetails" />
         </div>
+        */}
       </div>
 
       {/* Upload Document Drawer */}
