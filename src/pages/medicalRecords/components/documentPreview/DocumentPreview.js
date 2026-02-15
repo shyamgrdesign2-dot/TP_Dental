@@ -18,7 +18,8 @@ import {
   useControls,
 } from "react-zoom-pan-pinch";
 import { useSelector } from "react-redux";
-import { isBrowser, isMobile } from "react-device-detect";
+import { isMobile } from "react-device-detect";
+import { isInNativeApp } from "../../../../utils/utils";
 import dayjs from "dayjs";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
@@ -319,7 +320,7 @@ const DocumentPreview = ({
                   <Button
                     className="btn btn-primary3"
                     onClick={() =>
-                      !isBrowser ? handleInAppDownload() : handleDownload()
+                      isInNativeApp() ? handleInAppDownload() : handleDownload()
                     }
                   >
                     <i className="icon-download" style={{ marginRight: "8px" }} />
@@ -367,7 +368,7 @@ const DocumentPreview = ({
           <button
             className="mobile-document-preview-action-btn"
             onClick={() =>
-              !isBrowser ? handleInAppDownload() : handleDownload()
+              isInNativeApp() ? handleInAppDownload() : handleDownload()
             }
             type="button"
           >
@@ -444,7 +445,7 @@ const DocumentPreview = ({
                 className="icon-download"
                 style={{ cursor: "pointer", color: "white" }}
                 onClick={() =>
-                  !isBrowser ? handleInAppDownload() : handleDownload()
+                  isInNativeApp() ? handleInAppDownload() : handleDownload()
                 }
               />
 
@@ -598,7 +599,7 @@ const DocumentPreview = ({
                   </p>
                   <Button
                     className="btn btn-primary3"
-                    onClick={() => !isBrowser ? handleInAppDownload() : handleDownload()}
+                    onClick={() => isInNativeApp() ? handleInAppDownload() : handleDownload()}
                   >
                     <i className="icon-download" style={{ marginRight: "8px" }} />
                     Download Video

@@ -13,7 +13,7 @@ import { deleteDocById, fetchAllPatientDocs } from "../../service";
 import { setAllUploadedDocs } from "../../../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { isBrowser, isMobile } from "react-device-detect";
+import { isMobile } from "react-device-detect";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import CommonModal from "../../../../common/CommonModal";
@@ -26,7 +26,7 @@ import { VIDEO_THUMBNAIL_TIME } from "../../../../utils/constants";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
 import { getDecodedToken } from "../../../../utils/localStorage";
-import { sendMessageToParent } from "../../../../utils/utils";
+import { sendMessageToParent, isInNativeApp } from "../../../../utils/utils";
 import { EVENTS } from "../../../../utils/events";
 
 const RecordCard = ({
@@ -151,6 +151,7 @@ const RecordCard = ({
   };
 
   const handleInAppDownload = async () => {
+    if (!url) return;
     sendMessageToParent(EVENTS.DOWNLOAD, { url });
     // const deviceUid = localStorage.getItem("app_device_unique_id");
     // if (deviceUid) {
@@ -175,6 +176,7 @@ const RecordCard = ({
   };
 
   const handleDownload = async () => {
+    if (!url) return;
     try {
       console.log("Starting download for:", display_name);
       console.log("URL:", url);
@@ -260,7 +262,7 @@ const RecordCard = ({
         label: (
           <div
             onClick={() =>
-              !isBrowser ? handleInAppDownload() : handleDownload()
+              isInNativeApp() ? handleInAppDownload() : handleDownload()
             }
           >
             <img src={download} alt="download" className="me-2" />
