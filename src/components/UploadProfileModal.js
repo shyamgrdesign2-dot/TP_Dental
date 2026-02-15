@@ -8,25 +8,20 @@ import closeIcon from '../assets/mobile/close 2.svg';
 import './UploadProfileModal.scss';
 
 function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery, onSelectFiles }) {
+  // Trigger input first (same user gesture) so browser allows file dialog; then close modal.
   const handleCameraClick = () => {
+    if (onSelectCamera) onSelectCamera();
     onClose();
-    if (onSelectCamera) {
-      onSelectCamera();
-    }
   };
 
   const handleGalleryClick = () => {
+    if (onSelectGallery) onSelectGallery();
     onClose();
-    if (onSelectGallery) {
-      onSelectGallery();
-    }
   };
 
   const handleFilesClick = () => {
+    if (onSelectFiles) onSelectFiles();
     onClose();
-    if (onSelectFiles) {
-      onSelectFiles();
-    }
   };
 
   return (

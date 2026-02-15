@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import defaultprofile from "../assets/images/default-profile.svg";
-import { Form } from "antd";
+import { Form, message } from "antd";
 import { useSelector } from "react-redux";
 import { ADD, EDIT } from "../utils/constants";
 import UploadProfileModal from "./UploadProfileModal";
@@ -21,13 +21,17 @@ function UploadProfile({ form, mode = ADD, isMobile = false }) {
   }, [patients_details, mode]);
 
   function handleChange(e) {
-    if (e.target.files?.length > 0) {
-      const fileUrl = URL.createObjectURL(e.target.files[0]);
+    const files = e.target.files;
+    if (files?.length > 0) {
+      const fileUrl = URL.createObjectURL(files[0]);
       setFile(fileUrl);
       form.setFieldsValue({
-        pm_image: e.target.files[0],
+        pm_image: files[0],
       });
+    } else {
+      message.info('No file selected. Enable camera in Settings if needed.');
     }
+    e.target.value = '';
   }
 
   const handleUploadClick = () => {
