@@ -107,6 +107,9 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
       if (item.status && !existingTag.status) {
         existingTag.status = item.status;
       }
+      if (item.medication !== undefined && item.medication !== null) {
+        existingTag.medication = item.medication;
+      }
       if (item.relation) {
         existingTag.relationship = item.relation;
       }
@@ -121,6 +124,9 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
         status: item.status || 'Active',
         relationship: item.relation || ''
       };
+      if (item.medication !== undefined && item.medication !== null) {
+        tag.medication = item.medication;
+      }
       
       // Surgical History (tmmhs_id 5) uses 'date' and 'dateType' instead of 'since'
       if (mappedType === 5 && item.date) {
@@ -175,18 +181,15 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
           if (existingTag) {
             const existingIndex = updatedTags.findIndex((t) => t.title?.trim().toLowerCase() === normalizedTitle);
             if (existingIndex !== -1) {
-              // Preserve enable status from existing context (especially 'N') when Rx pad data was defaulted to 'Y'
-              // This ensures 'N' status from caseManagerData is not lost when merging with Rx pad data from API
-              // Strategy: If existing has 'N' and newTag has 'Y', preserve 'N' (because 'Y' was likely defaulted, not explicit)
-              // Only update enable if newTag explicitly has 'N' or if existing doesn't have enable set
-              if (existingTag.enable === 'N' && newTag.enable === 'Y') {
+              const existingIsDash = existingTag.enable === undefined || existingTag.enable === '-' || existingTag.enable === '';
+              if (existingIsDash) {
+                updatedTags[existingIndex].enable = existingTag.enable;
+              } else if (existingTag.enable === 'N' && newTag.enable === 'Y') {
                 // Existing has 'N', new has 'Y' - likely newTag was defaulted, preserve 'N'
                 updatedTags[existingIndex].enable = existingTag.enable;
               } else if (newTag.enable === 'N') {
-                // New tag explicitly has 'N' - always update to 'N'
                 updatedTags[existingIndex].enable = newTag.enable;
               } else if (newTag.enable !== existingTag.enable) {
-                // Update enable if different (and not the 'N'/'Y' case above)
                 updatedTags[existingIndex].enable = newTag.enable;
               }
               if (newTag.note && !updatedTags[existingIndex].note) {
@@ -303,6 +306,12 @@ export function convertContextToRxPadFormat(contextMedicalHistory) {
           if (tag.since) parts.push(`Since: ${tag.since}`);
         }
         
+        if (section.tmmhs_id !== 3 && section.tmmhs_id !== 5) {
+          parts.push(`Status: ${tag.status || 'Active'}`);
+        }
+        if (section.tmmhs_id === 2 && tag.medication != null && String(tag.medication).trim() !== '') {
+          parts.push(`Medication: ${tag.medication}`);
+        }
         if (tag.relationship) parts.push(`Relation: ${tag.relationship}`);
         if (tag.note) parts.push(`Notes: ${tag.note}`);
         
@@ -315,8 +324,13 @@ export function convertContextToRxPadFormat(contextMedicalHistory) {
           notes: tag.note || '',
           lineItem: parts.length > 1 ? `${parts[0]} (${parts.slice(1).join(' | ')})` : (parts[0] || '')
         };
+        if (section.tmmhs_id !== 3 && section.tmmhs_id !== 5) {
+          rxItem.status = tag.status || 'Active';
+        }
+        if (section.tmmhs_id === 2 && tag.medication != null) {
+          rxItem.medication = tag.medication;
+        }
         
-        // Add surgical-specific fields
         if (section.tmmhs_id === 5 && tag.date) {
           rxItem.date = tag.date;
           rxItem.dateType = tag.dateType || 'onlyYear';

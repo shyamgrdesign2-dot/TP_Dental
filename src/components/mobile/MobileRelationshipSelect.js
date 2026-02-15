@@ -1,14 +1,16 @@
-import React from 'react';
-import { Drawer, Checkbox } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Drawer, Checkbox, Button } from 'antd';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import './MobileRelationshipSelect.scss';
 
-function MobileRelationshipSelect({ 
-  visible, 
-  onClose, 
+function MobileRelationshipSelect({
+  visible,
+  onClose,
   selectedRelationship,
   onSelect
 }) {
+  const [pendingRelationship, setPendingRelationship] = useState('');
+
   const relationships = [
     'Father',
     'Mother',
@@ -27,8 +29,18 @@ function MobileRelationshipSelect({
     'Cousin'
   ];
 
-  const handleSelect = (relationship) => {
-    onSelect?.(relationship);
+  useEffect(() => {
+    if (visible) {
+      setPendingRelationship(selectedRelationship || '');
+    }
+  }, [visible]);
+
+  const handleToggle = (relationship) => {
+    setPendingRelationship((prev) => (prev === relationship ? '' : relationship));
+  };
+
+  const handleSave = () => {
+    onSelect?.(pendingRelationship);
     onClose?.();
   };
 
@@ -57,20 +69,26 @@ function MobileRelationshipSelect({
         </div>
 
         <div className="relationship-list">
-          {relationships.map(relationship => (
+          {relationships.map((relationship) => (
             <div
               key={relationship}
               className="relationship-item"
-              onClick={() => handleSelect(relationship)}
+              onClick={() => handleToggle(relationship)}
             >
               <Checkbox
-                checked={selectedRelationship === relationship}
-                onChange={() => handleSelect(relationship)}
+                checked={pendingRelationship === relationship}
+                onClick={(e) => e.preventDefault()}
               >
                 {relationship}
               </Checkbox>
             </div>
           ))}
+        </div>
+
+        <div className="mobile-relationship-footer">
+          <Button type="primary" size="large" block onClick={handleSave}>
+            Save
+          </Button>
         </div>
       </div>
     </Drawer>

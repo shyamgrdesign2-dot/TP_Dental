@@ -10,80 +10,61 @@ function MobileMedicalHistoryItemEdit({
   sectionType,
   onSave 
 }) {
-  const [title, setTitle] = useState('');
-  const [enable, setEnable] = useState('Y'); // 'Y' or 'N'
   const [sinceNumber, setSinceNumber] = useState('');
-  const [sinceUnit, setSinceUnit] = useState('1W'); // 1H, 1D, 1W, 1M, 1Y, Custom
-  const [customUnit, setCustomUnit] = useState('');
-  const [status, setStatus] = useState('Active');
+  const [sinceUnit, setSinceUnit] = useState('');
+  const [isCustomNumber, setIsCustomNumber] = useState(false);
+  const [status, setStatus] = useState('');
   const [medication, setMedication] = useState('');
   const [note, setNote] = useState('');
-  const [titleError, setTitleError] = useState('');
 
   useEffect(() => {
     if (!visible || !item) return;
-    
-    setTitle(item.title || '');
-    setEnable(item.enable || 'Y');
     setNote(item.note || '');
-    setStatus(item.status || 'Active');
+    setStatus(item.status || '');
     setMedication(item.medication || '');
-    setTitleError('');
 
     const sinceStr = item.since || '';
     if (sinceStr) {
       const match = sinceStr.match(/^(\d+)\s*(.*)$/);
       if (match) {
-        setSinceNumber(match[1]);
+        const num = match[1];
         const unit = match[2].toLowerCase();
+        setSinceNumber(num);
+        setIsCustomNumber(!['1', '2', '3', '4', '5'].includes(num));
         if (unit.includes('day')) setSinceUnit('1D');
         else if (unit.includes('week')) setSinceUnit('1W');
         else if (unit.includes('month')) setSinceUnit('1M');
         else if (unit.includes('year')) setSinceUnit('1Y');
-        else {
-          setSinceUnit('Custom');
-          setCustomUnit(match[2]);
-        }
+        else setSinceUnit('');
       }
     } else {
       setSinceNumber('');
-      setSinceUnit('1W');
-      setCustomUnit('');
+      setSinceUnit('');
+      setIsCustomNumber(false);
     }
   }, [visible, item]);
 
   const handleSave = () => {
-    if (!title.trim()) {
-      setTitleError('Title is required');
-      return;
-    }
-    setTitleError('');
-
     let sinceValue = '';
-    if (sinceNumber) {
-      if (sinceUnit === 'Custom' && customUnit) {
-        sinceValue = `${sinceNumber} ${customUnit}`;
-      } else {
-        const unitMap = {
-          '1D': 'Day',
-          '1W': 'Week',
-          '1M': 'Month',
-          '1Y': 'Year'
-        };
-        const unitText = unitMap[sinceUnit] || 'Week';
-        const plural = parseInt(sinceNumber) > 1 ? `${unitText}(s)` : unitText;
-        sinceValue = `${sinceNumber} ${plural}`;
-      }
+    if (sinceNumber && sinceUnit) {
+      const unitMap = {
+        '1D': 'Day',
+        '1W': 'Week',
+        '1M': 'Month',
+        '1Y': 'Year'
+      };
+      const unitText = unitMap[sinceUnit] || 'Week';
+      const plural = parseInt(sinceNumber) > 1 ? `${unitText}(s)` : unitText;
+      sinceValue = `${sinceNumber} ${plural}`;
     }
 
     const updatedItem = {
       ...item,
-      title: title.trim(),
       since: sinceValue,
-      status: status,
-      medication: medication,
+      status: status || item.status || '',
+      medication: sectionType === 2 ? medication : (item.medication ?? ''),
       note: note.trim(),
-      enable: enable
+      enable: item.enable ?? 'Y'
     };
 
     onSave?.(updatedItem);
@@ -97,14 +78,14 @@ function MobileMedicalHistoryItemEdit({
       placement="bottom"
       onClose={onClose}
       open={visible}
-      height="85vh"
+      height="auto"
       className="mobile-medical-history-item-edit"
       closable={false}
       maskClosable={true}
     >
       <div className="mobile-item-edit-content">
         <div className="mobile-item-edit-header">
-          <h3 className="mobile-item-edit-title">{title || 'Edit Item'}</h3>
+          <h3 className="mobile-item-edit-title">{item?.title || 'Edit Item'}</h3>
           <button
             className="mobile-item-edit-close"
             onClick={onClose}
@@ -115,72 +96,49 @@ function MobileMedicalHistoryItemEdit({
         </div>
 
         <div className="mobile-item-edit-body">
-          {/* Title Input */}
-          <div className="form-section">
-            <label className="form-label">Title *</label>
-            <Input
-              placeholder="Enter title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (titleError) setTitleError('');
-              }}
-              className={`title-input ${titleError ? 'input-error' : ''}`}
-              status={titleError ? 'error' : ''}
-            />
-            {titleError && <div className="error-message">{titleError}</div>}
-          </div>
-
-          {/* Enable Y/N Toggle */}
-          <div className="form-section">
-            <label className="form-label">Has Condition</label>
-            <Radio.Group
-              value={enable}
-              onChange={(e) => setEnable(e.target.value)}
-              className="status-radio-group"
-              buttonStyle="solid"
-            >
-              <Radio.Button value="Y">Yes</Radio.Button>
-              <Radio.Button value="N">No</Radio.Button>
-            </Radio.Group>
-          </div>
-
-          {/* Show fields only if enable='Y' */}
-          {enable === 'Y' && (
-            <>
           {/* Since Section */}
           <div className="form-section">
             <label className="form-label">Since</label>
             
-            {/* Number selector */}
             <div className="number-selector">
               {[1, 2, 3, 4, 5].map(num => (
                 <button
                   key={num}
                   type="button"
-                  className={`number-btn ${sinceNumber === String(num) ? 'active' : ''}`}
-                  onClick={() => setSinceNumber(String(num))}
+                  className={`number-btn ${!isCustomNumber && sinceNumber === String(num) ? 'active' : ''}`}
+                  onClick={() => {
+                    setSinceNumber(String(num));
+                    setIsCustomNumber(false);
+                  }}
                 >
                   {num}
                 </button>
               ))}
               <button
                 type="button"
-                className={`number-btn custom ${sinceNumber && !['1','2','3','4','5'].includes(sinceNumber) ? 'active' : ''}`}
-                onClick={() => {
-                  const custom = prompt('Enter number:');
-                  if (custom && !isNaN(custom)) {
-                    setSinceNumber(custom);
-                  }
-                }}
+                className={`number-btn number-btn-custom ${isCustomNumber ? 'active' : ''}`}
+                onClick={() => setIsCustomNumber(true)}
               >
                 Custom
               </button>
             </div>
 
-            {/* Unit selector */}
+            {isCustomNumber && (
+              <Input
+                type="number"
+                min={1}
+                placeholder="Enter number"
+                value={sinceNumber}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '');
+                  if (v.length <= 4) setSinceNumber(v);
+                }}
+                className="custom-number-input"
+              />
+            )}
+
             <div className="unit-selector">
-              {['1H', '1D', '1W', '1M', '1Y'].map(unit => (
+              {['1D', '1W', '1M', '1Y'].map(unit => (
                 <button
                   key={unit}
                   type="button"
@@ -190,23 +148,7 @@ function MobileMedicalHistoryItemEdit({
                   {unit}
                 </button>
               ))}
-              <button
-                type="button"
-                className={`unit-btn custom ${sinceUnit === 'Custom' ? 'active' : ''}`}
-                onClick={() => setSinceUnit('Custom')}
-              >
-                Custom
-              </button>
             </div>
-
-            {sinceUnit === 'Custom' && (
-              <Input
-                placeholder="Enter custom unit (e.g., Hours, Months)"
-                value={customUnit}
-                onChange={(e) => setCustomUnit(e.target.value)}
-                className="custom-unit-input"
-              />
-            )}
           </div>
 
           {/* Status Section */}
@@ -223,7 +165,6 @@ function MobileMedicalHistoryItemEdit({
             </Radio.Group>
           </div>
 
-          {/* Medication Section (only for Medical Condition when Active) */}
           {sectionType === 2 && status === 'Active' && (
             <div className="form-section">
               <label className="form-label">Medication</label>
@@ -250,8 +191,6 @@ function MobileMedicalHistoryItemEdit({
               className="note-textarea"
             />
           </div>
-            </>
-          )}
         </div>
 
         <div className="mobile-item-edit-footer">

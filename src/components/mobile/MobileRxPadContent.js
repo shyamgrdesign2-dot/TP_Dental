@@ -250,15 +250,14 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
   useEffect(() => {
     if (!setMedicalHistoryData) return;
     
-    // Priority 1: If Rx pad has medical history, convert and merge with caseManagerData to preserve enable status
     const arr = prescriptionData?.medicalHistory;
     if (arr && Array.isArray(arr) && arr.length > 0) {
-      // Merge with caseManagerData.medical_history to preserve enable status (especially 'N') from saved data
-      // This ensures that after end visit, when editing Rx, enable status is not lost
-      // Priority: caseManagerData (saved data with correct enable) > contextMedicalHistoryData (current context) > empty array
-      const existingData = caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0
-        ? caseManagerData.medical_history
-        : (contextMedicalHistoryData || []);
+      const existingData =
+        contextMedicalHistoryData && contextMedicalHistoryData.length > 0
+          ? contextMedicalHistoryData
+          : caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0
+            ? caseManagerData.medical_history
+            : [];
       const converted = convertMedicalHistoryToContextFormat(arr, existingData);
       setMedicalHistoryData(converted);
       return;
@@ -684,14 +683,16 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
                   {items.map((item, index) => {
                     const originalIndex = medicalHistory.indexOf(item);
                     const text = item?.lineItem || item?.name || item;
-                    const since = item?.since;
+                    const since = item?.since ?? item?.duration;
                     const status = item?.status;
+                    const medication = item?.medication;
                     const notes = item?.notes;
                     const relation = item?.relation;
                     
                     const metaParts = [];
                     if (since) metaParts.push(`Since: ${since}`);
                     if (status) metaParts.push(`Status: ${status}`);
+                    if (medication != null && String(medication).trim() !== '') metaParts.push(`Medication: ${medication}`);
                     if (relation) metaParts.push(`Relation: ${relation}`);
                     if (notes) metaParts.push(`Notes: ${notes}`);
                     

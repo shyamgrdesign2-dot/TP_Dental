@@ -2,15 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { Drawer, Checkbox, Button } from 'antd';
 import { UpOutlined, DownOutlined } from '@ant-design/icons';
 import closeIcon from '../../assets/mobile/close 2.svg';
+import activeVerticleUpDown from '../../assets/images/active-verticle-up-down.svg';
+import inactiveVerticleUpDown from '../../assets/images/inactive-verticle-up-down.svg';
+import verticleUpDown from '../../assets/images/verticle-up-down.svg';
 import './MobileMedicalHistorySectionsList.scss';
 
-function MobileMedicalHistorySectionsList({ 
-  visible, 
-  onClose, 
-  medicalHistoryData = [], 
+function MobileMedicalHistorySectionsList({
+  visible,
+  onClose,
+  medicalHistoryData = [],
   onNoKnownHistoryChange,
   onChipClick,
-  onChipRemove,
+  onChipEnableClick,
   onEditQuickList,
   onSave
 }) {
@@ -45,29 +48,41 @@ function MobileMedicalHistorySectionsList({
     }
   };
 
+  const getEnableIcon = (enable) => {
+    if (enable === 'Y') return activeVerticleUpDown;
+    if (enable === 'N') return inactiveVerticleUpDown;
+    return verticleUpDown;
+  };
+
   const renderChip = (tag, section) => {
     if (!tag || !tag.title) return null;
-    
     return (
-      <div key={tag.tmmhst_id} className="history-chip" onClick={() => onChipClick?.(section, tag)}>
+      <div
+        key={tag.tmmhst_id}
+        className="history-chip"
+        onClick={() => onChipClick?.(section, tag)}
+      >
         <span className="chip-text">
           {tag.title}
         </span>
         <div className="chip-actions">
-          {tag.enable === 'Y' && <span className="chip-status chip-status-y">Y</span>}
-          {tag.enable === 'N' && <span className="chip-status chip-status-n">N</span>}
-          {!tag.enable && <span className="chip-status chip-status-dash">-</span>}
-          <button 
-            type="button" 
-            className="chip-remove"
+          <button
+            type="button"
+            className="chip-status-wrap"
             onClick={(e) => {
               e.stopPropagation();
-              if (onChipRemove) {
-                onChipRemove(section, tag);
-              }
+              onChipEnableClick?.(section, tag);
             }}
+            aria-label="Toggle Y/N status"
           >
-            ×
+            {tag.enable === 'Y' && <span className="chip-status chip-status-y">Y</span>}
+            {tag.enable === 'N' && <span className="chip-status chip-status-n">N</span>}
+            {!tag.enable && <span className="chip-status chip-status-dash">-</span>}
+            <img
+              src={getEnableIcon(tag.enable)}
+              alt=""
+              className="chip-status-icon"
+            />
           </button>
         </div>
       </div>
@@ -117,7 +132,7 @@ function MobileMedicalHistorySectionsList({
                     onClick={() => onEditQuickList?.(section)}
                   >
                     <i className="icon-setting" />
-                    <span>Edit Quick List</span>
+                    <span>Edit & Add</span>
                   </button>
                 </div>
 

@@ -186,6 +186,27 @@
   gap: 8px;
 }
 
+.chip-status-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin: 0;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.chip-status-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .chip-status {
   display: inline-flex;
   align-items: center;
@@ -209,25 +230,6 @@
   &.chip-status-dash {
     background: #F5F5F5;
     color: #999;
-  }
-}
-
-.chip-remove {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:active {
-    color: #666;
   }
 }
 
@@ -258,7 +260,7 @@
   .save-btn {
     height: 48px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
     border-radius: 8px;
     background: #6C5CE7;
     border: none;

@@ -4,7 +4,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
 import { searchTag, addTag } from '../../redux/medicalhistorySlice';
 import { errorMessage, removeBeforeWhiteSpace } from '../../utils/utils';
-import closeIcon from '../../assets/mobile/close.svg';
+import closeIcon from '../../assets/mobile/close 2.svg';
+import chipCloseIcon from '../../assets/mobile/close.svg';
 import './MobileEditQuickList.scss';
 
 function MobileEditQuickList({ 
@@ -184,7 +185,7 @@ function MobileEditQuickList({
         {/* Header */}
         <div className="mobile-edit-quick-list-header">
           <h3 className="mobile-edit-quick-list-title">
-            {editedSection.title || 'Edit Quick List'}
+            {editedSection.title || 'Edit & Add'}
           </h3>
           <button
             className="mobile-edit-quick-list-close"
@@ -248,7 +249,7 @@ function MobileEditQuickList({
                     <div key={index} className="tag-item">
                       {tag.title}
                       <img 
-                        src={closeIcon} 
+                        src={chipCloseIcon} 
                         alt="Remove" 
                         className="tag-remove-icon" 
                         onClick={() => handleRemoveTag(tag, index)} 

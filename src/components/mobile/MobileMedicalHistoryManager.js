@@ -133,9 +133,11 @@ function MobileMedicalHistoryManager({
         title: e?.title,
         tmmhs_id: e?.tmmhs_id,
         no_know_history: e?.no_know_history !== undefined ? e?.no_know_history : false,
-        tags: !e?.no_know_history ? e?.tags?.filter(x => x.enable == 'Y' || x.enable == 'N') : [],
-        ...remarks && i === 0 && {medical_history_remarks: remarks?.trim()}
-      }
+        tags: !e?.no_know_history
+          ? (e?.tags || []).filter((x) => x.delete !== true)
+          : [],
+        ...(remarks && i === 0 && { medical_history_remarks: remarks?.trim() }),
+      };
     });
 
     if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
@@ -148,7 +150,7 @@ function MobileMedicalHistoryManager({
       setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
       if (onSave) {
         const rxPadFormat = convertContextToRxPadFormatForSave(medicalHistory);
-        onSave(rxPadFormat);
+        setTimeout(() => onSave(rxPadFormat), 0);
       }
     }
   }, [medicalHistoryData, setMedicalHistoryData, onSave, onClose, profile, patient_data]);
@@ -170,9 +172,11 @@ function MobileMedicalHistoryManager({
         title: e?.title,
         tmmhs_id: e?.tmmhs_id,
         no_know_history: e?.no_know_history !== undefined ? e?.no_know_history : false,
-        tags: !e?.no_know_history ? e?.tags?.filter(x => x.enable == 'Y' || x.enable == 'N') : [],
-        ...remarks && i === 0 && {medical_history_remarks: remarks?.trim()}
-      }
+        tags: !e?.no_know_history
+          ? (e?.tags || []).filter((x) => x.delete !== true)
+          : [],
+        ...(remarks && i === 0 && { medical_history_remarks: remarks?.trim() }),
+      };
     });
 
     if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
@@ -184,10 +188,9 @@ function MobileMedicalHistoryManager({
       setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
       if (onSave) {
         const rxPadFormat = convertContextToRxPadFormatForSave(medicalHistory);
-        onSave(rxPadFormat);
+        setTimeout(() => onSave(rxPadFormat), 0);
       }
     }
-    
     setCurrentSheet('list');
     setEditingSection(null);
     setEditingItem(null);
@@ -217,7 +220,7 @@ function MobileMedicalHistoryManager({
     setEditingSection(section);
     setEditingSectionType(section.tmmhs_id);
     setEditingItem(tag);
-    
+    setSelectedRelationship('');
     if (tag.enable === 'N') {
       setCurrentSheet('noCondition');
     } else {
@@ -231,6 +234,7 @@ function MobileMedicalHistoryManager({
       enable: 'Y'
     };
     setEditingItem(updatedTag);
+    setSelectedRelationship('');
     setCurrentSheet('editItem');
   }, []);
   const handleEditQuickList = useCallback((section) => {
@@ -253,26 +257,22 @@ function MobileMedicalHistoryManager({
     
     setCurrentSheet('list');
   }, [medicalHistoryData, setMedicalHistoryData]);
-  const handleChipRemove = useCallback((section, tag) => {
+  const handleChipEnableClick = useCallback((section, tag) => {
     if (!setMedicalHistoryData || !medicalHistoryData) return;
-
-    const updated = medicalHistoryData.map(sec => {
-      if (sec.tmmhs_id === section.tmmhs_id) {
-        return {
-          ...sec,
-          tags: sec.tags.filter(t => t.tmmhst_id !== tag.tmmhst_id)
-        };
-      }
-      return sec;
+    const nextEnable =
+      tag.enable === 'Y' ? 'N' : tag.enable === 'N' ? undefined : 'Y';
+    const updated = medicalHistoryData.map((sec) => {
+      if (sec.tmmhs_id !== section.tmmhs_id) return sec;
+      const tagIndex = (sec.tags || []).findIndex(
+        (t) => t.tmmhst_id === tag.tmmhst_id
+      );
+      if (tagIndex === -1) return sec;
+      const newTags = [...(sec.tags || [])];
+      newTags[tagIndex] = { ...newTags[tagIndex], enable: nextEnable };
+      return { ...sec, tags: newTags };
     });
-
     setMedicalHistoryData(updated);
-    
-    if (onSave) {
-      const rxPadFormat = convertContextToRxPadFormatForSave(updated);
-      onSave(rxPadFormat);
-    }
-  }, [medicalHistoryData, setMedicalHistoryData, onSave]);
+  }, [medicalHistoryData, setMedicalHistoryData]);
 
   const handleItemSave = useCallback((updatedItem) => {
     if (!setMedicalHistoryData || !medicalHistoryData || !editingSection) return;
@@ -370,6 +370,9 @@ function MobileMedicalHistoryManager({
               status: tag.status || 'Active',
               enable: tag.enable
             };
+            if (section.tmmhs_id === 2 && tag.medication !== undefined) {
+              historyItem.medication = tag.medication ?? '';
+            }
 
             if (section.tmmhs_id === 5 && tag.date) {
               historyItem.date = tag.date;
@@ -381,6 +384,12 @@ function MobileMedicalHistoryManager({
               lineParts.push(`Date of Surgery: ${tag.date}`);
             } else if (tag.since) {
               lineParts.push(tag.since);
+            }
+            if (section.tmmhs_id !== 3 && section.tmmhs_id !== 5) {
+              lineParts.push(`Status: ${tag.status || 'Active'}`);
+            }
+            if (section.tmmhs_id === 2 && tag.medication != null && String(tag.medication).trim() !== '') {
+              lineParts.push(`Medication: ${tag.medication}`);
             }
             if (tag.relationship) lineParts.push(`Relation: ${tag.relationship}`);
             if (tag.note) lineParts.push(tag.note);
@@ -477,7 +486,7 @@ function MobileMedicalHistoryManager({
         medicalHistoryData={mergedMedicalHistoryData}
         onNoKnownHistoryChange={handleNoKnownHistoryChange}
         onChipClick={handleChipClick}
-        onChipRemove={handleChipRemove}
+        onChipEnableClick={handleChipEnableClick}
         onEditQuickList={handleEditQuickList}
         onSave={handleSave}
       />

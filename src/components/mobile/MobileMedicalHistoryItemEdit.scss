@@ -1,7 +1,8 @@
 .mobile-medical-history-item-edit {
   .ant-drawer-content-wrapper {
     border-radius: 16px 16px 0 0;
-    max-height: 90vh !important;
+    height: auto !important;
+    max-height: 85vh !important;
   }
 
   &.ant-drawer-content {
@@ -11,8 +12,8 @@
 
   .ant-drawer-body {
     padding: 0;
-    height: 100%;
-    max-height: 90vh;
+    height: auto;
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -22,7 +23,12 @@
 .mobile-item-edit-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #FAF8FD;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .mobile-item-edit-header {
@@ -30,14 +36,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #E8E8E8;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
 }
 
 .mobile-item-edit-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1A1A1A;
+  color: #454551;
   margin: 0;
 }
 
@@ -57,6 +64,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  background: #FAF8FD;
 }
 
 .form-section {
@@ -67,7 +75,7 @@
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: #1A1A1A;
+  color: #414141;
   margin-bottom: 12px;
 }
 
@@ -101,62 +109,83 @@
 
 .number-btn {
   padding: 10px;
-  border: 1px solid #E8E8E8;
-  border-radius: 8px;
-  background: #FFFFFF;
+  border: 1px solid #E2E2EA;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%);
   font-size: 14px;
   font-weight: 500;
-  color: #4b4ad5;
+  color: #454551;
   cursor: pointer;
   transition: all 0.2s;
 
   &.active {
-    background: #4b4ad50d;
-    color: #4b4ad5 !important;
-    border-color: #4b4ad5;
+    border: 1px solid #E2E2EA;
+    background: #4B4AD5;
+    color: #FFFFFF !important;
 
-    span {
-      color: #4b4ad5 !important;
-    }
-
-    * {
-      color: #4b4ad5 !important;
+    span, * {
+      color: #FFFFFF !important;
     }
   }
 
   &:active {
     transform: scale(0.95);
+  }
+
+  &.number-btn-custom {
+    background: transparent !important;
+    border-color: transparent;
+    color: #4B4AD5;
+
+    &:not(.active):hover {
+      background: rgba(75, 74, 213, 0.08) !important;
+    }
+
+    &.active {
+      border: 1px solid #E2E2EA;
+      background: #4B4AD5 !important;
+      color: #FFFFFF !important;
+    }
+  }
+}
+
+.custom-number-input {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  border: 1px solid #E2E2EA;
+  padding: 10px 12px;
+  font-size: 14px;
+
+  &::placeholder {
+    color: #999;
   }
 }
 
 .unit-selector {
   display: grid;
-  grid-template-columns: repeat(5, 1fr) 1.2fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 
 .unit-btn {
   padding: 10px;
-  border: 1px solid #E8E8E8;
-  border-radius: 8px;
-  background: #FFFFFF;
+  border: 1px solid #E2E2EA;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%);
   font-size: 14px;
   font-weight: 500;
-  color: #4b4ad5;
+  color: #454551;
   cursor: pointer;
   transition: all 0.2s;
 
   &.active {
-    background: #4b4ad50d;
-    color: #4b4ad5 !important;
-    border-color: #4b4ad5;
+    border: 1px solid #E2E2EA;
+    background: #4B4AD5;
+    color: #FFFFFF !important;
 
-    span {
-      color: #4b4ad5 !important;
-    }
-
-    * {
-      color: #4b4ad5 !important;
+    span, * {
+      color: #FFFFFF !important;
     }
   }
 
@@ -165,40 +194,12 @@
   }
 }
 
-.custom-unit-input {
-  margin-top: 12px;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-
-.status-radio-group {
+.mobile-medical-history-item-edit .status-radio-group {
   width: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-
-  &.ant-radio-group-solid {
-    .ant-radio-button-wrapper-checked {
-      background: #4b4ad50d !important;
-      border-color: #4b4ad5 !important;
-      color: #4b4ad5 !important;
-
-      &:hover {
-        background: #4b4ad50d !important;
-        border-color: #4b4ad5 !important;
-        color: #4b4ad5 !important;
-      }
-
-      span {
-        color: #4b4ad5 !important;
-      }
-
-      * {
-        color: #4b4ad5 !important;
-      }
-    }
-  }
+  margin-bottom: 16px;
 
   .ant-radio-button-wrapper {
     height: 44px;
@@ -207,40 +208,47 @@
     justify-content: center;
     font-size: 14px;
     font-weight: 500;
-    border-radius: 8px;
-    border: 1px solid #E8E8E8;
-    color: #4b4ad5;
-    background: #FFFFFF !important;
+    border-radius: 4px;
+    border: 1px solid #E2E2EA;
+    color: #454551;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%) !important;
+
+    span, * {
+      color: #454551 !important;
+    }
 
     &:first-child {
-      border-radius: 8px 0 0 8px;
+      border-radius: 4px 0 0 4px;
     }
 
     &:last-child {
-      border-radius: 0 8px 8px 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    &::before {
+      display: none;
     }
 
     &.ant-radio-button-wrapper-checked {
-      background: #4b4ad50d !important;
-      border-color: #4b4ad5 !important;
-      color: #4b4ad5 !important;
+      border: 1px solid #E2E2EA;
+      background: #4B4AD5 !important;
+      color: #FFFFFF !important;
 
-      &::before {
-        display: none;
+      span, * {
+        color: #FFFFFF !important;
+      }
+
+      &:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+
+      &:last-child {
+        border-radius: 0 4px 4px 0;
       }
 
       &:hover {
-        background: #4b4ad50d !important;
-        border-color: #4b4ad5 !important;
-        color: #4b4ad5 !important;
-      }
-
-      span {
-        color: #4b4ad5 !important;
-      }
-
-      * {
-        color: #4b4ad5 !important;
+        background: #4B4AD5 !important;
+        color: #FFFFFF !important;
       }
     }
   }
@@ -260,7 +268,8 @@
 
 .mobile-item-edit-footer {
   padding: 16px 20px;
-  border-top: 1px solid #E8E8E8;
+  background-color: #FFFFFF;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
 }
 
@@ -269,7 +278,7 @@
   border-radius: 12px;
   background: #4b4ad5;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   border: none;
 
   &:hover, &:focus {

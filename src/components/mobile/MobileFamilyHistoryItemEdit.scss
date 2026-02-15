@@ -1,7 +1,8 @@
 .mobile-family-history-item-edit {
   .ant-drawer-content-wrapper {
     border-radius: 16px 16px 0 0;
-    max-height: 90vh !important;
+    height: auto !important;
+    max-height: 85vh !important;
   }
 
   &.ant-drawer-content {
@@ -11,14 +12,52 @@
 
   .ant-drawer-body {
     padding: 0;
-    height: 100%;
-    max-height: 90vh;
+    height: auto;
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 }
 
+.mobile-item-edit-content {
+  background: #FAF8FD;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.mobile-item-edit-header {
+  background-color: #FFFFFF;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.mobile-item-edit-footer {
+  background-color: #FFFFFF;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+
+  .save-btn {
+    font-weight: 500;
+  }
+}
+
+.form-section {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #414141;
+  margin-bottom: 12px;
+}
 .relationship-selector {
   display: flex;
   justify-content: space-between;
