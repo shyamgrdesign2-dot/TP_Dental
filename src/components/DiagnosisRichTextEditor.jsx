@@ -45,42 +45,23 @@ const DiagnosisRichTextEditor = ({
 
   const initialSlateValue = useMemo(() => {
     const currentItems = diagnosis || [];
-    let editorItems = editorItemsRef.current || [];
-    
-    if (editorItems.length === 0 && currentItems.length > 0) {
-      editorItems = currentItems.map(diag => diag.name || diag.lineItem || '');
-      editorItemsRef.current = editorItems;
-    }
-    
-    const allItems = editorItems.length > 0 ? editorItems : currentItems;
-    
-    if (allItems.length === 0) {
-      return [{ type: 'paragraph', children: [{ text: '' }] }];
-    }
-
-    const formattedDiagnosis = allItems.map((diag) => {
-      if (typeof diag === 'string') {
-        return diag;
-      }
+    const displayStrings = currentItems.map((diag) => {
+      if (typeof diag === 'string') return diag;
+      const lineItem = String(diag.lineItem ?? '').trim();
+      if (lineItem) return lineItem;
       const name = diag.name || '';
       const parts = [];
-      
       if (diag.since) parts.push(`since ${diag.since}`);
       if (diag.status) parts.push(diag.status);
       if (diag.notes) parts.push(diag.notes);
-      
-      if (parts.length > 0) {
-        return `${name} (${parts.join(', ')})`;
-      }
-      
-      return name || diag.lineItem || '';
-    });
-    
-    if (formattedDiagnosis.length === 0) {
+      if (parts.length > 0) return `${name} (${parts.join(', ')})`;
+      return (name && diag.status ? `${name}, ${diag.status}` : name) || '';
+    }).filter((s) => String(s).trim() !== '');
+
+    if (displayStrings.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
-
-    return arrayToSlateBulletList(formattedDiagnosis);
+    return arrayToSlateBulletList(displayStrings);
   }, [diagnosis]);
 
   const handleChange = useCallback((value) => {
