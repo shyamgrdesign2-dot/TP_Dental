@@ -457,6 +457,8 @@ function MobilePastPregnancyEdit({
                   placeholder="Select"
                   options={GravidaOptions}
                   className="form-select"
+                  popupClassName="pregnancy-form-dropdown"
+                  style={{ width: '100%' }}
                   disabled={isCompletePregnancy && currentGravidity}
                 />
               </div>
@@ -484,6 +486,8 @@ function MobilePastPregnancyEdit({
                   placeholder="Select"
                   options={OutcomeOptions}
                   className="form-select"
+                  popupClassName="pregnancy-form-dropdown"
+                  style={{ width: '100%' }}
                 />
               </div>
             </div>
@@ -513,6 +517,8 @@ function MobilePastPregnancyEdit({
                     placeholder="Select"
                     options={DeliveryModeOptions}
                     className="form-select"
+                    popupClassName="pregnancy-form-dropdown"
+                    style={{ width: '100%' }}
                     allowClear
                   />
                 </div>
@@ -633,6 +639,8 @@ function MobilePastPregnancyEdit({
                       placeholder="Select"
                       options={EctopicLocationOptions}
                       className="form-select"
+                      popupClassName="pregnancy-form-dropdown"
+                      style={{ width: '100%' }}
                       allowClear
                     />
                   </div>
@@ -647,6 +655,8 @@ function MobilePastPregnancyEdit({
                       placeholder="Select"
                       options={MiscarriageTypeOptions}
                       className="form-select"
+                      popupClassName="pregnancy-form-dropdown"
+                      style={{ width: '100%' }}
                       allowClear
                     />
                   </div>

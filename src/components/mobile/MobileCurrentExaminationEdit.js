@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Drawer, Button, Input, DatePicker, Select, Radio, message, Modal } from 'antd';
+import { Drawer, Button, Input, DatePicker, message, Modal } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
 import moment from 'moment';
@@ -456,25 +456,41 @@ function MobileCurrentExaminationEdit({
             <div className="exam-grid">
               <div className="exam-item">
                 <span className="exam-label">Pallor</span>
-                <Radio.Group
-                  value={pallor}
-                  onChange={(e) => { setIsDirty(true); setPallor(e.target.value); }}
-                  className="exam-radio-group"
-                >
-                  <Radio.Button value={true}>Yes</Radio.Button>
-                  <Radio.Button value={false}>No</Radio.Button>
-                </Radio.Group>
+                <div className="button-group exam-yesno-group">
+                  <button
+                    type="button"
+                    className={`option-button ${pallor === true ? 'selected' : ''}`}
+                    onClick={() => { setIsDirty(true); setPallor(true); }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`option-button ${pallor === false ? 'selected' : ''}`}
+                    onClick={() => { setIsDirty(true); setPallor(false); }}
+                  >
+                    No
+                  </button>
+                </div>
               </div>
               <div className="exam-item">
                 <span className="exam-label">Oedema</span>
-                <Radio.Group
-                  value={oedema}
-                  onChange={(e) => { setIsDirty(true); setOedema(e.target.value); }}
-                  className="exam-radio-group"
-                >
-                  <Radio.Button value={true}>Yes</Radio.Button>
-                  <Radio.Button value={false}>No</Radio.Button>
-                </Radio.Group>
+                <div className="button-group exam-yesno-group">
+                  <button
+                    type="button"
+                    className={`option-button ${oedema === true ? 'selected' : ''}`}
+                    onClick={() => { setIsDirty(true); setOedema(true); }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={`option-button ${oedema === false ? 'selected' : ''}`}
+                    onClick={() => { setIsDirty(true); setOedema(false); }}
+                  >
+                    No
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -559,37 +575,53 @@ function MobileCurrentExaminationEdit({
                     className="exam-input fundus-input"
                     inputMode="numeric"
                   />
-                  <Radio.Group
-                    value={heightOfFundusUnit}
-                    onChange={(e) => { setIsDirty(true); setHeightOfFundusUnit(e.target.value); }}
-                    className="fundus-unit-group"
-                  >
-                    <Radio.Button value="cm">cm</Radio.Button>
-                    <Radio.Button value="weeks">Weeks</Radio.Button>
-                  </Radio.Group>
+                  <div className="button-group fundus-unit-group">
+                    <button
+                      type="button"
+                      className={`option-button ${heightOfFundusUnit === 'cm' ? 'selected' : ''}`}
+                      onClick={() => { setIsDirty(true); setHeightOfFundusUnit('cm'); }}
+                    >
+                      cm
+                    </button>
+                    <button
+                      type="button"
+                      className={`option-button ${heightOfFundusUnit === 'weeks' ? 'selected' : ''}`}
+                      onClick={() => { setIsDirty(true); setHeightOfFundusUnit('weeks'); }}
+                    >
+                      Weeks
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="exam-item">
+              <div className="exam-item full-width">
                 <span className="exam-label">Presentation</span>
-                <Select
-                  value={presentation}
-                  onChange={(val) => { setIsDirty(true); setPresentation(val); }}
-                  placeholder="Select"
-                  options={PresentationOptions}
-                  className="exam-select"
-                  allowClear
-                />
+                <div className="button-grid presentation-grid">
+                  {PresentationOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`option-button ${presentation === opt.value ? 'selected' : ''}`}
+                      onClick={() => { setIsDirty(true); setPresentation(presentation === opt.value ? undefined : opt.value); }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="exam-item">
+              <div className="exam-item full-width">
                 <span className="exam-label">Liquor</span>
-                <Select
-                  value={liquor}
-                  onChange={(val) => { setIsDirty(true); setLiquor(val); }}
-                  placeholder="Select"
-                  options={LiquorOptions}
-                  className="exam-select"
-                  allowClear
-                />
+                <div className="button-group liquor-group">
+                  {LiquorOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`option-button ${liquor === opt.value ? 'selected' : ''}`}
+                      onClick={() => { setIsDirty(true); setLiquor(liquor === opt.value ? undefined : opt.value); }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="exam-item">
                 <span className="exam-label">Fetal Heart Rate (BPM)</span>

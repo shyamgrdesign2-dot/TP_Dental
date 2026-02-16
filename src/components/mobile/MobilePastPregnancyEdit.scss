@@ -92,6 +92,7 @@
   flex-direction: column;
   min-height: 0;
   gap: 16px;
+  background-color: #FAF8FD;
 }
 
 // Form sections
@@ -142,11 +143,9 @@
   }
 }
 
-// Form Select (Ant Design)
 .form-select {
   &.ant-select {
     width: 100%;
-    
     .ant-select-selector {
       height: 44px !important;
       border-radius: 8px !important;
@@ -156,6 +155,7 @@
       font-size: 14px;
       display: flex;
       align-items: center;
+      box-sizing: border-box;
 
       .ant-select-selection-item {
         line-height: 42px;
@@ -249,13 +249,24 @@
     }
 
     &.ant-radio-button-wrapper-checked {
-      background: #4b4ad5;
-      border-color: #4b4ad5;
-      color: #FFFFFF;
+      background: #4b4ad5 !important;
+      border-color: #4b4ad5 !important;
+      color: #FFFFFF !important;
+
+      &,
+      span {
+        color: #FFFFFF !important;
+      }
 
       &:hover {
-        background: #5D5CE8;
-        border-color: #5D5CE8;
+        background: #5D5CE8 !important;
+        border-color: #5D5CE8 !important;
+        color: #FFFFFF !important;
+
+        &,
+        span {
+          color: #FFFFFF !important;
+        }
       }
     }
   }
@@ -432,14 +443,14 @@
       .pregnancy-card-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 14px;
+        margin-bottom: 14px;
 
         .gravida-badge {
           background: #F0F0FF;
           border: 1px solid #4b4ad5;
           border-radius: 4px;
-          padding: 2px 8px;
+          padding: 4px 8px;
           font-family: 'Poppins', sans-serif;
           font-size: 12px;
           font-weight: 600;
@@ -448,7 +459,7 @@
 
         .outcome-badge {
           border-radius: 4px;
-          padding: 2px 8px;
+          padding: 6px 8px;
           font-family: 'Poppins', sans-serif;
           font-size: 12px;
           font-weight: 500;
@@ -485,7 +496,7 @@
           font-size: 12px;
           color: #374151;
           background: #F3F4F6;
-          padding: 4px 8px;
+          padding: 6px 8px;
           border-radius: 4px;
         }
       }
