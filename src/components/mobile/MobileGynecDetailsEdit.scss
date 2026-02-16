@@ -331,7 +331,7 @@
   .option-button {
     width: 100%;
     min-width: 0;
-    height: 40px;
+    min-height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -343,10 +343,12 @@
     font-weight: 500;
     color: #454551;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%);
-    padding: 0 6px;
+    padding: 8px;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
     box-sizing: border-box;
+    white-space: normal;
+    word-break: break-word;
 
     &:nth-child(2n):not(:last-child) {
       border-right: none;
