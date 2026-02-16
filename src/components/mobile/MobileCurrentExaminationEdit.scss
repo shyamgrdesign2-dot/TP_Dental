@@ -240,7 +240,7 @@
 .button-group.fundus-unit-group {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0;
+  gap: 0 !important;
   border-radius: 4px;
   overflow: hidden;
 
