@@ -119,7 +119,7 @@ function MobileFlowDetailsEdit({
         </div>
 
         <div className="mobile-gynec-details-body">
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Duration of menstrual flow (in days)</label>
             <div className="button-grid duration-grid">
               {durationOptions.map((option) => {
@@ -155,8 +155,8 @@ function MobileFlowDetailsEdit({
             )}
           </div>
 
-          <div className="form-section">
-            <label className="section-label">Clots During Flow</label>
+          <div className="form-section-menarche">
+            <label className="section-label">Clots</label>
             <div className="button-group clots-group">
               {CLOTS_LIST.map((option) => {
                 const isSelected = selectedClots === option.value;
@@ -174,7 +174,7 @@ function MobileFlowDetailsEdit({
             </div>
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Number of Pads Per Day</label>
             <div className="button-grid pads-grid">
               {padsOptions.map((option) => {
@@ -210,7 +210,7 @@ function MobileFlowDetailsEdit({
             )}
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Note</label>
             <TextArea
               placeholder="Enter any specific flow notes here"

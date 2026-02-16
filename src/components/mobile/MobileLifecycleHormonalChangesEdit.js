@@ -92,7 +92,7 @@ function MobileLifecycleHormonalChangesEdit({
         </div>
 
         <div className="mobile-gynec-details-body">
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Age at {stageName}</label>
             <div className="button-grid age-grid">
               {ageOptions.map((option) => {
@@ -128,9 +128,9 @@ function MobileLifecycleHormonalChangesEdit({
             )}
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Type of {stageName}</label>
-            <div className="button-group type-group">
+            <div className="button-grid type-grid">
               {TYPES_REPRODUCTIVE_STAGES.map((option) => {
                 const isSelected = selectedType === option.value;
                 return (
@@ -147,7 +147,7 @@ function MobileLifecycleHormonalChangesEdit({
             </div>
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Note</label>
             <TextArea
               placeholder={`Enter any specific ${stageName.toLowerCase()} notes here`}

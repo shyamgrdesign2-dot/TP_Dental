@@ -83,7 +83,7 @@ function MobileAgeAtMenarcheEdit({
         </div>
 
         <div className="mobile-gynec-details-body">
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Age at Menarche</label>
             <div className="button-grid age-grid">
               {ageOptions.map((option) => {
@@ -119,7 +119,7 @@ function MobileAgeAtMenarcheEdit({
             )}
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Note</label>
             <TextArea
               placeholder="Enter any specific menarche notes here"

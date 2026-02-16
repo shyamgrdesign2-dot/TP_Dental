@@ -83,7 +83,7 @@ function MobileCycleDetailsEdit({
         </div>
 
         <div className="mobile-gynec-details-body">
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Interval of cycle (in days)</label>
             <div className="button-grid interval-grid">
               {intervalOptions.map((option) => {
@@ -119,7 +119,7 @@ function MobileCycleDetailsEdit({
             )}
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Note</label>
             <TextArea
               placeholder="Enter any specific cycle notes here"

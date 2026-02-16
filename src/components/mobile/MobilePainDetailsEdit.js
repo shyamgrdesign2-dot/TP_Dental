@@ -61,7 +61,7 @@ function MobilePainDetailsEdit({
         </div>
 
         <div className="mobile-gynec-details-body">
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Occurrence of pain</label>
             <div className="button-group occurrence-group">
               {PAIN_OCCURANCE_LIST.map((option) => {
@@ -80,7 +80,7 @@ function MobilePainDetailsEdit({
             </div>
           </div>
 
-          <div className="form-section">
+          <div className="form-section-menarche">
             <label className="section-label">Note</label>
             <TextArea
               placeholder="Enter any specific pain notes here"

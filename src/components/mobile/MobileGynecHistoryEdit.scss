@@ -22,7 +22,7 @@
   flex-direction: column;
   height: 100%;
   max-height: 90vh;
-  background: #F9FAFB;
+  background: #FAF8FD;
   overflow: hidden;
 }
 
@@ -85,7 +85,7 @@
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 12px !important;
   background: #FFFFFF;
   padding: 16px;
   border-radius: 12px;
@@ -168,25 +168,25 @@
 .button-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px !important;
   width: 100%;
 
   &.segmented {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px !important;
   }
 
   &.pain-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px !important;  
   }
 
   &.lifecycle-wrap {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px !important;
   }
 }
 
@@ -200,7 +200,7 @@
   background: #FFFFFF;
   color: #6B7280;
   font-family: 'Poppins', sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease;
