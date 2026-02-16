@@ -272,7 +272,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
   const isAppointmentAgentEnable = planDetails?.currentPlanStatus === "PAID" && !shouldAppointmentAgentDisabled();
-  // const isAppointmentAgentEnable = !shouldAppointmentAgentDisabled();
+  
+  // Check if current userId is in appointmentAgentsData.doctors
+  const isUserInAgentsData = appointmentAgentsData?.doctors?.some(
+    (doctor) => doctor.um_id === userId
+  ) ?? false;
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -3166,7 +3170,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && (
+            {isAppointmentAgentEnable && isUserInAgentsData && (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
