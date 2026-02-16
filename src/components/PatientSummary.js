@@ -15,7 +15,7 @@ import styles from "./PatientSummary.module.scss";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import ApiCaseManager from "../api/services/ApiCaseManager";
-import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx, copyAmbientRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "../pages/snapRx/services/snapRxService";
 import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../utils/utils";
 import { setShowSCPopup } from "../redux/ddxSlice";
@@ -1332,23 +1332,37 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 return (
                 <span 
                   className={styles.repeatRxLink} 
-                  onClick={() => {
+                  onClick={async () => {
                     window.Moengage?.track_event("repeat_rx_click", {
                       "doctor_id": viewCaseManagerData?.doctor_data?.um_id,
                       "patient_id": patient_data?.patient_unique_id || 0,
                       "rx_date": lastPrescriptionData.consultation_date
                     });
-                    navigate("/prescription", { 
-                      state: { 
-                        patient_data: patient_data, 
-                        send_path: "voice_rx_consult", 
-                        caseManagerData: { 
-                          ...lastPrescriptionData, 
-                          tcm_id: 0, 
-                          consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') 
-                        } 
-                      } 
-                    });
+                    const rxId = filenameToUse;
+                    const newAppointmentId = viewCaseManagerData?.tcm_id ?? 0;
+                    if (!rxId || !patient_data) return;
+                    try {
+                      const copyResponse = await copyAmbientRx(rxId, newAppointmentId);
+                      if (!copyResponse?.success) {
+                        console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
+                        return;
+                      }
+                      const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
+                      navigate("/prescription", {
+                        state: {
+                          patient_data: patient_data,
+                          send_path: "voice_rx_consult",
+                          caseManagerData: {
+                            ...lastPrescriptionData,
+                            smart_prescription_filename: copiedRxId,
+                            tcm_id: 0,
+                            consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+                          }
+                        }
+                      });
+                    } catch (error) {
+                      console.error("[PatientSummary Repeat Rx] Error", error);
+                    }
                   }}
                 >
                   <i className="icon-reload"></i>

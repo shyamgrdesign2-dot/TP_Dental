@@ -756,14 +756,15 @@ const ConsultationDrawer = ({
 
   const getGenRxDetails = async () => {
     try {
-      // First, call getGenRx to check the conversation field
       const initialResponse = await getGenRx(caseManagerData?.smart_prescription_filename);
+      if (!initialResponse.success || !initialResponse.data) {
+        throw new Error(initialResponse.error || "Failed to get Rx");
+      }
+      const payload = initialResponse.data ?? initialResponse.response;
+      const conversation = payload?.history?.[0]?.conversation;
+      const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
 
-      if (initialResponse.success && initialResponse.data) {
-        // Check if conversation exists and has data in the history
-        const conversation = initialResponse.data?.history?.[0]?.conversation;
-        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
-        
+      if (payload) {
         // Set ambient mode based on conversation field
         if (hasConversation) {
           setIsAmbientMode(true);
@@ -774,21 +775,7 @@ const ConsultationDrawer = ({
             window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
           }
         }
-        
-        let response = initialResponse;
-        
-        // If conversation has doctor and patient conversation, call ambient API
-        if (hasConversation) {
-          const ambientResponse = await getAmbientRx(caseManagerData?.smart_prescription_filename);
-          if (ambientResponse.success) {
-            response = ambientResponse;
-          }
-        }
-        // If conversation is null or empty, use the dictate mode response (initialResponse)
-
-        const payload = response.data ?? response.response;
-        if (response.success && payload) {
-          const d = payload;
+        const d = payload;
           // Ambient = conversation in history (API returns history[].conversation, no rxDigitizationHistory)
           const isAmbient = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
 
@@ -941,9 +928,8 @@ const ConsultationDrawer = ({
             setFullTranscript(transcriptSource);
           }
         }
-        }
       } else {
-        throw new Error(initialResponse.error || "Failed to get Rx");
+        throw new Error(initialResponse?.error || "Failed to get Rx");
       }
     } catch (error) {
       console.error("Error getting Rx details:", error);
@@ -1231,7 +1217,36 @@ const ConsultationDrawer = ({
     
     // Clean the data first
     const cleanedData = deepClean(data);
-    
+
+    const normalizedDiagnosis = Array.isArray(cleanedData.diagnosis)
+      ? cleanedData.diagnosis.map((item) => {
+          if (item == null) return { name: "", since: "", status: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, since: "", status: "", notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.lineItem ?? "").trim();
+          const since = String(item.since ?? "").trim();
+          const status = String(item.status ?? "").trim();
+          const notes = String(item.notes ?? item.note ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || [name, status, notes].filter(Boolean).join(", ") || name;
+          return { name, since, status, notes, lineItem };
+        })
+      : [];
+    const normalizedExaminations = Array.isArray(cleanedData.examinations)
+      ? cleanedData.examinations.map((item) => {
+          if (item == null) return { name: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.findings ?? item.lineItem ?? "").trim();
+          const notes = String(item.notes ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || (notes ? `${name}, ${notes}` : name) || name;
+          return { name, notes, lineItem };
+        })
+      : [];
+
     // Map instruction to notes for labInvestigation items
     const mappedLabInvestigation = Array.isArray(cleanedData.labInvestigation)
       ? cleanedData.labInvestigation.map(item => {
@@ -1256,14 +1271,14 @@ const ConsultationDrawer = ({
         })
       : [];
     
-    // Ensure all required fields exist with proper defaults
+    // Ensure all required fields exist with proper defaults (normalized diagnosis/examinations include status, lineItem, etc.)
     const validatedData = {
       symptoms: Array.isArray(cleanedData.symptoms) ? cleanedData.symptoms : [],
       medications: Array.isArray(cleanedData.medications) ? cleanedData.medications : [],
       vitalsAndBodyComposition: cleanedData.vitalsAndBodyComposition || {},
       advice: Array.isArray(cleanedData.advice) ? cleanedData.advice : [],
-      diagnosis: Array.isArray(cleanedData.diagnosis) ? cleanedData.diagnosis : [],
-      examinations: Array.isArray(cleanedData.examinations) ? cleanedData.examinations : [],
+      diagnosis: normalizedDiagnosis,
+      examinations: normalizedExaminations,
       followUp: typeof cleanedData.followUp === 'string' ? cleanedData.followUp : "",
       labInvestigation: mappedLabInvestigation,
       medicalHistory: Array.isArray(cleanedData.medicalHistory) ? cleanedData.medicalHistory : [],
@@ -1273,13 +1288,13 @@ const ConsultationDrawer = ({
         : [],
       ...cleanedData
     };
-    
+    validatedData.diagnosis = normalizedDiagnosis;
+    validatedData.examinations = normalizedExaminations;
     validatedData.labInvestigation = mappedLabInvestigation;
     validatedData.others = Array.isArray(cleanedData.others)
       ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
       : [];
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
-    
     return validatedData;
   };
 
@@ -1334,6 +1349,43 @@ const ConsultationDrawer = ({
     return digitizeData;
   };
 
+  /** Whether Rx Pad has any content to send as previousContext (Repeat Rx, edits, or last API response). */
+  const hasRxPadContent = (data) => {
+    if (!data || typeof data !== "object") return false;
+    const arr = (key) => Array.isArray(data[key]) && data[key].length > 0;
+    if (arr("symptoms") || arr("medications") || arr("diagnosis") || arr("advice") || arr("examinations") || arr("labInvestigation") || arr("medicalHistory") || arr("vaccinations") || arr("others")) return true;
+    const v = data.vitalsAndBodyComposition;
+    if (v && typeof v === "object" && Object.values(v).some((val) => val != null && String(val).trim() !== "")) return true;
+    if (data.followUp && String(data.followUp).trim() !== "") return true;
+    return false;
+  };
+
+  /** Map Rx pad prescription data to API digitizeData shape for previousContext (vitals field names). */
+  const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
+    if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
+    const v = prescriptionData.vitalsAndBodyComposition;
+    if (!v || typeof v !== "object") return prescriptionData;
+    const mapped = { ...v };
+    if (mapped.respRate !== undefined) {
+      mapped.respiratoryRate = mapped.respRate;
+      delete mapped.respRate;
+    }
+    if (mapped.sugar !== undefined) {
+      mapped.randomBloodSugar = mapped.sugar;
+      delete mapped.sugar;
+    }
+    if (mapped.ofc !== undefined) {
+      mapped.headCircumference = mapped.ofc;
+      delete mapped.ofc;
+    }
+    if (mapped.general_rbs !== undefined || mapped["General RBS"] !== undefined) {
+      mapped.genralRBS = mapped.general_rbs ?? mapped["General RBS"];
+      delete mapped.general_rbs;
+      delete mapped["General RBS"];
+    }
+    return { ...prescriptionData, vitalsAndBodyComposition: mapped };
+  };
+
   const handleVoiceDigitize = async (
     audioBlobParam,
     transcribedText,
@@ -1345,8 +1397,10 @@ const ConsultationDrawer = ({
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
         const patientId = patient_data?.patient_unique_id || "";
         const admissionId = caseManagerData?.admission_id || null;
-        // Create: no previousContext. Update: previousContext = digitizeData from create/last API response
-        const previousContext = genRxDetails?._id && lastDigitizeDataRef.current ? lastDigitizeDataRef.current : {};
+        // Send previousContext whenever Rx Pad has data: from last API response (lastDigitizeDataRef) or current Rx Pad (Repeat Rx / edits)
+        const previousContext =
+          lastDigitizeDataRef.current ??
+          (prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {});
         const consentPayload = await getConsentForDigitization();
         let currentRecordingDuration = null;
         let payload;
@@ -1449,13 +1503,15 @@ const ConsultationDrawer = ({
           if (!isFromSC) {
             let prescriptionData = null;
             let conversationData = null;
-            // Rx pad: use editedData when present, else digitizeData (then history[0].digitize)
+            // Rx pad: always display from digitizeData when present (voice/ambient); fallback to editedData only when no digitizeData
             const editedData = finalResponseData.editedData ?? actualData?.editedData ?? responseData?.editedData ?? null;
             const digitizeDataRaw = finalResponseData.digitizeData ?? finalResponseData.history?.[0]?.digitize ?? actualData?.digitizeData ?? responseData?.digitizeData ?? null;
-            const dataForPad = editedData ?? digitizeDataRaw;
+            const dataForPad = digitizeDataRaw ?? editedData;
             if (dataForPad) {
               if (digitizeDataRaw) lastDigitizeDataRef.current = digitizeDataRaw;
-              prescriptionData = editedData ? (editedData.symptoms !== undefined || editedData.medications !== undefined ? editedData : mapDigitizeDataToPrescription(editedData)) : mapDigitizeDataToPrescription(digitizeDataRaw);
+              prescriptionData = digitizeDataRaw
+                ? mapDigitizeDataToPrescription(digitizeDataRaw)
+                : (editedData?.symptoms !== undefined || editedData?.medications !== undefined ? editedData : mapDigitizeDataToPrescription(editedData));
             }
             conversationData = finalResponseData.history?.[0]?.conversation ?? finalResponseData.conversation ?? conversationData;
 
@@ -1723,7 +1779,10 @@ const ConsultationDrawer = ({
         // Dictate mode: same pipeline - upload first for audio, then JSON payload to common endpoint
         const patientId = patient_data?.patient_unique_id;
         const admissionId = caseManagerData?.admission_id || null;
-        const previousContext = genRxDetails?._id && lastDigitizeDataRef.current ? lastDigitizeDataRef.current : {};
+        // Send previousContext whenever Rx Pad has data: from last API response (lastDigitizeDataRef) or current Rx Pad (Repeat Rx / edits)
+        const previousContext =
+          lastDigitizeDataRef.current ??
+          (prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {});
         const consentPayload = await getConsentForDigitization();
         let payload;
 
@@ -1789,7 +1848,7 @@ const ConsultationDrawer = ({
           // Rx pad: use editedData when present, else digitizeData
           const editedDataDictate = dataForParse.editedData ?? null;
           const digitizeDataDictate = dataForParse.digitizeData ?? dataForParse.history?.[0]?.digitize ?? null;
-          const dataForPadDictate = editedDataDictate ?? digitizeDataDictate;
+          const dataForPadDictate = digitizeDataDictate ?? editedDataDictate;
           if (digitizeDataDictate) lastDigitizeDataRef.current = digitizeDataDictate;
 
           let updatedTranscript = null;
@@ -1800,9 +1859,9 @@ const ConsultationDrawer = ({
             let conversationData = null;
 
             if (dataForPadDictate) {
-              prescriptionData = editedDataDictate
-                ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
-                : mapDigitizeDataToPrescription(digitizeDataDictate);
+              prescriptionData = digitizeDataDictate
+                ? mapDigitizeDataToPrescription(digitizeDataDictate)
+                : (editedDataDictate?.symptoms !== undefined || editedDataDictate?.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate));
             }
             if (!prescriptionData && (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition)) {
               prescriptionData = responseData;

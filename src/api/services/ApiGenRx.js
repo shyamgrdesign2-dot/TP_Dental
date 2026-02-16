@@ -9,8 +9,21 @@ const symptomsCollectorBaseUrl = {
 
 const digitizationBaseUrl = config.snap_rx_api_url;
 
+const copyRxBaseUrl = config.rx_digitization || digitizationBaseUrl;
+const voiceCopyBaseUrl = config.gen_rx_api_url || copyRxBaseUrl;
+
 const voiceAmbientBaseUrl = {
   customBaseUrl: digitizationBaseUrl,
+  timeout: parseInt(process.env.REACT_APP_AMBIENT_RX_TIMEOUT) || 300000,
+};
+
+const copyRxBaseUrlConfig = {
+  customBaseUrl: copyRxBaseUrl,
+  timeout: parseInt(process.env.REACT_APP_AMBIENT_RX_TIMEOUT) || 300000,
+};
+
+const voiceCopyBaseUrlConfig = {
+  customBaseUrl: voiceCopyBaseUrl,
   timeout: parseInt(process.env.REACT_APP_AMBIENT_RX_TIMEOUT) || 300000,
 };
 
@@ -201,28 +214,32 @@ export const getAmbientRx = async function (id) {
   return res;
 };
 
+/** Repeat Rx for voice: POST voice-digitize/copy-rx (voice prescriptions only). */
 export const copyVoiceRx = async function (id, newAppointmentId) {
   let res = { success: false };
   try {
-    const endpoint = `/api/v1/digitization/voice/copy?id=${id}&newAppointmentId=${newAppointmentId}`;
-    const response = await api.post(endpoint, {}, voiceAmbientBaseUrl);
+    const endpoint = `/api/v1/voice-digitize/copy-rx/${id}`;
+    const response = await api.post(endpoint, { newAppointmentId }, voiceCopyBaseUrlConfig);
     res = response?.data ? { success: true, data: response.data } : { success: true, data: response };
   } catch (e) {
-    console.error("Error while copying voice rx:", e?.message);
-    res = { success: false, error: e?.message };
+    const errMsg = e?.response?.data?.error || e?.response?.data?.message || e?.message;
+    console.error("Error while copying voice rx:", errMsg);
+    res = { success: false, error: errMsg };
   }
   return res;
 };
 
+/** Repeat Rx for ambient: POST ambient-voice-rx/copy-rx (ambient prescriptions only). */
 export const copyAmbientRx = async function (id, newAppointmentId) {
   let res = { success: false };
   try {
-    const endpoint = `/api/v1/digitization/voice/copy?id=${id}&newAppointmentId=${newAppointmentId}`;
-    const response = await api.post(endpoint, {}, voiceAmbientBaseUrl);
+    const endpoint = `/api/v1/ambient-voice-rx/copy-rx/${id}`;
+    const response = await api.post(endpoint, { newAppointmentId }, copyRxBaseUrlConfig);
     res = response?.data ? { success: true, data: response.data } : { success: true, data: response };
   } catch (e) {
-    console.error("Error while copying ambient rx:", e?.message);
-    res = { success: false, error: e?.message };
+    const errMsg = e?.response?.data?.error || e?.response?.data?.message || e?.message;
+    console.error("Error while copying ambient rx:", errMsg);
+    res = { success: false, error: errMsg };
   }
   return res;
 };

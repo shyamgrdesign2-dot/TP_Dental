@@ -85,10 +85,10 @@ export const normalizeNewItem = (type, text = "") => {
   }
 
   if (type === "examinations") {
-    return { name: t, findings: "", notes: "", lineItem: "" };
+    return { name: t, notes: "", lineItem: t };
   }
   if (type === "diagnosis") {
-    return { name: t, notes: "", lineItem: "" };
+    return { name: t, since: "", status: "", notes: "", lineItem: t };
   }
 
   if (type === "dynamicFields") {
@@ -114,8 +114,8 @@ const getPrimaryText = (type, item) => {
   if (type === "dynamicFields") return item?.title || "";
   if (type === "others") return typeof item === "string" ? item : "";
   if (type === "labResults") return item?.testname || "";
-  if (type === "diagnosis") return String(item?.name ?? item?.notes ?? "").trim();
-  if (type === "examinations") return String(item?.name ?? item?.findings ?? item?.notes ?? item?.lineItem ?? "").trim();
+  if (type === "diagnosis") return String(item?.lineItem ?? item?.name ?? (item?.status ? `${item?.name ?? ""}, ${item.status}`.trim() : "") ?? item?.notes ?? "").trim();
+  if (type === "examinations") return String(item?.lineItem ?? item?.name ?? item?.findings ?? item?.notes ?? "").trim();
   return item?.name || "";
 };
 
@@ -206,13 +206,27 @@ const DigitisedPrescription = ({
   const handleLineItemBlur = useCallback(
     (type, index) => {
       const itemType = type?.split("-")?.[0];
+      const lineItemValue = String(editableLineItem ?? "").trim();
       setData((prevData) => {
         const updatedData = { ...prevData };
         const arr = [...(updatedData[itemType] || [])];
-        if (itemType === "diagnosis" || itemType === "examinations" || itemType === "dynamicFields") {
-          arr[index] = { ...arr[index], notes: editableLineItem };
+        const item = arr[index];
+        if (itemType === "diagnosis") {
+          const notes = lineItemValue;
+          const name = String(item?.name ?? "").trim();
+          const since = String(item?.since ?? "").trim();
+          const status = String(item?.status ?? "").trim();
+          const lineItem = [name, status, notes].filter(Boolean).join(", ") || name;
+          arr[index] = { name: name || "", since, status, notes, lineItem };
+        } else if (itemType === "examinations") {
+          const notes = lineItemValue;
+          const name = String(item?.name ?? "").trim();
+          const lineItem = notes ? `${name}, ${notes}` : name || "";
+          arr[index] = { name: name || "", notes, lineItem };
+        } else if (itemType === "dynamicFields") {
+          arr[index] = { ...item, notes: lineItemValue };
         } else {
-          arr[index] = { ...arr[index], lineItem: editableLineItem };
+          arr[index] = { ...item, lineItem: lineItemValue };
         }
         updatedData[itemType] = arr;
         return updatedData;
@@ -231,9 +245,38 @@ const DigitisedPrescription = ({
   // Support both old and new structure (vitals/vitalsAndBodyComposition, examination/examinations, medicine/medications, tests/labInvestigation)
   const sectionData = useMemo(() => {
     const vitals = data?.vitalsAndBodyComposition || data?.vitals;
-    const examinations = data?.examinations || data?.examination;
+    const examinationsRaw = data?.examinations || data?.examination;
     const medications = data?.medications || data?.medicine;
     const labInvestigation = data?.labInvestigation || data?.tests;
+    const examinations = !Array.isArray(examinationsRaw)
+      ? []
+      : examinationsRaw.map((item) => {
+          if (item == null) return { name: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.findings ?? item.lineItem ?? "").trim();
+          const notes = String(item.notes ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || (notes ? `${name}, ${notes}` : name) || name;
+          return { name, notes, lineItem };
+        });
+    const diagnosisRaw = data?.diagnosis;
+    const diagnosis = !Array.isArray(diagnosisRaw)
+      ? []
+      : diagnosisRaw.map((item) => {
+          if (item == null) return { name: "", since: "", status: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, since: "", status: "", notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.lineItem ?? "").trim();
+          const since = String(item.since ?? "").trim();
+          const status = String(item.status ?? "").trim();
+          const notes = String(item.notes ?? item.note ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || [name, status, notes].filter(Boolean).join(", ") || name;
+          return { name, since, status, notes, lineItem };
+        });
     return {
       vitalsAndBodyComposition: vitals,
       examinations,
@@ -241,7 +284,7 @@ const DigitisedPrescription = ({
       labInvestigation,
       symptoms: data?.symptoms,
       medicalHistory: data?.medicalHistory,
-      diagnosis: data?.diagnosis,
+      diagnosis,
       vaccinations: data?.vaccinations,
       advice: data?.advice,
       followUp: data?.followUp,
@@ -389,9 +432,18 @@ const DigitisedPrescription = ({
             } else {
               arr[index] = item;
             }
-          } else if (type === "diagnosis" || type === "examinations") {
+          } else if (type === "diagnosis") {
             const nameToSave = (val !== "" ? val : String(item?.name ?? "").trim()) || String(item?.notes ?? "").trim();
-            arr[index] = { ...item, name: nameToSave || item?.name || "" };
+            const since = String(item?.since ?? "").trim();
+            const status = String(item?.status ?? "").trim();
+            const notes = String(item?.notes ?? "").trim();
+            const lineItem = [nameToSave, status, notes].filter(Boolean).join(", ") || nameToSave;
+            arr[index] = { name: nameToSave || "", since, status, notes, lineItem };
+          } else if (type === "examinations") {
+            const nameToSave = (val !== "" ? val : String(item?.name ?? "").trim()) || String(item?.notes ?? "").trim();
+            const notes = String(item?.notes ?? "").trim();
+            const lineItem = notes ? `${nameToSave}, ${notes}` : nameToSave || "";
+            arr[index] = { name: nameToSave || "", notes, lineItem };
           } else {
             if (val) {
               arr[index] = { ...item, name: val };
@@ -430,7 +482,10 @@ const DigitisedPrescription = ({
               (v) =>
                 v &&
                 typeof v === "object" &&
-                (String(v.name ?? "").trim() !== "" || String(v.notes ?? "").trim() !== "")
+                (String(v.name ?? "").trim() !== "" ||
+                  String(v.notes ?? "").trim() !== "" ||
+                  String(v.status ?? "").trim() !== "" ||
+                  String(v.lineItem ?? "").trim() !== "")
             );
           } else if (type === "examinations") {
             arr = arr.filter(
@@ -1390,7 +1445,7 @@ const DigitisedPrescription = ({
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
         examinations: ["name", "findings", "notes", "lineItem"],
-        diagnosis: ["name", "notes", "lineItem"],
+        diagnosis: ["name", "since", "status", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "brand", "schedule", "notes", "lineItem"],
         labInvestigation: ["name", "lineItem"],
@@ -1573,9 +1628,9 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.diagnosis && hasValidContent("diagnosis") && (
+          {(sectionData.diagnosis?.length > 0 || data?.diagnosis) && hasValidContent("diagnosis") && (
             <DiagnosisRichTextEditor
-              diagnosis={data.diagnosis}
+              diagnosis={sectionData.diagnosis?.length > 0 ? sectionData.diagnosis : (data.diagnosis || [])}
               onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
               isProcessing={loading}
             />
