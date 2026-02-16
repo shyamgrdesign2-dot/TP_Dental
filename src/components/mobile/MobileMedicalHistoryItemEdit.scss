@@ -103,14 +103,13 @@
 .number-selector {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
   margin-bottom: 12px;
 }
 
 .number-btn {
   padding: 10px;
   border: 1px solid #E2E2EA;
-  border-radius: 4px;
+  border-radius: 2px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%);
   font-size: 14px;
   font-weight: 500;
@@ -165,13 +164,12 @@
 .unit-selector {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
 }
 
 .unit-btn {
   padding: 10px;
   border: 1px solid #E2E2EA;
-  border-radius: 4px;
+  border-radius: 2px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #E2E2EA 100%);
   font-size: 14px;
   font-weight: 500;

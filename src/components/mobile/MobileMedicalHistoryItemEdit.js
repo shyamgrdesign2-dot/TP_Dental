@@ -31,11 +31,8 @@ function MobileMedicalHistoryItemEdit({
         const unit = match[2].toLowerCase();
         setSinceNumber(num);
         setIsCustomNumber(!['1', '2', '3', '4', '5'].includes(num));
-        if (unit.includes('day')) setSinceUnit('1D');
-        else if (unit.includes('week')) setSinceUnit('1W');
-        else if (unit.includes('month')) setSinceUnit('1M');
-        else if (unit.includes('year')) setSinceUnit('1Y');
-        else setSinceUnit('');
+        const suffix = unit.includes('day') ? 'D' : unit.includes('week') ? 'W' : unit.includes('month') ? 'M' : unit.includes('year') ? 'Y' : '';
+        setSinceUnit(suffix ? num + suffix : '');
       }
     } else {
       setSinceNumber('');
@@ -47,14 +44,10 @@ function MobileMedicalHistoryItemEdit({
   const handleSave = () => {
     let sinceValue = '';
     if (sinceNumber && sinceUnit) {
-      const unitMap = {
-        '1D': 'Day',
-        '1W': 'Week',
-        '1M': 'Month',
-        '1Y': 'Year'
-      };
-      const unitText = unitMap[sinceUnit] || 'Week';
-      const plural = parseInt(sinceNumber) > 1 ? `${unitText}(s)` : unitText;
+      const suffixToLabel = { D: 'Day', W: 'Week', M: 'Month', Y: 'Year' };
+      const suffix = sinceUnit.slice(-1);
+      const unitText = suffixToLabel[suffix] || 'Week';
+      const plural = parseInt(sinceNumber, 10) > 1 ? `${unitText}(s)` : unitText;
       sinceValue = `${sinceNumber} ${plural}`;
     }
 
@@ -109,6 +102,10 @@ function MobileMedicalHistoryItemEdit({
                   onClick={() => {
                     setSinceNumber(String(num));
                     setIsCustomNumber(false);
+                    if (sinceUnit) {
+                      const suffix = sinceUnit.slice(-1);
+                      setSinceUnit(String(num) + suffix);
+                    } else setSinceUnit('');
                   }}
                 >
                   {num}
@@ -131,23 +128,33 @@ function MobileMedicalHistoryItemEdit({
                 value={sinceNumber}
                 onChange={(e) => {
                   const v = e.target.value.replace(/\D/g, '');
-                  if (v.length <= 4) setSinceNumber(v);
+                  if (v.length <= 4) {
+                    setSinceNumber(v);
+                    if (sinceUnit) {
+                      const suffix = sinceUnit.slice(-1);
+                      setSinceUnit(v ? v + suffix : '');
+                    }
+                  }
                 }}
                 className="custom-number-input"
               />
             )}
 
             <div className="unit-selector">
-              {['1D', '1W', '1M', '1Y'].map(unit => (
-                <button
-                  key={unit}
-                  type="button"
-                  className={`unit-btn ${sinceUnit === unit ? 'active' : ''}`}
-                  onClick={() => setSinceUnit(unit)}
-                >
-                  {unit}
-                </button>
-              ))}
+              {['D', 'W', 'M', 'Y'].map(suffix => {
+                const n = sinceNumber || '1';
+                const unit = n + suffix;
+                return (
+                  <button
+                    key={unit}
+                    type="button"
+                    className={`unit-btn ${sinceUnit === unit ? 'active' : ''}`}
+                    onClick={() => setSinceUnit(unit)}
+                  >
+                    {unit}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
