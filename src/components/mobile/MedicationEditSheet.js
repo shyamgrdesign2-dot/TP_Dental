@@ -4,6 +4,7 @@ import { AutoComplete, Input, Button, Drawer, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
+import { showMedicineTime, showMedicineFrequency } from '../../redux/doctorsSlice';
 import { removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, frequencyFormat, frequencyCombination } from '../../utils/utils';
 import { EXTRA_OPTIONS } from '../../utils/constants';
 import ApiMedication from '../../api/services/ApiMedication';
@@ -131,6 +132,15 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
     }
     setNameError('');
   }, [visible, item, prefillName, prefillMetadata]);
+
+  // Load timing/frequency when sheet opens so "When" and Frequency have options on mobile (Header not mounted).
+  useEffect(() => {
+    if (!visible) return;
+    const timingEmpty = !timingList || timingList.length === 0;
+    const frequencyEmpty = !frequencyList || frequencyList.length === 0;
+    if (timingEmpty) dispatch(showMedicineTime());
+    if (frequencyEmpty) dispatch(showMedicineFrequency());
+  }, [visible, timingList, frequencyList, dispatch]);
 
   // API: empty → getFrequently; typing → debounced searchMedication (same as web)
   useEffect(() => {
@@ -306,10 +316,13 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
 
   const saveEnabled = (name || '').trim().length > 0;
 
-  const scheduleOptions = (timingList || []).map((t) => ({
-    value: t.tmt_title,
-    label: t.tmt_title,
-  }));
+  const timingArray = Array.isArray(timingList)
+    ? timingList
+    : (timingList?.list || timingList?.timing || timingList?.data || []);
+  const scheduleOptions = (timingArray || []).map((t) => ({
+    value: t?.tmt_title ?? t?.title ?? '',
+    label: t?.tmt_title ?? t?.title ?? '',
+  })).filter((o) => o.value);
 
   if (!visible) return null;
 
@@ -425,6 +438,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
               allowClear
               options={scheduleOptions}
               className="medication-edit-sheet-select"
+              getPopupContainer={() => document.body}
             />
           </div>
 

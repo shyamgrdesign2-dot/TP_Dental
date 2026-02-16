@@ -9,6 +9,7 @@ import {
   searchGeneric,
   updateFrequentlyMedication,
 } from '../../redux/medicationSlice';
+import { getMedicineType } from '../../redux/doctorsSlice';
 import { getClinic } from '../../utils/utils';
 import './AddCustomMedicineSheet.scss';
 
@@ -50,6 +51,16 @@ function AddCustomMedicineSheet({ visible, onClose, initialData = null, onSucces
     setForm({ ...defaults, ...(initialData || {}) });
     setGenericQuery('');
   }, [visible, initialData]);
+
+  // Load medicine types when sheet opens so Type dropdown is populated on mobile (Header not mounted).
+  useEffect(() => {
+    if (visible) {
+      const list = medicineTypeList ?? [];
+      if (!Array.isArray(list) || list.length === 0) {
+        dispatch(getMedicineType());
+      }
+    }
+  }, [visible, medicineTypeList, dispatch]);
 
   useEffect(() => {
     if (genericQuery) {
@@ -125,10 +136,13 @@ function AddCustomMedicineSheet({ visible, onClose, initialData = null, onSucces
     onClose?.();
   };
 
-  const typeOptions = (medicineTypeList || []).map((e) => ({
+  const medicineTypeArray = Array.isArray(medicineTypeList)
+    ? medicineTypeList
+    : (medicineTypeList?.list || medicineTypeList?.data || medicineTypeList?.types || []);
+  const typeOptions = (medicineTypeArray || []).map((e) => ({
     value: JSON.stringify({ tmy_id: e.tmy_id, tmy_title: e.tmy_title }),
-    label: e.tmy_title,
-  }));
+    label: e.tmy_title ?? e.title ?? '',
+  })).filter((o) => o.label);
 
   const genericOptions = [...(genericList || []), ...(genericQuery ? [{ tmm_generic: genericQuery }] : [])]
     .filter((e) => e?.tmm_generic)
