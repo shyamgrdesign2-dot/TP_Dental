@@ -2590,6 +2590,8 @@ function Cardiology(props) {
                 handleCollapsed={(flag) => handleCollapsed(flag)}
               />
             </Drawer>
+            {/* Mobile view: Draft Rx alert (same as web) */}
+            {(isMobile && !isTablet) && !!is_draft && <DraftRxAlert />}
             {/* Mobile view: Show shimmer skeleton when loading */}
             {(isMobile && !isTablet) && loading && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
