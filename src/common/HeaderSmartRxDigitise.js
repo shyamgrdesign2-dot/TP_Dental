@@ -61,8 +61,9 @@ import growIcon from "../assets/images/grow.svg";
 import accuracyIcon from "../assets/images/accuracy.svg";
 import healthIcon from "../assets/images/health-care.svg";
 import tagNew from "../assets/images/new-gif.gif";
+import VideoConsultButton from "../components/VideoConsultButton";
 
-function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigitiseRxLoading = false, tcm_id }) {
+function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading }) {
   const { profile } = useSelector(
       (state) => state.doctors
     );
@@ -402,6 +403,12 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
                   <VideoModal
                     videoLink={videoLink}
                     onCancel={() => setVideoLink(null)}
+                  />
+                )}
+                {handleVideoConsult && (
+                  <VideoConsultButton 
+                    onClick={handleVideoConsult} 
+                    loading={isVideoConsultLoading}
                   />
                 )}
                 <Button

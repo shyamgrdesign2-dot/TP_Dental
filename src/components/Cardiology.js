@@ -23,6 +23,7 @@ import vitalsIcon from "../assets/images/Vitals.svg";
 import medicalHistoryIcon from "../assets/images/Medical-History.svg";
 import vaccinationIcon from "../assets/images/Vaccination.svg";
 import customModuleIcon from "../assets/images/custom-module.svg";
+import videoIcon from "../assets/images/video_icon.svg";
 import visualAcuityIcon from "../assets/images/visual-acuity-test.svg";
 import autoRefractionIcon from "../assets/images/auto-refraction-test.svg";
 import lensometerIcon from "../assets/images/lensometer-values.svg";
@@ -45,6 +46,7 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   GB_SNAP_RX,
   GB_SNAP_RX_DIGITIZATION,
+  GB_VIDEO_CONSULT,
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
@@ -66,6 +68,7 @@ import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
+import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import draftIcon from "../assets/images/draft-document.svg";
 
 import {
@@ -526,6 +529,8 @@ function Cardiology(props) {
   const [genRxData, setGenRxData] = useState(null);
   const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
+  const [hasVideoConsult, setHasVideoConsult] = useState(false);
+  const [isLoadingVideoStatus, setIsLoadingVideoStatus] = useState(false);
   const [ambientConversations, setAmbientConversations] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
@@ -536,6 +541,7 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
+  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -550,6 +556,9 @@ function Cardiology(props) {
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
       fetchData();
+      if (isVideoConsultAccessibleFromGB) {
+        checkVideoConsultStatus(viewCaseManagerData.tcm_id);
+      }
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -590,7 +599,7 @@ function Cardiology(props) {
     if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
       getGenRxDetails();
     }
-  }, [viewCaseManagerData, isSnapRxDigitizationAccessable]);
+  }, [viewCaseManagerData, isSnapRxDigitizationAccessable, isVideoConsultAccessibleFromGB]);
 
   // Function to update rxDigitize parameter in the URL
   const updateRxDigitizeInUrl = (url, showDigitalRx) => {
@@ -619,6 +628,25 @@ function Cardiology(props) {
       setPrintUrl(updatedUrl);
     }
   }, [showDigitalRx, showDigitalSnapRx]);
+
+  const checkVideoConsultStatus = async (tcmId) => {
+    if (!tcmId) return;
+    
+    setIsLoadingVideoStatus(true);
+    try {
+      const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+      if (response?.data?.pam_status_type_appointment === 1) {
+        setHasVideoConsult(true);
+      } else {
+        setHasVideoConsult(false);
+      }
+    } catch (error) {
+      console.error("Error checking video consult status:", error);
+      setHasVideoConsult(false);
+    } finally {
+      setIsLoadingVideoStatus(false);
+    }
+  };
 
   useEffect(() => {
     if (defaultPrintSettings) {
@@ -1905,6 +1933,25 @@ function Cardiology(props) {
                   <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
                   <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
+                    {hasVideoConsult && (
+                      <span
+                        style={{
+                          padding: "4px 6px",
+                          background: "#667eea",
+                          color: "#fff",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          lineHeight: 1,
+                          marginLeft: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "2px"
+                        }}
+                        title="Video Consultation"
+                      >
+                        <img src={videoIcon} alt="Video Consultation" width="12" height="12" style={{ flexShrink: 0, filter: "brightness(0) invert(1)" }} />
+                      </span>
+                    )}
                     {(() => {
                       const isSnapRx = viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx");
                       const isSmartRx = viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg");

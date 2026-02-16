@@ -6240,7 +6240,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}
@@ -6289,7 +6289,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}
@@ -6306,7 +6306,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     style={{ width: 61, height: 61, objectFit: 'contain' }}
                                                     src={printSettings?.qrcode} />
                                                 <Text style={{ fontSize: PX_TO_PT * 10, color: '#000', fontFamily: 'Roboto', fontWeight: 400 }}>
-                                                    {`Scan QR code to book an appointment\nwith your doctor or download your old\ndigital prescription`}
+                                                    {`Scan QR code to book an appointment\nwith your doctor`}
                                                 </Text>
                                             </>
                                         )}

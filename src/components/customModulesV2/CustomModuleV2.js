@@ -39,7 +39,7 @@ import DisabledModuleTooltip from "./DisabledModuleTooltip";
 import CommonModal from "../../common/CommonModal";
 import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
-import { removeBeforeWhiteSpace, errorMessage } from "../../utils/utils";
+import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
@@ -66,6 +66,7 @@ const CustomModuleV2 = ({ module }) => {
     customizedPadLeftList,
     customizedPadRightList,
     defaultPrintSettings,
+    profile,
   } = useSelector((state) => state.doctors);
   const { customModules, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
@@ -111,6 +112,21 @@ const CustomModuleV2 = ({ module }) => {
   ];
 
   const decodedToken = getDecodedToken();
+  const clinic = getClinic(profile?.hospital_data);
+  const hospitalId = decodedToken?.result?.clinic_id;
+  
+  // Helper function to get MoEngage data
+  const getMoeData = () => {
+    return {
+      doctor_name: profile?.um_name || "",
+      doctor_um_id: userId || "",
+      specialty: profile?.dp_name || "",
+      doctor_mobile_no: profile?.um_contact || "",
+      sub_doctor: profile?.is_sub_doctor ? 1 : 0,
+      hospital_id: clinic?.hm_id || hospitalId || "",
+    };
+  };
+  
   // Check if module is disabled (used or cloned by the user)
   const isModuleDisabled = (module.hasBeenUsed || module.hasBeenCloned || module.userId != userId || module.origin_id);
   const templates = module?.templates;
@@ -597,6 +613,11 @@ const CustomModuleV2 = ({ module }) => {
 
   // Handle delete module
   const handleDeleteModule = async () => {
+    // Track MoEngage event for delete module
+    if (window.Moengage) {
+      window.Moengage.track_event("TP_CMV2_Del", getMoeData());
+    }
+    
     try {
       message.loading({ content: "Deleting module...", key: "deleteModule" });
 
@@ -733,6 +754,11 @@ const CustomModuleV2 = ({ module }) => {
 
   // Handle remove module from Rx pad
   const handleRemoveFromRxPad = async () => {
+    // Track MoEngage event for remove from Rx pad
+    if (window.Moengage) {
+      window.Moengage.track_event("TP_CMV2_Remove", getMoeData());
+    }
+    
     try {
       message.loading({
         content: "Removing module from Rx pad...",
@@ -944,7 +970,13 @@ const CustomModuleV2 = ({ module }) => {
       </Menu.Item>
       <Menu.Item
         key="edit"
-        onClick={isModuleDisabled ? undefined : () => setIsEditModuleDrawerOpen(true)}
+        onClick={isModuleDisabled ? undefined : () => {
+          // Track MoEngage event for edit module
+          if (window.Moengage) {
+            window.Moengage.track_event("TP_CM2_Edit", getMoeData());
+          }
+          setIsEditModuleDrawerOpen(true);
+        }}
         disabled={isModuleDisabled}
         style={{
           fontFamily: "Poppins, sans-serif",
@@ -1352,8 +1384,32 @@ const CustomModuleV2 = ({ module }) => {
     );
   }, [isDeleteConfirmationModalOpen, module, handleDeleteConfirmationModal, handleDeleteModule]);
 
+  // Close dropdown when clicking outside the module or on a different module
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is inside a dropdown - if so, don't close
+      if (event.target.closest('.custom-module-dropdown')) {
+        return;
+      }
+      
+      // Check if click is inside this module
+      const clickedModule = event.target.closest('.prescription-box-sm');
+      const currentModuleId = module?.module_id;
+      
+      // If click is outside any module or on a different module, close dropdowns
+      if (!clickedModule || clickedModule.getAttribute('data-module-id') !== String(currentModuleId)) {
+        setFocusedFieldId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [module?.module_id]);
+
   return (
-    <div className="prescription-box-sm">
+    <div className="prescription-box-sm" data-module-id={module?.module_id}>
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
@@ -1495,34 +1551,36 @@ const CustomModuleV2 = ({ module }) => {
       {DELETE_MODAL}
 
       {/* Table */}
-      <div className={`custom-module-v2__table ${columnClass}`}>
+      <table className={`custom-module-v2__table ${columnClass} mt-14`}>
         {/* Table Header */}
-        <div className="custom-module-v2__table-header mt-14 border-top border-bottom">
-          {module.namedFields?.map((field, index) => (
-            <div
-              key={field.fieldName}
-              className="custom-module-v2__table-header-cell"
-            >
-              {field.fieldLabel.toUpperCase()}
-            </div>
-          ))}
-          <div className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
-            {/* Action column header */}
-          </div>
-        </div>
+        <thead>
+          <tr className="border-top border-bottom">
+            {module.namedFields?.map((field, index) => (
+              <th
+                key={field.fieldName}
+                className="custom-module-v2__table-header-cell"
+              >
+                {field.fieldLabel.toUpperCase()}
+              </th>
+            ))}
+            <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">
+              {/* Action column header */}
+            </th>
+          </tr>
+        </thead>
 
         {/* Table Body */}
-        <div className="custom-module-v2__table-body">
+        <tbody>
           {moduleData.map((row, rowIndex) => {
             // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
             const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
             return (
-            <div
+            <tr
               key={rowKey}
-              className="custom-module-v2__table-row border-bottom"
+              className="border-bottom"
             >
               {module.namedFields?.map((field, fieldIndex) => (
-                <div
+                <td
                   key={field.fieldName}
                   className="custom-module-v2__table-cell"
                 >
@@ -1562,9 +1620,9 @@ const CustomModuleV2 = ({ module }) => {
                       onFocusChange={setFocusedFieldId}
                     />
                   )}
-                </div>
+                </td>
               ))}
-              <div className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
+              <td className="custom-module-v2__table-cell custom-module-v2__table-cell--action text-center">
                 {isMobile && (
                   <Button
                     className="btn py-0 btn-delete-prescription px-0"
@@ -1579,12 +1637,12 @@ const CustomModuleV2 = ({ module }) => {
                 >
                   <i className="icon-delete"></i>
                 </Button>
-              </div>
-            </div>
+              </td>
+            </tr>
           );
           })}
-        </div>
-      </div>
+        </tbody>
+      </table>
 
       {/* Add New Line Button */}
       <div className="p-14">

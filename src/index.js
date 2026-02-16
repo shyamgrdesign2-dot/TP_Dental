@@ -1,6 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import {
+  BrowserRouter,
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 
 import App from './App';
 import reportWebVitals from './reportWebVitals';
@@ -10,10 +16,29 @@ import './assets/scss/app.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
+const appEnv = process.env.REACT_APP_ENV || "prod";
+const isProd = appEnv === "prod";
+const tracesSampleRateValue =
+  Number(
+    process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
+      (isProd ? 1.0 : 1.0)
+  ) || 1.0;
+
 Sentry.init({
   dsn: "https://a4c36bf5194238bfa49de0a593619865@o4509755819294720.ingest.us.sentry.io/4510737179475968",
+  integrations: [
+    Sentry.reactRouterV6BrowserTracingIntegration({
+      useEffect: React.useEffect,
+      useLocation,
+      useNavigationType,
+      createRoutesFromChildren,
+      matchRoutes,
+    }),
+  ],
+  tracesSampleRate: tracesSampleRateValue,
+  tracePropagationTargets: [],
   sendDefaultPii: true,
-  environment: process.env.REACT_APP_ENV,
+  environment: appEnv,
   beforeSend(event) {
     // Filter out development errors or specific error types
     if (event.environment === "dev") return null;

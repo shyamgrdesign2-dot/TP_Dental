@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Layout, Drawer, DatePicker, Input, Button, Col, Row, Spin } from "antd";
+import { Layout, Drawer, DatePicker, Input, Button, Col, Row, Spin, message } from "antd";
 import { Content } from "antd/es/layout/layout";
 import moment from "moment";
 import { v4 as uuidv4 } from "uuid";
@@ -11,7 +11,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
 
-import { getPatientBirthWeight, getVitals } from "../../redux/vitalsSlice";
+import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
 
 import CashManagerContext from "../../context/CashManagerContext";
@@ -96,6 +96,10 @@ import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
+import VideoConsultButton from "../../components/VideoConsultButton";
+import VideoConsultModal from "../../components/VideoConsultModal";
+import { GB_VIDEO_CONSULT } from "../../utils/constants";
+import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
 import TabCustomModule from "../../components/tab_design/TabCustomModule";
@@ -147,6 +151,7 @@ function TabPrescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
@@ -226,6 +231,10 @@ function TabPrescription() {
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  useEffect(() => {
+    dispatch(resetVitalsState());
+  }, []);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"
@@ -403,6 +412,14 @@ function TabPrescription() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
+  const [videoConsultUrl, setVideoConsultUrl] = useState(null);
+  const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+
+  // Check if video consultation is available for this patient
+  const isVideoConsultAvailable = isVideoConsultAccessible && 
+                                   videoConsultData?.pam_status_type_appointment === 1;
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
 
@@ -611,10 +628,10 @@ function TabPrescription() {
   }, [isAutofillSelected]);
 
   useEffect(() => {
-    if (uploadDocCategories.length === 0) {
+    if (uploadDocCategories?.length === 0) {
       getAllDocumentCategories();
     }
-    if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
+    if (patient_data?.patient_unique_id && allUploadedDocs?.length === 0) {
       getAllPatientDocs();
     }
   }, []);
@@ -679,7 +696,7 @@ function TabPrescription() {
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
-        caseManagerData.vitals.length > 0 &&
+        caseManagerData.vitals?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
@@ -696,7 +713,7 @@ function TabPrescription() {
         }
       }
       if (
-        caseManagerData.medical_history.length > 0 &&
+        caseManagerData.medical_history?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
@@ -706,7 +723,7 @@ function TabPrescription() {
         );
       }
       if (
-        caseManagerData.symptoms.length > 0 &&
+        caseManagerData.symptoms?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 5 && e.tmdpm_status === 0
         ) !== -1
@@ -714,7 +731,7 @@ function TabPrescription() {
         setSymptomsData(caseManagerData.symptoms);
       }
       if (
-        caseManagerData.examination.length > 0 &&
+        caseManagerData.examination?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 10 && e.tmdpm_status === 0
         ) !== -1
@@ -730,7 +747,7 @@ function TabPrescription() {
         setSurgeriesData(caseManagerData.surgeries);
       }
       if (
-        caseManagerData.diagnosis.length > 0 &&
+        caseManagerData.diagnosis?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 11 && e.tmdpm_status === 0
         ) !== -1
@@ -738,7 +755,7 @@ function TabPrescription() {
         setDiagnosisData(caseManagerData.diagnosis);
       }
       if (
-        caseManagerData.medicine.length > 0 &&
+        caseManagerData.medicine?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
@@ -779,7 +796,7 @@ function TabPrescription() {
         setMedicationData([...updatedData]);
       }
       if (
-        caseManagerData.advice.length > 0 &&
+        caseManagerData.advice?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 13 && e.tmdpm_status === 0
         ) !== -1
@@ -787,7 +804,7 @@ function TabPrescription() {
         setAdviceData(caseManagerData.advice);
       }
       if (
-        caseManagerData.investigation.length > 0 &&
+        caseManagerData.investigation?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
@@ -1442,6 +1459,50 @@ function TabPrescription() {
     });
   };
 
+  const handleVideoConsult = async () => {
+    if (!videoConsultData?.pam_id) {
+      message.error("Invalid appointment ID");
+      return;
+    }
+
+    setIsInitiatingCall(true);
+    
+    try {
+      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData.pam_id);
+      
+      if (response.error) {
+        message.error(response.error);
+        return;
+      }
+      
+      if (response.data?.message === "success") {
+        if (response.data.action === "join-video-call" && response.data.callJoinUrlForDoctor) {
+          setVideoConsultUrl(response.data.callJoinUrlForDoctor);
+          setVideoConsultAction(response.data.action);
+          setIsVideoModalVisible(true);
+        } else if (response.data.action === "join-audio-call") {
+          message.info(response.data.displayMessage || "Audio call initiated successfully");
+        }
+        
+        trackEvent("TP_VideoConsult_Started_TabPrescription", {
+          patient_contact: patient_data?.pm_contact_no || "",
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_speciality: profile?.dp_name,
+          doctor_unique_id: profile?.doctor_unique_id,
+          clinic_name: getClinicName(profile?.hospital_data),
+          page: "Tab Prescription",
+          call_type: response.data.action,
+        });
+      } else {
+        message.error("Failed to initiate consultation");
+      }
+    } catch (error) {
+      message.error("Failed to start video consultation. Please try again.");
+    } finally {
+      setIsInitiatingCall(false);
+    }
+  };
+
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
   const showOnlyDrawer = isGenRxDrawerVisible && (
     // Typed input from Voice Rx
@@ -1468,7 +1529,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -2483,6 +2544,21 @@ function TabPrescription() {
 
       {showSCPopup && !caseManagerData?.smart_prescription_filename && (
         <SCPopup handlePopup={() => dispatch(setShowSCPopup(false))} handleGenRx={handleGenRx} />
+      )}
+
+      {isVideoConsultAvailable && (
+        <VideoConsultModal
+          visible={isVideoModalVisible}
+          onClose={() => {
+            setIsVideoModalVisible(false);
+            setVideoConsultUrl(null);
+            setVideoConsultAction(null);
+          }}
+          videoUrl={videoConsultUrl}
+          patientName={patient_data?.pm_fullname}
+          appointmentId={videoConsultData?.pam_id}
+          callAction={videoConsultAction}
+        />
       )}
     </CashManagerContext.Provider>
   );
