@@ -63,7 +63,7 @@ import healthIcon from "../assets/images/health-care.svg";
 import tagNew from "../assets/images/new-gif.gif";
 import VideoConsultButton from "../components/VideoConsultButton";
 
-function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading }) {
+function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading }) {
   const { profile } = useSelector(
       (state) => state.doctors
     );
@@ -238,10 +238,12 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isDigit
             </Col>
             <Col lg="auto">
               <div className="align-items-center d-flex h-100">
-                <FreeTrialButton
-                  title={S_RX_DIGITIZATION}
-                  showHideSubModal={showHideSubModal}
-                />
+                {!isSnapRx && !isSmartRx && (
+                  <FreeTrialButton
+                    title={S_RX_DIGITIZATION}
+                    showHideSubModal={showHideSubModal}
+                  />
+                )}
 
                 {isGroundingAccessableForZydus && (
                   <button
