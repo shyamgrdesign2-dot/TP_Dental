@@ -47,15 +47,14 @@ const DiagnosisRichTextEditor = ({
     const currentItems = diagnosis || [];
     const displayStrings = currentItems.map((diag) => {
       if (typeof diag === 'string') return diag;
-      const lineItem = String(diag.lineItem ?? '').trim();
-      if (lineItem) return lineItem;
-      const name = diag.name || '';
+      const name = String(diag.name ?? '').trim();
       const parts = [];
       if (diag.since) parts.push(`since ${diag.since}`);
       if (diag.status) parts.push(diag.status);
       if (diag.notes) parts.push(diag.notes);
-      if (parts.length > 0) return `${name} (${parts.join(', ')})`;
-      return (name && diag.status ? `${name}, ${diag.status}` : name) || '';
+      if (name && parts.length > 0) return `${name} (${parts.join(', ')})`;
+      if (name) return name;
+      return String(diag.lineItem ?? '').trim() || '';
     }).filter((s) => String(s).trim() !== '');
 
     if (displayStrings.length === 0) {
