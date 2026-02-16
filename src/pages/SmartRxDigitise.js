@@ -7,11 +7,15 @@ import { jwtDecode } from "jwt-decode";
 import api from "../api/services/axiosService";
 import documentIcon from "../assets/images/document-normal.svg";
 import { FETCH_SMART_RX, S_RX_DIGITIZATION } from "../utils/constants";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { env } from "../EnvironmentConfig";
-import { getInvestigationAndMedicine } from "../redux/caseManagerSlice";
+import { getInvestigationAndMedicine, addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
+import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { getVitals, setVitalsIdsFromAddVitals, clearListVitalsToday } from "../redux/vitalsSlice";
+import ApiVitals from "../api/services/ApiVitals";
+import moment from "moment";
 import { getTokenData } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
@@ -25,10 +29,12 @@ function SmartRxDigitise() {
   const divRef = useRef(null);
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
+  const persistVitalsInFlightRef = useRef(false);
   const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
   const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
   const { loading } = useSelector((state) => state.caseManager);
+  const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -88,13 +94,18 @@ function SmartRxDigitise() {
     document.addEventListener("mouseup", stopResizing);
   }, [onMouseMoveResizer, stopResizing]);
 
-  // Keep only non-empty vitals (same as ConsultationDrawer) and optional API key mapping
+  // Keep only non-empty vitals; preserve tcv_id, tcbc_id, dev_unique_id, pam_id (same pattern as Cardiology/ConsultationDrawer)
   const vitalsOnlyNonEmpty = useCallback((v) => {
     if (!v || typeof v !== "object") return {};
     const actual = v._doc || v;
     const keyMap = { respiratoryRate: "respRate", randomBloodSugar: "sugar", headCircumference: "ofc", genralRBS: "general_rbs" };
     const result = {};
+    const idKeys = ["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"];
+    idKeys.forEach((k) => {
+      if (actual[k] !== undefined) result[k] = actual[k];
+    });
     Object.entries(actual).forEach(([key, value]) => {
+      if (idKeys.includes(key)) return;
       if (value !== undefined && value !== null && value !== "" && String(value).trim() !== "") {
         result[keyMap[key] || key] = value;
       }
@@ -112,6 +123,112 @@ function SmartRxDigitise() {
     return out;
   }, [vitalsOnlyNonEmpty]);
 
+  const persistSmartRxVitals = useCallback(
+    async (vitalsAndBodyComposition, setDataFn) => {
+      if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== "object" || !patient_data?.patient_unique_id) return;
+      const idKeys = ["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"];
+      const hasMeaningful = Object.entries(vitalsAndBodyComposition).some(
+        ([k, v]) => !idKeys.includes(k) && v != null && String(v).trim() !== ""
+      );
+      if (!hasMeaningful) return;
+      if (persistVitalsInFlightRef.current) return;
+      persistVitalsInFlightRef.current = true;
+      try {
+      const listPayload = {
+        patient_unique_id: patient_data.patient_unique_id,
+        pam_id: patient_data.pam_id ?? 0,
+        mode: ADD,
+        pm_pid: patient_data.pm_pid ?? 0,
+        pm_id: patient_data.pm_id ?? 0,
+      };
+      try {
+        const list = await dispatch(getVitals(listPayload)).unwrap().catch(() => []);
+        const today = moment().format("YYYY-MM-DD");
+        const existingToday = Array.isArray(list) ? list.find((v) => (v.date || "").toString().startsWith(today)) : null;
+        const ids = {
+          tcv_id: existingToday?.tcv_id ?? 0,
+          tcbc_id: existingToday?.tcbc_id ?? 0,
+          dev_unique_id: existingToday?.dev_unique_id ?? 0,
+        };
+
+        const v = vitalsAndBodyComposition;
+        let systolic = String(v.Systolic || v.systolic || "").trim();
+        let diastolic = String(v.Diastolic || v.diastolic || "").trim();
+        let blood_press = v.bloodPressure || v.blood_press || "";
+        if (blood_press && !systolic && !diastolic) {
+          const parts = String(blood_press).split("/");
+          if (parts.length >= 2) {
+            systolic = parts[0].trim();
+            diastolic = parts[1].trim();
+          }
+        } else if (!blood_press && systolic && diastolic) blood_press = `${systolic}/${diastolic}`;
+        if (!systolic || !diastolic) blood_press = "";
+
+        const vitalsArray = [
+          {
+            date: today,
+            temp: String(v.temperature || v.temp || "").trim(),
+            pres: String(v.pulse || v.pres || "").trim(),
+            resp_rate: String(v.respRate || v.resp_rate || "").trim(),
+            systolic,
+            diastolic,
+            ...(systolic && diastolic ? { blood_press } : {}),
+            spo2: String(v.spo2 || v.SPO2 || "").trim(),
+            height: String(v.height || v.Height || "").trim(),
+            weight: String(v.weight || v.Weight || "").trim(),
+            ofc: String(v.ofc || v.OFC || "").trim(),
+            sugar: String(v.sugar || v.Sugar || "").trim(),
+            general_rbs: String(v["General RBS"] || v.general_rbs || "").trim(),
+            fib4: String(v.FIB4 || v.fib4 || "").trim(),
+            waist_circumference: String(v["Waist Circumference"] || v.waist_circumference || "").trim(),
+            bmi: String(v.BMI || v.bmi || "").trim(),
+            bmr: String(v.BMR || v.bmr || "").trim(),
+            bsa: String(v.BSA || v.bsa || "").trim(),
+            tcv_id: ids.tcv_id,
+            tcbc_id: ids.tcbc_id,
+            dev_unique_id: ids.dev_unique_id,
+          },
+        ];
+        const sendData = {
+          patient_unique_id: patient_data.patient_unique_id,
+          pm_pid: patient_data.pm_pid ?? 0,
+          pm_id: patient_data.pm_id ?? 0,
+          pam_id: patient_data.pam_id ?? 0,
+          patient_birth_weight: null,
+          data: vitalsArray,
+        };
+        const addRes = await ApiVitals.addUpdateVitals(sendData);
+        if (addRes?.status !== false && addRes?.statusCode !== 400 && addRes?.data?.length) {
+          const saved = addRes.data.find((row) => (row.date || "").toString().startsWith(today)) || addRes.data[0];
+          const responseIds = {
+            tcv_id: saved?.tcv_id ?? 0,
+            tcbc_id: saved?.tcbc_id ?? 0,
+            dev_unique_id: saved?.dev_unique_id ?? 0,
+          };
+          dispatch(
+            setVitalsIdsFromAddVitals({
+              flow: "smart",
+              patient_unique_id: patient_data.patient_unique_id,
+              ...responseIds,
+            })
+          );
+          if (typeof setDataFn === "function") {
+            setDataFn((prev) => ({
+              ...prev,
+              vitalsAndBodyComposition: { ...(prev?.vitalsAndBodyComposition || {}), ...responseIds },
+            }));
+          }
+        }
+      } catch (err) {
+        // persistSmartRxVitals failed; IDs may be 0 in save payload
+      }
+      } finally {
+        persistVitalsInFlightRef.current = false;
+      }
+    },
+    [dispatch, patient_data]
+  );
+
   useEffect(() => {
     if (smartRxFile?.length > 0 && token && state.type === "new") {
       uploadFiles();
@@ -119,6 +236,12 @@ function SmartRxDigitise() {
       uploadFiles();
     }
   }, [token, smartRxFile, digitisedData]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearListVitalsToday());
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -186,6 +309,14 @@ function SmartRxDigitise() {
         },
       };
 
+      const vitalsIds = updatedPrescriptionData?.vitalsAndBodyComposition
+        ? {
+            tcv_id: updatedPrescriptionData.vitalsAndBodyComposition.tcv_id,
+            tcbc_id: updatedPrescriptionData.vitalsAndBodyComposition.tcbc_id,
+            dev_unique_id: updatedPrescriptionData.vitalsAndBodyComposition.dev_unique_id,
+          }
+        : null;
+
       // API call to save the data
       const response = await axios.patch(
         `${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${tcm_id}`,
@@ -251,6 +382,91 @@ function SmartRxDigitise() {
             };
             await dispatch(placeIctOrder(zydusSendData));
           }
+        }
+
+        let vitalsForCase = [];
+        try {
+          const v = updatedPrescriptionData?.vitalsAndBodyComposition || {};
+          const hasRxPadVitals = v && Object.keys(v).length > 0 && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
+          if (hasRxPadVitals) {
+            let systolic = String(v.Systolic || v.systolic || "").trim();
+            let diastolic = String(v.Diastolic || v.diastolic || "").trim();
+            let blood_press = v.bloodPressure || v.blood_press || "";
+            if (blood_press && !systolic && !diastolic) {
+              const parts = String(blood_press).split("/");
+              if (parts.length >= 2) {
+                systolic = parts[0].trim();
+                diastolic = parts[1].trim();
+              }
+            }
+            if (!systolic || !diastolic) blood_press = "";
+            else if (!blood_press) blood_press = `${systolic}/${diastolic}`;
+            const today = moment().format("YYYY-MM-DD");
+            const rxPadVital = {
+              date: today,
+              temp: String(v.temperature || v.temp || "").trim(),
+              pres: String(v.pulse || v.pres || "").trim(),
+              resp_rate: String(v.respRate || v.resp_rate || "").trim(),
+              systolic,
+              diastolic,
+              spo2: String(v.spo2 || v.SPO2 || "").trim(),
+              height: String(v.height || v.Height || "").trim(),
+              weight: String(v.weight || v.Weight || "").trim(),
+              ofc: String(v.ofc || v.OFC || "").trim(),
+              sugar: String(v.sugar || v.Sugar || "").trim(),
+              general_rbs: String(v["General RBS"] || v.general_rbs || "").trim(),
+              fib4: String(v.FIB4 || v.fib4 || "").trim(),
+              waist_circumference: String(v["Waist Circumference"] || v.waist_circumference || "").trim(),
+              bmi: String(v.BMI || v.bmi || "").trim(),
+              bmr: String(v.BMR || v.bmr || "").trim(),
+              bsa: String(v.BSA || v.bsa || "").trim(),
+              tcv_id: Number(v.tcv_id ?? 0),
+              tcbc_id: Number(v.tcbc_id ?? 0),
+              dev_unique_id: Number(v.dev_unique_id ?? 0),
+            };
+            if (systolic && diastolic) rxPadVital.blood_press = blood_press;
+            const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data?.patient_unique_id);
+            const hasIds = patientMatch && listVitalsTodayIds && (
+              (listVitalsTodayIds.tcv_id != null && listVitalsTodayIds.tcv_id !== 0) ||
+              (listVitalsTodayIds.tcbc_id != null && listVitalsTodayIds.tcbc_id !== 0) ||
+              (listVitalsTodayIds.dev_unique_id != null && listVitalsTodayIds.dev_unique_id !== 0)
+            );
+            if (hasIds) {
+              rxPadVital.tcv_id = Number(listVitalsTodayIds.tcv_id ?? 0);
+              rxPadVital.tcbc_id = Number(listVitalsTodayIds.tcbc_id ?? 0);
+              rxPadVital.dev_unique_id = Number(listVitalsTodayIds.dev_unique_id ?? 0);
+            }
+            const patientInfo = patient_data ? { age: patient_data.ageYears || patient_data.age || patient_data.pm_age, gender: patient_data.pm_gender || patient_data.gender } : {};
+            const enriched = enrichVitalsWithCalculations(rxPadVital, patientInfo);
+            vitalsForCase = [{ ...enriched }];
+            const cleaned = vitalsForCase.map((row) => {
+              const cleanedRow = { ...row };
+              if (!String(cleanedRow.systolic || "").trim() || !String(cleanedRow.diastolic || "").trim()) cleanedRow.blood_press = "";
+              return cleanedRow;
+            });
+            vitalsForCase = cleaned;
+          }
+        } catch (err) {
+          console.error("[SmartRx] build vitals for addCaseManager/editCaseManager", err);
+        }
+        const medicalHistoryForApi = Array.isArray(updatedPrescriptionData?.medicalHistory) ? updatedPrescriptionData.medicalHistory : [];
+        const consultationDate = moment().format("YYYY-MM-DD HH:mm");
+        const caseManagerPayload = {
+          action: tcm_id === 0 ? "add" : "edit",
+          tcm_id: tcm_id,
+          patient_unique_id: patient_data?.patient_unique_id ?? 0,
+          pam_id: patient_data?.pam_id ?? pam_id ?? 0,
+          consultation_date: consultationDate,
+          consultation_start_datetime: consultationDate,
+          medical_history: medicalHistoryForApi,
+          private_notes_id: 0,
+          ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
+        };
+        const caseAction = tcm_id === 0
+          ? await dispatch(addCaseManager(caseManagerPayload))
+          : await dispatch(editCaseManager(caseManagerPayload));
+        if (caseAction.meta.requestStatus === "fulfilled") {
+          dispatch(clearListVitalsToday());
         }
 
         let sendData = {
@@ -339,8 +555,13 @@ function SmartRxDigitise() {
 
       // Update the digitized data (normalize to canonical shape for Rx Pad)
       if (response?.data?.data) {
-        setData(canonicalFromApi(response.data.data.refinedData));
+        const canonical = canonicalFromApi(response.data.data.refinedData);
+        setData(canonical);
         setIsLoading(false);
+        // Persist vitals via listVitals + addVitals so tcv_id/tcbc_id/dev_unique_id are set for save payload
+        if (canonical?.vitalsAndBodyComposition) {
+          persistSmartRxVitals(canonical.vitalsAndBodyComposition, setData);
+        }
       }
     } catch (error) {
       console.error("Error uploading files:", error);
@@ -421,6 +642,8 @@ function SmartRxDigitise() {
                   showAbsHeaderInsideLoader={true}
                   showHeader={false}
                   showInstructionMessage={false}
+                  patient_data={patient_data}
+                  vitalsFlow="smart"
                 />
               </div>
             </div>

@@ -46,6 +46,7 @@ import {
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
 import { useLocation, useNavigate } from "react-router-dom";
+import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
@@ -71,6 +72,7 @@ import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
+  ADD,
   FAILED_VERIFICATION,
   FREE,
   GB_APOLLO_DISABLE_FEATURE,
@@ -102,6 +104,11 @@ import {
 } from "../redux/medicationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
+import { addPatientLabReports } from "../api/services/ApiLabParams";
+import ApiVitals from "../api/services/ApiVitals";
+import { prescriptionLabResultsToResultsArray } from "../utils/labResultsUtils";
+import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from "../redux/vitalsSlice";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
@@ -113,6 +120,8 @@ import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
 
+// Internal IDs to hide from Rx Pad vitals display (used for API/save only)
+const VITALS_HIDDEN_IDS = ['tcv_id', 'tcbc_id', 'dev_unique_id', 'pam_id'];
 
 const ConsultationDrawer = ({
   visible,
@@ -191,8 +200,12 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
+  const dispatch = useDispatch();
   const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
+  const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const clinic = getClinic(profile?.hospital_data);
+  const listVitalsPatientIdRef = useRef(null);
+  const persistVitalsInFlightRef = useRef(false);
   const { parentOptionsList: medicationParentOptionsList } = useSelector(
     (state) => state.medication
   );
@@ -297,8 +310,47 @@ const ConsultationDrawer = ({
       initiallyPopulatedSectionsRef.current.clear();
       initiallyPopulatedMedicalHistoryTypesRef.current.clear();
       lastDigitizeDataRef.current = null;
+      listVitalsPatientIdRef.current = null;
+      dispatch(clearListVitalsToday());
     }
-  }, [visible]);
+  }, [visible, dispatch]);
+
+  // Voice/Ambient: listVitals once per patient when drawer opens (avoid duplicate API calls)
+  useEffect(() => {
+    const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    if (!visible || !patient_data?.patient_unique_id || !isVoiceOrAmbientRx) return;
+    const pid = patient_data.patient_unique_id;
+    if (listVitalsPatientIdRef.current === pid) return;
+    if (listVitalsPatientIdRef.current != null && listVitalsPatientIdRef.current !== pid) {
+      dispatch(clearListVitalsToday());
+    }
+    listVitalsPatientIdRef.current = pid;
+    const today = moment().format('YYYY-MM-DD');
+    const listPayload = {
+      patient_unique_id: patient_data.patient_unique_id,
+      pam_id: patient_data.pam_id ?? 0,
+      mode: ADD,
+      pm_pid: patient_data.pm_pid ?? 0,
+      pm_id: patient_data.pm_id ?? 0
+    };
+    ApiVitals.getVitals(listPayload)
+      .then((listRes) => {
+        const list = listRes?.data && Array.isArray(listRes.data) ? listRes.data : [];
+        const existingToday = list.find(v => (v.date || v.createdAt || v.created_at || '').toString().startsWith(today));
+        const flow = isAmbientMode || genRxDetails?.type === 'ambient' ? 'ambient' : 'voice';
+        dispatch(setListVitalsToday({
+          flow,
+          patient_unique_id: patient_data.patient_unique_id,
+          tcv_id: existingToday?.tcv_id ?? 0,
+          tcbc_id: existingToday?.tcbc_id ?? 0,
+          dev_unique_id: existingToday?.dev_unique_id ?? 0,
+        }));
+      })
+      .catch(() => {
+        listVitalsPatientIdRef.current = null;
+      });
+  }, [visible, patient_data?.patient_unique_id, isAmbientMode, mode, fromVoiceRecording, genRxDetails?.type, dispatch]);
 
   useEffect(() => {
     if (audioBlob && audioBlob instanceof Blob) {
@@ -451,8 +503,6 @@ const ConsultationDrawer = ({
   const navigate = useNavigate();
 
   const { tcmId, consultationDate, pamId } = useContext(CashManagerContext);
-
-  const dispatch = useDispatch();
 
   const textAreaRef = useRef(null);
 
@@ -850,6 +900,19 @@ const ConsultationDrawer = ({
               if (validatedPrescriptionData?.medicalHistory?.length > 0 && setMedicalHistoryData) {
                 const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
                 setMedicalHistoryData(convertedData);
+              }
+              const vitals = validatedPrescriptionData.vitalsAndBodyComposition;
+              const rawVitalsInitial = prescriptionData.vitalsAndBodyComposition;
+              const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
+                Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+              if (hasResponseVitals) {
+                persistVitalsFromApiResponse(vitals).then((ids) => {
+                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                });
+              } else if (rawVitalsInitial && Object.keys(rawVitalsInitial).length > 0 && Object.values(rawVitalsInitial).some(v => String(v ?? '').trim().length > 10)) {
+                persistVitalsFromApiResponse(rawVitalsInitial).then((ids) => {
+                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                });
               }
             }
           }
@@ -1295,6 +1358,8 @@ const ConsultationDrawer = ({
       ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
       : [];
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
+    validatedData.labResults = Array.isArray(cleanedData.labResults) ? cleanedData.labResults : [];
+
     return validatedData;
   };
 
@@ -1705,6 +1770,19 @@ const ConsultationDrawer = ({
                   dynamicFields: mergedDynamicFields,
                 };
               });
+              const vitals = validatedPrescriptionData.vitalsAndBodyComposition;
+              const rawVitalsAmbient = prescriptionData?.vitalsAndBodyComposition;
+              const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
+                Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+              if (hasResponseVitals) {
+                persistVitalsFromApiResponse(vitals).then((ids) => {
+                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                });
+              } else if (rawVitalsAmbient && Object.keys(rawVitalsAmbient).length > 0 && Object.values(rawVitalsAmbient).some(v => String(v ?? '').trim().length > 10)) {
+                persistVitalsFromApiResponse(rawVitalsAmbient).then((ids) => {
+                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                });
+              }
             } else {
               setPrescriptionData({
                 symptoms: [],
@@ -1943,6 +2021,19 @@ const ConsultationDrawer = ({
                 if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
                   const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataForDictate.medicalHistory, medicalHistoryData);
                   setMedicalHistoryData(convertedData);
+                }
+                const vitalsVoice = validatedPrescriptionDataForDictate.vitalsAndBodyComposition;
+                const rawVitals = prescriptionData.vitalsAndBodyComposition;
+                const hasResponseVitalsVoice = vitalsVoice && Object.keys(vitalsVoice).length > 0 &&
+                  Object.values(vitalsVoice).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+                if (hasResponseVitalsVoice) {
+                  persistVitalsFromApiResponse(vitalsVoice).then((ids) => {
+                    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                  });
+                } else if (rawVitals && Object.keys(rawVitals).length > 0 && Object.values(rawVitals).some(v => String(v ?? '').trim().length > 10)) {
+                  persistVitalsFromApiResponse(rawVitals).then((ids) => {
+                    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+                  });
                 }
               }
             }
@@ -2599,6 +2690,103 @@ const ConsultationDrawer = ({
     }
   }, [setMedicalHistoryData, medicalHistoryData]);
 
+  // Voice/Ambient: when API returns vitals, call addVitals (single in-flight to avoid duplicate API calls)
+  const persistVitalsFromApiResponse = useCallback(async (vitalsAndBodyComposition) => {
+    if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object' || Object.keys(vitalsAndBodyComposition).length === 0 || !patient_data?.patient_unique_id) {
+      return null;
+    }
+    if (persistVitalsInFlightRef.current) return null;
+    persistVitalsInFlightRef.current = true;
+    try {
+    const v = vitalsAndBodyComposition;
+    const hasMeaningfulVitals = Object.values(v).some(val => {
+      const s = String(val ?? '').trim();
+      return s !== '' && s !== 'undefined' && s !== 'null';
+    });
+    if (!hasMeaningfulVitals) {
+      return null;
+    }
+    const today = moment().format('YYYY-MM-DD');
+    const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data.patient_unique_id);
+    let tcv_id = (patientMatch ? listVitalsTodayIds.tcv_id : null) ?? 0;
+    let tcbc_id = (patientMatch ? listVitalsTodayIds.tcbc_id : null) ?? 0;
+    let dev_unique_id = (patientMatch ? listVitalsTodayIds.dev_unique_id : null) ?? 0;
+    if (!patientMatch || (tcv_id === 0 && tcbc_id === 0 && dev_unique_id === 0)) {
+      try {
+        const list = await dispatch(getVitals({
+          patient_unique_id: patient_data.patient_unique_id,
+          pam_id: patient_data.pam_id ?? 0,
+          mode: ADD,
+          pm_pid: patient_data.pm_pid ?? 0,
+          pm_id: patient_data.pm_id ?? 0,
+        })).unwrap();
+        const existingToday = Array.isArray(list) ? list.find((row) => (row.date || '').toString().startsWith(today)) : null;
+        if (existingToday) {
+          tcv_id = existingToday.tcv_id ?? 0;
+          tcbc_id = existingToday.tcbc_id ?? 0;
+          dev_unique_id = existingToday.dev_unique_id ?? 0;
+        }
+      } catch (e) {
+        // getVitals failed; proceed with 0 ids
+      }
+    }
+    let systolic = String(v.Systolic || v.systolic || '').trim();
+    let diastolic = String(v.Diastolic || v.diastolic || '').trim();
+    let blood_press = v.bloodPressure || v.blood_press || '';
+    if (blood_press && !systolic && !diastolic) {
+      const parts = String(blood_press).split('/');
+      if (parts.length >= 2) { systolic = parts[0].trim(); diastolic = parts[1].trim(); }
+    } else if (!blood_press && systolic && diastolic) blood_press = `${systolic}/${diastolic}`;
+    if (!systolic || !diastolic) blood_press = '';
+
+    const vitalsArray = [{
+      date: today,
+      temp: String(v.temperature || v.temp || '').trim(),
+      pres: String(v.pulse || v.pres || '').trim(),
+      resp_rate: String(v.respRate || v.resp_rate || '').trim(),
+      systolic,
+      diastolic,
+      ...(systolic && diastolic ? { blood_press } : {}),
+      spo2: String(v.spo2 || v.SPO2 || '').trim(),
+      height: String(v.height || v.Height || '').trim(),
+      weight: String(v.weight || v.Weight || '').trim(),
+      ofc: String(v.ofc || v.OFC || '').trim(),
+      sugar: String(v.sugar || v.Sugar || '').trim(),
+      general_rbs: String(v['General RBS'] || v.general_rbs || '').trim(),
+      fib4: String(v.FIB4 || v.fib4 || '').trim(),
+      waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
+      bmi: String(v.BMI || v.bmi || '').trim(),
+      bmr: String(v.BMR || v.bmr || '').trim(),
+      bsa: String(v.BSA || v.bsa || '').trim(),
+      tcv_id,
+      tcbc_id,
+      dev_unique_id
+    }];
+    const sendData = {
+      patient_unique_id: patient_data.patient_unique_id,
+      pm_pid: patient_data.pm_pid ?? 0,
+      pm_id: patient_data.pm_id ?? 0,
+      pam_id: patient_data.pam_id ?? 0,
+      patient_birth_weight: null,
+      data: vitalsArray
+    };
+    try {
+      const addRes = await ApiVitals.addUpdateVitals(sendData);
+      if (addRes?.status !== false && addRes?.statusCode !== 400 && addRes?.data?.length) {
+        const saved = addRes.data.find(row => (row.date || '').toString().startsWith(today)) || addRes.data[0];
+        const rid = { tcv_id: saved?.tcv_id ?? 0, tcbc_id: saved?.tcbc_id ?? 0, dev_unique_id: saved?.dev_unique_id ?? 0 };
+        dispatch(setVitalsIdsFromAddVitals({ flow: 'voice', patient_unique_id: patient_data.patient_unique_id, tcv_id: rid.tcv_id, tcbc_id: rid.tcbc_id, dev_unique_id: rid.dev_unique_id }));
+        return rid;
+      }
+    } catch (err) {
+      // addVitals failed; caller handles null
+    }
+    return null;
+    } finally {
+      persistVitalsInFlightRef.current = false;
+    }
+  }, [patient_data, listVitalsTodayIds, dispatch]);
+
   const handleFollowUpUpdate = useCallback((followUpText) => {
     setPrescriptionData((prevData) => ({
       ...prevData,
@@ -2687,11 +2875,206 @@ const ConsultationDrawer = ({
       medicines: sanitizedMedications,
     });
     handleUpdateGenRX(quantityActionMedicine, sanitizedMedications);
+
+    // Subsequent lab result API call only on End Visit: POST lab results if Rx pad has lab data (patientId and doctorId required in payload)
+    let resolvedLabReportID = labReportID;
+    const labPatientId = patient_data?.patient_unique_id;
+    const labDoctorId = tokenData?.user_id;
+    if (
+      prescriptionData?.labResults &&
+      Array.isArray(prescriptionData.labResults) &&
+      prescriptionData.labResults.length > 0 &&
+      labPatientId != null &&
+      labPatientId !== '' &&
+      labDoctorId != null &&
+      labDoctorId !== ''
+    ) {
+      try {
+        const results = prescriptionLabResultsToResultsArray(prescriptionData.labResults);
+        if (results.length > 0) {
+          const payload = {
+            patientId: labPatientId,
+            doctorId: labDoctorId,
+            results,
+          };
+          const response = await addPatientLabReports(payload);
+          const idFromResponse = response?.data?.labReportID ?? response?.data?.data?.labReportID;
+          if (idFromResponse != null) {
+            resolvedLabReportID = idFromResponse;
+          }
+        }
+      } catch (err) {
+        console.error("End Visit: failed to save lab results", err);
+      }
+    }
+
+    // Build medical_history for addCaseManager/editCaseManager from snap/smart/voice/ambient data (prescription first, then context)
+    const medicalHistoryForApi = (() => {
+      const fromPrescription = prescriptionData?.medicalHistory;
+      const fromContext = medicalHistoryData;
+      const sectionTitles = { 1: 'Lifestyle', 2: 'Medical Condition ', 3: 'Family History', 4: 'Allergies', 5: 'Surgical History' };
+
+      const normalizeSectionToBackend = (section) => {
+        const title = section.title || section.section_name || sectionTitles[section.tmmhs_id] || '';
+        const tags = Array.isArray(section.tags)
+          ? section.tags.map((t) => ({
+              tmmhst_id: t.tmmhst_id ?? Date.now() + Math.random(),
+              title: t.title || '',
+              pms_default: t.pms_default !== undefined ? t.pms_default : 0,
+              since: t.since || '',
+              status: t.status || 'Active',
+              medication: t.medication || '',
+              note: t.note || '',
+              enable: t.enable || 'Y',
+              relationship: t.relationship || '',
+              newSince: t.newSince || '',
+              MonthYear: t.MonthYear || '',
+            }))
+          : [];
+        return {
+          title,
+          tmmhs_id: section.tmmhs_id,
+          no_know_history: section.no_know_history !== undefined ? section.no_know_history : false,
+          tags,
+        };
+      };
+
+      // 1) Prefer prescriptionData.medicalHistory (snap/smart/voice/ambient Rx pad data)
+      if (Array.isArray(fromPrescription) && fromPrescription.length > 0) {
+        const first = fromPrescription[0];
+        const isAlreadyBackendFormat = first && (first.tmmhs_id != null) && (first.title != null || first.section_name != null || first.tags != null);
+        let sectionsToSend;
+        if (isAlreadyBackendFormat) {
+          sectionsToSend = fromPrescription;
+        } else {
+          sectionsToSend = convertMedicalHistoryToContextFormat(fromPrescription, []);
+        }
+        if (sectionsToSend && sectionsToSend.length > 0) {
+          const payload = sectionsToSend.map(normalizeSectionToBackend);
+          return payload;
+        }
+      }
+
+      // 2) Fallback: context (medicalHistoryData) from consult/context
+      if (Array.isArray(fromContext) && fromContext.length > 0) {
+        const payload = fromContext.map(normalizeSectionToBackend);
+        return payload;
+      }
+
+      return [];
+    })();
+
+    // Vitals for addCaseManager: build vitals array with tcv_id, tcbc_id, dev_unique_id (from addVitals) - same as cvt_prod_final
+    const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    let vitalsForCase = [];
+    try {
+      const patientInfo = patient_data ? {
+        age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
+        gender: patient_data.pm_gender || patient_data.gender
+      } : {};
+      const hasRxPadVitals = prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0;
+      if (hasRxPadVitals) {
+        const sanitizeVitalsValue = (key, value) => {
+          if (key === 'tcv_id' || key === 'tcbc_id' || key === 'dev_unique_id' || key === 'pam_id' || key === 'date') {
+            return value;
+          }
+          if (value === undefined || value === null) return "";
+          const str = String(value).trim();
+          if (key === 'bloodPressure' || key === 'blood_press') {
+            return str.replace(/[^0-9/.-]/g, '').replace(/\/+/g, '/');
+          }
+          if (key === 'general_rbs' || key === 'General RBS' || key === 'ofc' || key === 'OFC' || key === 'fib4' || key === 'FIB4') {
+            return str;
+          }
+          return str.replace(/[^0-9.-]/g, '');
+        };
+        const cleanVitals = Object.fromEntries(
+          Object.entries(prescriptionData.vitalsAndBodyComposition || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
+        );
+
+        let systolic = String(cleanVitals.Systolic || cleanVitals.systolic || '').trim();
+        let diastolic = String(cleanVitals.Diastolic || cleanVitals.diastolic || '').trim();
+        let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
+
+        if (blood_press && !systolic && !diastolic) {
+          const bpParts = String(blood_press).split('/');
+          if (bpParts.length === 2) {
+            systolic = bpParts[0].trim();
+            diastolic = bpParts[1].trim();
+          }
+        }
+        if (!systolic || !diastolic) {
+          blood_press = '';
+        } else if (!blood_press) {
+          blood_press = `${systolic}/${diastolic}`;
+        }
+
+        const today = moment().format('YYYY-MM-DD');
+        const rxPadVital = {
+          date: today,
+          temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
+          pres: String(cleanVitals.pulse || cleanVitals.pres || '').trim(),
+          resp_rate: String(cleanVitals.respRate || cleanVitals.resp_rate || '').trim(),
+          systolic,
+          diastolic,
+          spo2: String(cleanVitals.spo2 || cleanVitals.SPO2 || '').trim(),
+          height: String(cleanVitals.height || cleanVitals.Height || '').trim(),
+          weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
+          ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
+          sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
+          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
+          fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
+          waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
+          bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
+          bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
+          bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim(),
+          tcv_id: Number(cleanVitals.tcv_id ?? 0),
+          tcbc_id: Number(cleanVitals.tcbc_id ?? 0),
+          dev_unique_id: Number(cleanVitals.dev_unique_id ?? 0)
+        };
+        if (systolic && diastolic) {
+          rxPadVital.blood_press = blood_press;
+        }
+        const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data?.patient_unique_id);
+        const hasIds = patientMatch && listVitalsTodayIds && (
+          (listVitalsTodayIds.tcv_id != null && listVitalsTodayIds.tcv_id !== 0) ||
+          (listVitalsTodayIds.tcbc_id != null && listVitalsTodayIds.tcbc_id !== 0) ||
+          (listVitalsTodayIds.dev_unique_id != null && listVitalsTodayIds.dev_unique_id !== 0)
+        );
+        if (hasIds) {
+          rxPadVital.tcv_id = Number(listVitalsTodayIds.tcv_id ?? 0);
+          rxPadVital.tcbc_id = Number(listVitalsTodayIds.tcbc_id ?? 0);
+          rxPadVital.dev_unique_id = Number(listVitalsTodayIds.dev_unique_id ?? 0);
+        }
+
+        const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
+        const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format('YYYY-MM-DD')) === today);
+        if (existingTodayIndex >= 0) {
+          vitalsForCase[existingTodayIndex] = enrichedRxPadVital;
+        } else {
+          vitalsForCase.push(enrichedRxPadVital);
+        }
+      }
+    } catch (err) {
+      console.error("Error building vitals for case manager payload:", err);
+    }
+
+    const cleanedVitalsForCase = vitalsForCase.map(v => {
+      const cleaned = { ...v };
+      const systolic = String(cleaned.systolic || '').trim();
+      const diastolic = String(cleaned.diastolic || '').trim();
+      if (!systolic || !diastolic) {
+        cleaned.blood_press = '';
+      }
+      return cleaned;
+    });
+
+    const patientId = patient_data?.patient_unique_id ?? 0;
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
-      patient_unique_id:
-        patient_data !== undefined ? patient_data.patient_unique_id : 0,
+      patient_unique_id: patientId,
       pam_id:
         patient_data !== undefined
           ? patient_data.hasOwnProperty("pam_id")
@@ -2699,8 +3082,12 @@ const ConsultationDrawer = ({
             : pamId
           : 0,
       consultation_date: consultationDate,
+      consultation_start_datetime: consultationDate ,
       smart_prescription_filename: genRxDetails?._id,
-      labReportID: labReportID,
+      labReportID: resolvedLabReportID,
+      medical_history: medicalHistoryForApi,
+      private_notes_id: 0,
+      ...(cleanedVitalsForCase.length > 0 && { vitals: cleanedVitalsForCase }),
     };
 
     const action =
@@ -2709,6 +3096,7 @@ const ConsultationDrawer = ({
         : await dispatch(editCaseManager(sendData));
 
     if (action.meta.requestStatus === "fulfilled") {
+      dispatch(clearListVitalsToday());
       message.open({
         key: MESSAGE_KEY,
         type: "",
@@ -3350,6 +3738,7 @@ const ConsultationDrawer = ({
       placement="right"
       onClose={onClose}
       open={visible}
+      destroyOnClose
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
       width={showPrescription ? "100%" : (isMobile ? "100%" : "750px")}
@@ -3940,6 +4329,7 @@ const ConsultationDrawer = ({
                       setLocalModules={setLocalModules}
                       onRxEdited={() => setIsRxEdited(true)}
                       isProcessing={isProcessing}
+                      patient_data={patient_data}
                     />
                   </div>
                   <div

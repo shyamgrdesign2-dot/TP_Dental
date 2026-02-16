@@ -17,7 +17,16 @@ import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
 
 
-const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, isBackModalOpen, showHideBackModal, patientGender  }) => {
+const LabResultsTable = ({
+    handleAddLabParamsDrawer,
+    patient_unique_id,
+    onSave,
+    isBackModalOpen,
+    showHideBackModal,
+    patientGender,
+    prefillLabResults = [],
+    onResultsChange,
+}) => {
 
     const [token, setToken] = useState(null);
     const searchRef = useRef(null);
@@ -135,6 +144,7 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
     };
 
     const searchLabParams = async (searchQuery) => {
+        if (!token) return [];
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
             const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters?search=${searchQuery}`, {
@@ -163,11 +173,12 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         }
     };
 
-    const getLabParams = async () => {
+    const getLabParams = useCallback(async () => {
+        const pid = patient_unique_id;
+        if (pid == null || pid === '' || !token) return;
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
-            const patientId = patient_unique_id;
-            const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientId}`, {
+            const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${pid}`, {
                 headers: {
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
@@ -176,13 +187,20 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
-    };
+    }, [token, patient_unique_id]);
 
     useEffect(() => {
-        if(token){
-            getLabParams();
+        if (!token) return;
+        const pid = patient_unique_id;
+        if (pid == null || pid === '') {
+            setExistingResults([]);
+            setDates([new Date().toISOString().split('T')[0]]);
+            setInputValues({});
+            setFilledData([]);
+            return;
         }
-    },[token])
+        getLabParams();
+    }, [token, patient_unique_id, getLabParams]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -291,6 +309,153 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
                 });
             }
         });
+    };
+
+    const sanitizeDateValue = (value) => {
+        if (!value) return null;
+        const parsed = moment(value);
+        if (parsed.isValid()) {
+            return parsed.format("YYYY-MM-DD");
+        }
+        return null;
+    };
+
+    const extractUnitsFromValue = (valueStr = "") => {
+        if (!valueStr) return "";
+        const str = String(valueStr).trim();
+        const match = str.match(/^\d+(?:\.\d+)?\s+(.+)$/);
+        if (match) return match[1].trim();
+        const percentMatch = str.match(/^\d+(?:\.\d+)?(%|percent)$/i);
+        if (percentMatch) return percentMatch[1];
+        return "";
+    };
+
+    const extractNumericValue = (valueStr = "") => {
+        if (!valueStr) return "";
+        const str = String(valueStr).trim();
+        const match = str.match(/^(\d+(?:\.\d+)?)/);
+        return match ? match[1] : str;
+    };
+
+    const mapLabResultToInput = useCallback(
+        (result = {}) => {
+            const apiMatchedTestName = (result?.testName || result?.testname || result?.name || "").trim();
+            if (!apiMatchedTestName) {
+                return null;
+            }
+            const rawValue = result?.value !== undefined ? String(result.value).trim() : "";
+            if (!rawValue) {
+                return null;
+            }
+            const reportName = (result?.reportName || result?.testName || result?.testname || result?.name || "").trim();
+            if (!reportName) {
+                return null;
+            }
+            const derivedUnits = extractUnitsFromValue(rawValue);
+            const normalizedValue = extractNumericValue(rawValue);
+            return {
+                reportName: reportName,
+                testName: apiMatchedTestName,
+                value: normalizedValue,
+                units: result?.units || derivedUnits || "",
+                arrowDirection: "",
+                refRange: result?.refRange || "",
+                recentlyUpdated: true,
+            };
+        },
+        []
+    );
+
+    const applyPrefillLabResults = useCallback(
+        (labResultsArray = []) => {
+            if (!Array.isArray(labResultsArray) || labResultsArray.length === 0) {
+                return;
+            }
+            const seenKeys = new Set();
+            const validResults = [];
+            labResultsArray.forEach((result = {}) => {
+                const reportName = (result?.reportName || result?.testname || result?.testName || result?.name || "").trim();
+                const testName = (result?.testName || result?.testname || result?.name || "").trim();
+                if (!reportName || !testName) {
+                    return;
+                }
+                const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                const uniqueKey = `${reportName}|${testName}|${dateKey}`;
+                if (seenKeys.has(uniqueKey)) {
+                    return;
+                }
+                seenKeys.add(uniqueKey);
+                validResults.push({ ...result, reportName, testName });
+            });
+            setDates((prevDates) => {
+                const nextDates = new Set(prevDates);
+                validResults.forEach((result = {}) => {
+                    const normalizedDate = sanitizeDateValue(result?.date) || currentDate;
+                    nextDates.add(normalizedDate);
+                });
+                return Array.from(nextDates).sort((a, b) => new Date(b) - new Date(a));
+            });
+            setInputValues((prev) => {
+                const updated = { ...prev };
+                validResults.forEach((result = {}) => {
+                    const mappedInput = mapLabResultToInput(result);
+                    if (!mappedInput || !mappedInput.reportName?.trim()) {
+                        return;
+                    }
+                    const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                    const reportName = mappedInput.reportName.trim();
+                    const testName = mappedInput.testName.trim();
+                    if (!updated[reportName]) {
+                        updated[reportName] = {};
+                    }
+                    if (!updated[reportName][testName]) {
+                        updated[reportName][testName] = {};
+                    }
+                    updated[reportName][testName][dateKey] = {
+                        ...mappedInput,
+                        reportName: reportName,
+                    };
+                });
+                return updated;
+            });
+        },
+        [mapLabResultToInput, currentDate]
+    );
+
+    const formatResultsForRxPad = (results = []) => {
+        if (!Array.isArray(results) || results.length === 0) {
+            return [];
+        }
+        const sortedResults = [...results].sort((a, b) => {
+            const dateA = new Date(a.date || 0);
+            const dateB = new Date(b.date || 0);
+            return dateB - dateA;
+        });
+        const testMap = new Map();
+        sortedResults.forEach((result = {}) => {
+            (result.inputs || []).forEach((input = {}) => {
+                if (!input?.testName || input.testName === "Remarks") {
+                    return;
+                }
+                const testName = input.testName.trim();
+                const value = input.value !== undefined ? String(input.value).trim() : "";
+                if (!value) {
+                    return;
+                }
+                if (!testMap.has(testName)) {
+                    const units = input.units?.trim();
+                    const displayValue = units ? `${value} ${units}`.trim() : value;
+                    testMap.set(testName, {
+                        testname: testName,
+                        value: displayValue,
+                    });
+                }
+            });
+        });
+        return Array.from(testMap.values()).map(item => ({
+            testname: item.testname,
+            value: item.value,
+        }));
     };
 
     // Function to handle the modal opening
@@ -530,6 +695,12 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         }
     }, [existingResults]);
 
+    useEffect(() => {
+        if (prefillLabResults?.length > 0) {
+            applyPrefillLabResults(prefillLabResults);
+        }
+    }, [prefillLabResults, applyPrefillLabResults]);
+
   function replaceDate(inputValues, oldDate, newDate) {
     const updatedValues = { ...inputValues };
 
@@ -743,16 +914,23 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
   
   }, [inputValues, dates]);
 
-    const handleSave = async() =>{
+    const handleSave = async () => {
+        const patientId = patient_unique_id;
+        const doctorId = tokenData?.user_id;
+        if (patientId == null || patientId === '' || doctorId == null || doctorId === '') {
+            message.warning('Patient and doctor context are required to save lab results.');
+            return;
+        }
 
         const currentFilledData = assemblePayload(inputValues);
-        const data = combineData(currentFilledData,filledData);
-        
-        setFilledData([])
+        const data = combineData(currentFilledData, filledData);
+        const formattedRxPadResults = formatResultsForRxPad(data);
+
+        setFilledData([]);
 
         const payload = {
-            patientId: patient_unique_id,
-            doctorId: tokenData?.user_id,
+            patientId,
+            doctorId,
             results: data,
         };
 
@@ -762,7 +940,10 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
               payload,
               baseUrl
             );
-            if(response){
+            if (response) {
+                if (typeof onResultsChange === "function") {
+                    onResultsChange(formattedRxPadResults);
+                }
                 onSave();
                 handleAddLabParamsDrawer();
             }

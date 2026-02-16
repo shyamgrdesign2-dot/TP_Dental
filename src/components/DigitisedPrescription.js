@@ -162,6 +162,8 @@ const DigitisedPrescription = ({
   setLocalModules,
   onRxEdited,
   isProcessing = false,
+  patient_data,
+  vitalsFlow,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
   const [activeIndex, setActiveIndex] = useState(null);
@@ -195,6 +197,15 @@ const DigitisedPrescription = ({
   const lastFuzzyNamesRef = useRef("");
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
+
+  const labResultsUpdater = useMemo(
+    () => (arr) => {
+      if (!setData) return;
+      setData((prev) => ({ ...prev, labResults: arr || [] }));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [setData, onRxEdited]
+  );
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
   );
@@ -773,7 +784,7 @@ const DigitisedPrescription = ({
     getFuzzySearchMedicine(meds);
   }, [sectionData.medications]);
 
-  // Fuzzy-correct lab investigations ONCE when labInvestigation first become available
+  // Fuzzy-correct lab investigations ONLY when API response (snap/smart/voice/ambient) has labInvestigation
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunTestsRef.current) return;
@@ -782,6 +793,16 @@ const DigitisedPrescription = ({
     hasFuzzyRunTestsRef.current = true;
     getFuzzySearchLabs(labs);
   }, [sectionData.labInvestigation]);
+
+  // Clear fuzzy refs on unmount (back button / end visit)
+  useEffect(() => {
+    return () => {
+      hasFuzzyRunMedsRef.current = false;
+      hasFuzzyRunTestsRef.current = false;
+      lastFuzzyNamesRef.current = "";
+      lastFuzzyCallRef.current = { sig: "", ts: 0 };
+    };
+  }, []);
 
   const onSearchParent = (query) => {
     setSearchParentQuery((query || "").trimStart());
@@ -1601,6 +1622,9 @@ const DigitisedPrescription = ({
               vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
               onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
               isProcessing={loading}
+              isVoiceAmbientFlow={!!patient_data}
+              patient_data={patient_data}
+              vitalsFlow={vitalsFlow}
             />
           )}
 
@@ -1680,13 +1704,13 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.labResults && hasValidContent("labResults") && (
-            <LabResultsRichTextEditor
-              labResults={data.labResults}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, labResults: arr || [] }))}
-              isProcessing={loading}
-            />
-          )}
+          {data && Array.isArray(data?.labResults) && data.labResults.length > 0 && (
+              <LabResultsRichTextEditor
+                labResults={data.labResults}
+                onUpdate={labResultsUpdater}
+                isProcessing={loading}
+              />
+            )}
 
           <>
             {Object.entries(dynamicFieldsObject).map(([moduleName, moduleData]) => {
