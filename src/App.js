@@ -460,9 +460,13 @@ function App() {
                   zIndex: 199,
                 }}
               >
-                <DemoExpirationBanner />
-                <PlanExpirationBanner />
-                <ExpiredPlanCard />
+                {!isMobileOrPWA && (
+                  <>
+                    <DemoExpirationBanner />
+                    <PlanExpirationBanner />
+                    <ExpiredPlanCard />
+                  </>
+                )}
                 <DoctorModal />
                 <BottomSheetManager />
               </div>
