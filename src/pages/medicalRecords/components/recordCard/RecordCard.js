@@ -377,7 +377,7 @@ const RecordCard = ({
             }}
           >
             <div>
-              <i className="icon-More" />
+              <i className="icon-More iconrotate270" />
             </div>
           </Dropdown>
         </div>

@@ -1120,6 +1120,14 @@
   margin: 0;
 }
 
+/* Align icon + title in Lab Results (and similar) headers - matches section-header .header-left */
+.medical-history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
 /* Editor container styles for all parameters */
 .symptoms-editor-container,
 .examination-editor-container,
