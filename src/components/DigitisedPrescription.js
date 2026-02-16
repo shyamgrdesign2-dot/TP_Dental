@@ -114,6 +114,8 @@ const getPrimaryText = (type, item) => {
   if (type === "dynamicFields") return item?.title || "";
   if (type === "others") return typeof item === "string" ? item : "";
   if (type === "labResults") return item?.testname || "";
+  if (type === "diagnosis") return String(item?.name ?? item?.notes ?? "").trim();
+  if (type === "examinations") return String(item?.name ?? item?.findings ?? item?.notes ?? item?.lineItem ?? "").trim();
   return item?.name || "";
 };
 
@@ -318,12 +320,13 @@ const DigitisedPrescription = ({
   const handleInputBlur = useCallback(
     (type, index) => {
       if (activeIndex === null || activeType === null) return;
+      const val = String(editableText ?? "").trim();
 
       setData((prevData) => {
         const updatedData = { ...prevData };
 
         if (type === "vitalsAndBodyComposition-key") {
-          const newKey = (editableKey || "")
+          const newKey = String(editableKey ?? "")
             .trim()
             .replace(/\s+/g, "")
             .replace(/^(.)/, (c) => c.toLowerCase());
@@ -338,14 +341,14 @@ const DigitisedPrescription = ({
         }
 
         if (type === "vitalsAndBodyComposition") {
-          const val = (editableText || "").trim();
+          const val = String(editableText ?? "").trim();
           const v = { ...(updatedData.vitalsAndBodyComposition || {}) };
           if (val) v[index] = val;
           updatedData.vitalsAndBodyComposition = v;
           return updatedData;
         }
         if (type === "labResults") {
-          const val = (editableText || "").trim();
+          const val = String(editableText ?? "").trim();
           const arr = [...(updatedData.labResults || [])];
           if (val) {
             arr[index] = { ...arr[index], testname: val };
@@ -354,15 +357,15 @@ const DigitisedPrescription = ({
           return updatedData;
         }
         if (type === "followUp") {
-          updatedData.followUp = editableText.trim();
+          updatedData.followUp = String(editableText ?? "").trim();
           return updatedData;
         } else if (ARRAY_SECTIONS.includes(type)) {
           let arr = [...(updatedData[type] || [])];
           const item = arr[index];
 
-          const val = (editableText || "").trim();
+          const val = String(editableText ?? "").trim();
           if (type === "advice" || type === "others") {
-            arr[index] = (editableText || "").trim();
+            arr[index] = String(editableText ?? "").trim();
           } else if (type === "medications" || type === "labInvestigation") {
             if (val) {
               arr[index] = {
@@ -386,6 +389,9 @@ const DigitisedPrescription = ({
             } else {
               arr[index] = item;
             }
+          } else if (type === "diagnosis" || type === "examinations") {
+            const nameToSave = (val !== "" ? val : String(item?.name ?? "").trim()) || String(item?.notes ?? "").trim();
+            arr[index] = { ...item, name: nameToSave || item?.name || "" };
           } else {
             if (val) {
               arr[index] = { ...item, name: val };
@@ -394,37 +400,51 @@ const DigitisedPrescription = ({
             }
           }
           if (type === "advice" || type === "others") {
-            arr = arr.filter((v) => typeof v === "string" && v.trim() !== "");
+            arr = arr.filter((v) => typeof v === "string" && String(v).trim() !== "");
           } else if (type === "medications" || type === "labInvestigation") {
             arr = arr.filter(
               (v) =>
                 v &&
                 ((typeof v === "object" &&
-                  ((v.name && v.name.trim() !== "") ||
-                    (v.groundedMedicineName && v.groundedMedicineName.trim() !== "") ||
-                    (v.refinedName && v.refinedName.trim() !== ""))) ||
-                  (typeof v === "string" && v.trim() !== ""))
+                  (String(v.name ?? "").trim() !== "" ||
+                    String(v.groundedMedicineName ?? "").trim() !== "" ||
+                    String(v.refinedName ?? "").trim() !== "")) ||
+                  (typeof v === "string" && String(v).trim() !== ""))
             );
           } else if (type === "dynamicFields") {
             arr = arr.filter(
               (v) =>
                 v &&
                 typeof v === "object" &&
-                v.title &&
-                v.title.trim() !== ""
+                String(v.title ?? "").trim() !== ""
             );
           } else if (type === "labResults") {
             arr = arr.filter(
               (v) =>
                 v &&
                 typeof v === "object" &&
-                v.testname &&
-                v.testname.trim() !== ""
+                String(v.testname ?? "").trim() !== ""
+            );
+          } else if (type === "diagnosis") {
+            arr = arr.filter(
+              (v) =>
+                v &&
+                typeof v === "object" &&
+                (String(v.name ?? "").trim() !== "" || String(v.notes ?? "").trim() !== "")
+            );
+          } else if (type === "examinations") {
+            arr = arr.filter(
+              (v) =>
+                v &&
+                typeof v === "object" &&
+                (String(v.name ?? "").trim() !== "" ||
+                  String(v.findings ?? "").trim() !== "" ||
+                  String(v.notes ?? "").trim() !== "" ||
+                  String(v.lineItem ?? "").trim() !== "")
             );
           } else {
             arr = arr.filter(
-              (v) =>
-                v && typeof v === "object" && v.name && v.name.trim() !== ""
+              (v) => v && typeof v === "object" && String(v.name ?? "").trim() !== ""
             );
           }
           updatedData[type] = arr;
@@ -1364,22 +1384,27 @@ const DigitisedPrescription = ({
     }
     if (type === "followUp") return typeof source === "string" && source.trim().length > 0;
     if (!Array.isArray(source)) return false;
-    return source.some((item) => {
-      if (typeof item === "string") return item.trim().length > 0;
+    const result = source.some((item) => {
+      if (typeof item === "string") return String(item).trim().length > 0;
       const relevant = {
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
         examinations: ["name", "findings", "notes", "lineItem"],
-        diagnosis: ["name", "notes"],
+        diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "brand", "schedule", "notes", "lineItem"],
         labInvestigation: ["name", "lineItem"],
         dynamicFields: ["title", "notes"],
         others: ["name", "value"],
         labResults: ["testname", "value", "notes"],
+        advice: ["name"],
       }[type] || ["name"];
-      return relevant.some((f) => item[f]?.trim?.()?.length > 0);
+      return relevant.some((f) => {
+        const v = item[f];
+        return v != null && String(v).trim().length > 0;
+      });
     });
+    return result;
   };
 
   const normalizeAdvice = (advice) => {
@@ -1576,7 +1601,10 @@ const DigitisedPrescription = ({
           {data?.advice && hasValidContent("advice") && (
             <AdviceRichTextEditor
               advice={normalizeAdvice(data.advice)}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, advice: arr || [] }))}
+              onUpdate={(arr) => setData((prev) => ({
+                ...prev,
+                advice: (arr || []).map((a) => (typeof a === "string" ? a : (a?.lineItem ?? ""))).filter((s) => String(s).trim() !== ""),
+              }))}
               isProcessing={loading}
             />
           )}

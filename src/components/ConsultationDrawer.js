@@ -168,6 +168,7 @@ const ConsultationDrawer = ({
   const [editableKey, setEditableKey] = useState("");
   const [queries, setQueries] = useState([]); // Array of { text, isAudio, duration }
   const [isRxEdited, setIsRxEdited] = useState(false);
+  const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
   // Track which sections were initially populated from API - these should remain visible even if content is deleted
   const initiallyPopulatedSectionsRef = useRef(new Set());
   // Track which medical history types were initially populated
@@ -2572,8 +2573,11 @@ const ConsultationDrawer = ({
   }, []);
 
   async function onEndVisitClick() {
-    stopAllActiveRecorders();
-    const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    if (isEndVisitLoading) return;
+    setIsEndVisitLoading(true);
+    try {
+      stopAllActiveRecorders();
+      const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
     const totalAudioDuration = queries
       .filter(query => query.isAudio && query.duration)
@@ -2770,6 +2774,9 @@ const ConsultationDrawer = ({
       });
     } else {
       errorMessage(action.error);
+    }
+    } finally {
+      setIsEndVisitLoading(false);
     }
   }
 
@@ -3484,7 +3491,8 @@ const ConsultationDrawer = ({
                   type="button"
                   className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
                   onClick={onEndVisitClick}
-                  disabled={!prescriptionData}
+                  disabled={!prescriptionData || isEndVisitLoading}
+                  loading={isEndVisitLoading}
                 >
                   <i className="icon-exit me-2"></i>
                   End Visit

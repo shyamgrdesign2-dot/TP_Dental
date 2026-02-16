@@ -1660,7 +1660,7 @@ function Cardiology(props) {
         {/* Handle vitals type separately */}
         {type === "vitalsAndBodyComposition" &&
           Object.entries(genRxData?.vitalsAndBodyComposition || {})
-            .filter(([key, value]) => value?.trim()) // Filter out empty or falsy values
+            .filter(([key, value]) => value != null && String(value).trim() !== "") // Filter out empty or falsy values
             .map(([key, value]) => (
               <li key={key}>
                 <div className="medicine-item">
