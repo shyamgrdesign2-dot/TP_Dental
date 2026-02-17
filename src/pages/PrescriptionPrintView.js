@@ -39,7 +39,6 @@ import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../ap
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
-import { samplePrintPayloadData } from "../utils/samplePrintPayload";
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -164,7 +163,7 @@ function PrescriptionPrintView() {
         printUrl,
         selectedLang,
         isGynaecHistoryAccessable,
-        payloadOverride: useSamplePayload ? samplePrintPayloadData : null,
+        payloadOverride: null,
     });
 
     useEffect(() => {
@@ -532,6 +531,9 @@ function PrescriptionPrintView() {
         }
     }
 
+    const pdfBlob = currentSessionRx instanceof Blob ? currentSessionRx : printBlob;
+    const hasPdfBlob = pdfBlob instanceof Blob && pdfBlob.size > 0;
+
     return (
         <>
             <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
@@ -654,33 +656,36 @@ function PrescriptionPrintView() {
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
-                                        <Document
-                                            key={`${currentSessionRx instanceof Blob ? 'blob' : printBlob ? 'generated' : 'empty'}-${billsUpdateKey}`}
-                                            loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-                                            error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-                                            noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                            file={currentSessionRx instanceof Blob ? currentSessionRx : printBlob}
-                                            onLoadError={(err) => {
-                                                console.error("PDF load error:", err);
-                                                setCurrentSessionRx(null);
-                                            }}
-                                            onLoadSuccess={onDocumentLoadSuccess}>
-                                            {Array.apply(null, Array(numPages))
-                                                .map((x, i) => i + 1)
-                                                .map((page) => {
-                                                    return (
-                                                        <Page
-                                                            key={Math.random()}
-                                                            className={printBlob ? 'react-pdf__Page_afterload' : null}
-                                                            loading={null}
-                                                            width={divWidth}
-                                                            pageNumber={page}
-                                                            renderTextLayer={false}
-                                                            renderAnnotationLayer={false}
-                                                        />
-                                                    );
-                                                })}
-                                        </Document>
+                                        {hasPdfBlob ? (
+                                            <Document
+                                                key={`${currentSessionRx instanceof Blob ? 'blob' : 'generated'}-${billsUpdateKey}`}
+                                                loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+                                                error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+                                                file={pdfBlob}
+                                                onLoadError={(err) => {
+                                                    console.error("PDF load error:", err);
+                                                    setCurrentSessionRx(null);
+                                                }}
+                                                onLoadSuccess={onDocumentLoadSuccess}>
+                                                {Array.apply(null, Array(numPages))
+                                                    .map((x, i) => i + 1)
+                                                    .map((page) => {
+                                                        return (
+                                                            <Page
+                                                                key={Math.random()}
+                                                                className={printBlob ? 'react-pdf__Page_afterload' : null}
+                                                                loading={null}
+                                                                width={divWidth}
+                                                                pageNumber={page}
+                                                                renderTextLayer={false}
+                                                                renderAnnotationLayer={false}
+                                                            />
+                                                        );
+                                                    })}
+                                            </Document>
+                                        ) : (
+                                            <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
+                                        )}
                                     </div>
                                     {/* <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
                                     <PDFReader key={selectedLang} ref={printRef} width={divWidth} showAllPage={true} url={`${printUrl}#toolbar=0&navpanes=0&scrollbar=0`} /> */}

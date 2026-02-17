@@ -688,26 +688,29 @@ function SmartRxPreview() {
 
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
-                                        <Document
-                                        loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-                                        error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-                                        noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={printBlob}
-                                        onLoadSuccess={onDocumentLoadSuccess}>
-                                        {Array.apply(null, Array(numPages))
-                                            .map((x, i) => i + 1)
-                                            .map((page) => (
-                                            <Page
-                                                key={Math.random()}
-                                                className={printBlob ? 'react-pdf__Page_afterload' : null}
-                                                loading={null}
-                                                width={divWidth}
-                                                pageNumber={page}
-                                                renderTextLayer={false}
-                                                renderAnnotationLayer={false}
-                                            />
-                                            ))}
-                                        </Document>
+                                        {printBlob instanceof Blob && printBlob.size > 0 ? (
+                                            <Document
+                                            loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+                                            error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+                                            file={printBlob}
+                                            onLoadSuccess={onDocumentLoadSuccess}>
+                                            {Array.apply(null, Array(numPages))
+                                                .map((x, i) => i + 1)
+                                                .map((page) => (
+                                                <Page
+                                                    key={Math.random()}
+                                                    className={printBlob ? 'react-pdf__Page_afterload' : null}
+                                                    loading={null}
+                                                    width={divWidth}
+                                                    pageNumber={page}
+                                                    renderTextLayer={false}
+                                                    renderAnnotationLayer={false}
+                                                />
+                                                ))}
+                                            </Document>
+                                        ) : (
+                                            <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
+                                        )}
                                     </div>
                                     {/* keeping this code for future reference */}
                                     {/* { showDigitalRx && 
