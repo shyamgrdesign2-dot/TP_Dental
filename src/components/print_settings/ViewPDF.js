@@ -265,7 +265,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const labParamsData = caseManagerData?.labParamsData
     const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
-    console.log('INTEL ==> smartRxData', smartRxData)
     const smartRxPayload = Array.isArray(smartRxData) ? null : (smartRxData || {});
     const smartRxArray = Array.isArray(smartRxData) ? smartRxData : [];
     const uploadedFiles = Array.isArray(smartRxPayload?.uploaded_files) ? smartRxPayload.uploaded_files : [];
@@ -921,8 +920,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
     
     const allowSnapRxImages = props.showSnapRxImages === true;
-    console.log('INTEL ==> uploadedFiles', {allowSnapRxImages, uploadedFiles, isSmartSyncPrescription, isRxDigitizeBool, isVoiceRxDigitizeBool, isSnapRx})
-
+    
     if (
         allowSnapRxImages &&
         uploadedFiles?.length > 0 &&
