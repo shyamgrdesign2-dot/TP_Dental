@@ -30,7 +30,20 @@ export const usePrintPayloadPdf = ({
       setIsGenerating(true);
       setError(null);
       try {
-        const response = await axios.get(printUrl);
+        let fetchUrl = printUrl;
+        try {
+          const urlObj = new URL(fetchUrl, window.location.origin);
+          if (urlObj.searchParams.get("output") !== "json") {
+            urlObj.searchParams.set("output", "json");
+          }
+          fetchUrl = urlObj.toString();
+        } catch (e) {
+          const hasOutput = /(?:[?&])output=/.test(fetchUrl);
+          if (!hasOutput) {
+            fetchUrl += fetchUrl.includes("?") ? "&output=json" : "?output=json";
+          }
+        }
+        const response = await axios.get(fetchUrl);
         const data = response?.data?.data || null;
         if (!isCancelled) {
           setPayload(data);
@@ -73,12 +86,6 @@ export const usePrintPayloadPdf = ({
         }
         const header = await blob.slice(0, 5).text();
         if (header !== "%PDF-") {
-          const preview = await blob.slice(0, 200).text();
-          console.error("PDF blob header mismatch", {
-            size: blob.size,
-            header,
-            preview,
-          });
           throw new Error(
             `Generated blob is not a PDF (header: ${header || "empty"}).`
           );

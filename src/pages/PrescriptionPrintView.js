@@ -150,9 +150,15 @@ function PrescriptionPrintView() {
 
 
     useEffect(() => {
+      if (!state?.print_url) {
+        return;
+      }
       const encodedData = btoa(selectedLang.toString());
-      setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
-    }, [patientBills, advanceReceipts, selectedLang]);
+      const nextUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
+      if (nextUrl !== printUrl) {
+        setPrintUrl(nextUrl);
+      }
+    }, [selectedLang, state?.print_url, pam_id, printUrl]);
 
     const useSamplePayload = false;
     const {
@@ -318,8 +324,6 @@ function PrescriptionPrintView() {
 
     const onSelect = useCallback(
         (data) => {
-            const encodedData = btoa(data.toString());
-            setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
             setSelectedLang(data);
             updatePatientDefaultLanguage({
               patientId: patient_data?.patient_unique_id,
