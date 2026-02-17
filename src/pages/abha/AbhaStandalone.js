@@ -418,23 +418,7 @@ const AbhaStandalone = () => {
     const fromBiometricNewTab = searchParams.get("fromBiometricNewTab") === "true";
 
     if (flow === FLOW_TYPES.NEW_PATIENT) {
-      if (fromBiometricNewTab) {
-        const abhaAddress = abhaDetails.linkedAddress || abhaDetails.abhaAddress;
-        goToAbhaAddress({
-          ...abhaDetails,
-          showSuccessScreen: true,
-          linkedAddress: abhaAddress,
-          showReturnToTabMessage: true,
-        });
-        try {
-          sessionStorage.setItem(
-            ABHA_STANDALONE_SUCCESS_SESSION_KEY,
-            JSON.stringify({ showSuccess: true, showReturnToTabMessage: true, linkedAddress: abhaAddress })
-          );
-        } catch (e) {
-        }
-        return;
-      }
+      // For both embedded and new-tab flows: go to add patient first; success screen after patient is created
       navigate("/add_patient?receptionist=true", {
         state: {
           from: "abha-standalone",
@@ -449,6 +433,15 @@ const AbhaStandalone = () => {
           embedded,
           origin,
           callbackUrl,
+          fromBiometricNewTab: fromBiometricNewTab || false,
+          // Pass for building return URL to show ABHA success after patient save
+          ...(fromBiometricNewTab && {
+            abhaStandaloneReturnParams: {
+              flow,
+              mode,
+              authToken: searchParams.get("authToken") || undefined,
+            },
+          }),
         },
       });
       return; // Don't close, let PatientForm handle it
