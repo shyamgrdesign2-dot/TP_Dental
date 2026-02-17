@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Row, Col, Spin, message } from "antd";
 import "./SnapRxPreview.scss";
@@ -57,12 +57,22 @@ function SnapRxPreview() {
 
   const navigate = useNavigate();
 
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const { patient_data, files } = state || {};
 
-  const [printUrl, setPrintUrl] = useState(
-    state !== undefined ? `${state?.print_rx_url || state?.print_url}` : null
-  );
+  const [basePrintUrl, setBasePrintUrl] = useState(() => {
+    if (state?.print_rx_url || state?.print_url) {
+      return `${state?.print_rx_url || state?.print_url}`;
+    }
+    const params = new URLSearchParams(location.search);
+    return (
+      params.get("print_rx_url") ||
+      params.get("print_url") ||
+      params.get("url") ||
+      null
+    );
+  });
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
@@ -76,7 +86,23 @@ function SnapRxPreview() {
   const { profile } = useSelector((state) => state.doctors);
 
   const [showProgressbar, setShowProgressbar] = useState(false);
-  const [showDigitalRx, setShowDigitalRx] = useState(false);
+  const getRxDigitizeFlag = (url) => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url, window.location.origin);
+      const value = urlObj.searchParams.get("rxDigitize");
+      if (value === null) return null;
+      return value === "true";
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const [showDigitalRx, setShowDigitalRx] = useState(() => {
+    if (state?.page === "digitise") return true;
+    const flag = getRxDigitizeFlag(basePrintUrl);
+    return flag === null ? false : flag;
+  });
   const progressRef = useRef(null);
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
@@ -149,14 +175,36 @@ function SnapRxPreview() {
     const fetchData = async () => {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
-        setShowDigitalRx(
-          viewCaseManagerData?.isRxDigitize && state?.page === "digitise"
-        );
+        const urlFlag = getRxDigitizeFlag(basePrintUrl);
+        if (state?.page === "digitise") {
+          setShowDigitalRx(true);
+        } else if (urlFlag === null) {
+          setShowDigitalRx(!!viewCaseManagerData?.isRxDigitize);
+        }
         setViewCaseManagerData(viewCaseManagerData);
       }
     };
     fetchData();
-  }, [state?.tcm_id, patient_data?.patient_unique_id]);
+  }, [state?.tcm_id, patient_data?.patient_unique_id, basePrintUrl]);
+
+  useEffect(() => {
+    if (state?.print_rx_url || state?.print_url) {
+      const nextUrl = `${state?.print_rx_url || state?.print_url}`;
+      if (nextUrl !== basePrintUrl) {
+        setBasePrintUrl(nextUrl);
+      }
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    const nextUrl =
+      params.get("print_rx_url") ||
+      params.get("print_url") ||
+      params.get("url") ||
+      null;
+    if (nextUrl !== basePrintUrl) {
+      setBasePrintUrl(nextUrl);
+    }
+  }, [state?.print_rx_url, state?.print_url, location.search, basePrintUrl]);
 
   const fetchRxDigitisedData = async () => {
     try {
@@ -198,11 +246,30 @@ function SnapRxPreview() {
     }
   }, []);
 
+  const effectivePrintUrl = useMemo(() => {
+    if (!basePrintUrl) return null;
+    try {
+      const urlObj = new URL(basePrintUrl, window.location.origin);
+      if (showDigitalRx) {
+        urlObj.searchParams.set("rxDigitize", "true");
+      } else {
+        urlObj.searchParams.delete("rxDigitize");
+      }
+      return urlObj.toString();
+    } catch (e) {
+      return basePrintUrl;
+    }
+  }, [basePrintUrl, showDigitalRx]);
+
   const {
     printBlob,
     isGenerating: isPdfGenerating,
     error: printPayloadError,
-  } = usePrintPayloadPdf({ printUrl });
+  } = usePrintPayloadPdf({ printUrl: effectivePrintUrl, showSnapRxImages: !showDigitalRx });
+
+  useEffect(() => {
+    setNumPages(undefined);
+  }, [effectivePrintUrl]);
 
   useEffect(() => {
     if (printPayloadError) {
@@ -282,26 +349,8 @@ function SnapRxPreview() {
     }
   };
 
-  const updateRxDigitizeInUrl = (url, showDigitalRx) => {
-    const urlObj = new URL(url);
-
-    if (showDigitalRx) {
-      urlObj.searchParams.set("rxDigitize", "true");
-      setButtonText("Send to WhatsApp");
-    } else {
-      urlObj.searchParams.delete("rxDigitize");
-      setButtonText("Send to WhatsApp");
-    }
-
-    return urlObj.toString();
-  };
-
-  // Effect to update printUrl when showDigitalRx changes
   useEffect(() => {
-    if (printUrl) {
-      const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
-      setPrintUrl(updatedUrl);
-    }
+    setButtonText("Send to WhatsApp");
   }, [showDigitalRx]);
 
   const handleSendToWhatsapp = async () => {
@@ -473,7 +522,7 @@ function SnapRxPreview() {
       <HeaderPrescriptionPrint
         patient_data={patient_data}
         tcm_id={state?.tcm_id}
-        printUrl={printUrl}
+        printUrl={effectivePrintUrl}
         pam_id={state?.pam_id}
         isSnapRx={true}
       />
@@ -681,7 +730,7 @@ function SnapRxPreview() {
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
                   <div ref={printRef} className="position-relative h-100">
-                    {printBlob instanceof Blob && printBlob.size > 0 ? (
+                    {!isPdfGenerating && printBlob instanceof Blob && printBlob.size > 0 ? (
                       <Document
                         loading={
                           <Spin

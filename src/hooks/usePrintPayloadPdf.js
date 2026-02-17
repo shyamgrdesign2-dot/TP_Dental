@@ -6,6 +6,7 @@ export const usePrintPayloadPdf = ({
   printUrl,
   selectedLang,
   isGynaecHistoryAccessable,
+  showSnapRxImages,
   payloadOverride,
 } = {}) => {
   const [payload, setPayload] = useState(null);
@@ -80,6 +81,7 @@ export const usePrintPayloadPdf = ({
         const blob = await renderPrintPayloadToBlob(payload, {
           selectedLang,
           isGynaecHistoryAccessable,
+          showSnapRxImages,
         });
         if (!blob) {
           throw new Error("Failed to generate PDF blob.");

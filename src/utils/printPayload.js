@@ -27,7 +27,7 @@ const normalizeArrayValue = (value, fallbackKey) => {
 
 export const renderPrintPayloadToBlob = async (
   payload,
-  { selectedLang, isGynaecHistoryAccessable } = {}
+  { selectedLang, isGynaecHistoryAccessable, showSnapRxImages = false } = {}
 ) => {
   if (!payload) {
     return null;
@@ -113,6 +113,7 @@ export const renderPrintPayloadToBlob = async (
       patientWalletBalance={patientWalletBalance}
       selectedLang={resolvedLang}
       ophthalModuleData={ophthalModuleData}
+      showSnapRxImages={showSnapRxImages}
     />
   ).toBlob();
 };
