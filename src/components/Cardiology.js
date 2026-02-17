@@ -1345,9 +1345,15 @@ function Cardiology(props) {
                       ? item
                       : type === "symptoms"
                       ? (() => {
-                          const text = (item?.name || item?.lineItem || "").trim();
-                          if (!text) return "";
-                          return item?.name ? (text[0]?.toUpperCase() + text.slice(1)) : text;
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return `${name} (${lineItem})`;
+                          }
+                          return lineItem || "";
                         })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
@@ -1372,11 +1378,23 @@ function Cardiology(props) {
                             ? `${testname} (${value})`
                             : testname || value || "";
                         })()
+                      : type === "diagnosis"
+                      ? (() => {
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return `${name} (${lineItem})`;
+                          }
+                          return lineItem || "";
+                        })()
                       : type === "dynamicFields"
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
                       ? item
-                      : item?.name || item?.lineItem}
+                      : item?.name}
                   </span>
 
                   {/* Lab Results specific rendering */}
@@ -1404,7 +1422,15 @@ function Cardiology(props) {
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                           item?.findings && item?.findings !== '' ? item?.findings : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.name && item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : (() => {
+                          if (type === "symptoms" || type === "diagnosis") {
+                            return null;
+                          }
+                          const nameStr = (item?.name || "").trim();
+                          const lineItemStr = (item?.lineItem || "").trim();
+                          if (!lineItemStr) return null;
+                          return nameStr ? lineItemStr : null;
+                        })();
                     return details && (
                       <span> ({details})</span>
                     );
@@ -1526,7 +1552,7 @@ function Cardiology(props) {
 
   // Render lab investigation in tabular format
   const renderLabInvestigationTable = () => {
-    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.labInvestigation  || rxDigitisedData?.editedData?.labInvestigation || [];
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.labInvestigation || rxDigitisedData?.editedData?.tests || [];
     if (!labInvestigation || labInvestigation.length === 0) return null;
 
     return (
