@@ -69,7 +69,9 @@ function PrescriptionPrintView() {
 
     const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
     const [printRxUrl, setPrintRxUrl] = useState(state !== undefined ? `${state.print_rx_url}` : null);
-    const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
+    const [currentSessionRx, setCurrentSessionRx] = useState(
+        state?.currentSessionRx instanceof Blob ? state.currentSessionRx : null
+    );
 
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
@@ -339,18 +341,7 @@ function PrescriptionPrintView() {
                 saveAs(currentSessionRx, `${Date.now()}.pdf`);
                 return;
             }
-            if (!currentSessionRx) {
-                message.error("PDF is not ready yet.");
-                return;
-            }
-            const response = await axios({
-                url: currentSessionRx || printUrl,
-                method: 'GET',
-                responseType: 'blob', // Important for binary data
-            });
-
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            saveAs(blob, `${Date.now()}.pdf`);
+            message.error("PDF is not ready yet.");
         } catch (error) {
             console.error('Error downloading file:', error);
             // Handle errors gracefully, e.g., display an error message to the user
@@ -664,12 +655,13 @@ function PrescriptionPrintView() {
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
                                         <Document
-                                            key={`${currentSessionRx || printUrl}-${billsUpdateKey}`}
+                                            key={`${currentSessionRx instanceof Blob ? 'blob' : printBlob ? 'generated' : 'empty'}-${billsUpdateKey}`}
                                             loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                             error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                             noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                            file={currentSessionRx || printBlob}
-                                            onLoadError={() => {
+                                            file={currentSessionRx instanceof Blob ? currentSessionRx : printBlob}
+                                            onLoadError={(err) => {
+                                                console.error("PDF load error:", err);
                                                 setCurrentSessionRx(null);
                                             }}
                                             onLoadSuccess={onDocumentLoadSuccess}>

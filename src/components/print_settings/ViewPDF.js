@@ -285,6 +285,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             hasOphthalValue(ophthalModuleData.pd)
         )
     );
+    console.log('INTEL ==> hasOphthalModuleData', hasOphthalModuleData)
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 

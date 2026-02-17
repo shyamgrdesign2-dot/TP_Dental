@@ -61,6 +61,7 @@ export const renderPrintPayloadToBlob = async (
     advanceReceipts,
     patientWalletBalance,
     labReportData,
+    ophthalModuleData,
   } = payload;
 
   const combinedCaseManagerData = {
@@ -68,6 +69,7 @@ export const renderPrintPayloadToBlob = async (
     gynecHistoryData,
     labParamsData,
     labReportData,
+    ophthalModuleData,
   };
 
   const todayVaccines = {
@@ -110,6 +112,7 @@ export const renderPrintPayloadToBlob = async (
       advanceReceipts={advanceReceipts}
       patientWalletBalance={patientWalletBalance}
       selectedLang={resolvedLang}
+      ophthalModuleData={ophthalModuleData}
     />
   ).toBlob();
 };

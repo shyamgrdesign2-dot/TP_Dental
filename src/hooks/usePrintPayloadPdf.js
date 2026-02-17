@@ -68,10 +68,26 @@ export const usePrintPayloadPdf = ({
           selectedLang,
           isGynaecHistoryAccessable,
         });
+        if (!blob) {
+          throw new Error("Failed to generate PDF blob.");
+        }
+        const header = await blob.slice(0, 5).text();
+        if (header !== "%PDF-") {
+          const preview = await blob.slice(0, 200).text();
+          console.error("PDF blob header mismatch", {
+            size: blob.size,
+            header,
+            preview,
+          });
+          throw new Error(
+            `Generated blob is not a PDF (header: ${header || "empty"}).`
+          );
+        }
         if (!isCancelled) {
           setPrintBlob(blob);
         }
       } catch (err) {
+        console.error("Failed to generate PDF blob", err);
         if (!isCancelled) {
           setError(err);
           setPrintBlob(null);
