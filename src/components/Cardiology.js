@@ -1376,7 +1376,7 @@ function Cardiology(props) {
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
                       ? item
-                      : item?.name}
+                      : item?.name || item?.lineItem}
                   </span>
 
                   {/* Lab Results specific rendering */}
@@ -1404,7 +1404,7 @@ function Cardiology(props) {
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                           item?.findings && item?.findings !== '' ? item?.findings : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : (item?.name && item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
                     return details && (
                       <span> ({details})</span>
                     );
@@ -1526,7 +1526,7 @@ function Cardiology(props) {
 
   // Render lab investigation in tabular format
   const renderLabInvestigationTable = () => {
-    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.tests || [];
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.labInvestigation  || rxDigitisedData?.editedData?.labInvestigation || [];
     if (!labInvestigation || labInvestigation.length === 0) return null;
 
     return (
