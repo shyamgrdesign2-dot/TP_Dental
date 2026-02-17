@@ -1407,6 +1407,9 @@ function Cardiology(props) {
                     type === "examinations" ||
                     type === "examination" ||
                     type === "diagnosis") && (() => {
+                    if ((type === "symptoms" || type === "diagnosis") && (item?.lineItem || "").trim()) {
+                        return null;
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -1423,9 +1426,6 @@ function Cardiology(props) {
                           item?.findings && item?.findings !== '' ? item?.findings : null,
                         ].filter(Boolean).join(', ')
                       : (() => {
-                          if (type === "symptoms" || type === "diagnosis") {
-                            return null;
-                          }
                           const nameStr = (item?.name || "").trim();
                           const lineItemStr = (item?.lineItem || "").trim();
                           if (!lineItemStr) return null;
