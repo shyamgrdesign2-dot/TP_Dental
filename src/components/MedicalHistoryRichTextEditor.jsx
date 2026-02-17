@@ -72,21 +72,22 @@ const MedicalHistoryRichTextEditor = ({
   );
 
   const formatHistoryItem = useCallback((item) => {
-    const name = item.name || '';
+    const name = item.name || item.lineItem || '';
     const details = [];
     if (item.enable === 'N') {
       return `No ${name}`;
     }
-    
+    const normalizedType = (item.type || '').toLowerCase().replace(/\s+/g, '_');
+    const isOthers = normalizedType === 'others' || normalizedType === 'additional_notes';
     if (item.duration) details.push(`Since: ${item.duration}`);
     if (item.relation) details.push(`Relation: ${item.relation}`);
     if (item.status) details.push(`Status: ${item.status}`);
-    if (item.notes) details.push(`Notes: ${item.notes}`);
-    
+    if (item.notes && (!isOthers || (item.notes || '').trim() !== (name || '').trim())) {
+      details.push(`Notes: ${item.notes}`);
+    }
     if (details.length > 0) {
       return `${name} (${details.join(' | ')})`;
     }
-    
     return name || item.lineItem || '';
   }, []);
 
@@ -483,7 +484,6 @@ const MedicalHistoryRichTextEditor = ({
             if (onUpdate) {
               onUpdate(convertedHistory);
             }
-            setMedicalHistoryDrawer(false);
           }}
           patient_data={patientDataProp}
         />

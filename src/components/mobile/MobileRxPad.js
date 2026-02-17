@@ -1525,6 +1525,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                   medication: t?.medication || '',
                   note: t?.note || '',
                   enable: t?.enable || 'Y',
+                  relationship: t?.relationship || '',
                 };
                 // Add surgical history specific fields if they exist
                 if (section?.tmmhs_id === 5 && t?.date) {

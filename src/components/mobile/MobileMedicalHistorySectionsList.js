@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Drawer, Checkbox, Button } from 'antd';
+import { Drawer, Checkbox, Button, Input } from 'antd';
 import { UpOutlined, DownOutlined } from '@ant-design/icons';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import activeVerticleUpDown from '../../assets/images/active-verticle-up-down.svg';
@@ -15,7 +15,8 @@ function MobileMedicalHistorySectionsList({
   onChipClick,
   onChipEnableClick,
   onEditQuickList,
-  onSave
+  onSave,
+  onAdditionalHistoryChange
 }) {
   const [expandedSections, setExpandedSections] = useState({
     2: true, // Medical Condition
@@ -111,11 +112,15 @@ function MobileMedicalHistorySectionsList({
           <div className="section-content">
             {isAdditionalHistory ? (
               <div className="additional-history-content">
-                {additionalHistoryText && (
-                  <div className="additional-history-text">
-                    {additionalHistoryText}
-                  </div>
-                )}
+                <Input.TextArea
+                  className="additional-history-textarea"
+                  placeholder="Write your additional history"
+                  value={additionalHistoryText}
+                  onChange={(e) => onAdditionalHistoryChange?.(e.target.value)}
+                  maxLength={5000}
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                  showCount={false}
+                />
               </div>
             ) : (
               <>

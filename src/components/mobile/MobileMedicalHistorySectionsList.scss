@@ -249,6 +249,14 @@
   word-break: break-word;
 }
 
+.additional-history-textarea {
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 8px;
+  resize: none;
+}
+
 // Footer with Save button
 .mobile-medical-history-footer {
   flex-shrink: 0;

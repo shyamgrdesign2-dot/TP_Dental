@@ -116,7 +116,9 @@ function MobileMedicalHistoryManager({
   }, [defaultList, medicalHistoryData]);
 
   const handleSave = useCallback(() => {
-    if (!medicalHistoryData || !setMedicalHistoryData) return;
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
 
     const clinic_name = getClinicName(profile?.hospital_data);
     if (window.Moengage) {
@@ -127,8 +129,8 @@ function MobileMedicalHistoryManager({
       });
     }
 
-    const remarks = medicalHistoryData?.[0]?.medical_history_remarks;
-    const medicalHistory = medicalHistoryData?.map((e, i) => {
+    const remarks = sourceData?.[0]?.medical_history_remarks;
+    const medicalHistory = sourceData.map((e, i) => {
       return {
         title: e?.title,
         tmmhs_id: e?.tmmhs_id,
@@ -150,10 +152,11 @@ function MobileMedicalHistoryManager({
       setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
       if (onSave) {
         const rxPadFormat = convertContextToRxPadFormatForSave(medicalHistory);
-        setTimeout(() => onSave(rxPadFormat), 0);
+        onSave(rxPadFormat);
       }
+      onClose?.();
     }
-  }, [medicalHistoryData, setMedicalHistoryData, onSave, onClose, profile, patient_data]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData, onSave, onClose, profile, patient_data]);
 
   const handleClose = useCallback(() => {
     if (!medicalHistoryData || !setMedicalHistoryData) {
@@ -200,21 +203,23 @@ function MobileMedicalHistoryManager({
   }, [onClose, medicalHistoryData, setMedicalHistoryData, onSave]);
 
   const handleNoKnownHistoryChange = useCallback((tmmhs_id, checked) => {
-    if (!setMedicalHistoryData || !medicalHistoryData) return;
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
 
-    const updated = medicalHistoryData.map(section => {
+    const updated = sourceData.map(section => {
       if (section.tmmhs_id === tmmhs_id) {
         return {
           ...section,
           no_know_history: checked,
-          tags: checked ? [] : section.tags // Clear tags if no known history
+          tags: checked ? [] : (section.tags || []) // Clear tags if no known history
         };
       }
       return section;
     });
 
     setMedicalHistoryData(updated);
-  }, [medicalHistoryData, setMedicalHistoryData]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData]);
 
   const handleChipClick = useCallback((section, tag) => {
     setEditingSection(section);
@@ -244,9 +249,11 @@ function MobileMedicalHistoryManager({
   }, []);
 
   const handleQuickListSave = useCallback((updatedSection) => {
-    if (!medicalHistoryData || !setMedicalHistoryData) return;
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
 
-    const updatedData = medicalHistoryData.map(section => {
+    const updatedData = sourceData.map(section => {
       if (section.tmmhs_id === updatedSection.tmmhs_id) {
         return updatedSection;
       }
@@ -256,12 +263,14 @@ function MobileMedicalHistoryManager({
     setMedicalHistoryData(updatedData);
     
     setCurrentSheet('list');
-  }, [medicalHistoryData, setMedicalHistoryData]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData]);
   const handleChipEnableClick = useCallback((section, tag) => {
-    if (!setMedicalHistoryData || !medicalHistoryData) return;
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
     const nextEnable =
       tag.enable === 'Y' ? 'N' : tag.enable === 'N' ? undefined : 'Y';
-    const updated = medicalHistoryData.map((sec) => {
+    const updated = sourceData.map((sec) => {
       if (sec.tmmhs_id !== section.tmmhs_id) return sec;
       const tagIndex = (sec.tags || []).findIndex(
         (t) => t.tmmhst_id === tag.tmmhst_id
@@ -272,20 +281,22 @@ function MobileMedicalHistoryManager({
       return { ...sec, tags: newTags };
     });
     setMedicalHistoryData(updated);
-  }, [medicalHistoryData, setMedicalHistoryData]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData]);
 
   const handleItemSave = useCallback((updatedItem) => {
-    if (!setMedicalHistoryData || !medicalHistoryData || !editingSection) return;
+    if (!setMedicalHistoryData || !editingSection) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
 
-    const updated = medicalHistoryData.map(section => {
+    const updated = sourceData.map(section => {
       if (section.tmmhs_id === editingSection.tmmhs_id) {
-        const existingTagIndex = section.tags.findIndex(
+        const existingTagIndex = (section.tags || []).findIndex(
           t => t.tmmhst_id === updatedItem.tmmhst_id
         );
 
         let newTags;
         if (existingTagIndex !== -1) {
-          newTags = [...section.tags];
+          newTags = [...(section.tags || [])];
           newTags[existingTagIndex] = updatedItem;
         } else {
           newTags = [...(section.tags || []), updatedItem];
@@ -309,7 +320,7 @@ function MobileMedicalHistoryManager({
 
     setCurrentSheet('list');
     setEditingItem(null);
-  }, [medicalHistoryData, setMedicalHistoryData, editingSection, onSave]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData, editingSection, onSave]);
 
   const handleOpenRelationshipPicker = useCallback((currentRelationship) => {
     setSelectedRelationship(currentRelationship || '');
@@ -339,7 +350,8 @@ function MobileMedicalHistoryManager({
     };
 
     const rxPadArray = [];
-    
+    let medicalHistoryRemarks = (contextData && contextData[0]) ? contextData[0].medical_history_remarks : null;
+
     contextData.forEach(section => {
       if (section.no_know_history || !section.tags || section.tags.length === 0) {
         return;
@@ -401,13 +413,46 @@ function MobileMedicalHistoryManager({
       });
     });
 
+    // Additional History (medical_history_remarks) – save as 'others' items so they appear on Rx pad and are preserved
+    if (medicalHistoryRemarks && String(medicalHistoryRemarks).trim()) {
+      const remarksParts = String(medicalHistoryRemarks)
+        .split('\n')
+        .map(part => part.trim())
+        .filter(part => part)
+        .flatMap(part => part.includes(';') ? part.split(';').map(p => p.trim()).filter(p => p) : [part]);
+      remarksParts.forEach(remark => {
+        rxPadArray.push({
+          type: 'others',
+          name: remark,
+          enable: 'Y',
+          lineItem: remark,
+          notes: remark
+        });
+      });
+    }
+
     return rxPadArray;
   };
 
-  const handleAdditionalHistorySave = useCallback((remarksText) => {
-    if (!setMedicalHistoryData || !medicalHistoryData) return;
+  const handleAdditionalHistoryChange = useCallback((remarksText) => {
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData || sourceData.length === 0) return;
+    const updated = sourceData.map((section, index) => {
+      if (index === 0) {
+        return { ...section, medical_history_remarks: remarksText };
+      }
+      return section;
+    });
+    setMedicalHistoryData(updated);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData]);
 
-    const updated = medicalHistoryData.map((section, index) => {
+  const handleAdditionalHistorySave = useCallback((remarksText) => {
+    if (!setMedicalHistoryData) return;
+    const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+    if (!sourceData) return;
+
+    const updated = sourceData.map((section, index) => {
       if (index === 0) {
         return {
           ...section,
@@ -425,13 +470,14 @@ function MobileMedicalHistoryManager({
     }
 
     setCurrentSheet('list');
-  }, [medicalHistoryData, setMedicalHistoryData, onSave]);
+  }, [mergedMedicalHistoryData, medicalHistoryData, setMedicalHistoryData, onSave]);
 
   const renderEditSheet = () => {
     if (currentSheet !== 'editItem') return null;
 
     if (editingSectionType === 6) {
-      const firstSection = medicalHistoryData?.[0];
+      const sourceData = mergedMedicalHistoryData?.length ? mergedMedicalHistoryData : medicalHistoryData;
+      const firstSection = sourceData?.[0];
       return (
         <MobileAdditionalHistoryEdit
           visible={true}
@@ -489,6 +535,7 @@ function MobileMedicalHistoryManager({
         onChipEnableClick={handleChipEnableClick}
         onEditQuickList={handleEditQuickList}
         onSave={handleSave}
+        onAdditionalHistoryChange={handleAdditionalHistoryChange}
       />
 
       <MobileNoConditionScreen
