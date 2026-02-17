@@ -189,20 +189,21 @@ function Welcome1(props) {
         if (!voiceRxId || !patient_data) return;
 
         try {
-            let copyResponse = await copyAmbientRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+            const newAppointmentId = viewCaseManagerData?.tcm_id || 0;
+            let copyResponse = await copyAmbientRx(voiceRxId, newAppointmentId);
             let isAmbientRxType = copyResponse?.success;
 
             if (!isAmbientRxType) {
-                copyResponse = await copyVoiceRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+                copyResponse = await copyVoiceRx(voiceRxId, newAppointmentId);
             }
 
             if (!copyResponse?.success) {
                 const ambientCheck = await getAmbientRx(voiceRxId);
-                isAmbientRxType = ambientCheck?.success || ambientCheck?.data ? true : false;
+                isAmbientRxType = ambientCheck?.success && ambientCheck?.data;
             }
 
             window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
-            const copiedRxId = copyResponse?.success 
+            const copiedRxId = copyResponse?.success
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 

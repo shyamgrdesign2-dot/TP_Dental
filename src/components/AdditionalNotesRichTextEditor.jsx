@@ -53,10 +53,9 @@ const AdditionalNotesRichTextEditor = ({
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
     editorItemsRef.current = items;
-    const othersArray = items.map(text => ({ value: text }));
-    
+    // Backend expects others as string[] only, e.g. ["Cross refer to her to her"]
     if (onUpdate) {
-      onUpdate(othersArray);
+      onUpdate(items);
     }
   }, [onUpdate]);
 

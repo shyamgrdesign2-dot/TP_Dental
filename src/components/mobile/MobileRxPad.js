@@ -740,9 +740,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           const data = preparePayloadForApi();
           formData.append('voice_prescription_previous_context', JSON.stringify(data));
           
-          response = await updateGenRx(formData, existingRxId);
+          response = await updateGenRx(formData, existingRxId, patientId, admissionId);
         } else {
-        response = await generateRx(formData);
+        response = await generateRx(formData, patientId, admissionId);
         }
       }
 

@@ -6,14 +6,27 @@ import React, {
   useMemo,
 } from "react";
 import GenRXLoaders from "./GenRxLoaders";
-import { AutoComplete } from "antd";
+import { AutoComplete, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import { searchMedication } from "../redux/medicationSlice";
 import { searchInvestigation } from "../redux/investigationSlice";
 import CustomMedicinePopup from "./CustomMedicinePopup";
+import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
+import CommonModal from "../common/CommonModal";
+import VitalsRichTextEditor from "./VitalsRichTextEditor";
+import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
+import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
+import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
+import AdviceRichTextEditor from "./AdviceRichTextEditor";
+import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
+import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
+import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
+import { useGrounding } from "../hooks/useGrounding";
 import { getTokenData, getHmTypeIndicator } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -21,17 +34,21 @@ import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
-import { useGrounding } from "../hooks/useGrounding";
 import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from "../utils/medicalHistoryConverters";
 import moment from "moment";
+import styles from "./ConsultationDrawer.module.css";
+import alertIcon from "../assets/images/alertIcon.svg";
+import documentIcon from "../assets/images/document-normal.svg";
+import warningIcon from "../assets/images/danger.svg";
+import genRxBg from "../assets/images/gen-rx-bg.gif";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
   "medicalHistory",
-  "examination",
+  "examinations",
   "diagnosis",
   "medications",
-  "tests",
+  "labInvestigation",
   "vaccinations",
   "advice",
   "followUp",
@@ -45,9 +62,10 @@ export const normalizeNewItem = (type, text = "") => {
 
   if (type === "advice") return t;
 
-  if (type === "medications" || type === "tests") {
+  if (type === "medications") {
     return {
       name: t,
+      groundedMedicineName: t,
       refinedName: t,
       frequency: "",
       dosage: "",
@@ -59,8 +77,20 @@ export const normalizeNewItem = (type, text = "") => {
     };
   }
 
-  if (type === "examination" || type === "diagnosis") {
-    return { name: t, notes: "", lineItem: "" };
+  if (type === "labInvestigation") {
+    return {
+      name: t,
+      instruction: "",
+      notes: "",
+      lineItem: "",
+    };
+  }
+
+  if (type === "examinations") {
+    return { name: t, notes: "", lineItem: t };
+  }
+  if (type === "diagnosis") {
+    return { name: t, since: "", status: "", notes: "", lineItem: t };
   }
 
   if (type === "dynamicFields") {
@@ -81,10 +111,13 @@ export const normalizeNewItem = (type, text = "") => {
 
 const getPrimaryText = (type, item) => {
   if (type === "advice") return typeof item === "string" ? item : "";
-  if (type === "medications" || type === "tests") return item?.refinedName || item?.name || "";
+  if (type === "medications") return (item?.groundedMedicineName || "").trim() || (item?.name || "").trim() || "";
+  if (type === "labInvestigation") return item?.name || "";
   if (type === "dynamicFields") return item?.title || "";
   if (type === "others") return typeof item === "string" ? item : "";
   if (type === "labResults") return item?.testname || "";
+  if (type === "diagnosis") return String(item?.lineItem ?? item?.name ?? (item?.status ? `${item?.name ?? ""}, ${item.status}`.trim() : "") ?? item?.notes ?? "").trim();
+  if (type === "examinations") return String(item?.lineItem ?? item?.name ?? item?.findings ?? item?.notes ?? "").trim();
   return item?.name || "";
 };
 
@@ -108,6 +141,35 @@ function enrichVitalsWithCalculations(vital, patientInfo = {}) {
   return out;
 }
 
+/** Normalize dynamicFields to always be an object { moduleName: row[] }. Backend may send array of modules. Skips empty modules and empty rows. */
+const getDynamicFieldsAsObject = (dynamicFields) => {
+  if (!dynamicFields || typeof dynamicFields !== "object") return {};
+  if (!Array.isArray(dynamicFields)) return dynamicFields;
+  return dynamicFields.reduce((acc, module) => {
+    const name = module?.name || module?.module_name || "";
+    if (!name) return acc;
+    const rawRows = module?.fields || module?.fieldValues || [];
+    const rows = Array.isArray(rawRows)
+      ? rawRows
+          .map((f) => {
+            if (typeof f === "string") return { lineItem: (f || "").trim() };
+            if (f && typeof f === "object" && (f.lineItem || f.title)) return { lineItem: (f.lineItem || f.title || "").trim(), ...f };
+            if (f && typeof f === "object") {
+              const parts = Object.entries(f)
+                .filter(([k]) => k !== "order")
+                .filter(([, v]) => v != null && String(v).trim() !== "")
+                .map(([k, v]) => `${k}: ${v}`);
+              return { lineItem: parts.join(", ") };
+            }
+            return { lineItem: "" };
+          })
+          .filter((row) => (row?.lineItem || "").trim() !== "")
+      : [];
+    if (rows.length > 0) acc[name] = rows;
+    return acc;
+  }, {});
+};
+
 const DigitisedPrescription = ({
   data,
   setData,
@@ -127,7 +189,16 @@ const DigitisedPrescription = ({
   onLabResultsUpdate,
   sectionsStore: sectionsStoreProp,
   context,
+  showRxPadHeader = false,
+  showHeader = false,
+  showInstructionMessage = false,
+  onCloseInstructionMessage,
+  showDisclaimer = false,
+  localModules = [],
+  setLocalModules,
+  isProcessing = false,
 }) => {
+  const showHeaderArea = showRxPadHeader || showHeader;
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableText, setEditableText] = useState("");
@@ -141,6 +212,10 @@ const DigitisedPrescription = ({
   const [searchTestQuery, setSearchTestQuery] = useState("");
   const [testSearchOptions, setTestSearchOptions] = useState([]);
   const [showAddMedicinePopup, setShowAddMedicinePopup] = useState(false);
+  const [editingModule, setEditingModule] = useState("");
+  const [updatedModuleName, setUpdatedModuleName] = useState("");
+  const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
   const editingRef = useRef(false);
   const suggestionRef = useRef(null);
   const inputRef = useRef(null);
@@ -170,13 +245,27 @@ const DigitisedPrescription = ({
   const handleLineItemBlur = useCallback(
     (type, index) => {
       const itemType = type?.split("-")?.[0];
+      const lineItemValue = String(editableLineItem ?? "").trim();
       setData((prevData) => {
         const updatedData = { ...prevData };
         const arr = [...(updatedData[itemType] || [])];
-        if (itemType === "diagnosis" || itemType === "examination" || itemType === "dynamicFields") {
-          arr[index] = { ...arr[index], notes: editableLineItem };
+        const item = arr[index];
+        if (itemType === "diagnosis") {
+          const notes = lineItemValue;
+          const name = String(item?.name ?? "").trim();
+          const since = String(item?.since ?? "").trim();
+          const status = String(item?.status ?? "").trim();
+          const lineItem = [name, status, notes].filter(Boolean).join(", ") || name;
+          arr[index] = { name: name || "", since, status, notes, lineItem };
+        } else if (itemType === "examinations") {
+          const notes = lineItemValue;
+          const name = String(item?.name ?? "").trim();
+          const lineItem = notes ? `${name}, ${notes}` : name || "";
+          arr[index] = { name: name || "", notes, lineItem };
+        } else if (itemType === "dynamicFields") {
+          arr[index] = { ...item, notes: lineItemValue };
         } else {
-          arr[index] = { ...arr[index], lineItem: editableLineItem };
+          arr[index] = { ...item, lineItem: lineItemValue };
         }
         updatedData[itemType] = arr;
         return updatedData;
@@ -192,21 +281,72 @@ const DigitisedPrescription = ({
   const sectionRefs = useRef({});
   const [visibleSection, setVisibleSection] = useState(null);
 
+  // Support both old and new structure (vitals/vitalsAndBodyComposition, examination/examinations, medicine/medications, tests/labInvestigation)
+  const sectionData = useMemo(() => {
+    const vitals = data?.vitalsAndBodyComposition || data?.vitals;
+    const examinationsRaw = data?.examinations || data?.examination;
+    const medications = data?.medications || data?.medicine;
+    const labInvestigation = data?.labInvestigation || data?.tests;
+    const examinations = !Array.isArray(examinationsRaw)
+      ? []
+      : examinationsRaw.map((item) => {
+          if (item == null) return { name: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.findings ?? item.lineItem ?? "").trim();
+          const notes = String(item.notes ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || (notes ? `${name}, ${notes}` : name) || name;
+          return { name, notes, lineItem };
+        });
+    const diagnosisRaw = data?.diagnosis;
+    const diagnosis = !Array.isArray(diagnosisRaw)
+      ? []
+      : diagnosisRaw.map((item) => {
+          if (item == null) return { name: "", since: "", status: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, since: "", status: "", notes: "", lineItem: t };
+          }
+          const name = String(item.name ?? item.lineItem ?? "").trim();
+          const since = String(item.since ?? "").trim();
+          const status = String(item.status ?? "").trim();
+          const notes = String(item.notes ?? item.note ?? "").trim();
+          const lineItem = String(item.lineItem ?? "").trim() || [name, status, notes].filter(Boolean).join(", ") || name;
+          return { name, since, status, notes, lineItem };
+        });
+    return {
+      vitalsAndBodyComposition: vitals,
+      examinations,
+      medications,
+      labInvestigation,
+      symptoms: data?.symptoms,
+      medicalHistory: data?.medicalHistory,
+      diagnosis,
+      vaccinations: data?.vaccinations,
+      advice: data?.advice,
+      followUp: data?.followUp,
+      dynamicFields: data?.dynamicFields,
+      others: data?.others,
+      labResults: data?.labResults,
+    };
+  }, [data]);
+
   const renderedSections = useMemo(() => {
     const order = [];
-    if (
-      data?.vitals &&
-      Object.values(data.vitals || {}).some((v) => v?.trim?.()?.length)
-    ) {
-      order.push("vitals");
+    const vitalsObj = sectionData.vitalsAndBodyComposition;
+    if (vitalsObj && typeof vitalsObj === "object" && Object.values(vitalsObj || {}).some((v) => v != null && String(v).trim?.()?.length)) {
+      order.push("vitalsAndBodyComposition");
     }
     ARRAY_SECTIONS.forEach((s) => {
-      if (Array.isArray(data?.[s]) && data[s].length > 0) {
+      const arr = s === "examinations" ? sectionData.examinations : s === "medications" ? sectionData.medications : s === "labInvestigation" ? sectionData.labInvestigation : sectionData[s];
+      if (Array.isArray(arr) && arr.length > 0) {
         order.push(s);
       }
     });
     return order;
-  }, [data]);
+  }, [sectionData]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -243,7 +383,7 @@ const DigitisedPrescription = ({
     if (!visibleSection) return;
     if (!ARRAY_SECTIONS.includes(visibleSection)) return;
     if (!ioAutoFocusEnabled) return;
-    const arr = data?.[visibleSection];
+    const arr = visibleSection === "examinations" ? sectionData.examinations : visibleSection === "medications" ? sectionData.medications : visibleSection === "labInvestigation" ? sectionData.labInvestigation : data?.[visibleSection];
     if (!Array.isArray(arr) || arr.length === 0) return;
     const lastIndex = arr.length - 1;
     const lastItem = arr[lastIndex];
@@ -262,34 +402,35 @@ const DigitisedPrescription = ({
   const handleInputBlur = useCallback(
     (type, index) => {
       if (activeIndex === null || activeType === null) return;
+      const val = String(editableText ?? "").trim();
 
       setData((prevData) => {
         const updatedData = { ...prevData };
 
-        if (type === "vitals-key") {
-          const newKey = (editableKey || "")
+        if (type === "vitalsAndBodyComposition-key") {
+          const newKey = String(editableKey ?? "")
             .trim()
             .replace(/\s+/g, "")
             .replace(/^(.)/, (c) => c.toLowerCase());
           if (newKey && newKey !== index) {
-            const v = { ...(updatedData.vitals || {}) };
+            const v = { ...(updatedData.vitalsAndBodyComposition || {}) };
             const value = v[index];
             delete v[index];
             v[newKey] = value;
-            updatedData.vitals = v;
+            updatedData.vitalsAndBodyComposition = v;
           }
           return updatedData;
         }
 
-        if (type === "vitals") {
-          const val = (editableText || "").trim();
-          const v = { ...(updatedData.vitals || {}) };
+        if (type === "vitalsAndBodyComposition") {
+          const val = String(editableText ?? "").trim();
+          const v = { ...(updatedData.vitalsAndBodyComposition || {}) };
           if (val) v[index] = val;
-          updatedData.vitals = v;
+          updatedData.vitalsAndBodyComposition = v;
           return updatedData;
         }
         if (type === "labResults") {
-          const val = (editableText || "").trim();
+          const val = String(editableText ?? "").trim();
           const arr = [...(updatedData.labResults || [])];
           if (val) {
             arr[index] = { ...arr[index], testname: val };
@@ -298,21 +439,22 @@ const DigitisedPrescription = ({
           return updatedData;
         }
         if (type === "followUp") {
-          updatedData.followUp = editableText.trim();
+          updatedData.followUp = String(editableText ?? "").trim();
           return updatedData;
         } else if (ARRAY_SECTIONS.includes(type)) {
           let arr = [...(updatedData[type] || [])];
           const item = arr[index];
 
-          const val = (editableText || "").trim();
+          const val = String(editableText ?? "").trim();
           if (type === "advice" || type === "others") {
-            arr[index] = (editableText || "").trim();
-          } else if (type === "medications" || type === "tests") {
+            arr[index] = String(editableText ?? "").trim();
+          } else if (type === "medications" || type === "labInvestigation") {
             if (val) {
               arr[index] = {
                 ...item,
                 name: item?.name || val,
-                refinedName: item?.name || val,
+                groundedMedicineName: type === "medications" ? (item?.groundedMedicineName || val) : undefined,
+                refinedName: type === "medications" ? (item?.refinedName || val) : undefined,
               };
             } else {
               arr[index] = item;
@@ -329,6 +471,18 @@ const DigitisedPrescription = ({
             } else {
               arr[index] = item;
             }
+          } else if (type === "diagnosis") {
+            const nameToSave = (val !== "" ? val : String(item?.name ?? "").trim()) || String(item?.notes ?? "").trim();
+            const since = String(item?.since ?? "").trim();
+            const status = String(item?.status ?? "").trim();
+            const notes = String(item?.notes ?? "").trim();
+            const lineItem = [nameToSave, status, notes].filter(Boolean).join(", ") || nameToSave;
+            arr[index] = { name: nameToSave || "", since, status, notes, lineItem };
+          } else if (type === "examinations") {
+            const nameToSave = (val !== "" ? val : String(item?.name ?? "").trim()) || String(item?.notes ?? "").trim();
+            const notes = String(item?.notes ?? "").trim();
+            const lineItem = notes ? `${nameToSave}, ${notes}` : nameToSave || "";
+            arr[index] = { name: nameToSave || "", notes, lineItem };
           } else {
             if (val) {
               arr[index] = { ...item, name: val };
@@ -337,36 +491,54 @@ const DigitisedPrescription = ({
             }
           }
           if (type === "advice" || type === "others") {
-            arr = arr.filter((v) => typeof v === "string" && v.trim() !== "");
-          } else if (type === "medications" || type === "tests") {
+            arr = arr.filter((v) => typeof v === "string" && String(v).trim() !== "");
+          } else if (type === "medications" || type === "labInvestigation") {
             arr = arr.filter(
               (v) =>
                 v &&
                 ((typeof v === "object" &&
-                  ((v.name && v.name.trim() !== "") ||
-                    (v.refinedName && v.refinedName.trim() !== ""))) ||
-                  (typeof v === "string" && v.trim() !== ""))
+                  (String(v.name ?? "").trim() !== "" ||
+                    String(v.groundedMedicineName ?? "").trim() !== "" ||
+                    String(v.refinedName ?? "").trim() !== "")) ||
+                  (typeof v === "string" && String(v).trim() !== ""))
             );
           } else if (type === "dynamicFields") {
             arr = arr.filter(
               (v) =>
                 v &&
                 typeof v === "object" &&
-                v.title &&
-                v.title.trim() !== ""
+                String(v.title ?? "").trim() !== ""
             );
           } else if (type === "labResults") {
             arr = arr.filter(
               (v) =>
                 v &&
                 typeof v === "object" &&
-                v.testname &&
-                v.testname.trim() !== ""
+                String(v.testname ?? "").trim() !== ""
+            );
+          } else if (type === "diagnosis") {
+            arr = arr.filter(
+              (v) =>
+                v &&
+                typeof v === "object" &&
+                (String(v.name ?? "").trim() !== "" ||
+                  String(v.notes ?? "").trim() !== "" ||
+                  String(v.status ?? "").trim() !== "" ||
+                  String(v.lineItem ?? "").trim() !== "")
+            );
+          } else if (type === "examinations") {
+            arr = arr.filter(
+              (v) =>
+                v &&
+                typeof v === "object" &&
+                (String(v.name ?? "").trim() !== "" ||
+                  String(v.findings ?? "").trim() !== "" ||
+                  String(v.notes ?? "").trim() !== "" ||
+                  String(v.lineItem ?? "").trim() !== "")
             );
           } else {
             arr = arr.filter(
-              (v) =>
-                v && typeof v === "object" && v.name && v.name.trim() !== ""
+              (v) => v && typeof v === "object" && String(v.name ?? "").trim() !== ""
             );
           }
           updatedData[type] = arr;
@@ -394,9 +566,9 @@ const DigitisedPrescription = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editableText, activeType]);
 
-  // Debounced search for test name
+  // Debounced search for lab investigation name
   useEffect(() => {
-    if (activeType !== "tests") return;
+    if (activeType !== "labInvestigation") return;
     if (!editableText) return;
     const timeoutId = setTimeout(() => {
       dispatch(
@@ -452,9 +624,9 @@ const DigitisedPrescription = ({
     setParentSearchOptions(opts);
   }, [parentOptionsList, searchParentQuery, activeType]);
 
-  // Build options from store list for tests
+  // Build options from store list for lab investigation
   useEffect(() => {
-    if (activeType !== "tests") return;
+    if (activeType !== "labInvestigation") return;
     const list = testOptionsList || [];
     const opts = list.map((e) => ({
       key: JSON.stringify({ ...e, unique_id: uuidv4() }),
@@ -496,7 +668,7 @@ const DigitisedPrescription = ({
   const getFuzzySearchMedicine = useCallback(
     async (medsSnapshot) => {
       try {
-        const meds = medsSnapshot || data?.medications || [];
+        const meds = medsSnapshot || sectionData.medications || [];
         if (!meds.length) return;
 
         const correctedResults = await Promise.all(
@@ -556,20 +728,18 @@ const DigitisedPrescription = ({
             },
           })),
         }));
-      } finally {
-        // nothing
-      }
+      } finally {}
     },
-    [data?.medications, setData]
+    [sectionData.medications, setData]
   );
 
   const getFuzzySearchLabs = useCallback(
-    async (testsSnapshot) => {
+    async (labsSnapshot) => {
       try {
-        const tests = testsSnapshot || data?.tests || [];
-        if (!tests.length) return;
+        const labs = labsSnapshot || sectionData.labInvestigation || [];
+        if (!labs.length) return;
         const correctedResults = await Promise.all(
-          tests.map(async (it) => {
+          labs.map(async (it) => {
             const currentName = (it?.name || "").trim();
             if (!currentName)
               return { correctedName: currentName, fullData: null };
@@ -586,19 +756,17 @@ const DigitisedPrescription = ({
           })
         );
 
-        const anyChanged = tests.some(
+        const anyChanged = labs.some(
           (m, i) => (m?.name || "").trim() !== correctedResults[i].correctedName
         );
         if (!anyChanged) return;
 
         setData((prev) => ({
           ...prev,
-          tests: (prev?.tests || []).map((m, idx) => ({
+          labInvestigation: (prev?.labInvestigation || []).map((m, idx) => ({
             ...m,
             name: correctedResults[idx].correctedName,
-            refinedName: correctedResults[idx].correctedName,
             edited: false,
-            // Add metadata for fuzzy search corrected name with full data
             metadata: {
               ...m.metadata,
               fuzzyCorrectedName: correctedResults[idx].correctedName,
@@ -608,10 +776,9 @@ const DigitisedPrescription = ({
             },
           })),
         }));
-      } finally {
-      }
+      } finally {}
     },
-    [data?.tests, setData]
+    [sectionData.labInvestigation, setData]
   );
 
   const syncVitalsToContext = useCallback((vitalsObject) => {
@@ -941,7 +1108,7 @@ const DigitisedPrescription = ({
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunMedsRef.current) return;
-    const meds = data?.medications || [];
+    const meds = sectionData.medications || [];
     if (!meds.length) return;
     
     // Use groundingMedicineName if present, otherwise use name for signature
@@ -966,17 +1133,17 @@ const DigitisedPrescription = ({
 
     lastFuzzyNamesRef.current = namesSignature;
     getFuzzySearchMedicine(meds);
-  }, [data?.medications]);
+  }, [sectionData.medications]);
 
-  // Fuzzy-correct tests (lab investigations) ONCE when tests first become available
+  // Fuzzy-correct lab investigations ONCE when labInvestigation first become available
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunTestsRef.current) return;
-    const tests = data?.tests || [];
-    if (!tests.length) return;
+    const labs = sectionData.labInvestigation || [];
+    if (!labs.length) return;
     hasFuzzyRunTestsRef.current = true;
-    getFuzzySearchLabs(tests);
-  }, [data?.tests]);
+    getFuzzySearchLabs(labs);
+  }, [sectionData.labInvestigation]);
 
   const onSearchParent = (query) => {
     setSearchParentQuery((query || "").trimStart());
@@ -1085,101 +1252,82 @@ const DigitisedPrescription = ({
     } catch {}
 
     setEditableText(value);
-    if (activeType === "medications" || activeType === "tests") {
+    if (activeType === "medications") {
       setData((prev) => {
         const updated = { ...prev };
-        const arr = Array.isArray(updated[activeType])
-          ? [...updated[activeType]]
-          : [];
+        const arr = Array.isArray(updated.medications) ? [...updated.medications] : [];
         if (arr[activeIndex]) {
           arr[activeIndex] = {
             ...arr[activeIndex],
             name: value,
+            groundedMedicineName: value,
             refinedName: value,
-            // Add metadata for selected option
             metadata: {
               ...arr[activeIndex].metadata,
               ...(option?.key ? JSON.parse(option.key) : {}),
               selectedValue: value,
             },
           };
-          updated[activeType] = arr;
+          updated.medications = arr;
         }
         return updated;
       });
       editingRef.current = false;
-      setTimeout(() => {
-        handleInputBlur(activeType, activeIndex);
-      }, 0);
+      setTimeout(() => handleInputBlur(activeType, activeIndex), 0);
     }
   };
 
   const onSelectTest = (value, option) => {
-    // Open Add Custom popup if needed (investigation_id === 0)
     try {
       const meta = option?.key ? JSON.parse(option.key) : null;
       if (meta && meta.investigation_id === 0) {
-        // For now, just add the custom test directly since we don't have a custom test popup
         setEditableText(value);
-        if (activeType === "tests") {
+        if (activeType === "labInvestigation") {
           setData((prev) => {
             const updated = { ...prev };
-            const arr = Array.isArray(updated[activeType])
-              ? [...updated[activeType]]
-              : [];
+            const arr = Array.isArray(updated.labInvestigation) ? [...updated.labInvestigation] : [];
             if (arr[activeIndex]) {
               arr[activeIndex] = {
                 ...arr[activeIndex],
                 name: value,
-                refinedName: value,
-                // Add metadata for selected option
                 metadata: {
                   ...arr[activeIndex].metadata,
                   ...(option?.key ? JSON.parse(option.key) : {}),
                   selectedValue: value,
                 },
               };
-              updated[activeType] = arr;
+              updated.labInvestigation = arr;
             }
             return updated;
           });
           editingRef.current = false;
-          setTimeout(() => {
-            handleInputBlur(activeType, activeIndex);
-          }, 0);
+          setTimeout(() => handleInputBlur(activeType, activeIndex), 0);
         }
         return;
       }
     } catch {}
 
     setEditableText(value);
-    if (activeType === "tests") {
+    if (activeType === "labInvestigation") {
       setData((prev) => {
         const updated = { ...prev };
-        const arr = Array.isArray(updated[activeType])
-          ? [...updated[activeType]]
-          : [];
+        const arr = Array.isArray(updated.labInvestigation) ? [...updated.labInvestigation] : [];
         if (arr[activeIndex]) {
           arr[activeIndex] = {
             ...arr[activeIndex],
             name: value,
-            refinedName: value,
-            // Add metadata for selected option
             metadata: {
               ...arr[activeIndex].metadata,
               ...(option?.key ? JSON.parse(option.key) : {}),
               selectedValue: value,
             },
           };
-          updated[activeType] = arr;
+          updated.labInvestigation = arr;
         }
         return updated;
       });
-      // Persist and exit edit mode so selection reflects immediately in UI
       editingRef.current = false;
-      setTimeout(() => {
-        handleInputBlur(activeType, activeIndex);
-      }, 0);
+      setTimeout(() => handleInputBlur(activeType, activeIndex), 0);
     }
   };
 
@@ -1243,20 +1391,19 @@ const DigitisedPrescription = ({
   const handleInputChange = (e) => {
     const value = e.target.value;
     setEditableText(value);
-    // Live update name for medications/tests at current index
-    if (activeType === "medications" || activeType === "tests") {
+    // Live update name for medications/labInvestigation at current index
+    if (activeType === "medications" || activeType === "labInvestigation") {
       setData((prev) => {
         const updated = { ...prev };
-        const arr = Array.isArray(updated[activeType])
-          ? [...updated[activeType]]
-          : [];
+        const key = activeType;
+        const arr = Array.isArray(updated[key]) ? [...updated[key]] : [];
         if (arr[activeIndex]) {
           arr[activeIndex] = {
             ...arr[activeIndex],
             name: value,
-            refinedName: value,
+            ...(activeType === "medications" ? { groundedMedicineName: value, refinedName: value } : {}),
           };
-          updated[activeType] = arr;
+          updated[key] = arr;
         }
         return updated;
       });
@@ -1293,7 +1440,7 @@ const DigitisedPrescription = ({
       }
     }
 
-    if (type === "vitals-key") {
+    if (type === "vitalsAndBodyComposition-key") {
       const isNumberKey = /^\d+$/.test(index);
       const label = isNumberKey
         ? index
@@ -1301,8 +1448,8 @@ const DigitisedPrescription = ({
             .replace(/([A-Z])/g, " $1")
             .replace(/^./, (s) => s.toUpperCase());
       setEditableKey(label);
-    } else if (type === "vitals") {
-      setEditableText(data.vitals[index] || "");
+    } else if (type === "vitalsAndBodyComposition") {
+      setEditableText((data.vitalsAndBodyComposition || {})[index] || "");
     } else if (type === "followUp") {
       setEditableText(data?.followUp);
     } else if (ARRAY_SECTIONS.includes(type)) {
@@ -1318,7 +1465,7 @@ const DigitisedPrescription = ({
 
   const handleLineItemClick = (type, index) => {
     const src = data[type][index];
-    setEditableLineItem(type === "diagnosis" || type === "examination" || type === "dynamicFields" ? src?.notes : src?.lineItem);
+    setEditableLineItem(type === "diagnosis" || type === "examinations" || type === "dynamicFields" ? src?.notes : src?.lineItem);
     setActiveIndex(index);
     setActiveType(`${type}-lineItem`);
   };
@@ -1350,10 +1497,17 @@ const DigitisedPrescription = ({
       const currentText = (isLineItem ? editableLineItem : editableText ?? "").trim();
       if (type === "advice" || type === "others") {
         arr[index] = currentText;
-      } else if (type === "medications" || type === "tests") {
+      } else if (type === "medications" || type === "labInvestigation") {
         const name = isLineItem ? cur?.name || prev[type]?.name : currentText || cur?.name;
         const lineItem = isLineItem ? currentText || cur?.lineItem || prev[type]?.lineItem : cur?.lineItem;
-        arr[index] = currentText ? { ...(cur || {}), name, refinedName: name, lineItem } : cur;
+        arr[index] = currentText
+          ? {
+              ...(cur || {}),
+              name,
+              lineItem,
+              ...(type === "medications" ? { groundedMedicineName: name, refinedName: name } : {}),
+            }
+          : cur;
       } else if (type === "dynamicFields") {
         const title = isLineItem ? cur?.title || prev[type]?.title : currentText || cur?.title;
         const notes = isLineItem ? currentText || cur?.notes || prev[type]?.notes : cur?.notes;
@@ -1390,172 +1544,6 @@ const DigitisedPrescription = ({
     }, 0);
   };
 
-  const renderVitals = () => (
-    <div
-      data-section="vitals"
-      ref={(el) => (sectionRefs.current["vitals"] = el)}
-      className={`digitised-section-rx ${
-        visibleSection === "vitals" ? "highlight-blue" : ""
-      }`}
-    >
-      {loading ? (
-        <div className="shimmer-container">
-          <div className="shimmer-header">
-            <div className="shimmer"></div>
-          </div>
-          <div className="shimmer-content">
-            <div className="shimmer"></div>
-          </div>
-        </div>
-      ) : (
-        <ul>
-          {Object.entries(data.vitals || {}).map(([key, value]) => {
-            let textWidth = 0;
-            let keyWidth = 0;
-            if (activeIndex === key && activeType === "vitals") {
-              const temp = document.createElement("span");
-              temp.style.visibility = "hidden";
-              temp.style.position = "absolute";
-              temp.style.whiteSpace = "nowrap";
-              temp.innerText = editableText || "";
-              document.body.appendChild(temp);
-              textWidth = temp.offsetWidth;
-              document.body.removeChild(temp);
-            }
-            if (activeIndex === key && activeType === "vitals-key") {
-              const temp = document.createElement("span");
-              temp.style.visibility = "hidden";
-              temp.style.position = "absolute";
-              temp.style.whiteSpace = "nowrap";
-              temp.innerText = editableKey || "";
-              document.body.appendChild(temp);
-              keyWidth = temp.offsetWidth;
-              document.body.removeChild(temp);
-            }
-
-            const isNumberKey = /^\d+$/.test(key);
-            const label = isNumberKey
-              ? `${key}: `
-              : `${key
-                  .replace(/([A-Z])/g, " $1")
-                  .replace(/^./, (s) => s.toUpperCase())}: `;
-
-            return (
-              <li key={key}>
-                <div className="medicine-item">
-                  {activeIndex === key && activeType === "vitals-key" ? (
-                    <input
-                      ref={inputRef}
-                      data-vitals-key={key}
-                      type="text"
-                      value={editableKey}
-                      className="editable-digitised-item"
-                      onChange={(e) => setEditableKey(e.target.value)}
-                      onBlur={() => {
-                        editingRef.current = false;
-                        handleInputBlur("vitals-key", key);
-                      }}
-                      onFocus={() => {
-                        editingRef.current = true;
-                        setVisibleSection("vitals");
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleInputBlur("vitals-key", key);
-                        }
-                      }}
-                      autoFocus
-                      style={{ width: `clamp(12px, ${keyWidth + 10}px, 100%)` }}
-                    />
-                  ) : (
-                    <span
-                      onClick={() => handleItemClick("vitals-key", key)}
-                      className="digitised-item"
-                    >
-                      {label}
-                    </span>
-                  )}
-                  {activeIndex === key && activeType === "vitals" ? (
-                    <input
-                      ref={inputRef}
-                      data-vitals-key={key}
-                      type="text"
-                      value={editableText}
-                      className="editable-digitised-item"
-                      onChange={(e) => setEditableText(e.target.value)}
-                      onBlur={() => {
-                        editingRef.current = false;
-                        handleInputBlur("vitals", key);
-                      }}
-                      onFocus={() => {
-                        editingRef.current = true;
-                        setVisibleSection("vitals");
-                      }}
-                      autoFocus
-                      style={{
-                        width: `clamp(12px, ${textWidth + 10}px, 100%)`,
-                      }}
-                    />
-                  ) : (
-                    <span
-                      onClick={() => handleItemClick("vitals", key)}
-                      className="digitised-item"
-                    >
-                      {value || "_"}
-                    </span>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-
-  const renderFollowUp = () => {
-    let textWidth = 0;
-    if (activeType === "followUp") {
-      const temp = document.createElement("span");
-      temp.style.visibility = "hidden";
-      temp.style.position = "absolute";
-      temp.style.whiteSpace = "nowrap";
-      temp.innerText = editableText || "";
-      document.body.appendChild(temp);
-      textWidth = temp.offsetWidth;
-      document.body.removeChild(temp);
-    }
-    return (
-      <div className="medicine-item digitised-rx-follow-up-item">
-        {activeType === "followUp" ? (
-          <input
-            type="text"
-            value={editableText}
-            className="editable-digitised-item"
-            onChange={handleInputChange}
-            onBlur={() => {
-              editingRef.current = false;
-              handleInputBlur("followUp");
-            }}
-            onFocus={() => {
-              editingRef.current = true;
-              setVisibleSection("followUp");
-            }}
-            autoFocus
-            style={{ width: `clamp(12px, ${textWidth + 10}px, 100%)` }}
-          />
-        ) : (
-          <span
-            onClick={() => handleItemClick("followUp")}
-            className="digitised-item"
-          >
-            {data?.followUp}
-          </span>
-        )}
-      </div>
-    );
-  };
   const renderArraySection = (type) => {
     return (
       <div
@@ -1668,7 +1656,7 @@ const DigitisedPrescription = ({
                             />
                           </AutoComplete>
                         </div>
-                      ) : type === "tests" ? (
+                      ) : type === "labInvestigation" ? (
                         <div ref={suggestionRef}>
                           <AutoComplete
                             value={editableText}
@@ -1756,7 +1744,7 @@ const DigitisedPrescription = ({
                       type === "symptoms" ||
                       type === "vaccinations" ||
                       type === "medicalHistory" ||
-                      type === "tests") &&
+                      type === "labInvestigation") &&
                       item?.lineItem &&
                       (activeIndex === index &&
                       activeType === `${type}-lineItem` ? (
@@ -1838,8 +1826,8 @@ const DigitisedPrescription = ({
                       </>
                     )}
 
-                    {/* Editable input for notes (examination/diagnosis/dynamicFields) */}
-                    {(type === "examination" || type === "diagnosis" || type === "dynamicFields") &&
+                    {/* Editable input for notes (examinations/diagnosis/dynamicFields) */}
+                    {(type === "examinations" || type === "diagnosis" || type === "dynamicFields") &&
                       item?.notes &&
                       (activeIndex === index &&
                       activeType === `${type}-lineItem` ? (
@@ -1883,30 +1871,50 @@ const DigitisedPrescription = ({
             })}
           </ul>
         ) : (
-          <>{type === "followUp" && renderFollowUp()}</>
+          type === "followUp" && data?.followUp != null ? <span className="digitised-item">{data.followUp}</span> : null
         )}
       </div>
     );
   };
 
   const hasValidContent = (type) => {
-    if (!data[type] || !Array.isArray(data[type])) return false;
-    return data[type].some((item) => {
-      if (typeof item === "string") return item.trim().length > 0;
+    const source = type === "vitalsAndBodyComposition" ? sectionData.vitalsAndBodyComposition
+      : type === "examinations" ? sectionData.examinations
+      : type === "medications" ? sectionData.medications
+      : type === "labInvestigation" ? sectionData.labInvestigation
+      : data?.[type];
+    if (!source) return false;
+    if (type === "vitalsAndBodyComposition") {
+      return typeof source === "object" && Object.values(source || {}).some((v) => v != null && String(v).trim?.()?.length > 0);
+    }
+    if (type === "followUp") return typeof source === "string" && source.trim().length > 0;
+    if (!Array.isArray(source)) return false;
+    const result = source.some((item) => {
+      if (typeof item === "string") return String(item).trim().length > 0;
       const relevant = {
-        medications: ["refinedName", "lineItem"],
+        medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
-        examination: ["name", "notes"],
-        diagnosis: ["name", "notes"],
+        examinations: ["name", "findings", "notes", "lineItem"],
+        diagnosis: ["name", "since", "status", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
-        vaccinations: ["name", "lineItem"],
-        tests: ["refinedName", "lineItem"],
+        vaccinations: ["name", "brand", "schedule", "notes", "lineItem"],
+        labInvestigation: ["name", "lineItem"],
         dynamicFields: ["title", "notes"],
-        others: ["name"],
+        others: ["name", "value"],
         labResults: ["testname", "value", "notes"],
+        advice: ["name"],
       }[type] || ["name"];
-      return relevant.some((f) => item[f]?.trim?.()?.length > 0);
+      return relevant.some((f) => {
+        const v = item[f];
+        return v != null && String(v).trim().length > 0;
+      });
     });
+    return result;
+  };
+
+  const normalizeAdvice = (advice) => {
+    if (!Array.isArray(advice)) return [];
+    return advice.map((a) => (typeof a === "string" ? { lineItem: a } : a));
   };
 
   const handleMedicationsUpdate = useCallback((medicationsArray) => {
@@ -1919,127 +1927,285 @@ const DigitisedPrescription = ({
   const handleInvestigationUpdate = useCallback((investigationArray) => {
     setData((prevData) => ({
       ...prevData,
-      tests: investigationArray,
+      labInvestigation: investigationArray,
     }));
   }, []);
 
-  return (
-    <div
-      className={
-        loading ? "loading-digitised-container" : "digitised-container"
+  const dynamicFieldsObject = useMemo(
+    () => getDynamicFieldsAsObject(data?.dynamicFields),
+    [data?.dynamicFields]
+  );
+  // Legacy alias for any stale reference (e.g. hot reload); we always use object UI now
+  const isDynamicFieldsObject = true;
+
+  const handleEditModule = useCallback(
+    (module) => {
+      const newName = (updatedModuleName || "").trim();
+      if (!module || !newName || newName === module) {
+        setEditingModule("");
+        setUpdatedModuleName("");
+        return;
       }
-      ref={containerRef}
-    >
+      setData((prev) => {
+        const df = getDynamicFieldsAsObject(prev.dynamicFields);
+        const updated = { ...prev, dynamicFields: { ...df } };
+        if (df[module]) {
+          updated.dynamicFields[newName] = df[module];
+          delete updated.dynamicFields[module];
+        }
+        return updated;
+      });
+      if (setLocalModules)
+        setLocalModules((prev) => (prev || []).map((m) => (m === module ? newName : m)));
+      setEditingModule("");
+      setUpdatedModuleName("");
+      onRxEdited?.();
+    },
+    [updatedModuleName, setLocalModules, onRxEdited]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingModule("");
+    setUpdatedModuleName("");
+  }, []);
+
+  const handleCustomModuleUpdate = useCallback(
+    (moduleName, moduleArray) => {
+      setData((prev) => {
+        const updated = { ...prev, dynamicFields: { ...getDynamicFieldsAsObject(prev.dynamicFields) } };
+        const arr = Array.isArray(moduleArray) ? moduleArray : [];
+        if (arr.length === 0) delete updated.dynamicFields[moduleName];
+        else updated.dynamicFields[moduleName] = arr;
+        return updated;
+      });
+      onRxEdited?.();
+    },
+    [onRxEdited]
+  );
+
+  const toggleDeleteModuleModal = useCallback(() => {
+    setIsDeleteModuleModalOpen((prev) => !prev);
+    if (moduleToDelete) setModuleToDelete(null);
+  }, [moduleToDelete]);
+
+  const handleDeleteModule = useCallback(() => {
+    if (!moduleToDelete) return;
+    setData((prev) => {
+      const updated = { ...prev, dynamicFields: { ...getDynamicFieldsAsObject(prev.dynamicFields) } };
+      delete updated.dynamicFields[moduleToDelete];
+      return updated;
+    });
+    if (setLocalModules)
+      setLocalModules((prev) => (prev || []).filter((m) => m !== moduleToDelete));
+    onRxEdited?.();
+    setIsDeleteModuleModalOpen(false);
+    setModuleToDelete(null);
+  }, [moduleToDelete, setLocalModules, onRxEdited]);
+
+  return (
+    <>
+      {showHeaderArea && (
+        <div className={styles.rxPadHeader}>
+          <img src={documentIcon} alt="Rx Pad" className={styles.rxPadIcon} />
+          <span className={styles.rxPadTitle}>Rx Pad</span>
+        </div>
+      )}
       {loading ? (
-        <GenRXLoaders
-          showAbsHeaderInsideLoader={showAbsHeaderInsideLoader}
-          isProcessing={true}
-          isSnapRx={true}
-        />
+        <div
+          className={`${styles.rightSection} ${styles.gradientBorder} ${styles.loaderFullBleed}`}
+          style={{ background: `url(${genRxBg})` }}
+          ref={containerRef}
+        >
+          <GenRXLoaders
+            showAbsHeaderInsideLoader={showAbsHeaderInsideLoader}
+            isProcessing={true}
+            isSnapRx={true}
+          />
+        </div>
       ) : (
-        <>
-          {data?.vitals &&
-            Object.values(data.vitals).some((v) => v?.trim?.()?.length > 0) && (
-              <div
-                ref={(el) => (sectionRefs.current["vitals"] = el)}
-                className="title-digitise-section-wrapper"
-              >
-                <div className="title-digitise-section mb-2">Vitals</div>
-                {renderVitals()}
+        <div className={styles.rightSection} ref={containerRef}>
+          {showInstructionMessage && onCloseInstructionMessage && (
+            <div className={styles.rxPadInstruction}>
+              <div className={styles.instructionIcon}>
+                <img src={warningIcon} alt="Warning" className={styles.dangerIcon} />
               </div>
-            )}
+              <div className={styles.instructionText}>
+                Dictate the Rx or start a conversation with Ambient Rx. We&apos;ll automatically fill these details so you can focus on the patient.
+              </div>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={onCloseInstructionMessage}
+                aria-label="Close instruction message"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <>
+          {hasValidContent("vitalsAndBodyComposition") && (
+            <VitalsRichTextEditor
+              vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
+              onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
+              isProcessing={loading}
+            />
+          )}
 
           {data?.medicalHistory && hasValidContent("medicalHistory") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Medical History</div>
-              {renderArraySection("medicalHistory")}
-            </div>
+            <MedicalHistoryRichTextEditor
+              medicalHistory={data.medicalHistory}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
           {data?.symptoms && hasValidContent("symptoms") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Symptoms</div>
-              {renderArraySection("symptoms")}
-            </div>
+            <SymptomsRichTextEditor
+              symptoms={data.symptoms}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, symptoms: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
-          {data?.examination && hasValidContent("examination") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Examination</div>
-              {renderArraySection("examination")}
-            </div>
+          {(sectionData.examinations?.length > 0) && hasValidContent("examinations") && (
+            <ExaminationRichTextEditor
+              examinations={sectionData.examinations}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, examinations: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
-          {data?.diagnosis && hasValidContent("diagnosis") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Diagnosis</div>
-              {renderArraySection("diagnosis")}
-            </div>
+          {(sectionData.diagnosis?.length > 0 || data?.diagnosis) && hasValidContent("diagnosis") && (
+            <DiagnosisRichTextEditor
+              diagnosis={sectionData.diagnosis?.length > 0 ? sectionData.diagnosis : (data.diagnosis || [])}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
-          {data?.medications &&
-            hasValidContent("medications") &&
-            Array.isArray(data?.medications) &&
-            data?.medications.length > 0 && (
+          {sectionData.medications?.length > 0 &&
+            hasValidContent("medications") && (
               <MedicationsTable
-                medications={data?.medications}
+                medications={sectionData.medications}
                 onUpdate={handleMedicationsUpdate}
                 isProcessing={false}
               />
             )}
 
-          {data?.tests &&
-            Array.isArray(data?.tests) &&
-            data?.tests.length > 0 && (
+          {sectionData.labInvestigation?.length > 0 && (
               <LabInvestigationTable
-                labInvestigation={data?.tests}
+                labInvestigation={sectionData.labInvestigation}
                 onUpdate={handleInvestigationUpdate}
                 isProcessing={false}
               />
             )}
 
           {data?.advice && hasValidContent("advice") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Advices</div>
-              {renderArraySection("advice")}
-            </div>
+            <AdviceRichTextEditor
+              advice={normalizeAdvice(data.advice)}
+              onUpdate={(arr) => setData((prev) => ({
+                ...prev,
+                advice: (arr || []).map((a) => (typeof a === "string" ? a : (a?.lineItem ?? ""))).filter((s) => String(s).trim() !== ""),
+              }))}
+              isProcessing={loading}
+            />
           )}
 
           {data?.vaccinations && hasValidContent("vaccinations") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Vaccination</div>
-              {renderArraySection("vaccinations")}
-            </div>
+            <VaccinationsRichTextEditor
+              vaccinations={data.vaccinations}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, vaccinations: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
-          {data?.followUp && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Follow Up</div>
-              {renderArraySection("followUp")}
-            </div>
+          {(data?.followUp || hasValidContent("followUp")) && (
+            <FollowUpRichTextEditor
+              followUp={typeof data.followUp === "string" ? data.followUp : ""}
+              onUpdate={(text) => setData((prev) => ({ ...prev, followUp: text || "" }))}
+              isProcessing={loading}
+            />
           )}
 
           {data?.labResults && hasValidContent("labResults") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Lab Results</div>
-              {renderArraySection("labResults")}
-            </div>
+            <LabResultsRichTextEditor
+              labResults={data.labResults}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, labResults: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
 
-          {data?.dynamicFields && hasValidContent("dynamicFields") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Dynamic Modules</div>
-              {renderArraySection("dynamicFields")}
-            </div>
-          )}
+          <>
+            {Object.entries(dynamicFieldsObject).map(([moduleName, moduleData]) => {
+              const hasContent = Array.isArray(moduleData) && moduleData.length > 0;
+              if (!hasContent) return null;
+              const isLocalModule = (localModules || []).includes(moduleName);
+              return (
+                <CustomModuleRichTextEditor
+                  key={moduleName}
+                  moduleName={moduleName}
+                  moduleData={moduleData || []}
+                  onUpdate={(moduleArray) => handleCustomModuleUpdate(moduleName, moduleArray)}
+                  onDelete={(module) => {
+                    setModuleToDelete(module);
+                    setIsDeleteModuleModalOpen(true);
+                  }}
+                  onEdit={(module) => {
+                    setEditingModule(module);
+                    setUpdatedModuleName(module);
+                  }}
+                  isProcessing={isProcessing}
+                  isLocalModule={isLocalModule}
+                  editingModule={editingModule}
+                  updatedModuleName={updatedModuleName}
+                  onEditNameChange={setUpdatedModuleName}
+                  onEditSave={() => handleEditModule(editingModule)}
+                  onEditCancel={handleCancelEdit}
+                />
+              );
+            })}
+          </>
 
           {data?.others && hasValidContent("others") && (
-            <div className="title-digitise-section-wrapper">
-              <div className="title-digitise-section mb-2">Others</div>
-              {renderArraySection("others")}
-            </div>
+            <AdditionalNotesRichTextEditor
+              others={data.others}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, others: arr || [] }))}
+              isProcessing={loading}
+            />
           )}
-        </>
+          </>
+        </div>
+      )}
+      {moduleToDelete != null && (
+        <CommonModal
+          isModalOpen={isDeleteModuleModalOpen}
+          onCancel={toggleDeleteModuleModal}
+          modalWidth={550}
+          title="Are you sure you want to delete this module?"
+          modalBody={
+            <>
+              <div className="d-flex align-items-start alert-warning rounded-10px p-3 patient-details">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  This action will permanently delete the {moduleToDelete} and cannot be undone. Please confirm to proceed
+                </span>
+              </div>
+              <div className="mt-4">
+                <div className="d-flex align-items-center mt-2 justify-content-end">
+                  <div onClick={handleDeleteModule} className="me-4 text-decoration-underline btn p-0 text-main">
+                    Yes, Delete
+                  </div>
+                  <Button onClick={toggleDeleteModuleModal} className="lh-lg btn btn-primary3 btn-41 px-4">
+                    <span>No</span>
+                  </Button>
+                </div>
+              </div>
+            </>
+          }
+        />
       )}
       {showAddMedicinePopup && (
         <CustomMedicinePopup
@@ -2048,7 +2214,7 @@ const DigitisedPrescription = ({
           initialData={{ tmm_medicine_name: searchParentQuery }}
         />
       )}
-    </div>
+    </>
   );
 };
 
