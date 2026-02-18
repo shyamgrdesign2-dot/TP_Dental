@@ -50,6 +50,7 @@ import {
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
+  GB_SAVE_AS_DRAFT_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -107,7 +108,10 @@ function Cardiology(props) {
     isLastConsultation,
     opthalPrescriptionHistory,
   } = props;
+  
   const {is_draft} = viewCaseManagerData || {};
+  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
+  const canResumeDraftRx = viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB;
 
   const normalizeEyeLabel = useCallback((eye) => {
     const normalized = String(eye || "").toUpperCase();
@@ -1970,13 +1974,12 @@ function Cardiology(props) {
   };
 
   const DraftRxAlert = () => {
-    const sameDoctor = viewCaseManagerData?.doctor_data?.um_id === userId;
     return (
       <div className="draft-rx-alert">
         <img src={draftIcon} alt="Draft" className="me-1" />
         This Rx is in <span className="fw-bold">draft</span>!{" "}
-        {sameDoctor && (
-          <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+        {canResumeDraftRx && (
+          <>Please <span className="fw-bold">resume</span> to proceed.</>
         )}
       </div>
     );

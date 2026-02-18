@@ -1430,7 +1430,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onPatientDetailsClick = async (record) => {
-    goToPatientDetails(record, "/patient_details");
+    goToPatientDetails({...record, ...(selectedTab === TAB_DRAFT_RX && { pam_id: 0, tcm_id: 0 })}, "/patient_details");
   };
 
   const goToPatientDetails = async (record, route) => {
