@@ -108,7 +108,10 @@ function Cardiology(props) {
     isLastConsultation,
     opthalPrescriptionHistory,
   } = props;
+  
   const {is_draft} = viewCaseManagerData || {};
+  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
+  const canResumeDraftRx = viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB;
 
   const normalizeEyeLabel = useCallback((eye) => {
     const normalized = String(eye || "").toUpperCase();
@@ -549,7 +552,6 @@ function Cardiology(props) {
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
-  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
 
   useEffect(() => {
     setIsGenRxTableView(false);
@@ -1912,9 +1914,6 @@ function Cardiology(props) {
   };
 
   const DraftRxAlert = () => {
-    const clinicId = getTokenData()?.clinic_id;
-    const canResumeDraftRx = viewCaseManagerData?.doctor_data?.um_id === userId && viewCaseManagerData?.hm_id === clinicId && isSaveAsDraftRxAccessableFromGB;
-
     return (
       <div className="draft-rx-alert">
         <img src={draftIcon} alt="Draft" className="me-1" />

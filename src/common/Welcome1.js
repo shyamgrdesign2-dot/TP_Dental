@@ -71,10 +71,8 @@ function Welcome1(props) {
     
     const isTablet = useTabletViewport();
 
-    const clinicId = getTokenData()?.clinic_id;
-
     const canRepeatDraftRx = isDraftRx && isSaveAsDraftRxAccessableFromGB;
-    const canResumeDraftRx = canRepeatDraftRx && viewCaseManagerData?.doctor_data?.um_id === userId && viewCaseManagerData?.hm_id === clinicId;
+    const canResumeDraftRx = canRepeatDraftRx && viewCaseManagerData?.doctor_data?.um_id === userId;
 
     const handleClickOutside = (event) => {
         if (!consultButtonRef?.current?.contains(event.target)) {
@@ -163,7 +161,7 @@ function Welcome1(props) {
     };
 
     const onConsultClick = async (patient) => {
-        navigate("/prescription", { state: { patient_data: {...patient, ...(isDraftRx && { pam_id: 0 })}, send_path: "patient_details" } });
+        navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
     };
 
     const onVoiceRxClick = async (patient) => {
@@ -394,7 +392,7 @@ function Welcome1(props) {
                                     )}
 
 
-                                    {canResumeDraftRx && 
+                                    {!!canResumeDraftRx && 
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
                                             onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
@@ -414,7 +412,7 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: {...patient_data, ...(isDraftRx && { pam_id: 0 })}, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null } } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null } } })
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
@@ -628,7 +626,7 @@ function Welcome1(props) {
                                                                 "doctor_id": profile?.doctor_unique_id,
                                                                 "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                             });
-                                                            navigate("/prescription", { state: { patient_data: {...patient_data, ...(isDraftRx && { pam_id: 0 })}, send_path: "patient_details" } })
+                                                            navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
                                                         }}>
                                                         {'Start New Visit'}
                                                     </Button>
@@ -820,7 +818,7 @@ function Welcome1(props) {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
                                                 });
-                                                navigate("/prescription", { state: { patient_data: {...patient_data, ...(isDraftRx && { pam_id: 0 })}, send_path: "patient_details" } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details" } })
                                             }}>
                                             {'Start New Visit'}
                                         </Button>
