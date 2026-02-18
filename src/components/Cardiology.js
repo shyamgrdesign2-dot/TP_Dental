@@ -1351,7 +1351,7 @@ function Cardiology(props) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
                               return lineItem;
                             }
-                            return `${name} (${lineItem})`;
+                            return lineItem ? `${name} (${lineItem})` : name;
                           }
                           return lineItem || "";
                         })()
@@ -1378,7 +1378,7 @@ function Cardiology(props) {
                             ? `${testname} (${value})`
                             : testname || value || "";
                         })()
-                      : type === "diagnosis"
+                      : type === "diagnosis" || type === "examination" || type === "examinations"
                       ? (() => {
                           const name = (item?.name || "").trim();
                           const lineItem = (item?.lineItem || "").trim();
@@ -1386,7 +1386,7 @@ function Cardiology(props) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
                               return lineItem;
                             }
-                            return `${name} (${lineItem})`;
+                            return lineItem ? `${name} (${lineItem})` : name;
                           }
                           return lineItem || "";
                         })()
@@ -1407,7 +1407,7 @@ function Cardiology(props) {
                     type === "examinations" ||
                     type === "examination" ||
                     type === "diagnosis") && (() => {
-                    if ((type === "symptoms" || type === "diagnosis") && (item?.lineItem || "").trim()) {
+                    if ((type === "symptoms" || type === "diagnosis" || type === "examination" || type === "examinations") && (item?.lineItem || "").trim()) {
                         return null;
                     }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
@@ -1511,6 +1511,9 @@ function Cardiology(props) {
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
                   {capitalize(
                     (() => {
+                      if (item?.metadata?.selectedValue) {
+                        return item.metadata.selectedValue;
+                      }
                       const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
                       if (isGroundingAccessable) {
                         const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
@@ -1745,6 +1748,9 @@ function Cardiology(props) {
               detailText.trim().toLowerCase().startsWith(displayName.trim().toLowerCase());
 
             const baseName = (() => {
+              if (item?.metadata?.selectedValue) {
+                return item.metadata.selectedValue;
+              }
               if (isGroundingAccessable) {
                 const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                 if (isFuzzySearchEmpty) {
