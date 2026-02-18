@@ -76,19 +76,30 @@ const PrimaryActionButton = ({
   }, [fullWidth]);
 
   // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > Consult
+  // Special handling: If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
   const allAvailableOptions = [];
   
   if (isSmartRxAccessible && !isMobile) {
     allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
   }
-  if (isVoiceRxAccessible) {
+  
+  // Handle VoiceRx: If paid, it's primary; if not paid, Consult is primary and VoiceRx goes to dropdown
+  if (isVoiceRxAccessible && isVoiceRxPaid) {
     allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
   }
+  
   if (isSnapRxAccessible) {
     allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
   }
+  
   // Consult is always available as fallback
+  // If VoiceRx is accessible but not paid, Consult becomes primary
   allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
+  
+  // If VoiceRx is accessible but not paid, add it to dropdown (after Consult)
+  if (isVoiceRxAccessible && !isVoiceRxPaid) {
+    allAvailableOptions.push({ type: "voicerx", label: "VoiceRx", handler: onVoiceRxClick });
+  }
 
   // Primary button is the first available option (highest priority)
   const primaryOption = allAvailableOptions[0];
@@ -153,9 +164,9 @@ const PrimaryActionButton = ({
       return primaryOption.label;
     }
     if (primaryOption.type === "voicerx") {
-      return isVoiceRxPaid ? "Voice Rx" : "Consult";
+      return "Voice Rx";
     }
-    return "Start Consult";
+    return "Consult";
   };
 
   // If mobile screen, show simple button without dropdown
@@ -178,21 +189,53 @@ const PrimaryActionButton = ({
   }
 
   // Desktop view: Show primary button + dropdown
-  // If only one option, show just the button
+  // If only one option (only Consult), show just the button without dropdown
   if (dropdownOptions.length === 0) {
+    const singleButtonStyle = fullWidth
+      ? {
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          paddingLeft: "6px",
+          justifyContent: "flex-start"
+        }
+      : { paddingLeft: "6px" };
+    
     if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return (
-        <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
-          {/* <img src={smartPad} alt="vitals" /> */}
-          <button className="btn btn-smartRx-text">{primaryOption.label}</button>
+        <div 
+          ref={buttonRef}
+          className="d-flex btn btn-smart-rx-walkin"
+          style={fullWidth ? { width: "100%", position: "relative", zIndex: 1 } : { position: "relative", zIndex: 1 }}
+        >
+          <div style={singleButtonStyle} onClick={handlePrimaryClick}>
+            {/* <img src={smartPad} alt="vitals" /> */}
+            <button 
+              className="btn btn-smartRx-text"
+              style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
+            >
+              {primaryOption.label}
+            </button>
+          </div>
         </div>
       );
     } else {
       return (
-        <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
-          {/* <img src={smartPad} alt="vitals" /> */}
-        <button className="btn btn-smartRx-text">{getPrimaryButtonText()}</button>
-      </div>
+        <div 
+          ref={buttonRef}
+          className="d-flex btn btn-smart-rx-walkin"
+          style={fullWidth ? { width: "100%", position: "relative", zIndex: 1 } : { position: "relative", zIndex: 1 }}
+        >
+          <div style={singleButtonStyle} onClick={handlePrimaryClick}>
+            {/* <img src={smartPad} alt="vitals" /> */}
+            <button 
+              className="btn btn-smartRx-text"
+              style={fullWidth ? { width: "100%", textAlign: "left" } : {}}
+            >
+              {getPrimaryButtonText()}
+            </button>
+          </div>
+        </div>
       );
     }
   }
@@ -286,7 +329,7 @@ const PrimaryActionButton = ({
       style={{ ...containerStyle, position: "relative", zIndex: 1 }}
     >
       {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" ? (
-        <div style={primaryButtonStyle} onClick={handlePrimaryClick}>
+        <div style={dropdownOptions.length === 0 ? { ...primaryButtonStyle, width: fullWidth ? "100%" : undefined } : primaryButtonStyle} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
@@ -296,7 +339,7 @@ const PrimaryActionButton = ({
           </button>
         </div>
       ) : (
-        <div style={primaryButtonStyle} onClick={handlePrimaryClick}>
+        <div style={dropdownOptions.length === 0 ? { ...primaryButtonStyle, width: fullWidth ? "100%" : undefined } : primaryButtonStyle} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 
             className="btn btn-smartRx-text"
@@ -307,62 +350,66 @@ const PrimaryActionButton = ({
         </div>
       )}
 
-      <div
-        style={{
-          width: "1px",
-          backgroundColor: "rgba(255, 255, 255, 0.3)",
-          height: "100%",
-          margin: fullWidth ? "0 4px" : "0 4px",
-          flexShrink: 0
-        }}
-      />
-
-      <div 
-        className="consult-btns-group" 
-        style={{ 
-          ...(fullWidth ? { width: "20%", display: "flex", justifyContent: "center", alignItems: "center" } : {}),
-          position: "relative",
-          zIndex: 1000
-        }}
-      >
-        <Dropdown
-          menu={{
-            items: getMenuItems(),
-            style: dropdownMenuStyle,
-          }}
-          trigger={["click"]}
-          placement={dropdownPlacement}
-          overlayStyle={fullWidth ? { 
-            width: dropdownWidth, 
-            minWidth: dropdownWidth,
-            zIndex: 1050
-          } : {
-            zIndex: 1050
-          }}
-          overlayClassName="primary-action-dropdown"
-          getPopupContainer={(trigger) => {
-            // For autocomplete rows, render to body to avoid clipping
-            // For modal (fullWidth), also render to body for proper positioning
-            return document.body;
-          }}
-        >
-          <a
-            onClick={(e) => {
-              e.preventDefault();
+      {dropdownOptions.length > 0 && (
+        <>
+          <div
+            style={{
+              width: "1px",
+              backgroundColor: "rgba(255, 255, 255, 0.3)",
+              height: "100%",
+              margin: fullWidth ? "0 4px" : "0 4px",
+              flexShrink: 0
             }}
-            style={{ padding: "5px" }}
+          />
+
+          <div 
+            className="consult-btns-group" 
+            style={{ 
+              ...(fullWidth ? { width: "20%", display: "flex", justifyContent: "center", alignItems: "center" } : {}),
+              position: "relative",
+              zIndex: 1000
+            }}
           >
-            <i
-              className="icon-right"
-              style={{
-                display: "block",
-                transform: `rotate(270deg)`,
-                color: "white",
+            <Dropdown
+              menu={{
+                items: getMenuItems(),
+                style: dropdownMenuStyle,
               }}
-            />
-          </a>
-        </Dropdown>
-      </div>
+              trigger={["click"]}
+              placement={dropdownPlacement}
+              overlayStyle={fullWidth ? { 
+                width: dropdownWidth, 
+                minWidth: dropdownWidth,
+                zIndex: 1050
+              } : {
+                zIndex: 1050
+              }}
+              overlayClassName="primary-action-dropdown"
+              getPopupContainer={(trigger) => {
+                // For autocomplete rows, render to body to avoid clipping
+                // For modal (fullWidth), also render to body for proper positioning
+                return document.body;
+              }}
+            >
+              <a
+                onClick={(e) => {
+                  e.preventDefault();
+                }}
+                style={{ padding: "5px" }}
+              >
+                <i
+                  className="icon-right"
+                  style={{
+                    display: "block",
+                    transform: `rotate(270deg)`,
+                    color: "white",
+                  }}
+                />
+              </a>
+            </Dropdown>
+          </div>
+        </>
+      )}
     </div>
   );
 };
