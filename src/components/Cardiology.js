@@ -1345,9 +1345,15 @@ function Cardiology(props) {
                       ? item
                       : type === "symptoms"
                       ? (() => {
-                          const text = (item?.name || item?.lineItem || "").trim();
-                          if (!text) return "";
-                          return item?.name ? (text[0]?.toUpperCase() + text.slice(1)) : text;
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return lineItem ? `${name} (${lineItem})` : name;
+                          }
+                          return lineItem || "";
                         })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
@@ -1372,6 +1378,18 @@ function Cardiology(props) {
                             ? `${testname} (${value})`
                             : testname || value || "";
                         })()
+                      : type === "diagnosis" || type === "examination" || type === "examinations"
+                      ? (() => {
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return lineItem ? `${name} (${lineItem})` : name;
+                          }
+                          return lineItem || "";
+                        })()
                       : type === "dynamicFields"
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
@@ -1389,6 +1407,9 @@ function Cardiology(props) {
                     type === "examinations" ||
                     type === "examination" ||
                     type === "diagnosis") && (() => {
+                    if ((type === "symptoms" || type === "diagnosis" || type === "examination" || type === "examinations") && (item?.lineItem || "").trim()) {
+                        return null;
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -1404,7 +1425,12 @@ function Cardiology(props) {
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                           item?.findings && item?.findings !== '' ? item?.findings : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : (() => {
+                          const nameStr = (item?.name || "").trim();
+                          const lineItemStr = (item?.lineItem || "").trim();
+                          if (!lineItemStr) return null;
+                          return nameStr ? lineItemStr : null;
+                        })();
                     return details && (
                       <span> ({details})</span>
                     );
@@ -1485,6 +1511,9 @@ function Cardiology(props) {
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
                   {capitalize(
                     (() => {
+                      if (item?.metadata?.selectedValue) {
+                        return item.metadata.selectedValue;
+                      }
                       const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
                       if (isGroundingAccessable) {
                         const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
@@ -1526,7 +1555,7 @@ function Cardiology(props) {
 
   // Render lab investigation in tabular format
   const renderLabInvestigationTable = () => {
-    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.tests || [];
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.labInvestigation || rxDigitisedData?.editedData?.tests || [];
     if (!labInvestigation || labInvestigation.length === 0) return null;
 
     return (
@@ -1719,6 +1748,9 @@ function Cardiology(props) {
               detailText.trim().toLowerCase().startsWith(displayName.trim().toLowerCase());
 
             const baseName = (() => {
+              if (item?.metadata?.selectedValue) {
+                return item.metadata.selectedValue;
+              }
               if (isGroundingAccessable) {
                 const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                 if (isFuzzySearchEmpty) {
