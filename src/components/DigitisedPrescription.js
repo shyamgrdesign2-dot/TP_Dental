@@ -164,6 +164,7 @@ const DigitisedPrescription = ({
   isProcessing = false,
   patient_data,
   vitalsFlow,
+  skipAutoLabResultsLogic = false,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
   const [activeIndex, setActiveIndex] = useState(null);
@@ -201,7 +202,13 @@ const DigitisedPrescription = ({
   const labResultsUpdater = useMemo(
     () => (arr) => {
       if (!setData) return;
-      setData((prev) => ({ ...prev, labResults: arr || [] }));
+      setData((prev) => {
+        const next = arr || [];
+        const labResults = (Array.isArray(next) && next.length > 0)
+          ? next
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...prev, labResults };
+      });
       if (typeof onRxEdited === "function") onRxEdited(true);
     },
     [setData, onRxEdited]
@@ -301,7 +308,7 @@ const DigitisedPrescription = ({
       followUp: data?.followUp,
       dynamicFields: data?.dynamicFields,
       others: data?.others,
-      labResults: data?.labResults,
+      labResults: data?.labResults ?? data?.lab_results ?? [],
     };
   }, [data]);
 
@@ -1466,7 +1473,7 @@ const DigitisedPrescription = ({
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
         examinations: ["name", "findings", "notes", "lineItem"],
-        diagnosis: ["name", "since", "status", "notes", "lineItem"],
+        diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "brand", "schedule", "notes", "lineItem"],
         labInvestigation: ["name", "lineItem"],
@@ -1482,6 +1489,10 @@ const DigitisedPrescription = ({
     });
     return result;
   };
+
+  const showMedicalHistorySection = !!(data?.medicalHistory && hasValidContent("medicalHistory"));
+  const labResultsArray = data?.labResults ?? data?.lab_results ?? [];
+  const showLabResultsSection = !!(data && Array.isArray(labResultsArray) && labResultsArray.length > 0);
 
   const normalizeAdvice = (advice) => {
     if (!Array.isArray(advice)) return [];
@@ -1628,11 +1639,12 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.medicalHistory && hasValidContent("medicalHistory") && (
+          {showMedicalHistorySection && (
             <MedicalHistoryRichTextEditor
-              medicalHistory={data.medicalHistory}
+              medicalHistory={data?.medicalHistory || []}
               onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
               isProcessing={loading}
+              isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
             />
           )}
 
@@ -1652,9 +1664,9 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {(sectionData.diagnosis?.length > 0 || data?.diagnosis) && hasValidContent("diagnosis") && (
+          {data?.diagnosis && hasValidContent("diagnosis") && (
             <DiagnosisRichTextEditor
-              diagnosis={sectionData.diagnosis?.length > 0 ? sectionData.diagnosis : (data.diagnosis || [])}
+              diagnosis={data.diagnosis}
               onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
               isProcessing={loading}
             />
@@ -1704,11 +1716,14 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data && Array.isArray(data?.labResults) && data.labResults.length > 0 && (
+          {showLabResultsSection && (
               <LabResultsRichTextEditor
-                labResults={data.labResults}
+                labResults={data?.labResults ?? data?.lab_results ?? []}
                 onUpdate={labResultsUpdater}
                 isProcessing={loading}
+                patient_data={patient_data}
+                skipAutoFetchAndMerge={skipAutoLabResultsLogic}
+                enableLabPrefillFromVoiceSnapSmart={!skipAutoLabResultsLogic}
               />
             )}
 

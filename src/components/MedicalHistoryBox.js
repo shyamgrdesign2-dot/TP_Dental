@@ -25,6 +25,7 @@ import {
     addTag,
     searchTag
 } from "../redux/medicalhistorySlice";
+import { useMedicalHistorySectionsWithTags } from "../hooks/useMedicalHistorySectionsWithTags";
 import { useLocation } from "react-router-dom";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
@@ -40,13 +41,13 @@ const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, isVoiceAmbientSnapSmartFlow = false } = props
     const { TabPane } = Tabs;
     const {
         searchList,
-        defaultList,
         loading,
     } = useSelector((state) => state.medicalhistory);
+    const { data: defaultList = [], isLoading: defaultListLoading, error: defaultListError } = useMedicalHistorySectionsWithTags();
     const { profile, userId } = useSelector((state) => state.doctors);
     const dispatch = useDispatch();
 
@@ -113,7 +114,7 @@ function MedicalHistoryBox(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state;
+    const { patient_data, caseManagerData } = state || {};
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -284,13 +285,11 @@ function MedicalHistoryBox(props) {
         setActiveTab(key);
     };
 
-    // useEffect(() => {
-    //     defaultList.length === 0 && dispatch(listSectionwithTag());
-    // }, [handleDrawerMedicalHistory]);
-
+    // Consult flow only: fetch sections when defaultList is empty (e.g. drawer opened). Skip in voice/ambient/snap/smart so consult behavior is unchanged.
     useEffect(() => {
-        dispatch(listSectionwithTag());
-    }, []);
+        if (isVoiceAmbientSnapSmartFlow) return;
+        defaultList.length === 0 && dispatch(listSectionwithTag());
+    }, [handleDrawerMedicalHistory, defaultList.length, dispatch, isVoiceAmbientSnapSmartFlow]);
 
     useEffect(() => {
         const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -306,22 +305,38 @@ function MedicalHistoryBox(props) {
       if (defaultList?.length > 0) {
         try {
             const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
-            const data2 = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
-            
+            const sourceData = overrideMedicalHistoryData ?? medicalHistoryData;
+            const data2 = Array.isArray(sourceData) ? JSON.parse(JSON.stringify(sourceData)) : [];
+
+            const findMatchingTag = (sectionData2, tagFromData1) => {
+                if (!sectionData2?.tags) return null;
+                const byId = sectionData2.tags.find(x1 => x1?.tmmhst_id === tagFromData1?.tmmhst_id);
+                if (byId) return byId;
+                const title1 = (tagFromData1?.title || '').trim().toLowerCase();
+                if (!title1) return null;
+                return sectionData2.tags.find(x1 => (x1?.title || '').trim().toLowerCase() === title1) || null;
+            };
+
             const mergedArray = data2?.length > 0 ? [
-            ...data1?.map(e => ({
+            ...data1?.map(e => {
+                const sectionData2 = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
+                return {
                 ...e,
-                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id) || {}),
+                ...(sectionData2 || {}),
                 tags: [
                 ...(e?.tags || [])?.map(tag => ({
                     ...tag,
-                    ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                    ...(findMatchingTag(sectionData2, tag) || {})
                 })),
-                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags || [])?.filter(item2 => 
-                    !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                ...(sectionData2?.tags || [])?.filter(item2 =>
+                    !(e?.tags || [])?.some(item1 =>
+                    item1?.tmmhst_id === item2?.tmmhst_id ||
+                    (item1?.title || '').trim().toLowerCase() === (item2?.title || '').trim().toLowerCase()
+                    )
                 )
                 ],
-            }))
+            };
+            })
             ] : data1;
 
             setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
@@ -330,7 +345,7 @@ function MedicalHistoryBox(props) {
             setCloneMedicalHistoryData([]);
         }
         }
-    }, [defaultList]);
+    }, [defaultList, overrideMedicalHistoryData, medicalHistoryData]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
@@ -598,7 +613,20 @@ function MedicalHistoryBox(props) {
     }, []);
 
     const onAddEditSaveClick = async () => {
-        var sendData = JSON.parse(JSON.stringify(addEditData))
+        // Build addTag payload to match API: { tmmhs_id, title, tags: [{ tmmhst_id, title, pms_default, unique_id }] }
+        const tagsForApi = (addEditData.tags || [])
+            .filter((tag) => !tag.delete)
+            .map((tag) => ({
+                tmmhst_id: tag.tmmhst_id ?? 0,
+                title: (tag.title || '').trim(),
+                pms_default: tag.pms_default !== undefined && tag.pms_default !== null ? tag.pms_default : 0,
+                unique_id: tag.unique_id || uuidv4(),
+            }))
+        const sendData = {
+            tmmhs_id: addEditData.tmmhs_id,
+            title: addEditData.title || addEditData.section_name || '',
+            tags: tagsForApi,
+        }
         const action = await dispatch(addTag(sendData));
         if (action.meta.requestStatus === "fulfilled") {
             setAddEditData(null)
@@ -866,10 +894,14 @@ function MedicalHistoryBox(props) {
             }
         })
         if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
-            setMedicalHistoryData([])
+            if (typeof setMedicalHistoryData === 'function') {
+              setMedicalHistoryData([]);
+            }
             handleDrawerMedicalHistory()
         } else {
-            setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)))
+            if (typeof setMedicalHistoryData === 'function') {
+              setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
+            }
             handleCollapsed(2)
         }
     }
@@ -1016,7 +1048,9 @@ function MedicalHistoryBox(props) {
 
     const handleSave = () => {
         if (hideMenstrualHistoryTab) {
-            setMedicalHistoryData(cloneMedicalHistoryData);
+            if (typeof setMedicalHistoryData === 'function') {
+              setMedicalHistoryData(cloneMedicalHistoryData);
+            }
             if (onSave) {
                 onSave(cloneMedicalHistoryData);
             }
@@ -1047,6 +1081,7 @@ function MedicalHistoryBox(props) {
     }, [isGynaecHistoryAccessable]);
 
     const fetchGynecHistory = async () => {
+        if (!patient_data?.patient_unique_id) return;
         try {
             const data = await getGynecDetails(patient_data.patient_unique_id, userId);
             if (data) {

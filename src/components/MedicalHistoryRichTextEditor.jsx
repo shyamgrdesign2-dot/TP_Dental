@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
+import { prescriptionMedicalHistoryToContextFormat } from '../utils/medicalHistoryUtils';
 import styles from './ConsultationDrawer.module.css';
 import medicalHistoryIcon from '../assets/images/Medical-History.svg';
 import arrowBoxUpIcon from '../assets/images/arrow-box-up.svg';
@@ -18,6 +19,7 @@ const MedicalHistoryRichTextEditor = ({
   isProcessing = false,
   className = '',
   initiallyPopulatedTypes = [],
+  isVoiceAmbientSnapSmartFlow = false,
 }) => {
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -58,6 +60,11 @@ const MedicalHistoryRichTextEditor = ({
 
     return groups;
   }, [medicalHistory]);
+
+  const overrideMedicalHistoryData = useMemo(
+    () => prescriptionMedicalHistoryToContextFormat(medicalHistory),
+    [medicalHistory]
+  );
 
   const formatHistoryItem = useCallback((item) => {
     const name = item.name || '';
@@ -473,6 +480,8 @@ const MedicalHistoryRichTextEditor = ({
         <MedicalHistoryBox
           handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
           handleCollapsed={() => {}}
+          overrideMedicalHistoryData={overrideMedicalHistoryData}
+          isVoiceAmbientSnapSmartFlow={isVoiceAmbientSnapSmartFlow}
           onSave={(savedData) => {
             if (savedData && Array.isArray(savedData)) {
               const convertedMedicalHistory = [];

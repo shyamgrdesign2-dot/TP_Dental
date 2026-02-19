@@ -5,6 +5,7 @@ import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
 import { LAB_PARAMS_RESULTS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
+import { extractUnitsFromValue, valueWithoutUnitsForApi } from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -21,11 +22,14 @@ const LabResultsTable = ({
     handleAddLabParamsDrawer,
     patient_unique_id,
     onSave,
+    onSaveSuccess,
     isBackModalOpen,
     showHideBackModal,
     patientGender,
     prefillLabResults = [],
     onResultsChange,
+    /** When false (e.g. consult flow), prefill is never applied. Only voice/snap/ambient/smart should pass true. */
+    applyRawPrefill = false,
 }) => {
 
     const [token, setToken] = useState(null);
@@ -144,7 +148,6 @@ const LabResultsTable = ({
     };
 
     const searchLabParams = async (searchQuery) => {
-        if (!token) return [];
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
             const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters?search=${searchQuery}`, {
@@ -173,34 +176,26 @@ const LabResultsTable = ({
         }
     };
 
-    const getLabParams = useCallback(async () => {
-        const pid = patient_unique_id;
-        if (pid == null || pid === '' || !token) return;
+    const getLabParams = async () => {
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
-            const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${pid}`, {
+            const patientId = patient_unique_id;
+            const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters/results/${patientId}`, {
                 headers: {
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setExistingResults(response.data?.data?.results || []); 
+            setExistingResults(response.data?.data?.results || []);
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
-    }, [token, patient_unique_id]);
+    };
 
     useEffect(() => {
-        if (!token) return;
-        const pid = patient_unique_id;
-        if (pid == null || pid === '') {
-            setExistingResults([]);
-            setDates([new Date().toISOString().split('T')[0]]);
-            setInputValues({});
-            setFilledData([]);
-            return;
+        if (token) {
+            getLabParams();
         }
-        getLabParams();
-    }, [token, patient_unique_id, getLabParams]);
+    }, [token]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -320,23 +315,7 @@ const LabResultsTable = ({
         return null;
     };
 
-    const extractUnitsFromValue = (valueStr = "") => {
-        if (!valueStr) return "";
-        const str = String(valueStr).trim();
-        const match = str.match(/^\d+(?:\.\d+)?\s+(.+)$/);
-        if (match) return match[1].trim();
-        const percentMatch = str.match(/^\d+(?:\.\d+)?(%|percent)$/i);
-        if (percentMatch) return percentMatch[1];
-        return "";
-    };
-
-    const extractNumericValue = (valueStr = "") => {
-        if (!valueStr) return "";
-        const str = String(valueStr).trim();
-        const match = str.match(/^(\d+(?:\.\d+)?)/);
-        return match ? match[1] : str;
-    };
-
+    // Only used when applyRawPrefill is true (voice/snap/ambient/smart). Uses labResultsUtils for parsing. Consult flow never runs this.
     const mapLabResultToInput = useCallback(
         (result = {}) => {
             const apiMatchedTestName = (result?.testName || result?.testname || result?.name || "").trim();
@@ -352,7 +331,7 @@ const LabResultsTable = ({
                 return null;
             }
             const derivedUnits = extractUnitsFromValue(rawValue);
-            const normalizedValue = extractNumericValue(rawValue);
+            const normalizedValue = valueWithoutUnitsForApi(rawValue);
             return {
                 reportName: reportName,
                 testName: apiMatchedTestName,
@@ -421,42 +400,6 @@ const LabResultsTable = ({
         },
         [mapLabResultToInput, currentDate]
     );
-
-    const formatResultsForRxPad = (results = []) => {
-        if (!Array.isArray(results) || results.length === 0) {
-            return [];
-        }
-        const sortedResults = [...results].sort((a, b) => {
-            const dateA = new Date(a.date || 0);
-            const dateB = new Date(b.date || 0);
-            return dateB - dateA;
-        });
-        const testMap = new Map();
-        sortedResults.forEach((result = {}) => {
-            (result.inputs || []).forEach((input = {}) => {
-                if (!input?.testName || input.testName === "Remarks") {
-                    return;
-                }
-                const testName = input.testName.trim();
-                const value = input.value !== undefined ? String(input.value).trim() : "";
-                if (!value) {
-                    return;
-                }
-                if (!testMap.has(testName)) {
-                    const units = input.units?.trim();
-                    const displayValue = units ? `${value} ${units}`.trim() : value;
-                    testMap.set(testName, {
-                        testname: testName,
-                        value: displayValue,
-                    });
-                }
-            });
-        });
-        return Array.from(testMap.values()).map(item => ({
-            testname: item.testname,
-            value: item.value,
-        }));
-    };
 
     // Function to handle the modal opening
     const handleOpenModal = (reportName, testName, date) => {
@@ -695,11 +638,12 @@ const LabResultsTable = ({
         }
     }, [existingResults]);
 
+    // Only apply raw prefill (value/units parsing) when opened from voice/snap/ambient/smart. Consult flow keeps applyRawPrefill false so this never runs.
     useEffect(() => {
-        if (prefillLabResults?.length > 0) {
+        if (applyRawPrefill && prefillLabResults?.length > 0) {
             applyPrefillLabResults(prefillLabResults);
         }
-    }, [prefillLabResults, applyPrefillLabResults]);
+    }, [applyRawPrefill, prefillLabResults, applyPrefillLabResults]);
 
   function replaceDate(inputValues, oldDate, newDate) {
     const updatedValues = { ...inputValues };
@@ -915,22 +859,14 @@ const LabResultsTable = ({
   }, [inputValues, dates]);
 
     const handleSave = async () => {
-        const patientId = patient_unique_id;
-        const doctorId = tokenData?.user_id;
-        if (patientId == null || patientId === '' || doctorId == null || doctorId === '') {
-            message.warning('Patient and doctor context are required to save lab results.');
-            return;
-        }
-
         const currentFilledData = assemblePayload(inputValues);
         const data = combineData(currentFilledData, filledData);
-        const formattedRxPadResults = formatResultsForRxPad(data);
 
         setFilledData([]);
 
         const payload = {
-            patientId,
-            doctorId,
+            patientId: patient_unique_id,
+            doctorId: tokenData?.user_id,
             results: data,
         };
 
@@ -941,9 +877,6 @@ const LabResultsTable = ({
               baseUrl
             );
             if (response) {
-                if (typeof onResultsChange === "function") {
-                    onResultsChange(formattedRxPadResults);
-                }
                 onSave();
                 handleAddLabParamsDrawer();
             }

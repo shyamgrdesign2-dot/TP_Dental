@@ -145,7 +145,6 @@ const VitalsRichTextEditor = ({
       'BMR': { label: 'BMR', unit: 'kcals' },
       'bsa': { label: 'BSA', unit: 'm²' },
       'BSA': { label: 'BSA', unit: 'm²' },
-      'bloodPressure': { label: 'BP', unit: '' }
     };
     
     const fieldOrder = [
@@ -174,18 +173,12 @@ const VitalsRichTextEditor = ({
         }
       }
     });
-    
-    if (currentVitals.bloodPressure && !processedKeys.has('Systolic') && !processedKeys.has('Diastolic')) {
-      const bpValue = String(currentVitals.bloodPressure).trim();
-      const bpParts = bpValue.split('/');
-      if (bpValue && bpParts.length === 2 && bpParts[0].trim() && bpParts[1].trim()) {
-        vitalPairs.push(`BP: ${bpValue}`);
-        processedKeys.add('bloodPressure');
-      }
-    }
-    
+
+    // Skip BP/blood_press in Rx pad; only Systolic and Diastolic are shown above
+    const bpDisplayKeys = ['blood_press', 'bloodPressure', 'BP'];
+
     Object.entries(currentVitals).forEach(([key, value]) => {
-      if (key === 'date' || processedKeys.has(key) || vitalsHiddenIds.includes(key)) return; // Don't show internal IDs in Rx Pad
+      if (key === 'date' || processedKeys.has(key) || vitalsHiddenIds.includes(key) || bpDisplayKeys.includes(key)) return; // Don't show internal IDs or BP in Rx Pad
       const strValue = String(value || '').trim();
       if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null') {
         const fieldInfo = vitalFieldMap[key];

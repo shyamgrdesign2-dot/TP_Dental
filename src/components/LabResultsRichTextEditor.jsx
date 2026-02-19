@@ -8,24 +8,17 @@ import addEditIcon from '../assets/images/Icon.svg';
 import LabParams from './LabParams';
 import CashManagerContext from '../context/CashManagerContext';
 import styles from './ConsultationDrawer.module.css';
-import { getTodayLabResults, matchLabResultsWithApi } from '../utils/labResultsUtils';
-
-const extractUnitsFromValue = (valueStr = '') => {
-  if (!valueStr) return '';
-  const str = String(valueStr).trim();
-  const match = str.match(/^\d+(?:\.\d+)?\s+(.+)$/);
-  if (match) return match[1].trim();
-  const percentMatch = str.match(/^\d+(?:\.\d+)?(%|percent)$/i);
-  if (percentMatch) return percentMatch[1];
-  return '';
-};
-
-const extractNumericValue = (valueStr = '') => {
-  if (!valueStr) return '';
-  const str = String(valueStr).trim();
-  const match = str.match(/^(\d+(?:\.\d+)?)/);
-  return match ? match[1] : str;
-};
+import {
+  getTodayLabResults,
+  fetchLabResultsTodayOnly,
+  matchLabResultsWithApi,
+  prescriptionLabResultsToResultsArray,
+  extractUnitsFromValue,
+  valueWithoutUnitsForApi,
+} from '../utils/labResultsUtils';
+import { addPatientLabReports } from '../api/services/ApiLabParams';
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
+import { jwtDecode } from 'jwt-decode';
 
 /**
  * LabResultsRichTextEditor - Rich text editor for Lab Results section
@@ -40,29 +33,43 @@ const LabResultsRichTextEditor = ({
   isProcessing = false,
   className = '',
   onLabResultsSaved,
+  patient_data: patientDataProp,
+  skipAutoFetchAndMerge = false,
+  /** When true, LabParams will apply raw prefill (value/units parsing). Set only for voice/snap/ambient/smart; keep false for consult. */
+  enableLabPrefillFromVoiceSnapSmart = false,
 }) => {
   const [labResultsDrawer, setLabResultsDrawer] = useState(false);
   const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
-  const { patient_data } = useContext(CashManagerContext);
+  const { patient_data: patientDataContext } = useContext(CashManagerContext);
+  const patient_data = patientDataProp ?? patientDataContext;
   const lastProcessedResultsRef = useRef(null);
   const lastSentSignatureRef = useRef(null);
   const prevPatientIdRef = useRef(null);
 
   useEffect(() => {
-    const mergeWithTodayResults = async () => {
+    const runLabResultsLogic = async () => {
       if (!patient_data?.patient_unique_id || !onUpdate) return;
+      if (skipAutoFetchAndMerge) return;
 
       const incomingResults = Array.isArray(labResults) ? labResults : [];
-      if (incomingResults.length === 0) {
-        return;
-      }
 
-      // Reset refs when patient changes so we don't carry state from previous patient
       if (prevPatientIdRef.current !== patient_data?.patient_unique_id) {
         prevPatientIdRef.current = patient_data?.patient_unique_id;
         lastSentSignatureRef.current = null;
         lastProcessedResultsRef.current = null;
+      }
+
+      if (incomingResults.length === 0) {
+        const todayOnly = await fetchLabResultsTodayOnly(patient_data);
+        if (todayOnly && todayOnly.length > 0) {
+          const sig = JSON.stringify(todayOnly.map((r) => ({ testname: (r.testName || r.testname || r.name || '').trim(), value: (r.value || '').trim() })));
+          if (lastProcessedResultsRef.current !== sig) {
+            lastProcessedResultsRef.current = sig;
+            onUpdate(todayOnly);
+          }
+        }
+        return;
       }
 
       const incomingSignature = JSON.stringify(
@@ -74,8 +81,10 @@ const LabResultsRichTextEditor = ({
       if (lastSentSignatureRef.current !== null && incomingSignature === lastSentSignatureRef.current) {
         return;
       }
+      if (lastProcessedResultsRef.current !== null && incomingSignature === lastProcessedResultsRef.current) {
+        return;
+      }
 
-      // 2) Lab search API: get testName + reportName for incoming (voice/snap/smart/ambient) results
       let matchedIncoming = [];
       try {
         matchedIncoming = await matchLabResultsWithApi(incomingResults);
@@ -83,24 +92,17 @@ const LabResultsRichTextEditor = ({
         matchedIncoming = incomingResults;
       }
 
-      // 3) Lab result API: fetch today's lab results only when we have incoming lab data
       let todayLabResults = [];
       try {
-        const todayResults = await getTodayLabResults(patient_data);
-        if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
-          try {
-            todayLabResults = await matchLabResultsWithApi(todayResults);
-          } catch (error) {
-            todayLabResults = todayResults;
-          }
+        const todayResults = await getTodayLabResults(patient_data, true);
+        if (todayResults && todayResults.length > 0) {
+          todayLabResults = todayResults;
         }
       } catch (error) {
-        // If today fetch fails, still merge incoming only
+        // continue with incoming only
       }
 
-      // 4) Merge: today's as base; if testName+reportName from incoming exists in today's → update value; else add new
       const mergedMap = new Map();
-
       todayLabResults.forEach((result) => {
         const testName = (result.testName || result.testname || result.name || '').trim();
         const reportName = (result.reportName || '').trim();
@@ -112,13 +114,13 @@ const LabResultsRichTextEditor = ({
       matchedIncoming.forEach((result) => {
         const testName = (result.testName || result.testname || result.name || '').trim();
         const reportName = (result.reportName || '').trim();
-        if (!testName || !reportName) return;
+        if (!testName) return;
 
         const existing = mergedMap.get(testName);
         if (existing) {
           const existingUnits = extractUnitsFromValue(existing.value || '');
           const incomingValue = (result.value || '').trim();
-          const numericValue = extractNumericValue(incomingValue);
+          const numericValue = valueWithoutUnitsForApi(incomingValue);
           const incomingUnits = extractUnitsFromValue(incomingValue);
 
           mergedMap.set(testName, {
@@ -126,7 +128,7 @@ const LabResultsRichTextEditor = ({
             testName,
             testname: testName,
             name: testName,
-            reportName,
+            reportName: reportName || existing.reportName || '',
             units: result.units || existing.units || '',
             value: incomingUnits
               ? `${numericValue} ${incomingUnits}`
@@ -135,11 +137,45 @@ const LabResultsRichTextEditor = ({
                 : numericValue,
           });
         } else {
-          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName });
+          mergedMap.set(testName, { ...result, testName, testname: testName, name: testName, reportName: reportName || '' });
         }
       });
 
       const finalResults = Array.from(mergedMap.values());
+      if (finalResults.length === 0 && incomingResults.length > 0) return;
+
+      const patientId = patient_data.patient_unique_id;
+      let doctorId = null;
+      try {
+        const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        const cleaned = token ? token.replace(/['"]+/g, '') : '';
+        if (cleaned) {
+          const decoded = jwtDecode(cleaned);
+          doctorId = decoded?.result?.user_id;
+        }
+      } catch (e) {
+        // skip
+      }
+
+      if (patientId && doctorId != null && finalResults.length > 0) {
+        try {
+          const results = prescriptionLabResultsToResultsArray(finalResults);
+          if (results.length > 0) {
+            await addPatientLabReports({ patientId, doctorId, results });
+            const refetched = await fetchLabResultsTodayOnly(patient_data);
+            if (refetched && refetched.length > 0) {
+              const sig = JSON.stringify(refetched.map((r) => ({ testname: (r.testName || r.testname || r.name || '').trim(), value: (r.value || '').trim() })));
+              lastProcessedResultsRef.current = sig;
+              lastSentSignatureRef.current = incomingSignature;
+              onUpdate(refetched);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('[LabResultsRichTextEditor] Save lab results failed', err);
+        }
+      }
+
       const signature = JSON.stringify(
         finalResults.map((r) => ({
           testname: (r.testName || r.testname || r.name || '').trim(),
@@ -148,13 +184,13 @@ const LabResultsRichTextEditor = ({
       );
       if (signature !== lastProcessedResultsRef.current) {
         lastProcessedResultsRef.current = signature;
-        lastSentSignatureRef.current = signature;
+        lastSentSignatureRef.current = incomingSignature;
         onUpdate(finalResults);
       }
     };
 
-    mergeWithTodayResults();
-  }, [labResults, patient_data?.patient_unique_id]); // eslint-disable-line react-hooks/exhaustive-deps -- omit onUpdate to prevent infinite loop (inline callback from parent)
+    runLabResultsLogic();
+  }, [labResults, patient_data?.patient_unique_id, skipAutoFetchAndMerge]); // eslint-disable-line react-hooks/exhaustive-deps -- omit onUpdate to prevent infinite loop (inline callback from parent)
 
   const editorSignature = useMemo(() => {
     if (!Array.isArray(labResults)) {
@@ -201,6 +237,25 @@ const LabResultsRichTextEditor = ({
     }
   }, [onLabResultsSaved]);
 
+  const handleSidebarSaveSuccess = useCallback(async () => {
+    if (!onUpdate || !patient_data?.patient_unique_id) return;
+    try {
+      const refetched = await fetchLabResultsTodayOnly(patient_data);
+      if (refetched && refetched.length > 0) {
+        const sig = JSON.stringify(
+          refetched.map((r) => ({
+            testname: (r.testName || r.testname || r.name || '').trim(),
+            value: (r.value || '').trim(),
+          }))
+        );
+        lastProcessedResultsRef.current = sig;
+        onUpdate(refetched);
+      }
+    } catch (e) {
+      // no-op
+    }
+  }, [onUpdate, patient_data?.patient_unique_id]);
+
   const handleSidebarResultsSync = useCallback(
     async (syncedLabResults = []) => {
       if (!onUpdate || !patient_data?.patient_unique_id) return;
@@ -218,13 +273,9 @@ const LabResultsRichTextEditor = ({
 
       let todayLabResults = [];
       try {
-        const todayResults = await getTodayLabResults(patient_data);
+        const todayResults = await getTodayLabResults(patient_data, true);
         if (todayResults && Array.isArray(todayResults) && todayResults.length > 0) {
-          try {
-            todayLabResults = await matchLabResultsWithApi(todayResults);
-          } catch (error) {
-            todayLabResults = todayResults;
-          }
+          todayLabResults = todayResults;
         }
       } catch (error) {
         onUpdate(matchedNewResults);
@@ -250,7 +301,7 @@ const LabResultsRichTextEditor = ({
         if (existing) {
           const existingUnits = extractUnitsFromValue(existing.value || '');
           const newValue = (result.value || '').trim();
-          const numericValue = extractNumericValue(newValue);
+          const numericValue = valueWithoutUnitsForApi(newValue);
           const newUnits = extractUnitsFromValue(newValue);
 
           mergedMap.set(testName, {
@@ -360,11 +411,13 @@ const LabResultsRichTextEditor = ({
           handleAddLabParamsDrawer={() => setLabResultsDrawer(false)}
           patient_unique_id={patient_data?.patient_unique_id}
           onSave={handleLabParamsUpdate}
+          onSaveSuccess={handleSidebarSaveSuccess}
           isBackModalOpen={isBackModalOpen}
           showHideBackModal={showHideBackModal}
           patientGender={patient_data?.pm_gender}
           prefillLabResults={drawerPrefillResults}
           onResultsChange={handleSidebarResultsSync}
+          applyRawPrefill={enableLabPrefillFromVoiceSnapSmart}
         />
       </Drawer>
     </>

@@ -10,10 +10,13 @@ import { FETCH_SMART_RX, S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { env } from "../EnvironmentConfig";
-import { getInvestigationAndMedicine, addCaseManager, editCaseManager } from "../redux/caseManagerSlice";
+import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseManager } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
-import { getVitals, setVitalsIdsFromAddVitals, clearListVitalsToday } from "../redux/vitalsSlice";
+import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
+import { fetchLabResultsTodayOnly } from "../utils/labResultsUtils";
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
+import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../redux/vitalsSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import moment from "moment";
 import { getTokenData } from "../utils/utils";
@@ -38,7 +41,8 @@ function SmartRxDigitise() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { state } = useLocation();
+  const { state: locationState } = useLocation();
+  const state = locationState || {};
   const {
     patient_data,
     smartRxFilesData,
@@ -239,7 +243,7 @@ function SmartRxDigitise() {
 
   useEffect(() => {
     return () => {
-      dispatch(clearListVitalsToday());
+      dispatch(resetVitalsState());
     };
   }, [dispatch]);
 
@@ -302,20 +306,17 @@ function SmartRxDigitise() {
             };
           }),
       };
+
+      const editedDataForApi = { ...updatedPrescriptionData };
+      if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
+        const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        editedDataForApi.vitalsAndBodyComposition = vitalsRest;
+      }
+
       const payload = {
         isDigitize: true,
-        editedData: {
-          ...updatedPrescriptionData,
-        },
+        editedData: editedDataForApi,
       };
-
-      const vitalsIds = updatedPrescriptionData?.vitalsAndBodyComposition
-        ? {
-            tcv_id: updatedPrescriptionData.vitalsAndBodyComposition.tcv_id,
-            tcbc_id: updatedPrescriptionData.vitalsAndBodyComposition.tcbc_id,
-            dev_unique_id: updatedPrescriptionData.vitalsAndBodyComposition.dev_unique_id,
-          }
-        : null;
 
       // API call to save the data
       const response = await axios.patch(
@@ -449,8 +450,40 @@ function SmartRxDigitise() {
         } catch (err) {
           console.error("[SmartRx] build vitals for addCaseManager/editCaseManager", err);
         }
-        const medicalHistoryForApi = Array.isArray(updatedPrescriptionData?.medicalHistory) ? updatedPrescriptionData.medicalHistory : [];
+        const rawMedicalHistory = Array.isArray(updatedPrescriptionData?.medicalHistory) ? updatedPrescriptionData.medicalHistory : [];
+        const medicalHistoryForApi = await resolveMedicalHistoryForCaseManager(rawMedicalHistory, {
+          getSectionsWithTags: () => ApiMedicalHistory.listSectionwithTag(),
+          addTag: (payload) => ApiMedicalHistory.addTag(payload),
+          searchTag: (payload) => ApiMedicalHistory.searchTag(payload),
+        });
         const consultationDate = moment().format("YYYY-MM-DD HH:mm");
+        let smartPrescriptionFilenames = (smartRxFilesData || smartRxFile || [])
+          .map((f) => (f && (f.smart_prescription_filename ?? f.name)) || "")
+          .filter(Boolean);
+        if (smartPrescriptionFilenames.length === 0 && Array.isArray(digitisedData?.smart_prescription_filename)) {
+          smartPrescriptionFilenames = digitisedData.smart_prescription_filename.filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && digitisedData?.editedData?.smart_prescription_filename != null) {
+          const fromEdited = digitisedData.editedData.smart_prescription_filename;
+          smartPrescriptionFilenames = Array.isArray(fromEdited) ? fromEdited.filter(Boolean) : [fromEdited].filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && Array.isArray(data?.smart_prescription_filename)) {
+          smartPrescriptionFilenames = data.smart_prescription_filename.filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && tcm_id > 0 && patient_data?.patient_unique_id != null) {
+          try {
+            const viewAction = await dispatch(viewCaseManager({
+              patient_unique_id: patient_data.patient_unique_id,
+              tcm_id,
+            }));
+            if (viewAction.meta.requestStatus === "fulfilled" && viewAction.payload?.smart_prescription_filename != null) {
+              const existing = viewAction.payload.smart_prescription_filename;
+              smartPrescriptionFilenames = Array.isArray(existing) ? existing.filter(Boolean) : [existing].filter(Boolean);
+            }
+          } catch (e) {
+            // fallback failed
+          }
+        }
         const caseManagerPayload = {
           action: tcm_id === 0 ? "add" : "edit",
           tcm_id: tcm_id,
@@ -460,13 +493,19 @@ function SmartRxDigitise() {
           consultation_start_datetime: consultationDate,
           medical_history: medicalHistoryForApi,
           private_notes_id: 0,
+          smart_prescription_filename: smartPrescriptionFilenames,
           ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
         };
         const caseAction = tcm_id === 0
           ? await dispatch(addCaseManager(caseManagerPayload))
           : await dispatch(editCaseManager(caseManagerPayload));
         if (caseAction.meta.requestStatus === "fulfilled") {
-          dispatch(clearListVitalsToday());
+          dispatch(resetVitalsState());
+          try {
+            await fetchLabResultsTodayOnly(patient_data);
+          } catch (e) {
+            // no-op: lab results today fetch after save
+          }
         }
 
         let sendData = {
@@ -556,7 +595,12 @@ function SmartRxDigitise() {
       // Update the digitized data (normalize to canonical shape for Rx Pad)
       if (response?.data?.data) {
         const canonical = canonicalFromApi(response.data.data.refinedData);
-        setData(canonical);
+        setData((prev) => {
+          const labResults = (Array.isArray(canonical?.labResults) && canonical.labResults.length > 0)
+            ? canonical.labResults
+            : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+          return { ...canonical, labResults };
+        });
         setIsLoading(false);
         // Persist vitals via listVitals + addVitals so tcv_id/tcbc_id/dev_unique_id are set for save payload
         if (canonical?.vitalsAndBodyComposition) {

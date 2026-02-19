@@ -7,9 +7,12 @@ import { jwtDecode } from "jwt-decode";
 import documentIcon from "../../assets/images/document-normal.svg";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
-import { getInvestigationAndMedicine, addCaseManager, editCaseManager } from "../../redux/caseManagerSlice";
-import { getVitals, setVitalsIdsFromAddVitals, clearListVitalsToday } from "../../redux/vitalsSlice";
+import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseManager } from "../../redux/caseManagerSlice";
+import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
+import { resolveMedicalHistoryForCaseManager } from "../../utils/medicalHistoryUtils";
+import { fetchLabResultsTodayOnly } from "../../utils/labResultsUtils";
+import ApiMedicalHistory from "../../api/services/ApiMedicalHistory";
 import ApiVitals from "../../api/services/ApiVitals";
 import moment from "moment";
 import { placeIctOrder } from "../../redux/appointmentsSlice";
@@ -37,7 +40,8 @@ function SnapRxDigitise() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { state } = useLocation();
+  const { state: locationState } = useLocation();
+  const state = locationState || {};
   const {
     patient_data,
     smartRxFilesData,
@@ -195,7 +199,7 @@ function SnapRxDigitise() {
           }
         }
       } catch (err) {
-        // persistSnapRxVitals failed; IDs may be 0 in save payload
+        // ignore
       }
       } finally {
         persistVitalsInFlightRef.current = false;
@@ -235,14 +239,26 @@ function SnapRxDigitise() {
       digitizeRx();
     } else if (state.type === "edit" && digitisedData) {
       const canonical = canonicalFromApi(digitisedData?.editedData);
-      setData(normalizeEditedFlag(canonical));
+      const next = normalizeEditedFlag(canonical);
+      setData((prev) => {
+        const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+          ? next.labResults
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...next, labResults };
+      });
       setIsLoading(false);
       if (canonical?.vitalsAndBodyComposition) {
         persistSnapRxVitals(canonical.vitalsAndBodyComposition, setData);
       }
     } else if (state.type === "review" && digitisedData) {
       const canonical = canonicalFromApi(digitisedData?.refinedData);
-      setData(normalizeEditedFlag(canonical));
+      const next = normalizeEditedFlag(canonical);
+      setData((prev) => {
+        const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+          ? next.labResults
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...next, labResults };
+      });
       setIsLoading(false);
       if (canonical?.vitalsAndBodyComposition) {
         persistSnapRxVitals(canonical.vitalsAndBodyComposition, setData);
@@ -252,7 +268,7 @@ function SnapRxDigitise() {
 
   useEffect(() => {
     return () => {
-      dispatch(clearListVitalsToday());
+      dispatch(resetVitalsState());
     };
   }, [dispatch]);
 
@@ -315,19 +331,18 @@ function SnapRxDigitise() {
             };
           }),
       };
+
+      const editedDataForApi = { ...updatedPrescriptionData };
+      if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
+        const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        editedDataForApi.vitalsAndBodyComposition = vitalsRest;
+      }
+
       const payload = {
         tcm_id: tcm_id,
         patient_unique_id: patient_data?.patient_unique_id,
-        editedData: { ...updatedPrescriptionData },
+        editedData: editedDataForApi,
       };
-
-      const vitalsIds = updatedPrescriptionData?.vitalsAndBodyComposition
-        ? {
-            tcv_id: updatedPrescriptionData.vitalsAndBodyComposition.tcv_id,
-            tcbc_id: updatedPrescriptionData.vitalsAndBodyComposition.tcbc_id,
-            dev_unique_id: updatedPrescriptionData.vitalsAndBodyComposition.dev_unique_id,
-          }
-        : null;
 
       // API call to save the data
       const response = await axios.post(
@@ -454,8 +469,44 @@ function SnapRxDigitise() {
         } catch (err) {
           console.error("[SnapRx] build vitals for addCaseManager/editCaseManager", err);
         }
-        const medicalHistoryForApi = Array.isArray(updatedPrescriptionData?.medicalHistory) ? updatedPrescriptionData.medicalHistory : [];
+        const rawMedicalHistory = Array.isArray(updatedPrescriptionData?.medicalHistory) ? updatedPrescriptionData.medicalHistory : [];
+        const medicalHistoryForApi = await resolveMedicalHistoryForCaseManager(rawMedicalHistory, {
+          getSectionsWithTags: () => ApiMedicalHistory.listSectionwithTag(),
+          addTag: (payload) => ApiMedicalHistory.addTag(payload),
+          searchTag: (payload) => ApiMedicalHistory.searchTag(payload),
+        });
         const consultationDate = moment().format("YYYY-MM-DD HH:mm");
+        let smartPrescriptionFilenames = (smartRxFilesData || smartRxFile || [])
+          .map((f) => (f && (f.smart_prescription_filename ?? f.name)) || "")
+          .filter(Boolean);
+        if (smartPrescriptionFilenames.length === 0 && Array.isArray(digitisedData?.smart_prescription_filename)) {
+          smartPrescriptionFilenames = digitisedData.smart_prescription_filename.filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && digitisedData?.digitization?.smart_prescription_filename != null) {
+          const fromDigitization = digitisedData.digitization.smart_prescription_filename;
+          smartPrescriptionFilenames = Array.isArray(fromDigitization) ? fromDigitization.filter(Boolean) : [fromDigitization].filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && (digitisedData?.editedData?.smart_prescription_filename != null || digitisedData?.refinedData?.smart_prescription_filename != null)) {
+          const fromData = digitisedData?.editedData?.smart_prescription_filename ?? digitisedData?.refinedData?.smart_prescription_filename;
+          smartPrescriptionFilenames = Array.isArray(fromData) ? fromData.filter(Boolean) : [fromData].filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && Array.isArray(data?.smart_prescription_filename)) {
+          smartPrescriptionFilenames = data.smart_prescription_filename.filter(Boolean);
+        }
+        if (smartPrescriptionFilenames.length === 0 && tcm_id > 0 && patient_data?.patient_unique_id != null) {
+          try {
+            const viewAction = await dispatch(viewCaseManager({
+              patient_unique_id: patient_data.patient_unique_id,
+              tcm_id,
+            }));
+            if (viewAction.meta.requestStatus === "fulfilled" && viewAction.payload?.smart_prescription_filename != null) {
+              const existing = viewAction.payload.smart_prescription_filename;
+              smartPrescriptionFilenames = Array.isArray(existing) ? existing.filter(Boolean) : [existing].filter(Boolean);
+            }
+          } catch (e) {
+            // fallback failed
+          }
+        }
         const sendData = {
           action: tcm_id === 0 ? "add" : "edit",
           tcm_id: tcm_id,
@@ -465,13 +516,19 @@ function SnapRxDigitise() {
           consultation_start_datetime: consultationDate,
           medical_history: medicalHistoryForApi,
           private_notes_id: 0,
+          smart_prescription_filename: smartPrescriptionFilenames,
           ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
         };
         const caseAction = tcm_id === 0
           ? await dispatch(addCaseManager(sendData))
           : await dispatch(editCaseManager(sendData));
         if (caseAction.meta.requestStatus === "fulfilled") {
-          dispatch(clearListVitalsToday());
+          dispatch(resetVitalsState());
+          try {
+            await fetchLabResultsTodayOnly(patient_data);
+          } catch (e) {
+            // no-op: lab results today fetch after save
+          }
         }
 
         // // Navigate based on isCustomSSRX flag
@@ -531,7 +588,12 @@ function SnapRxDigitise() {
       if (response?.data?.data) {
         const canonical = canonicalFromApi(response.data.data.refinedData);
         const normalized = normalizeEditedFlag(canonical);
-        setData(normalized);
+        setData((prev) => {
+          const labResults = (Array.isArray(normalized?.labResults) && normalized.labResults.length > 0)
+            ? normalized.labResults
+            : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+          return { ...normalized, labResults };
+        });
         setIsLoading(false);
         // Persist vitals via listVitals + addVitals so tcv_id/tcbc_id/dev_unique_id are set for save payload
         if (normalized?.vitalsAndBodyComposition) {

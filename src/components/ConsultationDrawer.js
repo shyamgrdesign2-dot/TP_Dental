@@ -107,8 +107,11 @@ import ApiInvestigation from "../api/services/ApiInvestigation";
 import { addPatientLabReports } from "../api/services/ApiLabParams";
 import ApiVitals from "../api/services/ApiVitals";
 import { prescriptionLabResultsToResultsArray } from "../utils/labResultsUtils";
+import { prescriptionMedicalHistoryToContextFormat } from "../utils/medicalHistoryUtils";
+import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
-import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from "../redux/vitalsSlice";
+import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday, resetVitalsState } from "../redux/vitalsSlice";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
@@ -119,9 +122,6 @@ import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
-
-// Internal IDs to hide from Rx Pad vitals display (used for API/save only)
-const VITALS_HIDDEN_IDS = ['tcv_id', 'tcbc_id', 'dev_unique_id', 'pam_id'];
 
 const ConsultationDrawer = ({
   visible,
@@ -311,9 +311,12 @@ const ConsultationDrawer = ({
       initiallyPopulatedMedicalHistoryTypesRef.current.clear();
       lastDigitizeDataRef.current = null;
       listVitalsPatientIdRef.current = null;
-      dispatch(clearListVitalsToday());
+      dispatch(resetVitalsState());
+      if (typeof setMedicalHistoryData === "function") {
+        setMedicalHistoryData([]);
+      }
     }
-  }, [visible, dispatch]);
+  }, [visible, dispatch, setMedicalHistoryData]);
 
   // Voice/Ambient: listVitals once per patient when drawer opens (avoid duplicate API calls)
   useEffect(() => {
@@ -786,7 +789,13 @@ const ConsultationDrawer = ({
         selectedSymptomsCollector
       );
       setSymptomsCollectorData(formattedSymptomsCollectorData);
-      setPrescriptionData(formattedSymptomsCollectorData);
+      setPrescriptionData((prev) => {
+        const next = formattedSymptomsCollectorData;
+        const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+          ? next.labResults
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...next, labResults };
+      });
       setShowPrescription(true);
 
       if (!caseManagerData?.smart_prescription_filename) {
@@ -806,15 +815,14 @@ const ConsultationDrawer = ({
 
   const getGenRxDetails = async () => {
     try {
+      // First, call getGenRx to check the conversation field
       const initialResponse = await getGenRx(caseManagerData?.smart_prescription_filename);
-      if (!initialResponse.success || !initialResponse.data) {
-        throw new Error(initialResponse.error || "Failed to get Rx");
-      }
-      const payload = initialResponse.data ?? initialResponse.response;
-      const conversation = payload?.history?.[0]?.conversation;
-      const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
 
-      if (payload) {
+      if (initialResponse.success && initialResponse.data) {
+        // Check if conversation exists and has data in the history
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+        
         // Set ambient mode based on conversation field
         if (hasConversation) {
           setIsAmbientMode(true);
@@ -825,12 +833,29 @@ const ConsultationDrawer = ({
             window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
           }
         }
-        const d = payload;
+        
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(caseManagerData?.smart_prescription_filename);
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // If conversation is null or empty, use the dictate mode response (initialResponse)
+
+        const payload = response.data ?? response.response;
+        if (response.success && payload) {
+          const d = payload;
           // Ambient = conversation in history (API returns history[].conversation, no rxDigitizationHistory)
           const isAmbient = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
 
-          // Prescription sources (priority): editedData → digitizeData → history[0].digitize
+          // Prescription sources (priority): editedData → digitizeData → refinedData → history[0].digitize
           let prescriptionData = d.editedData ?? d.digitizeData ?? null;
+          if (!prescriptionData) {
+            prescriptionData = d.refinedData ?? null;
+          }
           if (!prescriptionData) {
             const digitize = d.digitize ?? d.history?.[0]?.digitize;
             if (digitize && typeof digitize === "object" && !Array.isArray(digitize)) {
@@ -896,7 +921,13 @@ const ConsultationDrawer = ({
 
             const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
             if (validatedPrescriptionData) {
-              setPrescriptionData(validatedPrescriptionData);
+              setPrescriptionData((prev) => {
+                const next = validatedPrescriptionData;
+                const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+                  ? next.labResults
+                  : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+                return { ...next, labResults };
+              });
               if (validatedPrescriptionData?.medicalHistory?.length > 0 && setMedicalHistoryData) {
                 const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
                 setMedicalHistoryData(convertedData);
@@ -906,13 +937,9 @@ const ConsultationDrawer = ({
               const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
                 Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
               if (hasResponseVitals) {
-                persistVitalsFromApiResponse(vitals).then((ids) => {
-                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                });
+                persistVitalsFromApiResponse(vitals).then(applyVitalsIdsToPrescription);
               } else if (rawVitalsInitial && Object.keys(rawVitalsInitial).length > 0 && Object.values(rawVitalsInitial).some(v => String(v ?? '').trim().length > 10)) {
-                persistVitalsFromApiResponse(rawVitalsInitial).then((ids) => {
-                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                });
+                persistVitalsFromApiResponse(rawVitalsInitial).then(applyVitalsIdsToPrescription);
               }
             }
           }
@@ -990,6 +1017,7 @@ const ConsultationDrawer = ({
           if (transcriptSource && !caseManagerData?.smart_prescription_filename) {
             setFullTranscript(transcriptSource);
           }
+        }
         }
       } else {
         throw new Error(initialResponse?.error || "Failed to get Rx");
@@ -1358,8 +1386,12 @@ const ConsultationDrawer = ({
       ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
       : [];
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
-    validatedData.labResults = Array.isArray(cleanedData.labResults) ? cleanedData.labResults : [];
-
+    const rawLabResults = Array.isArray(cleanedData.labResults) ? cleanedData.labResults : (Array.isArray(cleanedData.lab_results) ? cleanedData.lab_results : []);
+    validatedData.labResults = rawLabResults.map((r) => ({
+      testname: r.testname ?? r.testName ?? r.name ?? "",
+      value: r.value != null ? String(r.value) : "",
+      notes: r.notes != null ? String(r.notes) : "",
+    }));
     return validatedData;
   };
 
@@ -1411,25 +1443,32 @@ const ConsultationDrawer = ({
       }
       digitizeData = { ...digitizeData, vitalsAndBodyComposition: mapped };
     }
+    // API may return labResults under refinedData, ocrData[0].extractions[0], or data.refinedData / data.ocrData; pull to top-level so Rx pad renders
+    const topLab = digitizeData.labResults ?? digitizeData.lab_results;
+    const fromRefined = digitizeData.refinedData?.labResults ?? digitizeData.data?.refinedData?.labResults;
+    const fromOcr = digitizeData.ocrData?.[0]?.extractions?.[0]?.labResults ?? digitizeData.data?.ocrData?.[0]?.extractions?.[0]?.labResults;
+    const labResults = (Array.isArray(topLab) && topLab.length > 0)
+      ? topLab
+      : (Array.isArray(fromRefined) && fromRefined.length > 0 ? fromRefined : (Array.isArray(fromOcr) && fromOcr.length > 0 ? fromOcr : []));
+    if (labResults.length > 0) digitizeData = { ...digitizeData, labResults };
     return digitizeData;
   };
 
-  /** Whether Rx Pad has any content to send as previousContext (Repeat Rx, edits, or last API response). */
   const hasRxPadContent = (data) => {
     if (!data || typeof data !== "object") return false;
-    const arr = (key) => Array.isArray(data[key]) && data[key].length > 0;
-    if (arr("symptoms") || arr("medications") || arr("diagnosis") || arr("advice") || arr("examinations") || arr("labInvestigation") || arr("medicalHistory") || arr("vaccinations") || arr("others")) return true;
-    const v = data.vitalsAndBodyComposition;
-    if (v && typeof v === "object" && Object.values(v).some((val) => val != null && String(val).trim() !== "")) return true;
-    if (data.followUp && String(data.followUp).trim() !== "") return true;
+    const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
+    const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
+    if (hasArray(data.symptoms) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasVitals(data.vitalsAndBodyComposition)) return true;
+    if (data.followUp && String(data.followUp).trim()) return true;
+    if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
     return false;
   };
 
-  /** Map Rx pad prescription data to API digitizeData shape for previousContext (vitals field names). */
   const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
     if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
     const v = prescriptionData.vitalsAndBodyComposition;
-    if (!v || typeof v !== "object") return prescriptionData;
+    if (!v || typeof v !== "object") return { ...prescriptionData };
     const mapped = { ...v };
     if (mapped.respRate !== undefined) {
       mapped.respiratoryRate = mapped.respRate;
@@ -1444,7 +1483,8 @@ const ConsultationDrawer = ({
       delete mapped.ofc;
     }
     if (mapped.general_rbs !== undefined || mapped["General RBS"] !== undefined) {
-      mapped.genralRBS = mapped.general_rbs ?? mapped["General RBS"];
+      const val = mapped.general_rbs ?? mapped["General RBS"];
+      mapped.genralRBS = val;
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
@@ -1764,9 +1804,12 @@ const ConsultationDrawer = ({
                   formattedSymptomsCollectorData && Object.keys(formattedSymptomsCollectorData)?.length > 0
                     ? mergeData(validatedPrescriptionData, formattedSymptomsCollectorData)
                     : validatedPrescriptionData;
-
+                const labResults = (Array.isArray(finalPrescriptionData.labResults) && finalPrescriptionData.labResults.length > 0)
+                  ? finalPrescriptionData.labResults
+                  : (Array.isArray(prevData?.labResults) && prevData.labResults.length > 0 ? prevData.labResults : []);
                 return {
                   ...finalPrescriptionData,
+                  labResults,
                   dynamicFields: mergedDynamicFields,
                 };
               });
@@ -1775,31 +1818,32 @@ const ConsultationDrawer = ({
               const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
                 Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
               if (hasResponseVitals) {
-                persistVitalsFromApiResponse(vitals).then((ids) => {
-                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                });
+                persistVitalsFromApiResponse(vitals).then(applyVitalsIdsToPrescription);
               } else if (rawVitalsAmbient && Object.keys(rawVitalsAmbient).length > 0 && Object.values(rawVitalsAmbient).some(v => String(v ?? '').trim().length > 10)) {
-                persistVitalsFromApiResponse(rawVitalsAmbient).then((ids) => {
-                  if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                });
+                persistVitalsFromApiResponse(rawVitalsAmbient).then(applyVitalsIdsToPrescription);
               }
             } else {
-              setPrescriptionData({
-                symptoms: [],
-                medications: [],
-                vitalsAndBodyComposition: {},
-                advice: [],
-                diagnosis: [],
-                examinations: [],
-                followUp: "",
-                labInvestigation: [],
-                medicalHistory: [],
-                vaccinations: [],
-                others: [],
-                dynamicFields: localModules.reduce((acc, moduleName) => {
-                  acc[moduleName] = [];
-                  return acc;
-                }, {}),
+              setPrescriptionData((prev) => {
+                const emptyPad = {
+                  symptoms: [],
+                  medications: [],
+                  vitalsAndBodyComposition: {},
+                  advice: [],
+                  diagnosis: [],
+                  examinations: [],
+                  followUp: "",
+                  labInvestigation: [],
+                  labResults: [],
+                  medicalHistory: [],
+                  vaccinations: [],
+                  others: [],
+                  dynamicFields: localModules.reduce((acc, moduleName) => {
+                    acc[moduleName] = [];
+                    return acc;
+                  }, {}),
+                };
+                const labResults = (Array.isArray(prev?.labResults) && prev.labResults.length > 0) ? prev.labResults : [];
+                return { ...emptyPad, labResults };
               });
             }
 
@@ -1923,10 +1967,10 @@ const ConsultationDrawer = ({
           if (!dataForParse) {
             throw new Error("No data received from API");
           }
-          // Rx pad: use editedData when present, else digitizeData
+          // Rx pad: use editedData when present, else digitizeData, else refinedData
           const editedDataDictate = dataForParse.editedData ?? null;
           const digitizeDataDictate = dataForParse.digitizeData ?? dataForParse.history?.[0]?.digitize ?? null;
-          const dataForPadDictate = digitizeDataDictate ?? editedDataDictate;
+          const dataForPadDictate = editedDataDictate ?? digitizeDataDictate ?? dataForParse.refinedData ?? null;
           if (digitizeDataDictate) lastDigitizeDataRef.current = digitizeDataDictate;
 
           let updatedTranscript = null;
@@ -1937,9 +1981,9 @@ const ConsultationDrawer = ({
             let conversationData = null;
 
             if (dataForPadDictate) {
-              prescriptionData = digitizeDataDictate
-                ? mapDigitizeDataToPrescription(digitizeDataDictate)
-                : (editedDataDictate?.symptoms !== undefined || editedDataDictate?.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate));
+              prescriptionData = editedDataDictate
+                ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
+                : mapDigitizeDataToPrescription(digitizeDataDictate ?? dataForParse.refinedData);
             }
             if (!prescriptionData && (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition)) {
               prescriptionData = responseData;
@@ -2015,7 +2059,13 @@ const ConsultationDrawer = ({
               
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
-                setPrescriptionData(validatedPrescriptionDataForDictate);   
+                setPrescriptionData((prev) => {
+                  const next = validatedPrescriptionDataForDictate;
+                  const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+                    ? next.labResults
+                    : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+                  return { ...next, labResults };
+                });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
                 if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
@@ -2027,13 +2077,9 @@ const ConsultationDrawer = ({
                 const hasResponseVitalsVoice = vitalsVoice && Object.keys(vitalsVoice).length > 0 &&
                   Object.values(vitalsVoice).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
                 if (hasResponseVitalsVoice) {
-                  persistVitalsFromApiResponse(vitalsVoice).then((ids) => {
-                    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                  });
+                  persistVitalsFromApiResponse(vitalsVoice).then(applyVitalsIdsToPrescription);
                 } else if (rawVitals && Object.keys(rawVitals).length > 0 && Object.values(rawVitals).some(v => String(v ?? '').trim().length > 10)) {
-                  persistVitalsFromApiResponse(rawVitals).then((ids) => {
-                    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
-                  });
+                  persistVitalsFromApiResponse(rawVitals).then(applyVitalsIdsToPrescription);
                 }
               }
             }
@@ -2194,15 +2240,22 @@ const ConsultationDrawer = ({
           };
         }),
       };
-      
+
+      // Do not send tcv_id, tcbc_id, dev_unique_id in patch payload
+      const editedDataForApi = { ...updatedPrescriptionData };
+      if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
+        const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        editedDataForApi.vitalsAndBodyComposition = vitalsRest;
+      }
+
       if (isAmbientMode && genRxDetails?.type === "ambient") {
         response = await editAmbientRxDetails(
-        { editedData: updatedPrescriptionData },
+        { editedData: editedDataForApi },
         genRxDetails?._id
       );
       } else {
         response = await editGenRxDetails(
-          { editedData: updatedPrescriptionData },
+          { editedData: editedDataForApi },
           genRxDetails?._id
         );
       }
@@ -2268,13 +2321,17 @@ const ConsultationDrawer = ({
       }
     });
 
-    // Return merged object
+    // Return merged object; data2 (e.g. symptoms collector) often has no labResults - do not let ...data2 overwrite data1.labResults
+    const labResults = (Array.isArray(data2?.labResults) && data2.labResults.length > 0)
+      ? data2.labResults
+      : (Array.isArray(data1?.labResults) && data1.labResults.length > 0 ? data1.labResults : []);
     return {
       ...data1,
       ...data2,
       symptoms: mergedSymptoms,
       medicalHistory: mergedMedicalHistory,
       dynamicFields: data1?.dynamicFields || data2?.dynamicFields || {},
+      labResults,
     };
   };
 
@@ -2787,6 +2844,10 @@ const ConsultationDrawer = ({
     }
   }, [patient_data, listVitalsTodayIds, dispatch]);
 
+  const applyVitalsIdsToPrescription = useCallback((ids) => {
+    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+  }, []);
+
   const handleFollowUpUpdate = useCallback((followUpText) => {
     setPrescriptionData((prevData) => ({
       ...prevData,
@@ -2908,61 +2969,21 @@ const ConsultationDrawer = ({
       }
     }
 
-    // Build medical_history for addCaseManager/editCaseManager from snap/smart/voice/ambient data (prescription first, then context)
-    const medicalHistoryForApi = (() => {
-      const fromPrescription = prescriptionData?.medicalHistory;
-      const fromContext = medicalHistoryData;
-      const sectionTitles = { 1: 'Lifestyle', 2: 'Medical Condition ', 3: 'Family History', 4: 'Allergies', 5: 'Surgical History' };
-
-      const normalizeSectionToBackend = (section) => {
-        const title = section.title || section.section_name || sectionTitles[section.tmmhs_id] || '';
-        const tags = Array.isArray(section.tags)
-          ? section.tags.map((t) => ({
-              tmmhst_id: t.tmmhst_id ?? Date.now() + Math.random(),
-              title: t.title || '',
-              pms_default: t.pms_default !== undefined ? t.pms_default : 0,
-              since: t.since || '',
-              status: t.status || 'Active',
-              medication: t.medication || '',
-              note: t.note || '',
-              enable: t.enable || 'Y',
-              relationship: t.relationship || '',
-              newSince: t.newSince || '',
-              MonthYear: t.MonthYear || '',
-            }))
-          : [];
-        return {
-          title,
-          tmmhs_id: section.tmmhs_id,
-          no_know_history: section.no_know_history !== undefined ? section.no_know_history : false,
-          tags,
-        };
-      };
-
-      // 1) Prefer prescriptionData.medicalHistory (snap/smart/voice/ambient Rx pad data)
-      if (Array.isArray(fromPrescription) && fromPrescription.length > 0) {
-        const first = fromPrescription[0];
-        const isAlreadyBackendFormat = first && (first.tmmhs_id != null) && (first.title != null || first.section_name != null || first.tags != null);
-        let sectionsToSend;
-        if (isAlreadyBackendFormat) {
-          sectionsToSend = fromPrescription;
-        } else {
-          sectionsToSend = convertMedicalHistoryToContextFormat(fromPrescription, []);
-        }
-        if (sectionsToSend && sectionsToSend.length > 0) {
-          const payload = sectionsToSend.map(normalizeSectionToBackend);
-          return payload;
-        }
-      }
-
-      // 2) Fallback: context (medicalHistoryData) from consult/context
-      if (Array.isArray(fromContext) && fromContext.length > 0) {
-        const payload = fromContext.map(normalizeSectionToBackend);
-        return payload;
-      }
-
-      return [];
-    })();
+    // Medical history: consult flow sends as-is (same as HeaderPrescription). Voice/ambient uses resolver for prescriptionData.medicalHistory.
+    const isVoiceOrAmbientEndVisit = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    const fromPrescription = prescriptionData?.medicalHistory;
+    const fromContext = medicalHistoryData;
+    let medicalHistoryForApi;
+    if (isVoiceOrAmbientEndVisit && Array.isArray(fromPrescription) && fromPrescription.length > 0) {
+      medicalHistoryForApi = await resolveMedicalHistoryForCaseManager(fromPrescription, {
+        getSectionsWithTags: () => ApiMedicalHistory.listSectionwithTag(),
+        addTag: (payload) => ApiMedicalHistory.addTag(payload),
+        searchTag: (payload) => ApiMedicalHistory.searchTag(payload),
+      });
+    } else {
+      medicalHistoryForApi = Array.isArray(fromContext) ? fromContext : [];
+    }
 
     // Vitals for addCaseManager: build vitals array with tcv_id, tcbc_id, dev_unique_id (from addVitals) - same as cvt_prod_final
     const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
@@ -3029,24 +3050,11 @@ const ConsultationDrawer = ({
           bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
           bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
           bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim(),
-          tcv_id: Number(cleanVitals.tcv_id ?? 0),
-          tcbc_id: Number(cleanVitals.tcbc_id ?? 0),
-          dev_unique_id: Number(cleanVitals.dev_unique_id ?? 0)
         };
         if (systolic && diastolic) {
           rxPadVital.blood_press = blood_press;
         }
-        const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data?.patient_unique_id);
-        const hasIds = patientMatch && listVitalsTodayIds && (
-          (listVitalsTodayIds.tcv_id != null && listVitalsTodayIds.tcv_id !== 0) ||
-          (listVitalsTodayIds.tcbc_id != null && listVitalsTodayIds.tcbc_id !== 0) ||
-          (listVitalsTodayIds.dev_unique_id != null && listVitalsTodayIds.dev_unique_id !== 0)
-        );
-        if (hasIds) {
-          rxPadVital.tcv_id = Number(listVitalsTodayIds.tcv_id ?? 0);
-          rxPadVital.tcbc_id = Number(listVitalsTodayIds.tcbc_id ?? 0);
-          rxPadVital.dev_unique_id = Number(listVitalsTodayIds.dev_unique_id ?? 0);
-        }
+        // Do not send tcv_id, tcbc_id, dev_unique_id to voice/ambient backend
 
         const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
         const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format('YYYY-MM-DD')) === today);
@@ -3062,6 +3070,9 @@ const ConsultationDrawer = ({
 
     const cleanedVitalsForCase = vitalsForCase.map(v => {
       const cleaned = { ...v };
+      delete cleaned.tcv_id;
+      delete cleaned.tcbc_id;
+      delete cleaned.dev_unique_id;
       const systolic = String(cleaned.systolic || '').trim();
       const diastolic = String(cleaned.diastolic || '').trim();
       if (!systolic || !diastolic) {
@@ -3614,123 +3625,32 @@ const ConsultationDrawer = ({
   };
 
   const handleBack = () => {
-    // Check if we're in ambient mode
-    if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-      // Navigate to Voice Rx Consult page (mode selection)
-      navigate("/voice-rx-consult", {
-        replace: true,
-        state: {
-          patient_data,
-        },
-      });
-    } else {
-      // For non-ambient mode, just close the drawer
-    onClose();
-    navigate("/voice-rx-consult", {
-        replace: true,
-      state: {
-        patient_data,
-      },
-    });
+    if (!(isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
+      onClose();
     }
+    navigate("/voice-rx-consult", { replace: true, state: { patient_data } });
   };
 
-  // Helper function to convert API medicalHistory format to CashManagerContext format
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
-    if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
-      return existingContextData || [];
-    }
-
-    // Map API types to tmmhs_id: Lifestyle=1, Medical Condition=2, Family History=3, Allergies=4, Surgical History=5
-    const typeToIdMap = {
-      'Lifestyle': 1,
-      'Medical Condition': 2,
-      'Family History': 3,
-      'Allergies': 4,
-      'Surgical History': 5,
-      'lifestyle': 1,
-      'medical_condition': 2,
-      'family_history': 3,
-      'allergies': 4,
-      'surgical_history': 5
-    };
-
-    // Group by type
-    const groupedByType = {};
-    apiMedicalHistory.forEach(item => {
-      const type = item.type || 'Lifestyle';
-      const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
-      if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
-        return; 
-      }
-      const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
-      const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
-                         type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
-                         type === 'Family History' || normalizedType === 'family_history' ? 'Family History' :
-                         type === 'Allergies' || normalizedType === 'allergies' ? 'Allergies' :
-                         type === 'Surgical History' || normalizedType === 'surgical_history' ? 'Surgical History' : 'Lifestyle';
-      
-      if (!groupedByType[mappedType]) {
-        groupedByType[mappedType] = {
-          tmmhs_id: mappedType,
-          section_name: sectionName,
-          tags: []
-        };
-      }
-      let tagTitle = item.name || '';
-      let tagEnable = item.enable || 'Y';
-      if (!item.enable) {
-        const nameToCheck = item.name || item.lineItem || '';
-        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
-          tagTitle = nameToCheck.trim().substring(3); 
-          tagEnable = 'N';
-        }
-      }
-      
-      // Create tag object
-      const tag = {
-        tmmhst_id: Date.now() + Math.random(),
-        title: tagTitle,
-        enable: tagEnable,
-        note: item.notes || '',
-        since: item.duration || '',
-        status: 'Active',
-        relationship: item.relation || ''
-      };
-      
-      groupedByType[mappedType].tags.push(tag);
-    });
-
-    // Convert to array format
-    const medicalHistoryDataArray = Object.values(groupedByType);
-
-    // Merge with existing medicalHistoryData if available
+    const medicalHistoryDataArray = prescriptionMedicalHistoryToContextFormat(apiMedicalHistory);
+    if (!medicalHistoryDataArray || medicalHistoryDataArray.length === 0) return existingContextData || [];
+    const groupedByType = medicalHistoryDataArray.reduce((acc, s) => ({ ...acc, [s.tmmhs_id]: s }), {});
     if (existingContextData && existingContextData.length > 0) {
       const merged = existingContextData.map(existingSection => {
         const apiSection = groupedByType[existingSection.tmmhs_id];
         if (apiSection) {
-          // Merge tags, avoiding duplicates
-          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
-          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
-          return {
-            ...existingSection,
-            tags: [...existingSection.tags, ...newTags]
-          };
+          const existingTagNames = new Set((existingSection.tags || []).map(t => t.title?.toLowerCase()));
+          const newTags = (apiSection.tags || []).filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
+          return { ...existingSection, tags: [...(existingSection.tags || []), ...newTags] };
         }
         return existingSection;
       });
-
-      // Add sections that don't exist in existing data
-      Object.values(groupedByType).forEach(apiSection => {
-        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
-          merged.push(apiSection);
-        }
+      medicalHistoryDataArray.forEach(apiSection => {
+        if (!merged.some(s => s.tmmhs_id === apiSection.tmmhs_id)) merged.push(apiSection);
       });
-
       return merged;
-    } else {
-      return medicalHistoryDataArray;
     }
+    return medicalHistoryDataArray;
   }, []);
 
   return (
@@ -4330,6 +4250,7 @@ const ConsultationDrawer = ({
                       onRxEdited={() => setIsRxEdited(true)}
                       isProcessing={isProcessing}
                       patient_data={patient_data}
+                      skipAutoLabResultsLogic={!(isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient')}
                     />
                   </div>
                   <div
