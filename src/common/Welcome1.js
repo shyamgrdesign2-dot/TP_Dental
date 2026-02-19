@@ -465,7 +465,7 @@ function Welcome1(props) {
                                             });
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
-                                            Copy Rx
+                                            Repeat {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx   
                                         </Button>
                                     }
                                     {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && !isMobile ? (
