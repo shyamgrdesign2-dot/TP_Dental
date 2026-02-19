@@ -54,6 +54,7 @@ import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
+import VideoConsultButton from '../components/VideoConsultButton';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
 import {
@@ -64,7 +65,7 @@ import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redu
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -1974,6 +1975,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </Button>
                                 </div>
                             </Tooltip> */}
+                            {handleVideoConsult && (
+                                <VideoConsultButton 
+                                    onClick={handleVideoConsult} 
+                                    loading={isVideoConsultLoading}
+                                />
+                            )}
                             {
                                 (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx ? (
                                     isTablet ? 

@@ -66,8 +66,13 @@ function Welcome1(props) {
         abhaHeaderActions,
         patientAdmissionStatus
     } = props;
+
+    const isDraftRx = viewCaseManagerData?.is_draft;
     
     const isTablet = useTabletViewport();
+
+    const canRepeatDraftRx = isDraftRx && isSaveAsDraftRxAccessableFromGB;
+    const canResumeDraftRx = canRepeatDraftRx && viewCaseManagerData?.doctor_data?.um_id === userId;
 
     const handleClickOutside = (event) => {
         if (!consultButtonRef?.current?.contains(event.target)) {
@@ -189,20 +194,21 @@ function Welcome1(props) {
         if (!voiceRxId || !patient_data) return;
 
         try {
-            let copyResponse = await copyAmbientRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+            const newAppointmentId = viewCaseManagerData?.tcm_id || 0;
+            let copyResponse = await copyAmbientRx(voiceRxId, newAppointmentId);
             let isAmbientRxType = copyResponse?.success;
 
             if (!isAmbientRxType) {
-                copyResponse = await copyVoiceRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+                copyResponse = await copyVoiceRx(voiceRxId, newAppointmentId);
             }
 
             if (!copyResponse?.success) {
                 const ambientCheck = await getAmbientRx(voiceRxId);
-                isAmbientRxType = ambientCheck?.success || ambientCheck?.data ? true : false;
+                isAmbientRxType = ambientCheck?.success && ambientCheck?.data;
             }
 
             window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
-            const copiedRxId = copyResponse?.success 
+            const copiedRxId = copyResponse?.success
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 
@@ -387,7 +393,7 @@ function Welcome1(props) {
                                     )}
 
 
-                                    {!!viewCaseManagerData?.is_draft && viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB && 
+                                    {!!canResumeDraftRx && 
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
                                             onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
@@ -411,7 +417,7 @@ function Welcome1(props) {
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
-                                            Repeat {viewCaseManagerData?.is_draft && isSaveAsDraftRxAccessableFromGB 
+                                            Repeat {canRepeatDraftRx 
                                                 ? isTablet ? "" : "Draft" 
                                                 : (
                                                     <>

@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE } from "../utils/constants";
 
-import { getPatientBirthWeight, getVitals } from "../redux/vitalsSlice";
+import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
   getPatientLastHistory,
   listPrivateNotes,
@@ -122,6 +122,10 @@ import Carousel from "react-multi-carousel";
 import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
+import VideoConsultButton from "../components/VideoConsultButton";
+import VideoConsultModal from "../components/VideoConsultModal";
+import { GB_VIDEO_CONSULT } from "../utils/constants";
+import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
 import {
   AddCustomModuleDrawer,
@@ -215,6 +219,10 @@ function Prescription() {
     
     return combined;
   }, [customModules, hospitalSearchResults, userId]);
+
+  useEffect(() => {
+    dispatch(resetVitalsState());
+  }, []);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"
@@ -392,6 +400,11 @@ function Prescription() {
     (fromVoiceRecording && audioBlob) ||
     false
   );
+  const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
+  const [videoConsultUrl, setVideoConsultUrl] = useState(null);
+  const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const [pillupSwitch, setPillupSwitch] = useState(true);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
@@ -462,6 +475,7 @@ function Prescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const contextApi = {
     patient_data,
     send_path,
@@ -614,6 +628,50 @@ function Prescription() {
     dispatch(setUploadDocCategories(response));
   };
 
+  const handleVideoConsult = async () => {
+    if (!videoConsultData?.pam_id) {
+      message.error("Invalid appointment ID");
+      return;
+    }
+
+    setIsInitiatingCall(true);
+    
+    try {
+      const response = await ApiVideoConsult.initiateTeleCall(videoConsultData.pam_id);
+      
+      if (response.error) {
+        message.error(response.error);
+        return;
+      }
+      
+      if (response.data?.message === "success") {
+        if (response.data.action === "join-video-call" && response.data.callJoinUrlForDoctor) {
+          setVideoConsultUrl(response.data.callJoinUrlForDoctor);
+          setVideoConsultAction(response.data.action);
+          setIsVideoModalVisible(true);
+        } else if (response.data.action === "join-audio-call") {
+          message.info(response.data.displayMessage || "Audio call initiated successfully");
+        }
+        
+        trackEvent("TP_VideoConsult_Started", {
+          patient_contact: patient_data?.pm_contact_no || "",
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_speciality: profile?.dp_name,
+          doctor_unique_id: profile?.doctor_unique_id,
+          clinic_name: getClinicName(profile?.hospital_data),
+          page: "Prescription",
+          call_type: response.data.action,
+        });
+      } else {
+        message.error("Failed to initiate consultation");
+      }
+    } catch (error) {
+      message.error("Failed to start video consultation. Please try again.");
+    } finally {
+      setIsInitiatingCall(false);
+    }
+  };
+
   useEffect(() => {
     if (isAutofillSelected) {
       setShowShimmer(true);
@@ -727,7 +785,7 @@ function Prescription() {
   useEffect(() => {
     if (caseManagerData !== undefined) {
       if (
-        caseManagerData.vitals.length > 0 &&
+        caseManagerData.vitals?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
@@ -744,7 +802,7 @@ function Prescription() {
         }
       }
       if (
-        caseManagerData.medical_history.length > 0 &&
+        caseManagerData.medical_history?.length > 0 &&
         customizedPadLeftList.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
@@ -754,7 +812,7 @@ function Prescription() {
         );
       }
       if (
-        caseManagerData.symptoms.length > 0 &&
+        caseManagerData.symptoms?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 5 && e.tmdpm_status === 0
         ) !== -1
@@ -762,7 +820,7 @@ function Prescription() {
         setSymptomsData(caseManagerData.symptoms);
       }
       if (
-        caseManagerData.examination.length > 0 &&
+        caseManagerData.examination?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 10 && e.tmdpm_status === 0
         ) !== -1
@@ -770,7 +828,7 @@ function Prescription() {
         setExaminationData(caseManagerData.examination);
       }
       if (
-        caseManagerData.surgeries.length > 0 &&
+        caseManagerData.surgeries?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 21 && e.tmdpm_status === 0
         ) !== -1
@@ -778,7 +836,7 @@ function Prescription() {
         setSurgeriesData(caseManagerData.surgeries);
       }
       if (
-        caseManagerData.diagnosis.length > 0 &&
+        caseManagerData.diagnosis?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 11 && e.tmdpm_status === 0
         ) !== -1
@@ -786,7 +844,7 @@ function Prescription() {
         setDiagnosisData(caseManagerData.diagnosis);
       }
       if (
-        caseManagerData.medicine.length > 0 &&
+        caseManagerData.medicine?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
@@ -849,7 +907,7 @@ function Prescription() {
         setMedicationData([...updatedData]);
       }
       if (
-        caseManagerData.advice.length > 0 &&
+        caseManagerData.advice?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 13 && e.tmdpm_status === 0
         ) !== -1
@@ -857,7 +915,7 @@ function Prescription() {
         setAdviceData(caseManagerData.advice);
       }
       if (
-        caseManagerData.investigation.length > 0 &&
+        caseManagerData.investigation?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
@@ -1896,6 +1954,8 @@ function Prescription() {
               labParamsData={labParamsData}
               zydusSelectedLabParams={zydusSelectedLabParams}
               handleGenRx={handleGenRx}
+          handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
+          isVideoConsultLoading={isInitiatingCall}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
             />
@@ -2415,6 +2475,20 @@ function Prescription() {
               patientGender={patient_data?.pm_gender}
             />
           </Drawer>
+        )}
+        {isVideoConsultAvailable && (
+          <VideoConsultModal
+            visible={isVideoModalVisible}
+            onClose={() => {
+              setIsVideoModalVisible(false);
+              setVideoConsultUrl(null);
+              setVideoConsultAction(null);
+            }}
+            videoUrl={videoConsultUrl}
+            patientName={patient_data?.pm_fullname}
+            appointmentId={videoConsultData?.pam_id}
+            callAction={videoConsultAction}
+          />
         )}
           </>
         )}

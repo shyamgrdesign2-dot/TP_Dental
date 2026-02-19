@@ -103,6 +103,9 @@ function PatientDetails() {
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
     const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
 
+    useEffect(() => {
+        dispatch(resetViewCaseManagerData());
+    }, []);
     // Fetch consultations on mount
     useEffect(() => {
         if (patient_data?.patient_unique_id) {

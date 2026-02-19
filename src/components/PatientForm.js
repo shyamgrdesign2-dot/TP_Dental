@@ -66,6 +66,8 @@ function PatientForm({ mode = ADD, patient_data }) {
     const embedded = standaloneConfig.embedded === true;
     const origin = standaloneConfig.origin;
     const callbackUrl = standaloneConfig.callbackUrl;
+    const fromBiometricNewTab = standaloneConfig.fromBiometricNewTab === true;
+    const abhaStandaloneReturnParams = standaloneConfig.abhaStandaloneReturnParams;
 
     useEffect(() => {
         const getEditData = async () => {
@@ -147,8 +149,28 @@ function PatientForm({ mode = ADD, patient_data }) {
                         abhaInsertId: abhaInsertId,
                     });
                     
-                    // If from standalone mode, show success and send postMessage
+                    // If from standalone mode, show success and send postMessage (or redirect to success page for new-tab flow)
                     if (isFromStandalone) {
+                        // Biometric new-tab flow: redirect to ABHA standalone success page after patient is created
+                        if (fromBiometricNewTab && abhaStandaloneReturnParams) {
+                            try {
+                                sessionStorage.setItem(
+                                    "abha_standalone_show_success",
+                                    JSON.stringify({
+                                        showSuccess: true,
+                                        showReturnToTabMessage: true,
+                                        linkedAddress: abhaLinkedAddress,
+                                    })
+                                );
+                            } catch (e) {}
+                            const params = new URLSearchParams();
+                            if (abhaStandaloneReturnParams.authToken) params.set("authToken", abhaStandaloneReturnParams.authToken);
+                            if (abhaStandaloneReturnParams.flow) params.set("flow", abhaStandaloneReturnParams.flow);
+                            if (abhaStandaloneReturnParams.mode) params.set("mode", abhaStandaloneReturnParams.mode);
+                            navigate(`/abha-standalone?${params.toString()}`, { replace: true });
+                            dispatch(clearAbhaDetails());
+                            return;
+                        }
                         setSuccessAbhaAddress(abhaLinkedAddress);
                         setShowSuccessMessage(true);
                         
