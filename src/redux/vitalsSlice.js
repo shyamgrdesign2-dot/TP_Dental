@@ -116,15 +116,7 @@ const vitalsSlice = createSlice({
             if (payload != null && typeof payload === "object" && "flow" in payload && !isAllowedFlow(payload.flow)) return;
             state.listVitalsTodayIds = null;
         },
-        resetVitalsState: (state) => {
-            state.selectedVitalsList = [];
-            state.vitalsPastList = [];
-            state.loading = false;
-            state.error = null;
-            state.patientBirthWeight = null;
-            state.todayData = null;
-            state.listVitalsTodayIds = null;
-        },
+        resetVitalsState: () => ({ ...initialState }),
     },
     extraReducers: (builder) => {
         builder

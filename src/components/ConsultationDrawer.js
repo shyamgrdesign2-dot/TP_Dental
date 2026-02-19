@@ -1248,7 +1248,7 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA'];
     const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
       if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
       const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
