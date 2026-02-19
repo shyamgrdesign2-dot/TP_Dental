@@ -1,6 +1,6 @@
 import React from "react";
 import { pdf } from "@react-pdf/renderer";
-import ViewPDF from "../components/print_settings/ViewPDF";
+import ViewPDF from "./server/viewpdf";
 
 const resolveSelectedLang = (payload, selectedLang) => {
   if (selectedLang !== undefined && selectedLang !== null) {
@@ -62,6 +62,8 @@ export const renderPrintPayloadToBlob = async (
     patientWalletBalance,
     labReportData,
     ophthalModuleData,
+    zydusLabData,
+    abhaDetails,
   } = payload;
 
   const combinedCaseManagerData = {
@@ -70,6 +72,7 @@ export const renderPrintPayloadToBlob = async (
     labParamsData,
     labReportData,
     ophthalModuleData,
+    ...(zydusLabData?.data ? { zydusSelectedLabParams: zydusLabData.data } : {}),
   };
 
   const todayVaccines = {
@@ -102,6 +105,8 @@ export const renderPrintPayloadToBlob = async (
       fileWatermark={fileWatermark}
       fileSignature={fileSignature}
       todayVaccines={todayVaccines}
+      givenVaccines={givenVaccines}
+      dueVaccines={dueVaccines}
       carePlanAssignments={carePlanAssignments}
       smartRxData={smartDigitizeRxData}
       growthChartDetails={growthChartDetails}
@@ -114,6 +119,7 @@ export const renderPrintPayloadToBlob = async (
       selectedLang={resolvedLang}
       ophthalModuleData={ophthalModuleData}
       showSnapRxImages={showSnapRxImages}
+      abhaDetails={abhaDetails}
     />
   ).toBlob();
 };
