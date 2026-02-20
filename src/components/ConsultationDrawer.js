@@ -2066,12 +2066,24 @@ const ConsultationDrawer = ({
               
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
+                // Fetch lab results from GET API if not present in digitization response
+                const hasLabResultsFromApi = validatedPrescriptionDataForDictate.labResults && Array.isArray(validatedPrescriptionDataForDictate.labResults) && validatedPrescriptionDataForDictate.labResults.length > 0;
+                let labResultsToUse = hasLabResultsFromApi ? validatedPrescriptionDataForDictate.labResults : [];
+                if (!hasLabResultsFromApi && patient_data?.patient_unique_id) {
+                  try {
+                    const { getTodayLabResults } = await import('../utils/labResultsUtils');
+                    const fetchedLabResults = await getTodayLabResults(patient_data, false);
+                    if (fetchedLabResults && fetchedLabResults.length > 0) {
+                      labResultsToUse = fetchedLabResults;
+                      initiallyPopulatedSectionsRef.current.add('labResults');
+                    }
+                  } catch (err) {
+                    console.error('[Dictate] Failed to fetch lab results from GET API:', err);
+                  }
+                }
+
                 setPrescriptionData((prev) => {
-                  const next = validatedPrescriptionDataForDictate;
-                  const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
-                    ? next.labResults
-                    : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
-                  return { ...next, labResults };
+                  return { ...validatedPrescriptionDataForDictate, labResults: labResultsToUse };
                 });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -2992,17 +3004,61 @@ const ConsultationDrawer = ({
       medicalHistoryForApi = Array.isArray(fromContext) ? fromContext : [];
     }
 
-    // Vitals for addCaseManager: build vitals array with tcv_id, tcbc_id, dev_unique_id (from addVitals) - same as cvt_prod_final
+    // Vitals for addCaseManager: fetch all today's vitals from addVitals API and send with their IDs (tcv_id, tcbc_id, dev_unique_id)
     const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
       window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     let vitalsForCase = [];
     try {
+      const listPayload = {
+        patient_unique_id: patient_data.patient_unique_id,
+        pam_id: patient_data.pam_id ?? 0,
+        mode: ADD,
+        pm_pid: patient_data.pm_pid ?? 0,
+        pm_id: patient_data.pm_id ?? 0,
+      };
+      const allVitals = await dispatch(getVitals(listPayload)).unwrap().catch(() => []);
+      const today = moment().format("YYYY-MM-DD");
+      const todayVitals = Array.isArray(allVitals) ? allVitals.filter((v) => (v.date || "").toString().startsWith(today)) : [];
+
       const patientInfo = patient_data ? {
         age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
         gender: patient_data.pm_gender || patient_data.gender
       } : {};
       const hasRxPadVitals = prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0;
-      if (hasRxPadVitals) {
+      
+      if (hasRxPadVitals && todayVitals.length > 0) {
+        // Multiple vitals entries: send all with their respective IDs
+        vitalsForCase = todayVitals.map((vitalEntry) => {
+          let systolic = String(vitalEntry.blood_press || "").split("/")[0]?.trim() || "";
+          let diastolic = String(vitalEntry.blood_press || "").split("/")[1]?.trim() || "";
+          const vital = {
+            date: today,
+            temp: String(vitalEntry.temp || "").trim(),
+            pres: String(vitalEntry.pres || "").trim(),
+            resp_rate: String(vitalEntry.resp_rate || "").trim(),
+            systolic,
+            diastolic,
+            blood_press: vitalEntry.blood_press || "",
+            spo2: String(vitalEntry.spo2 || "").trim(),
+            height: String(vitalEntry.height || "").trim(),
+            weight: String(vitalEntry.weight || "").trim(),
+            ofc: String(vitalEntry.ofc || "").trim(),
+            sugar: String(vitalEntry.sugar || "").trim(),
+            general_rbs: String(vitalEntry.general_rbs || "").trim(),
+            fib4: String(vitalEntry.fib4 || "").trim(),
+            waist_circumference: String(vitalEntry.waist_circumference || "").trim(),
+            bmi: String(vitalEntry.bmi || "").trim(),
+            bmr: String(vitalEntry.bmr || "").trim(),
+            bsa: String(vitalEntry.bsa || "").trim(),
+            tcv_id: Number(vitalEntry.tcv_id ?? 0),
+            tcbc_id: Number(vitalEntry.tcbc_id ?? 0),
+            dev_unique_id: Number(vitalEntry.dev_unique_id ?? 0),
+            pam_id: patient_data?.pam_id ?? pamId ?? 0,
+          };
+          return enrichVitalsWithCalculations(vital, patientInfo);
+        });
+      } else if (hasRxPadVitals) {
+        // Single vital entry from Rx Pad
         const sanitizeVitalsValue = (key, value) => {
           if (key === 'tcv_id' || key === 'tcbc_id' || key === 'dev_unique_id' || key === 'pam_id' || key === 'date') {
             return value;
@@ -3038,7 +3094,6 @@ const ConsultationDrawer = ({
           blood_press = `${systolic}/${diastolic}`;
         }
 
-        const today = moment().format('YYYY-MM-DD');
         const rxPadVital = {
           date: today,
           temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
@@ -3057,36 +3112,30 @@ const ConsultationDrawer = ({
           bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
           bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
           bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim(),
+          tcv_id: Number(cleanVitals.tcv_id ?? 0),
+          tcbc_id: Number(cleanVitals.tcbc_id ?? 0),
+          dev_unique_id: Number(cleanVitals.dev_unique_id ?? 0),
+          pam_id: patient_data?.pam_id ?? pamId ?? 0,
         };
         if (systolic && diastolic) {
           rxPadVital.blood_press = blood_press;
         }
-        // Do not send tcv_id, tcbc_id, dev_unique_id to voice/ambient backend
-
         const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
-        const existingTodayIndex = vitalsForCase.findIndex(v => (v.date || moment().format('YYYY-MM-DD')) === today);
-        if (existingTodayIndex >= 0) {
-          vitalsForCase[existingTodayIndex] = enrichedRxPadVital;
-        } else {
-          vitalsForCase.push(enrichedRxPadVital);
-        }
+        vitalsForCase = [enrichedRxPadVital];
       }
+      // Clean blood_press if systolic/diastolic missing
+      vitalsForCase = vitalsForCase.map(v => {
+        const cleaned = { ...v };
+        const systolic = String(cleaned.systolic || '').trim();
+        const diastolic = String(cleaned.diastolic || '').trim();
+        if (!systolic || !diastolic) {
+          cleaned.blood_press = '';
+        }
+        return cleaned;
+      });
     } catch (err) {
       console.error("Error building vitals for case manager payload:", err);
     }
-
-    const cleanedVitalsForCase = vitalsForCase.map(v => {
-      const cleaned = { ...v };
-      delete cleaned.tcv_id;
-      delete cleaned.tcbc_id;
-      delete cleaned.dev_unique_id;
-      const systolic = String(cleaned.systolic || '').trim();
-      const diastolic = String(cleaned.diastolic || '').trim();
-      if (!systolic || !diastolic) {
-        cleaned.blood_press = '';
-      }
-      return cleaned;
-    });
 
     const patientId = patient_data?.patient_unique_id ?? 0;
     const sendData = {
@@ -3105,7 +3154,7 @@ const ConsultationDrawer = ({
       labReportID: resolvedLabReportID,
       medical_history: medicalHistoryForApi,
       private_notes_id: 0,
-      ...(cleanedVitalsForCase.length > 0 && { vitals: cleanedVitalsForCase }),
+      ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
     };
 
     const action =

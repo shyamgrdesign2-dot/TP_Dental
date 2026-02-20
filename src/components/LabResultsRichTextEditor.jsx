@@ -230,12 +230,25 @@ const LabResultsRichTextEditor = ({
     return arrayToSlateBulletList(formattedResults);
   }, [labResults]);
 
-  const handleLabParamsUpdate = useCallback(() => {
+  const handleLabParamsUpdate = useCallback((fetchedLabResults) => {
     setLabResultsDrawer(false);
+    
+    // Update RxPad and sidebar with fetched lab results from GET API
+    if (fetchedLabResults && Array.isArray(fetchedLabResults) && fetchedLabResults.length > 0 && onUpdate) {
+      const sig = JSON.stringify(
+        fetchedLabResults.map((r) => ({
+          testname: (r.testName || r.testname || r.name || '').trim(),
+          value: (r.value || '').trim(),
+        }))
+      );
+      lastProcessedResultsRef.current = sig;
+      onUpdate(fetchedLabResults);
+    }
+    
     if (typeof onLabResultsSaved === 'function') {
       onLabResultsSaved();
     }
-  }, [onLabResultsSaved]);
+  }, [onLabResultsSaved, onUpdate]);
 
   const handleSidebarSaveSuccess = useCallback(async () => {
     if (!onUpdate || !patient_data?.patient_unique_id) return;

@@ -389,9 +389,54 @@ function SmartRxDigitise() {
 
         let vitalsForCase = [];
         try {
+          const listPayload = {
+            patient_unique_id: patient_data.patient_unique_id,
+            pam_id: patient_data.pam_id ?? 0,
+            mode: ADD,
+            pm_pid: patient_data.pm_pid ?? 0,
+            pm_id: patient_data.pm_id ?? 0,
+          };
+          const allVitals = await dispatch(getVitals(listPayload)).unwrap().catch(() => []);
+          const today = moment().format("YYYY-MM-DD");
+          const todayVitals = Array.isArray(allVitals) ? allVitals.filter((v) => (v.date || "").toString().startsWith(today)) : [];
+
           const v = updatedPrescriptionData?.vitalsAndBodyComposition || {};
           const hasRxPadVitals = v && Object.keys(v).length > 0 && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
-          if (hasRxPadVitals) {
+          
+          if (hasRxPadVitals && todayVitals.length > 0) {
+            // Multiple vitals entries: send all with their respective IDs
+            vitalsForCase = todayVitals.map((vitalEntry) => {
+              let systolic = String(vitalEntry.blood_press || "").split("/")[0]?.trim() || "";
+              let diastolic = String(vitalEntry.blood_press || "").split("/")[1]?.trim() || "";
+              const vital = {
+                date: today,
+                temp: String(vitalEntry.temp || "").trim(),
+                pres: String(vitalEntry.pres || "").trim(),
+                resp_rate: String(vitalEntry.resp_rate || "").trim(),
+                systolic,
+                diastolic,
+                blood_press: vitalEntry.blood_press || "",
+                spo2: String(vitalEntry.spo2 || "").trim(),
+                height: String(vitalEntry.height || "").trim(),
+                weight: String(vitalEntry.weight || "").trim(),
+                ofc: String(vitalEntry.ofc || "").trim(),
+                sugar: String(vitalEntry.sugar || "").trim(),
+                general_rbs: String(vitalEntry.general_rbs || "").trim(),
+                fib4: String(vitalEntry.fib4 || "").trim(),
+                waist_circumference: String(vitalEntry.waist_circumference || "").trim(),
+                bmi: String(vitalEntry.bmi || "").trim(),
+                bmr: String(vitalEntry.bmr || "").trim(),
+                bsa: String(vitalEntry.bsa || "").trim(),
+                tcv_id: Number(vitalEntry.tcv_id ?? 0),
+                tcbc_id: Number(vitalEntry.tcbc_id ?? 0),
+                dev_unique_id: Number(vitalEntry.dev_unique_id ?? 0),
+                pam_id: patient_data?.pam_id ?? pam_id ?? 0,
+              };
+              const patientInfo = patient_data ? { age: patient_data.ageYears || patient_data.age || patient_data.pm_age, gender: patient_data.pm_gender || patient_data.gender } : {};
+              return enrichVitalsWithCalculations(vital, patientInfo);
+            });
+          } else if (hasRxPadVitals) {
+            // Single vital entry from Rx Pad
             let systolic = String(v.Systolic || v.systolic || "").trim();
             let diastolic = String(v.Diastolic || v.diastolic || "").trim();
             let blood_press = v.bloodPressure || v.blood_press || "";
@@ -404,7 +449,6 @@ function SmartRxDigitise() {
             }
             if (!systolic || !diastolic) blood_press = "";
             else if (!blood_press) blood_press = `${systolic}/${diastolic}`;
-            const today = moment().format("YYYY-MM-DD");
             const rxPadVital = {
               date: today,
               temp: String(v.temperature || v.temp || "").trim(),
@@ -426,6 +470,7 @@ function SmartRxDigitise() {
               tcv_id: Number(v.tcv_id ?? 0),
               tcbc_id: Number(v.tcbc_id ?? 0),
               dev_unique_id: Number(v.dev_unique_id ?? 0),
+              pam_id: patient_data?.pam_id ?? pam_id ?? 0,
             };
             if (systolic && diastolic) rxPadVital.blood_press = blood_press;
             const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data?.patient_unique_id);
@@ -442,13 +487,13 @@ function SmartRxDigitise() {
             const patientInfo = patient_data ? { age: patient_data.ageYears || patient_data.age || patient_data.pm_age, gender: patient_data.pm_gender || patient_data.gender } : {};
             const enriched = enrichVitalsWithCalculations(rxPadVital, patientInfo);
             vitalsForCase = [{ ...enriched }];
-            const cleaned = vitalsForCase.map((row) => {
-              const cleanedRow = { ...row };
-              if (!String(cleanedRow.systolic || "").trim() || !String(cleanedRow.diastolic || "").trim()) cleanedRow.blood_press = "";
-              return cleanedRow;
-            });
-            vitalsForCase = cleaned;
           }
+          // Clean blood_press if systolic/diastolic missing
+          vitalsForCase = vitalsForCase.map((row) => {
+            const cleanedRow = { ...row };
+            if (!String(cleanedRow.systolic || "").trim() || !String(cleanedRow.diastolic || "").trim()) cleanedRow.blood_press = "";
+            return cleanedRow;
+          });
         } catch (err) {
           console.error("[SmartRx] build vitals for addCaseManager/editCaseManager", err);
         }
@@ -601,11 +646,24 @@ function SmartRxDigitise() {
       // Update the digitized data (normalize to canonical shape for Rx Pad)
       if (response?.data?.data) {
         const canonical = canonicalFromApi(response.data.data.refinedData);
+        
+        // Fetch lab results from GET API if not present in digitization response
+        const hasLabResultsFromApi = canonical?.labResults && Array.isArray(canonical.labResults) && canonical.labResults.length > 0;
+        let labResultsToUse = hasLabResultsFromApi ? canonical.labResults : [];
+        if (!hasLabResultsFromApi && patient_data?.patient_unique_id) {
+          try {
+            const { getTodayLabResults } = await import('../utils/labResultsUtils');
+            const fetchedLabResults = await getTodayLabResults(patient_data, false);
+            if (fetchedLabResults && fetchedLabResults.length > 0) {
+              labResultsToUse = fetchedLabResults;
+            }
+          } catch (err) {
+            console.error('[SmartRx] Failed to fetch lab results from GET API:', err);
+          }
+        }
+
         setData((prev) => {
-          const labResults = (Array.isArray(canonical?.labResults) && canonical.labResults.length > 0)
-            ? canonical.labResults
-            : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
-          return { ...canonical, labResults };
+          return { ...canonical, labResults: labResultsToUse };
         });
         setIsLoading(false);
         // Persist vitals via listVitals + addVitals so tcv_id/tcbc_id/dev_unique_id are set for save payload

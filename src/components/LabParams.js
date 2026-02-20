@@ -149,10 +149,13 @@ const LabResultsTable = ({
 
     const searchLabParams = async (searchQuery) => {
         try {
-            const cleanedToken = token.replace(/['"]+/g, '');
+            // const cleanedToken = token.replace(/['"]+/g, '');
+            const cleanedToken = token?.startsWith('"') && token?.endsWith('"')
+            ? token.slice(1, -1)
+            : token;
             const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters?search=${searchQuery}`, {
                 headers: {
-                    'Authorization': `Bearer ${cleanedToken}`,
+                    Authorization: `Bearer ${cleanedToken}`,
                 },
             });
     
@@ -443,12 +446,15 @@ const LabResultsTable = ({
         }
     
         let selectedRange;
+        const ranges = refRange?.ranges;
     
         // Check if refRange has conditional ranges
         if (refRange?.gender?.toLowerCase() === "all") {
-          selectedRange = refRange?.ranges?.[0];
+          selectedRange = Array.isArray(ranges) ? ranges[0] : undefined;
         } else {
-          selectedRange = refRange?.ranges.find(range => range.gender.toLowerCase() === gender.toLowerCase()) || refRange?.ranges?.[0];
+          selectedRange = Array.isArray(ranges)
+            ? (ranges.find(range => range?.gender?.toLowerCase() === gender?.toLowerCase()) ?? ranges[0])
+            : undefined;
         }
     
         if (selectedRange) {
@@ -877,12 +883,28 @@ const LabResultsTable = ({
               baseUrl
             );
             if (response) {
-                onSave();
+                // Only for voice/ambient/snap/smart: fetch updated lab results from GET API and pass to onSave so Rx pad updates.
+                // Consult flow (applyRawPrefill === false) skips this and just calls onSave() so parent refetches via getLabParams.
+                if (applyRawPrefill) {
+                    try {
+                        const { getTodayLabResults } = await import('../utils/labResultsUtils');
+                        const fetchedLabResults = await getTodayLabResults({ patient_unique_id }, false);
+                        if (fetchedLabResults && fetchedLabResults.length > 0 && typeof onSave === 'function') {
+                            onSave(fetchedLabResults);
+                        } else {
+                            if (typeof onSave === 'function') onSave();
+                        }
+                    } catch (err) {
+                        if (typeof onSave === 'function') onSave();
+                    }
+                } else {
+                    if (typeof onSave === 'function') onSave();
+                }
                 handleAddLabParamsDrawer();
             }
-          } catch (error) {
-            console.error("Error:", error);
-          }
+        } catch (error) {
+            console.error("Error during save:", error);
+        }
     }
 
     const handleScroll = (index) => {

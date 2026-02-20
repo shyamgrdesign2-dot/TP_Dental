@@ -22,8 +22,11 @@ function formatResultsFromApiResponse(results) {
       }
       formattedResults.push({
         testname: input.testName,
+        testName: input.testName,
         value: displayValue,
         reportName: input.reportName || result.reportName || '',
+        units: units || '',
+        refRange: input.refRange || null,
       });
       seenTests.add(testKey);
     });
@@ -39,28 +42,40 @@ function formatResultsFromApiResponse(results) {
  * @returns {Promise<Array|null>} Formatted lab results or null
  */
 export const getTodayLabResults = async (patient_data, todayOnly = false) => {
-  if (!patient_data?.patient_unique_id) return null;
+  if (!patient_data?.patient_unique_id) {
+    return null;
+  }
   try {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-    const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
+    const cleanedToken = token
+      ? token.trim().replace(/^["']+|["']+$/g, '')
+      : '';
     const baseUrl = env.lab_params_api_url;
-    if (!cleanedToken || !baseUrl) return null;
+    if (!cleanedToken || !baseUrl) {
+      return null;
+    }
 
     const url = todayOnly
       ? `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}?today=true`
       : `${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`;
     const response = await fetch(url, { headers: { Authorization: `Bearer ${cleanedToken}` } });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
     const labData = await response.json();
     const allResults = labData?.data?.results || [];
-    if (allResults.length === 0) return null;
+    if (allResults.length === 0) {
+      return null;
+    }
 
     const today = moment().format('YYYY-MM-DD');
     const todayResults = todayOnly ? allResults : allResults.filter((result) => {
       const resultDate = result.createdAt || result.created_at || result.createdDate || result.date;
       return resultDate && moment(resultDate).format('YYYY-MM-DD') === today;
     });
-    if (todayResults.length === 0) return null;
+    if (todayResults.length === 0) {
+      return null;
+    }
 
     const formatted = formatResultsFromApiResponse(todayResults);
     return formatted.length > 0 ? formatted : null;
@@ -89,7 +104,10 @@ export const matchLabResultsWithApi = async (labResults = []) => {
   if (!Array.isArray(labResults) || labResults.length === 0) return [];
   try {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-    const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
+    // const cleanedToken = token ? token.replace(/['"]+ /g, '') : '';
+    const cleanedToken = token
+    ? token.trim().replace(/^"+|"+$/g, '')
+    : '';
     const baseUrl = env.lab_params_api_url;
     if (!cleanedToken || !baseUrl) return [];
 
