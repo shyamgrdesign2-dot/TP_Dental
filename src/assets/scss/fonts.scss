@@ -110,10 +110,7 @@
   line-height: 1;
 }
 
-/* Explicit glyph mappings (derived from IcoMoon selection.json) */
-.icon-More:before { content: "\e90a"; }
-.icon-Add:before { content: "\e90b"; }
-.icon-List:before { content: "\e909"; }
+/* Explicit glyph mappings (IcoMoon selection.json) */
 .icon-Calendar:before { content: "\e900"; }
 .icon-Patients:before { content: "\e901"; }
 .icon-Analytics:before { content: "\e902"; }
@@ -123,19 +120,51 @@
 .icon-Notification:before { content: "\e906"; }
 .icon-Finished:before { content: "\e907"; }
 .icon-Queue:before { content: "\e908"; }
-.icon-Report:before { content: "\e912"; }
+.icon-List:before { content: "\e909"; }
+.icon-More:before { content: "\e90a"; }
+.icon-Add:before { content: "\e90b"; }
+.icon-Contract:before { content: "\e90c"; }
+.icon-Expand:before { content: "\e90d"; }
 .icon-Print:before { content: "\e90e"; }
+.icon-Visit-Summary-with-unfilled:before { content: "\e90f"; }
+.icon-Medical-Certificate:before { content: "\e910"; }
+.icon-Discharge-Summary:before { content: "\e911"; }
+.icon-Report:before { content: "\e912"; }
+.icon-Edit:before { content: "\e913"; }
+.icon-ArrowLeft:before,
+.icon-right:before,
+.icon-Right:before { content: "\e914"; } /* arrow---left glyph; rotate with helper classes */
+.icon-reload:before { content: "\e915"; }
 .icon-Search:before { content: "\e916"; }
-.icon-Download:before { content: "\e921"; }
-.icon-Delete:before { content: "\e920"; }
-.icon-Exit:before { content: "\e922"; }
-.icon-Phone:before { content: "\e91a"; }
-.icon-Cross:before { content: "\e919"; }
+.icon-Preview:before { content: "\e917"; }
 .icon-Consult:before { content: "\e918"; }
-.icon-Right:before,
-.icon-right:before { content: "\e914"; } /* arrow---left glyph; rotated via CSS classes */
-.icon-ArrowLeft:before { content: "\e914"; }
+.icon-Cross:before { content: "\e919"; }
+.icon-Phone:before { content: "\e91a"; }
+.icon-Id:before { content: "\e91b"; }
+.icon-save:before,
+.icon-Save:before { content: "\e91c"; }
+.icon-template:before,
+.icon-Template:before { content: "\e91d"; }
+.icon-camera:before { content: "\e91e"; }
+.icon-minus:before { content: "\e91f"; }
+.icon-Delete:before { content: "\e920"; }
+.icon-Download:before { content: "\e921"; }
+.icon-Exit:before { content: "\e922"; }
+.icon-language:before { content: "\e923"; }
+.icon-check:before { content: "\e924"; }
+.icon-Info:before { content: "\e925"; }
+.icon-appointment:before { content: "\e926"; }
+.icon-sorting:before { content: "\e927"; }
 .icon-Filter:before { content: "\e928"; }
+.icon-icon-Visit-Summary-Fill:before { content: "\e929"; }
 .icon-Switch:before { content: "\e92a"; }
 .icon-Upload:before { content: "\e92b"; }
-.icon-Info:before { content: "\e925"; }
+.icon-Announcement:before { content: "\e92c"; }
+.icon-help:before { content: "\e92d"; }
+.icon-upgrade:before { content: "\e92e"; }
+.icon-group:before { content: "\e92f"; }
+.icon-profile:before { content: "\e930"; }
+.icon-certificate-profile:before { content: "\e931"; }
+.icon-New-Window-1:before { content: "\e932"; }
+.icon-eraser1:before { content: "\e933"; }
+.icon-copy-icon:before { content: "\e934"; }
