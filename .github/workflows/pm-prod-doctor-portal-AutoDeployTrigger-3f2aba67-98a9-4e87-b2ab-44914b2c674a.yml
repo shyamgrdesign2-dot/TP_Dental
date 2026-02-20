@@ -42,8 +42,15 @@ jobs:
 
       - name: Build and push image to registry
         run: |
-          docker build -t acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }} .
-          echo "${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_PASSWORD }}" | docker login acinacr.azurecr.io -u ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }} --password-stdin
+          docker build \
+            --build-arg REACT_APP_ENV=prod \
+            --build-arg GENERATE_SOURCEMAP=true \
+            --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} \
+            -t acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }} .
+
+          echo "${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_PASSWORD }}" | docker login acinacr.azurecr.io \
+            -u ${{ secrets.PMPRODDOCTORPORTAL_REGISTRY_USERNAME }} --password-stdin
+
           docker push acinacr.azurecr.io/pm-prod-doctor-portal:${{ github.sha }}
 
       - name: Deploy new revision with 0% traffic
