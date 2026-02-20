@@ -104,9 +104,10 @@
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'icomoon' !important;
   font-style: normal;
-  font-weight: normal;
-  font-variant: normal;
   text-transform: none;
+  font-size: 23px;
+  font-variant: normal;
+  font-weight: 400;
   line-height: 1;
 }
 
@@ -168,3 +169,17 @@
 .icon-New-Window-1:before { content: "\e932"; }
 .icon-eraser1:before { content: "\e933"; }
 .icon-copy-icon:before { content: "\e934"; }
+
+.iconrotate180 {
+  transform: rotate(180deg);
+  display: inline-block;
+}
+.iconrotatehistory90 {
+  transform: rotate(90deg);
+  margin-left: -1px;
+  margin-top: -4px;
+}
+.iconrotate270 {
+  transform: rotate(270deg);
+  display: inline-block;
+}
