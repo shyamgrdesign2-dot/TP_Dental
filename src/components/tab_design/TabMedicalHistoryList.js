@@ -8,7 +8,9 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import TabGynecHistoryList from "./TabGynecHistoryList";
 import { useAccess } from "../../pages/vaccination/useAccess";
 import { useSelector } from "react-redux";
-import genRxBg from "../../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
+import LoopingVideo from "../common/LoopingVideo";
 
 // Read More content
 const ReadMore = ({ children }) => {
@@ -58,10 +60,14 @@ function TabMedicalHistoryList(props) {
 
     const MedicalHistoryShimmer = () => {
         return (
-          <div
-            className="medical-history-shimmer"
-            style={{ background: `url(${genRxBg})`, padding: "2px" }}
-          >
+          <div className="medical-history-shimmer genrx-shimmer" style={{ padding: "2px" }}>
+            <LoopingVideo
+              webm={genRxBgWebm}
+              mp4={genRxBgMp4}
+              className="genrx-shimmer-video"
+              ariaLabel="Background"
+            />
+            <div className="genrx-shimmer-content">
             <div style={{ background: "white", borderRadius: "17px", padding: "16px" }}>
               {/* Medical Condition Section */}
               <div className="section-shimmer">
@@ -97,6 +103,7 @@ function TabMedicalHistoryList(props) {
                 <div className="content-line-shimmer short" />
                 <div className="content-line-shimmer medium" />
               </div>
+            </div>
             </div>
           </div>
         );

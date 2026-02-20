@@ -1,9 +1,9 @@
 import React from "react";
 import { Card, Button } from "antd";
 import styles from "./ExpiredPlanCard.module.scss";
-import tagImg from "../assets/images/tag.png";
+import tagImg from "../assets/images/tag.webp";
 import checkIcon from "../assets/images/check-icon.svg";
-import sandClockIcon from "../assets/images/sand-clock.png";
+import sandClockIcon from "../assets/images/sand-clock.webp";
 import { useSelector } from "react-redux";
 
 const ExpiredPlanCard = () => {

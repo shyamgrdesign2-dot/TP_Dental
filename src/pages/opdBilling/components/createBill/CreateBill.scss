@@ -95,7 +95,8 @@
 
 .opd-billing{
   .video-animat {
-    img:nth-child(2) {
+    img:nth-child(2),
+    video:nth-child(2) {
       position: absolute;
       left: -7px;
       top: -7px;

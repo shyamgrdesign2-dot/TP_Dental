@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Button, Tabs } from "antd";
 import playIcons from "../../../assets/images/tube-icon.svg";
-import coinSmRed from "../../../assets/images/coin-sm-red.png";
+import coinSmRed from "../../../assets/images/coin-sm-red.webp";
 
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
@@ -29,7 +29,7 @@ const AskTatvaKnowMore = ({ handleAskTatvaKnowMore, onRedirect }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
-    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.webp",
   };
 
   return (

@@ -1,6 +1,8 @@
 import { Button } from "antd";
 import apexAI from "../assets/images/apexAI.svg";
-import newTag from "../assets/images/new-gif.gif";
+import newTagWebm from "../assets/images/new-gif.webm";
+import newTagMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "./common/LoopingVideo";
 
 const ApexAIPopup = ({ setShowApexPopup, handleDDxKnowMore }) => {
   return (
@@ -19,12 +21,13 @@ const ApexAIPopup = ({ setShowApexPopup, handleDDxKnowMore }) => {
         <div style={{ fontSize: 16, fontWeight: 500 }}>
           <div className="d-flex align-items-center">
             AI-Powered Differential Diagnosis (DDx){" "}
-            <img
+            <LoopingVideo
               style={{ marginLeft: 10 }}
-              src={newTag}
-              alt="new-tag"
+              webm={newTagWebm}
+              mp4={newTagMp4}
               width={39}
               height={16}
+              ariaLabel="New"
             />
           </div>
           <div className="know-more-txt" onClick={handleDDxKnowMore}>

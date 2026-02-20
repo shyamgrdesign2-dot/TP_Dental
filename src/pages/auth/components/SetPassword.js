@@ -160,7 +160,7 @@ const SetPassword = ({ number, data }) => {
       <div className="login-container background-image">
         <div className="login-card">
           <img
-            src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.png"
+            src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.webp"
             alt="Company Logo"
             style={{ width: "100%", marginBottom: "1rem" }}
           ></img>

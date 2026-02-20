@@ -20,7 +20,7 @@ const MedEcoAppKnowMore = ({ handleMedEcoKnowMore }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
-    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.webp",
   };
 
   return (

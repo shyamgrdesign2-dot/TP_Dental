@@ -78,7 +78,7 @@ const ClinicSetup = ({ reason, handleView, number }) => {
             <Header style={{ position: 'fixed', zIndex: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'transparent linear-gradient(90deg, #4B4AD5 0%, #B122FF 100%) 0% 0% no-repeat padding-box', borderBottom: '1px solid rgb(255 255 255 / 29%)' }} className="clinic-header">
                 {/* Logo */}
                 <div style={{ color: '#fff !important', fontSize: '20px' }}>
-                    <img style={{ height: '45px' }} src="https://health.tatvacare.in/TatvaPracticebyTatvaCareWhite.png" alt="" className="logo" />
+                    <img style={{ height: '45px' }} src="https://health.tatvacare.in/TatvaPracticebyTatvaCareWhite.webp" alt="" className="logo" />
                 </div>
 
                 {/* Logout Button */}
@@ -107,7 +107,7 @@ const ClinicSetup = ({ reason, handleView, number }) => {
 
                 <div className="login-card">
                     <img
-                        src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.png"
+                        src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.webp"
                         alt="Company Logo"
                         style={{ width: "100%", marginBottom: "2rem" }}
                     ></img>

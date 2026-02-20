@@ -14,9 +14,9 @@ import noRecordFound from '../assets/images/no-record-round.svg';
 import verticleUpDown from '../assets/images/verticle-up-down.svg';
 import ActiveverticleUpDown from '../assets/images/active-verticle-up-down.svg';
 import InActiveverticleUpDown from '../assets/images/inactive-verticle-up-down.svg';
-import NoHypertension from '../assets/images/no-hypertension.png';
+import NoHypertension from '../assets/images/no-hypertension.webp';
 import playIcons from "../assets/images/tube-icon.svg";
-import tutorial2 from "../assets/images/tutorial2.png";
+import tutorial2 from "../assets/images/tutorial2.webp";
 import moment from "moment";
 import dayjs from "dayjs";
 
@@ -82,7 +82,7 @@ function MedicalHistoryBox(props) {
 
     const videoLink = {
         link: "https://www.youtube.com/embed/Y91zuWBeao4",
-        thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
+        thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
         tmv_description: "Gynec History",
         tmv_title: "Gynec History",
     };

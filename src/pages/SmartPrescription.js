@@ -68,7 +68,9 @@ import { MESSAGE_KEY } from "../utils/constants";
 import CommonModal from "../common/CommonModal";
 import alertIcon from "../assets/images/alertIcon.svg";
 import textLogo from "../assets/images/text-logo.svg";
-import sparkleGif from "../assets/images/aiSparkleLoader.gif";
+import sparkleWebm from "../assets/images/aiSparkleLoader.webm";
+import sparkleMp4 from "../assets/images/aiSparkleLoader.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import FullPageLoader from "./vaccination/components/Loader";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "./smartSync/components/CvtKnowMore";
@@ -1416,9 +1418,9 @@ function SmartPrescription() {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -3289,7 +3291,12 @@ function SmartPrescription() {
               {isSmartSyncCVTAccessableFromGB && (
                 <div className="know-more-cvt p-14">
                   <div className="sparkle">
-                    <img src={sparkleGif} className="sparkel-loader" />
+                    <LoopingVideo
+                      webm={sparkleWebm}
+                      mp4={sparkleMp4}
+                      className="sparkel-loader"
+                      ariaLabel="Loading"
+                    />
                     <img
                       src={textLogo}
                       alt="textLogo"

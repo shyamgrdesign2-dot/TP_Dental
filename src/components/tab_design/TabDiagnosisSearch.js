@@ -11,7 +11,9 @@ import { searchDiagnosis } from "../../redux/diagnosisSlice";
 import { updateDragDrop } from "../../redux/doctorsSlice";
 
 import TabSearchHeader from "./TabSearchHeader";
-import dragChips from '../../../src/assets/images/drag-chips.gif'
+import dragChipsWebm from '../../../src/assets/images/drag-chips.webm'
+import dragChipsMp4 from '../../../src/assets/images/drag-chips.mp4'
+import LoopingVideo from "../common/LoopingVideo";
 import tagNew from '../../../src/assets/images/tag-new.svg'
 import apexAI from "../../../src/assets/images/apexAI.svg";
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
@@ -140,7 +142,15 @@ function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
                 <>
                     <div className="fw-medium fs-18 pt-3">Reorder chips <img className="img-fluid ms-2" src={tagNew} /></div>
                     <div className="pt-1">Hold and drag the chips to reorder them.</div>
-                    <img className="img-fluid my-2 rounded-2" style={{backgroundColor: '#E2E2EA80'}} width={329} height={107} src={dragChips} />
+                    <LoopingVideo
+                      webm={dragChipsWebm}
+                      mp4={dragChipsMp4}
+                      className="img-fluid my-2 rounded-2"
+                      style={{ backgroundColor: '#E2E2EA80' }}
+                      width={329}
+                      height={107}
+                      ariaLabel="Drag to reorder"
+                    />
                 </>
             ,
             target: () => tourRef.current,

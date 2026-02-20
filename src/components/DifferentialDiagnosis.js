@@ -2,8 +2,10 @@ import { Button, Collapse, Divider } from "antd";
 import apexAI from "../assets/images/apexAI.svg";
 import arrow from "../assets/images/shaded-arrow.svg";
 import ddxIcon from "../assets/images/ddxIcon.svg";
-import loading from "../assets/images/loading.gif";
-import ddxBg from "../assets/images/ddx-bg.png";
+import loadingWebm from "../assets/images/loading.webm";
+import loadingMp4 from "../assets/images/loading.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
+import ddxBg from "../assets/images/ddx-bg.webp";
 import { useSelector } from "react-redux";
 import {
   IS_DDX_DIAGNOSIS_OPEN,
@@ -344,7 +346,13 @@ const DifferentialDiagnosis = ({
               width: "100%",
             }}
           >
-            <img width={105} height={105} src={loading} alt="loading" />
+            <LoopingVideo
+              webm={loadingWebm}
+              mp4={loadingMp4}
+              width={105}
+              height={105}
+              ariaLabel="Loading"
+            />
             <span className="title-common">Generating AI powered diagnosis</span>
           </div>
         ) : (

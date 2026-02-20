@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { Button, Tabs } from "antd";
 import playIcons from "../../../assets/images/tube-icon.svg";
-import coinSmRed from "../../../assets/images/coin-sm-red.png";
+import coinSmRed from "../../../assets/images/coin-sm-red.webp";
 import VideoModal from "../../../common/VideoModal";
 import ExpiredText from "./ExpiredText";
 import { S_BILLING } from "../../../utils/constants";
@@ -28,7 +28,7 @@ const BillingKnowMore = ({ handleBillingKnowMore }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed/luR2CgP9dBs",
-    thumbnail: "https://img.youtube.com/vi/luR2CgP9dBs/hqdefault.jpg",
+    thumbnail: "https://img.youtube.com/vi/luR2CgP9dBs/hqdefault.webp",
   };
 
   return (

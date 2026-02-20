@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Carousel } from "antd";
 import "./Onboarding.scss";
-import smartSync from "../../../assets/images/website-images/SmartSyncBanner.jpg";
-import practiceManagement from "../../../assets/images/website-images/PracticeManagementBanner.jpg";
-import ddxBanner from "../../../assets/images/website-images/DdxBanner.jpg";
-import emrBanner from "../../../assets/images/website-images/EMRBanner.jpg";
-import tatvaAiBanner from "../../../assets/images/website-images/TatvaAiBanner.png";
-import fastBackward from "../../../assets/images/onboard-page-icons/fast-backward.gif";
+import smartSync from "../../../assets/images/website-images/SmartSyncBanner.webp";
+import practiceManagement from "../../../assets/images/website-images/PracticeManagementBanner.webp";
+import ddxBanner from "../../../assets/images/website-images/DdxBanner.webp";
+import emrBanner from "../../../assets/images/website-images/EMRBanner.webp";
+import tatvaAiBanner from "../../../assets/images/website-images/TatvaAiBanner.webp";
+import fastBackwardWebm from "../../../assets/images/onboard-page-icons/fast-backward.webm";
+import fastBackwardMp4 from "../../../assets/images/onboard-page-icons/fast-backward.mp4";
+import LoopingVideo from "../../../components/common/LoopingVideo";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import { detectOperatingSystem } from "../../../utils/utils";
 
@@ -127,7 +129,7 @@ const OnboardingCarousel = () => {
     <div className="onboarding-carousel-wrapper">
       <div className="logo-container">
         <img
-          src={require("../../../assets/images/logo.png")}
+          src={require("../../../assets/images/logo.webp")}
           className="d-inline-block align-top"
           width="150px"
           height="35px"
@@ -183,7 +185,12 @@ const OnboardingCarousel = () => {
       <div className="explore-more" onClick={handleExploreMore} style={{ cursor: 'pointer' }}>
         <button>
           Explore more
-          <img src={fastBackward} alt="scroll down" className="scroll-arrow" />
+          <LoopingVideo
+            webm={fastBackwardWebm}
+            mp4={fastBackwardMp4}
+            className="scroll-arrow"
+            ariaLabel="scroll down"
+          />
         </button>
       </div>
     </div>

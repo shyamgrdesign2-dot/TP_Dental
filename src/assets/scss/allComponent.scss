@@ -814,10 +814,9 @@
               width: 100%;
               height: 100%;
               background: linear-gradient(
-                  rgba(255, 255, 255, 0.6),
-                  rgba(255, 255, 255, 0.6)
-                ),
-                url("../images/cdss-wallpaper.gif");
+                rgba(255, 255, 255, 0.6),
+                rgba(255, 255, 255, 0.6)
+              );
               background-size: cover;
               background-repeat: no-repeat;
               background-position: center;
@@ -904,6 +903,52 @@
       }
     }
   }
+}
+
+.cdss-wallpaper-container {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.cdss-wallpaper-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.cdss-wallpaper-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6));
+  z-index: 1;
+}
+
+.cdss-wallpaper-content {
+  position: relative;
+  z-index: 2;
+}
+
+.genrx-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.genrx-shimmer-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.genrx-shimmer-content {
+  position: relative;
+  z-index: 1;
 }
 
 // Tablet design
@@ -2933,10 +2978,9 @@ body {
               width: 100%;
               height: 100%;
               background: linear-gradient(
-                  rgba(255, 255, 255, 0.6),
-                  rgba(255, 255, 255, 0.6)
-                ),
-                url("../images/cdss-wallpaper.gif");
+                rgba(255, 255, 255, 0.6),
+                rgba(255, 255, 255, 0.6)
+              );
               background-size: cover;
               background-repeat: no-repeat;
               background-position: center;

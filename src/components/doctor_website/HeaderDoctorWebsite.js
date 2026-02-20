@@ -655,7 +655,7 @@ function HeaderDoctorWebsite() {
                             "specialty": "Anaesthesiology",
                             "education": "MBBS, MD",
                             "email_id": "contact@aayushyamclinic.com",
-                            "hero_image_name": "profile_pic_1713329446.jpg",
+                            "hero_image_name": "profile_pic_1713329446.webp",
                             "hero_image_thumb_link": "",
                             "hero_image_link": "",
                         }}
@@ -717,35 +717,35 @@ function HeaderDoctorWebsite() {
                                 "clinic_photos": [
                                     {
                                         "clinic_image_id": 9752048460,
-                                        "clinic_image_name": "f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.png",
-                                        "clinic_image_thumb_name": "thumb_f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.png",
+                                        "clinic_image_name": "f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.webp",
+                                        "clinic_image_thumb_name": "thumb_f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.jpg?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8=",
-                                        "clinic_image_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.jpg?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8="
+                                        "clinic_image_thumb_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.webp?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8=",
+                                        "clinic_image_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.webp?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8="
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.jpg",
-                                        "clinic_image_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.jpg"
+                                        "clinic_image_thumb_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.webp",
+                                        "clinic_image_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.webp"
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.jpg",
-                                        "clinic_image_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.jpg"
+                                        "clinic_image_thumb_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.webp",
+                                        "clinic_image_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.webp"
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.jpg/640px-Hospital-de-Bellvitge.jpg",
-                                        "clinic_image_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.jpg/640px-Hospital-de-Bellvitge.jpg"
+                                        "clinic_image_thumb_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.webp/640px-Hospital-de-Bellvitge.webp",
+                                        "clinic_image_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.webp/640px-Hospital-de-Bellvitge.webp"
                                     }
                                 ],
                                 "clinic_delete": 0
@@ -799,35 +799,35 @@ function HeaderDoctorWebsite() {
                                 "clinic_photos": [
                                     {
                                         "clinic_image_id": 9752048460,
-                                        "clinic_image_name": "f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.png",
-                                        "clinic_image_thumb_name": "thumb_f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.png",
+                                        "clinic_image_name": "f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.webp",
+                                        "clinic_image_thumb_name": "thumb_f523fb8d-e9a3-4b43-a61c-e19c5e162ef6.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.jpg?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8=",
-                                        "clinic_image_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.jpg?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8="
+                                        "clinic_image_thumb_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.webp?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8=",
+                                        "clinic_image_link": "https://media.istockphoto.com/id/1315141049/photo/innovative-technology-in-a-modern-hospital-operating-room-futuristic-medical-interface.webp?s=612x612&w=0&k=20&c=_Xd8yzWHctije-bdTd_FApLlpN4M-i2PrKG55vT20J8="
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.jpg",
-                                        "clinic_image_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.jpg"
+                                        "clinic_image_thumb_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.webp",
+                                        "clinic_image_link": "https://static.toiimg.com/thumb/msid-100889909,width-1280,height-720,resizemode-72/100889909.webp"
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.jpg",
-                                        "clinic_image_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.jpg"
+                                        "clinic_image_thumb_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.webp",
+                                        "clinic_image_link": "https://img.freepik.com/free-photo/young-man-being-ill-hospital-bed_23-2149017252.webp"
                                     },
                                     {
                                         "clinic_image_id": 4468370316,
-                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.png",
-                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.png",
+                                        "clinic_image_name": "6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
+                                        "clinic_image_thumb_name": "thumb_6cad3eee-83f0-4365-a6e6-86a292911c56.webp",
                                         "clinic_image_delete": 0,
-                                        "clinic_image_thumb_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.jpg/640px-Hospital-de-Bellvitge.jpg",
-                                        "clinic_image_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.jpg/640px-Hospital-de-Bellvitge.jpg"
+                                        "clinic_image_thumb_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.webp/640px-Hospital-de-Bellvitge.webp",
+                                        "clinic_image_link": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Hospital-de-Bellvitge.webp/640px-Hospital-de-Bellvitge.webp"
                                     }
                                 ],
                                 "clinic_delete": 0

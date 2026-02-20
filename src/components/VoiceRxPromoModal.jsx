@@ -3,9 +3,9 @@ import { Button, Drawer, Modal, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import "./VoiceRxPromoModal.scss";
 import couponSvg from "../assets/images/coupon.svg";
-import starBgTop from "../assets/images/star-bg-top.png";
-import starBgBottom from "../assets/images/star-bg-bottom.png";
-import christmasTree from "../assets/images/christmas-tree.png";
+import starBgTop from "../assets/images/star-bg-top.webp";
+import starBgBottom from "../assets/images/star-bg-bottom.webp";
+import christmasTree from "../assets/images/christmas-tree.webp";
 import checkIcon from "../assets/images/check-icon-purple.svg";
 import { useSelector, useDispatch } from "react-redux";
 import { services } from "../redux/doctorsSlice";
@@ -20,7 +20,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 const voiceRxVideoLink = {
   link: "https://www.youtube.com/embed/vIeSUFJ7JgE",
-  thumbnail: "https://i.ytimg.com/vi/vIeSUFJ7JgE/maxresdefault.jpg",
+  thumbnail: "https://i.ytimg.com/vi/vIeSUFJ7JgE/maxresdefault.webp",
   title: "Ambient Voice Rx Tutorial",
 };
 

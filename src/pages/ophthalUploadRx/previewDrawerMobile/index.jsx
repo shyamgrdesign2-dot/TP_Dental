@@ -16,10 +16,10 @@ import {
 import ReactCrop from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import "./styles.scss";
-import retakeIcon from "../../../assets/images/retake.png";
-import rotateIcon from "../../../assets/images/rotate.png";
-import deleteIcon from "../../../assets/images/delete.png";
-import arrowIcon from "../../../assets/images/arrow-circle.png";
+import retakeIcon from "../../../assets/images/retake.webp";
+import rotateIcon from "../../../assets/images/rotate.webp";
+import deleteIcon from "../../../assets/images/delete.webp";
+import arrowIcon from "../../../assets/images/arrow-circle.webp";
 import { uploadFiles } from "../../../redux/ophthalSnapRxDigitizationSlice";
 import { useDispatch } from "react-redux";
 import { trackEvent } from "../../../utils/utils";

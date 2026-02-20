@@ -4,8 +4,8 @@ import { useSelector } from "react-redux";
 import moment from "moment";
 
 import { FAILED_VERIFICATION, FREE, S_TATVA_PRACTICE, TRIAL } from "../../../utils/constants";
-import coinSmRed from "../../../assets/images/coin-sm-red.png";
-import coinSm from "../../../assets/images/coin-sm.png";
+import coinSmRed from "../../../assets/images/coin-sm-red.webp";
+import coinSm from "../../../assets/images/coin-sm.webp";
 
 function FreeTrialButton({ title, showHideSubModal }) {
 

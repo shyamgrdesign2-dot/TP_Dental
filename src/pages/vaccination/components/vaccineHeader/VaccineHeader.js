@@ -11,7 +11,7 @@ import alertIcon from "../../../../assets/images/alertIcon.svg";
 import Preview from "./../preview/Preview";
 import "./VaccineHeader.scss";
 import VideoModal from "../../../../common/VideoModal";
-import tutorial2 from "../../../../assets/images/tutorial2.png";
+import tutorial2 from "../../../../assets/images/tutorial2.webp";
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
@@ -43,19 +43,19 @@ function VaccineHeader({
 }) {
   const vaccinationVideo = {
     link: "https://www.youtube.com/embed/o6ALwX9hPMM",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
     tmv_description: "Vaccination",
     tmv_title: "Vaccination",
   };
   const obstetricVideo = {
     link: "https://www.youtube.com/embed/KWIi-p3fXRk",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
     tmv_description: "Obstetric History",
     tmv_title: "Obstetric History",
   };
   const growthChartVideo = {
     link: "https://www.youtube.com/embed/ZpfTsX_f2LM",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
     tmv_description: "Growth Chart",
     tmv_title: "Growth Chart",
   };

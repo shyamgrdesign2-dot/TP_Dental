@@ -6,7 +6,9 @@ import PatientDiagnosis from "./components/patientDiagnosis/PatientDiagnosis";
 import PregnancyHistory from "./components/pregnancyHistory/PregnancyHistory";
 import AddExamination from "./components/AddExamination/AddExamination";
 import alertIcon from "./../../assets/images/alertIcon.svg";
-import tagNew from "./../../assets/images/new-gif.gif";
+import tagNewWebm from "./../../assets/images/new-gif.webm";
+import tagNewMp4 from "./../../assets/images/new-gif.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import { Button, Tabs } from "antd";
 import LmpPopup from "./components/lmpPopup/LmpPopup";
 import { useSelector, useDispatch } from "react-redux";
@@ -212,7 +214,14 @@ const Obstetric = ({
         <div className="title-sami fs-16">
           ANC Scheduler & Immunisation History
         </div>
-        <img className="img-fluid" width={52} height={20} src={tagNew} alt={"new-gif"} />
+        <LoopingVideo
+          webm={tagNewWebm}
+          mp4={tagNewMp4}
+          className="img-fluid"
+          width={52}
+          height={20}
+          ariaLabel="New"
+        />
       </div>
       <div className="py-3">
         Track and manage your patients' antenatal care (ANC) journey

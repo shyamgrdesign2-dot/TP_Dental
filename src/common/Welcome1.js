@@ -251,9 +251,9 @@ function Welcome1(props) {
                         (file.type === "image/jpeg" ||
                             file.type === "image/png" ||
                             file.type === "image/jpg") &&
-                        (cleanFileName === "image.jpg" ||
-                            cleanFileName === "image.png" ||
-                            cleanFileName === "image.jpeg");
+                        (cleanFileName === "image.webp" ||
+                            cleanFileName === "image.webp" ||
+                            cleanFileName === "image.webp");
 
                     let newFile = file;
 

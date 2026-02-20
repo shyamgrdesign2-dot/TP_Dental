@@ -38,7 +38,6 @@ import styles from "./ConsultationDrawer.module.css";
 import alertIcon from "../assets/images/alertIcon.svg";
 import documentIcon from "../assets/images/document-normal.svg";
 import warningIcon from "../assets/images/danger.svg";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -1563,7 +1562,6 @@ const DigitisedPrescription = ({
       {loading ? (
         <div
           className={`${styles.rightSection} ${styles.gradientBorder} ${styles.loaderFullBleed}`}
-          style={{ background: `url(${genRxBg})` }}
           ref={containerRef}
         >
           <GenRXLoaders

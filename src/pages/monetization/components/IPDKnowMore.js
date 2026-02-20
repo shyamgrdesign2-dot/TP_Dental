@@ -7,7 +7,7 @@ import ExpiredText from "./ExpiredText";
 import { S_IPD } from "../../../utils/constants";
 import FreeTrialButton from "./FreeTrialButton";
 import ExpiredSubModal from "./ExpiredSubModal";
-import ipd_thumbnail from '../../../assets/images/ipd_thumbnail.jpg';
+import ipd_thumbnail from '../../../assets/images/ipd_thumbnail.webp';
 
 const { TabPane } = Tabs;
 

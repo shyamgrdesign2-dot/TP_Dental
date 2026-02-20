@@ -5,10 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 import CampaignDiscount from "./CampaignDiscount";
 import expiredInfographic2 from '../../../assets/images/expired-infographic-2.svg'
-import coinLg from "../../../assets/images/coin-lg.png";
+import coinLg from "../../../assets/images/coin-lg.webp";
 import crown from '../../../assets/images/crown.svg'
-import SMS2 from "../../../assets/images/sms-2.png";
-import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.png'
+import SMS2 from "../../../assets/images/sms-2.webp";
+import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.webp'
 import { interest } from "../../../redux/monetizationSlice";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 import { openModal } from "../../../redux/doctorModalSlice";

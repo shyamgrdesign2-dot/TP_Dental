@@ -4,7 +4,7 @@ import { loginWithPassword } from "../authService";
 import "../auth.scss";
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
-import tavaPracticeLogo from "../../../assets/images/website-images/tatvacare_logo_with_tag.png";
+import tavaPracticeLogo from "../../../assets/images/website-images/tatvacare_logo_with_tag.webp";
 
 const LoginWithPassword = ({ handleView, number }) => {
   const [mobileNumber, setMobileNumber] = useState(number === "null" ? "" : number);
@@ -137,7 +137,7 @@ const LoginWithPassword = ({ handleView, number }) => {
       <div className="login-container background-image">
         <div className="login-card">
           <img
-            src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.png"
+            src="https://diginextloginprod.z10.web.core.windows.net/phone_number_login_ui/images/main-logo.webp"
             alt="Company Logo"
             style={{ width: "100%", marginBottom: "1rem" }}
           ></img>

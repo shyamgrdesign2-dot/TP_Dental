@@ -2,8 +2,8 @@ import React, { useCallback, useState } from "react";
 import { useSelector } from "react-redux";
 import "../smartSync.css";
 import { Card, Button, Tabs } from "antd";
-import knowMoreImage from "../../../assets/images/website-images/know-more.jpg";
-import unstructuredRxImage from "../../../assets/images/website-images/unstructured-rx.jpeg";
+import knowMoreImage from "../../../assets/images/website-images/know-more.webp";
+import unstructuredRxImage from "../../../assets/images/website-images/unstructured-rx.webp";
 import dataInsightIcon from "../../../assets/images/data-insight.svg";
 import monetiseIcon from "../../../assets/images/monetise-ven.svg";
 import loyalityIcon from "../../../assets/images/loyality.svg";
@@ -14,7 +14,9 @@ import intersect from "../../../assets/images/intersect.svg";
 import healthIcon from "../../../assets/images/health-care.svg";
 import growIcon from "../../../assets/images/grow.svg";
 import accuracyIcon from "../../../assets/images/accuracy.svg";
-import structuredRxGif from "../../../assets/images/structuredRx.gif";
+import structuredRxWebm from "../../../assets/images/structuredRx.webm";
+import structuredRxMp4 from "../../../assets/images/structuredRx.mp4";
+import LoopingVideo from "../../../components/common/LoopingVideo";
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "../../monetization/components/ContactSupport";
 import ExpiredText from "../../monetization/components/ExpiredText";
@@ -42,7 +44,7 @@ const CvtKnowMore = ({ handleCollapsed }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
-    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.webp",
   };
 
   return (
@@ -275,7 +277,12 @@ const CvtKnowMore = ({ handleCollapsed }) => {
                 <img src={greenRightIcon} />
                 <span>Well structured</span>
               </div>
-              <img src={structuredRxGif} className="cvt-tips-image" />
+              <LoopingVideo
+                webm={structuredRxWebm}
+                mp4={structuredRxMp4}
+                className="cvt-tips-image"
+                ariaLabel="Structured Rx"
+              />
             </div>
           </div>
         </div>

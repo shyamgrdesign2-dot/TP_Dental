@@ -1,163 +1,33 @@
-// Popins Fonts
+// Poppins Fonts (trimmed to core weights, WOFF2 only)
 @font-face {
   font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Bold.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Bold.woff') format('woff');
-  font-weight: bold;
+  src: url('../fonts/popins/Poppins-Regular.woff2') format('woff2');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-ExtraBold.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-ExtraBold.woff') format('woff');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Light.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Light.woff') format('woff');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Italic.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Italic.woff') format('woff');
-  font-weight: normal;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-ExtraLight.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-ExtraLight.woff') format('woff');
-  font-weight: 200;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Black.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Black.woff') format('woff');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-SemiBoldItalic.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-SemiBoldItalic.woff') format('woff');
-  font-weight: 600;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Medium.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Medium.woff') format('woff');
+  src: url('../fonts/popins/Poppins-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Regular.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Regular.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-SemiBold.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-SemiBold.woff') format('woff');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Poppins';
-  src: url('../fonts/popins/Poppins-Thin.woff2') format('woff2'),
-    url('../fonts/popins/Poppins-Thin.woff') format('woff');
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
-}
-
-// Roboto Fonts
+/* Alias legacy Roboto declarations to Poppins to keep UI consistent */
 @font-face {
   font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Light.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Light.woff') format('woff');
-  font-weight: 300;
+  src: url('../fonts/popins/Poppins-Regular.woff2') format('woff2');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Bold.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Bold.woff') format('woff');
-  font-weight: bold;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Black.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Black.woff') format('woff');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Regular.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Regular.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Medium.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Medium.woff') format('woff');
+  src: url('../fonts/popins/Poppins-Medium.woff2') format('woff2');
   font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Bold.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Bold.woff') format('woff');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Roboto';
-  src: url('../fonts/roboto/Roboto-Thin.woff2') format('woff2'),
-    url('../fonts/roboto/Roboto-Thin.woff') format('woff');
-  font-weight: 100;
   font-style: normal;
   font-display: swap;
 }
@@ -238,227 +108,34 @@
   font-variant: normal;
   text-transform: none;
   line-height: 1;
-  font-size: 23px;
-
-  /* Better Font Rendering =========== */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-.iconrotate180 {
-  transform: rotate(180deg);
-  display: inline-block;
-}
-.iconrotatehistory90 {
-  transform: rotate(90deg);
-  margin-left: -1px;
-  margin-top: -4px;
-}
-.iconrotate270 {
-  transform: rotate(270deg);
-  display: inline-block;
-}
-
-.icon-analytics:before {
-  content: "\e902";
-}
-
-.icon-billings:before {
-  content: "\e903";
-}
-
-.icon-calendar:before {
-  content: "\e900";
-}
-
-.icon-patients:before {
-  content: "\e901";
-}
-
-.icon-setting:before {
-  content: "\e905";
-}
-
-.icon-notification:before {
-  content: "\e906";
-}
-
-.icon-Cancelled:before {
-  content: "\e904";
-}
-
-.icon-Finished:before {
-  content: "\e907";
-}
-
-.icon-Queue:before {
-  content: "\e908";
-}
-
-.icon-List:before {
-  content: "\e909";
-}
-
-.icon-More:before {
-  content: "\e90a";
-}
-
-.icon-Add:before {
-  content: "\e90b";
-}
-
-.icon-Contract:before {
-  content: "\e90c";
-}
-
-.icon-Expand:before {
-  content: "\e90d";
-}
-
-.icon-Print:before {
-  content: "\e90e";
-}
-
-.icon-Visit-Summary:before {
-  content: "\e90f";
-}
-
-.icon-Medical-Certificate:before {
-  content: "\e910";
-}
-
-.icon-Discharge-Summary:before {
-  content: "\e911";
-}
-
-.icon-Report:before {
-  content: "\e912";
-}
-
-.icon-Edit:before {
-  content: "\e913";
-}
-
-.icon-right:before {
-  content: "\e914";
-}
-
-.icon-reload:before {
-  content: "\e915";
-}
-
-.icon-search:before {
-  content: "\e916";
-}
-
-.icon-Preview:before {
-  content: "\e917";
-}
-
-.icon-Consult:before {
-  content: "\e918";
-}
-
-.icon-Cross:before {
-  content: "\e919";
-}
-
-.icon-phone:before {
-  content: "\e91a";
-}
-
-.icon-Id:before {
-  content: "\e91b";
-}
-
-.icon-save:before {
-  content: "\e91c";
-}
-
-.icon-template:before {
-  content: "\e91d";
-}
-
-.icon-camera:before {
-  content: "\e91e";
-}
-
-.icon-minus:before {
-  content: "\e91f";
-}
-
-.icon-delete:before {
-  content: "\e920";
-}
-
-.icon-download:before {
-  content: "\e921";
-}
-
-.icon-exit:before {
-  content: "\e922";
-}
-
-.icon-language:before {
-  content: "\e923";
-}
-
-.icon-check:before {
-  content: "\e924";
-}
-
-.icon-info:before {
-  content: "\e925";
-}
-
-.icon-calendarfill:before {
-  content: "\e926";
-}
-
-.icon-sorting:before {
-  content: "\e927";
-}
-
-.icon-filter:before {
-  content: "\e928";
-}
-
-.icon-Visit-Summary-Fill:before {
-  content: "\e929";
-}
-
-.icon-switch:before {
-  content: "\e92a";
-}
-
-.icon-upload:before {
-  content: "\e92b";
-}
-.icon-announcement:before {
-  content: "\e92c";
-}
-
-.icon-help:before {
-  content: "\e92d";
-}
-.icon-upgrade:before {
-  content: "\e92e";
-}
-.icon-group:before {
-  content: "\e92f";
-}
-.icon-profile:before {
-  content: "\e930";
-}
-.icon-certificate-profile:before {
-  content: "\e931";
-}
-.icon-New-Window:before {
-  content: "\e932";
-}
-.icon-eraser1:before {
-  content: "\e933";
-}
-.icon-copyIcon:before {
-  content: "\e934";
-}
+/* Explicit glyph mappings (derived from IcoMoon selection.json) */
+.icon-More:before { content: "\e90a"; }
+.icon-Add:before { content: "\e90b"; }
+.icon-List:before { content: "\e909"; }
+.icon-Calendar:before { content: "\e900"; }
+.icon-Patients:before { content: "\e901"; }
+.icon-Analytics:before { content: "\e902"; }
+.icon-Billings:before { content: "\e903"; }
+.icon-Cancelled:before { content: "\e904"; }
+.icon-Settings:before { content: "\e905"; }
+.icon-Notification:before { content: "\e906"; }
+.icon-Finished:before { content: "\e907"; }
+.icon-Queue:before { content: "\e908"; }
+.icon-Report:before { content: "\e912"; }
+.icon-Print:before { content: "\e90e"; }
+.icon-Search:before { content: "\e916"; }
+.icon-Download:before { content: "\e921"; }
+.icon-Delete:before { content: "\e920"; }
+.icon-Exit:before { content: "\e922"; }
+.icon-Phone:before { content: "\e91a"; }
+.icon-Cross:before { content: "\e919"; }
+.icon-Consult:before { content: "\e918"; }
+.icon-Right:before,
+.icon-right:before { content: "\e914"; } /* arrow---left glyph; rotated via CSS classes */
+.icon-ArrowLeft:before { content: "\e914"; }
+.icon-Filter:before { content: "\e928"; }
+.icon-Switch:before { content: "\e92a"; }
+.icon-Upload:before { content: "\e92b"; }
+.icon-Info:before { content: "\e925"; }

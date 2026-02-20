@@ -3,10 +3,10 @@ import codeIcon from "../assets/images/code.svg";
 import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
 import clinicalStudyIcon from "../assets/images/clinical-study.svg";
 import apexAI from "../assets/images/apexAI.svg";
-import scannerIcon from "../assets/images/scanner.png";
-import sunIcon from "../assets/images/sun.png";
-import cameraIcon from "../assets/images/camera.png";
-import cropIcon from "../assets/images/crop.png";
+import scannerIcon from "../assets/images/scanner.webp";
+import sunIcon from "../assets/images/sun.webp";
+import cameraIcon from "../assets/images/camera.webp";
+import cropIcon from "../assets/images/crop.webp";
 
 export const PERSISTANT_STORAGE_KEY_AUTH_TOKEN =
   "persistant.storage.key.auth-token";
@@ -350,7 +350,7 @@ export const DDX_KNOW_MORE_DATA = {
   },
   videoLink: {
     link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
-    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.webp",
   },
   tips: {
     title: "Tips to get the best results",
@@ -401,7 +401,7 @@ export const SNAP_RX_KNOW_MORE_DATA = {
   },
   videoLink: {
     link: "https://www.youtube.com/embed/xXPsyTPSNHA",
-    thumbnail: "https://i.ytimg.com/vi/xXPsyTPSNHA/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/xXPsyTPSNHA/hqdefault.webp",
   },
   tips: {
     smallTitle: "Tips",

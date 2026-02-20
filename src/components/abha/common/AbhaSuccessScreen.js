@@ -1,9 +1,16 @@
-import SuccessGif from "../../../assets/images/succcess-abha-animation.gif";
+import SuccessWebm from "../../../assets/images/succcess-abha-animation.webm";
+import SuccessMp4 from "../../../assets/images/succcess-abha-animation.mp4";
+import LoopingVideo from "../../common/LoopingVideo";
 
 const AbhaSuccessScreen = () => {
   return (
     <div className="abha_verified_container">
-      <img src={SuccessGif} alt="SUCCESS GIF" width={200} />
+      <LoopingVideo
+        webm={SuccessWebm}
+        mp4={SuccessMp4}
+        width={200}
+        ariaLabel="Success"
+      />
       <div className="verified_label">Verified successfully</div>
     </div>
   );

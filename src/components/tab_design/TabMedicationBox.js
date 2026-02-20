@@ -41,7 +41,7 @@ import visitEnd from '../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../assets/images/close-visit.svg';
 import tagNew from '../../../src/assets/images/tag-new.svg';
 import Pillup from '../../assets/images/pillup.svg';
-import EazyDoseLogo from '../../assets/images/EazyDose Logo.png';
+import EazyDoseLogo from '../../assets/images/EazyDose Logo.webp';
 
 import CashManagerContext from "../../context/CashManagerContext";
 

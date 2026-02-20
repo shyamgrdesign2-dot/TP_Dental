@@ -163,7 +163,7 @@ const OtherSetttings = ({ otherSettings, setPrintSettings }) => {
         .toDataURL("image/png");
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
-        "signature.png",
+        "signature.webp",
         "image/png"
       );
       setFileSignature({
@@ -179,7 +179,7 @@ const OtherSetttings = ({ otherSettings, setPrintSettings }) => {
           .toDataURL(fileSignature.originalFile.type);
         const uploadFile = await dataUrlToFileUsingFetch(
           trimData,
-          "signature.png",
+          "signature.webp",
           "image/png"
         );
         setFileSignature({

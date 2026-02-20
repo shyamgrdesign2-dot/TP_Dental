@@ -13,7 +13,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { customizedPad, listVideo } from "../redux/doctorsSlice";
 
 import tutorial from '../assets/images/tutorial-icon.svg';
-import playcover2 from '../assets/images/play-cover2.png';
+import playcover2 from '../assets/images/play-cover2.webp';
 import playIcons from '../assets/images/tube-icon.svg';
 import fullicon from '../assets/images/full-icon.svg';
 import VideoModal from './VideoModal';

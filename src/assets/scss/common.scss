@@ -908,7 +908,8 @@ body {
 
 .video-animat {
     position: relative;
-    img {
+    img,
+    video {
         &:nth-child(2) {
             position: absolute;
             left: -7px;

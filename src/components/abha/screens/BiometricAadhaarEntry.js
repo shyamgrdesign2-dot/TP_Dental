@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import AdharImg from "../../../assets/images/adhar.png";
+import AdharImg from "../../../assets/images/adhar.webp";
 import AbhaNavigationCard from "../common/AbhaNavigationCard";
 import LinkMobileIcon from "../../../assets/images/link-mobile-icon.svg";
 import GlobalIcon from "../../../assets/images/global-icon.svg";

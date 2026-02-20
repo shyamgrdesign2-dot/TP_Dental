@@ -373,9 +373,9 @@ const AllPatients = () => {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -987,7 +987,7 @@ const AllPatients = () => {
                       <h1>All Patients</h1>
                     </div>
                     <img
-                      src={require("./../../assets/images/bg-welcome.png")}
+                      src={require("./../../assets/images/bg-welcome.webp")}
                       className="welcomeig d-inline-block align-top"
                       alt="Welcome"
                     />

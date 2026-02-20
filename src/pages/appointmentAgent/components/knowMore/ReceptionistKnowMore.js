@@ -30,7 +30,7 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
 
   const videoLink = {
     link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
-    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
+    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.webp",
   };
 
   const scrollToSection = (key) => {

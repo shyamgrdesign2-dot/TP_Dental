@@ -11,13 +11,15 @@ import { paymentHistory, userCampaign, userCampaignDelete, userCampaignDetails, 
 import editIcon from "../assets/images/edit.svg";
 import emptyCampaign from '../assets/images/empty-campaign-history.svg'
 import emptyPurchase from '../assets/images/empty-purchase-history.svg'
-import newGif from '../assets/images/new-gif.gif';
-import messagesVideo from '../assets/images/messages-video.jpg';
+import newGifWebm from '../assets/images/new-gif.webm';
+import newGifMp4 from '../assets/images/new-gif.mp4';
+import messagesVideo from '../assets/images/messages-video.webp';
 import RecievedImg from '../assets/images/received.svg';
 import SendImg from '../assets/images/send.svg';
 import { ReactComponent as MailMessage } from '../assets/images/mail-message.svg';
 import { ReactComponent as TextMessage } from '../assets/images/text-message.svg';
 import { ReactComponent as RecieptMessage } from '../assets/images/mail-reciept.svg';
+import LoopingVideo from "../components/common/LoopingVideo";
 
 import DetailedView from "../components/bulk_messages/DetailedView";
 import CommonModal from "../common/CommonModal";
@@ -715,7 +717,13 @@ function MessagesData(props) {
                 title={
                     <>
                         Messages
-                        <img src={newGif} width={38} className="ms-2" alt='New' />
+                        <LoopingVideo
+                          webm={newGifWebm}
+                          mp4={newGifMp4}
+                          width={38}
+                          className="ms-2"
+                          ariaLabel="New"
+                        />
                     </>
                 }
                 modalBody={

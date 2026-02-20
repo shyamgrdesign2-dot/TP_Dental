@@ -4,7 +4,7 @@ import { isMobile } from "react-device-detect";
 import "./Onboarding.scss";
 import abdmLogo from "../../../assets/images/abdm-logo.svg";
 import nhaLogo from "../../../assets/images/nha-logo.svg";
-import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.png";
+import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
 import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
 import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
 import { verifyAccessToken } from "../../auth/authService";
