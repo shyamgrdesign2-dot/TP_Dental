@@ -23,11 +23,13 @@ import AdviceRichTextEditor from "./AdviceRichTextEditor";
 import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
 import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
 import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import GynecHistoryRichTextEditor from "./GynecHistoryRichTextEditor";
 import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { useGrounding } from "../hooks/useGrounding";
 import { getTokenData, getHmTypeIndicator } from "../utils/utils";
+import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
@@ -309,6 +311,7 @@ const DigitisedPrescription = ({
       dynamicFields: data?.dynamicFields,
       others: data?.others,
       labResults: data?.labResults ?? data?.lab_results ?? [],
+      gynecHistory: getNormalizedGynecHistory(data ?? {}),
     };
   }, [data]);
 
@@ -1647,6 +1650,15 @@ const DigitisedPrescription = ({
               isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
             />
           )}
+
+          {(sectionData.gynecHistory && Object.keys(sectionData.gynecHistory).length > 0) || patient_data ? (
+            <GynecHistoryRichTextEditor
+              gynecHistory={sectionData.gynecHistory || {}}
+              onUpdate={(gynec) => setData((prev) => ({ ...prev, gynecHistory: gynec || {} }))}
+              isProcessing={loading}
+              showWhenEmpty={!!patient_data}
+            />
+          ) : null}
 
           {data?.symptoms && hasValidContent("symptoms") && (
             <SymptomsRichTextEditor

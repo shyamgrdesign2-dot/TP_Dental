@@ -41,7 +41,7 @@ const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, isVoiceAmbientSnapSmartFlow = false } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, isVoiceAmbientSnapSmartFlow = false, gynecOnly = false, initialGynecHistory } = props
     const { TabPane } = Tabs;
     const {
         searchList,
@@ -1034,7 +1034,10 @@ function MedicalHistoryBox(props) {
     };
 
     const formatDate = (dateString) => {
-        return dateString ? moment(dateString, showDateFormat).format(dateFormat) : '';
+        if (!dateString) return '';
+        // Try parsing with multiple formats to handle both DD-MM-YYYY and YYYY-MM-DD
+        const parsed = moment(dateString, [showDateFormat, dateFormat, 'YYYY-MM-DD', moment.ISO_8601], true);
+        return parsed.isValid() ? parsed.format(dateFormat) : '';
     };
 
     const onDateChanged = (date, dateString) => {
@@ -1047,6 +1050,26 @@ function MedicalHistoryBox(props) {
     };
 
     const handleSave = () => {
+        if (gynecOnly) {
+            const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
+                if (
+                    key !== 'createdAt' && key !== 'createdBy' &&
+                    gynecHistory[key] !== '' && gynecHistory[key] !== null &&
+                    gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
+                ) {
+                    acc[key] = gynecHistory[key];
+                }
+                return acc;
+            }, {});
+            const lmpRaw = filteredGynecHistory.lmp ?? filteredGynecHistory.lastMenstrualPeriod;
+            if (lmpRaw) {
+                const parsed = moment(lmpRaw, [showDateFormat, dateFormat, 'YYYY-MM-DD']);
+                if (parsed.isValid()) filteredGynecHistory.lastMenstrualPeriod = parsed.format(showDateFormat);
+            }
+            if (onSave) onSave(filteredGynecHistory);
+            if (patient_data?.patient_unique_id) handleSaveClick();
+            return;
+        }
         if (hideMenstrualHistoryTab) {
             if (typeof setMedicalHistoryData === 'function') {
               setMedicalHistoryData(cloneMedicalHistoryData);
@@ -1075,10 +1098,17 @@ function MedicalHistoryBox(props) {
     }, []);
 
     useEffect(() => {
-        if (isGynaecHistoryAccessable) {
+        if (isGynaecHistoryAccessable && !gynecOnly) {
             fetchGynecHistory();
         }
-    }, [isGynaecHistoryAccessable]);
+    }, [isGynaecHistoryAccessable, gynecOnly]);
+
+    // Rx pad (voice/ambient/snap/smart): sync initial gynec data when drawer opens so Menstrual History tab shows it
+    useEffect(() => {
+        if (gynecOnly && initialGynecHistory != null && typeof initialGynecHistory === 'object' && Object.keys(initialGynecHistory).length > 0) {
+            setGynecHistory({ ...initialGynecHistory });
+        }
+    }, [gynecOnly, initialGynecHistory]);
 
     const fetchGynecHistory = async () => {
         if (!patient_data?.patient_unique_id) return;
@@ -1186,8 +1216,11 @@ function MedicalHistoryBox(props) {
 
     const [selectedDate, setSelectedDate] = useState(null);
     useEffect(() => {
-        if (gynecHistory?.lmp) {
-            setSelectedDate(moment(gynecHistory.lmp).format(showDateFormat));
+        const raw = gynecHistory?.lmp ?? gynecHistory?.lastMenstrualPeriod;
+        if (raw) {
+            // Parse with multiple formats to handle both DD-MM-YYYY and YYYY-MM-DD
+            const parsed = moment(raw, [showDateFormat, dateFormat, 'YYYY-MM-DD', moment.ISO_8601], true);
+            setSelectedDate(parsed.isValid() ? parsed.format(showDateFormat) : null);
         }
     }, [gynecHistory]);
 
@@ -1299,9 +1332,9 @@ function MedicalHistoryBox(props) {
                 <Tabs 
                     defaultActiveKey={initialActiveKey || "gynec"} 
                     onChange={onTabChange}
-                    className={hideMenstrualHistoryTab ? "hide-tabs-nav" : ""}
+                    className={(hideMenstrualHistoryTab || gynecOnly) ? "hide-tabs-nav" : ""}
                 >
-                    {(isGynaecHistoryAccessable && !hideMenstrualHistoryTab) &&
+                    {((isGynaecHistoryAccessable && !hideMenstrualHistoryTab) || gynecOnly) &&
                         <TabPane tab="Menstrual History" key="gynec">
                             <div style={{ marginTop: "-1rem" }}>
                                 <Row>
@@ -1736,6 +1769,7 @@ function MedicalHistoryBox(props) {
                             </div>
                         </TabPane>
                     }
+                    {!gynecOnly && (
                     <TabPane tab="Medical History" key="medical">
                         <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
                             <Row>
@@ -2095,6 +2129,7 @@ function MedicalHistoryBox(props) {
                             </Row>
                         </div>
                     </TabPane>
+                    )}
                 </Tabs>
             </Card>
             {shouldShowVideo && (

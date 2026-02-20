@@ -12,6 +12,8 @@ import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../../re
 import { enrichVitalsWithCalculations } from "../../utils/vitalsCalculations";
 import { resolveMedicalHistoryForCaseManager } from "../../utils/medicalHistoryUtils";
 import { fetchLabResultsTodayOnly } from "../../utils/labResultsUtils";
+import { getNormalizedGynecHistory, syncGynecHistoryAfterEndVisit } from "../../utils/gynecHistoryUtils";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../../api/services/ApiGynec";
 import ApiMedicalHistory from "../../api/services/ApiMedicalHistory";
 import ApiVitals from "../../api/services/ApiVitals";
 import moment from "moment";
@@ -524,6 +526,11 @@ function SnapRxDigitise() {
           : await dispatch(editCaseManager(sendData));
         if (caseAction.meta.requestStatus === "fulfilled") {
           dispatch(resetVitalsState());
+          const doctorUserId = getDecodedToken()?.result?.user_id;
+          if (patient_data?.patient_unique_id && (doctorUserId !== undefined && doctorUserId !== null)) {
+            const rxGynec = getNormalizedGynecHistory(updatedPrescriptionData ?? {});
+            syncGynecHistoryAfterEndVisit(patient_data.patient_unique_id, doctorUserId, rxGynec, { getGynecDetails, postGynecDetails, updateGynecDetails });
+          }
           try {
             await fetchLabResultsTodayOnly(patient_data);
           } catch (e) {

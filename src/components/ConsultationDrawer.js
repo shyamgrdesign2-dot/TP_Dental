@@ -111,6 +111,8 @@ import { prescriptionMedicalHistoryToContextFormat } from "../utils/medicalHisto
 import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
 import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { getNormalizedGynecHistory, normalizeGynecHistoryFromApi, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday, resetVitalsState } from "../redux/vitalsSlice";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -1451,6 +1453,11 @@ const ConsultationDrawer = ({
       ? topLab
       : (Array.isArray(fromRefined) && fromRefined.length > 0 ? fromRefined : (Array.isArray(fromOcr) && fromOcr.length > 0 ? fromOcr : []));
     if (labResults.length > 0) digitizeData = { ...digitizeData, labResults };
+    const gynecRaw = digitizeData.gynecHistory ?? digitizeData.gyneacHistory;
+    const gynecHistory = normalizeGynecHistoryFromApi(gynecRaw);
+    if (Object.keys(gynecHistory).length > 0) {
+      digitizeData = { ...digitizeData, gynecHistory };
+    }
     return digitizeData;
   };
 
@@ -3108,6 +3115,11 @@ const ConsultationDrawer = ({
 
     if (action.meta.requestStatus === "fulfilled") {
       dispatch(clearListVitalsToday());
+      const isSnapSmartVoiceAmbient = isVoiceOrAmbientRx || genRxDetails?.type === 'snap' || genRxDetails?.type === 'smart';
+      if (isSnapSmartVoiceAmbient && patientId && (userId !== undefined && userId !== null)) {
+        const rxGynec = getNormalizedGynecHistory(prescriptionData ?? {});
+        syncGynecHistoryAfterEndVisit(patientId, userId, rxGynec, { getGynecDetails, postGynecDetails, updateGynecDetails });
+      }
       message.open({
         key: MESSAGE_KEY,
         type: "",

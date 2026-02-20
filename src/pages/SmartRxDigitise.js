@@ -14,6 +14,8 @@ import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseM
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
 import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
+import { getNormalizedGynecHistory, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import { fetchLabResultsTodayOnly } from "../utils/labResultsUtils";
 import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../redux/vitalsSlice";
@@ -35,7 +37,7 @@ function SmartRxDigitise() {
   const persistVitalsInFlightRef = useRef(false);
   const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
-  const { profile, siteId, storeCode } = useSelector((state) => state.doctors);
+  const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
   const { loading } = useSelector((state) => state.caseManager);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
@@ -501,6 +503,10 @@ function SmartRxDigitise() {
           : await dispatch(editCaseManager(caseManagerPayload));
         if (caseAction.meta.requestStatus === "fulfilled") {
           dispatch(resetVitalsState());
+          if (patient_data?.patient_unique_id && (userId !== undefined && userId !== null)) {
+            const rxGynec = getNormalizedGynecHistory(updatedPrescriptionData ?? {});
+            syncGynecHistoryAfterEndVisit(patient_data.patient_unique_id, userId, rxGynec, { getGynecDetails, postGynecDetails, updateGynecDetails });
+          }
           try {
             await fetchLabResultsTodayOnly(patient_data);
           } catch (e) {
