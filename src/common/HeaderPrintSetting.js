@@ -153,7 +153,6 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: {
                         ...state,
                         currentSessionRx, // pass the freshly generated PDF (URL string) back
-                        // fromConfigurePrintSetting: true,
                     },
                 });
             } else {

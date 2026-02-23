@@ -183,10 +183,6 @@ function CertificatePrintView() {
         }
     }
 
-    const certificateFile = printBlob instanceof Blob ? printBlob : printUrl;
-    const hasCertificateFile =
-      certificateFile instanceof Blob ? certificateFile.size > 0 : !!certificateFile;
-
     return (
         <>
             <HeaderCertificatePrint state={state} viewable={viewable} />

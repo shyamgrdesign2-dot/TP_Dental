@@ -120,31 +120,28 @@ const { profile } = useSelector((state) => state.doctors);
       </Navbar>
 
       <div ref={divRef} style={{ height: 'calc(100vh - 60px)', overflowY: 'auto', overflowX: 'hidden' }}>
-        {PDF_URL ? (
-          <Document
-            loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-            error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-            file={PDF_URL}
-            onLoadSuccess={onDocumentLoadSuccess}>
-            {Array.apply(null, Array(numPages))
-              .map((x, i) => i + 1)
-              .map((page) => {
-                return (
-                  <Page
-                    key={Math.random()}
-                    className={printBlob ? 'react-pdf__Page_afterload' : null}
-                    loading={null}
-                    width={divWidth}
-                    pageNumber={page}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
-                );
-              })}
-          </Document>
-        ) : (
-          <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
-        )}
+        <Document
+          loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+          error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+          noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
+          file={PDF_URL}
+          onLoadSuccess={onDocumentLoadSuccess}>
+          {Array.apply(null, Array(numPages))
+            .map((x, i) => i + 1)
+            .map((page) => {
+              return (
+                <Page
+                  key={Math.random()}
+                  className={printBlob ? 'react-pdf__Page_afterload' : null}
+                  loading={null}
+                  width={divWidth}
+                  pageNumber={page}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                />
+              );
+            })}
+        </Document>
       </div>
     </>
   );
