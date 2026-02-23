@@ -1,5 +1,6 @@
 import api from "./axiosService";
 import config from "../../config";
+import { LAB_PARAMS_RESULTS } from "../../utils/constants";
 
 const baseUrl = { customBaseUrl: config.lab_params_api_url };
 
@@ -28,7 +29,7 @@ export const fetchSearchReportParams = async function (searchText) {
 export const addPatientLabReports = async function (payload) {
   let res = {};
   try {
-    res = await api.post(`/results`, payload, baseUrl);
+    res = await api.post(LAB_PARAMS_RESULTS, payload, baseUrl);
   } catch (e) {
     console.error("Error while add/edit patient's lab reports: ", e);
   }

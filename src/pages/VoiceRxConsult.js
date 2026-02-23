@@ -31,6 +31,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import CommonModal from "../common/CommonModal";
 import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
+import { resetVitalsState } from "../redux/vitalsSlice";
 
 const VoiceRxConsult = () => {
   const location = useLocation();
@@ -142,6 +143,8 @@ const VoiceRxConsult = () => {
 
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
+    savedChunksRef.current = [];
+    savedRecordingTimeRef.current = 0;
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
@@ -168,6 +171,13 @@ const VoiceRxConsult = () => {
       window.audioStreamRef = null;
     };
   }, []);
+
+  // Voice Rx flow: clear vitals state when leaving the page (back/leave)
+  useEffect(() => {
+    return () => {
+      dispatch(resetVitalsState());
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     if (isRecording && !isPaused) {
