@@ -143,6 +143,8 @@ const VoiceRxConsult = () => {
 
     mediaRecorderRef.current = null;
     audioChunksRef.current = [];
+    savedChunksRef.current = [];
+    savedRecordingTimeRef.current = 0;
     setIsRecording(false);
     setIsPaused(false);
     setRecordingTime(0);
