@@ -1325,7 +1325,6 @@ function Cardiology(props) {
       );
     }
 
-    const vitalsObj = data?.vitals || data?.vitalsAndBodyComposition || {};
     const hasVitalsContent = (obj) =>
       obj && typeof obj === "object" && Object.values(obj).some((val) => val != null && String(val).trim() !== "");
     const vitalsObj =
