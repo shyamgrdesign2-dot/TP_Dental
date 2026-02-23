@@ -1665,7 +1665,6 @@ const ConsultationDrawer = ({
                 conversationData = actualData?.rxDigitizationHistory?.[0]?.payload?.conversation ?? responseData?.rxDigitizationHistory?.[0]?.payload?.conversation ?? actualData?.conversation ?? responseData?.conversation ?? actualData?.digitize?.conversation ?? responseData?.digitize?.conversation ?? actualData?.rx?.conversation ?? responseData?.rx?.conversation ?? prescriptionData?.conversation ?? null;
               }
             }
-          }
 
             if (prescriptionData && prescriptionData.vitalsAndBodyComposition) {
               const vitals = prescriptionData.vitalsAndBodyComposition;
@@ -1911,6 +1910,7 @@ const ConsultationDrawer = ({
                 return [initialConversation];
               }
             });
+          }
           }
 
           // Update genRxDetails - new pipeline: data.history[0].transcription, sourceDurationInSeconds, data._id

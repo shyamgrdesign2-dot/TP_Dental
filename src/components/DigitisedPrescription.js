@@ -240,20 +240,6 @@ const DigitisedPrescription = ({
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
 
-  const labResultsUpdater = useMemo(
-    () => (arr) => {
-      if (!setData) return;
-      setData((prev) => {
-        const next = arr || [];
-        const labResults = (Array.isArray(next) && next.length > 0)
-          ? next
-          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
-        return { ...prev, labResults };
-      });
-      if (typeof onRxEdited === "function") onRxEdited(true);
-    },
-    [setData, onRxEdited]
-  );
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
   );
