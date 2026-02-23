@@ -8,6 +8,7 @@ export const usePrintPayloadPdf = ({
   isGynaecHistoryAccessable,
   showSnapRxImages,
   payloadOverride,
+  skipFetch = false,
 } = {}) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -15,6 +16,10 @@ export const usePrintPayloadPdf = ({
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (skipFetch) {
+      return;
+    }
+
     if (payloadOverride) {
       setPayload(payloadOverride);
       return;
@@ -65,9 +70,13 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
     };
-  }, [printUrl, payloadOverride]);
+  }, [printUrl, payloadOverride, skipFetch]);
 
   useEffect(() => {
+    if (skipFetch) {
+      return;
+    }
+
     if (!payload) {
       setPrintBlob(null);
       return;
@@ -112,7 +121,7 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
     };
-  }, [payload, selectedLang, isGynaecHistoryAccessable]);
+  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch]);
 
   return { payload, printBlob, isGenerating, error };
 };

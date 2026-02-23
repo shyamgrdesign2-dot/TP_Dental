@@ -519,7 +519,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       }
     });
   }
-  console.log('INTEL ==> obsHistoryData', obsHistoryData, rx)
 
   const { growthChartData, growthChartImageData } = growthChartDetails || {};
   const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
@@ -845,28 +844,27 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const getFont = () => {
-    var value = printSettings?.page_format?.font_family;
-    if (lg == 2) {
-      value = "Gujarati";
-    } else if (lg == 3 || lg == 4) {
-      value = "Devanagari";
-    } else if (lg == 5) {
-      value = "Telugu";
-    } else if (lg == 6) {
-      value = "Kannada";
-    } else if (lg == 8) {
-      value = "Gurmukhi";
-    } else if (lg == 10) {
-      value = "Tamil";
-    } else if (lg == 11 || lg == 12) {
-      value = "Bengali";
-    } else if (lg == 13) {
-      value = "Odia";
-    } else {
-      value = printSettings?.page_format?.font_family;
+    // Map language to a registered font family; fall back to the page setting or Roboto
+    const fallback = printSettings?.page_format?.font_family || "Roboto";
+    if (lg == 3 || lg == 4) {
+      return "AnekDevanagari"; // Hindi/Marathi/etc.
     }
-    return value;
+    if (lg == 5) {
+      return "NotoSansTelugu";
+    }
+    if (lg == 6) {
+      return "NotoSansKannada";
+    }
+    if (lg == 10) {
+      return "NotoSansTamil";
+    }
+    if (lg == 11 || lg == 12) {
+      return "AnekBangla";
+    }
+    // Languages without a dedicated registered font (Gujarati/Punjabi/Malayalam/Odia/Urdu) use fallback
+    return fallback;
   };
+
 
   const medical_history_title = (id) => {
     var value = "";
@@ -2299,7 +2297,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
             return printSettings?.prescription?.case_option?.map(
               (option, index) => {
-                console.log('INTEL ==> WOW', option)
                 // Try to find custom module by module_id matching option.id
                 let customModule = caseManagerData?.moduleContents?.find(
                   (e) => e?.module_id === option?.id,
