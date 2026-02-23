@@ -23,11 +23,13 @@ import AdviceRichTextEditor from "./AdviceRichTextEditor";
 import VaccinationsRichTextEditor from "./VaccinationsRichTextEditor";
 import LabResultsRichTextEditor from "./LabResultsRichTextEditor";
 import FollowUpRichTextEditor from "./FollowUpRichTextEditor";
+import GynecHistoryRichTextEditor from "./GynecHistoryRichTextEditor";
 import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { useGrounding } from "../hooks/useGrounding";
 import { getTokenData, getHmTypeIndicator } from "../utils/utils";
+import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
@@ -162,6 +164,9 @@ const DigitisedPrescription = ({
   setLocalModules,
   onRxEdited,
   isProcessing = false,
+  patient_data,
+  vitalsFlow,
+  skipAutoLabResultsLogic = false,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
   const [activeIndex, setActiveIndex] = useState(null);
@@ -195,6 +200,21 @@ const DigitisedPrescription = ({
   const lastFuzzyNamesRef = useRef("");
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
+
+  const labResultsUpdater = useMemo(
+    () => (arr) => {
+      if (!setData) return;
+      setData((prev) => {
+        const next = arr || [];
+        const labResults = (Array.isArray(next) && next.length > 0)
+          ? next
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...prev, labResults };
+      });
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [setData, onRxEdited]
+  );
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
   );
@@ -290,7 +310,8 @@ const DigitisedPrescription = ({
       followUp: data?.followUp,
       dynamicFields: data?.dynamicFields,
       others: data?.others,
-      labResults: data?.labResults,
+      labResults: data?.labResults ?? data?.lab_results ?? [],
+      gynecHistory: getNormalizedGynecHistory(data ?? {}),
     };
   }, [data]);
 
@@ -773,7 +794,7 @@ const DigitisedPrescription = ({
     getFuzzySearchMedicine(meds);
   }, [sectionData.medications]);
 
-  // Fuzzy-correct lab investigations ONCE when labInvestigation first become available
+  // Fuzzy-correct lab investigations ONLY when API response (snap/smart/voice/ambient) has labInvestigation
   useEffect(() => {
     if (!isGroundingAccessable) return;
     if (hasFuzzyRunTestsRef.current) return;
@@ -782,6 +803,16 @@ const DigitisedPrescription = ({
     hasFuzzyRunTestsRef.current = true;
     getFuzzySearchLabs(labs);
   }, [sectionData.labInvestigation]);
+
+  // Clear fuzzy refs on unmount (back button / end visit)
+  useEffect(() => {
+    return () => {
+      hasFuzzyRunMedsRef.current = false;
+      hasFuzzyRunTestsRef.current = false;
+      lastFuzzyNamesRef.current = "";
+      lastFuzzyCallRef.current = { sig: "", ts: 0 };
+    };
+  }, []);
 
   const onSearchParent = (query) => {
     setSearchParentQuery((query || "").trimStart());
@@ -1445,7 +1476,7 @@ const DigitisedPrescription = ({
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
         examinations: ["name", "findings", "notes", "lineItem"],
-        diagnosis: ["name", "since", "status", "notes", "lineItem"],
+        diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "brand", "schedule", "notes", "lineItem"],
         labInvestigation: ["name", "lineItem"],
@@ -1461,6 +1492,10 @@ const DigitisedPrescription = ({
     });
     return result;
   };
+
+  const showMedicalHistorySection = !!(data?.medicalHistory && hasValidContent("medicalHistory"));
+  const labResultsArray = data?.labResults ?? data?.lab_results ?? [];
+  const showLabResultsSection = !!(data && Array.isArray(labResultsArray) && labResultsArray.length > 0);
 
   const normalizeAdvice = (advice) => {
     if (!Array.isArray(advice)) return [];
@@ -1601,16 +1636,29 @@ const DigitisedPrescription = ({
               vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
               onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
               isProcessing={loading}
+              isVoiceAmbientFlow={!!patient_data}
+              patient_data={patient_data}
+              vitalsFlow={vitalsFlow}
             />
           )}
 
-          {data?.medicalHistory && hasValidContent("medicalHistory") && (
+          {showMedicalHistorySection && (
             <MedicalHistoryRichTextEditor
-              medicalHistory={data.medicalHistory}
+              medicalHistory={data?.medicalHistory || []}
               onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
               isProcessing={loading}
+              isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
             />
           )}
+
+          {(sectionData.gynecHistory && Object.keys(sectionData.gynecHistory).length > 0) || patient_data ? (
+            <GynecHistoryRichTextEditor
+              gynecHistory={sectionData.gynecHistory || {}}
+              onUpdate={(gynec) => setData((prev) => ({ ...prev, gynecHistory: gynec || {} }))}
+              isProcessing={loading}
+              showWhenEmpty={!!patient_data}
+            />
+          ) : null}
 
           {data?.symptoms && hasValidContent("symptoms") && (
             <SymptomsRichTextEditor
@@ -1628,9 +1676,9 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {(sectionData.diagnosis?.length > 0 || data?.diagnosis) && hasValidContent("diagnosis") && (
+          {data?.diagnosis && hasValidContent("diagnosis") && (
             <DiagnosisRichTextEditor
-              diagnosis={sectionData.diagnosis?.length > 0 ? sectionData.diagnosis : (data.diagnosis || [])}
+              diagnosis={data.diagnosis}
               onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
               isProcessing={loading}
             />
@@ -1680,13 +1728,16 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {data?.labResults && hasValidContent("labResults") && (
-            <LabResultsRichTextEditor
-              labResults={data.labResults}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, labResults: arr || [] }))}
-              isProcessing={loading}
-            />
-          )}
+          {showLabResultsSection && (
+              <LabResultsRichTextEditor
+                labResults={data?.labResults ?? data?.lab_results ?? []}
+                onUpdate={labResultsUpdater}
+                isProcessing={loading}
+                patient_data={patient_data}
+                skipAutoFetchAndMerge={skipAutoLabResultsLogic}
+                enableLabPrefillFromVoiceSnapSmart={!skipAutoLabResultsLogic}
+              />
+            )}
 
           <>
             {Object.entries(dynamicFieldsObject).map(([moduleName, moduleData]) => {

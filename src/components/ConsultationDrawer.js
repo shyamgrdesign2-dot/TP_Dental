@@ -46,6 +46,7 @@ import {
 } from "../api/services/ApiGenRx";
 import tutorialIcon from "../assets/images/tutorial-icon.svg";
 import { useLocation, useNavigate } from "react-router-dom";
+import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
@@ -71,6 +72,7 @@ import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
+  ADD,
   FAILED_VERIFICATION,
   FREE,
   GB_APOLLO_DISABLE_FEATURE,
@@ -102,6 +104,16 @@ import {
 } from "../redux/medicationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
+import { addPatientLabReports } from "../api/services/ApiLabParams";
+import ApiVitals from "../api/services/ApiVitals";
+import { prescriptionLabResultsToResultsArray } from "../utils/labResultsUtils";
+import { prescriptionMedicalHistoryToContextFormat } from "../utils/medicalHistoryUtils";
+import { resolveMedicalHistoryForCaseManager } from "../utils/medicalHistoryUtils";
+import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
+import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
+import { getNormalizedGynecHistory, normalizeGynecHistoryFromApi, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
+import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
+import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday, resetVitalsState } from "../redux/vitalsSlice";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
@@ -112,7 +124,6 @@ import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
-
 
 const ConsultationDrawer = ({
   visible,
@@ -191,8 +202,12 @@ const ConsultationDrawer = ({
   const [audioBlob, setAudioBlob] = useState(audioBlobFromLocation || null);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [showSCBanner, setShowSCBanner] = useState(false);
+  const dispatch = useDispatch();
   const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
+  const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const clinic = getClinic(profile?.hospital_data);
+  const listVitalsPatientIdRef = useRef(null);
+  const persistVitalsInFlightRef = useRef(false);
   const { parentOptionsList: medicationParentOptionsList } = useSelector(
     (state) => state.medication
   );
@@ -297,8 +312,50 @@ const ConsultationDrawer = ({
       initiallyPopulatedSectionsRef.current.clear();
       initiallyPopulatedMedicalHistoryTypesRef.current.clear();
       lastDigitizeDataRef.current = null;
+      listVitalsPatientIdRef.current = null;
+      dispatch(resetVitalsState());
+      if (typeof setMedicalHistoryData === "function") {
+        setMedicalHistoryData([]);
+      }
     }
-  }, [visible]);
+  }, [visible, dispatch, setMedicalHistoryData]);
+
+  // Voice/Ambient: listVitals once per patient when drawer opens (avoid duplicate API calls)
+  useEffect(() => {
+    const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    if (!visible || !patient_data?.patient_unique_id || !isVoiceOrAmbientRx) return;
+    const pid = patient_data.patient_unique_id;
+    if (listVitalsPatientIdRef.current === pid) return;
+    if (listVitalsPatientIdRef.current != null && listVitalsPatientIdRef.current !== pid) {
+      dispatch(clearListVitalsToday());
+    }
+    listVitalsPatientIdRef.current = pid;
+    const today = moment().format('YYYY-MM-DD');
+    const listPayload = {
+      patient_unique_id: patient_data.patient_unique_id,
+      pam_id: patient_data.pam_id ?? 0,
+      mode: ADD,
+      pm_pid: patient_data.pm_pid ?? 0,
+      pm_id: patient_data.pm_id ?? 0
+    };
+    ApiVitals.getVitals(listPayload)
+      .then((listRes) => {
+        const list = listRes?.data && Array.isArray(listRes.data) ? listRes.data : [];
+        const existingToday = list.find(v => (v.date || v.createdAt || v.created_at || '').toString().startsWith(today));
+        const flow = isAmbientMode || genRxDetails?.type === 'ambient' ? 'ambient' : 'voice';
+        dispatch(setListVitalsToday({
+          flow,
+          patient_unique_id: patient_data.patient_unique_id,
+          tcv_id: existingToday?.tcv_id ?? 0,
+          tcbc_id: existingToday?.tcbc_id ?? 0,
+          dev_unique_id: existingToday?.dev_unique_id ?? 0,
+        }));
+      })
+      .catch(() => {
+        listVitalsPatientIdRef.current = null;
+      });
+  }, [visible, patient_data?.patient_unique_id, isAmbientMode, mode, fromVoiceRecording, genRxDetails?.type, dispatch]);
 
   useEffect(() => {
     if (audioBlob && audioBlob instanceof Blob) {
@@ -451,8 +508,6 @@ const ConsultationDrawer = ({
   const navigate = useNavigate();
 
   const { tcmId, consultationDate, pamId } = useContext(CashManagerContext);
-
-  const dispatch = useDispatch();
 
   const textAreaRef = useRef(null);
 
@@ -736,7 +791,13 @@ const ConsultationDrawer = ({
         selectedSymptomsCollector
       );
       setSymptomsCollectorData(formattedSymptomsCollectorData);
-      setPrescriptionData(formattedSymptomsCollectorData);
+      setPrescriptionData((prev) => {
+        const next = formattedSymptomsCollectorData;
+        const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+          ? next.labResults
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...next, labResults };
+      });
       setShowPrescription(true);
 
       if (!caseManagerData?.smart_prescription_filename) {
@@ -756,15 +817,14 @@ const ConsultationDrawer = ({
 
   const getGenRxDetails = async () => {
     try {
+      // First, call getGenRx to check the conversation field
       const initialResponse = await getGenRx(caseManagerData?.smart_prescription_filename);
-      if (!initialResponse.success || !initialResponse.data) {
-        throw new Error(initialResponse.error || "Failed to get Rx");
-      }
-      const payload = initialResponse.data ?? initialResponse.response;
-      const conversation = payload?.history?.[0]?.conversation;
-      const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
 
-      if (payload) {
+      if (initialResponse.success && initialResponse.data) {
+        // Check if conversation exists and has data in the history
+        const conversation = initialResponse.data?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+        
         // Set ambient mode based on conversation field
         if (hasConversation) {
           setIsAmbientMode(true);
@@ -775,12 +835,29 @@ const ConsultationDrawer = ({
             window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
           }
         }
-        const d = payload;
+        
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(caseManagerData?.smart_prescription_filename);
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // If conversation is null or empty, use the dictate mode response (initialResponse)
+
+        const payload = response.data ?? response.response;
+        if (response.success && payload) {
+          const d = payload;
           // Ambient = conversation in history (API returns history[].conversation, no rxDigitizationHistory)
           const isAmbient = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
 
-          // Prescription sources (priority): editedData → digitizeData → history[0].digitize
+          // Prescription sources (priority): editedData → digitizeData → refinedData → history[0].digitize
           let prescriptionData = d.editedData ?? d.digitizeData ?? null;
+          if (!prescriptionData) {
+            prescriptionData = d.refinedData ?? null;
+          }
           if (!prescriptionData) {
             const digitize = d.digitize ?? d.history?.[0]?.digitize;
             if (digitize && typeof digitize === "object" && !Array.isArray(digitize)) {
@@ -846,10 +923,25 @@ const ConsultationDrawer = ({
 
             const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
             if (validatedPrescriptionData) {
-              setPrescriptionData(validatedPrescriptionData);
+              setPrescriptionData((prev) => {
+                const next = validatedPrescriptionData;
+                const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
+                  ? next.labResults
+                  : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+                return { ...next, labResults };
+              });
               if (validatedPrescriptionData?.medicalHistory?.length > 0 && setMedicalHistoryData) {
                 const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionData.medicalHistory, medicalHistoryData);
                 setMedicalHistoryData(convertedData);
+              }
+              const vitals = validatedPrescriptionData.vitalsAndBodyComposition;
+              const rawVitalsInitial = prescriptionData.vitalsAndBodyComposition;
+              const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
+                Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+              if (hasResponseVitals) {
+                persistVitalsFromApiResponse(vitals).then(applyVitalsIdsToPrescription);
+              } else if (rawVitalsInitial && Object.keys(rawVitalsInitial).length > 0 && Object.values(rawVitalsInitial).some(v => String(v ?? '').trim().length > 10)) {
+                persistVitalsFromApiResponse(rawVitalsInitial).then(applyVitalsIdsToPrescription);
               }
             }
           }
@@ -927,6 +1019,7 @@ const ConsultationDrawer = ({
           if (transcriptSource && !caseManagerData?.smart_prescription_filename) {
             setFullTranscript(transcriptSource);
           }
+        }
         }
       } else {
         throw new Error(initialResponse?.error || "Failed to get Rx");
@@ -1157,7 +1250,7 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'spo2', 'ofc', 'height', 'weight'];
+    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA'];
     const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
       if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
       const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
@@ -1295,6 +1388,12 @@ const ConsultationDrawer = ({
       ? cleanedData.others.map((o) => (typeof o === "string" ? o : (o?.value ?? o?.name ?? ""))).filter(Boolean)
       : [];
     validatedData.dynamicFields = cleanedData.dynamicFields || {};
+    const rawLabResults = Array.isArray(cleanedData.labResults) ? cleanedData.labResults : (Array.isArray(cleanedData.lab_results) ? cleanedData.lab_results : []);
+    validatedData.labResults = rawLabResults.map((r) => ({
+      testname: r.testname ?? r.testName ?? r.name ?? "",
+      value: r.value != null ? String(r.value) : "",
+      notes: r.notes != null ? String(r.notes) : "",
+    }));
     return validatedData;
   };
 
@@ -1346,25 +1445,37 @@ const ConsultationDrawer = ({
       }
       digitizeData = { ...digitizeData, vitalsAndBodyComposition: mapped };
     }
+    // API may return labResults under refinedData, ocrData[0].extractions[0], or data.refinedData / data.ocrData; pull to top-level so Rx pad renders
+    const topLab = digitizeData.labResults ?? digitizeData.lab_results;
+    const fromRefined = digitizeData.refinedData?.labResults ?? digitizeData.data?.refinedData?.labResults;
+    const fromOcr = digitizeData.ocrData?.[0]?.extractions?.[0]?.labResults ?? digitizeData.data?.ocrData?.[0]?.extractions?.[0]?.labResults;
+    const labResults = (Array.isArray(topLab) && topLab.length > 0)
+      ? topLab
+      : (Array.isArray(fromRefined) && fromRefined.length > 0 ? fromRefined : (Array.isArray(fromOcr) && fromOcr.length > 0 ? fromOcr : []));
+    if (labResults.length > 0) digitizeData = { ...digitizeData, labResults };
+    const gynecRaw = digitizeData.gynecHistory ?? digitizeData.gyneacHistory;
+    const gynecHistory = normalizeGynecHistoryFromApi(gynecRaw);
+    if (Object.keys(gynecHistory).length > 0) {
+      digitizeData = { ...digitizeData, gynecHistory };
+    }
     return digitizeData;
   };
 
-  /** Whether Rx Pad has any content to send as previousContext (Repeat Rx, edits, or last API response). */
   const hasRxPadContent = (data) => {
     if (!data || typeof data !== "object") return false;
-    const arr = (key) => Array.isArray(data[key]) && data[key].length > 0;
-    if (arr("symptoms") || arr("medications") || arr("diagnosis") || arr("advice") || arr("examinations") || arr("labInvestigation") || arr("medicalHistory") || arr("vaccinations") || arr("others")) return true;
-    const v = data.vitalsAndBodyComposition;
-    if (v && typeof v === "object" && Object.values(v).some((val) => val != null && String(val).trim() !== "")) return true;
-    if (data.followUp && String(data.followUp).trim() !== "") return true;
+    const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
+    const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
+    if (hasArray(data.symptoms) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasVitals(data.vitalsAndBodyComposition)) return true;
+    if (data.followUp && String(data.followUp).trim()) return true;
+    if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
     return false;
   };
 
-  /** Map Rx pad prescription data to API digitizeData shape for previousContext (vitals field names). */
   const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
     if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
     const v = prescriptionData.vitalsAndBodyComposition;
-    if (!v || typeof v !== "object") return prescriptionData;
+    if (!v || typeof v !== "object") return { ...prescriptionData };
     const mapped = { ...v };
     if (mapped.respRate !== undefined) {
       mapped.respiratoryRate = mapped.respRate;
@@ -1379,7 +1490,8 @@ const ConsultationDrawer = ({
       delete mapped.ofc;
     }
     if (mapped.general_rbs !== undefined || mapped["General RBS"] !== undefined) {
-      mapped.genralRBS = mapped.general_rbs ?? mapped["General RBS"];
+      const val = mapped.general_rbs ?? mapped["General RBS"];
+      mapped.genralRBS = val;
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
@@ -1698,29 +1810,46 @@ const ConsultationDrawer = ({
                   formattedSymptomsCollectorData && Object.keys(formattedSymptomsCollectorData)?.length > 0
                     ? mergeData(validatedPrescriptionData, formattedSymptomsCollectorData)
                     : validatedPrescriptionData;
-
+                const labResults = (Array.isArray(finalPrescriptionData.labResults) && finalPrescriptionData.labResults.length > 0)
+                  ? finalPrescriptionData.labResults
+                  : (Array.isArray(prevData?.labResults) && prevData.labResults.length > 0 ? prevData.labResults : []);
                 return {
                   ...finalPrescriptionData,
+                  labResults,
                   dynamicFields: mergedDynamicFields,
                 };
               });
+              const vitals = validatedPrescriptionData.vitalsAndBodyComposition;
+              const rawVitalsAmbient = prescriptionData?.vitalsAndBodyComposition;
+              const hasResponseVitals = vitals && Object.keys(vitals).length > 0 &&
+                Object.values(vitals).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+              if (hasResponseVitals) {
+                persistVitalsFromApiResponse(vitals).then(applyVitalsIdsToPrescription);
+              } else if (rawVitalsAmbient && Object.keys(rawVitalsAmbient).length > 0 && Object.values(rawVitalsAmbient).some(v => String(v ?? '').trim().length > 10)) {
+                persistVitalsFromApiResponse(rawVitalsAmbient).then(applyVitalsIdsToPrescription);
+              }
             } else {
-              setPrescriptionData({
-                symptoms: [],
-                medications: [],
-                vitalsAndBodyComposition: {},
-                advice: [],
-                diagnosis: [],
-                examinations: [],
-                followUp: "",
-                labInvestigation: [],
-                medicalHistory: [],
-                vaccinations: [],
-                others: [],
-                dynamicFields: localModules.reduce((acc, moduleName) => {
-                  acc[moduleName] = [];
-                  return acc;
-                }, {}),
+              setPrescriptionData((prev) => {
+                const emptyPad = {
+                  symptoms: [],
+                  medications: [],
+                  vitalsAndBodyComposition: {},
+                  advice: [],
+                  diagnosis: [],
+                  examinations: [],
+                  followUp: "",
+                  labInvestigation: [],
+                  labResults: [],
+                  medicalHistory: [],
+                  vaccinations: [],
+                  others: [],
+                  dynamicFields: localModules.reduce((acc, moduleName) => {
+                    acc[moduleName] = [];
+                    return acc;
+                  }, {}),
+                };
+                const labResults = (Array.isArray(prev?.labResults) && prev.labResults.length > 0) ? prev.labResults : [];
+                return { ...emptyPad, labResults };
               });
             }
 
@@ -1843,10 +1972,10 @@ const ConsultationDrawer = ({
           if (!dataForParse) {
             throw new Error("No data received from API");
           }
-          // Rx pad: use editedData when present, else digitizeData
+          // Rx pad: use editedData when present, else digitizeData, else refinedData
           const editedDataDictate = dataForParse.editedData ?? null;
           const digitizeDataDictate = dataForParse.digitizeData ?? dataForParse.history?.[0]?.digitize ?? null;
-          const dataForPadDictate = digitizeDataDictate ?? editedDataDictate;
+          const dataForPadDictate = editedDataDictate ?? digitizeDataDictate ?? dataForParse.refinedData ?? null;
           if (digitizeDataDictate) lastDigitizeDataRef.current = digitizeDataDictate;
 
           let updatedTranscript = null;
@@ -1857,9 +1986,9 @@ const ConsultationDrawer = ({
             let conversationData = null;
 
             if (dataForPadDictate) {
-              prescriptionData = digitizeDataDictate
-                ? mapDigitizeDataToPrescription(digitizeDataDictate)
-                : (editedDataDictate?.symptoms !== undefined || editedDataDictate?.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate));
+              prescriptionData = editedDataDictate
+                ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
+                : mapDigitizeDataToPrescription(digitizeDataDictate ?? dataForParse.refinedData);
             }
             if (!prescriptionData && (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition)) {
               prescriptionData = responseData;
@@ -1935,12 +2064,39 @@ const ConsultationDrawer = ({
               
               const validatedPrescriptionDataForDictate = validatePrescriptionData(prescriptionData);
               if (validatedPrescriptionDataForDictate) {
-                setPrescriptionData(validatedPrescriptionDataForDictate);   
+                // Fetch lab results from GET API if not present in digitization response
+                const hasLabResultsFromApi = validatedPrescriptionDataForDictate.labResults && Array.isArray(validatedPrescriptionDataForDictate.labResults) && validatedPrescriptionDataForDictate.labResults.length > 0;
+                let labResultsToUse = hasLabResultsFromApi ? validatedPrescriptionDataForDictate.labResults : [];
+                if (!hasLabResultsFromApi && patient_data?.patient_unique_id) {
+                  try {
+                    const { getTodayLabResults } = await import('../utils/labResultsUtils');
+                    const fetchedLabResults = await getTodayLabResults(patient_data, false);
+                    if (fetchedLabResults && fetchedLabResults.length > 0) {
+                      labResultsToUse = fetchedLabResults;
+                      initiallyPopulatedSectionsRef.current.add('labResults');
+                    }
+                  } catch (err) {
+                    console.error('[Dictate] Failed to fetch lab results from GET API:', err);
+                  }
+                }
+
+                setPrescriptionData((prev) => {
+                  return { ...validatedPrescriptionDataForDictate, labResults: labResultsToUse };
+                });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
                 if (validatedPrescriptionDataForDictate.medicalHistory && Array.isArray(validatedPrescriptionDataForDictate.medicalHistory) && validatedPrescriptionDataForDictate.medicalHistory.length > 0 && setMedicalHistoryData) {
                   const convertedData = convertMedicalHistoryToContextFormat(validatedPrescriptionDataForDictate.medicalHistory, medicalHistoryData);
                   setMedicalHistoryData(convertedData);
+                }
+                const vitalsVoice = validatedPrescriptionDataForDictate.vitalsAndBodyComposition;
+                const rawVitals = prescriptionData.vitalsAndBodyComposition;
+                const hasResponseVitalsVoice = vitalsVoice && Object.keys(vitalsVoice).length > 0 &&
+                  Object.values(vitalsVoice).some(v => { const s = String(v ?? '').trim(); return s !== '' && s !== 'undefined' && s !== 'null'; });
+                if (hasResponseVitalsVoice) {
+                  persistVitalsFromApiResponse(vitalsVoice).then(applyVitalsIdsToPrescription);
+                } else if (rawVitals && Object.keys(rawVitals).length > 0 && Object.values(rawVitals).some(v => String(v ?? '').trim().length > 10)) {
+                  persistVitalsFromApiResponse(rawVitals).then(applyVitalsIdsToPrescription);
                 }
               }
             }
@@ -2101,15 +2257,22 @@ const ConsultationDrawer = ({
           };
         }),
       };
-      
+
+      // Do not send tcv_id, tcbc_id, dev_unique_id in patch payload
+      const editedDataForApi = { ...updatedPrescriptionData };
+      if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
+        const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        editedDataForApi.vitalsAndBodyComposition = vitalsRest;
+      }
+
       if (isAmbientMode && genRxDetails?.type === "ambient") {
         response = await editAmbientRxDetails(
-        { editedData: updatedPrescriptionData },
+        { editedData: editedDataForApi },
         genRxDetails?._id
       );
       } else {
         response = await editGenRxDetails(
-          { editedData: updatedPrescriptionData },
+          { editedData: editedDataForApi },
           genRxDetails?._id
         );
       }
@@ -2175,13 +2338,17 @@ const ConsultationDrawer = ({
       }
     });
 
-    // Return merged object
+    // Return merged object; data2 (e.g. symptoms collector) often has no labResults - do not let ...data2 overwrite data1.labResults
+    const labResults = (Array.isArray(data2?.labResults) && data2.labResults.length > 0)
+      ? data2.labResults
+      : (Array.isArray(data1?.labResults) && data1.labResults.length > 0 ? data1.labResults : []);
     return {
       ...data1,
       ...data2,
       symptoms: mergedSymptoms,
       medicalHistory: mergedMedicalHistory,
       dynamicFields: data1?.dynamicFields || data2?.dynamicFields || {},
+      labResults,
     };
   };
 
@@ -2597,6 +2764,107 @@ const ConsultationDrawer = ({
     }
   }, [setMedicalHistoryData, medicalHistoryData]);
 
+  // Voice/Ambient: when API returns vitals, call addVitals (single in-flight to avoid duplicate API calls)
+  const persistVitalsFromApiResponse = useCallback(async (vitalsAndBodyComposition) => {
+    if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object' || Object.keys(vitalsAndBodyComposition).length === 0 || !patient_data?.patient_unique_id) {
+      return null;
+    }
+    if (persistVitalsInFlightRef.current) return null;
+    persistVitalsInFlightRef.current = true;
+    try {
+    const v = vitalsAndBodyComposition;
+    const hasMeaningfulVitals = Object.values(v).some(val => {
+      const s = String(val ?? '').trim();
+      return s !== '' && s !== 'undefined' && s !== 'null';
+    });
+    if (!hasMeaningfulVitals) {
+      return null;
+    }
+    const today = moment().format('YYYY-MM-DD');
+    const patientMatch = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patient_data.patient_unique_id);
+    let tcv_id = (patientMatch ? listVitalsTodayIds.tcv_id : null) ?? 0;
+    let tcbc_id = (patientMatch ? listVitalsTodayIds.tcbc_id : null) ?? 0;
+    let dev_unique_id = (patientMatch ? listVitalsTodayIds.dev_unique_id : null) ?? 0;
+    if (!patientMatch || (tcv_id === 0 && tcbc_id === 0 && dev_unique_id === 0)) {
+      try {
+        const list = await dispatch(getVitals({
+          patient_unique_id: patient_data.patient_unique_id,
+          pam_id: patient_data.pam_id ?? 0,
+          mode: ADD,
+          pm_pid: patient_data.pm_pid ?? 0,
+          pm_id: patient_data.pm_id ?? 0,
+        })).unwrap();
+        const existingToday = Array.isArray(list) ? list.find((row) => (row.date || '').toString().startsWith(today)) : null;
+        if (existingToday) {
+          tcv_id = existingToday.tcv_id ?? 0;
+          tcbc_id = existingToday.tcbc_id ?? 0;
+          dev_unique_id = existingToday.dev_unique_id ?? 0;
+        }
+      } catch (e) {
+        // getVitals failed; proceed with 0 ids
+      }
+    }
+    let systolic = String(v.Systolic || v.systolic || '').trim();
+    let diastolic = String(v.Diastolic || v.diastolic || '').trim();
+    let blood_press = v.bloodPressure || v.blood_press || '';
+    if (blood_press && !systolic && !diastolic) {
+      const parts = String(blood_press).split('/');
+      if (parts.length >= 2) { systolic = parts[0].trim(); diastolic = parts[1].trim(); }
+    } else if (!blood_press && systolic && diastolic) blood_press = `${systolic}/${diastolic}`;
+    if (!systolic || !diastolic) blood_press = '';
+
+    const vitalsArray = [{
+      date: today,
+      temp: String(v.temperature || v.temp || '').trim(),
+      pres: String(v.pulse || v.pres || '').trim(),
+      resp_rate: String(v.respRate || v.resp_rate || '').trim(),
+      systolic,
+      diastolic,
+      ...(systolic && diastolic ? { blood_press } : {}),
+      spo2: String(v.spo2 || v.SPO2 || '').trim(),
+      height: String(v.height || v.Height || '').trim(),
+      weight: String(v.weight || v.Weight || '').trim(),
+      ofc: String(v.ofc || v.OFC || '').trim(),
+      sugar: String(v.sugar || v.Sugar || '').trim(),
+      general_rbs: String(v['General RBS'] || v.general_rbs || '').trim(),
+      fib4: String(v.FIB4 || v.fib4 || '').trim(),
+      waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
+      bmi: String(v.BMI || v.bmi || '').trim(),
+      bmr: String(v.BMR || v.bmr || '').trim(),
+      bsa: String(v.BSA || v.bsa || '').trim(),
+      tcv_id,
+      tcbc_id,
+      dev_unique_id
+    }];
+    const sendData = {
+      patient_unique_id: patient_data.patient_unique_id,
+      pm_pid: patient_data.pm_pid ?? 0,
+      pm_id: patient_data.pm_id ?? 0,
+      pam_id: patient_data.pam_id ?? 0,
+      patient_birth_weight: null,
+      data: vitalsArray
+    };
+    try {
+      const addRes = await ApiVitals.addUpdateVitals(sendData);
+      if (addRes?.status !== false && addRes?.statusCode !== 400 && addRes?.data?.length) {
+        const saved = addRes.data.find(row => (row.date || '').toString().startsWith(today)) || addRes.data[0];
+        const rid = { tcv_id: saved?.tcv_id ?? 0, tcbc_id: saved?.tcbc_id ?? 0, dev_unique_id: saved?.dev_unique_id ?? 0 };
+        dispatch(setVitalsIdsFromAddVitals({ flow: 'voice', patient_unique_id: patient_data.patient_unique_id, tcv_id: rid.tcv_id, tcbc_id: rid.tcbc_id, dev_unique_id: rid.dev_unique_id }));
+        return rid;
+      }
+    } catch (err) {
+      // addVitals failed; caller handles null
+    }
+    return null;
+    } finally {
+      persistVitalsInFlightRef.current = false;
+    }
+  }, [patient_data, listVitalsTodayIds, dispatch]);
+
+  const applyVitalsIdsToPrescription = useCallback((ids) => {
+    if (ids) setPrescriptionData((prev) => ({ ...prev, vitalsAndBodyComposition: { ...(prev.vitalsAndBodyComposition || {}), tcv_id: ids.tcv_id, tcbc_id: ids.tcbc_id, dev_unique_id: ids.dev_unique_id } }));
+  }, []);
+
   const handleFollowUpUpdate = useCallback((followUpText) => {
     setPrescriptionData((prevData) => ({
       ...prevData,
@@ -2685,11 +2953,193 @@ const ConsultationDrawer = ({
       medicines: sanitizedMedications,
     });
     handleUpdateGenRX(quantityActionMedicine, sanitizedMedications);
+
+    // Subsequent lab result API call only on End Visit: POST lab results if Rx pad has lab data (patientId and doctorId required in payload)
+    let resolvedLabReportID = labReportID;
+    const labPatientId = patient_data?.patient_unique_id;
+    const labDoctorId = tokenData?.user_id;
+    if (
+      prescriptionData?.labResults &&
+      Array.isArray(prescriptionData.labResults) &&
+      prescriptionData.labResults.length > 0 &&
+      labPatientId != null &&
+      labPatientId !== '' &&
+      labDoctorId != null &&
+      labDoctorId !== ''
+    ) {
+      try {
+        const results = prescriptionLabResultsToResultsArray(prescriptionData.labResults);
+        if (results.length > 0) {
+          const payload = {
+            patientId: labPatientId,
+            doctorId: labDoctorId,
+            results,
+          };
+          const response = await addPatientLabReports(payload);
+          const idFromResponse = response?.data?.labReportID ?? response?.data?.data?.labReportID;
+          if (idFromResponse != null) {
+            resolvedLabReportID = idFromResponse;
+          }
+        }
+      } catch (err) {
+        console.error("End Visit: failed to save lab results", err);
+      }
+    }
+
+    // Medical history: consult flow sends as-is (same as HeaderPrescription). Voice/ambient uses resolver for prescriptionData.medicalHistory.
+    const isVoiceOrAmbientEndVisit = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    const fromPrescription = prescriptionData?.medicalHistory;
+    const fromContext = medicalHistoryData;
+    let medicalHistoryForApi;
+    if (isVoiceOrAmbientEndVisit && Array.isArray(fromPrescription) && fromPrescription.length > 0) {
+      medicalHistoryForApi = await resolveMedicalHistoryForCaseManager(fromPrescription, {
+        getSectionsWithTags: () => ApiMedicalHistory.listSectionwithTag(),
+        addTag: (payload) => ApiMedicalHistory.addTag(payload),
+        searchTag: (payload) => ApiMedicalHistory.searchTag(payload),
+      });
+    } else {
+      medicalHistoryForApi = Array.isArray(fromContext) ? fromContext : [];
+    }
+
+    // Vitals for addCaseManager: fetch all today's vitals from addVitals API and send with their IDs (tcv_id, tcbc_id, dev_unique_id)
+    const isVoiceOrAmbientRx = isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
+    let vitalsForCase = [];
+    try {
+      const listPayload = {
+        patient_unique_id: patient_data.patient_unique_id,
+        pam_id: patient_data.pam_id ?? 0,
+        mode: ADD,
+        pm_pid: patient_data.pm_pid ?? 0,
+        pm_id: patient_data.pm_id ?? 0,
+      };
+      const allVitals = await dispatch(getVitals(listPayload)).unwrap().catch(() => []);
+      const today = moment().format("YYYY-MM-DD");
+      const todayVitals = Array.isArray(allVitals) ? allVitals.filter((v) => (v.date || "").toString().startsWith(today)) : [];
+
+      const patientInfo = patient_data ? {
+        age: patient_data.ageYears || patient_data.age || patient_data.pm_age,
+        gender: patient_data.pm_gender || patient_data.gender
+      } : {};
+      const hasRxPadVitals = prescriptionData?.vitalsAndBodyComposition && Object.keys(prescriptionData.vitalsAndBodyComposition).length > 0;
+      
+      if (hasRxPadVitals && todayVitals.length > 0) {
+        // Multiple vitals entries: send all with their respective IDs
+        vitalsForCase = todayVitals.map((vitalEntry) => {
+          let systolic = String(vitalEntry.blood_press || "").split("/")[0]?.trim() || "";
+          let diastolic = String(vitalEntry.blood_press || "").split("/")[1]?.trim() || "";
+          const vital = {
+            date: today,
+            temp: String(vitalEntry.temp || "").trim(),
+            pres: String(vitalEntry.pres || "").trim(),
+            resp_rate: String(vitalEntry.resp_rate || "").trim(),
+            systolic,
+            diastolic,
+            blood_press: vitalEntry.blood_press || "",
+            spo2: String(vitalEntry.spo2 || "").trim(),
+            height: String(vitalEntry.height || "").trim(),
+            weight: String(vitalEntry.weight || "").trim(),
+            ofc: String(vitalEntry.ofc || "").trim(),
+            sugar: String(vitalEntry.sugar || "").trim(),
+            general_rbs: String(vitalEntry.general_rbs || "").trim(),
+            fib4: String(vitalEntry.fib4 || "").trim(),
+            waist_circumference: String(vitalEntry.waist_circumference || "").trim(),
+            bmi: String(vitalEntry.bmi || "").trim(),
+            bmr: String(vitalEntry.bmr || "").trim(),
+            bsa: String(vitalEntry.bsa || "").trim(),
+            tcv_id: Number(vitalEntry.tcv_id ?? 0),
+            tcbc_id: Number(vitalEntry.tcbc_id ?? 0),
+            dev_unique_id: Number(vitalEntry.dev_unique_id ?? 0),
+            pam_id: patient_data?.pam_id ?? pamId ?? 0,
+          };
+          return enrichVitalsWithCalculations(vital, patientInfo);
+        });
+      } else if (hasRxPadVitals) {
+        // Single vital entry from Rx Pad
+        const sanitizeVitalsValue = (key, value) => {
+          if (key === 'tcv_id' || key === 'tcbc_id' || key === 'dev_unique_id' || key === 'pam_id' || key === 'date') {
+            return value;
+          }
+          if (value === undefined || value === null) return "";
+          const str = String(value).trim();
+          if (key === 'bloodPressure' || key === 'blood_press') {
+            return str.replace(/[^0-9/.-]/g, '').replace(/\/+/g, '/');
+          }
+          if (key === 'general_rbs' || key === 'General RBS' || key === 'ofc' || key === 'OFC' || key === 'fib4' || key === 'FIB4') {
+            return str;
+          }
+          return str.replace(/[^0-9.-]/g, '');
+        };
+        const cleanVitals = Object.fromEntries(
+          Object.entries(prescriptionData.vitalsAndBodyComposition || {}).map(([k, v]) => [k, sanitizeVitalsValue(k, v)])
+        );
+
+        let systolic = String(cleanVitals.Systolic || cleanVitals.systolic || '').trim();
+        let diastolic = String(cleanVitals.Diastolic || cleanVitals.diastolic || '').trim();
+        let blood_press = cleanVitals.bloodPressure || cleanVitals.blood_press || '';
+
+        if (blood_press && !systolic && !diastolic) {
+          const bpParts = String(blood_press).split('/');
+          if (bpParts.length === 2) {
+            systolic = bpParts[0].trim();
+            diastolic = bpParts[1].trim();
+          }
+        }
+        if (!systolic || !diastolic) {
+          blood_press = '';
+        } else if (!blood_press) {
+          blood_press = `${systolic}/${diastolic}`;
+        }
+
+        const rxPadVital = {
+          date: today,
+          temp: String(cleanVitals.temperature || cleanVitals.temp || '').trim(),
+          pres: String(cleanVitals.pulse || cleanVitals.pres || '').trim(),
+          resp_rate: String(cleanVitals.respRate || cleanVitals.resp_rate || '').trim(),
+          systolic,
+          diastolic,
+          spo2: String(cleanVitals.spo2 || cleanVitals.SPO2 || '').trim(),
+          height: String(cleanVitals.height || cleanVitals.Height || '').trim(),
+          weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
+          ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
+          sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
+          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
+          fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
+          waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
+          bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
+          bmr: String(cleanVitals.BMR || cleanVitals.bmr || '').trim(),
+          bsa: String(cleanVitals.BSA || cleanVitals.bsa || '').trim(),
+          tcv_id: Number(cleanVitals.tcv_id ?? 0),
+          tcbc_id: Number(cleanVitals.tcbc_id ?? 0),
+          dev_unique_id: Number(cleanVitals.dev_unique_id ?? 0),
+          pam_id: patient_data?.pam_id ?? pamId ?? 0,
+        };
+        if (systolic && diastolic) {
+          rxPadVital.blood_press = blood_press;
+        }
+        const enrichedRxPadVital = enrichVitalsWithCalculations(rxPadVital, patientInfo);
+        vitalsForCase = [enrichedRxPadVital];
+      }
+      // Clean blood_press if systolic/diastolic missing
+      vitalsForCase = vitalsForCase.map(v => {
+        const cleaned = { ...v };
+        const systolic = String(cleaned.systolic || '').trim();
+        const diastolic = String(cleaned.diastolic || '').trim();
+        if (!systolic || !diastolic) {
+          cleaned.blood_press = '';
+        }
+        return cleaned;
+      });
+    } catch (err) {
+      console.error("Error building vitals for case manager payload:", err);
+    }
+
+    const patientId = patient_data?.patient_unique_id ?? 0;
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
-      patient_unique_id:
-        patient_data !== undefined ? patient_data.patient_unique_id : 0,
+      patient_unique_id: patientId,
       pam_id:
         patient_data !== undefined
           ? patient_data.hasOwnProperty("pam_id")
@@ -2697,8 +3147,12 @@ const ConsultationDrawer = ({
             : pamId
           : 0,
       consultation_date: consultationDate,
+      consultation_start_datetime: consultationDate ,
       smart_prescription_filename: genRxDetails?._id,
-      labReportID: labReportID,
+      labReportID: resolvedLabReportID,
+      medical_history: medicalHistoryForApi,
+      private_notes_id: 0,
+      ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
     };
 
     const action =
@@ -2707,6 +3161,12 @@ const ConsultationDrawer = ({
         : await dispatch(editCaseManager(sendData));
 
     if (action.meta.requestStatus === "fulfilled") {
+      dispatch(clearListVitalsToday());
+      const isSnapSmartVoiceAmbient = isVoiceOrAmbientRx || genRxDetails?.type === 'snap' || genRxDetails?.type === 'smart';
+      if (isSnapSmartVoiceAmbient && patientId && (userId !== undefined && userId !== null)) {
+        const rxGynec = getNormalizedGynecHistory(prescriptionData ?? {});
+        syncGynecHistoryAfterEndVisit(patientId, userId, rxGynec, { getGynecDetails, postGynecDetails, updateGynecDetails });
+      }
       message.open({
         key: MESSAGE_KEY,
         type: "",
@@ -3224,123 +3684,32 @@ const ConsultationDrawer = ({
   };
 
   const handleBack = () => {
-    // Check if we're in ambient mode
-    if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-      // Navigate to Voice Rx Consult page (mode selection)
-      navigate("/voice-rx-consult", {
-        replace: true,
-        state: {
-          patient_data,
-        },
-      });
-    } else {
-      // For non-ambient mode, just close the drawer
-    onClose();
-    navigate("/voice-rx-consult", {
-        replace: true,
-      state: {
-        patient_data,
-      },
-    });
+    if (!(isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
+      onClose();
     }
+    navigate("/voice-rx-consult", { replace: true, state: { patient_data } });
   };
 
-  // Helper function to convert API medicalHistory format to CashManagerContext format
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
-    if (!apiMedicalHistory || !Array.isArray(apiMedicalHistory) || apiMedicalHistory.length === 0) {
-      return existingContextData || [];
-    }
-
-    // Map API types to tmmhs_id: Lifestyle=1, Medical Condition=2, Family History=3, Allergies=4, Surgical History=5
-    const typeToIdMap = {
-      'Lifestyle': 1,
-      'Medical Condition': 2,
-      'Family History': 3,
-      'Allergies': 4,
-      'Surgical History': 5,
-      'lifestyle': 1,
-      'medical_condition': 2,
-      'family_history': 3,
-      'allergies': 4,
-      'surgical_history': 5
-    };
-
-    // Group by type
-    const groupedByType = {};
-    apiMedicalHistory.forEach(item => {
-      const type = item.type || 'Lifestyle';
-      const normalizedType = type.toLowerCase().replace(/\s+/g, '_');
-      if (normalizedType === 'others' || type === 'others' || type === 'Additional Notes' || normalizedType === 'additional_notes') {
-        return; 
-      }
-      const mappedType = typeToIdMap[type] || typeToIdMap[normalizedType] || 1;
-      const sectionName = type === 'Lifestyle' ? 'Lifestyle' : 
-                         type === 'Medical Condition' || normalizedType === 'medical_condition' ? 'Medical Condition' :
-                         type === 'Family History' || normalizedType === 'family_history' ? 'Family History' :
-                         type === 'Allergies' || normalizedType === 'allergies' ? 'Allergies' :
-                         type === 'Surgical History' || normalizedType === 'surgical_history' ? 'Surgical History' : 'Lifestyle';
-      
-      if (!groupedByType[mappedType]) {
-        groupedByType[mappedType] = {
-          tmmhs_id: mappedType,
-          section_name: sectionName,
-          tags: []
-        };
-      }
-      let tagTitle = item.name || '';
-      let tagEnable = item.enable || 'Y';
-      if (!item.enable) {
-        const nameToCheck = item.name || item.lineItem || '';
-        if (nameToCheck.trim().toLowerCase().startsWith('no ')) {
-          tagTitle = nameToCheck.trim().substring(3); 
-          tagEnable = 'N';
-        }
-      }
-      
-      // Create tag object
-      const tag = {
-        tmmhst_id: Date.now() + Math.random(),
-        title: tagTitle,
-        enable: tagEnable,
-        note: item.notes || '',
-        since: item.duration || '',
-        status: 'Active',
-        relationship: item.relation || ''
-      };
-      
-      groupedByType[mappedType].tags.push(tag);
-    });
-
-    // Convert to array format
-    const medicalHistoryDataArray = Object.values(groupedByType);
-
-    // Merge with existing medicalHistoryData if available
+    const medicalHistoryDataArray = prescriptionMedicalHistoryToContextFormat(apiMedicalHistory);
+    if (!medicalHistoryDataArray || medicalHistoryDataArray.length === 0) return existingContextData || [];
+    const groupedByType = medicalHistoryDataArray.reduce((acc, s) => ({ ...acc, [s.tmmhs_id]: s }), {});
     if (existingContextData && existingContextData.length > 0) {
       const merged = existingContextData.map(existingSection => {
         const apiSection = groupedByType[existingSection.tmmhs_id];
         if (apiSection) {
-          // Merge tags, avoiding duplicates
-          const existingTagNames = new Set(existingSection.tags.map(t => t.title?.toLowerCase()));
-          const newTags = apiSection.tags.filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
-          return {
-            ...existingSection,
-            tags: [...existingSection.tags, ...newTags]
-          };
+          const existingTagNames = new Set((existingSection.tags || []).map(t => t.title?.toLowerCase()));
+          const newTags = (apiSection.tags || []).filter(tag => !existingTagNames.has(tag.title?.toLowerCase()));
+          return { ...existingSection, tags: [...(existingSection.tags || []), ...newTags] };
         }
         return existingSection;
       });
-
-      // Add sections that don't exist in existing data
-      Object.values(groupedByType).forEach(apiSection => {
-        if (!merged.find(s => s.tmmhs_id === apiSection.tmmhs_id)) {
-          merged.push(apiSection);
-        }
+      medicalHistoryDataArray.forEach(apiSection => {
+        if (!merged.some(s => s.tmmhs_id === apiSection.tmmhs_id)) merged.push(apiSection);
       });
-
       return merged;
-    } else {
-      return medicalHistoryDataArray;
     }
+    return medicalHistoryDataArray;
   }, []);
 
   return (
@@ -3348,6 +3717,7 @@ const ConsultationDrawer = ({
       placement="right"
       onClose={onClose}
       open={visible}
+      destroyOnClose
       className={`${styles.consultationDrawer} bg-body`}
       closeIcon={false}
       width={showPrescription ? "100%" : (isMobile ? "100%" : "750px")}
@@ -3938,6 +4308,8 @@ const ConsultationDrawer = ({
                       setLocalModules={setLocalModules}
                       onRxEdited={() => setIsRxEdited(true)}
                       isProcessing={isProcessing}
+                      patient_data={patient_data}
+                      skipAutoLabResultsLogic={!(isAmbientMode || mode === 'ambient' || mode === 'dictation' || fromVoiceRecording || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient')}
                     />
                   </div>
                   <div

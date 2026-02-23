@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-import { ADD, EDIT } from "../utils/constants";
-
 import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 
 const initialState = {

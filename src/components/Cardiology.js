@@ -81,6 +81,7 @@ import AbhaSyncButton from "./AbhaSyncButton";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
 import { useGrounding } from "../hooks/useGrounding";
+import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -1305,6 +1306,26 @@ function Cardiology(props) {
         ? snapRxDigitisedData
         : rxDigitisedData?.editedData;
 
+    if (type === "gynecHistory") {
+      const gynec = getNormalizedGynecHistory(data ?? {});
+      const lines = formatGynecDisplayLines(gynec);
+      if (lines.length === 0) return null;
+      return (
+        <div className="digitised-data-section">
+          <ul>
+            {lines.map((line, index) => (
+              <li key={index}>
+                <div className="medicine-item">
+                  <span>{line}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    const vitalsObj = data?.vitals || data?.vitalsAndBodyComposition || {};
     const hasVitalsContent = (obj) =>
       obj && typeof obj === "object" && Object.values(obj).some((val) => val != null && String(val).trim() !== "");
     const vitalsObj =
@@ -1633,7 +1654,8 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              const itemName = item?.name || item?.condition || 'N/A';
+              const lineItemStr = (item?.lineItem || '').trim();
+              const itemName = lineItemStr || item?.name || item?.condition || 'N/A';
               const details = [];
               
               if (item?.duration && item.duration !== '') {
@@ -1684,7 +1706,25 @@ function Cardiology(props) {
     if (type === "medicalHistory") {
       return renderMedicalHistoryGrouped();
     }
-    
+    if (type === "gynecHistory") {
+      const gynec = getNormalizedGynecHistory(genRxData ?? {});
+      const lines = formatGynecDisplayLines(gynec);
+      if (lines.length === 0) return null;
+      return (
+        <div className="digitised-data-section" style={{ marginLeft: 0 }}>
+          <ol>
+            {lines.map((line, index) => (
+              <li key={index}>
+                <div className="medicine-item">
+                  <span>{line}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+    }
+
     return (
     <div className="digitised-data-section" style={{ marginLeft: 0 }}>
       <ol>
@@ -2354,6 +2394,17 @@ function Cardiology(props) {
                         </>
                       )}
 
+                    {genRxData && !isGynecDataEmpty(getNormalizedGynecHistory(genRxData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderGenRxItems("gynecHistory")}
+                      </>
+                    )}
+
                     {genRxData?.symptoms && genRxData?.symptoms.length > 0 && (
                       <>
                         <div className="d-flex align-items-start">
@@ -2593,6 +2644,22 @@ function Cardiology(props) {
                           {renderItems("medicalHistory")}
                         </>
                       )}
+
+                    {rxDigitisedData?.editedData && !isGynecDataEmpty(getNormalizedGynecHistory(rxDigitisedData.editedData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <img
+                            className="me-2"
+                            src={medicalHistoryIcon}
+                            alt="GynecHistory"
+                          />
+                          <div className="title-digitise-section mb-1">
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderItems("gynecHistory")}
+                      </>
+                    )}
 
                     {rxDigitisedData?.editedData?.symptoms &&
                       hasValidContent(
@@ -2886,6 +2953,22 @@ function Cardiology(props) {
                           {renderItems("medicalHistory")}
                         </>
                       )}
+
+                    {snapRxDigitisedData && !isGynecDataEmpty(getNormalizedGynecHistory(snapRxDigitisedData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <img
+                            className="me-2"
+                            src={medicalHistoryIcon}
+                            alt="GynecHistory"
+                          />
+                          <div className="title-digitise-section mb-1">
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderItems("gynecHistory")}
+                      </>
+                    )}
 
                     {snapRxDigitisedData?.symptoms &&
                       hasValidContent(snapRxDigitisedData, "symptoms") && (
