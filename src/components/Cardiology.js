@@ -2253,7 +2253,11 @@ function Cardiology(props) {
         <img src={draftIcon} alt="Draft" className="me-1" />
         This Rx is in <span className="fw-bold">draft</span>!{" "}
         {canResumeDraftRx && (
-          <>Please <span className="fw-bold">resume</span> to proceed.</>
+          (isMobile && !isTablet) ? (
+            <>Please <span className="fw-bold">Resume from desktop/tab</span> to proceed.</>
+          ) : (
+            <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+          )
         )}
       </div>
     );
