@@ -52,6 +52,7 @@ import {
   S_AMBIENT_VOICE_RX,
   S_VOICE_RX,
   PAID,
+  GB_SAVE_AS_DRAFT_RX,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -84,6 +85,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useGrounding } from "../hooks/useGrounding";
+import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -112,7 +114,10 @@ function Cardiology(props) {
     isLastConsultation,
     opthalPrescriptionHistory,
   } = props;
+  
   const {is_draft} = viewCaseManagerData || {};
+  const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
+  const canResumeDraftRx = viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB;
 
   const normalizeEyeLabel = useCallback((eye) => {
     const normalized = String(eye || "").toUpperCase();
@@ -1531,7 +1536,31 @@ function Cardiology(props) {
         ? snapRxDigitisedData
         : rxDigitisedData?.editedData;
 
-    const vitalsObj = data?.vitals || data?.vitalsAndBodyComposition || {};
+    if (type === "gynecHistory") {
+      const gynec = getNormalizedGynecHistory(data ?? {});
+      const lines = formatGynecDisplayLines(gynec);
+      if (lines.length === 0) return null;
+      return (
+        <div className="digitised-data-section">
+          <ul>
+            {lines.map((line, index) => (
+              <li key={index}>
+                <div className="medicine-item">
+                  <span>{line}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    const hasVitalsContent = (obj) =>
+      obj && typeof obj === "object" && Object.values(obj).some((val) => val != null && String(val).trim() !== "");
+    const vitalsObj =
+      type === "vitals"
+        ? ([data?.vitals, data?.vitalsAndBodyComposition].find(hasVitalsContent) || {})
+        : data?.vitals || data?.vitalsAndBodyComposition || {};
     const arrayForType =
       type === "examination" || type === "examinations"
         ? (data?.examinations || data?.examination || [])
@@ -1575,9 +1604,15 @@ function Cardiology(props) {
                       ? item
                       : type === "symptoms"
                       ? (() => {
-                          const text = (item?.name || item?.lineItem || "").trim();
-                          if (!text) return "";
-                          return item?.name ? (text[0]?.toUpperCase() + text.slice(1)) : text;
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return lineItem ? `${name} (${lineItem})` : name;
+                          }
+                          return lineItem || "";
                         })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
@@ -1602,6 +1637,18 @@ function Cardiology(props) {
                             ? `${testname} (${value})`
                             : testname || value || "";
                         })()
+                      : type === "diagnosis" || type === "examination" || type === "examinations"
+                      ? (() => {
+                          const name = (item?.name || "").trim();
+                          const lineItem = (item?.lineItem || "").trim();
+                          if (name) {
+                            if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
+                              return lineItem;
+                            }
+                            return lineItem ? `${name} (${lineItem})` : name;
+                          }
+                          return lineItem || "";
+                        })()
                       : type === "dynamicFields"
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
@@ -1619,6 +1666,9 @@ function Cardiology(props) {
                     type === "examinations" ||
                     type === "examination" ||
                     type === "diagnosis") && (() => {
+                    if ((type === "symptoms" || type === "diagnosis" || type === "examination" || type === "examinations") && (item?.lineItem || "").trim()) {
+                        return null;
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -1634,7 +1684,12 @@ function Cardiology(props) {
                           item?.relation && item?.relation !== '' ? item?.relation : null,
                           item?.findings && item?.findings !== '' ? item?.findings : null,
                         ].filter(Boolean).join(', ')
-                      : (item?.lineItem && item?.lineItem !== '' ? item?.lineItem : null);
+                      : (() => {
+                          const nameStr = (item?.name || "").trim();
+                          const lineItemStr = (item?.lineItem || "").trim();
+                          if (!lineItemStr) return null;
+                          return nameStr ? lineItemStr : null;
+                        })();
                     return details && (
                       <span> ({details})</span>
                     );
@@ -1715,6 +1770,9 @@ function Cardiology(props) {
                 <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
                   {capitalize(
                     (() => {
+                      if (item?.metadata?.selectedValue) {
+                        return item.metadata.selectedValue;
+                      }
                       const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
                       if (isGroundingAccessable) {
                         const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
@@ -1756,7 +1814,7 @@ function Cardiology(props) {
 
   // Render lab investigation in tabular format
   const renderLabInvestigationTable = () => {
-    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.tests || [];
+    const labInvestigation = genRxData?.labInvestigation || snapRxDigitisedData?.labInvestigation || snapRxDigitisedData?.tests || rxDigitisedData?.editedData?.labInvestigation || rxDigitisedData?.editedData?.tests || [];
     if (!labInvestigation || labInvestigation.length === 0) return null;
 
     return (
@@ -1825,7 +1883,8 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              const itemName = item?.name || item?.condition || 'N/A';
+              const lineItemStr = (item?.lineItem || '').trim();
+              const itemName = lineItemStr || item?.name || item?.condition || 'N/A';
               const details = [];
               
               if (item?.duration && item.duration !== '') {
@@ -1876,7 +1935,25 @@ function Cardiology(props) {
     if (type === "medicalHistory") {
       return renderMedicalHistoryGrouped();
     }
-    
+    if (type === "gynecHistory") {
+      const gynec = getNormalizedGynecHistory(genRxData ?? {});
+      const lines = formatGynecDisplayLines(gynec);
+      if (lines.length === 0) return null;
+      return (
+        <div className="digitised-data-section" style={{ marginLeft: 0 }}>
+          <ol>
+            {lines.map((line, index) => (
+              <li key={index}>
+                <div className="medicine-item">
+                  <span>{line}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      );
+    }
+
     return (
     <div className="digitised-data-section" style={{ marginLeft: 0 }}>
       <ol>
@@ -1949,6 +2026,9 @@ function Cardiology(props) {
               detailText.trim().toLowerCase().startsWith(displayName.trim().toLowerCase());
 
             const baseName = (() => {
+              if (item?.metadata?.selectedValue) {
+                return item.metadata.selectedValue;
+              }
               if (isGroundingAccessable) {
                 const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                 if (isFuzzySearchEmpty) {
@@ -2168,13 +2248,12 @@ function Cardiology(props) {
   };
 
   const DraftRxAlert = () => {
-    const sameDoctor = viewCaseManagerData?.doctor_data?.um_id === userId;
     return (
       <div className="draft-rx-alert">
         <img src={draftIcon} alt="Draft" className="me-1" />
         This Rx is in <span className="fw-bold">draft</span>!{" "}
-        {sameDoctor && (
-          <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+        {canResumeDraftRx && (
+          <>Please <span className="fw-bold">resume</span> to proceed.</>
         )}
       </div>
     );
@@ -2679,6 +2758,17 @@ function Cardiology(props) {
                         </>
                       )}
 
+                    {genRxData && !isGynecDataEmpty(getNormalizedGynecHistory(genRxData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderGenRxItems("gynecHistory")}
+                      </>
+                    )}
+
                     {genRxData?.symptoms && genRxData?.symptoms.length > 0 && (
                       <>
                         <div className="d-flex align-items-start">
@@ -2918,6 +3008,22 @@ function Cardiology(props) {
                           {renderItems("medicalHistory")}
                         </>
                       )}
+
+                    {rxDigitisedData?.editedData && !isGynecDataEmpty(getNormalizedGynecHistory(rxDigitisedData.editedData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <img
+                            className="me-2"
+                            src={medicalHistoryIcon}
+                            alt="GynecHistory"
+                          />
+                          <div className="title-digitise-section mb-1">
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderItems("gynecHistory")}
+                      </>
+                    )}
 
                     {rxDigitisedData?.editedData?.symptoms &&
                       hasValidContent(
@@ -3211,6 +3317,22 @@ function Cardiology(props) {
                           {renderItems("medicalHistory")}
                         </>
                       )}
+
+                    {snapRxDigitisedData && !isGynecDataEmpty(getNormalizedGynecHistory(snapRxDigitisedData)) && (
+                      <>
+                        <div className="d-flex align-items-start">
+                          <img
+                            className="me-2"
+                            src={medicalHistoryIcon}
+                            alt="GynecHistory"
+                          />
+                          <div className="title-digitise-section mb-1">
+                            Gynec History
+                          </div>
+                        </div>
+                        {renderItems("gynecHistory")}
+                      </>
+                    )}
 
                     {snapRxDigitisedData?.symptoms &&
                       hasValidContent(snapRxDigitisedData, "symptoms") && (
