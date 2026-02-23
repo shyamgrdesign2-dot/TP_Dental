@@ -22,11 +22,16 @@ const VitalsRichTextEditor = ({
   patient_data,
   vitalsFlow,
 }) => {
-  const mergedVitals = mergedVitalsProp ?? vitalsAndBodyComposition;
   const [vitalsDrawer, setVitalsDrawer] = useState(false);
   const previousVitalsRef = useRef(vitalsAndBodyComposition);
   const editorKeysRef = useRef(new Set());
+
   const mergedVitals = useMemo(() => {
+    // Use mergedVitalsProp if provided, otherwise process vitalsAndBodyComposition
+    if (mergedVitalsProp) {
+      return mergedVitalsProp;
+    }
+    
     const rxPadVitals = vitalsAndBodyComposition || {};
     const keyMapping = {
       'temp': 'temperature',
@@ -105,7 +110,7 @@ const VitalsRichTextEditor = ({
     }
 
     return cleanedVitals;
-  }, [vitalsAndBodyComposition, patient_data]);
+  }, [mergedVitalsProp, vitalsAndBodyComposition, patient_data]);
 
   const extractNumericValue = (value, unit) => {
     if (!value) return value;

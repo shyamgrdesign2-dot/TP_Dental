@@ -114,7 +114,6 @@ import { enrichVitalsWithCalculations } from "../utils/vitalsCalculations";
 import { getNormalizedGynecHistory, normalizeGynecHistoryFromApi, syncGynecHistoryAfterEndVisit } from "../utils/gynecHistoryUtils";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import { getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday, resetVitalsState } from "../redux/vitalsSlice";
-import moment from "moment";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
