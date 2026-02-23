@@ -1039,17 +1039,19 @@ const LabResultsTable = ({
             }
             onChange={(e) => onSearch(e.target.value)}
           />
-          <div className="position-relative">
-            <Button className="btn btn-primary2 btn-41">Add New Date</Button>
-            <DatePicker
-              key={Math.random()}
-              suffixIcon={null}
-              inputReadOnly
-              onChange={(date, dateString) => handleAddNewDate(dateString)}
-              disabledDate={disabledDate}
-              className="calender-labparams"
-            />
-          </div>
+          {!applyRawPrefill && (
+            <div className="position-relative">
+              <Button className="btn btn-primary2 btn-41">Add New Date</Button>
+              <DatePicker
+                key={Math.random()}
+                suffixIcon={null}
+                inputReadOnly
+                onChange={(date, dateString) => handleAddNewDate(dateString)}
+                disabledDate={disabledDate}
+                className="calender-labparams"
+              />
+            </div>
+          )}
         </div>
 
         <div style={{ overflowX: "auto", margin: "8px" }}>

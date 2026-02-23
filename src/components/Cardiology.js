@@ -1648,7 +1648,8 @@ function Cardiology(props) {
             </div>
             
             {items.map((item, itemIndex) => {
-              const itemName = item?.name || item?.condition || 'N/A';
+              const lineItemStr = (item?.lineItem || '').trim();
+              const itemName = lineItemStr || item?.name || item?.condition || 'N/A';
               const details = [];
               
               if (item?.duration && item.duration !== '') {

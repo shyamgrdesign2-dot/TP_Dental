@@ -25,7 +25,6 @@ import {
     addTag,
     searchTag
 } from "../redux/medicalhistorySlice";
-import { useMedicalHistorySectionsWithTags } from "../hooks/useMedicalHistorySectionsWithTags";
 import { useLocation } from "react-router-dom";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
@@ -41,13 +40,13 @@ const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, isVoiceAmbientSnapSmartFlow = false, gynecOnly = false, initialGynecHistory } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory } = props
     const { TabPane } = Tabs;
     const {
         searchList,
+        defaultList,
         loading,
     } = useSelector((state) => state.medicalhistory);
-    const { data: defaultList = [], isLoading: defaultListLoading, error: defaultListError } = useMedicalHistorySectionsWithTags();
     const { profile, userId } = useSelector((state) => state.doctors);
     const dispatch = useDispatch();
 
@@ -114,7 +113,7 @@ function MedicalHistoryBox(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state || {};
+    const { patient_data, caseManagerData } = state ;
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -285,11 +284,9 @@ function MedicalHistoryBox(props) {
         setActiveTab(key);
     };
 
-    // Consult flow only: fetch sections when defaultList is empty (e.g. drawer opened). Skip in voice/ambient/snap/smart so consult behavior is unchanged.
     useEffect(() => {
-        if (isVoiceAmbientSnapSmartFlow) return;
-        defaultList.length === 0 && dispatch(listSectionwithTag());
-    }, [handleDrawerMedicalHistory, defaultList.length, dispatch, isVoiceAmbientSnapSmartFlow]);
+        dispatch(listSectionwithTag());
+    }, [dispatch]);
 
     useEffect(() => {
         const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -301,51 +298,52 @@ function MedicalHistoryBox(props) {
         }
     }, []);
 
+    // Voice/ambient/snap/smart: show only prescription data (no merge). Consult: merge defaultList with context.
     useEffect(() => {
       if (defaultList?.length > 0) {
         try {
             const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
             const sourceData = overrideMedicalHistoryData ?? medicalHistoryData;
-            const data2 = Array.isArray(sourceData) ? JSON.parse(JSON.stringify(sourceData)) : [];
-
-            const findMatchingTag = (sectionData2, tagFromData1) => {
-                if (!sectionData2?.tags) return null;
-                const byId = sectionData2.tags.find(x1 => x1?.tmmhst_id === tagFromData1?.tmmhst_id);
-                if (byId) return byId;
-                const title1 = (tagFromData1?.title || '').trim().toLowerCase();
-                if (!title1) return null;
-                return sectionData2.tags.find(x1 => (x1?.title || '').trim().toLowerCase() === title1) || null;
-            };
-
-            const mergedArray = data2?.length > 0 ? [
-            ...data1?.map(e => {
-                const sectionData2 = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
+            const data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
+            const isPrescriptionOnly = overrideMedicalHistoryData != null;
+            const mergedArray = data1?.map(e => {
+                const sectionFromSource = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
+                if (isPrescriptionOnly) {
+                    // Voice/ambient/snap/smart: display only prescription medical history (no merging)
+                    return {
+                        ...e,
+                        ...(sectionFromSource || {}),
+                        tags: sectionFromSource?.tags ?? [],
+                    };
+                }
+                // Consult: merge defaultList with context (prod behavior)
+                if (!data2?.length) {
+                    return e;
+                }
                 return {
-                ...e,
-                ...(sectionData2 || {}),
-                tags: [
-                ...(e?.tags || [])?.map(tag => ({
-                    ...tag,
-                    ...(findMatchingTag(sectionData2, tag) || {})
-                })),
-                ...(sectionData2?.tags || [])?.filter(item2 =>
-                    !(e?.tags || [])?.some(item1 =>
-                    item1?.tmmhst_id === item2?.tmmhst_id ||
-                    (item1?.title || '').trim().toLowerCase() === (item2?.title || '').trim().toLowerCase()
-                    )
-                )
-                ],
-            };
-            })
-            ] : data1;
-
+                    ...e,
+                    ...(sectionFromSource || {}),
+                    tags: [
+                        ...(e?.tags || [])?.map(tag => ({
+                            ...tag,
+                            ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                        })),
+                        ...(sectionFromSource?.tags || [])?.filter(item2 =>
+                            !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                        )
+                    ],
+                };
+            }) ?? data1;
             setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
         }
-        }
-    }, [defaultList, overrideMedicalHistoryData, medicalHistoryData]);
+      }
+    // defaultList always; overrideMedicalHistoryData so voice/ambient/snap/smart updates when prescription changes.
+    // medicalHistoryData intentionally omitted for consult: merge runs only when defaultList changes (prod behavior).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultList, overrideMedicalHistoryData]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
@@ -613,25 +611,12 @@ function MedicalHistoryBox(props) {
     }, []);
 
     const onAddEditSaveClick = async () => {
-        // Build addTag payload to match API: { tmmhs_id, title, tags: [{ tmmhst_id, title, pms_default, unique_id }] }
-        const tagsForApi = (addEditData.tags || [])
-            .filter((tag) => !tag.delete)
-            .map((tag) => ({
-                tmmhst_id: tag.tmmhst_id ?? 0,
-                title: (tag.title || '').trim(),
-                pms_default: tag.pms_default !== undefined && tag.pms_default !== null ? tag.pms_default : 0,
-                unique_id: tag.unique_id || uuidv4(),
-            }))
-        const sendData = {
-            tmmhs_id: addEditData.tmmhs_id,
-            title: addEditData.title || addEditData.section_name || '',
-            tags: tagsForApi,
-        }
+        const sendData = JSON.parse(JSON.stringify(addEditData));
         const action = await dispatch(addTag(sendData));
         if (action.meta.requestStatus === "fulfilled") {
             setAddEditData(null)
             if (action.payload.tags.length > 0) {
-                const updatedData = action.payload?.tags?.map((e, i) => {
+                const updatedData = action.payload?.tags?.map((e) => {
                     const data = sendData?.tags?.find(e1 => e1.unique_id == e.unique_id)
                     return { ...data, ...e };
                 });
@@ -894,14 +879,10 @@ function MedicalHistoryBox(props) {
             }
         })
         if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
-            if (typeof setMedicalHistoryData === 'function') {
-              setMedicalHistoryData([]);
-            }
+            setMedicalHistoryData([])
             handleDrawerMedicalHistory()
         } else {
-            if (typeof setMedicalHistoryData === 'function') {
-              setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
-            }
+            setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)))
             handleCollapsed(2)
         }
     }
@@ -1034,10 +1015,7 @@ function MedicalHistoryBox(props) {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return '';
-        // Try parsing with multiple formats to handle both DD-MM-YYYY and YYYY-MM-DD
-        const parsed = moment(dateString, [showDateFormat, dateFormat, 'YYYY-MM-DD', moment.ISO_8601], true);
-        return parsed.isValid() ? parsed.format(dateFormat) : '';
+        return dateString ? moment(dateString, showDateFormat).format(dateFormat) : '';
     };
 
     const onDateChanged = (date, dateString) => {
@@ -1071,9 +1049,7 @@ function MedicalHistoryBox(props) {
             return;
         }
         if (hideMenstrualHistoryTab) {
-            if (typeof setMedicalHistoryData === 'function') {
-              setMedicalHistoryData(cloneMedicalHistoryData);
-            }
+            setMedicalHistoryData(cloneMedicalHistoryData);
             if (onSave) {
                 onSave(cloneMedicalHistoryData);
             }
@@ -1216,11 +1192,8 @@ function MedicalHistoryBox(props) {
 
     const [selectedDate, setSelectedDate] = useState(null);
     useEffect(() => {
-        const raw = gynecHistory?.lmp ?? gynecHistory?.lastMenstrualPeriod;
-        if (raw) {
-            // Parse with multiple formats to handle both DD-MM-YYYY and YYYY-MM-DD
-            const parsed = moment(raw, [showDateFormat, dateFormat, 'YYYY-MM-DD', moment.ISO_8601], true);
-            setSelectedDate(parsed.isValid() ? parsed.format(showDateFormat) : null);
+        if (gynecHistory?.lmp) {
+            setSelectedDate(moment(gynecHistory.lmp).format(showDateFormat));
         }
     }, [gynecHistory]);
 
@@ -2143,4 +2116,4 @@ function MedicalHistoryBox(props) {
 }
 
 
-export default React.memo(MedicalHistoryBox);
+export default MedicalHistoryBox;

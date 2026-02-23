@@ -6,6 +6,7 @@ import styles from './ConsultationDrawer.module.css';
 import vitalsIcon from '../assets/images/Vitals.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import VitalsBox from './VitalsBox';
+import { enrichVitalsWithCalculations } from '../utils/vitalsCalculations';
 
 const VitalsRichTextEditor = ({
   vitalsAndBodyComposition = {},
@@ -84,8 +85,20 @@ const VitalsRichTextEditor = ({
         cleanedVitals[k] = sanitizeValue(k, v);
       }
     });
+
+    const height = cleanedVitals.height || cleanedVitals.Height;
+    const weight = cleanedVitals.weight || cleanedVitals.Weight;
+    if (height && weight) {
+      const forEnrich = { ...cleanedVitals, height, weight };
+      const patientDetails = patient_data;
+      const enriched = enrichVitalsWithCalculations(forEnrich, patientDetails);
+      if (enriched.bmi != null) cleanedVitals.BMI = enriched.bmi;
+      if (enriched.bsa != null) cleanedVitals.BSA = enriched.bsa;
+      if (enriched.bmr != null) cleanedVitals.BMR = enriched.bmr;
+    }
+
     return cleanedVitals;
-  }, [vitalsAndBodyComposition]);
+  }, [vitalsAndBodyComposition, patient_data]);
 
   const extractNumericValue = (value, unit) => {
     if (!value) return value;
