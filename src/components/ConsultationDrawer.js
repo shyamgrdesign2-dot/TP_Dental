@@ -1509,10 +1509,9 @@ const ConsultationDrawer = ({
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient') {
         const patientId = patient_data?.patient_unique_id || "";
         const admissionId = caseManagerData?.admission_id || null;
-        // Send previousContext whenever Rx Pad has data: from last API response (lastDigitizeDataRef) or current Rx Pad (Repeat Rx / edits)
+
         const previousContext =
-          lastDigitizeDataRef.current ??
-          (prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {});
+          prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {};
         const consentPayload = await getConsentForDigitization();
         let currentRecordingDuration = null;
         let payload;
@@ -1908,10 +1907,9 @@ const ConsultationDrawer = ({
         // Dictate mode: same pipeline - upload first for audio, then JSON payload to common endpoint
         const patientId = patient_data?.patient_unique_id;
         const admissionId = caseManagerData?.admission_id || null;
-        // Send previousContext whenever Rx Pad has data: from last API response (lastDigitizeDataRef) or current Rx Pad (Repeat Rx / edits)
+
         const previousContext =
-          lastDigitizeDataRef.current ??
-          (prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {});
+          prescriptionData && hasRxPadContent(prescriptionData) ? mapPrescriptionDataToDigitizeData(prescriptionData) : {};
         const consentPayload = await getConsentForDigitization();
         let payload;
 
