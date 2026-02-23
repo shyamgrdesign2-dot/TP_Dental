@@ -138,7 +138,7 @@ const VoiceRxPromoModal = () => {
       footer={null}
       width={931}
       centered
-      className="monetization-popup-modal"
+      className="monetization-popup-modal monetization-popup-modal-responsive"
       style={{
         padding: 0,
       }}
