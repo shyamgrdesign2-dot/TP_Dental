@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Row, Col, Spin, message } from "antd";
 import "./SnapRxPreview.scss";
@@ -13,7 +13,7 @@ import axios from "axios";
 import { saveAs } from "file-saver";
 import { jwtDecode } from "jwt-decode";
 
-import { errorMessage, sendMessageToParent, trackEvent } from "../../utils/utils";
+import { errorMessage, trackEvent } from "../../utils/utils";
 import api from "../../api/services/axiosService";
 
 import visitEnd from "../../assets/images/end-visit.svg";
@@ -43,8 +43,6 @@ import { env } from "../../EnvironmentConfig";
 import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
-import { uploadDocsToAzure } from "../medicalRecords/service";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -57,28 +55,20 @@ function SnapRxPreview() {
 
   const navigate = useNavigate();
 
-  const location = useLocation();
-  const { state } = location;
+  const { state } = useLocation();
   const { patient_data, files } = state || {};
 
-  const [basePrintUrl, setBasePrintUrl] = useState(() => {
-    if (state?.print_rx_url || state?.print_url) {
-      return `${state?.print_rx_url || state?.print_url}`;
-    }
-    const params = new URLSearchParams(location.search);
-    return (
-      params.get("print_rx_url") ||
-      params.get("print_url") ||
-      params.get("url") ||
-      null
-    );
-  });
+  const [printUrl, setPrintUrl] = useState(
+    state !== undefined ? `${state?.print_rx_url || state?.print_url}` : null
+  );
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
+  const [printBlob, setPrintBlob] = useState(null);
   const [smartRxFile, setSmartRxFile] = useState(files || []);
   const [isLoading, setIsLoading] = useState(false);
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
@@ -86,23 +76,7 @@ function SnapRxPreview() {
   const { profile } = useSelector((state) => state.doctors);
 
   const [showProgressbar, setShowProgressbar] = useState(false);
-  const getRxDigitizeFlag = (url) => {
-    if (!url) return null;
-    try {
-      const urlObj = new URL(url, window.location.origin);
-      const value = urlObj.searchParams.get("rxDigitize");
-      if (value === null) return null;
-      return value === "true";
-    } catch (e) {
-      return null;
-    }
-  };
-
-  const [showDigitalRx, setShowDigitalRx] = useState(() => {
-    if (state?.page === "digitise") return true;
-    const flag = getRxDigitizeFlag(basePrintUrl);
-    return flag === null ? false : flag;
-  });
+  const [showDigitalRx, setShowDigitalRx] = useState(false);
   const progressRef = useRef(null);
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
@@ -175,36 +149,14 @@ function SnapRxPreview() {
     const fetchData = async () => {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
-        const urlFlag = getRxDigitizeFlag(basePrintUrl);
-        if (state?.page === "digitise") {
-          setShowDigitalRx(true);
-        } else if (urlFlag === null) {
-          setShowDigitalRx(!!viewCaseManagerData?.isRxDigitize);
-        }
+        setShowDigitalRx(
+          viewCaseManagerData?.isRxDigitize && state?.page === "digitise"
+        );
         setViewCaseManagerData(viewCaseManagerData);
       }
     };
     fetchData();
-  }, [state?.tcm_id, patient_data?.patient_unique_id, basePrintUrl]);
-
-  useEffect(() => {
-    if (state?.print_rx_url || state?.print_url) {
-      const nextUrl = `${state?.print_rx_url || state?.print_url}`;
-      if (nextUrl !== basePrintUrl) {
-        setBasePrintUrl(nextUrl);
-      }
-      return;
-    }
-    const params = new URLSearchParams(location.search);
-    const nextUrl =
-      params.get("print_rx_url") ||
-      params.get("print_url") ||
-      params.get("url") ||
-      null;
-    if (nextUrl !== basePrintUrl) {
-      setBasePrintUrl(nextUrl);
-    }
-  }, [state?.print_rx_url, state?.print_url, location.search, basePrintUrl]);
+  }, [state?.tcm_id, patient_data?.patient_unique_id]);
 
   const fetchRxDigitisedData = async () => {
     try {
@@ -246,37 +198,6 @@ function SnapRxPreview() {
     }
   }, []);
 
-  const effectivePrintUrl = useMemo(() => {
-    if (!basePrintUrl) return null;
-    try {
-      const urlObj = new URL(basePrintUrl, window.location.origin);
-      if (showDigitalRx) {
-        urlObj.searchParams.set("rxDigitize", "true");
-      } else {
-        urlObj.searchParams.delete("rxDigitize");
-      }
-      return urlObj.toString();
-    } catch (e) {
-      return basePrintUrl;
-    }
-  }, [basePrintUrl, showDigitalRx]);
-
-  const {
-    printBlob,
-    isGenerating: isPdfGenerating,
-    error: printPayloadError,
-  } = usePrintPayloadPdf({ printUrl: effectivePrintUrl, showSnapRxImages: !showDigitalRx });
-
-  useEffect(() => {
-    setNumPages(undefined);
-  }, [effectivePrintUrl]);
-
-  useEffect(() => {
-    if (printPayloadError) {
-      message.error("Failed to load prescription data.");
-    }
-  }, [printPayloadError]);
-
   const handleDownload = async () => {
     try {
       if (showDigitalRx) {
@@ -286,11 +207,15 @@ function SnapRxPreview() {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       }
-      if (!printBlob) {
-        message.error("PDF is not ready yet.");
-        return;
-      }
-      saveAs(printBlob, `${Date.now()}.pdf`);
+      const response = await axios({
+        url: printUrl,
+        method: "GET",
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"],
+      });
+      saveAs(blob, `${Date.now()}.pdf`);
     } catch (error) {
       console.error("Error downloading file:", error);
     }
@@ -304,26 +229,18 @@ function SnapRxPreview() {
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
     }
-    if (!printBlob) {
-      message.error("PDF is not ready yet.");
-      return;
-    }
-    const file = new File(
-      [printBlob],
-      `${new Date().toISOString().split("T")[0]}.pdf`,
-      {
-        type: "application/pdf",
-      }
-    );
-    const formData = new FormData();
-    formData.append(file.name, file);
-    const res = await uploadDocsToAzure(formData);
-    const downloadUrl = res?.[0]?.url;
-    sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+    navigate(`/prescription_print_view/?url=${printUrl}&key=download`, {
+      replace: true,
+      state: state,
+    });
+    navigate(0, { replace: true });
   };
 
   async function onDocumentLoadSuccess(successEvent) {
     setNumPages(successEvent?.numPages);
+    const data = await successEvent.getData();
+    const blob = new Blob([data], { type: "application/pdf" });
+    setPrintBlob(blob);
   }
 
   const handleDigitiseRx = async () => {
@@ -349,8 +266,27 @@ function SnapRxPreview() {
     }
   };
 
+  const updateRxDigitizeInUrl = (url, showDigitalRx) => {
+    const urlObj = new URL(url);
+
+    if (showDigitalRx) {
+      urlObj.searchParams.set("rxDigitize", "true");
+      setButtonText("Send to WhatsApp");
+    } else {
+      urlObj.searchParams.delete("rxDigitize");
+      setButtonText("Send to WhatsApp");
+    }
+
+    return urlObj.toString();
+  };
+
+  // Effect to update printUrl when showDigitalRx changes
   useEffect(() => {
-    setButtonText("Send to WhatsApp");
+    if (printUrl) {
+      const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
+      setPreviewUrl(updatedUrl);
+      setPrintUrl(updatedUrl);
+    }
   }, [showDigitalRx]);
 
   const handleSendToWhatsapp = async () => {
@@ -439,29 +375,14 @@ function SnapRxPreview() {
   };
 
   const printInAppContent = async () => {
-    if (!printBlob) {
-      message.error("PDF is not ready yet.");
-      return;
-    }
-    const file = new File(
-      [printBlob],
-      `${new Date().toISOString().split("T")[0]}.pdf`,
-      {
-        type: "application/pdf",
-      }
-    );
-    const formData = new FormData();
-    formData.append(file.name, file);
-    const res = await uploadDocsToAzure(formData);
-    const printLink = res?.[0]?.url;
-    sendMessageToParent(EVENTS.PRINT, { url: printLink });
+    navigate(`/snap-rx/preview/?url=${printUrl}&key=print`, {
+      replace: true,
+      state: state,
+    });
+    navigate(0, { replace: true });
   };
 
   const printContent = async () => {
-    if (!printBlob) {
-      message.error("PDF is not ready yet.");
-      return;
-    }
     if (isMobile || osName == "Linux") {
       try {
         const blobURL = URL.createObjectURL(printBlob);
@@ -522,7 +443,7 @@ function SnapRxPreview() {
       <HeaderPrescriptionPrint
         patient_data={patient_data}
         tcm_id={state?.tcm_id}
-        printUrl={effectivePrintUrl}
+        printUrl={printUrl}
         pam_id={state?.pam_id}
         isSnapRx={true}
       />
@@ -562,7 +483,6 @@ function SnapRxPreview() {
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                   icon={<i className="icon-Print"></i>}
-                  disabled={isPdfGenerating}
                   onClick={() => {
                     trackEvent(EVENTS.SNAP_RX.digitalRxPrinted, {
                       consultation_id: state?.tcm_id || 0,
@@ -585,7 +505,6 @@ function SnapRxPreview() {
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                   icon={<i className="icon-download"></i>}
-                  disabled={isPdfGenerating}
                   onClick={() =>
                     !isChrome && !isSafari
                       ? handleInAppDownload()
@@ -730,59 +649,60 @@ function SnapRxPreview() {
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
                   <div ref={printRef} className="position-relative h-100">
-                    {!isPdfGenerating && printBlob instanceof Blob && printBlob.size > 0 ? (
-                      <Document
-                        loading={
-                          <Spin
-                            style={{
-                              position: "absolute",
-                              zIndex: 0,
-                              left: "50%",
-                              top: "50%",
-                            }}
+                    <Document
+                      loading={
+                        <Spin
+                          style={{
+                            position: "absolute",
+                            zIndex: 0,
+                            left: "50%",
+                            top: "50%",
+                          }}
+                        />
+                      }
+                      error={
+                        <div
+                          style={{
+                            position: "absolute",
+                            zIndex: 0,
+                            left: "42%",
+                            top: "50%",
+                          }}
+                        >
+                          {"Failed to load PDF file."}
+                        </div>
+                      }
+                      noData={
+                        <div
+                          style={{
+                            position: "absolute",
+                            zIndex: 0,
+                            left: "50%",
+                            top: "50%",
+                          }}
+                        >
+                          {"No PDF file specified."}
+                        </div>
+                      }
+                      file={!showDigitalRx ? printUrl : previewUrl}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                    >
+                      {Array.apply(null, Array(numPages))
+                        .map((x, i) => i + 1)
+                        .map((page) => (
+                          <Page
+                            key={Math.random()}
+                            className={
+                              printBlob ? "react-pdf__Page_afterload" : null
+                            }
+                            loading={null}
+                            width={divWidth}
+                            pageNumber={page}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
                           />
-                        }
-                        error={
-                          <div
-                            style={{
-                              position: "absolute",
-                              zIndex: 0,
-                              left: "42%",
-                              top: "50%",
-                            }}
-                          >
-                            {"Failed to load PDF file."}
-                          </div>
-                        }
-                        file={printBlob}
-                        onLoadSuccess={onDocumentLoadSuccess}
-                      >
-                        {Array.apply(null, Array(numPages))
-                          .map((x, i) => i + 1)
-                          .map((page) => (
-                            <Page
-                              key={Math.random()}
-                              className={
-                                printBlob ? "react-pdf__Page_afterload" : null
-                              }
-                              loading={null}
-                              width={divWidth}
-                              pageNumber={page}
-                              renderTextLayer={false}
-                              renderAnnotationLayer={false}
-                            />
-                          ))}
-                      </Document>
-                    ) : (
-                      <Spin
-                        style={{
-                          position: "absolute",
-                          zIndex: 0,
-                          left: "50%",
-                          top: "50%",
-                        }}
-                      />
-                    )}
+                        ))}
+                    </Document>
                   </div>
                 </div>
               </div>
