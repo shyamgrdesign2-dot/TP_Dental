@@ -5,12 +5,6 @@ import SetPassword from "./SetPassword";
 import VerifyOTP from "./VerifyOTP";
 import VerifyPassword from "./VerifyPassword.js";
 // Below-the-fold sections are lazy-loaded to keep the login bundle small.
-const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
-const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));
-const Testimonials = React.lazy(() => import("./Testimonials/Testimonials.js"));
-const FAQ = React.lazy(() => import("./FAQ/FAQ.js"));
-const OurScale = React.lazy(() => import("./OurScale/OurScale.js"));
-const Footer = React.lazy(() => import("./Footer/Footer.js"));
 import Hook from "../../../assets/images/website-images/Hook.webp";
 import Hook2 from "../../../assets/images/website-images/Hook2.webp";
 import Logo from "../../../assets/images/website-images/logo.webp";
@@ -18,6 +12,12 @@ import "./Onboarding.scss";
 import "./FeatureTabCard/FeatureTabCard.scss";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService.js";
 import { Spin } from "antd";
+const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
+const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));
+const Testimonials = React.lazy(() => import("./Testimonials/Testimonials.js"));
+const FAQ = React.lazy(() => import("./FAQ/FAQ.js"));
+const OurScale = React.lazy(() => import("./OurScale/OurScale.js"));
+const Footer = React.lazy(() => import("./Footer/Footer.js"));
 
 const Onboarding = () => {
   const [view, setView] = useState("signup");
