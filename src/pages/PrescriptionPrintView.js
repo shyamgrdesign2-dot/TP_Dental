@@ -38,7 +38,6 @@ import api from '../api/services/axiosService';
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
-import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -68,22 +67,7 @@ function PrescriptionPrintView() {
 
     const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
     const [printRxUrl, setPrintRxUrl] = useState(state !== undefined ? `${state.print_rx_url}` : null);
-    const [currentSessionRx, setCurrentSessionRx] = useState(() => {
-        if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
-        if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
-            return state.currentSessionRx; // object URL string from configure print setting
-        }
-        return null;
-    });
-
-    // Detect a hard refresh so we don't reuse a stale object URL and skip the PDF fetch.
-    const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
-    const isPageReload = useRef(
-        navigationEntry?.type === "reload" || window?.performance?.navigation?.type === 1
-    ).current;
-
-    // If the page was reloaded, treat it as not coming from Configure Print Setting
-    const fromConfigurePrintSetting = Boolean(state?.fromConfigurePrintSetting) && !isPageReload;
+    const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
 
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
@@ -163,56 +147,9 @@ function PrescriptionPrintView() {
 
 
     useEffect(() => {
-      if (!state?.print_url) {
-        return;
-      }
       const encodedData = btoa(selectedLang.toString());
-      const nextUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
-      if (nextUrl !== printUrl) {
-        setPrintUrl(nextUrl);
-      }
-    }, [selectedLang, state?.print_url, pam_id, printUrl]);
-
-    const shouldSkipAutoFetch = Boolean(currentSessionRx) && !isPageReload;
-    
-    const {
-        printBlob: generatedPrintBlob,
-        isGenerating: isPdfGenerating,
-        error: printPayloadError,
-    } = usePrintPayloadPdf({
-        printUrl,
-        selectedLang,
-        isGynaecHistoryAccessable,
-        payloadOverride: null,
-        skipFetch: shouldSkipAutoFetch,
-    });
-
-    useEffect(() => {
-        if (!isPageReload) return;
-        if (currentSessionRx) {
-            if (typeof currentSessionRx === "string") {
-                URL.revokeObjectURL(currentSessionRx);
-            }
-            setCurrentSessionRx(null);
-        }
-    }, [isPageReload, currentSessionRx]);
-
-    useEffect(() => {
-        if (fromConfigurePrintSetting) return;
-        if (generatedPrintBlob) {
-            setPrintBlob(generatedPrintBlob);
-            setCurrentSessionRx(generatedPrintBlob);
-        }
-    }, [generatedPrintBlob, fromConfigurePrintSetting]);
-
-    useEffect(() => {
-        if (fromConfigurePrintSetting) return;
-        if (printPayloadError) {
-            message.error("Failed to load prescription data.");
-        }
-    }, [printPayloadError, fromConfigurePrintSetting]);
-
-    
+      setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
+    }, [patientBills, advanceReceipts, selectedLang]);
 
     useEffect(() => {
         if (!isOpdBillChecked) {
@@ -290,36 +227,13 @@ function PrescriptionPrintView() {
     //     content: () => printRef.current,
     // });
 
-    const asBlob = async (fileLike) => {
-        if (fileLike instanceof Blob) return fileLike;
-        if (typeof fileLike === "string") {
-            try {
-                const res = await fetch(fileLike);
-                return await res.blob();
-            } catch (e) {
-                console.error("Failed to convert URL to Blob", e);
-                return null;
-            }
-        }
-        return null;
-    };
-
     const printContent = async () => {
         const isMobileDevice = isMobile || isTablet || isIPad();
-        if (!printBlob && !currentSessionRx) {
-            message.error("PDF is not ready yet.");
-            return;
-        }
-        const pdfBlob = await asBlob(printBlob || currentSessionRx);
-        if (!(pdfBlob instanceof Blob)) {
-            message.error("PDF is not ready yet.");
-            return;
-        }
 
         if (isMobileDevice) {
-            printBlobInNewTab(pdfBlob);
+            printBlobInNewTab(printBlob);
         } else {
-            var blobURL = URL.createObjectURL(pdfBlob);
+            var blobURL = URL.createObjectURL(printBlob);
             // Remove all existing iframes
             document.querySelectorAll('iframe').forEach(function (iframe) {
                 iframe.parentNode.removeChild(iframe);
@@ -342,23 +256,18 @@ function PrescriptionPrintView() {
     const printInAppContent = async () => {
         // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=print`, { replace: true, state: state })
         // navigate(0, { replace: true });
-        if (!printBlob && !currentSessionRx) {
-            message.error("PDF is not ready yet.");
-            return;
+        if (currentSessionRx) {
+            const file = new File([currentSessionRx], `${new Date().toISOString().split("T")[0]}.pdf`, {
+              type: "application/pdf",
+            });
+            const formData = new FormData();
+            formData.append(file?.name, file);
+            const res = await uploadDocsToAzure(formData);
+            const printUrl = res?.[0]?.url;
+            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        } else {
+            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
         }
-        const pdfBlob = await asBlob(printBlob || currentSessionRx);
-        if (!(pdfBlob instanceof Blob)) {
-            message.error("PDF is not ready yet.");
-            return;
-        }
-        const file = new File([pdfBlob], `${new Date().toISOString().split("T")[0]}.pdf`, {
-          type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
     };
 
     // const printContent = async () => {
@@ -373,27 +282,29 @@ function PrescriptionPrintView() {
 
     const onSelect = useCallback(
         (data) => {
+            const encodedData = btoa(data.toString());
+            setPrintUrl(`${currentSessionRx || state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
             setSelectedLang(data);
             updatePatientDefaultLanguage({
               patientId: patient_data?.patient_unique_id,
               default_language: data,
             });
-            // Keep the configured PDF intact when returning from Configure Print Settings
-            if (!fromConfigurePrintSetting) {
-              setCurrentSessionRx(null);
-            }
+            setCurrentSessionRx(null);
         },
-        [selectedLang, printUrl, fromConfigurePrintSetting]
+        [selectedLang, printUrl]
     );
 
     const handleDownload = async () => {
         try {
-            const pdfBlob = await asBlob(printBlob || currentSessionRx);
-            if (pdfBlob instanceof Blob) {
-                saveAs(pdfBlob, `${Date.now()}.pdf`);
-            } else {
-                message.error("PDF is not ready yet.");
-            }
+            const response = await axios({
+                // url: "https://morth.nic.in/sites/default/files/dd12-13_0.pdf",
+                url: currentSessionRx || printUrl,
+                method: 'GET',
+                responseType: 'blob', // Important for binary data
+            });
+
+            const blob = new Blob([response.data], { type: response.headers['content-type'] });
+            saveAs(blob, `${Date.now()}.pdf`);
         } catch (error) {
             console.error('Error downloading file:', error);
             // Handle errors gracefully, e.g., display an error message to the user
@@ -403,23 +314,18 @@ function PrescriptionPrintView() {
     const handleInAppDownload = async () => {
         // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=download`, { replace: true, state: state })
         // navigate(0, { replace: true });
-        if (!printBlob && !currentSessionRx) {
-            message.error("PDF is not ready yet.");
-            return;
+        if (currentSessionRx) {
+            const file = new File([currentSessionRx], `${new Date().toISOString().split("T")[0]}.pdf`, {
+              type: "application/pdf",
+            });
+            const formData = new FormData();
+            formData.append(file?.name, file);
+            const res = await uploadDocsToAzure(formData);
+            const printUrl = res?.[0]?.url;
+            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        } else {
+            sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
         }
-        const pdfBlob = await asBlob(printBlob || currentSessionRx);
-        if (!(pdfBlob instanceof Blob)) {
-            message.error("PDF is not ready yet.");
-            return;
-        }
-        const file = new File([pdfBlob], `${new Date().toISOString().split("T")[0]}.pdf`, {
-          type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
     };
 
     const onEditPrescriptionClick = async () => {
@@ -571,6 +477,9 @@ function PrescriptionPrintView() {
     // }
     async function onDocumentLoadSuccess(successEvent) {
         setNumPages(successEvent?.numPages);
+        const data = await successEvent.getData()
+        const blob = new Blob([data], { type: 'application/pdf' })
+        setPrintBlob(blob)
     }
 
     const configurePrintUrl = async () => {
@@ -588,15 +497,9 @@ function PrescriptionPrintView() {
         }
     }
 
-    const pdfFile = currentSessionRx || printBlob;
-    const hasPdfBlob = Boolean(
-        (pdfFile instanceof Blob && pdfFile.size > 0) ||
-        (typeof pdfFile === "string" && pdfFile.length > 0)
-    );
-
     return (
         <>
-            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={printUrl} pam_id={pam_id} selectedLang={selectedLang} />
+            <HeaderPrescriptionPrint patient_data={patient_data} tcm_id={state?.tcm_id} printUrl={currentSessionRx || printUrl} pam_id={pam_id} selectedLang={selectedLang} />
             <div className={`${isMobile ? 'p-0' : ''} w-100 bg-body wrapper2 prescription-wrapper`}>
                 {/* <img src={hey} alt="Hey" className='me-3 hey' /> */}
                 <Row gutter={{ xl: 40, lg: 0 }} justify="center">
@@ -627,7 +530,6 @@ function PrescriptionPrintView() {
                                 </Button>)}
                                 <Button
                                     type="text"
-                                    disabled={isPdfGenerating}
                                     onClick={() => {
                                         window.Moengage.track_event("print_select", {
                                             "language": LANGUAGE_LIST.find(e => e.value == selectedLang)?.label
@@ -644,7 +546,6 @@ function PrescriptionPrintView() {
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
-                                    disabled={isPdfGenerating}
                                     onClick={() => (browserName == "Chrome WebView" || browserName == "WebKit") ? handleInAppDownload() : handleDownload()}
                                 >
                                     <span className="fw-semibold">Download Prescription</span>
@@ -716,36 +617,32 @@ function PrescriptionPrintView() {
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
-                                        {hasPdfBlob ? (
-                                            <Document
-                                                key={`${currentSessionRx ? 'session' : 'generated'}-${billsUpdateKey}`}
-                                                loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-                                                error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-                                                file={pdfFile}
-                                                onLoadError={(err) => {
-                                                    console.error("PDF load error:", err);
-                                                    setCurrentSessionRx(null);
-                                                }}
-                                                onLoadSuccess={onDocumentLoadSuccess}>
-                                                {Array.apply(null, Array(numPages))
-                                                    .map((x, i) => i + 1)
-                                                    .map((page) => {
-                                                        return (
-                                                            <Page
-                                                                key={Math.random()}
-                                                                className={printBlob ? 'react-pdf__Page_afterload' : null}
-                                                                loading={null}
-                                                                width={divWidth}
-                                                                pageNumber={page}
-                                                                renderTextLayer={false}
-                                                                renderAnnotationLayer={false}
-                                                            />
-                                                        );
-                                                    })}
-                                            </Document>
-                                        ) : (
-                                            <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
-                                        )}
+                                        <Document
+                                            key={`${currentSessionRx || printUrl}-${billsUpdateKey}`}
+                                            loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+                                            error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+                                            noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
+                                            file={currentSessionRx || printUrl}
+                                            onLoadError={() => {
+                                                setCurrentSessionRx(null);
+                                            }}
+                                            onLoadSuccess={onDocumentLoadSuccess}>
+                                            {Array.apply(null, Array(numPages))
+                                                .map((x, i) => i + 1)
+                                                .map((page) => {
+                                                    return (
+                                                        <Page
+                                                            key={Math.random()}
+                                                            className={printBlob ? 'react-pdf__Page_afterload' : null}
+                                                            loading={null}
+                                                            width={divWidth}
+                                                            pageNumber={page}
+                                                            renderTextLayer={false}
+                                                            renderAnnotationLayer={false}
+                                                        />
+                                                    );
+                                                })}
+                                        </Document>
                                     </div>
                                     {/* <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
                                     <PDFReader key={selectedLang} ref={printRef} width={divWidth} showAllPage={true} url={`${printUrl}#toolbar=0&navpanes=0&scrollbar=0`} /> */}
