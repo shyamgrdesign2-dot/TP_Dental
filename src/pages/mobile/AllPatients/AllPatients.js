@@ -253,9 +253,11 @@ function AllPatients() {
   }, [navigate, doctorDetails]);
 
   const handleWalkInConsultation = useCallback((patient) => {
-    navigate('/walk_in_consultation', {
-      state: { 
+    // Start voice consultation for this patient (same as Patient Details flow)
+    navigate('/voice-rx-consult', {
+      state: {
         patient_data: patient,
+        isFromTabView: true,
         from: '/all_patients'
       }
     });
