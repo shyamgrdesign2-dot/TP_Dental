@@ -3109,7 +3109,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
   };
-  console.log('INTEL ==> appointmentSelectedFromMenu', appointmentSelectedFromMenu);
 
   const disabledDate = (current) => {
     // Can not select days before today and today

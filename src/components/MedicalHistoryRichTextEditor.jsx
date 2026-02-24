@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Drawer } from 'antd';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
+import { prescriptionMedicalHistoryToContextFormat } from '../utils/medicalHistoryUtils';
 import styles from './ConsultationDrawer.module.css';
 import medicalHistoryIcon from '../assets/images/Medical-History.svg';
 import arrowBoxUpIcon from '../assets/images/arrow-box-up.svg';
@@ -18,6 +19,7 @@ const MedicalHistoryRichTextEditor = ({
   isProcessing = false,
   className = '',
   initiallyPopulatedTypes = [],
+  isVoiceAmbientSnapSmartFlow = false,
 }) => {
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -58,6 +60,11 @@ const MedicalHistoryRichTextEditor = ({
 
     return groups;
   }, [medicalHistory]);
+
+  const overrideMedicalHistoryData = useMemo(
+    () => prescriptionMedicalHistoryToContextFormat(medicalHistory),
+    [medicalHistory]
+  );
 
   const formatHistoryItem = useCallback((item) => {
     const name = item.name || '';
@@ -346,10 +353,24 @@ const MedicalHistoryRichTextEditor = ({
     <div className={`${styles['medical-history-rich-text-editor']} ${className}`}>
       <div className={styles['medical-history-content-box']}>
         <div className={styles['medical-history-header']}>
-          <div className={styles['medical-history-icon']}>
-          <img src={medicalHistoryIcon} alt="Medical History" />
+          <div className={styles['medical-history-header-left']}>
+            <div className={styles['medical-history-icon']}>
+              <img src={medicalHistoryIcon} alt="Medical History" />
+            </div>
+            <span className={styles['medical-history-title']}>Medical History</span>
           </div>
-          <span className={styles['medical-history-title']}>Medical History</span>
+          <button
+            type="button"
+            className={styles['medical-history-action-button']}
+            onClick={() => setMedicalHistoryDrawer(true)}
+          >
+            <img
+              src={addEditIcon}
+              alt="Add/Edit"
+              className={styles['medical-history-action-icon']}
+            />
+            <span>Add/Edit History</span>
+          </button>
         </div>
 
         <div className={styles['medical-history-sections']}>
@@ -446,20 +467,6 @@ const MedicalHistoryRichTextEditor = ({
             );
           })}
         </div>
-
-        <div className={styles['add-medical-history-container']}>
-            <button 
-              className={styles['add-medical-history-button']}
-              onClick={() => setMedicalHistoryDrawer(true)}
-            >
-              <img 
-                src={addEditIcon} 
-                alt="Add/Edit" 
-                className={styles['add-medical-history-icon']}
-              />
-              <span>Add / Edit Medical History</span>
-            </button>
-        </div>
       </div>
 
       <Drawer
@@ -473,6 +480,8 @@ const MedicalHistoryRichTextEditor = ({
         <MedicalHistoryBox
           handleDrawerMedicalHistory={() => setMedicalHistoryDrawer(false)}
           handleCollapsed={() => {}}
+          overrideMedicalHistoryData={overrideMedicalHistoryData}
+          isVoiceAmbientSnapSmartFlow={isVoiceAmbientSnapSmartFlow}
           onSave={(savedData) => {
             if (savedData && Array.isArray(savedData)) {
               const convertedMedicalHistory = [];

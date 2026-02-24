@@ -40,7 +40,7 @@ const showDateFormat = 'DD-MM-YYYY'
 
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory } = props
     const { TabPane } = Tabs;
     const {
         searchList,
@@ -113,7 +113,7 @@ function MedicalHistoryBox(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const { patient_data, caseManagerData } = state;
+    const { patient_data, caseManagerData } = state ;
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -284,13 +284,9 @@ function MedicalHistoryBox(props) {
         setActiveTab(key);
     };
 
-    // useEffect(() => {
-    //     defaultList.length === 0 && dispatch(listSectionwithTag());
-    // }, [handleDrawerMedicalHistory]);
-
     useEffect(() => {
         dispatch(listSectionwithTag());
-    }, []);
+    }, [dispatch]);
 
     useEffect(() => {
         const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -302,35 +298,52 @@ function MedicalHistoryBox(props) {
         }
     }, []);
 
+    // Voice/ambient/snap/smart: show only prescription data (no merge). Consult: merge defaultList with context.
     useEffect(() => {
       if (defaultList?.length > 0) {
         try {
             const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
-            const data2 = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
-            
-            const mergedArray = data2?.length > 0 ? [
-            ...data1?.map(e => ({
-                ...e,
-                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id) || {}),
-                tags: [
-                ...(e?.tags || [])?.map(tag => ({
-                    ...tag,
-                    ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
-                })),
-                ...(data2?.find(x => x?.tmmhs_id === e?.tmmhs_id)?.tags || [])?.filter(item2 => 
-                    !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
-                )
-                ],
-            }))
-            ] : data1;
-
+            const sourceData = overrideMedicalHistoryData ?? medicalHistoryData;
+            const data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
+            const isPrescriptionOnly = overrideMedicalHistoryData != null;
+            const mergedArray = data1?.map(e => {
+                const sectionFromSource = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
+                if (isPrescriptionOnly) {
+                    // Voice/ambient/snap/smart: display only prescription medical history (no merging)
+                    return {
+                        ...e,
+                        ...(sectionFromSource || {}),
+                        tags: sectionFromSource?.tags ?? [],
+                    };
+                }
+                // Consult: merge defaultList with context (prod behavior)
+                if (!data2?.length) {
+                    return e;
+                }
+                return {
+                    ...e,
+                    ...(sectionFromSource || {}),
+                    tags: [
+                        ...(e?.tags || [])?.map(tag => ({
+                            ...tag,
+                            ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                        })),
+                        ...(sectionFromSource?.tags || [])?.filter(item2 =>
+                            !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                        )
+                    ],
+                };
+            }) ?? data1;
             setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
         }
-        }
-    }, [defaultList]);
+      }
+    // defaultList always; overrideMedicalHistoryData so voice/ambient/snap/smart updates when prescription changes.
+    // medicalHistoryData intentionally omitted for consult: merge runs only when defaultList changes (prod behavior).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultList, overrideMedicalHistoryData]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
@@ -598,12 +611,12 @@ function MedicalHistoryBox(props) {
     }, []);
 
     const onAddEditSaveClick = async () => {
-        var sendData = JSON.parse(JSON.stringify(addEditData))
+        const sendData = JSON.parse(JSON.stringify(addEditData));
         const action = await dispatch(addTag(sendData));
         if (action.meta.requestStatus === "fulfilled") {
             setAddEditData(null)
             if (action.payload.tags.length > 0) {
-                const updatedData = action.payload?.tags?.map((e, i) => {
+                const updatedData = action.payload?.tags?.map((e) => {
                     const data = sendData?.tags?.find(e1 => e1.unique_id == e.unique_id)
                     return { ...data, ...e };
                 });
@@ -1015,6 +1028,26 @@ function MedicalHistoryBox(props) {
     };
 
     const handleSave = () => {
+        if (gynecOnly) {
+            const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
+                if (
+                    key !== 'createdAt' && key !== 'createdBy' &&
+                    gynecHistory[key] !== '' && gynecHistory[key] !== null &&
+                    gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
+                ) {
+                    acc[key] = gynecHistory[key];
+                }
+                return acc;
+            }, {});
+            const lmpRaw = filteredGynecHistory.lmp ?? filteredGynecHistory.lastMenstrualPeriod;
+            if (lmpRaw) {
+                const parsed = moment(lmpRaw, [showDateFormat, dateFormat, 'YYYY-MM-DD']);
+                if (parsed.isValid()) filteredGynecHistory.lastMenstrualPeriod = parsed.format(showDateFormat);
+            }
+            if (onSave) onSave(filteredGynecHistory);
+            if (patient_data?.patient_unique_id) handleSaveClick();
+            return;
+        }
         if (hideMenstrualHistoryTab) {
             setMedicalHistoryData(cloneMedicalHistoryData);
             if (onSave) {
@@ -1041,12 +1074,20 @@ function MedicalHistoryBox(props) {
     }, []);
 
     useEffect(() => {
-        if (isGynaecHistoryAccessable) {
+        if (isGynaecHistoryAccessable && !gynecOnly) {
             fetchGynecHistory();
         }
-    }, [isGynaecHistoryAccessable]);
+    }, [isGynaecHistoryAccessable, gynecOnly]);
+
+    // Rx pad (voice/ambient/snap/smart): sync initial gynec data when drawer opens so Menstrual History tab shows it
+    useEffect(() => {
+        if (gynecOnly && initialGynecHistory != null && typeof initialGynecHistory === 'object' && Object.keys(initialGynecHistory).length > 0) {
+            setGynecHistory({ ...initialGynecHistory });
+        }
+    }, [gynecOnly, initialGynecHistory]);
 
     const fetchGynecHistory = async () => {
+        if (!patient_data?.patient_unique_id) return;
         try {
             const data = await getGynecDetails(patient_data.patient_unique_id, userId);
             if (data) {
@@ -1264,9 +1305,9 @@ function MedicalHistoryBox(props) {
                 <Tabs 
                     defaultActiveKey={initialActiveKey || "gynec"} 
                     onChange={onTabChange}
-                    className={hideMenstrualHistoryTab ? "hide-tabs-nav" : ""}
+                    className={(hideMenstrualHistoryTab || gynecOnly) ? "hide-tabs-nav" : ""}
                 >
-                    {(isGynaecHistoryAccessable && !hideMenstrualHistoryTab) &&
+                    {((isGynaecHistoryAccessable && !hideMenstrualHistoryTab) || gynecOnly) &&
                         <TabPane tab="Menstrual History" key="gynec">
                             <div style={{ marginTop: "-1rem" }}>
                                 <Row>
@@ -1701,6 +1742,7 @@ function MedicalHistoryBox(props) {
                             </div>
                         </TabPane>
                     }
+                    {!gynecOnly && (
                     <TabPane tab="Medical History" key="medical">
                         <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
                             <Row>
@@ -2060,6 +2102,7 @@ function MedicalHistoryBox(props) {
                             </Row>
                         </div>
                     </TabPane>
+                    )}
                 </Tabs>
             </Card>
             {shouldShowVideo && (
@@ -2073,4 +2116,4 @@ function MedicalHistoryBox(props) {
 }
 
 
-export default React.memo(MedicalHistoryBox);
+export default MedicalHistoryBox;

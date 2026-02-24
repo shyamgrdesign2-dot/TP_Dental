@@ -5,6 +5,7 @@ import axios from 'axios';
 import moment from "moment";
 import { jwtDecode } from 'jwt-decode';
 import { LAB_PARAMS_RESULTS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
+import { extractUnitsFromValue, valueWithoutUnitsForApi } from '../utils/labResultsUtils';
 import { DEFAULT_TESTS_DATA } from '../utils/labParamsConstants';
 import { isMobile } from "react-device-detect";
 import api from "../api/services/axiosService";
@@ -17,7 +18,19 @@ import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
 
 
-const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, isBackModalOpen, showHideBackModal, patientGender  }) => {
+const LabResultsTable = ({
+    handleAddLabParamsDrawer,
+    patient_unique_id,
+    onSave,
+    onSaveSuccess,
+    isBackModalOpen,
+    showHideBackModal,
+    patientGender,
+    prefillLabResults = [],
+    onResultsChange,
+    /** When false (e.g. consult flow), prefill is never applied. Only voice/snap/ambient/smart should pass true. */
+    applyRawPrefill = false,
+}) => {
 
     const [token, setToken] = useState(null);
     const searchRef = useRef(null);
@@ -136,10 +149,13 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
 
     const searchLabParams = async (searchQuery) => {
         try {
-            const cleanedToken = token.replace(/['"]+/g, '');
+            // const cleanedToken = token.replace(/['"]+/g, '');
+            const cleanedToken = token?.startsWith('"') && token?.endsWith('"')
+            ? token.slice(1, -1)
+            : token;
             const response = await axios.get(`${labParamsBaseUrl}/api/v1/lab-parameters?search=${searchQuery}`, {
                 headers: {
-                    'Authorization': `Bearer ${cleanedToken}`,
+                    Authorization: `Bearer ${cleanedToken}`,
                 },
             });
     
@@ -172,17 +188,17 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
                     'Authorization': `Bearer ${cleanedToken}`,
                 },
             });
-            setExistingResults(response.data?.data?.results || []); 
+            setExistingResults(response.data?.data?.results || []);
         } catch (error) {
             console.error("Error fetching lab params:", error);
         }
     };
 
     useEffect(() => {
-        if(token){
+        if (token) {
             getLabParams();
         }
-    },[token])
+    }, [token]);
 
     const onSearch = useCallback((query) => {
         setSearchQuery(query);
@@ -293,6 +309,101 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         });
     };
 
+    const sanitizeDateValue = (value) => {
+        if (!value) return null;
+        const parsed = moment(value);
+        if (parsed.isValid()) {
+            return parsed.format("YYYY-MM-DD");
+        }
+        return null;
+    };
+
+    // Only used when applyRawPrefill is true (voice/snap/ambient/smart). Uses labResultsUtils for parsing. Consult flow never runs this.
+    const mapLabResultToInput = useCallback(
+        (result = {}) => {
+            const apiMatchedTestName = (result?.testName || result?.testname || result?.name || "").trim();
+            if (!apiMatchedTestName) {
+                return null;
+            }
+            const rawValue = result?.value !== undefined ? String(result.value).trim() : "";
+            if (!rawValue) {
+                return null;
+            }
+            const reportName = (result?.reportName || result?.testName || result?.testname || result?.name || "").trim();
+            if (!reportName) {
+                return null;
+            }
+            const derivedUnits = extractUnitsFromValue(rawValue);
+            const normalizedValue = valueWithoutUnitsForApi(rawValue);
+            return {
+                reportName: reportName,
+                testName: apiMatchedTestName,
+                value: normalizedValue,
+                units: result?.units || derivedUnits || "",
+                arrowDirection: "",
+                refRange: result?.refRange || "",
+                recentlyUpdated: true,
+            };
+        },
+        []
+    );
+
+    const applyPrefillLabResults = useCallback(
+        (labResultsArray = []) => {
+            if (!Array.isArray(labResultsArray) || labResultsArray.length === 0) {
+                return;
+            }
+            const seenKeys = new Set();
+            const validResults = [];
+            labResultsArray.forEach((result = {}) => {
+                const reportName = (result?.reportName || result?.testname || result?.testName || result?.name || "").trim();
+                const testName = (result?.testName || result?.testname || result?.name || "").trim();
+                if (!reportName || !testName) {
+                    return;
+                }
+                const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                const uniqueKey = `${reportName}|${testName}|${dateKey}`;
+                if (seenKeys.has(uniqueKey)) {
+                    return;
+                }
+                seenKeys.add(uniqueKey);
+                validResults.push({ ...result, reportName, testName });
+            });
+            setDates((prevDates) => {
+                const nextDates = new Set(prevDates);
+                validResults.forEach((result = {}) => {
+                    const normalizedDate = sanitizeDateValue(result?.date) || currentDate;
+                    nextDates.add(normalizedDate);
+                });
+                return Array.from(nextDates).sort((a, b) => new Date(b) - new Date(a));
+            });
+            setInputValues((prev) => {
+                const updated = { ...prev };
+                validResults.forEach((result = {}) => {
+                    const mappedInput = mapLabResultToInput(result);
+                    if (!mappedInput || !mappedInput.reportName?.trim()) {
+                        return;
+                    }
+                    const dateKey = sanitizeDateValue(result?.date) || currentDate;
+                    const reportName = mappedInput.reportName.trim();
+                    const testName = mappedInput.testName.trim();
+                    if (!updated[reportName]) {
+                        updated[reportName] = {};
+                    }
+                    if (!updated[reportName][testName]) {
+                        updated[reportName][testName] = {};
+                    }
+                    updated[reportName][testName][dateKey] = {
+                        ...mappedInput,
+                        reportName: reportName,
+                    };
+                });
+                return updated;
+            });
+        },
+        [mapLabResultToInput, currentDate]
+    );
+
     // Function to handle the modal opening
     const handleOpenModal = (reportName, testName, date) => {
         setActiveReport(reportName);
@@ -335,12 +446,15 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
         }
     
         let selectedRange;
+        const ranges = refRange?.ranges;
     
         // Check if refRange has conditional ranges
         if (refRange?.gender?.toLowerCase() === "all") {
-          selectedRange = refRange?.ranges?.[0];
+          selectedRange = Array.isArray(ranges) ? ranges[0] : undefined;
         } else {
-          selectedRange = refRange?.ranges.find(range => range.gender.toLowerCase() === gender.toLowerCase()) || refRange?.ranges?.[0];
+          selectedRange = Array.isArray(ranges)
+            ? (ranges.find(range => range?.gender?.toLowerCase() === gender?.toLowerCase()) ?? ranges[0])
+            : undefined;
         }
     
         if (selectedRange) {
@@ -529,6 +643,13 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
             setDates(uniqueDates);
         }
     }, [existingResults]);
+
+    // Only apply raw prefill (value/units parsing) when opened from voice/snap/ambient/smart. Consult flow keeps applyRawPrefill false so this never runs.
+    useEffect(() => {
+        if (applyRawPrefill && prefillLabResults?.length > 0) {
+            applyPrefillLabResults(prefillLabResults);
+        }
+    }, [applyRawPrefill, prefillLabResults, applyPrefillLabResults]);
 
   function replaceDate(inputValues, oldDate, newDate) {
     const updatedValues = { ...inputValues };
@@ -743,12 +864,11 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
   
   }, [inputValues, dates]);
 
-    const handleSave = async() =>{
-
+    const handleSave = async () => {
         const currentFilledData = assemblePayload(inputValues);
-        const data = combineData(currentFilledData,filledData);
-        
-        setFilledData([])
+        const data = combineData(currentFilledData, filledData);
+
+        setFilledData([]);
 
         const payload = {
             patientId: patient_unique_id,
@@ -762,13 +882,29 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
               payload,
               baseUrl
             );
-            if(response){
-                onSave();
+            if (response) {
+                // Only for voice/ambient/snap/smart: fetch updated lab results from GET API and pass to onSave so Rx pad updates.
+                // Consult flow (applyRawPrefill === false) skips this and just calls onSave() so parent refetches via getLabParams.
+                if (applyRawPrefill) {
+                    try {
+                        const { getTodayLabResults } = await import('../utils/labResultsUtils');
+                        const fetchedLabResults = await getTodayLabResults({ patient_unique_id }, false);
+                        if (fetchedLabResults && fetchedLabResults.length > 0 && typeof onSave === 'function') {
+                            onSave(fetchedLabResults);
+                        } else {
+                            if (typeof onSave === 'function') onSave();
+                        }
+                    } catch (err) {
+                        if (typeof onSave === 'function') onSave();
+                    }
+                } else {
+                    if (typeof onSave === 'function') onSave();
+                }
                 handleAddLabParamsDrawer();
             }
-          } catch (error) {
-            console.error("Error:", error);
-          }
+        } catch (error) {
+            console.error("Error during save:", error);
+        }
     }
 
     const handleScroll = (index) => {
@@ -903,17 +1039,19 @@ const LabResultsTable = ({ handleAddLabParamsDrawer, patient_unique_id, onSave, 
             }
             onChange={(e) => onSearch(e.target.value)}
           />
-          <div className="position-relative">
-            <Button className="btn btn-primary2 btn-41">Add New Date</Button>
-            <DatePicker
-              key={Math.random()}
-              suffixIcon={null}
-              inputReadOnly
-              onChange={(date, dateString) => handleAddNewDate(dateString)}
-              disabledDate={disabledDate}
-              className="calender-labparams"
-            />
-          </div>
+          {!applyRawPrefill && (
+            <div className="position-relative">
+              <Button className="btn btn-primary2 btn-41">Add New Date</Button>
+              <DatePicker
+                key={Math.random()}
+                suffixIcon={null}
+                inputReadOnly
+                onChange={(date, dateString) => handleAddNewDate(dateString)}
+                disabledDate={disabledDate}
+                className="calender-labparams"
+              />
+            </div>
+          )}
         </div>
 
         <div style={{ overflowX: "auto", margin: "8px" }}>
