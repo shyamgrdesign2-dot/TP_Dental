@@ -35,6 +35,7 @@ import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
 import BottomSheetManager from "./components/bottomSheetManager";
+import FullPageLoader from "./pages/vaccination/components/Loader";
 
 const AppointmentList = React.lazy(() => import("./pages/AppointmentList"));
 const PatientDetails = React.lazy(() => import("./pages/PatientDetails"));
@@ -441,7 +442,7 @@ function App() {
                 handleUpgradeModal={handleUpgradeModal}
               />
             )}
-            <Suspense fallback={null}>
+            <Suspense fallback={<FullPageLoader />}>
               <SentryRoutes>
                 {/* Public route */}
                 {/* <Route path="/login" element={<AuthContainer />} /> */}
