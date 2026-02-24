@@ -41,9 +41,12 @@ function BottomNavigation({ activeTab = 'appointments' }) {
       const medecoToken = getMedecoToken();
       if (medecoToken) {
         const medecoUrl = `${config.MEDECO_WEBVIEW_URL}/?authToken=${medecoToken}`;
+        console.log("[TP Medeco] Going to Medeco – redirect URL:", medecoUrl);
+        console.log("[TP Medeco] Using medecoToken from localStorage, length:", medecoToken?.length);
         window.location.href = medecoUrl;
         return;
       }
+      console.log("[TP Medeco] Home clicked but no medecoToken – staying in app");
     }
     
     // Otherwise, navigate normally

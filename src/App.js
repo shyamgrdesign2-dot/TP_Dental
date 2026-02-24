@@ -33,6 +33,7 @@ import DoctorWebsiteSetting from "./pages/DoctorWebsiteSetting";
 import MessageCreateCampaign from "./pages/MessageCreateCampaign";
 
 import { store, persistor } from "./redux/store";
+import { clearDoctorProfile, getProfile } from "./redux/doctorsSlice";
 import {
   FROM_NATIVE_APP,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -261,10 +262,28 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Handle authToken in URL
-    if (authToken) {
-      setToken(authToken);
-      localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+    // Handle authToken in URL (e.g. from Medeco redirect)
+    if (!authToken) return;
+    setToken(authToken);
+    localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+
+    // Only clear cached profile and fetch when the user actually changed
+    // so we show the new user and avoid stale data; skip if same user to avoid loading flash
+    let tokenDoctorId = null;
+    try {
+      const decoded = jwtDecode(authToken);
+      tokenDoctorId = decoded?.result?.doctor_unique_id ?? decoded?.result?.user_id ?? null;
+    } catch (_) {
+      console.warn("[TP Medeco] Failed to decode authToken");
+    }
+
+    const currentProfile = store.getState()?.doctors?.profile;
+    const currentDoctorId = currentProfile?.doctor_unique_id ?? currentProfile?.user_id ?? null;
+    const isSameUser = tokenDoctorId && currentDoctorId && String(tokenDoctorId) === String(currentDoctorId);
+
+    if (!isSameUser) {
+      store.dispatch(clearDoctorProfile());
+      store.dispatch(getProfile());
     }
   }, [authToken]);
 
@@ -281,11 +300,12 @@ function App() {
     if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
       params.delete("authToken");
+      const afterSearch = params.toString();
       if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
         navigate(
           {
             pathname: "/",
-            search: params.toString(),
+            search: afterSearch,
           },
           { replace: true }
         );
