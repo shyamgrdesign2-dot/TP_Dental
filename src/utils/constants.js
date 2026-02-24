@@ -110,6 +110,7 @@ export const GB_SNAP_RX_DIGITIZATION = "snap-rx-digitization";
 export const GB_DISABLE_MSG91_OTP_FLOW = "disable-msg91-otp-flow";
 export const GB_CARE_PLAN = "care-plan-dropdown";
 export const GB_VIDEO_CONSULT = "video-consult";
+export const GB_TELE_CONSULT = "tele-consult";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";

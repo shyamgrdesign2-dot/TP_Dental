@@ -76,6 +76,7 @@ import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
 import AddNewPatient from "./pages/AddNewPatient";
+import AppTeleconsultBootstrap from "./components/AppTeleconsultBootstrap";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -422,6 +423,7 @@ function App() {
         />
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
+            <AppTeleconsultBootstrap />
             {!isLoginPage && (
               <div
                 style={{

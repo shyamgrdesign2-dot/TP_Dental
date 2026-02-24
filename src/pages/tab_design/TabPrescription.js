@@ -98,7 +98,9 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import VideoConsultButton from "../../components/VideoConsultButton";
 import VideoConsultModal from "../../components/VideoConsultModal";
-import { GB_VIDEO_CONSULT } from "../../utils/constants";
+import TeleconsultFloatingWindow from "../../components/TeleconsultFloatingWindow";
+import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../../utils/constants";
+import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -152,6 +154,7 @@ function TabPrescription() {
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
@@ -223,7 +226,7 @@ function TabPrescription() {
     
     return combined;
   }, [customModules, hospitalSearchResults, userId]);
-  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
+  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin } = state || {};
   const chartType = state?.chartType;
   const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
   const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -415,13 +418,22 @@ function TabPrescription() {
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
+  const [teleconsultAuthToken, setTeleconsultAuthToken] = useState(null);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
-  // Check if video consultation is available for this patient
-  const isVideoConsultAvailable = isVideoConsultAccessible && 
-                                   videoConsultData?.pam_status_type_appointment === 1;
+  const isNormalConsultFlow = !fromVoiceRecording && !send_path && !digitizedData;
+
+  const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
+  const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+
+  useEffect(() => {
+    if (teleconsultAutoJoin?.token) {
+      setTeleconsultAuthToken(teleconsultAutoJoin.token);
+    }
+  }, [teleconsultAutoJoin?.token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1503,6 +1515,26 @@ function TabPrescription() {
     }
   };
 
+  const handleTeleconsultClick = async () => {
+    const appointmentId = pamId || patient_data?.pam_id;
+    if (!appointmentId) return;
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+      if (token) {
+        setTeleconsultAuthToken(token);
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
+    }
+  };
+
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
   const showOnlyDrawer = isGenRxDrawerVisible && (
     // Typed input from Voice Rx
@@ -1529,7 +1561,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!teleconsultAuthToken} isTabPrescription />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -2558,6 +2590,13 @@ function TabPrescription() {
           patientName={patient_data?.pm_fullname}
           appointmentId={videoConsultData?.pam_id}
           callAction={videoConsultAction}
+        />
+      )}
+      {teleconsultAuthToken && (
+        <TeleconsultFloatingWindow
+          authToken={teleconsultAuthToken}
+          doctorName={profile?.um_name || profile?.doctor_name}
+          onClose={() => setTeleconsultAuthToken(null)}
         />
       )}
     </CashManagerContext.Provider>

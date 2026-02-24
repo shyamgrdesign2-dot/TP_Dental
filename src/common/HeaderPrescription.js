@@ -55,6 +55,7 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
+import videoSvg from '../assets/images/video.svg';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
 import {
@@ -65,7 +66,7 @@ import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redu
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -1823,7 +1824,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
                     <Col sm="auto" className='h-100'>
@@ -1975,6 +1976,24 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </Button>
                                 </div>
                             </Tooltip> */}
+                            {showTeleconsultIcon && (
+                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0}>
+                                    <span className={isTeleconsultActive ? "d-inline-block" : ""}>
+                                        <button
+                                            type="button"
+                                            className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
+                                            onClick={onTeleconsultClick}
+                                            disabled={isTeleconsultJoinLoading || isTeleconsultActive}
+                                        >
+                                            {isTeleconsultJoinLoading ? (
+                                                <LoadingOutlined style={{ fontSize: 24 }} />
+                                            ) : (
+                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
+                                            )}
+                                        </button>
+                                    </span>
+                                </Tooltip>
+                            )}
                             {handleVideoConsult && (
                                 <VideoConsultButton 
                                     onClick={handleVideoConsult} 

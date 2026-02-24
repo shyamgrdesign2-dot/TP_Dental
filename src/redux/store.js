@@ -37,6 +37,7 @@ import ophthalSnapRxDigitizationSlice from "./ophthalSnapRxDigitizationSlice";
 import ophthalmologyExamSlice from "./ophthalmologyExamSlice";
 import slitLampTemplateSlice from "./slitLampTemplateSlice";
 import fundusTemplateSlice from "./fundusTemplateSlice";
+import teleconsultNotificationReducer from "./teleconsultNotificationSlice";
 
 const persistConfig = {
   key: "root",
@@ -79,6 +80,7 @@ const rootReducer = combineReducers({
   ophthalmologyExam: ophthalmologyExamSlice,
   slitLampTemplates: slitLampTemplateSlice,
   fundusTemplates: fundusTemplateSlice,
+  teleconsultNotification: teleconsultNotificationReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
