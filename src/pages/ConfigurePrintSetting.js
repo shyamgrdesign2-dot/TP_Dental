@@ -536,11 +536,42 @@ function ConfigurePrintSetting() {
                             const rawDynamic = data.dynamicFields;
                             if (rawDynamic && typeof rawDynamic === 'object') {
                                 let dynamicObj = rawDynamic;
+                                const v2Modules = [];
                                 if (Array.isArray(rawDynamic)) {
                                     dynamicObj = rawDynamic.reduce((acc, module) => {
                                         const name = module?.name || module?.module_name || '';
                                         if (!name) return acc;
                                         const rawRows = module?.fields || module?.fieldValues || [];
+
+                                        if (module?.version === 'v2' && Array.isArray(rawRows) && rawRows.length > 0) {
+                                            const sorted = [...rawRows].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                                            const columnNames = [];
+                                            sorted.forEach(f => {
+                                                const dataKey = Object.keys(f).find(k => k !== 'order' && k !== 'id');
+                                                if (dataKey && !columnNames.includes(dataKey)) columnNames.push(dataKey);
+                                            });
+                                            const numCols = columnNames.length || 1;
+                                            const rows = [];
+                                            for (let ri = 0; ri < sorted.length; ri += numCols) {
+                                                const rowItems = sorted.slice(ri, ri + numCols);
+                                                const row = {};
+                                                rowItems.forEach(f => {
+                                                    const dk = Object.keys(f).find(k => k !== 'order' && k !== 'id');
+                                                    if (dk) row[dk] = f[dk];
+                                                });
+                                                if (Object.values(row).some(v => v != null && String(v).trim() !== '')) rows.push(row);
+                                            }
+                                            if (rows.length > 0) {
+                                                v2Modules.push({
+                                                    module_id: module?.module_id || name,
+                                                    module_name: name,
+                                                    module_version: 'v2',
+                                                    content: rows,
+                                                });
+                                            }
+                                            return acc;
+                                        }
+
                                         const rows = Array.isArray(rawRows)
                                             ? rawRows
                                                 .map((f) => {
@@ -572,8 +603,9 @@ function ConfigurePrintSetting() {
                                         }).filter((item) => item.notes !== ''),
                                     }))
                                     .filter((m) => m.content.length > 0);
-                                if (fromDynamic.length > 0) {
-                                    transformed.moduleContents = fromDynamic;
+                                const allModuleContents = [...fromDynamic, ...v2Modules];
+                                if (allModuleContents.length > 0) {
+                                    transformed.moduleContents = allModuleContents;
                                 }
                             }
                             return transformed;
@@ -1058,7 +1090,27 @@ function ConfigurePrintSetting() {
                 }
             }
 
-          
+            const moduleSource = dataForPrescription?.moduleContents || caseManagerData?.moduleContents || [];
+            if (moduleSource.length > 0 && copyPrintSettings?.prescription?.case_option) {
+                const existingOptionIds = new Set(copyPrintSettings.prescription.case_option.map(o => o.id));
+                moduleSource.forEach(mod => {
+                    const modId = mod?.module_id;
+                    const modName = mod?.module_name || mod?.name || modId;
+                    if (modId && !existingOptionIds.has(modId) && mod?.content?.length > 0) {
+                        copyPrintSettings.prescription.case_option.push({
+                            id: modId,
+                            title: modName,
+                            format: "inline",
+                            enable: "Y",
+                            custom_status: "Y",
+                            is_custom_module: true,
+                            showDefault: true,
+                        });
+                        existingOptionIds.add(modId);
+                    }
+                });
+            }
+
             // Add SmartRx (written RX) option only for snap/smart written prescription – NOT for digitised prescription
             const hasSmartRxFiles = (smartRxFile && smartRxFile.length > 0) || caseManagerData?.smart_prescription_filename;
             const showWrittenRxOption = hasSmartRxFiles && isWrittenRxSnapSmart;

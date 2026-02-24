@@ -866,8 +866,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return caseManagerData?.zydusSelectedLabParams?.length > 0;
                 case 19: // Care Plan Assignments
                     return activeCarePlans.length > 0;
-                case 91: // Vaccines
-                    return caseManagerData?.visit_advice;
+                case 91: // Others / Notes
+                    return caseManagerData?.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                 case 20: // Ophthalmology Module
                     return hasOphthalModuleData;
                 default:
@@ -1184,7 +1184,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 9: 
                                     return caseManagerData.follow_up_date;
                                 case 91: 
-                                    return caseManagerData.visit_advice;
+                                    return caseManagerData.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                                 case 10: 
                                     return (todayVaccines?.given?.length || todayVaccines?.due?.length);
                                 case 11: 
@@ -1295,7 +1295,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
                             
                             // Check if this is a custom module and if it has data
-                            const hasCustomModuleData = option?.is_custom_module === true && customModule?.content?.some((item) => item?.title || item?.notes);
+                            const hasCustomModuleData = option?.is_custom_module === true && customModule?.content?.some((item) => {
+                                if (item?.title || item?.notes) return true;
+                                const dataKeys = Object.keys(item || {}).filter(k => k !== 'id' && k !== 'order');
+                                return dataKeys.some(k => item[k] != null && String(item[k]).trim() !== '');
+                            });
                             
                             // Skip rendering if it's a custom module with no data
                             if (option?.is_custom_module === true && !hasCustomModuleData) {
@@ -2545,6 +2549,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </View>
                                                 </View>
                                             )
+                                        )}
+                                        {Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Others:&nbsp;{'\n'}</Text>
+                                                {caseManagerData.others.map((item, i) => (
+                                                    <Text key={i} style={{ marginTop: PX_TO_PT * 4, color: '#171725', fontFamily: getIndianLanguageFont(typeof item === 'string' ? item : (item?.text ?? item?.name ?? ''), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                        {i + 1}. {typeof item === 'string' ? item : (item?.text ?? item?.name ?? '')}
+                                                    </Text>
+                                                ))}
+                                            </View>
                                         )}
                                     </>
                                 ) : option?.id === 10 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
@@ -6073,11 +6087,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         // Check if this is V2 module directly from customModule
                                         const isV2 = customModule?.module_version === 'v2';
                                         
-                                        // Get field names directly from the first content item (if v2)
                                         const getFieldKeys = (item) => {
                                             if (!item || typeof item !== 'object') return [];
-                                            // Exclude 'id' and any other non-field keys
-                                            return Object.keys(item).filter(key => key !== 'id');
+                                            return Object.keys(item).filter(key => key !== 'id' && key !== 'order');
                                         };
                                         
                                         // Get field keys from first content item (for v2)
@@ -6428,16 +6440,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             )
                         
                         })}
-                                {Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0 && (
-                                    <View key="others-list" style={{ marginTop: PX_TO_PT * 15 }}>
-                                        <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Others:&nbsp;{'\n'}</Text>
-                                        {caseManagerData.others.map((item, i) => (
-                                            <Text key={i} style={{ marginTop: PX_TO_PT * 4, color: '#171725', fontFamily: getIndianLanguageFont(typeof item === 'string' ? item : (item?.text ?? item?.name ?? ''), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
-                                                {i + 1}. {typeof item === 'string' ? item : (item?.text ?? item?.name ?? '')}
-                                            </Text>
-                                        ))}
-                                    </View>
-                                )}
                             </>
                         );
                         })()}
