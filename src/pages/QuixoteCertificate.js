@@ -62,10 +62,11 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
 
     return (
         <>
-            {pdfUrl ? (
+            {pdfUrl && (
                 <Document
                     loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%", height: '100%' }} />}
                     error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+                    noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
                     file={pdfUrl}
                     onLoadSuccess={onDocumentLoadSuccess}>
                     {Array.apply(null, Array(numPages))
@@ -84,8 +85,6 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
                             );
                         })}
                 </Document>
-            ) : (
-                <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%", height: '100%' }} />
             )}
         </>
     )
