@@ -3952,12 +3952,20 @@ function Cardiology(props) {
                               ? patient_data.patient_unique_id
                               : 0,
                         });
+                        if (isMobile && !isTablet) {
+                          navigate("/voice-rx-consult", {
+                            state: {
+                              patient_data: patient_data,
+                            },
+                          });
+                        } else {
                         navigate("/prescription", {
                           state: {
                             patient_data: patient_data,
                             send_path: "patient_details",
                           },
                         });
+                        }
                       }
                     }}
                   >
