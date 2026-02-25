@@ -144,10 +144,12 @@ const MobileAncPrintPreview = ({
                       className={`print-item ${selectedItems.includes(masterId) ? 'selected' : ''}`}
                       onClick={() => handleItemSelect(masterId)}
                     >
-                      <Checkbox
-                        checked={selectedItems.includes(masterId)}
-                        onChange={() => handleItemSelect(masterId)}
-                      />
+                      <span onClick={(e) => e.stopPropagation()} role="presentation">
+                        <Checkbox
+                          checked={selectedItems.includes(masterId)}
+                          onChange={() => handleItemSelect(masterId)}
+                        />
+                      </span>
                       <div className="item-details">
                         <span className="item-name">{master?.name}</span>
                         <div className="item-meta">

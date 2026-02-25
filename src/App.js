@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Routes,
   Route,
+  Navigate,
   useSearchParams,
   useNavigate,
   useLocation,
