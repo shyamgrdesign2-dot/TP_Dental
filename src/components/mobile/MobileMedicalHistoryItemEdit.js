@@ -149,7 +149,10 @@ function MobileMedicalHistoryItemEdit({
                     key={unit}
                     type="button"
                     className={`unit-btn ${sinceUnit === unit ? 'active' : ''}`}
-                    onClick={() => setSinceUnit(unit)}
+                    onClick={() => {
+                      if (!sinceNumber) setSinceNumber('1');
+                      setSinceUnit(unit);
+                    }}
                   >
                     {unit}
                   </button>
