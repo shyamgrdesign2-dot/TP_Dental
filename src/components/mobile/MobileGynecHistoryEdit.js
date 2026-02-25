@@ -163,6 +163,16 @@ function MobileGynecHistoryEdit({
     setNotes('');
   };
 
+  const handleClose = () => {
+    resetForm();
+    setShowAgeAtMenarcheDetails(false);
+    setShowCycleDetails(false);
+    setShowFlowDetails(false);
+    setShowPainDetails(false);
+    setShowLifecycleDetails(false);
+    onClose?.();
+  };
+
   const handleSave = async () => {
     if (!patient_data?.patient_unique_id) {
       errorMessage('Patient information is missing.');
@@ -276,494 +286,38 @@ function MobileGynecHistoryEdit({
     }
   };
 
-  // Handle nested bottom sheet saves - Save immediately to API
-  const handleAgeAtMenarcheSave = async (data) => {
-    // Update local state first
-    if (data.ageAtMenarche !== null) {
-      setAgeAtMenarche(String(data.ageAtMenarche));
-    }
+  // Step-wise save (like Medical History): nested sheet save only updates local state; API call happens on main Save.
+  const handleAgeAtMenarcheSave = (data) => {
+    if (data.ageAtMenarche !== null) setAgeAtMenarche(String(data.ageAtMenarche));
     setMenarcheNotes(data.menarcheNotes || '');
-
-    // Save immediately to API
-    if (!patient_data?.patient_unique_id) {
-      errorMessage('Patient information is missing.');
-      return;
-    }
-
-    setLoading(true);
-    const today = moment().toISOString();
-    const user_id = tokenData?.result?.user_id || tokenData?.user_id || userId;
-
-    if (!user_id) {
-      setLoading(false);
-      errorMessage('User information is missing. Please refresh and try again.');
-      return;
-    }
-
-    // Build payload with all current data + new age at menarche data
-    const payload = {};
-    
-    // LMP
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        payload.lmp = lmp;
-      }
-    }
-    
-    if (data.ageAtMenarche !== null) payload.ageAtMenarche = parseInt(data.ageAtMenarche);
-    if (data.menarcheNotes) payload.menarcheNotes = data.menarcheNotes;
-    if (cycle) payload.cycle = cycle;
-    if (flow) payload.flow = flow;
-    if (pain) payload.pain = pain;
-    if (reproductiveLifeStages) payload.reproductiveLifeStages = reproductiveLifeStages;
-    
-    // Include all other detail fields
-    if (intervalOfCycle) payload.intervalOfCycle = parseInt(intervalOfCycle);
-    if (cycleNotes) payload.cycleNotes = cycleNotes;
-    if (durationOfMenstrualFlow) payload.durationOfMenstrualFlow = parseInt(durationOfMenstrualFlow);
-    if (clots !== null && clots !== undefined && clots !== '') payload.clots = clots;
-    if (numberOfPadsPerDay) payload.numberOfPadsPerDay = parseInt(numberOfPadsPerDay);
-    if (flowNotes) payload.flowNotes = flowNotes;
-    if (occurrenceOfPain) payload.occurrenceOfPain = occurrenceOfPain;
-    if (painNotes) payload.painNotes = painNotes;
-    if (ageAtMenopause) payload.ageAtMenopause = parseInt(ageAtMenopause);
-    if (typeOfMenopause) payload.typeOfMenopause = typeOfMenopause;
-    if (reproductiveNotes) payload.reproductiveNotes = reproductiveNotes;
-    if (notes) payload.notes = notes;
-
-    // Filter out empty values - match web version logic exactly
-    const filteredPayload = Object.keys(payload).reduce((acc, key) => {
-      const value = payload[key];
-      if (
-        value !== '' && 
-        value !== null && 
-        value !== 'custom' && 
-        value !== 'number'
-      ) {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    try {
-      if (isEditMode) {
-        const updatePayload = {
-          ...filteredPayload,
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await updateGynecDetails(patient_data.patient_unique_id, updatePayload, userId);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      } else {
-        const createPayload = {
-          patientId: patient_data.patient_unique_id,
-          timeline: [{
-            ...filteredPayload,
-            createdAt: today,
-            createdBy: user_id,
-          }],
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await postGynecDetails(createPayload);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      }
-    } catch (error) {
-      errorMessage('Unable to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setIsEditMode(true);
   };
 
-  const handleCycleDetailsSave = async (data) => {
-    // Update local state first
-    if (data.intervalOfCycle !== null) {
-      setIntervalOfCycle(String(data.intervalOfCycle));
-    }
+  const handleCycleDetailsSave = (data) => {
+    if (data.intervalOfCycle !== null) setIntervalOfCycle(String(data.intervalOfCycle));
     setCycleNotes(data.cycleNotes || '');
-
-    // Save immediately to API (same pattern as Age at Menarche)
-    if (!patient_data?.patient_unique_id) {
-      errorMessage('Patient information is missing.');
-      return;
-    }
-
-    setLoading(true);
-    const today = moment().toISOString();
-    const user_id = tokenData?.result?.user_id || tokenData?.user_id || userId;
-
-    if (!user_id) {
-      setLoading(false);
-      errorMessage('User information is missing. Please refresh and try again.');
-      return;
-    }
-
-    const payload = {};
-    
-    // Include all existing data
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        payload.lmp = lmp;
-      }
-    }
-    if (ageAtMenarche) payload.ageAtMenarche = parseInt(ageAtMenarche);
-    if (menarcheNotes) payload.menarcheNotes = menarcheNotes;
-    if (cycle) payload.cycle = cycle;
-    if (flow) payload.flow = flow;
-    if (pain) payload.pain = pain;
-    if (reproductiveLifeStages) payload.reproductiveLifeStages = reproductiveLifeStages;
-    if (data.intervalOfCycle !== null) payload.intervalOfCycle = parseInt(data.intervalOfCycle);
-    if (data.cycleNotes) payload.cycleNotes = data.cycleNotes;
-    if (durationOfMenstrualFlow) payload.durationOfMenstrualFlow = parseInt(durationOfMenstrualFlow);
-    if (clots !== null && clots !== undefined && clots !== '') payload.clots = clots;
-    if (numberOfPadsPerDay) payload.numberOfPadsPerDay = parseInt(numberOfPadsPerDay);
-    if (flowNotes) payload.flowNotes = flowNotes;
-    if (occurrenceOfPain) payload.occurrenceOfPain = occurrenceOfPain;
-    if (painNotes) payload.painNotes = painNotes;
-    if (ageAtMenopause) payload.ageAtMenopause = parseInt(ageAtMenopause);
-    if (typeOfMenopause) payload.typeOfMenopause = typeOfMenopause;
-    if (reproductiveNotes) payload.reproductiveNotes = reproductiveNotes;
-    if (notes) payload.notes = notes;
-
-    const filteredPayload = Object.keys(payload).reduce((acc, key) => {
-      const value = payload[key];
-      if (value !== '' && value !== null && value !== undefined && value !== 'custom' && value !== 'number') {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    try {
-      if (isEditMode) {
-        const updatePayload = { ...filteredPayload, createdAt: today, createdBy: user_id };
-        const response = await updateGynecDetails(patient_data.patient_unique_id, updatePayload, userId);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      } else {
-        const createPayload = {
-          patientId: patient_data.patient_unique_id,
-          timeline: [{ ...filteredPayload, createdAt: today, createdBy: user_id }],
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await postGynecDetails(createPayload);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      }
-    } catch (error) {
-      errorMessage('Unable to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setIsEditMode(true);
   };
 
-  const handleFlowDetailsSave = async (data) => {
-    // Update local state first
-    if (data.durationOfMenstrualFlow !== null) {
-      setDurationOfMenstrualFlow(String(data.durationOfMenstrualFlow));
-    }
+  const handleFlowDetailsSave = (data) => {
+    if (data.durationOfMenstrualFlow !== null) setDurationOfMenstrualFlow(String(data.durationOfMenstrualFlow));
     setClots(data.clots);
-    if (data.numberOfPadsPerDay !== null) {
-      setNumberOfPadsPerDay(String(data.numberOfPadsPerDay));
-    }
+    if (data.numberOfPadsPerDay !== null) setNumberOfPadsPerDay(String(data.numberOfPadsPerDay));
     setFlowNotes(data.flowNotes || '');
-
-    // Save immediately to API
-    if (!patient_data?.patient_unique_id) {
-      errorMessage('Patient information is missing.');
-      return;
-    }
-
-    setLoading(true);
-    const today = moment().toISOString();
-    const user_id = tokenData?.result?.user_id || tokenData?.user_id || userId;
-
-    if (!user_id) {
-      setLoading(false);
-      errorMessage('User information is missing. Please refresh and try again.');
-      return;
-    }
-
-    const payload = {};
-    
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        payload.lmp = lmp;
-      }
-    }
-    if (ageAtMenarche) payload.ageAtMenarche = parseInt(ageAtMenarche);
-    if (menarcheNotes) payload.menarcheNotes = menarcheNotes;
-    if (cycle) payload.cycle = cycle;
-    if (flow) payload.flow = flow;
-    if (pain) payload.pain = pain;
-    if (reproductiveLifeStages) payload.reproductiveLifeStages = reproductiveLifeStages;
-    if (intervalOfCycle) payload.intervalOfCycle = parseInt(intervalOfCycle);
-    if (cycleNotes) payload.cycleNotes = cycleNotes;
-    if (data.durationOfMenstrualFlow !== null) payload.durationOfMenstrualFlow = parseInt(data.durationOfMenstrualFlow);
-    if (data.clots !== null && data.clots !== undefined && data.clots !== '') payload.clots = data.clots;
-    if (data.numberOfPadsPerDay !== null) payload.numberOfPadsPerDay = parseInt(data.numberOfPadsPerDay);
-    if (data.flowNotes) payload.flowNotes = data.flowNotes;
-    if (occurrenceOfPain) payload.occurrenceOfPain = occurrenceOfPain;
-    if (painNotes) payload.painNotes = painNotes;
-    if (ageAtMenopause) payload.ageAtMenopause = parseInt(ageAtMenopause);
-    if (typeOfMenopause) payload.typeOfMenopause = typeOfMenopause;
-    if (reproductiveNotes) payload.reproductiveNotes = reproductiveNotes;
-    if (notes) payload.notes = notes;
-
-    const filteredPayload = Object.keys(payload).reduce((acc, key) => {
-      const value = payload[key];
-      if (value !== '' && value !== null && value !== undefined && value !== 'custom' && value !== 'number') {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    try {
-      if (isEditMode) {
-        const updatePayload = { ...filteredPayload, createdAt: today, createdBy: user_id };
-        const response = await updateGynecDetails(patient_data.patient_unique_id, updatePayload, userId);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      } else {
-        const createPayload = {
-          patientId: patient_data.patient_unique_id,
-          timeline: [{ ...filteredPayload, createdAt: today, createdBy: user_id }],
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await postGynecDetails(createPayload);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      }
-    } catch (error) {
-      errorMessage('Unable to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setIsEditMode(true);
   };
 
-  const handlePainDetailsSave = async (data) => {
-    // Update local state first
+  const handlePainDetailsSave = (data) => {
     setOccurrenceOfPain(data.occurrenceOfPain || '');
     setPainNotes(data.painNotes || '');
-
-    // Save immediately to API
-    if (!patient_data?.patient_unique_id) {
-      errorMessage('Patient information is missing.');
-      return;
-    }
-
-    setLoading(true);
-    const today = moment().toISOString();
-    const user_id = tokenData?.result?.user_id || tokenData?.user_id || userId;
-
-    if (!user_id) {
-      setLoading(false);
-      errorMessage('User information is missing. Please refresh and try again.');
-      return;
-    }
-
-    const payload = {};
-    
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        payload.lmp = lmp;
-      }
-    }
-    if (ageAtMenarche) payload.ageAtMenarche = parseInt(ageAtMenarche);
-    if (menarcheNotes) payload.menarcheNotes = menarcheNotes;
-    if (cycle) payload.cycle = cycle;
-    if (flow) payload.flow = flow;
-    if (pain) payload.pain = pain;
-    if (reproductiveLifeStages) payload.reproductiveLifeStages = reproductiveLifeStages;
-    if (intervalOfCycle) payload.intervalOfCycle = parseInt(intervalOfCycle);
-    if (cycleNotes) payload.cycleNotes = cycleNotes;
-    if (durationOfMenstrualFlow) payload.durationOfMenstrualFlow = parseInt(durationOfMenstrualFlow);
-    if (clots !== null && clots !== undefined && clots !== '') payload.clots = clots;
-    if (numberOfPadsPerDay) payload.numberOfPadsPerDay = parseInt(numberOfPadsPerDay);
-    if (flowNotes) payload.flowNotes = flowNotes;
-    if (data.occurrenceOfPain) payload.occurrenceOfPain = data.occurrenceOfPain;
-    if (data.painNotes) payload.painNotes = data.painNotes;
-    if (ageAtMenopause) payload.ageAtMenopause = parseInt(ageAtMenopause);
-    if (typeOfMenopause) payload.typeOfMenopause = typeOfMenopause;
-    if (reproductiveNotes) payload.reproductiveNotes = reproductiveNotes;
-    if (notes) payload.notes = notes;
-
-    const filteredPayload = Object.keys(payload).reduce((acc, key) => {
-      const value = payload[key];
-      if (value !== '' && value !== null && value !== undefined && value !== 'custom' && value !== 'number') {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    try {
-      if (isEditMode) {
-        const updatePayload = { ...filteredPayload, createdAt: today, createdBy: user_id };
-        const response = await updateGynecDetails(patient_data.patient_unique_id, updatePayload, userId);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      } else {
-        const createPayload = {
-          patientId: patient_data.patient_unique_id,
-          timeline: [{ ...filteredPayload, createdAt: today, createdBy: user_id }],
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await postGynecDetails(createPayload);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        } else {
-          errorMessage('Unable to save. Please try again.');
-        }
-      }
-    } catch (error) {
-      errorMessage('Unable to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setIsEditMode(true);
   };
 
-  const handleLifecycleDetailsSave = async (data) => {
-    // Update local state first
-    if (data.ageAtMenopause !== null) {
-      setAgeAtMenopause(String(data.ageAtMenopause));
-    }
+  const handleLifecycleDetailsSave = (data) => {
+    if (data.ageAtMenopause !== null) setAgeAtMenopause(String(data.ageAtMenopause));
     setTypeOfMenopause(data.typeOfMenopause || '');
     setReproductiveNotes(data.reproductiveNotes || '');
-
-    // Save immediately to API
-    if (!patient_data?.patient_unique_id) {
-      errorMessage('Patient information is missing.');
-      return;
-    }
-
-    setLoading(true);
-    const today = moment().toISOString();
-    const user_id = tokenData?.result?.user_id || tokenData?.user_id || userId;
-
-    if (!user_id) {
-      setLoading(false);
-      errorMessage('User information is missing. Please refresh and try again.');
-      return;
-    }
-
-    const payload = {};
-    
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        payload.lmp = lmp;
-      }
-    }
-    if (ageAtMenarche) payload.ageAtMenarche = parseInt(ageAtMenarche);
-    if (menarcheNotes) payload.menarcheNotes = menarcheNotes;
-    if (cycle) payload.cycle = cycle;
-    if (flow) payload.flow = flow;
-    if (pain) payload.pain = pain;
-    if (reproductiveLifeStages) payload.reproductiveLifeStages = reproductiveLifeStages;
-    if (intervalOfCycle) payload.intervalOfCycle = parseInt(intervalOfCycle);
-    if (cycleNotes) payload.cycleNotes = cycleNotes;
-    if (durationOfMenstrualFlow) payload.durationOfMenstrualFlow = parseInt(durationOfMenstrualFlow);
-    if (clots !== null && clots !== undefined && clots !== '') payload.clots = clots;
-    if (numberOfPadsPerDay) payload.numberOfPadsPerDay = parseInt(numberOfPadsPerDay);
-    if (flowNotes) payload.flowNotes = flowNotes;
-    if (occurrenceOfPain) payload.occurrenceOfPain = occurrenceOfPain;
-    if (painNotes) payload.painNotes = painNotes;
-    if (data.ageAtMenopause !== null) payload.ageAtMenopause = parseInt(data.ageAtMenopause);
-    if (data.typeOfMenopause) payload.typeOfMenopause = data.typeOfMenopause;
-    if (data.reproductiveNotes) payload.reproductiveNotes = data.reproductiveNotes;
-    if (notes) payload.notes = notes;
-
-    const filteredPayload = Object.keys(payload).reduce((acc, key) => {
-      const value = payload[key];
-      if (value !== '' && value !== null && value !== undefined && value !== 'custom' && value !== 'number') {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    try {
-      if (isEditMode) {
-        const updatePayload = { ...filteredPayload, createdAt: today, createdBy: user_id };
-        const response = await updateGynecDetails(patient_data.patient_unique_id, updatePayload, userId);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        }
-      } else {
-        const createPayload = {
-          patientId: patient_data.patient_unique_id,
-          timeline: [{ ...filteredPayload, createdAt: today, createdBy: user_id }],
-          createdAt: today,
-          createdBy: user_id,
-        };
-        const response = await postGynecDetails(createPayload);
-        if (response?.data) {
-          trackGynecUpdateEvent();
-          setIsEditMode(true);
-          onSave?.(filteredPayload);
-        }
-      }
-    } catch (error) {
-      errorMessage('Unable to save. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    setIsEditMode(true);
   };
 
   // Render button group
@@ -793,7 +347,7 @@ function MobileGynecHistoryEdit({
     <>
       <Drawer
         placement="bottom"
-        onClose={onClose}
+        onClose={handleClose}
         open={visible}
         height="auto"
         className="mobile-gynec-history-edit"
@@ -808,7 +362,7 @@ function MobileGynecHistoryEdit({
             <button
               type="button"
               className="mobile-gynec-close"
-              onClick={onClose}
+              onClick={handleClose}
             >
               <img src={closeIcon} alt="Close" />
             </button>
