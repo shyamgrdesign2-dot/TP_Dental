@@ -9,7 +9,7 @@ import { env } from "../../EnvironmentConfig";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_VIDEO_CONSULT, GB_TELE_CONSULT, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
@@ -96,10 +96,8 @@ import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
-import VideoConsultButton from "../../components/VideoConsultButton";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import TeleconsultFloatingWindow from "../../components/TeleconsultFloatingWindow";
-import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../../utils/constants";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
@@ -1517,7 +1515,10 @@ function TabPrescription() {
 
   const handleTeleconsultClick = async () => {
     const appointmentId = pamId || patient_data?.pam_id;
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
     setIsTeleconsultJoinLoading(true);
     try {
       const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);

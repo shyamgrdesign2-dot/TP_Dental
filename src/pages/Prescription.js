@@ -688,7 +688,10 @@ function Prescription() {
 
   const handleTeleconsultClick = async () => {
     const appointmentId = pamId || patient_data?.pam_id;
-    if (!appointmentId) return;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
     setIsTeleconsultJoinLoading(true);
     try {
       const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);

@@ -105,22 +105,6 @@ body{
             .teleconsult-video-btn + .headerprescription-tablet-sep {
                 margin-inline-start: 8px;
             }
-
-            /* Tab prescription only: reduced spacing and size */
-            &.headerprescription--tab {
-                .headerprescription-actions .btn:not(.btn-primary3):not(.btn-more) {
-                    padding: 0 8px 0 0;
-                }
-                .headerprescription-tablet-sep {
-                    margin: 0 8px;
-                }
-                .teleconsult-video-btn {
-                    width: 36px;
-                    height: 36px;
-                    min-width: 36px;
-                    padding: 6px;
-                }
-            }
         }
     }
 }

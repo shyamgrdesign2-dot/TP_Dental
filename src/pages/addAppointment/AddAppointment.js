@@ -376,18 +376,19 @@ function AddAppointment() {
   const [appointmentMode, setAppointmentMode] = useState("in_clinic");
 
   useEffect(() => {
-    const doctorId = getTokenData()?.user_id;
+    const doctorId = selectedDoctor || getTokenData()?.user_id;
+    const hmId = getTokenData()?.clinic_id;
     if (!doctorId || !isTeleConsultEnabled) {
       setHasVideoSlotsFromApi(false);
       return;
     }
-    ApiTeleconsult.getHasVideoSlots(doctorId)
+    ApiTeleconsult.getHasVideoSlots(doctorId, hmId)
       .then((res) => {
         const data = res?.data ?? res;
         setHasVideoSlotsFromApi(!!data?.hasVideoSlots);
       })
       .catch(() => setHasVideoSlotsFromApi(false));
-  }, [isTeleConsultEnabled]);
+  }, [isTeleConsultEnabled, selectedDoctor]);
 
   // Helper function to find the first available section
   const getFirstAvailableSection = (timeSlots) => {
@@ -597,6 +598,9 @@ function AddAppointment() {
 
   const handleDoctorChange = (value) => {
     setSelectedDoctor(value);
+    setAppointmentMode("in_clinic");
+    setSelectedTimeSlot(null);
+    setSelectedSlotDetails(null);
     setActiveTab(getCurrentTimeSection()); // Reset tab to current time section
   };
 

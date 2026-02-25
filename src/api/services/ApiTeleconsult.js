@@ -7,8 +7,12 @@ const baseUrl = { customBaseUrl: TELECONSULT_BASE_URL };
 
 const ApiTeleconsult = {};
 
-ApiTeleconsult.getHasVideoSlots = function (doctorId) {
-  return api.get(`/api/v1/teleconsult/has-video-slots?doctorId=${doctorId}`, baseUrl);
+ApiTeleconsult.getHasVideoSlots = function (doctorId, hmId) {
+  const params = new URLSearchParams();
+  if (doctorId != null && doctorId !== "") params.set("doctorId", String(doctorId));
+  if (hmId != null && hmId !== "") params.set("hm_id", String(hmId));
+  const query = params.toString();
+  return api.get(`/api/v1/teleconsult/has-video-slots${query ? `?${query}` : ""}`, baseUrl);
 };
 
 ApiTeleconsult.getSlots = function (doctorId, date) {
@@ -18,17 +22,11 @@ ApiTeleconsult.getSlots = function (doctorId, date) {
   );
 };
 
-
 ApiTeleconsult.checkVideoAvailability = function (appointmentId) {
   return api.get(
     `/api/v1/teleconsult/check-video-availability?appointmentId=${appointmentId}`,
     baseUrl
   );
-};
-
-
-ApiTeleconsult.createAppointment = function (body) {
-  return api.post("/api/v1/appointment", body, baseUrl);
 };
 
 export default ApiTeleconsult;
