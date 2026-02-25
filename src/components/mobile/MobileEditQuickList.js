@@ -245,13 +245,16 @@ function MobileEditQuickList({
               {visibleTags.length > 0 ? (
                 <div className="tags-grid">
                   {visibleTags.map((tag, index) => (
-                    <div key={index} className="tag-item">
+                    <div key={tag.unique_id || index} className="tag-item">
                       {tag.title}
                       <img 
                         src={chipCloseIcon} 
                         alt="Remove" 
                         className="tag-remove-icon" 
-                        onClick={() => handleRemoveTag(tag, index)} 
+                        onClick={() => {
+                          const realIndex = editedSection.tags.findIndex(t => t === tag);
+                          handleRemoveTag(tag, realIndex);
+                        }}
                       />
                     </div>
                   ))}
