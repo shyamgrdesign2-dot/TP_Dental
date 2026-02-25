@@ -1,5 +1,4 @@
 import React, { Suspense, useEffect, useState } from "react";
-import Carousel from "./OnboardCarousel";
 import SignUp from "./SignUp";
 import SetPassword from "./SetPassword";
 import VerifyOTP from "./VerifyOTP";
@@ -8,10 +7,12 @@ import VerifyPassword from "./VerifyPassword.js";
 import Hook from "../../../assets/images/website-images/Hook.webp";
 import Hook2 from "../../../assets/images/website-images/Hook2.webp";
 import Logo from "../../../assets/images/website-images/logo.webp";
+import WebStructureBg from "../../../assets/images/webStructure.svg";
 import "./Onboarding.scss";
 import "./FeatureTabCard/FeatureTabCard.scss";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService.js";
 import { Spin } from "antd";
+const Carousel = React.lazy(() => import("./OnboardCarousel"));
 const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
 const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));
 const Testimonials = React.lazy(() => import("./Testimonials/Testimonials.js"));
@@ -60,10 +61,8 @@ const Onboarding = () => {
           setIsLoginFlow(true);
         }
       } finally {
-        // Add a small delay to ensure smooth transition
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
+        // Render immediately; removing artificial delay improves FCP/LCP
+        setIsLoading(false);
       }
     };
 
@@ -99,6 +98,19 @@ const Onboarding = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Preload the LCP background artwork with high priority to speed up first paint.
+  useEffect(() => {
+    const preloadId = "preload-webstructure-bg";
+    if (document.getElementById(preloadId)) return;
+    const link = document.createElement("link");
+    link.id = preloadId;
+    link.rel = "preload";
+    link.as = "image";
+    link.href = WebStructureBg;
+    link.fetchPriority = "high";
+    document.head.appendChild(link);
   }, []);
 
   const handleViewChange = (
@@ -172,7 +184,7 @@ const Onboarding = () => {
                       if (mobileInput) {
                         mobileInput.focus();
                       }
-                    }, 500);
+                    }, 100);
                   }
                 }}
               >
@@ -187,7 +199,9 @@ const Onboarding = () => {
       )}
       <div className="onboarding-container">
         <div className="onboarding-left">
-          <Carousel />
+          <Suspense fallback={null}>
+            <Carousel />
+          </Suspense>
         </div>
         <div className="onboarding-right">
           {(view === "signup" || view === "loginOTP") && (
@@ -296,7 +310,7 @@ const Onboarding = () => {
                         if (mobileInput) {
                           mobileInput.focus();
                         }
-                      }, 500);
+                      }, 100);
                     }
                   }}
                 >

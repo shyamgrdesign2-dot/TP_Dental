@@ -16,6 +16,25 @@ import './assets/scss/app.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
+// Provide a harmless MoEngage stub so early calls don't crash if the SDK loads late.
+if (typeof window !== "undefined") {
+  window.Moengage = window.Moengage || {};
+  [
+    "track_event",
+    "add_user_attribute",
+    "add_unique_user_id",
+    "add_first_name",
+    "add_last_name",
+    "add_email",
+    "add_mobile",
+    "destroy_session",
+  ].forEach((fn) => {
+    if (!window.Moengage[fn]) {
+      window.Moengage[fn] = () => {};
+    }
+  });
+}
+
 const appEnv = process.env.REACT_APP_ENV || "prod";
 const isProd = appEnv === "prod";
 const tracesSampleRateValue =

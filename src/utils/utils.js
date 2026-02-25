@@ -881,7 +881,9 @@ export const isValidMongoId = (id) => {
 };
 
 export const trackEvent = (eventName, attributes) => {
-  window.Moengage.track_event(eventName, attributes);
+  if (typeof window !== "undefined" && window.Moengage?.track_event) {
+    window.Moengage.track_event(eventName, attributes);
+  }
 };
 
 export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {

@@ -166,7 +166,7 @@ function Header({ locationPath }) {
   useEffect(() => {
     if (profile) {
       if (profile.moengage_b2c_send === undefined) {
-        window.Moengage.add_unique_user_id(profile?.b2c)
+        window.Moengage?.add_unique_user_id?.(profile?.b2c);
         dispatch(updateStatusMoengageB2C());
       }
       // setSwitchCheckbox(profile.switchtoOld != 0 ? true : false)

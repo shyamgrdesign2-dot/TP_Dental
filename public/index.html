@@ -57,9 +57,51 @@
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Your trusted healthcare platform." />
     <link rel="preload" href="%PUBLIC_URL%/nodata-found.svg" as="image" fetchpriority="high">
+    <link rel="preload" href="%PUBLIC_URL%/assets/images/webStructure.svg" as="image" fetchpriority="high">
+    <link rel="preload" href="%PUBLIC_URL%/assets/images/website-images/SmartSyncBanner.webp" as="image" fetchpriority="high">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" href="%PUBLIC_URL%/fonts/popins/Poppins-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="%PUBLIC_URL%/fonts/popins/Poppins-Medium.woff2" as="font" type="font/woff2" crossorigin>
+    <style>
+      /* Local Poppins with font-display swap to avoid FOIT */
+      @font-face {
+        font-family: 'Poppins';
+        src: url('%PUBLIC_URL%/fonts/popins/Poppins-Regular.woff2') format('woff2');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Poppins';
+        src: url('%PUBLIC_URL%/fonts/popins/Poppins-Medium.woff2') format('woff2');
+        font-weight: 500;
+        font-style: normal;
+        font-display: swap;
+      }
+      /* Critical fold styles for /login to avoid waiting on main.css */
+      .onboarding-container {
+        display: flex;
+        max-height: 100vh;
+        max-width: 90rem;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .onboarding-left { flex: 1; display: flex; position: relative; }
+      .onboarding-right {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        margin: 1rem 1.2rem 1rem 1rem;
+        border-radius: 0 4rem 0 4rem;
+        padding: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      @media (max-width: 768px) {
+        .onboarding-container { flex-direction: column; max-height: 100%; }
+        .onboarding-right { width: 100vw; margin: 0; border-radius: 0 3rem 0 3rem; }
+      }
+    </style>
     <meta property="og:image" content="https://www.tatvacare.in/wp-content/uploads/2023/11/main-logo-1-1.jpg"/>
     <meta property="og:image:secure_url" content="https://www.tatvacare.in/wp-content/uploads/2023/11/main-logo-1-1.jpg" />
     <meta property="og:image:width" content="616" />

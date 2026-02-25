@@ -14,6 +14,27 @@
     flex-direction: column;
     position: relative;
     padding: 0;
+    min-height: 420px;
+
+    .carousel-container {
+      width: 100%;
+      min-height: 30rem; /* reserves space to prevent LCP image shift */
+
+      .banner-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+
+        picture,
+        img {
+          width: 100%;
+          display: block;
+          aspect-ratio: 641 / 496;
+          object-fit: contain;
+        }
+      }
+    }
   }
 
   .onboarding-right {
@@ -22,7 +43,7 @@
     align-items: center;
     width: 50%;
     margin: 1rem 1.2rem 1rem 1rem;
-    background: url('../../../assets/images/webStructure.svg') center center/90% no-repeat,
+    background: url('/assets/images/webStructure.svg') center center/90% no-repeat,
       radial-gradient(128% 141.42% at 0% 0%, #5857DC 0%, #5950D7 22.62%, rgba(89, 72, 209, 0.95) 52.37%, #240EB5 95.67%);
     border-radius: 0 4rem 0 4rem;
     padding: 0;
@@ -76,6 +97,7 @@
       flex-direction: column;
       position: relative;
       width: 100%;
+      min-height: 22rem;
 
       .custom-dots {
         display: flex;
