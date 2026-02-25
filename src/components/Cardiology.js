@@ -1603,7 +1603,7 @@ function Cardiology(props) {
                   {item?.name || 'N/A'}
                 </td>
                 <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
-                  {item?.notes || item?.note || '-'}
+                  {item?.lineItem || item?.instruction || item?.note || item?.notes || '-'}
                 </td>
               </tr>
             ))}
