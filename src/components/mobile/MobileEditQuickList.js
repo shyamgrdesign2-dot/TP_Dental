@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Drawer, Input, Button, Spin } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,21 +16,27 @@ function MobileEditQuickList({
 }) {
   const dispatch = useDispatch();
   const { searchList, loading } = useSelector((state) => state.medicalhistory);
-  
+  const prevVisibleRef = useRef(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOptions, setSearchOptions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [editedSection, setEditedSection] = useState(null);
 
+  // Init only when drawer opens (visible false -> true) so parent re-renders don't overwrite local state (avoids tag count flip).
   useEffect(() => {
-    if (visible && section) {
+    const justOpened = visible && !prevVisibleRef.current;
+    if (justOpened && section) {
       const clonedSection = JSON.parse(JSON.stringify(section));
-      clonedSection.tags = clonedSection.tags.map((tag) => ({
+      clonedSection.tags = (clonedSection.tags || []).map((tag) => ({
         ...tag,
-        unique_id: uuidv4()
+        unique_id: tag.unique_id || uuidv4()
       }));
       setEditedSection(clonedSection);
+      setSearchQuery('');
+      setSearchOptions([]);
     }
+    prevVisibleRef.current = visible;
   }, [visible, section]);
 
   useEffect(() => {

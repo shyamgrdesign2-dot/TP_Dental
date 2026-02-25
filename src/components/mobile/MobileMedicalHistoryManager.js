@@ -88,15 +88,20 @@ function MobileMedicalHistoryManager({
           }
         });
         
+        const userTagList = matchingSection?.tags || [];
         const filteredTags = mergedTags.filter(tag => {
           if (tag.delete === true) {
             return false;
           }
-          const userTag = (matchingSection?.tags || []).find(userTag =>
-            (userTag?.tmmhst_id && tag?.tmmhst_id && userTag.tmmhst_id === tag.tmmhst_id) ||
-            (userTag?.title?.trim().toLowerCase() === tag?.title?.trim().toLowerCase())
+          const userTag = userTagList.find(ut =>
+            (ut?.tmmhst_id && tag?.tmmhst_id && ut.tmmhst_id === tag.tmmhst_id) ||
+            (ut?.title?.trim().toLowerCase() === tag?.title?.trim().toLowerCase())
           );
           if (userTag && userTag.delete === true) {
+            return false;
+          }
+          // When user has saved this section, only show tags in their list (stops removed tags reappearing from defaultList).
+          if (userTagList.length > 0 && !userTag) {
             return false;
           }
           return true;
