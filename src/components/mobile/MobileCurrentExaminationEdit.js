@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
-import { upsertObstetricDetails, fetchPrefillObstetricDetails, updatePrefillObstetricData } from '../../pages/obstetric/service';
+import { fetchPrefillObstetricDetails } from '../../pages/obstetric/service';
 import { errorMessage } from '../../utils/utils';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import deleteIcon from '../../assets/images/Delete.svg';
@@ -259,63 +259,27 @@ function MobileCurrentExaminationEdit({
         },
       };
 
-      // Save to API
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
+      // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+      dispatch(addObstetricDetails(payload));
+      dispatch(patientDiagnosisUpdated());
+      dispatch(obstetricDetailsUpdated());
 
-      if (response) {
-        // Update Redux state
-        dispatch(addObstetricDetails(payload));
-        dispatch(patientDiagnosisUpdated());
-        dispatch(obstetricDetailsUpdated());
+      message.success(editIndex >= 0 ? 'Examination updated' : 'Examination added');
+      setPrefillExamData({});
 
-        // Sync prefill data to patient profile (height, weight, blood pressure)
-        // This is a secondary operation - main save should succeed even if prefill sync fails
-        if (Object.keys(prefillExamData).length > 0) {
-          try {
-            const prefillPayload = {};
-            if (prefillExamData.height) {
-              prefillPayload.height = prefillExamData.height;
-            }
-            if (prefillExamData.weight) {
-              prefillPayload.weight = prefillExamData.weight;
-            }
-            // Combine systolic/diastolic into bloodPressure format
-            const sys = prefillExamData.systolic || systolic;
-            const dia = prefillExamData.diastolic || diastolic;
-            if (sys && dia) {
-              prefillPayload.bloodPressure = `${sys}/${dia}`;
-            }
-            if (Object.keys(prefillPayload).length > 0 && userId) {
-              await updatePrefillObstetricData(prefillPayload, userId);
-            }
-          } catch (prefillError) {
-            // Silently fail - main save succeeded
-          }
-        }
-
-        message.success(editIndex >= 0 ? 'Examination updated' : 'Examination added');
-        setPrefillExamData({}); // Reset prefill tracking
-
-        // Update parent prefill (same as web) so next "Add visit" shows latest height/weight/BP
-        if (setPrefillObstetricData && (mothersHeight || mothersWeight || systolic || diastolic)) {
-          setPrefillObstetricData(prev => ({
-            ...prev,
-            ...(mothersHeight && { height: mothersHeight }),
-            ...(mothersWeight && { weight: mothersWeight }),
-            ...(systolic && diastolic && { bloodPressure: `${systolic}/${diastolic}` }),
-          }));
-        }
-
-        // Reset dirty and modal state so "Unsaved Changes" popup doesn't show after save or on re-open
-        setIsDirty(false);
-        setDiscardChangesModalVisible(false);
-        if (onSave) {
-          onSave(payload.currentPregnancy);
-        }
-        onClose?.();
-      } else {
-        errorMessage('Failed to save examination');
+      if (setPrefillObstetricData && (mothersHeight || mothersWeight || systolic || diastolic)) {
+        setPrefillObstetricData(prev => ({
+          ...prev,
+          ...(mothersHeight && { height: mothersHeight }),
+          ...(mothersWeight && { weight: mothersWeight }),
+          ...(systolic && diastolic && { bloodPressure: `${systolic}/${diastolic}` }),
+        }));
       }
+
+      setIsDirty(false);
+      setDiscardChangesModalVisible(false);
+      if (onSave) onSave(payload.currentPregnancy);
+      onClose?.();
     } catch (error) {
       errorMessage('Error saving examination. Please try again.');
     } finally {
@@ -348,24 +312,16 @@ function MobileCurrentExaminationEdit({
         },
       };
 
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
+      // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+      dispatch(addObstetricDetails(payload));
+      dispatch(patientDiagnosisUpdated());
+      dispatch(obstetricDetailsUpdated());
 
-      if (response) {
-        dispatch(addObstetricDetails(payload));
-        dispatch(patientDiagnosisUpdated());
-        dispatch(obstetricDetailsUpdated());
-
-        message.success('Examination deleted');
-
-        setIsDirty(false);
-        setDiscardChangesModalVisible(false);
-        if (onSave) {
-          onSave(payload.currentPregnancy);
-        }
-        onClose?.();
-      } else {
-        errorMessage('Failed to delete examination');
-      }
+      message.success('Examination deleted');
+      setIsDirty(false);
+      setDiscardChangesModalVisible(false);
+      if (onSave) onSave(payload.currentPregnancy);
+      onClose?.();
     } catch (error) {
       errorMessage('Error deleting examination');
     } finally {

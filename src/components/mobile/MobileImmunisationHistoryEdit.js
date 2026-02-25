@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
-import { upsertObstetricDetails, fetchSearchImmunisation } from '../../pages/obstetric/service';
+import { fetchSearchImmunisation } from '../../pages/obstetric/service';
 import { mergeDefaultAndDoctorList } from '../../pages/obstetric/utils/helper';
 import { errorMessage, removeBeforeWhiteSpace } from '../../utils/utils';
 import closeIcon from '../../assets/mobile/close 2.svg';
@@ -197,22 +197,13 @@ function MobileImmunisationHistoryEdit({
     dispatch(patientDiagnosisUpdated());
   };
 
-  // Save changes to API
-  const saveToApi = async (payload) => {
-    try {
-      setLoading(true);
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-      if (response) {
-        message.success('Immunisation history updated');
-        if (onSave) onSave(payload.currentPregnancy);
-      } else {
-        errorMessage('Failed to save immunisation history');
-      }
-    } catch (error) {
-      errorMessage('Error saving immunisation history');
-    } finally {
-      setLoading(false);
-    }
+  // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+  const saveToRedux = (payload) => {
+    dispatch(addObstetricDetails(payload));
+    dispatch(obstetricDetailsUpdated());
+    dispatch(patientDiagnosisUpdated());
+    message.success('Immunisation history updated');
+    if (onSave) onSave(payload.currentPregnancy);
   };
 
   // Delete an item
@@ -242,16 +233,10 @@ function MobileImmunisationHistoryEdit({
           },
         };
         
-        const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-        
-        if (response) {
-          dispatch(addObstetricDetails(payload));
-          dispatch(obstetricDetailsUpdated());
-          dispatch(patientDiagnosisUpdated());
-          message.success('Vaccine removed');
-        } else {
-          errorMessage('Failed to remove vaccine');
-        }
+        dispatch(addObstetricDetails(payload));
+        dispatch(obstetricDetailsUpdated());
+        dispatch(patientDiagnosisUpdated());
+        message.success('Vaccine removed');
       } catch (error) {
         errorMessage('Error removing vaccine');
       } finally {
@@ -304,19 +289,13 @@ function MobileImmunisationHistoryEdit({
         },
       };
 
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-
-      if (response) {
-        dispatch(addObstetricDetails(payload));
-        dispatch(obstetricDetailsUpdated());
-        dispatch(patientDiagnosisUpdated());
-        setImmunisationData(updatedData);
-        message.success('Vaccine added');
-        setAddModalVisible(false);
-        setNewVaccineName('');
-      } else {
-        errorMessage('Failed to add vaccine');
-      }
+      dispatch(addObstetricDetails(payload));
+      dispatch(obstetricDetailsUpdated());
+      dispatch(patientDiagnosisUpdated());
+      setImmunisationData(updatedData);
+      message.success('Vaccine added');
+      setAddModalVisible(false);
+      setNewVaccineName('');
     } catch (error) {
       errorMessage('Error adding vaccine');
     } finally {
@@ -491,7 +470,7 @@ function MobileImmunisationHistoryEdit({
                   immunisationHistory: immunisationData,
                 },
               };
-              await saveToApi(payload);
+              saveToRedux(payload);
               setIsDirty(false);
               onClose();
             }}

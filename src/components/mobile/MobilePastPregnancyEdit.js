@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
-import { upsertObstetricDetails } from '../../pages/obstetric/service';
 import { errorMessage } from '../../utils/utils';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import alertIcon from '../../assets/images/alertIcon.svg';
@@ -289,30 +288,19 @@ function MobilePastPregnancyEdit({
         };
       }
 
-      // Save to API
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
+      // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+      dispatch(addObstetricDetails(payload));
+      dispatch(obstetricDetailsUpdated());
+      dispatch(patientDiagnosisUpdated());
 
-      if (response) {
-        dispatch(addObstetricDetails(payload));
-        dispatch(obstetricDetailsUpdated());
-        dispatch(patientDiagnosisUpdated());
-
-        if (isCompletePregnancy) {
-          message.success('Pregnancy completed successfully');
-          if (onCompletePregnancy) {
-            onCompletePregnancy();
-          }
-        } else {
-          message.success(editIndex >= 0 ? 'Pregnancy history updated' : 'Pregnancy history added');
-        }
-
-        if (onSave) {
-          onSave(newPregnancyHistory);
-        }
-        handleClose();
+      if (isCompletePregnancy) {
+        message.success('Pregnancy completed successfully');
+        if (onCompletePregnancy) onCompletePregnancy();
       } else {
-        errorMessage('Failed to save pregnancy history');
+        message.success(editIndex >= 0 ? 'Pregnancy history updated' : 'Pregnancy history added');
       }
+      if (onSave) onSave(newPregnancyHistory);
+      handleClose();
     } catch (error) {
       errorMessage('Error saving pregnancy history');
     } finally {
@@ -346,23 +334,15 @@ function MobilePastPregnancyEdit({
         pregnancyHistory: newPregnancyHistory,
       };
 
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
+      // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+      dispatch(addObstetricDetails(payload));
+      dispatch(obstetricDetailsUpdated());
+      dispatch(patientDiagnosisUpdated());
 
-      if (response) {
-        dispatch(addObstetricDetails(payload));
-        dispatch(obstetricDetailsUpdated());
-        dispatch(patientDiagnosisUpdated());
-
-        message.success('Pregnancy history deleted');
-
-        if (onSave) {
-          onSave(newPregnancyHistory);
-        }
-        setDeleteModalVisible(false);
-        handleClose();
-      } else {
-        errorMessage('Failed to delete pregnancy history');
-      }
+      message.success('Pregnancy history deleted');
+      if (onSave) onSave(newPregnancyHistory);
+      setDeleteModalVisible(false);
+      handleClose();
     } catch (error) {
       errorMessage('Error deleting pregnancy history');
     } finally {

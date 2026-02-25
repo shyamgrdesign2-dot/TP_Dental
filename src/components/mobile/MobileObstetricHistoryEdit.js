@@ -434,21 +434,57 @@ function MobileObstetricHistoryEdit({
     }
   };
 
+  const revertAndClose = async () => {
+    if (!patient_data?.patient_unique_id || !userId) {
+      resetForm();
+      setDiscardChangesModalVisible(false);
+      setExaminationDrawerVisible(false);
+      setPregnancyHistoryDrawerVisible(false);
+      setAncSchedulerDrawerVisible(false);
+      setImmunisationDrawerVisible(false);
+      onClose();
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await fetchObstetricDetails(patient_data.patient_unique_id, userId);
+      if (data && Object.keys(data).length > 0) {
+        dispatch(addObstetricDetails(data));
+        loadDataFromInitial(data);
+      } else {
+        dispatch(addObstetricDetails({}));
+        resetForm();
+      }
+      setPrefillObstetricData({});
+      setExaminationDrawerVisible(false);
+      setExaminationEditIndex(-1);
+      setPregnancyHistoryDrawerVisible(false);
+      setPregnancyHistoryEditIndex(-1);
+      setIsCompletePregnancyMode(false);
+      setAncSchedulerDrawerVisible(false);
+      setImmunisationDrawerVisible(false);
+      setPreviousPregnancyOverviewVisible(false);
+      setSelectedPreviousPregnancy(null);
+      setIsDirty(false);
+      setDiscardChangesModalVisible(false);
+      onClose();
+    } catch (error) {
+      errorMessage('Error loading obstetric history');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClose = () => {
     if (isDirty) {
       setDiscardChangesModalVisible(true);
     } else {
-      resetForm();
-      setIsDirty(false);
-      onClose();
+      revertAndClose();
     }
   };
 
   const handleConfirmDiscard = () => {
-    setDiscardChangesModalVisible(false);
-    resetForm();
-    setIsDirty(false);
-    onClose();
+    revertAndClose();
   };
 
   const handleDeleteDiagnosisNotes = async () => {
@@ -1089,8 +1125,7 @@ function MobileObstetricHistoryEdit({
         editIndex={examinationEditIndex}
         prefillObstetricData={prefillObstetricData}
         setPrefillObstetricData={setPrefillObstetricData}
-        onSave={(updatedPregnancy) => {
-          // Data is already saved to Redux and API by the child component
+        onSave={() => {
           setExaminationDrawerVisible(false);
           setExaminationEditIndex(-1);
         }}
@@ -1106,8 +1141,7 @@ function MobileObstetricHistoryEdit({
         }}
         patient_data={patient_data}
         editIndex={pregnancyHistoryEditIndex}
-        onSave={(updatedHistory) => {
-          // Data is already saved to Redux and API by the child component
+        onSave={() => {
           setPregnancyHistoryDrawerVisible(false);
           setPregnancyHistoryEditIndex(-1);
           setIsCompletePregnancyMode(false);

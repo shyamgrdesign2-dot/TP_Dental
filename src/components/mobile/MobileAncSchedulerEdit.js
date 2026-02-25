@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { addObstetricDetails, obstetricDetailsUpdated, patientDiagnosisUpdated } from '../../redux/obstetricSlice';
-import { upsertObstetricDetails, fetchSearchAnc } from '../../pages/obstetric/service';
+import { fetchSearchAnc } from '../../pages/obstetric/service';
 import { mergeDefaultAndDoctorList } from '../../pages/obstetric/utils/helper';
 import { errorMessage, removeBeforeWhiteSpace } from '../../utils/utils';
 import closeIcon from '../../assets/mobile/close 2.svg';
@@ -250,22 +250,13 @@ function MobileAncSchedulerEdit({
     dispatch(patientDiagnosisUpdated());
   };
 
-  // Save changes to API
-  const saveToApi = async (payload) => {
-    try {
-      setLoading(true);
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-      if (response) {
-        message.success('ANC Schedule updated');
-        if (onSave) onSave(payload.currentPregnancy);
-      } else {
-        errorMessage('Failed to save ANC Schedule');
-      }
-    } catch (error) {
-      errorMessage('Error saving ANC Schedule');
-    } finally {
-      setLoading(false);
-    }
+  // Step-wise save: update Redux only; API call happens on main Obstetric History Save
+  const saveToRedux = (payload) => {
+    dispatch(addObstetricDetails(payload));
+    dispatch(obstetricDetailsUpdated());
+    dispatch(patientDiagnosisUpdated());
+    message.success('ANC Schedule updated');
+    if (onSave) onSave(payload.currentPregnancy);
   };
 
   // Open edit modal for an item
@@ -338,16 +329,10 @@ function MobileAncSchedulerEdit({
           },
         };
         
-        const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-        
-        if (response) {
-          dispatch(addObstetricDetails(payload));
-          dispatch(obstetricDetailsUpdated());
-          dispatch(patientDiagnosisUpdated());
-          message.success('Test removed');
-        } else {
-          errorMessage('Failed to remove test');
-        }
+        dispatch(addObstetricDetails(payload));
+        dispatch(obstetricDetailsUpdated());
+        dispatch(patientDiagnosisUpdated());
+        message.success('Test removed');
       } catch (error) {
         errorMessage('Error removing test');
       } finally {
@@ -409,21 +394,15 @@ function MobileAncSchedulerEdit({
         },
       };
 
-      const response = await upsertObstetricDetails(patient_data.patient_unique_id, payload);
-
-      if (response) {
-        dispatch(addObstetricDetails(payload));
-        dispatch(obstetricDetailsUpdated());
-        dispatch(patientDiagnosisUpdated());
-        setAncData(splitByTrimester(newAncHistory));
-        message.success('Test added');
-        setAddModalVisible(false);
-        setNewTestName('');
-        setNewWeekStart('');
-        setNewWeekEnd('');
-      } else {
-        errorMessage('Failed to add test');
-      }
+      dispatch(addObstetricDetails(payload));
+      dispatch(obstetricDetailsUpdated());
+      dispatch(patientDiagnosisUpdated());
+      setAncData(splitByTrimester(newAncHistory));
+      message.success('Test added');
+      setAddModalVisible(false);
+      setNewTestName('');
+      setNewWeekStart('');
+      setNewWeekEnd('');
     } catch (error) {
       errorMessage('Error adding test');
     } finally {
@@ -672,7 +651,7 @@ function MobileAncSchedulerEdit({
                   immunisationHistory: obstetricDetails?.immunisationHistory || [],
                 },
               };
-              await saveToApi(payload);
+              saveToRedux(payload);
               setIsDirty(false);
               onClose();
             }}
