@@ -1328,9 +1328,10 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       const isEditingExistingPrescription = !!caseManagerData?.smart_prescription_filename;
       let tcmId = caseManagerData?.tcm_id;
       
-      // Skip case manager update ONLY if editing existing prescription without tcm_id
-      // This prevents duplicate entries when editing
-      if (isEditingExistingPrescription && (!tcmId || tcmId === 0)) {
+      // Skip case manager update ONLY when editing and tcm_id is missing (undefined/null).
+      // Do NOT skip when tcm_id === 0: that is Repeat RX — we must call addCaseManager to create a new visit.
+      const tcmIdIsMissing = (tcmId === undefined || tcmId === null);
+      if (isEditingExistingPrescription && tcmIdIsMissing) {
         // Prescription is already updated - show success screen to user
         setEndVisitCaseManagerData({
           ...caseManagerData,
