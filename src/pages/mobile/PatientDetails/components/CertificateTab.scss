@@ -1,7 +1,15 @@
 .certificate-tab {
   padding: 0;
   position: relative;
-  
+
+  .certificate-box .leave-ui {
+    padding-right: 0;
+  }
+
+  .certificate-more-btn {
+    padding-right: 0 !important;
+  }
+
   :global(.appointment-wrap) {
     margin: 0;
     border-radius: 12px;

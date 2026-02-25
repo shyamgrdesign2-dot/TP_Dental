@@ -35,16 +35,25 @@
 }
 .document-details {
   position: absolute;
-  height: 60px;
+  min-height: 60px;
   bottom: 0px;
   width: 100%;
   background-color: #e2e2ea;
   border: 1px solid #e2e2ea;
   border-radius: 0 0 10px 10px;
   text-align: center;
-  padding: 8px;
+  padding: 8px 0 8px 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+
+  .btn-more {
+    padding-right: 0 !important;
+  }
+
+  .document-details-content {
+    min-width: 0;
+  }
 
   .category {
     font-weight: 600;

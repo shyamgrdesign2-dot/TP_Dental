@@ -363,11 +363,11 @@ const RecordCard = ({
 
       <div className="document-details">
         <div
-          className="d-flex justify-content-between flex-column align-items-start"
-          style={{ fontSize: "14px", width: "85%" }}
+          className="document-details-content d-flex justify-content-between flex-column align-items-start"
+          style={{ fontSize: "12px", width: "85%" }}
         >
           <div className="category">{categoryName}</div>
-          <div>{dayjs(investigation_date).format("DD MMM, YYYY")}</div>
+          <div style={{ fontSize: "10px" }}>{dayjs(investigation_date).format("DD MMM, YYYY")}</div>
         </div>
         <div>
           <Dropdown

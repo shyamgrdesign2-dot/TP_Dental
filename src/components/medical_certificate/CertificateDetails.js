@@ -131,13 +131,13 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
                                                     <h5 className="fw-semibold m-0 text-start text-truncate" style={{ fontSize: '12px' }}>{item?.tcu_title}</h5>
                                                     <div className="text-start" style={{ fontSize: '10px', whiteSpace: 'pre-wrap', wordWrap: 'break-word', color: '#454551', fontWeight: 400, letterSpacing: '0.1px' }}>{moment(item?.tcu_created_date).format('DD MMM, YYYY, hh:mm A')}</div>
                                                 </div>
-                                                <Dropdown className='btn btn-outline btn-more p-0 mt-1'
+                                                <Dropdown className='btn btn-outline btn-more certificate-more-btn p-0 mt-1'
                                                     menu={{
                                                         items: getMenuItems(item),
                                                     }}
                                                     trigger={['click']}>
                                                     <a onClick={(e) => e.preventDefault()}>
-                                                        <i className='icon-More'></i>
+                                                        <i className='icon-More iconrotate270'></i>
                                                     </a>
                                                 </Dropdown>
                                             </div>
