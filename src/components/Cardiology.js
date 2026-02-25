@@ -87,6 +87,9 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 
+const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+
 function Cardiology(props) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
