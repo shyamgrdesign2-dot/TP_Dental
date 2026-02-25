@@ -836,7 +836,7 @@ const LabInvestigationTable = ({
                     />
                   ) : (
                     <span className={styles['note-text']}>
-                      {item.notes || '-'}
+                      {item.notes || item.lineItem || item.instruction|| '-'}
                     </span>
                   )}
                 </td>

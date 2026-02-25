@@ -31,6 +31,8 @@ const VitalsRichTextEditor = ({
       'diastolic': 'Diastolic',
       'Diastolic': 'Diastolic',
       'general_rbs': 'General RBS',
+      'generalrbs': 'General RBS',
+      'genralrbs': 'General RBS',
       'General RBS': 'General RBS',
       'fib4': 'FIB4',
       'FIB4': 'FIB4',

@@ -165,7 +165,7 @@ function VitalsBox(props) {
             height,
             weight,
             ofc: String(v.ofc || v.OFC || '').trim(),
-            general_rbs: String(v['General RBS'] || v.general_rbs || '').trim(),
+            general_rbs: String(v['General RBS'] || v.general_rbs || v.generalRBS || v.genralRBS || '').trim(),
             fib4: String(v.FIB4 || v.fib4 || '').trim(),
             waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
             bmi: v.bmi || cal.bmi,
