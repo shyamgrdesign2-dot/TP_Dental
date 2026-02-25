@@ -89,20 +89,16 @@ function MobileEditQuickList({
     if (!editedSection) return;
 
     const tag = typeof tagData === 'string' ? JSON.parse(tagData) : tagData;
-
     const normalizedTitle = tag?.title?.trim().toLowerCase();
     const existingTag = editedSection.tags.find(
       t => t.title?.trim().toLowerCase() === normalizedTitle
     );
 
     if (!existingTag) {
-      editedSection.tags.push({
-        ...tag
-      });
-      
-      setEditedSection((prev) => {
-        return { ...prev };
-      });
+      setEditedSection(prev => ({
+        ...prev,
+        tags: [...prev.tags, { ...tag }]
+      }));
     }
 
     setSearchQuery('');
@@ -111,15 +107,12 @@ function MobileEditQuickList({
   const handleRemoveTag = useCallback((tag, tagIndex) => {
     if (!editedSection) return;
 
-    if (tag.tmmhst_id == 0) {
-      editedSection.tags.splice(tagIndex, 1);
-    } else {
-      tag.delete = true;
-    }
-    
-    setEditedSection((prev) => {
-      return { ...prev };
-    });
+    setEditedSection(prev => ({
+      ...prev,
+      tags: tag.tmmhst_id === 0
+        ? prev.tags.filter((_, i) => i !== tagIndex)
+        : prev.tags.map((t, i) => (i === tagIndex ? { ...t, delete: true } : t))
+    }));
   }, [editedSection]);
 
   const handleSave = async () => {
