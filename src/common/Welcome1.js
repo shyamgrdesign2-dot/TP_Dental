@@ -77,19 +77,6 @@ function Welcome1(props) {
     const canRepeatDraftRx = isDraftRx && isSaveAsDraftRxAccessableFromGB;
     const canResumeDraftRx = canRepeatDraftRx && viewCaseManagerData?.doctor_data?.um_id === userId;
 
-    const handleClickOutside = (event) => {
-        if (!consultButtonRef?.current?.contains(event.target)) {
-          setClickedDownArrow(false);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-          document.removeEventListener("mousedown", handleClickOutside);
-        };
-      }, []);
-
     const modifyFormat = useMemo(() => {
         if (viewCaseManagerData) {
             const data = moment(viewCaseManagerData.consultation_date).format('Do MMM')
