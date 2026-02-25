@@ -148,7 +148,13 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             const action = await dispatch(savePrintsettings(sendData));
 
             if (action.meta.requestStatus === "fulfilled") {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                navigate(previousPage ?? "/prescription_print_view", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        currentSessionRx, // pass the freshly generated PDF (URL string) back
+                    },
+                });
             } else {
                 errorMessage(action.error)
             }
