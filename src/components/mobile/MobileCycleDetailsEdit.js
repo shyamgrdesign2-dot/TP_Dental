@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Drawer, Button, Input } from 'antd';
+import { Drawer, Button, Input, message } from 'antd';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import './MobileGynecDetailsEdit.scss';
 
@@ -19,6 +19,7 @@ function MobileCycleDetailsEdit({
   const [selectedInterval, setSelectedInterval] = useState('');
   const [customInterval, setCustomInterval] = useState('');
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Interval options: 22-32 + Custom
   const intervalOptions = Array.from({ length: 11 }, (_, i) => ({
@@ -43,6 +44,7 @@ function MobileCycleDetailsEdit({
   }, [visible, intervalOfCycle, cycleNotes]);
 
   const handleSave = async () => {
+    if (isSaving) return;
     let finalInterval = '';
     if (selectedInterval === 'custom' && customInterval) {
       finalInterval = customInterval;
@@ -50,11 +52,17 @@ function MobileCycleDetailsEdit({
       finalInterval = selectedInterval;
     }
 
-    await onSave?.({
-      intervalOfCycle: finalInterval ? parseInt(finalInterval) : null,
-      cycleNotes: notes.trim()
-    });
-    // Don't close here - let parent handle closing after save
+    try {
+      setIsSaving(true);
+      await onSave?.({
+        intervalOfCycle: finalInterval ? Number(finalInterval) : null,
+        cycleNotes: notes.trim()
+      });
+    } catch (err) {
+      message.error('Failed to save cycle details. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!visible) return null;
@@ -139,6 +147,8 @@ function MobileCycleDetailsEdit({
             block
             onClick={handleSave}
             className="save-btn"
+            loading={isSaving}
+            disabled={isSaving}
           >
             Save
           </Button>
