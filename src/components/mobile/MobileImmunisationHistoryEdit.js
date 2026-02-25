@@ -53,6 +53,9 @@ function MobileImmunisationHistoryEdit({
   const [isDirty, setIsDirty] = useState(false);
   const [discardChangesModalVisible, setDiscardChangesModalVisible] = useState(false);
 
+  // Initial immunisation data when editor opens; restored to Redux on discard
+  const [initialImmunisationData, setInitialImmunisationData] = useState([]);
+
   // Fetch search options
   const getSearchOptions = useCallback(async () => {
     if (!searchQuery || !patient_data?.patient_unique_id) return;
@@ -147,7 +150,9 @@ function MobileImmunisationHistoryEdit({
         dispatch(addObstetricDetails(payload));
       }
       
-      setImmunisationData([...mergedImmunisationHistory]);
+      const seededImmunisationHistory = [...mergedImmunisationHistory];
+      setImmunisationData(seededImmunisationHistory);
+      setInitialImmunisationData(seededImmunisationHistory);
     }
   }, [visible, defaultImmunisation, immunisationDoctorList]);
 
@@ -312,6 +317,18 @@ function MobileImmunisationHistoryEdit({
   };
 
   const handleConfirmDiscard = () => {
+    const revertedData = [...initialImmunisationData];
+    setImmunisationData(revertedData);
+    dispatch(addObstetricDetails({
+      ...allObstetricDetails,
+      currentPregnancy: {
+        ...obstetricDetails,
+        patientId: patient_data?.patient_unique_id,
+        examinationHistory: obstetricDetails?.examinationHistory || [],
+        ancHistory: obstetricDetails?.ancHistory || [],
+        immunisationHistory: revertedData,
+      },
+    }));
     setDiscardChangesModalVisible(false);
     setIsDirty(false);
     onClose();
