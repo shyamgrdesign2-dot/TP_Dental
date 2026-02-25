@@ -186,7 +186,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
         if (flag === 1) {
             navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
         } else if (flag === 3) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));
             if(action.meta.requestStatus === "fulfilled") {

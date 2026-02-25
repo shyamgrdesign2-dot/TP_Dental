@@ -45,10 +45,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 //     "pdfjs-dist/build/pdf.worker.min.js",
 //     import.meta.url
 // ).toString();
+
+let ppvMountCount = 0;
 function PrescriptionPrintView() {
 
     const divRef = useRef(null);
     const printRef = useRef();
+    const sessionRxUrlRef = useRef(null);
 
     const {
         loading,
@@ -63,27 +66,33 @@ function PrescriptionPrintView() {
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
 
+    // Detect a hard refresh on the first mount after document load.
+    const isFirstMountAfterLoad = ppvMountCount === 0;
+    useEffect(() => {
+        ppvMountCount += 1;
+    }, []);
+    const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
+    const didHardReload = navigationEntry?.type === "reload";
+    const treatAsReload = didHardReload && isFirstMountAfterLoad;
+
+    // If the page was reloaded, treat it as not coming from Configure Print Setting
+    const fromConfigurePrintSetting = Boolean(state?.fromConfigurePrintSetting) && !treatAsReload;
+
     const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English" ? defaultPrintSettings?.default_language : 1);
     const encodedData = btoa(selectedLang.toString());
 
     const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
     const [printRxUrl, setPrintRxUrl] = useState(state !== undefined ? `${state.print_rx_url}` : null);
     const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+        if (!fromConfigurePrintSetting) {
+            return null;
+        }
         if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
         if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
             return state.currentSessionRx; // object URL string from configure print setting
         }
         return null;
     });
-
-    // Detect a hard refresh so we don't reuse a stale object URL and skip the PDF fetch.
-    const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
-    const isPageReload = useRef(
-        navigationEntry?.type === "reload" || window?.performance?.navigation?.type === 1
-    ).current;
-
-    // If the page was reloaded, treat it as not coming from Configure Print Setting
-    const fromConfigurePrintSetting = Boolean(state?.fromConfigurePrintSetting) && !isPageReload;
 
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
@@ -173,8 +182,7 @@ function PrescriptionPrintView() {
       }
     }, [selectedLang, state?.print_url, pam_id, printUrl]);
 
-    const shouldSkipAutoFetch = Boolean(currentSessionRx) && !isPageReload;
-    
+    const shouldSkipAutoFetch = Boolean(currentSessionRx) && fromConfigurePrintSetting;
     const {
         printBlob: generatedPrintBlob,
         isGenerating: isPdfGenerating,
@@ -188,29 +196,62 @@ function PrescriptionPrintView() {
     });
 
     useEffect(() => {
-        if (!isPageReload) return;
-        if (currentSessionRx) {
-            if (typeof currentSessionRx === "string") {
-                URL.revokeObjectURL(currentSessionRx);
+        let isCancelled = false;
+        const hydrateSessionPdf = async () => {
+            if (!fromConfigurePrintSetting) return;
+            if (typeof currentSessionRx !== "string" || !currentSessionRx.startsWith("blob:")) return;
+            try {
+                const res = await fetch(currentSessionRx);
+                const blob = await res.blob();
+                if (!isCancelled && blob instanceof Blob) {
+                    setCurrentSessionRx(blob);
+                }
+            } catch (err) {
+                console.error("Failed to restore session PDF from URL", err);
+                if (!isCancelled) {
+                    setCurrentSessionRx(null);
+                }
             }
-            setCurrentSessionRx(null);
-        }
-    }, [isPageReload, currentSessionRx]);
+        };
+        hydrateSessionPdf();
+        return () => {
+            isCancelled = true;
+        };
+    }, [fromConfigurePrintSetting, currentSessionRx]);
 
     useEffect(() => {
-        if (fromConfigurePrintSetting) return;
+        if (typeof currentSessionRx === "string" && currentSessionRx.startsWith("blob:")) {
+            sessionRxUrlRef.current = currentSessionRx;
+        }
+        if (currentSessionRx instanceof Blob && sessionRxUrlRef.current) {
+            URL.revokeObjectURL(sessionRxUrlRef.current);
+            sessionRxUrlRef.current = null;
+        }
+    }, [currentSessionRx]);
+
+    useEffect(() => {
+        return () => {
+            if (sessionRxUrlRef.current) {
+                URL.revokeObjectURL(sessionRxUrlRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
         if (generatedPrintBlob) {
-            setPrintBlob(generatedPrintBlob);
-            setCurrentSessionRx(generatedPrintBlob);
+            if (!fromConfigurePrintSetting || !currentSessionRx) {
+                setPrintBlob(generatedPrintBlob);
+                setCurrentSessionRx(generatedPrintBlob);
+            }
         }
-    }, [generatedPrintBlob, fromConfigurePrintSetting]);
+    }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
 
     useEffect(() => {
-        if (fromConfigurePrintSetting) return;
+        if (fromConfigurePrintSetting && currentSessionRx) return;
         if (printPayloadError) {
             message.error("Failed to load prescription data.");
         }
-    }, [printPayloadError, fromConfigurePrintSetting]);
+    }, [printPayloadError, fromConfigurePrintSetting, currentSessionRx]);
 
     
 
