@@ -2447,6 +2447,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                           Voice Rx
                         </button>
                       )}
+                      {
+                        <button
+                          className={`btn-consult`}
+                          onClick={() => navigate("/tab-rx", { state: { patient_data: record } })}
+                        >
+                          Tab Rx
+                        </button>
+                      }
                     </div>
                   }
                 </div>
