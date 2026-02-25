@@ -271,7 +271,7 @@ function AllPatients() {
   }, [navigate, doctorDetails]);
 
   const handleAddNewPatient = useCallback(() => {
-    navigate('/add_patient', {
+    navigate('/add_patient?receptionist', {
       state: { from: '/all_patients' }
     });
     
