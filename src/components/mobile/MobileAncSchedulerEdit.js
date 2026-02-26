@@ -365,6 +365,9 @@ function MobileAncSchedulerEdit({
 
     try {
       const newTest = {
+        masterId: selectedSearchItem && !selectedSearchItem.isCustom
+          ? selectedSearchItem.id
+          : undefined,
         master: {
           name: newTestName,
           default: false,
