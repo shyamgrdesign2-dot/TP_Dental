@@ -230,7 +230,7 @@ function MobileMedicalHistoryManager({
     setEditingSection(section);
     setEditingSectionType(section.tmmhs_id);
     setEditingItem(tag);
-    setSelectedRelationship('');
+    setSelectedRelationship(section.tmmhs_id === 3 ? (tag?.relationship || '') : '');
     if (tag.enable === 'N') {
       setCurrentSheet('noCondition');
     } else {
@@ -244,9 +244,9 @@ function MobileMedicalHistoryManager({
       enable: 'Y'
     };
     setEditingItem(updatedTag);
-    setSelectedRelationship('');
+    setSelectedRelationship(editingSectionType === 3 ? (tag?.relationship || '') : '');
     setCurrentSheet('editItem');
-  }, []);
+  }, [editingSectionType]);
   const handleEditQuickList = useCallback((section) => {
     setEditingSection(section);
     setEditingSectionType(section.tmmhs_id);
@@ -503,6 +503,7 @@ function MobileMedicalHistoryManager({
           item={{ ...editingItem, relationship: selectedRelationship || editingItem.relationship }}
           onSave={handleItemSave}
           onOpenRelationshipPicker={handleOpenRelationshipPicker}
+          selectedRelationship={selectedRelationship}
         />
       );
     }

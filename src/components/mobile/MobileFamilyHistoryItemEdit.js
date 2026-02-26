@@ -9,7 +9,8 @@ function MobileFamilyHistoryItemEdit({
   onClose,
   item,
   onSave,
-  onOpenRelationshipPicker
+  onOpenRelationshipPicker,
+  selectedRelationship
 }) {
   const [relationship, setRelationship] = useState('');
   const [note, setNote] = useState('');
@@ -19,6 +20,13 @@ function MobileFamilyHistoryItemEdit({
     setRelationship(item.relationship || '');
     setNote(item.note || '');
   }, [visible, item]);
+
+  // Sync relationship when parent passes back the value chosen in the picker
+  useEffect(() => {
+    if (selectedRelationship !== undefined) {
+      setRelationship(selectedRelationship ?? '');
+    }
+  }, [selectedRelationship]);
 
   const handleSave = () => {
     const updatedItem = {
