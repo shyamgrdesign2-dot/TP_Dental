@@ -268,7 +268,9 @@ function MobileImmunisationHistoryEdit({
     setIsDirty(true);
 
     try {
+      const masterId = selectedSearchItem?.id ?? selectedSearchItem?.masterId;
       const newVaccine = {
+        ...(masterId ? { masterId } : {}),
         master: {
           name: newVaccineName.trim(),
           default: false,
@@ -301,6 +303,7 @@ function MobileImmunisationHistoryEdit({
       message.success('Vaccine added');
       setAddModalVisible(false);
       setNewVaccineName('');
+      setSelectedSearchItem(null);
     } catch (error) {
       errorMessage('Error adding vaccine');
     } finally {
