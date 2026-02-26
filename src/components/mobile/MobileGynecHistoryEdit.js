@@ -74,6 +74,18 @@ function MobileGynecHistoryEdit({
   const [showPainDetails, setShowPainDetails] = useState(false);
   const [showLifecycleDetails, setShowLifecycleDetails] = useState(false);
 
+  const formatLmpForDisplay = (value) => {
+    if (!value) return '';
+    const m = moment(value, ['YYYY-MM-DD', 'DD-MM-YYYY'], true);
+    return m.isValid() ? m.format('DD-MM-YYYY') : '';
+  };
+
+  const formatLmpForPayload = (value) => {
+    if (!value) return '';
+    const m = moment(value, 'DD-MM-YYYY', true);
+    return m.isValid() ? m.format('YYYY-MM-DD') : '';
+  };
+
   useEffect(() => {
     if (visible && isGynaecHistoryAccessable && patient_data?.patient_unique_id) {
       if (initialData && Object.keys(initialData).length > 0) {
@@ -95,16 +107,7 @@ function MobileGynecHistoryEdit({
     setPain(data.pain || '');
     setReproductiveLifeStages(data.reproductiveLifeStages || '');
     
-    if (data.lmp) {
-      try {
-        const lmpDate = moment(data.lmp).format('DD-MM-YYYY');
-        setLmp(lmpDate);
-      } catch (e) {
-        setLmp(data.lmp);
-      }
-    } else {
-      setLmp('');
-    }
+    setLmp(formatLmpForDisplay(data.lmp));
     
     setMenarcheNotes(data.menarcheNotes || '');
     setIntervalOfCycle(data.intervalOfCycle ? String(data.intervalOfCycle) : '');
@@ -186,16 +189,8 @@ function MobileGynecHistoryEdit({
     // Build payload
     const payload = {};
     
-    // LMP - convert DD-MM-YYYY to YYYY-MM-DD format
-    if (lmp) {
-      try {
-        const lmpDate = moment(lmp, 'DD-MM-YYYY').format('YYYY-MM-DD');
-        payload.lmp = lmpDate;
-      } catch (e) {
-        // If already in correct format or invalid, use as is
-        payload.lmp = lmp;
-      }
-    }
+    const lmpForPayload = formatLmpForPayload(lmp);
+    if (lmpForPayload) payload.lmp = lmpForPayload;
     
     if (ageAtMenarche) payload.ageAtMenarche = parseInt(ageAtMenarche);
     if (cycle) payload.cycle = cycle;
@@ -381,7 +376,7 @@ function MobileGynecHistoryEdit({
                     format="DD-MM-YYYY"
                     value={lmp ? dayjs(lmp, 'DD-MM-YYYY') : null}
                     onChange={(date, dateString) => {
-                      setLmp(dateString || '');
+                      setLmp(formatLmpForDisplay(dateString) || '');
                     }}
                     disabledDate={(current) => {
                       return current && current > dayjs().endOf('day');
