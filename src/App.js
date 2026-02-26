@@ -579,7 +579,7 @@ function App() {
                 />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
-                <Route path="add_patient" element={isReceptionist || (isMobile && !isTablet) ? <AddNewPatient /> : <Navigate to="/" replace />} />
+                {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
