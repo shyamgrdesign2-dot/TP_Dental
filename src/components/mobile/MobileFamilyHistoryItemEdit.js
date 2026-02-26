@@ -29,6 +29,7 @@ function MobileFamilyHistoryItemEdit({
   }, [selectedRelationship]);
 
   const handleSave = () => {
+    if (!item) return;
     const updatedItem = {
       ...item,
       relationship: relationship,
@@ -39,7 +40,7 @@ function MobileFamilyHistoryItemEdit({
     onClose?.();
   };
 
-  if (!visible) return null;
+  if (!visible || !item) return null;
 
   return (
     <Drawer
