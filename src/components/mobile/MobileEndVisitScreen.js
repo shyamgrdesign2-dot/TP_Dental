@@ -133,16 +133,19 @@ function MobileEndVisitScreen({
         finalPrintUrl = print_url;
       }
 
-      // Set state
-      if (finalCaseManagerData) {
-        setViewCaseManagerData(finalCaseManagerData);
-      }
+      // Set state (reset when missing to avoid stale PHI from previous patient)
+      setViewCaseManagerData(finalCaseManagerData || null);
 
       // Build URL with params (same as web version)
       if (finalPrintUrl) {
         const urlWithParams = buildUrlWithParams(finalPrintUrl, isAmbientRx);
         setPrintUrl(urlWithParams);
         setPreviewUrl(urlWithParams);
+      } else {
+        setPrintUrl(null);
+        setPreviewUrl(null);
+        setPrintBlob(null);
+        setNumPages(null);
       }
     };
 
