@@ -20,9 +20,9 @@ function MobileAdditionalHistoryEdit({
     }
   }, [visible, remarks]);
 
-  const handleSave = () => {
-    onSave?.(text.trim());
-    onClose?.();
+  const handleSave = async () => {
+    await onSave?.(text.trim());
+    // Don't close here - let parent handle closing after save
   };
 
   if (!visible) return null;
