@@ -480,6 +480,10 @@ function MobileImmunisationHistoryEdit({
             block
             className="save-btn"
             onClick={async () => {
+              if (!patient_data?.patient_unique_id) {
+                errorMessage('Patient information is missing');
+                return;
+              }
               const payload = {
                 ...allObstetricDetails,
                 currentPregnancy: {
