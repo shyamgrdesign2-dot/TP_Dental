@@ -110,15 +110,29 @@ function MobileEditQuickList({
     setSearchQuery('');
   }, [editedSection]);
 
-  const handleRemoveTag = useCallback((tag, tagIndex) => {
+  const handleRemoveTag = useCallback((tag) => {
     if (!editedSection) return;
 
-    setEditedSection(prev => ({
-      ...prev,
-      tags: tag.tmmhst_id === 0
-        ? prev.tags.filter((_, i) => i !== tagIndex)
-        : prev.tags.map((t, i) => (i === tagIndex ? { ...t, delete: true } : t))
-    }));
+    const actualIndex = editedSection.tags.findIndex(
+      (t) => t.unique_id === tag.unique_id
+    );
+    if (actualIndex === -1) return;
+
+    const target = editedSection.tags[actualIndex];
+    setEditedSection((prev) => {
+      if (target.tmmhst_id === 0) {
+        return {
+          ...prev,
+          tags: prev.tags.filter((_, i) => i !== actualIndex)
+        };
+      }
+      return {
+        ...prev,
+        tags: prev.tags.map((t, i) =>
+          i === actualIndex ? { ...t, delete: true } : t
+        )
+      };
+    });
   }, [editedSection]);
 
   const handleSave = async () => {
@@ -251,10 +265,7 @@ function MobileEditQuickList({
                         src={chipCloseIcon} 
                         alt="Remove" 
                         className="tag-remove-icon" 
-                        onClick={() => {
-                          const realIndex = editedSection.tags.findIndex(t => t === tag);
-                          handleRemoveTag(tag, realIndex);
-                        }}
+                        onClick={() => handleRemoveTag(tag)}
                       />
                     </div>
                   ))}
