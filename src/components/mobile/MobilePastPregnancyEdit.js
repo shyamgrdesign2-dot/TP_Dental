@@ -81,6 +81,9 @@ function MobilePastPregnancyEdit({
   const [isDirty, setIsDirty] = useState(false);
   const [discardChangesModalVisible, setDiscardChangesModalVisible] = useState(false);
 
+  // Initial pregnancy when opened for edit; restored on discard
+  const [initialPregnancyData, setInitialPregnancyData] = useState(null);
+
   // Form state
   const [gravidity, setGravidity] = useState(undefined);
   const [outcome, setOutcome] = useState(undefined);
@@ -110,9 +113,13 @@ function MobilePastPregnancyEdit({
       if (editIndex >= 0 && pregnancyHistory.length > 0) {
         const data = pregnancyHistory[editIndex];
         if (data) {
+          setInitialPregnancyData({ ...data });
           loadDataFromPregnancy(data);
+        } else {
+          setInitialPregnancyData(null);
         }
       } else {
+        setInitialPregnancyData(null);
         resetForm();
         // Pre-fill gravidity when completing pregnancy
         if (isCompletePregnancy && currentGravidity) {
@@ -360,9 +367,13 @@ function MobilePastPregnancyEdit({
   };
 
   const handleConfirmDiscard = () => {
+    if (initialPregnancyData != null && editIndex >= 0) {
+      loadDataFromPregnancy(initialPregnancyData);
+    } else {
+      resetForm();
+    }
     setDiscardChangesModalVisible(false);
     setIsDirty(false);
-    resetForm();
     onClose();
   };
 

@@ -45,6 +45,8 @@ function MobileCurrentExaminationEdit({
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [discardChangesModalVisible, setDiscardChangesModalVisible] = useState(false);
+  // Initial exam when opened for edit; restored on discard
+  const [initialExamData, setInitialExamData] = useState(null);
   const [prefillExamData, setPrefillExamData] = useState({});
   const [date, setDate] = useState(moment().format('YYYY-MM-DD'));
   const [pallor, setPallor] = useState(undefined);
@@ -67,9 +69,13 @@ function MobileCurrentExaminationEdit({
         const reversedHistory = [...examinationHistory].reverse();
         const examData = reversedHistory[editIndex];
         if (examData) {
+          setInitialExamData({ ...examData });
           loadDataFromExam(examData);
+        } else {
+          setInitialExamData(null);
         }
       } else {
+        setInitialExamData(null);
         resetForm();
       }
     } else {
@@ -339,9 +345,13 @@ function MobileCurrentExaminationEdit({
   };
 
   const handleConfirmDiscard = () => {
+    if (initialExamData != null && editIndex >= 0) {
+      loadDataFromExam(initialExamData);
+    } else {
+      resetForm();
+    }
     setDiscardChangesModalVisible(false);
     setIsDirty(false);
-    resetForm();
     onClose?.();
   };
 

@@ -82,6 +82,9 @@ function MobileAncSchedulerEdit({
   const [isDirty, setIsDirty] = useState(false);
   const [discardChangesModalVisible, setDiscardChangesModalVisible] = useState(false);
 
+  // Initial ANC history when editor opens; restored to Redux on discard
+  const [initialAncHistory, setInitialAncHistory] = useState([]);
+
   // Print preview state
   const [printPreviewVisible, setPrintPreviewVisible] = useState(false);
 
@@ -187,8 +190,10 @@ function MobileAncSchedulerEdit({
         dispatch(addObstetricDetails(payload));
       }
       
-      // Set data for display
-      setAncData(splitByTrimester(mergedAncHistory));
+      // Set data for display and store initial for discard
+      const seededAncHistory = [...mergedAncHistory];
+      setAncData(splitByTrimester(seededAncHistory));
+      setInitialAncHistory(seededAncHistory);
       
       // Set active trimester based on gestation
       if (obstetricDetails?.lmp) {
@@ -419,6 +424,18 @@ function MobileAncSchedulerEdit({
   };
 
   const handleConfirmDiscard = () => {
+    const revertedAncHistory = [...initialAncHistory];
+    setAncData(splitByTrimester(revertedAncHistory));
+    dispatch(addObstetricDetails({
+      ...allObstetricDetails,
+      currentPregnancy: {
+        ...obstetricDetails,
+        patientId: patient_data?.patient_unique_id,
+        examinationHistory: obstetricDetails?.examinationHistory || [],
+        ancHistory: revertedAncHistory,
+        immunisationHistory: obstetricDetails?.immunisationHistory || [],
+      },
+    }));
     setDiscardChangesModalVisible(false);
     setIsDirty(false);
     onClose();
