@@ -184,7 +184,7 @@ function SmartRxDigitise() {
             weight: String(v.weight || v.Weight || "").trim(),
             ofc: String(v.ofc || v.OFC || "").trim(),
             sugar: String(v.sugar || v.Sugar || "").trim(),
-            general_rbs: String(v["General RBS"] || v.general_rbs || "").trim(),
+            general_rbs: String(v["General RBS"] || v.general_rbs || v.generalRBS || v.genralRBS || "").trim(),
             fib4: String(v.FIB4 || v.fib4 || "").trim(),
             waist_circumference: String(v["Waist Circumference"] || v.waist_circumference || "").trim(),
             bmi: String(v.BMI || v.bmi || "").trim(),
@@ -312,6 +312,11 @@ function SmartRxDigitise() {
       const editedDataForApi = { ...updatedPrescriptionData };
       if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
         const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        const generalRBSVal = vitalsRest.general_rbs ?? vitalsRest["General RBS"] ?? vitalsRest.generalRBS ?? vitalsRest.genralRBS;
+        if (generalRBSVal != null && String(generalRBSVal).trim() !== "") vitalsRest.generalRBS = String(generalRBSVal).trim();
+        delete vitalsRest.general_rbs;
+        delete vitalsRest["General RBS"];
+        delete vitalsRest.genralRBS;
         editedDataForApi.vitalsAndBodyComposition = vitalsRest;
       }
 
@@ -461,7 +466,7 @@ function SmartRxDigitise() {
               weight: String(v.weight || v.Weight || "").trim(),
               ofc: String(v.ofc || v.OFC || "").trim(),
               sugar: String(v.sugar || v.Sugar || "").trim(),
-              general_rbs: String(v["General RBS"] || v.general_rbs || "").trim(),
+              general_rbs: String(v["General RBS"] || v.general_rbs || v.generalRBS || v.genralRBS || "").trim(),
               fib4: String(v.FIB4 || v.fib4 || "").trim(),
               waist_circumference: String(v["Waist Circumference"] || v.waist_circumference || "").trim(),
               bmi: String(v.BMI || v.bmi || "").trim(),
