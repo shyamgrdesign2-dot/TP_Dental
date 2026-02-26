@@ -114,6 +114,12 @@ self.addEventListener('fetch', (event) => {
               // Silently fail cache operations - don't break the app
               console.warn('[Service Worker] Cache put failed:', err);
             });
+            // Trim cache to max entries
+            cache.keys().then((keys) => {
+              if (keys.length > 100) {
+                cache.delete(keys[0]);
+              }
+            }).catch(() => {});
           }).catch((err) => {
             // Silently fail if cache can't be opened
             console.warn('[Service Worker] Cache open failed:', err);
@@ -143,6 +149,12 @@ self.addEventListener('fetch', (event) => {
               // Silently fail cache operations
               console.warn('[Service Worker] Cache put failed:', err);
             });
+            // Trim cache to max entries
+            cache.keys().then((keys) => {
+              if (keys.length > 100) {
+                cache.delete(keys[0]);
+              }
+            }).catch(() => {});
           }).catch((err) => {
             // Silently fail if cache can't be opened
             console.warn('[Service Worker] Cache open failed:', err);
