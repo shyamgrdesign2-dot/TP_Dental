@@ -345,11 +345,15 @@ function MobileEndVisitScreen({
 
         const blobURL = URL.createObjectURL(printBlob);
 
-        // Clean up existing iframes (same as web version)
-        document.querySelectorAll('iframe').forEach((iframe) => iframe.remove());
+        // Clean up only this feature's prior print iframe
+        const existingPrintFrame = document.getElementById('mobile-end-visit-print-frame');
+        if (existingPrintFrame) {
+          existingPrintFrame.remove();
+        }
 
         // Create and configure iframe
         const iframe = document.createElement('iframe');
+        iframe.id = 'mobile-end-visit-print-frame';
         iframe.style.display = 'none';
         iframe.src = blobURL;
 
