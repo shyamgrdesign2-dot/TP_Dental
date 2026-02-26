@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Drawer, Button, Input, DatePicker, Select, Switch, message, Modal, AutoComplete } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import dayjs from 'dayjs';
@@ -56,6 +56,13 @@ function MobileAncSchedulerEdit({
   } = useSelector((state) => state.obstetric);
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
   const ancHistory = obstetricDetails?.ancHistory || [];
+
+  // Refs for Redux-derived objects so the init effect can read latest without
+  // depending on them (new refs every update would cause loops).
+  const allObstetricDetailsRef = useRef(allObstetricDetails);
+  const obstetricDetailsRef = useRef(obstetricDetails);
+  allObstetricDetailsRef.current = allObstetricDetails;
+  obstetricDetailsRef.current = obstetricDetails;
 
   // State
   const [loading, setLoading] = useState(false);
@@ -176,15 +183,17 @@ function MobileAncSchedulerEdit({
           return (a.weekRange?.start || 0) - (b.weekRange?.start || 0);
         });
         
-        // Update Redux with merged data
+        // Update Redux with merged data (use refs for latest Redux state)
+        const latestAll = allObstetricDetailsRef.current;
+        const latestOb = obstetricDetailsRef.current || {};
         const payload = {
-          ...allObstetricDetails,
+          ...latestAll,
           currentPregnancy: {
-            ...obstetricDetails,
+            ...latestOb,
             patientId: patient_data?.patient_unique_id,
             ancHistory: mergedAncHistory,
-            examinationHistory: obstetricDetails?.examinationHistory || [],
-            immunisationHistory: obstetricDetails?.immunisationHistory || [],
+            examinationHistory: latestOb?.examinationHistory || [],
+            immunisationHistory: latestOb?.immunisationHistory || [],
           },
         };
         dispatch(addObstetricDetails(payload));
@@ -195,10 +204,11 @@ function MobileAncSchedulerEdit({
       setAncData(splitByTrimester(seededAncHistory));
       setInitialAncHistory(seededAncHistory);
       
-      // Set active trimester based on gestation
-      if (obstetricDetails?.lmp) {
+      // Set active trimester based on gestation (use ref for latest)
+      const latestOb = obstetricDetailsRef.current || {};
+      if (latestOb?.lmp) {
         const today = moment();
-        const lmp = moment(obstetricDetails.lmp);
+        const lmp = moment(latestOb.lmp);
         const gestationInWeeks = today.diff(lmp, 'weeks');
         if (gestationInWeeks >= 28 && gestationInWeeks <= 40) {
           setActiveTrimester(2);
@@ -209,7 +219,12 @@ function MobileAncSchedulerEdit({
         }
       }
     }
-  }, [visible, defaultAncSchedule, ancDoctorList]);
+  // ancHistory changes when Redux state updates; include a stable serialization
+  // so the merge reflects latest server data without re-running when our own
+  // dispatch only changes the reference. allObstetricDetails/obstetricDetails
+  // are read via refs to avoid infinite loops from new object refs.
+  // userId and patient_data?.patient_unique_id can change (e.g. user/patient switch).
+  }, [visible, defaultAncSchedule, ancDoctorList, JSON.stringify(ancHistory), userId, patient_data?.patient_unique_id]);
 
   // Get current trimester data
   const currentTrimesterData = useMemo(() => {
