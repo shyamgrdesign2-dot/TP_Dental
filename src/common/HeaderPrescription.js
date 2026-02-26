@@ -1981,14 +1981,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <span className={isTeleconsultActive ? "d-inline-block" : ""}>
                                         <button
                                             type="button"
-                                            className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
+                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isTablet ? 'me-20' : ''}`}
+                                            style={isTablet ? {marginLeft: '10px'} : {}}
                                             onClick={onTeleconsultClick}
                                             disabled={isTeleconsultJoinLoading || isTeleconsultActive}
                                         >
                                             {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24 }} />
+                                                <LoadingOutlined style={{ fontSize: 24, ...(!isTablet && { marginLeft: '10px' }) }} />
                                             ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
+                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isTablet ? { marginLeft: '10px' } : {}} />
                                             )}
                                         </button>
                                     </span>
