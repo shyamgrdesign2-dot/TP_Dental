@@ -28,7 +28,8 @@ function MobileEditQuickList({
     const justOpened = visible && !prevVisibleRef.current;
     if (justOpened && section) {
       const clonedSection = JSON.parse(JSON.stringify(section));
-      clonedSection.tags = (clonedSection.tags || []).map((tag) => ({
+      const tags = Array.isArray(clonedSection.tags) ? clonedSection.tags : [];
+      clonedSection.tags = tags.map((tag) => ({
         ...tag,
         unique_id: tag.unique_id || uuidv4()
       }));
