@@ -13,7 +13,7 @@ import {
   getAmbientRx,
   editGenRxDetails,
   editAmbientRxDetails,
-} from '../../api/services/ApiGenRx';
+} from '../../api/services/ApiGenRxMobile';
 import ApiMedication from '../../api/services/ApiMedication';
 import { addPatientLabReports } from '../../api/services/ApiLabParams';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
@@ -194,7 +194,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     loadLastHistory();
   }, [visible, patient_data?.patient_unique_id, caseManagerData, dispatch, setMedicalHistoryData]);
 
-  // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API). See MobileRxPadContent.js for reference.
+  // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API).
   // useEffect(() => {
   //   if (!visible || !patient_data?.patient_unique_id) return;
   //   const loadTodayData = async () => {
@@ -752,9 +752,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           const data = preparePayloadForApi();
           formData.append('voice_prescription_previous_context', JSON.stringify(data));
           
-          response = await updateGenRx(formData, existingRxId, patientId, admissionId);
+          response = await updateGenRx(formData, existingRxId);
         } else {
-        response = await generateRx(formData, patientId, admissionId);
+        response = await generateRx(formData);
         }
       }
 
