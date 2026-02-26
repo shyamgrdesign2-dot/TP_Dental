@@ -262,12 +262,14 @@ function MobileEditQuickList({
                   {visibleTags.map((tag, index) => (
                     <div key={tag.unique_id || index} className="tag-item">
                       {tag.title}
-                      <img 
-                        src={chipCloseIcon} 
-                        alt="Remove" 
-                        className="tag-remove-icon" 
+                      <button
+                        type="button"
+                        className="tag-remove-icon"
+                        aria-label={`Remove ${tag.title || 'tag'}`}
                         onClick={() => handleRemoveTag(tag)}
-                      />
+                      >
+                        <img src={chipCloseIcon} alt="" aria-hidden="true" />
+                      </button>
                     </div>
                   ))}
                 </div>
