@@ -1169,14 +1169,17 @@ const DigitisedPrescription = ({
   const adviceUpdater = useMemo(() => {
     const baseUpdater = (adviceArray) => {
       if (!setData) return;
-      
+      // Normalize to string[] and filter empties (matches getPrimaryText("advice", item) and display)
+      const normalized = (adviceArray || [])
+        .map((a) => (typeof a === "string" ? a : (a?.lineItem ?? "")))
+        .filter((s) => String(s).trim() !== "");
       const shouldPreserve = sectionsStore.current && sectionsStore.current.has('advice');
       setData((prev = {}) => {
         const updatedData = { ...prev };
         if (shouldPreserve) {
-          updatedData.advice = Array.isArray(adviceArray) ? adviceArray : [];
+          updatedData.advice = Array.isArray(adviceArray) ? normalized : [];
         } else {
-          updatedData.advice = adviceArray || [];
+          updatedData.advice = normalized;
         }
         return updatedData;
       });
@@ -2070,7 +2073,7 @@ const DigitisedPrescription = ({
           {hasValidContent("vitalsAndBodyComposition") && (
             <VitalsRichTextEditor
               vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
-              onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
+              onUpdate={vitalsUpdater}
               isProcessing={loading}
               isVoiceAmbientFlow={!!patient_data}
               patient_data={patient_data}
@@ -2081,7 +2084,7 @@ const DigitisedPrescription = ({
           {showMedicalHistorySection && (
             <MedicalHistoryRichTextEditor
               medicalHistory={data?.medicalHistory || []}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
+              onUpdate={medicalHistoryUpdater}
               isProcessing={loading}
               isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
             />
@@ -2099,7 +2102,7 @@ const DigitisedPrescription = ({
           {data?.symptoms && hasValidContent("symptoms") && (
             <SymptomsRichTextEditor
               symptoms={data.symptoms}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, symptoms: arr || [] }))}
+              onUpdate={symptomsUpdater}
               isProcessing={loading}
             />
           )}
@@ -2107,7 +2110,7 @@ const DigitisedPrescription = ({
           {(sectionData.examinations?.length > 0) && hasValidContent("examinations") && (
             <ExaminationRichTextEditor
               examinations={sectionData.examinations}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, examinations: arr || [] }))}
+              onUpdate={examinationsUpdater}
               isProcessing={loading}
             />
           )}
@@ -2115,7 +2118,7 @@ const DigitisedPrescription = ({
           {data?.diagnosis && hasValidContent("diagnosis") && (
             <DiagnosisRichTextEditor
               diagnosis={data.diagnosis}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
+              onUpdate={diagnosisUpdater}
               isProcessing={loading}
             />
           )}
@@ -2124,7 +2127,7 @@ const DigitisedPrescription = ({
             hasValidContent("medications") && (
               <MedicationsTable
                 medications={sectionData.medications}
-                onUpdate={handleMedicationsUpdate}
+                onUpdate={medicationsUpdater}
                 isProcessing={false}
               />
             )}
@@ -2132,7 +2135,7 @@ const DigitisedPrescription = ({
           {sectionData.labInvestigation?.length > 0 && (
               <LabInvestigationTable
                 labInvestigation={sectionData.labInvestigation}
-                onUpdate={handleInvestigationUpdate}
+                onUpdate={investigationsUpdater}
                 isProcessing={false}
               />
             )}
@@ -2140,10 +2143,7 @@ const DigitisedPrescription = ({
           {data?.advice && hasValidContent("advice") && (
             <AdviceRichTextEditor
               advice={normalizeAdvice(data.advice)}
-              onUpdate={(arr) => setData((prev) => ({
-                ...prev,
-                advice: (arr || []).map((a) => (typeof a === "string" ? a : (a?.lineItem ?? ""))).filter((s) => String(s).trim() !== ""),
-              }))}
+              onUpdate={adviceUpdater}
               isProcessing={loading}
             />
           )}
@@ -2151,7 +2151,7 @@ const DigitisedPrescription = ({
           {data?.vaccinations && hasValidContent("vaccinations") && (
             <VaccinationsRichTextEditor
               vaccinations={data.vaccinations}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, vaccinations: arr || [] }))}
+              onUpdate={vaccinationsUpdater}
               isProcessing={loading}
             />
           )}
@@ -2159,7 +2159,7 @@ const DigitisedPrescription = ({
           {(data?.followUp || hasValidContent("followUp")) && (
             <FollowUpRichTextEditor
               followUp={typeof data.followUp === "string" ? data.followUp : ""}
-              onUpdate={(text) => setData((prev) => ({ ...prev, followUp: text || "" }))}
+              onUpdate={followUpUpdater}
               isProcessing={loading}
             />
           )}
@@ -2209,7 +2209,7 @@ const DigitisedPrescription = ({
           {data?.others && hasValidContent("others") && (
             <AdditionalNotesRichTextEditor
               others={data.others}
-              onUpdate={(arr) => setData((prev) => ({ ...prev, others: arr || [] }))}
+              onUpdate={othersUpdater}
               isProcessing={loading}
             />
           )}
