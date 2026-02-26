@@ -47,7 +47,7 @@ function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery,
           {/* Options List */}
           <div className="upload-profile-options-list">
             {/* Option 1: Use Camera */}
-            <div className="upload-profile-option-item" onClick={handleCameraClick}>
+            <button type="button" className="upload-profile-option-item" onClick={handleCameraClick}>
               <div className="upload-profile-option-content">
                 <div className="upload-profile-option-icon-wrapper">
                   <img src={cameraIcon} alt="Camera" className="upload-profile-option-icon" />
@@ -60,10 +60,10 @@ function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery,
                 </div>
               </div>
               <div className="upload-profile-option-divider" />
-            </div>
+            </button>
 
             {/* Option 2: Upload from gallery */}
-            <div className="upload-profile-option-item" onClick={handleGalleryClick}>
+            <button type="button" className="upload-profile-option-item" onClick={handleGalleryClick}>
               <div className="upload-profile-option-content">
                 <div className="upload-profile-option-icon-wrapper">
                   <img src={galleryIcon} alt="Gallery" className="upload-profile-option-icon" />
@@ -76,10 +76,10 @@ function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery,
                 </div>
               </div>
               <div className="upload-profile-option-divider" />
-            </div>
+            </button>
 
             {/* Option 3: Upload from files */}
-            <div className="upload-profile-option-item" onClick={handleFilesClick}>
+            <button type="button" className="upload-profile-option-item" onClick={handleFilesClick}>
               <div className="upload-profile-option-content">
                 <div className="upload-profile-option-icon-wrapper">
                   <img src={documentIcon} alt="Document" className="upload-profile-option-icon" />
@@ -92,7 +92,7 @@ function UploadProfileModal({ visible, onClose, onSelectCamera, onSelectGallery,
                 </div>
               </div>
               <div className="upload-profile-option-divider" />
-            </div>
+            </button>
           </div>
         </div>
       </Drawer>
