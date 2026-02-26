@@ -46,8 +46,14 @@ function MobileCycleDetailsEdit({
   const handleSave = async () => {
     if (isSaving) return;
     let finalInterval = '';
-    if (selectedInterval === 'custom' && customInterval) {
-      finalInterval = customInterval;
+    if (selectedInterval === 'custom') {
+      const normalized = String(customInterval).trim();
+      const parsed = Number(normalized);
+      if (!normalized || !Number.isInteger(parsed) || parsed <= 0) {
+        message.error('Please enter a valid cycle interval in days.');
+        return;
+      }
+      finalInterval = String(parsed);
     } else if (selectedInterval && selectedInterval !== 'custom') {
       finalInterval = selectedInterval;
     }
@@ -119,6 +125,9 @@ function MobileCycleDetailsEdit({
             {selectedInterval === 'custom' && (
               <Input
                 type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
                 placeholder="Enter days"
                 value={customInterval}
                 onChange={(e) => setCustomInterval(e.target.value)}
