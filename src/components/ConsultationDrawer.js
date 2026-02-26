@@ -1670,10 +1670,9 @@ const ConsultationDrawer = ({
               const vitals = prescriptionData.vitalsAndBodyComposition;
               const actualVitals = vitals._doc || vitals;
               const cleanedVitals = {};
-              const vitalKeys = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA'];
-              vitalKeys.forEach(key => {
-                if (actualVitals[key] !== undefined && actualVitals[key] !== null && actualVitals[key] !== '') {
-                  cleanedVitals[key] = actualVitals[key];
+              Object.entries(actualVitals).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && String(value).trim() !== '') {
+                  cleanedVitals[key] = value;
                 }
               });
               prescriptionData.vitalsAndBodyComposition = cleanedVitals;
