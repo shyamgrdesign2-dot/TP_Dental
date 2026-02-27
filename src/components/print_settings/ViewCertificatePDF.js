@@ -44,9 +44,120 @@ const styles = StyleSheet.create({
     }
 });
 
+const normalizeLetterheadFormat = (letterheadFormat) => {
+    if (typeof letterheadFormat === 'string' && letterheadFormat.trim() !== '') {
+        const parsed = Number(letterheadFormat);
+        return Number.isNaN(parsed) ? letterheadFormat : parsed;
+    }
+    return letterheadFormat;
+};
+
+const getMarginByFormat = (
+    letterheadFormat,
+    headerFooter,
+    position,
+    defaultValue,
+) => {
+    const normalizedFormat = normalizeLetterheadFormat(letterheadFormat);
+    const marginType =
+        normalizedFormat === 0
+            ? 'custom_letterhead_margin'
+            : normalizedFormat === 1
+                ? 'uploaded_letterhead_margin'
+                : normalizedFormat === 2
+                    ? 'margin'
+                    : null;
+
+    return marginType && headerFooter?.[marginType]?.[position] >= 0
+        ? (headerFooter?.[marginType]?.[position] || defaultValue) * 25
+        : PX_TO_PT * 30;
+};
+
 const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
 
     const { printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, heading, content, doctorData } = props
+
+    const headerFooter = printSettings?.header_footer;
+    const letterheadFormat = normalizeLetterheadFormat(
+        printSettings?.letterhead_format
+    );
+
+    const normalPaddingTop = getMarginByFormat(
+        letterheadFormat,
+        headerFooter,
+        'top',
+        0.5,
+    );
+    const normalPaddingLeft = getMarginByFormat(
+        letterheadFormat,
+        headerFooter,
+        'left',
+        0.5,
+    );
+    const normalPaddingRight = getMarginByFormat(
+        letterheadFormat,
+        headerFooter,
+        'right',
+        0.5,
+    );
+    const normalPaddingBottom = getMarginByFormat(
+        letterheadFormat,
+        headerFooter,
+        'bottom',
+        0.5,
+    );
+
+    const footerFontSize = parseInt(headerFooter?.footer?.font_size, 10);
+    const footerTitleSpacing = headerFooter?.footer?.title
+        ? 35 + (Number.isNaN(footerFontSize) ? 0 : footerFontSize)
+        : 0;
+
+    const calculatePadding = () => {
+        const widthOfA4PageInPts = 595;
+
+        if (mode !== NORMAL) {
+            return {
+                paddingTop: PX_TO_PT * 30,
+                paddingBottom:
+                    printSettings?.whatsapp_letterhead_format === 1
+                        ? fileFooter?.imageShow
+                            ? fileFooter?.renderedFooterImageHeight + PX_TO_PT * 30
+                            : getMarginByFormat(letterheadFormat, headerFooter, 'bottom', 0.5) + 5
+                        : getMarginByFormat(letterheadFormat, headerFooter, 'bottom', 0.5) + 5,
+                paddingLeft: PX_TO_PT * 30,
+                paddingRight: PX_TO_PT * 30,
+            };
+        }
+
+        const paddingBottom =
+            letterheadFormat === 1
+                ? fileFooter?.imageShow
+                    ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (normalPaddingLeft + normalPaddingRight))) + normalPaddingTop
+                    : normalPaddingBottom + 5
+                : Math.max(normalPaddingBottom + 5, footerTitleSpacing);
+
+        return {
+            paddingTop: normalPaddingTop,
+            paddingBottom,
+            paddingLeft: normalPaddingLeft,
+            paddingRight: normalPaddingRight,
+        };
+    };
+
+    const paddingStyles = calculatePadding();
+
+    const footerOffsetBottom =
+        mode === NORMAL
+            ? getMarginByFormat(letterheadFormat, headerFooter, 'bottom', 0.5)
+            : PX_TO_PT * 30;
+    const footerOffsetLeft =
+        mode === NORMAL
+            ? getMarginByFormat(letterheadFormat, headerFooter, 'left', 0.5)
+            : PX_TO_PT * 30;
+    const footerOffsetRight =
+        mode === NORMAL
+            ? getMarginByFormat(letterheadFormat, headerFooter, 'right', 0.5)
+            : PX_TO_PT * 30;
 
     const transformInputToLabel = (html) => {
         let transformedHtml = html.replace(/<input type='date' id='(.*?)' value='(.*?)'>/g, "<label id='$1'>$2</label>");
@@ -65,30 +176,14 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
                 size="A4"
                 style={{
                     // flex: 1,
-                    paddingTop: mode == NORMAL ? printSettings?.letterhead_format != 2 ? PX_TO_PT * 30 : printSettings?.header_footer?.margin?.top ? printSettings?.header_footer?.margin?.top * 25 : 0 : PX_TO_PT * 30,
-                    paddingBottom: mode == NORMAL ?
-                        printSettings?.letterhead_format != 2 ?
-                            printSettings?.letterhead_format == 1 ?
-                                fileFooter ? 110 : PX_TO_PT * 30
-                                : printSettings?.header_footer?.footer?.title ?
-                                    35 + parseInt(printSettings?.header_footer?.footer?.font_size)
-                                    : PX_TO_PT * 30
-                            : printSettings?.header_footer?.margin?.bottom ? printSettings?.header_footer?.margin?.bottom * 25
-                                : 0
-                        : printSettings?.whatsapp_letterhead_format == 1 ?
-                            fileFooter ? 110 : PX_TO_PT * 30
-                            : printSettings?.header_footer?.footer?.title ?
-                                35 + parseInt(printSettings?.header_footer?.footer?.font_size)
-                                : PX_TO_PT * 30,
-                    paddingLeft: mode == NORMAL ? printSettings?.letterhead_format != 2 ? PX_TO_PT * 30 : printSettings?.header_footer?.margin?.left ? printSettings?.header_footer?.margin?.left * 25 : 0 : PX_TO_PT * 30,
-                    paddingRight: mode == NORMAL ? printSettings?.letterhead_format != 2 ? PX_TO_PT * 30 : printSettings?.header_footer?.margin?.right ? printSettings?.header_footer?.margin?.right * 25 : 0 : PX_TO_PT * 30,
+                    ...paddingStyles,
                 }}
                 wrap>
                 {/* <View style={{ flex: 1 }}> */}
 
-                <View style={{ marginBottom: PX_TO_PT * (mode == NORMAL ? printSettings?.letterhead_format != 2 ? 15 : 0 : 15) }} fixed>
+                <View style={{ marginBottom: PX_TO_PT * (mode == NORMAL ? letterheadFormat != 2 ? 15 : 0 : 15) }} fixed>
                     {mode == NORMAL ? (
-                        printSettings?.letterhead_format === 0 ? (
+                        letterheadFormat === 0 ? (
                             <View>
                                 {printSettings?.header_footer?.header?.doctor_info?.enable === 'Y' && printSettings?.header_footer?.header?.clinic_info?.enable === 'Y' ? (
                                     <View style={styles.directionCasemanager}>
@@ -153,7 +248,7 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
                                     </View>
                                 )}
                             </View>
-                        ) : printSettings?.letterhead_format === 1 && (
+                        ) : letterheadFormat === 1 && (
                             fileHeader && fileHeader?.imageShow && (
                                 <Image
                                     style={{ width: '100%', objectFit: 'contain' }}
@@ -415,18 +510,18 @@ const ViewCertificatePDF = ({ mode = NORMAL, ...props }) => {
 
                 <View style={{
                     position: 'absolute',
-                    bottom: PX_TO_PT * 30,
-                    left: PX_TO_PT * 30,
-                    right: PX_TO_PT * 30,
+                    bottom: footerOffsetBottom,
+                    left: footerOffsetLeft,
+                    right: footerOffsetRight,
                     // marginTop: PX_TO_PT * (mode == NORMAL ? printSettings?.letterhead_format != 2 ? 29 : 0 : 29)
                 }} fixed>
                     {mode == NORMAL ? (
-                        printSettings?.letterhead_format === 0 ? (
+                        letterheadFormat === 0 ? (
                             <View>
                                 <View style={{ backgroundColor: '#171725', height: PX_TO_PT * 2, width: '100%' }} />
                                 <Text style={{ marginTop: PX_TO_PT * 8, color: '#171725', fontFamily: 'Roboto', fontSize: PX_TO_PT * printSettings?.header_footer?.footer?.font_size, fontWeight: 400, maxLines: 1 }}>{printSettings?.header_footer?.footer?.title}</Text>
                             </View>
-                        ) : printSettings?.letterhead_format === 1 && (
+                        ) : letterheadFormat === 1 && (
                             fileFooter && fileFooter?.imageShow && (
                                 <Image
                                     style={{ width: '100%', height: 80, objectFit: 'fill' }}
