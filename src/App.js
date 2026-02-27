@@ -77,6 +77,7 @@ import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
 import AddNewPatient from "./pages/AddNewPatient";
 import TabRx from "./pages/tabRx/TabRx";
+import TabRxCanvas from "./pages/tabRx/components/TabRxCanvas";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -511,6 +512,7 @@ function App() {
                   element={<BillingDashboard />}
                 />
                 <Route path="tab-rx" element={<TabRx />} />
+                <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
                 <Route path="all_patients" element={<AllPatients />} />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
