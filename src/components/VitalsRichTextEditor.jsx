@@ -21,6 +21,7 @@ const VitalsRichTextEditor = ({
   isVoiceAmbientFlow = false,
   patient_data,
   vitalsFlow,
+  showWhenEmpty = false,
 }) => {
   const [vitalsDrawer, setVitalsDrawer] = useState(false);
   const previousVitalsRef = useRef(vitalsAndBodyComposition);
@@ -279,7 +280,7 @@ const VitalsRichTextEditor = ({
       value !== undefined && value !== null && value !== ''
     );
 
-  if (!isProcessing && !hasVitalsToDisplay && !hasApiVitals && !hasProductionVitals) {
+  if (!showWhenEmpty && !isProcessing && !hasVitalsToDisplay && !hasApiVitals && !hasProductionVitals) {
     return null;
   }
 

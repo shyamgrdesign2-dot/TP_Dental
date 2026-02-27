@@ -72,7 +72,7 @@ function enrichVitalsWithCalculations(vital, patientInfo = {}) {
   return out;
 }
 
-const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, isPrescriptionEmpty = false, patient_data, caseManagerData }) => {
+const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, isPrescriptionEmpty = false, patient_data, caseManagerData, isVoiceAmbientFlow = true, vitalsFlow = 'voice' }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData, setVitalsData } = useContext(CashManagerContext) || {};
@@ -1307,6 +1307,10 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         vitalsAndBodyComposition={enrichedVitals}
         onUpdate={handleVitalsUpdate}
         isProcessing={isProcessing}
+        patient_data={patient_data}
+        isVoiceAmbientFlow={isVoiceAmbientFlow}
+        vitalsFlow={vitalsFlow}
+        showWhenEmpty={true}
       />
 
       {(() => {
