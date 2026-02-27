@@ -36,8 +36,6 @@ import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
-import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from "../utils/medicalHistoryConverters";
-import moment from "moment";
 import styles from "./ConsultationDrawer.module.css";
 import alertIcon from "../assets/images/alertIcon.svg";
 import documentIcon from "../assets/images/document-normal.svg";
@@ -123,26 +121,6 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
-// Inline vitals enrichment (BMI, BMR, BSA) – matches ConsultationDrawer / VitalsBox
-function enrichVitalsWithCalculations(vital, patientInfo = {}) {
-  const out = { ...vital };
-  const height = parseFloat(vital.height || vital.Height || '');
-  const weight = parseFloat(vital.weight || vital.Weight || '');
-  if (height > 0 && weight > 0) {
-    const calBMI = (weight / height / height) * 10000;
-    out.bmi = Number.isFinite(calBMI) ? String(calBMI.toFixed(2)) : (out.bmi || out.BMI || '');
-    const age = patientInfo.age || 0;
-    const isMale = patientInfo.gender === 'Male';
-    if (age > 0) {
-      const calBMR = isMale ? 10 * weight + 6.25 * height - 5 * age + 5 : 10 * weight + 6.25 * height - 5 * age - 161;
-      out.bmr = Number.isFinite(calBMR) ? String(calBMR.toFixed(2)) : (out.bmr || out.BMR || '');
-    }
-    const calBSA = Math.sqrt((height * weight) / 3600);
-    out.bsa = Number.isFinite(calBSA) ? String(calBSA.toFixed(2)) : (out.bsa || out.BSA || '');
-  }
-  return out;
-}
-
 /** Normalize dynamicFields to always be an object { moduleName: row[] }. Backend may send array of modules. Skips empty modules and empty rows. */
 const getDynamicFieldsAsObject = (dynamicFields) => {
   if (!dynamicFields || typeof dynamicFields !== "object") return {};
@@ -177,20 +155,6 @@ const DigitisedPrescription = ({
   setData,
   loading,
   showAbsHeaderInsideLoader = false,
-  setVitalsData,
-  setMedicalHistoryData,
-  contextMedicalHistoryData,
-  onRxEdited,
-  onVitalsUpdate,
-  onMedicalHistoryUpdate,
-  onSymptomsUpdate,
-  onExaminationsUpdate,
-  onDiagnosisUpdate,
-  onMedicationsUpdate,
-  onLabInvestigationUpdate,
-  onLabResultsUpdate,
-  sectionsStore: sectionsStoreProp,
-  context,
   showRxPadHeader = false,
   showHeader = false,
   showInstructionMessage = false,
@@ -198,6 +162,7 @@ const DigitisedPrescription = ({
   showDisclaimer = false,
   localModules = [],
   setLocalModules,
+  onRxEdited,
   isProcessing = false,
   patient_data,
   vitalsFlow,
@@ -224,10 +189,6 @@ const DigitisedPrescription = ({
   const editingRef = useRef(false);
   const suggestionRef = useRef(null);
   const inputRef = useRef(null);
-  const isUpdatingFromContextRef = useRef(false);
-  const isUpdatingFromRxPadRef = useRef(false);
-  const defaultSectionsStoreRef = useRef(new Set());
-  const sectionsStore = sectionsStoreProp ?? defaultSectionsStoreRef;
   const dispatch = useDispatch();
   const { parentOptionsList } = useSelector((state) => state.medication);
   const { parentOptionsList: testOptionsList } = useSelector(
@@ -240,6 +201,20 @@ const DigitisedPrescription = ({
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
 
+  const labResultsUpdater = useMemo(
+    () => (arr) => {
+      if (!setData) return;
+      setData((prev) => {
+        const next = arr || [];
+        const labResults = (Array.isArray(next) && next.length > 0)
+          ? next
+          : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
+        return { ...prev, labResults };
+      });
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [setData, onRxEdited]
+  );
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
   );
@@ -788,329 +763,6 @@ const DigitisedPrescription = ({
     [sectionData.labInvestigation, setData]
   );
 
-  const syncVitalsToContext = useCallback((vitalsObject) => {
-    if (vitalsObject && typeof vitalsObject === 'object' && Object.keys(vitalsObject).length > 0 && setVitalsData) {
-      const vitalsData = vitalsObject;
-      let systolic = vitalsData.Systolic || '';
-      let diastolic = vitalsData.Diastolic || '';
-      let blood_press = vitalsData.bloodPressure || '';
-      
-      if (blood_press && !systolic && !diastolic) {
-        const bpParts = String(blood_press).split('/');
-        if (bpParts.length === 2) {
-          systolic = bpParts[0].trim();
-          diastolic = bpParts[1].trim();
-        }
-      } else if (!blood_press && systolic && diastolic) {
-        blood_press = `${systolic}/${diastolic}`;
-      }
-      if (!systolic || !diastolic) {
-        blood_press = '';
-      }
-      
-      const vitalsArray = [{
-        date: vitalsData.date || moment().format('YYYY-MM-DD'),
-        temp: String(vitalsData.temperature || '').trim(),
-        pres: String(vitalsData.pulse || '').trim(),
-        resp_rate: String(vitalsData.respRate || '').trim(),
-        systolic: String(systolic).trim(),
-        diastolic: String(diastolic).trim(),
-        blood_press: String(blood_press).trim(),
-        spo2: String(vitalsData.spo2 || '').trim(),
-        height: String(vitalsData.height || '').trim(),
-        weight: String(vitalsData.weight || '').trim(),
-        ofc: String(vitalsData.ofc || vitalsData.OFC || '').trim(),
-        sugar: String(vitalsData.sugar || '').trim(),
-        general_rbs: String(vitalsData['General RBS'] || vitalsData.general_rbs || '').trim(),
-        fib4: String(vitalsData.FIB4 || vitalsData.fib4 || '').trim(),
-        waist_circumference: String(vitalsData['Waist Circumference'] || vitalsData.waist_circumference || '').trim(),
-        bmi: String(vitalsData.BMI || vitalsData.bmi || '').trim(),
-        bmr: String(vitalsData.BMR || vitalsData.bmr || '').trim(),
-        bsa: String(vitalsData.BSA || vitalsData.bsa || '').trim()
-      }];
-      setVitalsData(vitalsArray);
-    }
-  }, [setVitalsData]);
-
-  const vitalsUpdater = useMemo(() => {
-    const baseUpdater = (vitalsObject) => {
-      if (!setData) return;
-      
-      // Enrich vitals with BMI, BMR, BSA calculations
-      const patientInfo = context?.patient_data ? {
-        age: context.patient_data.ageYears || context.patient_data.age || context.patient_data.pm_age,
-        gender: context.patient_data.pm_gender || context.patient_data.gender
-      } : {};
-      const enrichedVitals = enrichVitalsWithCalculations(vitalsObject || {}, patientInfo);
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('vitalsAndBodyComposition');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.vitalsAndBodyComposition = enrichedVitals && typeof enrichedVitals === 'object' ? enrichedVitals : {};
-        } else {
-          updatedData.vitalsAndBodyComposition = enrichedVitals || {};
-        }
-        return updatedData;
-      });
-      
-      syncVitalsToContext(enrichedVitals);
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onVitalsUpdate === "function") {
-      return (vitalsObject) => {
-        onVitalsUpdate(vitalsObject);
-        baseUpdater(vitalsObject);
-      };
-    }
-    return baseUpdater;
-  }, [onVitalsUpdate, setData, sectionsStore, syncVitalsToContext, onRxEdited, context?.patient_data]);
-
-  const medicalHistoryUpdater = useMemo(() => {
-    const baseUpdater = (medicalHistoryArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('medicalHistory');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.medicalHistory = Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [];
-        } else {
-          updatedData.medicalHistory = medicalHistoryArray || [];
-        }
-        return updatedData;
-      });
-      
-      if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
-        const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, contextMedicalHistoryData || []);
-        setMedicalHistoryData(convertedData);
-      }
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onMedicalHistoryUpdate === "function") {
-      return (medicalHistoryArray) => {
-        onMedicalHistoryUpdate(medicalHistoryArray);
-        baseUpdater(medicalHistoryArray);
-      };
-    }
-    return baseUpdater;
-  }, [onMedicalHistoryUpdate, setData, sectionsStore, setMedicalHistoryData, contextMedicalHistoryData, onRxEdited]);
-
-  const symptomsUpdater = useMemo(() => {
-    const baseUpdater = (symptomsArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('symptoms');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.symptoms = Array.isArray(symptomsArray) ? symptomsArray : [];
-        } else {
-          updatedData.symptoms = symptomsArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onSymptomsUpdate === "function") {
-      return (symptomsArray) => {
-        onSymptomsUpdate(symptomsArray);
-        baseUpdater(symptomsArray);
-      };
-    }
-    return baseUpdater;
-  }, [onSymptomsUpdate, setData, sectionsStore, onRxEdited]);
-
-  const examinationsUpdater = useMemo(() => {
-    const baseUpdater = (examinationsArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('examinations');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.examinations = Array.isArray(examinationsArray) ? examinationsArray : [];
-        } else {
-          updatedData.examinations = examinationsArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onExaminationsUpdate === "function") {
-      return (examinationsArray) => {
-        onExaminationsUpdate(examinationsArray);
-        baseUpdater(examinationsArray);
-      };
-    }
-    return baseUpdater;
-  }, [onExaminationsUpdate, setData, sectionsStore, onRxEdited]);
-
-  const diagnosisUpdater = useMemo(() => {
-    const baseUpdater = (diagnosisArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('diagnosis');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.diagnosis = Array.isArray(diagnosisArray) ? diagnosisArray : [];
-        } else {
-          updatedData.diagnosis = diagnosisArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onDiagnosisUpdate === "function") {
-      return (diagnosisArray) => {
-        onDiagnosisUpdate(diagnosisArray);
-        baseUpdater(diagnosisArray);
-      };
-    }
-    return baseUpdater;
-  }, [onDiagnosisUpdate, setData, sectionsStore, onRxEdited]);
-
-  const medicationsUpdater = useMemo(() => {
-    const baseUpdater = (medicationsArray) => {
-      if (!setData) return;
-      setData((prev = {}) => ({
-        ...prev,
-        medications: medicationsArray,
-      }));
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onMedicationsUpdate === "function") {
-      return (medicationsArray) => {
-        onMedicationsUpdate(medicationsArray);
-        baseUpdater(medicationsArray);
-      };
-    }
-    return baseUpdater;
-  }, [onMedicationsUpdate, setData, onRxEdited]);
-
-  const investigationsUpdater = useMemo(() => {
-    const baseUpdater = (investigationArray) => {
-      if (!setData) return;
-      setData((prev = {}) => ({
-        ...prev,
-        labInvestigation: investigationArray,
-      }));
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onLabInvestigationUpdate === "function") {
-      return (investigationArray) => {
-        onLabInvestigationUpdate(investigationArray);
-        baseUpdater(investigationArray);
-      };
-    }
-    return baseUpdater;
-  }, [onLabInvestigationUpdate, setData, onRxEdited]);
-
-  const labResultsUpdater = useMemo(() => {
-    const baseUpdater = (labResultsArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('labResults');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.labResults = Array.isArray(labResultsArray) ? labResultsArray : [];
-        } else {
-          updatedData.labResults = labResultsArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    if (typeof onLabResultsUpdate === "function") {
-      return (labResultsArray) => {
-        onLabResultsUpdate(labResultsArray);
-        baseUpdater(labResultsArray);
-      };
-    }
-    return baseUpdater;
-  }, [onLabResultsUpdate, setData, sectionsStore, onRxEdited]);
-
-  // Sync Rx pad data to context when data loads (initial load only)
-  useEffect(() => {
-    if (data && context && !isUpdatingFromContextRef.current) {
-      if (data.medicalHistory && Array.isArray(data.medicalHistory) && data.medicalHistory.length > 0 && setMedicalHistoryData) {
-        isUpdatingFromRxPadRef.current = true;
-        const convertedData = convertMedicalHistoryToContextFormat(data.medicalHistory, contextMedicalHistoryData || []);
-        setMedicalHistoryData(convertedData);
-        setTimeout(() => {
-          isUpdatingFromRxPadRef.current = false;
-        }, 100);
-      }
-      
-      if (data.vitalsAndBodyComposition && Object.keys(data.vitalsAndBodyComposition).length > 0 && setVitalsData) {
-        syncVitalsToContext(data.vitalsAndBodyComposition);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.medicalHistory, data?.vitalsAndBodyComposition]);
-
-  // Sync context medical history back to Rx pad when drawer saves
-  useEffect(() => {
-    if (contextMedicalHistoryData && Array.isArray(contextMedicalHistoryData) && contextMedicalHistoryData.length > 0 && setData && !isUpdatingFromRxPadRef.current) {
-      const rxPadFormat = convertContextToRxPadFormat(contextMedicalHistoryData);
-      if (rxPadFormat.length > 0) {
-        isUpdatingFromContextRef.current = true;
-        setData((prev = {}) => {
-          const currentRxPadHistory = prev.medicalHistory || [];
-          const currentRxPadSignature = JSON.stringify(currentRxPadHistory.map(item => ({
-            name: item.name,
-            type: item.type,
-            enable: item.enable
-          })));
-          const contextSignature = JSON.stringify(rxPadFormat.map(item => ({
-            name: item.name,
-            type: item.type,
-            enable: item.enable
-          })));
-          
-          // Only update if context has new data not in Rx pad
-          if (currentRxPadSignature !== contextSignature) {
-            return {
-              ...prev,
-              medicalHistory: rxPadFormat
-            };
-          }
-          return prev;
-        });
-        setTimeout(() => {
-          isUpdatingFromContextRef.current = false;
-        }, 100);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextMedicalHistoryData]);
-
   // Fuzzy-correct medication names ONCE when medications first become available
   useEffect(() => {
     if (!isGroundingAccessable) return;
@@ -1165,97 +817,6 @@ const DigitisedPrescription = ({
   const onSearchParent = (query) => {
     setSearchParentQuery((query || "").trimStart());
   };
-
-  const adviceUpdater = useMemo(() => {
-    const baseUpdater = (adviceArray) => {
-      if (!setData) return;
-      // Normalize to string[] and filter empties (matches getPrimaryText("advice", item) and display)
-      const normalized = (adviceArray || [])
-        .map((a) => (typeof a === "string" ? a : (a?.lineItem ?? "")))
-        .filter((s) => String(s).trim() !== "");
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('advice');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.advice = Array.isArray(adviceArray) ? normalized : [];
-        } else {
-          updatedData.advice = normalized;
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    return baseUpdater;
-  }, [setData, sectionsStore, onRxEdited]);
-
-  const vaccinationsUpdater = useMemo(() => {
-    const baseUpdater = (vaccinationsArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('vaccinations');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.vaccinations = Array.isArray(vaccinationsArray) ? vaccinationsArray : [];
-        } else {
-          updatedData.vaccinations = vaccinationsArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    return baseUpdater;
-  }, [setData, sectionsStore, onRxEdited]);
-
-  const followUpUpdater = useMemo(() => {
-    const baseUpdater = (followUpText) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('followUp');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.followUp = typeof followUpText === 'string' ? followUpText : '';
-        } else {
-          updatedData.followUp = followUpText || '';
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    return baseUpdater;
-  }, [setData, sectionsStore, onRxEdited]);
-
-  const othersUpdater = useMemo(() => {
-    const baseUpdater = (othersArray) => {
-      if (!setData) return;
-      
-      const shouldPreserve = sectionsStore.current && sectionsStore.current.has('others');
-      setData((prev = {}) => {
-        const updatedData = { ...prev };
-        if (shouldPreserve) {
-          updatedData.others = Array.isArray(othersArray) ? othersArray : [];
-        } else {
-          updatedData.others = othersArray || [];
-        }
-        return updatedData;
-      });
-      if (typeof onRxEdited === "function") {
-        onRxEdited(true);
-      }
-    };
-
-    return baseUpdater;
-  }, [setData, sectionsStore, onRxEdited]);
 
   const onSearchTest = (query) => {
     setSearchTestQuery((query || "").trimStart());
@@ -2073,7 +1634,7 @@ const DigitisedPrescription = ({
           {hasValidContent("vitalsAndBodyComposition") && (
             <VitalsRichTextEditor
               vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
-              onUpdate={vitalsUpdater}
+              onUpdate={(vitalsObj) => setData((prev) => ({ ...prev, vitalsAndBodyComposition: vitalsObj }))}
               isProcessing={loading}
               isVoiceAmbientFlow={!!patient_data}
               patient_data={patient_data}
@@ -2084,7 +1645,7 @@ const DigitisedPrescription = ({
           {showMedicalHistorySection && (
             <MedicalHistoryRichTextEditor
               medicalHistory={data?.medicalHistory || []}
-              onUpdate={medicalHistoryUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
               isProcessing={loading}
               isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
             />
@@ -2102,7 +1663,7 @@ const DigitisedPrescription = ({
           {data?.symptoms && hasValidContent("symptoms") && (
             <SymptomsRichTextEditor
               symptoms={data.symptoms}
-              onUpdate={symptomsUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, symptoms: arr || [] }))}
               isProcessing={loading}
             />
           )}
@@ -2110,7 +1671,7 @@ const DigitisedPrescription = ({
           {(sectionData.examinations?.length > 0) && hasValidContent("examinations") && (
             <ExaminationRichTextEditor
               examinations={sectionData.examinations}
-              onUpdate={examinationsUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, examinations: arr || [] }))}
               isProcessing={loading}
             />
           )}
@@ -2118,7 +1679,7 @@ const DigitisedPrescription = ({
           {data?.diagnosis && hasValidContent("diagnosis") && (
             <DiagnosisRichTextEditor
               diagnosis={data.diagnosis}
-              onUpdate={diagnosisUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, diagnosis: arr || [] }))}
               isProcessing={loading}
             />
           )}
@@ -2127,7 +1688,7 @@ const DigitisedPrescription = ({
             hasValidContent("medications") && (
               <MedicationsTable
                 medications={sectionData.medications}
-                onUpdate={medicationsUpdater}
+                onUpdate={handleMedicationsUpdate}
                 isProcessing={false}
               />
             )}
@@ -2135,7 +1696,7 @@ const DigitisedPrescription = ({
           {sectionData.labInvestigation?.length > 0 && (
               <LabInvestigationTable
                 labInvestigation={sectionData.labInvestigation}
-                onUpdate={investigationsUpdater}
+                onUpdate={handleInvestigationUpdate}
                 isProcessing={false}
               />
             )}
@@ -2143,7 +1704,10 @@ const DigitisedPrescription = ({
           {data?.advice && hasValidContent("advice") && (
             <AdviceRichTextEditor
               advice={normalizeAdvice(data.advice)}
-              onUpdate={adviceUpdater}
+              onUpdate={(arr) => setData((prev) => ({
+                ...prev,
+                advice: (arr || []).map((a) => (typeof a === "string" ? a : (a?.lineItem ?? ""))).filter((s) => String(s).trim() !== ""),
+              }))}
               isProcessing={loading}
             />
           )}
@@ -2151,7 +1715,7 @@ const DigitisedPrescription = ({
           {data?.vaccinations && hasValidContent("vaccinations") && (
             <VaccinationsRichTextEditor
               vaccinations={data.vaccinations}
-              onUpdate={vaccinationsUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, vaccinations: arr || [] }))}
               isProcessing={loading}
             />
           )}
@@ -2159,7 +1723,7 @@ const DigitisedPrescription = ({
           {(data?.followUp || hasValidContent("followUp")) && (
             <FollowUpRichTextEditor
               followUp={typeof data.followUp === "string" ? data.followUp : ""}
-              onUpdate={followUpUpdater}
+              onUpdate={(text) => setData((prev) => ({ ...prev, followUp: text || "" }))}
               isProcessing={loading}
             />
           )}
@@ -2209,7 +1773,7 @@ const DigitisedPrescription = ({
           {data?.others && hasValidContent("others") && (
             <AdditionalNotesRichTextEditor
               others={data.others}
-              onUpdate={othersUpdater}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, others: arr || [] }))}
               isProcessing={loading}
             />
           )}
