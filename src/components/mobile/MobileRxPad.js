@@ -1813,7 +1813,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         className="mobile-rx-pad-drawer"
         closable={false}
         maskClosable={false}
-        destroyOnClose={false}
+        destroyOnClose
       >
       <div className="mobile-rx-pad-container">
         <div className="mobile-rx-pad-header">

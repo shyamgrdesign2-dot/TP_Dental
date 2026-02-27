@@ -95,9 +95,17 @@ function MobileEndVisitScreen({
     }
   }, []);
 
-  // Initialize viewCaseManagerData and print URL
+  // Initialize viewCaseManagerData and print URL (with cancellation guard to prevent stale patient Rx)
   useEffect(() => {
+    let cancelled = false;
     const initializeData = async () => {
+      // Clear previous patient preview immediately so stale PHI does not render
+      setViewCaseManagerData(null);
+      setPrintUrl(null);
+      setPreviewUrl(null);
+      setPrintBlob(null);
+      setNumPages(null);
+
       let finalCaseManagerData = null;
       let finalPrintUrl = null;
 
@@ -110,29 +118,32 @@ function MobileEndVisitScreen({
         if (numericTcmId == null) {
           finalPrintUrl = print_url;
         } else {
-          setIsFetchingData(true);
+          if (!cancelled) setIsFetchingData(true);
           try {
             const sendData = {
               patient_unique_id: patient_data.patient_unique_id,
               tcm_id: numericTcmId,
             };
             const action = await dispatch(viewCaseManager(sendData));
-          if (action.meta.requestStatus === 'fulfilled' && action.payload) {
-            finalCaseManagerData = action.payload;
-            finalPrintUrl = action.payload.print_url || action.payload.print_rx_url || print_url;
-          } else {
-            finalPrintUrl = print_url;
-          }
+            if (cancelled) return;
+            if (action.meta.requestStatus === 'fulfilled' && action.payload) {
+              finalCaseManagerData = action.payload;
+              finalPrintUrl = action.payload.print_url || action.payload.print_rx_url || print_url;
+            } else {
+              finalPrintUrl = print_url;
+            }
           } catch (error) {
+            if (cancelled) return;
             finalPrintUrl = print_url;
           } finally {
-            setIsFetchingData(false);
+            if (!cancelled) setIsFetchingData(false);
           }
         }
       } else {
         finalPrintUrl = print_url;
       }
 
+      if (cancelled) return;
       // Set state (reset when missing to avoid stale PHI from previous patient)
       setViewCaseManagerData(finalCaseManagerData || null);
 
@@ -152,6 +163,10 @@ function MobileEndVisitScreen({
     if (visible) {
       initializeData();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [caseManagerData, tcm_id, print_url, genRxDetails, profile, patient_data, visible, dispatch, isAmbientRx]);
 
   // Update div width (same as web version)
@@ -397,7 +412,7 @@ function MobileEndVisitScreen({
       className="mobile-end-visit-drawer"
       closable={false}
       maskClosable={false}
-      destroyOnClose={false}
+      destroyOnClose
     >
       <div className="mobile-end-visit-container">
         {/* Header */}
