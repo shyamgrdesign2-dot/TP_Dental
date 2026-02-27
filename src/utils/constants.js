@@ -31,6 +31,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   MEDICAL_RECORDS: 3,
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
+  HEALTH_CHECKUP_REPORT: 6,
 };
 
 export const TAB_QUEUE = 0;
@@ -90,6 +91,7 @@ export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
+export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,

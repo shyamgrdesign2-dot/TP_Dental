@@ -48,6 +48,7 @@ function Welcome1(props) {
         (state) => state.uploadDoc
     );
     const { planDetails } = useSelector((state) => state.subscription);
+    const { reports: healthCheckupReports, healthReportConsultationsLoading } = useSelector((state) => state.healthCheckupReport);
     const { service_mappings } = planDetails || {};
     const VOICE_RX_planDetails = service_mappings?.find(
       (e) => e.service_name === S_VOICE_RX
@@ -64,7 +65,8 @@ function Welcome1(props) {
         handleUploadDocPopup,
         handleDrawerUploadDoc,
         abhaHeaderActions,
-        patientAdmissionStatus
+        patientAdmissionStatus,
+        handleGenerateHealthCheckupReport
     } = props;
 
     const isDraftRx = viewCaseManagerData?.is_draft;
@@ -345,6 +347,8 @@ function Welcome1(props) {
                             <h1 className='mt-2 mb-3'>{'Certificate'}</h1>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
                             <h1 className='mt-2 mb-3'>{'ABHA Records'}</h1>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
+                            <h1 className='mt-2 mb-3'>{'Health Check-up Report'}</h1>
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}
@@ -836,7 +840,7 @@ function Welcome1(props) {
                                 </Button>
                             )}
                         </div>
-                    ) : sidebarKey === 3 && allUploadedDocs?.length > 0 && (
+                    ) : sidebarKey === 3 && allUploadedDocs?.length > 0 ? (
                         <div>
                             <Button
                                 variant="primary"
@@ -862,6 +866,12 @@ function Welcome1(props) {
                                 {/* )} */}
                                 <i className="icon-upload" />
                                 {"Upload new report"}
+                            </Button>
+                        </div>
+                    ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT && healthCheckupReports?.length > 0 && (
+                        <div>
+                            <Button type="primary" className='btn-41 px-4' onClick={handleGenerateHealthCheckupReport} disabled={healthReportConsultationsLoading} loading={healthReportConsultationsLoading}>
+                                {healthReportConsultationsLoading ? 'Generating...' : 'Generate New Report'}
                             </Button>
                         </div>
                     )}

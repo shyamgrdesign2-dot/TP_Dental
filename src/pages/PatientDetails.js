@@ -40,6 +40,7 @@ import CommonModal from "../common/CommonModal";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
 import AbhaRecords from "./abhaRecords/AbhaRecords";
+import HealthCheckupReport from "./healthCheckupReport/HealthCheckupReport";
 import { fetchPrintSetting } from "./opdBilling/service";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
@@ -102,6 +103,8 @@ function PatientDetails() {
     const [patientAdmissionStatus, setPatientAdmissionStatus] = useState(null);
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
     const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
+    const [showHealthCheckupReportDrawer, setShowHealthCheckupReportDrawer] = useState(false);
+    
 
     useEffect(() => {
         dispatch(resetViewCaseManagerData());
@@ -325,6 +328,10 @@ function PatientDetails() {
      setUploadDocDrawer(!uploadDocDrawer);
    };
 
+   const handleGenerateHealthCheckupReport = () => {
+    setShowHealthCheckupReportDrawer(true);
+   };
+
     return (
         <>
             <Layout>
@@ -358,6 +365,7 @@ function PatientDetails() {
                                 handleDrawerUploadDoc={handleDrawerUploadDoc}
                                 abhaHeaderActions={abhaHeaderActions}
                                 patientAdmissionStatus={patientAdmissionStatus}
+                                handleGenerateHealthCheckupReport={handleGenerateHealthCheckupReport}
                             />
                         }
                         {sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY ? (
@@ -428,6 +436,10 @@ function PatientDetails() {
                                   abhaAddress={patient_data?.abhaAddress}
                                   patient_data={patient_data}
                                 />
+                            </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
+                            <div className="appointment-wrap PatientDetailswrap">
+                                <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
                         ) : null}
                     </div>

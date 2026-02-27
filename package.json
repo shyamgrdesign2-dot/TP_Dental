@@ -82,6 +82,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.118.2",
     "slick-carousel": "^1.8.1",
+    "smart-webcomponents-react": "^25.5.0",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"

@@ -23,7 +23,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { LANGUAGE_LIST, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API, ZYDUS_WHATSAPP_ENABLED_DOCTORS } from "../utils/constants";
+import { GB_HEALTH_CHECKUP_REPORT, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API, ZYDUS_WHATSAPP_ENABLED_DOCTORS } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -38,6 +38,8 @@ import api from '../api/services/axiosService';
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
+import HealthCheckupReportIcon from "../assets/images/health-checkup-report-outline.svg";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -62,6 +64,7 @@ function PrescriptionPrintView() {
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
+    const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
@@ -701,6 +704,17 @@ function PrescriptionPrintView() {
                                     <span className="fw-semibold">Edit Prescription</span>
                                     <i className="icon-right iconrotate180 ms-auto"></i>
                                 </Button>
+                                {isHealthCheckupReportAccessableFromGB && <Button
+                                    type="text"
+                                    className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
+                                    icon={<img src={HealthCheckupReportIcon} alt="Health Check-up Report" />}
+                                    onClick={() => {
+                                        navigate("/patient_details", { state: { patient_data: patient_data, sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT } });
+                                    }}
+                                >
+                                    <span className="fw-semibold">Health Check-up Report</span>
+                                    <i className="icon-right iconrotate180 ms-auto"></i>
+                                </Button>}
                                 {(() => {
                                     const decodedToken = getDecodedToken();
                                     const tokenData = decodedToken?.result;
