@@ -12,6 +12,9 @@ import MobileAdditionalHistoryEdit from './MobileAdditionalHistoryEdit';
 import MobileNoConditionScreen from './MobileNoConditionScreen';
 import MobileEditQuickList from './MobileEditQuickList';
 
+const normalizeTitle = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
 function MobileMedicalHistoryManager({ 
   visible, 
   onClose, 
@@ -58,7 +61,7 @@ function MobileMedicalHistoryManager({
           if (tag?.tmmhst_id) {
             existingTagsById.set(tag.tmmhst_id, tag);
           }
-          const normalizedTitle = tag?.title?.trim().toLowerCase();
+          const normalizedTitle = normalizeTitle(tag?.title);
           if (normalizedTitle) {
             existingTagsByTitle.set(normalizedTitle, tag);
           }
@@ -73,13 +76,13 @@ function MobileMedicalHistoryManager({
               mergedTags[index] = { ...mergedTags[index], ...newTag };
             }
           } else {
-            const normalizedTitle = newTag?.title?.trim().toLowerCase();
+            const normalizedTitle = normalizeTitle(newTag?.title);
             const existingByTitle = normalizedTitle && existingTagsByTitle.get(normalizedTitle);
             if (!existingByTitle) {
               mergedTags.push(newTag);
             } else {
               const index = mergedTags.findIndex(
-                t => t?.title?.trim().toLowerCase() === normalizedTitle
+                t => normalizeTitle(t?.title) === normalizedTitle
               );
               if (index !== -1) {
                 mergedTags[index] = { ...mergedTags[index], ...newTag };
@@ -95,7 +98,7 @@ function MobileMedicalHistoryManager({
           }
           const userTag = userTagList.find(ut =>
             (ut?.tmmhst_id && tag?.tmmhst_id && ut.tmmhst_id === tag.tmmhst_id) ||
-            (ut?.title?.trim().toLowerCase() === tag?.title?.trim().toLowerCase())
+            (normalizeTitle(ut?.title) === normalizeTitle(tag?.title))
           );
           if (userTag && userTag.delete === true) {
             return false;
