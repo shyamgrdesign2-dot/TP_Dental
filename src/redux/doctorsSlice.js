@@ -433,7 +433,10 @@ const doctorsSlice = createSlice({
       if (typeof opthalModuleAutoAdded === "boolean") {
         state.opthalModuleAutoAdded = opthalModuleAutoAdded;
       }
-    }
+    },
+    // Clear cached doctor profile when user switches (e.g. new login from Medeco)
+    // Returns a fresh copy of initialState to avoid mutations
+    clearDoctorProfile: () => ({ ...initialState }),
   },
   extraReducers: (builder) => {
     builder
@@ -679,5 +682,5 @@ const doctorsSlice = createSlice({
   },
 });
 
-export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile, setCustomizedPadLists } = doctorsSlice.actions
+export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile, setCustomizedPadLists, clearDoctorProfile } = doctorsSlice.actions
 export default doctorsSlice.reducer;
