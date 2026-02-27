@@ -15,9 +15,10 @@ import { checkToShowOpdBilling } from '../pages/opdBilling/service';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import {
-  NEO_NATOLOGISTS_DP_ID,
-  PAEDIATRIC_DP_ID,
-  PATIENT_DETAILS_SIDEBAR_KEYS,
+    GB_HEALTH_CHECKUP_REPORT,
+    NEO_NATOLOGISTS_DP_ID,
+    PAEDIATRIC_DP_ID,
+    PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../utils/constants";
 import BloodIcon from '../assets/images/blood.svg';
 import AbhaIcon from '../assets/images/abha-svg.svg'
@@ -28,13 +29,15 @@ import { handleAdmitToIpd } from '../utils/utils';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
 import HospitalBedIcon from "../assets/images/bed-with-h.svg"
+import HealthCheckupReportIcon from "../assets/images/health-checkup-report-primary.svg";
+import HealthCheckupReportIconSecondary from "../assets/images/health-checkup-report-secondary.svg";
 
-function SidebarPatient({ 
-    collapsed, 
-    patient_data, 
-    viewCaseManagerData, 
-    sidebarKey, 
-    onClickSidebarHandle, 
+function SidebarPatient({
+    collapsed,
+    patient_data,
+    viewCaseManagerData,
+    sidebarKey,
+    onClickSidebarHandle,
     abhaConsentsCount,
     patientAdmissionStatus,
     isCheckingAdmission
@@ -43,9 +46,9 @@ function SidebarPatient({
     const { profile } = useSelector((state) => state.doctors);
     const { patients_details } = useSelector((state) => state.records);
     const [tokenData, setTokenData] = useState(null);
-     const { allUploadedDocs } = useSelector(
-       (state) => state.uploadDoc
-     );
+    const { allUploadedDocs } = useSelector(
+        (state) => state.uploadDoc
+    );
     const { isOpdBillChecked } = useSelector((state) => state.billing);
     const { isOpdBillingAccessable } = useOpdBilling();
     const [abhaDrawerOpen, setAbhaDrawerOpen] = useState(false);
@@ -55,9 +58,8 @@ function SidebarPatient({
     );
     const isIPDAccessible = isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
     const isAdmitted = patientAdmissionStatus?.alreadyAdmitted === true;
-
+    const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
-
     const menu = [
         {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY,
@@ -75,7 +77,7 @@ function SidebarPatient({
             key: PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_RECORDS,
             icon_name: "icon-Report",
             short_title: "Records",
-            long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : "" }`,
+            long_title: `Medical Records ${allUploadedDocs?.length > 0 ? `(${allUploadedDocs?.length})` : ""}`,
         },
         isOpdBillingAccessable ? {
             key: PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT,
@@ -87,12 +89,17 @@ function SidebarPatient({
             key: PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS,
             icon_image: AbhaIcon,
             short_title: "ABHA",
-            long_title: `ABHA Records ${
-              typeof abhaConsentsCount === "number" && abhaConsentsCount >= 0
-                ? `(${abhaConsentsCount})`
-                : ""
-            }`.trim(),
+            long_title: `ABHA Records ${typeof abhaConsentsCount === "number" && abhaConsentsCount >= 0
+                    ? `(${abhaConsentsCount})`
+                    : ""
+                }`.trim(),
         } : undefined,
+        isHealthCheckupReportAccessableFromGB && {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT,
+            icon_image: sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? HealthCheckupReportIcon : HealthCheckupReportIconSecondary,
+            short_title: "Health Checkup",
+            long_title: "Health Checkup Report",
+        },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
@@ -295,7 +302,7 @@ function SidebarPatient({
                     : <></> // TODO: Show ABHA details if already linked
                 }
             </div>
-            { tokenData?.hospital_business_id != config.zydus_business_id && 
+            {tokenData?.hospital_business_id != config.zydus_business_id &&
                 <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', marginBottom: "2rem" }}>
                     {isIPDAccessible && !isAdmitted && !isCheckingAdmission && (
                         <div className="p-3">
@@ -313,7 +320,7 @@ function SidebarPatient({
                             >
                                 <div className="d-flex flex-column align-items-center justify-content-center">
                                     <div className="position-relative mb-1 fw-medium">
-                                        <img src={HospitalBedIcon} className='pe-2' height={25}/> 
+                                        <img src={HospitalBedIcon} className='pe-2' height={25} />
                                         <span className='main-color'>Adm IPD</span>
                                     </div>
                                 </div>

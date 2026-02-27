@@ -1782,7 +1782,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                     <ul className={styles.lastVisitList}>
                       {summaryData.lastVisitSummary.labInvestigation.map((lab, idx) => (
                         <li key={idx} className={styles.lastVisitListItem}>
-                          {lab.name}{lab.notes && ` (${lab.notes})`}
+                          {lab.name}{(lab.instruction || lab.lineItem) && ` (${lab.instruction || lab.lineItem})`}
                         </li>
                       ))}
                     </ul>
