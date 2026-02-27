@@ -5,7 +5,9 @@ import styles from './ConsultationDrawer.module.css';
 import gynecHistoryIcon from '../assets/images/Medical-History.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import MedicalHistoryBox from './MedicalHistoryBox';
+import MedicalHistoryBoxMobile from './MedicalHistoryBoxMobile';
 import { arrayToSlateBulletList } from '../utils/slateHelpers';
+import { isMobile, isTablet } from 'react-device-detect';
 
 const GynecHistoryRichTextEditor = ({
   gynecHistory = {},
@@ -222,18 +224,33 @@ const GynecHistoryRichTextEditor = ({
         open={gynecHistoryDrawer}
         width="75%"
       >
-        <MedicalHistoryBox
-          key={`gynec-history-drawer-${gynecHistoryDrawer}`}
-          handleDrawerMedicalHistory={() => setGynecHistoryDrawer(false)}
-          handleCollapsed={() => {}}
-          initialGynecHistory={gynecHistory}
-          initialActiveKey="gynec"
-          gynecOnly={true}
-          onSave={(savedGynecHistory) => {
-            if (onUpdate) onUpdate(savedGynecHistory);
-            setGynecHistoryDrawer(false);
-          }}
-        />
+        {(isMobile && !isTablet) ? (
+          <MedicalHistoryBoxMobile
+            key={`gynec-history-drawer-${gynecHistoryDrawer}`}
+            handleDrawerMedicalHistory={() => setGynecHistoryDrawer(false)}
+            handleCollapsed={() => {}}
+            initialGynecHistory={gynecHistory}
+            initialActiveKey="gynec"
+            gynecOnly={true}
+            onSave={(savedGynecHistory) => {
+              if (onUpdate) onUpdate(savedGynecHistory);
+              setGynecHistoryDrawer(false);
+            }}
+          />
+        ) : (
+          <MedicalHistoryBox
+            key={`gynec-history-drawer-${gynecHistoryDrawer}`}
+            handleDrawerMedicalHistory={() => setGynecHistoryDrawer(false)}
+            handleCollapsed={() => {}}
+            initialGynecHistory={gynecHistory}
+            initialActiveKey="gynec"
+            gynecOnly={true}
+            onSave={(savedGynecHistory) => {
+              if (onUpdate) onUpdate(savedGynecHistory);
+              setGynecHistoryDrawer(false);
+            }}
+          />
+        )}
       </Drawer>
     </>
   );

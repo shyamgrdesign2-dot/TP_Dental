@@ -28,7 +28,7 @@ import OphthalmologyExamPanel from "../../components/ophthalmology/Ophthalmology
 
 import VitalsBoxMobile from "../../components/VitalsBoxMobile";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
-import MedicalHistoryBox from "../../components/MedicalHistoryBox";
+import MedicalHistoryBoxMobile from "../../components/MedicalHistoryBoxMobile";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
@@ -2437,7 +2437,7 @@ function TabPrescription() {
           open={medicalHistoryDrawer}
           width="100%"
         >
-          <MedicalHistoryBox
+          <MedicalHistoryBoxMobile
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}

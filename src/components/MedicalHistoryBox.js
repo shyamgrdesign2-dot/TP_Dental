@@ -113,9 +113,7 @@ function MedicalHistoryBox(props) {
     const [inputCyclesDays, setInputCyclesDays] = useState(null);
     const [inputPadsNum, setInputPadsNum] = useState(null);
     const { state } = useLocation();
-    const fromState = state || {};
-    const patient_data = props.patient_data ?? fromState.patient_data;
-    const caseManagerData = props.caseManagerData ?? fromState.caseManagerData;
+    const { patient_data, caseManagerData } = state ;
     const [gynecLoading, setGynecLoading] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
     const [expandRemarks,setExpandRemarks] = useState(true);
@@ -300,22 +298,56 @@ function MedicalHistoryBox(props) {
         }
     }, []);
 
-    // Voice/ambient/snap/smart: show only prescription data (no merge). Consult: merge defaultList with context.
+
     useEffect(() => {
       if (defaultList?.length > 0) {
         try {
             const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
-            const sourceData = overrideMedicalHistoryData ?? medicalHistoryData;
-            const data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
             const isPrescriptionOnly = overrideMedicalHistoryData != null;
+            let data2;
+            if (isPrescriptionOnly) {
+                // Merge context (patient's history) with override (prescription) so sidebar shows all chips
+                const ctx = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
+                const ovr = overrideMedicalHistoryData ? JSON.parse(JSON.stringify(overrideMedicalHistoryData)) : [];
+                const combinedBySection = (a, b) => {
+                    const byId = (arr) => (arr || []).reduce((acc, s) => ({ ...acc, [s.tmmhs_id]: s }), {});
+                    const aMap = byId(a);
+                    const bMap = byId(b);
+                    const ids = new Set([...Object.keys(aMap), ...Object.keys(bMap)]);
+                    return Array.from(ids, (id) => {
+                        const sa = aMap[id];
+                        const sb = bMap[id];
+                        if (!sa) return sb;
+                        if (!sb) return sa;
+                        const existingIds = new Set((sa.tags || []).map((t) => t.tmmhst_id));
+                        const newTags = (sb.tags || []).filter((t) => !existingIds.has(t.tmmhst_id));
+                        return { ...sa, ...sb, tags: [...(sa.tags || []), ...newTags] };
+                    });
+                };
+                data2 = combinedBySection(ctx, ovr);
+            } else {
+                const sourceData = medicalHistoryData;
+                data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
+            }
             const mergedArray = data1?.map(e => {
                 const sectionFromSource = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
                 if (isPrescriptionOnly) {
-                    // Voice/ambient/snap/smart: display only prescription medical history (no merging)
+                    // Voice/ambient/snap/smart: same as consult – merge defaultList section with prescription so all chips show
+                    if (!sectionFromSource || !data2?.length) {
+                        return { ...e, ...(sectionFromSource || {}), tags: e?.tags ?? [] };
+                    }
                     return {
                         ...e,
                         ...(sectionFromSource || {}),
-                        tags: sectionFromSource?.tags ?? [],
+                        tags: [
+                            ...(e?.tags || [])?.map(tag => ({
+                                ...tag,
+                                ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                            })),
+                            ...(sectionFromSource?.tags || [])?.filter(item2 =>
+                                !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                            )
+                        ],
                     };
                 }
                 // Consult: merge defaultList with context (prod behavior)
@@ -342,10 +374,9 @@ function MedicalHistoryBox(props) {
             setCloneMedicalHistoryData([]);
         }
       }
-    // defaultList always; overrideMedicalHistoryData so voice/ambient/snap/smart updates when prescription changes.
-    // medicalHistoryData intentionally omitted for consult: merge runs only when defaultList changes (prod behavior).
+    // defaultList always; overrideMedicalHistoryData for voice/snap/smart; medicalHistoryData for voice merge and consult.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [defaultList, overrideMedicalHistoryData]);
+    }, [defaultList, overrideMedicalHistoryData, medicalHistoryData]);
 
     const onNoKnownHistoryChange = useCallback((e, i) => {
         cloneMedicalHistoryData[i].no_know_history = e.target.checked
@@ -881,10 +912,10 @@ function MedicalHistoryBox(props) {
             }
         })
         if (!remarks && medicalHistory.filter(e => !e?.no_know_history && e?.tags?.length === 0).length === medicalHistory.length) {
-            setMedicalHistoryData([])
+            if (typeof setMedicalHistoryData === 'function') setMedicalHistoryData([]);
             handleDrawerMedicalHistory()
         } else {
-            setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)))
+            if (typeof setMedicalHistoryData === 'function') setMedicalHistoryData(JSON.parse(JSON.stringify(medicalHistory)));
             handleCollapsed(2)
         }
     }
@@ -1051,7 +1082,7 @@ function MedicalHistoryBox(props) {
             return;
         }
         if (hideMenstrualHistoryTab) {
-            setMedicalHistoryData(cloneMedicalHistoryData);
+            if (typeof setMedicalHistoryData === 'function') setMedicalHistoryData(cloneMedicalHistoryData);
             if (onSave) {
                 onSave(cloneMedicalHistoryData);
             }
@@ -1125,10 +1156,6 @@ function MedicalHistoryBox(props) {
     }
 
     const handleSaveClick = async () => {
-        if (!patient_data?.patient_unique_id) {
-            setGynecLoading(false);
-            return;
-        }
         setGynecEditState("UPDATE");
         setGynecLoading(true);
         const today = moment().toISOString();
@@ -1152,7 +1179,7 @@ function MedicalHistoryBox(props) {
 
         if (gynecEditState === "CREATE") {
             const payload = {
-                patientId: patient_data?.patient_unique_id,
+                patientId: patient_data.patient_unique_id,
                 timeline: [{
                     ...filteredGynecHistory,
                     createdAt: today,
@@ -1179,7 +1206,7 @@ function MedicalHistoryBox(props) {
                 createdBy: tokenData?.user_id,
             };
             try {
-                const response = await updateGynecDetails(patient_data?.patient_unique_id, payload, userId);
+                const response = await updateGynecDetails(patient_data.patient_unique_id, payload, userId);
                 if (response?.data) {
                     trackUpdateEvent();
                 }
