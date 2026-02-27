@@ -70,19 +70,19 @@ function MobileImmunisationHistoryEdit({
       const data = [];
       searchOptionsRes?.forEach((e) => {
         data.push({
-          key: JSON.stringify({ ...e }),
           value: e.id,
           label: e.name,
+          payload: e,
         });
       });
       
       // Add custom option
       if (searchQuery) {
         data.push({
-          key: JSON.stringify({ name: searchQuery, isCustom: true }),
           value: `custom-${searchQuery}`,
           label: `+ Add "${searchQuery}" as custom vaccine`,
           isCustom: true,
+          payload: { name: searchQuery, isCustom: true },
         });
       }
       
@@ -112,10 +112,14 @@ function MobileImmunisationHistoryEdit({
   }, []);
 
   // Handle search select
-  const onSearchSelect = (value, option) => {
-    const key = option.key && JSON.parse(option.key);
-    setSelectedSearchItem(key);
-    setNewVaccineName(key.name || '');
+  const onSearchSelect = (_value, option) => {
+    const selected = option?.payload;
+    if (!selected?.name) {
+      errorMessage('Invalid vaccine selection');
+      return;
+    }
+    setSelectedSearchItem(selected);
+    setNewVaccineName(selected.name);
     setSearchQuery('');
     setAddModalVisible(true);
   };
