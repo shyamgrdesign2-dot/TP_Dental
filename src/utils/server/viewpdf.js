@@ -849,6 +849,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     if (lg == 3 || lg == 4) {
       return "AnekDevanagari"; // Hindi/Marathi/etc.
     }
+    if (lg == 2) {
+      return "BalooBhai2"; // Gujarati
+    }
     if (lg == 5) {
       return "NotoSansTelugu";
     }
@@ -861,7 +864,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     if (lg == 11 || lg == 12) {
       return "AnekBangla";
     }
-    // Languages without a dedicated registered font (Gujarati/Punjabi/Malayalam/Odia/Urdu) use fallback
+    if (lg == 13) {
+      return "NotoSansOriya"; // Odia
+    }
+    // Languages without a dedicated registered font (Punjabi/Malayalam/Urdu) use fallback
     return fallback;
   };
 
