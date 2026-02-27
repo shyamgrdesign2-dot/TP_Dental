@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext, useMemo, useRef, useImperativeHandle, forwardRef } from "react";
+import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from "react";
 import { Button, Card, DatePicker, Input, Tooltip } from 'antd';
 import dayjs from "dayjs";
 
@@ -19,7 +19,6 @@ import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useAccess } from "../pages/vaccination/useAccess";
-import { isMobile, isTablet } from "react-device-detect";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
@@ -37,46 +36,12 @@ function resolveVitalsIds(listVitalsTodayIds, patientUniqueId, firstRow) {
   };
 }
 
-// Strip unit suffix from vital value (mobile only) so input shows number only
-const stripUnitFromVitalValue = (val, field) => {
-    if (val == null || val === '') return val;
-    const s = String(val).trim();
-    if (s === '') return val;
-    const unitPatterns = {
-        weight: /\s*(kgs?|kg)\s*$/i,
-        height: /\s*(cms?|cm)\s*$/i,
-        ofc: /\s*(cms?|cm)\s*$/i,
-        waist_circumference: /\s*(cms?|cm)\s*$/i,
-        temp: /\s*(\u00B0?\s*F|Frh)\s*$/i,
-        systolic: /\s*(mmHg|mmH)\s*$/i,
-        diastolic: /\s*(mmHg|mmH)\s*$/i,
-        spo2: /\s*%\s*$/i,
-        general_rbs: /\s*mg\/dl\s*$/i,
-        pres: /\s*\/min\s*$/i,
-        resp_rate: /\s*\/min\s*$/i,
-    };
-    const re = unitPatterns[field];
-    if (!re) return val;
-    const cleaned = s.replace(re, '').trim();
-    return cleaned !== '' ? cleaned : val;
-};
-
-const stripUnitsFromVitalItem = (item) => {
-    if (!item || typeof item !== 'object') return item;
-    const fields = ['weight', 'height', 'ofc', 'waist_circumference', 'temp', 'systolic', 'diastolic', 'spo2', 'general_rbs', 'pres', 'resp_rate'];
-    const out = { ...item };
-    fields.forEach((f) => {
-        if (out[f] != null && out[f] !== '') out[f] = stripUnitFromVitalValue(out[f], f);
-    });
-    return out;
-};
-
-const VitalsBox = forwardRef((props, ref) => {
+function VitalsBox(props) {
 
     const scrollContainerRef = useRef(null);
     const inputRef = useRef([]);
 
-    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, onVitalsUpdate, hideHeaderButton = false, hideHeaderElements = false, onVitalsDataChange, isVoiceAmbientFlow = false, patient_data: patientDataProp, vitalsFlow: vitalsFlowProp } = props;
+    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, isVoiceAmbientFlow = false, patient_data: patientDataProp, vitalsFlow: vitalsFlowProp } = props;
     const isVoiceAmbientSnapSmartFlow = isVoiceAmbientFlow;
 
     const {
@@ -200,7 +165,7 @@ const VitalsBox = forwardRef((props, ref) => {
             height,
             weight,
             ofc: String(v.ofc || v.OFC || '').trim(),
-            general_rbs: String(v['General RBS'] || v.general_rbs || '').trim(),
+            general_rbs: String(v['General RBS'] || v.general_rbs || v.generalRBS || v.genralRBS || '').trim(),
             fib4: String(v.FIB4 || v.fib4 || '').trim(),
             waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
             bmi: v.bmi || cal.bmi,
@@ -219,24 +184,18 @@ const VitalsBox = forwardRef((props, ref) => {
         if (isVoiceAmbientSnapSmartFlow || noContextSetVitals) {
             const hasData = initialVitals && Object.keys(initialVitals).filter(k => k !== 'date').some(k => (initialVitals[k] && String(initialVitals[k]).trim()));
             if (hasData && rowFromInitialVitals) {
-                const row = isMobile && !isTablet ? stripUnitsFromVitalItem(rowFromInitialVitals) : rowFromInitialVitals;
-                setChildVitalsData([row]);
+                setChildVitalsData([rowFromInitialVitals]);
             } else {
                 setChildVitalsData([emptyVitalsRow]);
             }
             return;
         }
         if (selectedVitalsList.length === 0 && hasInitialData && rowFromInitialVitals) {
-            const row = isMobile && !isTablet ? stripUnitsFromVitalItem(rowFromInitialVitals) : rowFromInitialVitals;
-            setChildVitalsData([row]);
+            setChildVitalsData([rowFromInitialVitals]);
             return;
         }
         // Consult: sync from context when it has data; otherwise keep existing childVitalsData (don't overwrite with [])
-        // On mobile, strip units from values so only numbers appear in input fields
-        const nextData = Array.isArray(vitalsData) && vitalsData.length > 0
-            ? (isMobile && !isTablet ? vitalsData.map(stripUnitsFromVitalItem) : [...vitalsData])
-            : null;
-        setChildVitalsData((prev) => (nextData !== null ? nextData : prev));
+        setChildVitalsData((prev) => (Array.isArray(vitalsData) && vitalsData.length > 0 ? [...vitalsData] : prev));
     }, [isVoiceAmbientSnapSmartFlow, vitalsData, rowFromInitialVitals, initialVitals, emptyVitalsRow, selectedVitalsList.length, setVitalsData]);
 
     useEffect(() => {
@@ -447,19 +406,6 @@ const VitalsBox = forwardRef((props, ref) => {
         }
     }
 
-    // Expose functions to parent via ref
-    useImperativeHandle(ref, () => ({
-        onAddUpdateClicked,
-        hasVitalsData: childVitalsData.length > 0
-    }), [childVitalsData.length]);
-
-    // Notify parent when vitals data changes
-    useEffect(() => {
-        if (onVitalsDataChange) {
-            onVitalsDataChange(childVitalsData.length > 0);
-        }
-    }, [childVitalsData.length, onVitalsDataChange]);
-
     const TABLE_VITALS = useMemo(() => {
         return (
             childVitalsData.length > 0 &&
@@ -536,28 +482,24 @@ const VitalsBox = forwardRef((props, ref) => {
 
     return (
         <>
-            <Card bordered={false} className="search-modalCard " style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {!hideHeaderElements && (
-                    <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
-                        style={{
-                            position: "sticky",
-                            top: "0px",
-                            zIndex: 2,
-                        }}>
-                        <div className='align-items-center d-flex'>
-                            <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleDrawerVital}>
-                                <i className='icon-Cross fs-3'></i>
-                            </Button>
-                            <div className="modal-title">Vitals</div>
-                        </div>
-                        {!hideHeaderButton && (
-                            <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={isVoiceAmbientSnapSmartFlow ? voiceAmbientSaving : loading} disabled={childVitalsData.length > 0 ? false : true}>
-                                Done
-                            </Button>
-                        )}
+            <Card bordered={false} className="search-modalCard ">
+                <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'
+                    style={{
+                        position: "sticky",
+                        top: "0px",
+                        zIndex: 2,
+                    }}>
+                    <div className='align-items-center d-flex'>
+                        <Button type="text" className='btn btn-delete-prescription px-3 focus-none h-100' onClick={handleDrawerVital}>
+                            <i className='icon-Cross fs-3'></i>
+                        </Button>
+                        <div className="modal-title">Vitals</div>
                     </div>
-                )}
-                <div className="align-items-center d-flex justify-content-between px-20 py-3" style={{ position: "sticky", top: hideHeaderElements ? "0px" : "60px", zIndex: 1, backgroundColor: "#fff" }}>
+                    <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={isVoiceAmbientSnapSmartFlow ? voiceAmbientSaving : loading} disabled={childVitalsData.length > 0 ? false : true}>
+                        Done
+                    </Button>
+                </div>
+                <div className="align-items-center d-flex justify-content-between px-20 py-3">
                     {(profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0 ? (
                         <div className="vitals-wrapper">
                             <div className='vitals-row d-flex align-items-center px-2'>
@@ -580,13 +522,7 @@ const VitalsBox = forwardRef((props, ref) => {
                         </div> */}
                 </div>
                 {childVitalsData.length > 0 && (
-                    <div className='px-20' style={{ 
-                        overflowY: 'auto', 
-                        maxHeight: hideHeaderElements ? 'calc(100vh - 120px)' : 'calc(100vh - 180px)', 
-                        flex: 1,
-                        scrollbarWidth: 'thin',
-                        scrollbarColor: '#c1c1c1 #f1f1f1'
-                    }}>
+                    <div className='px-20'>
                         <div className='vitals-wrapper w-100'>
                             <div className='vitals-wrap-body vitals-parent-width'>
                                 <div className='vitals-head'>Name</div>
@@ -667,8 +603,7 @@ const VitalsBox = forwardRef((props, ref) => {
             </Card>
         </>
     );
-});
+}
 
-VitalsBox.displayName = 'VitalsBox';
 
 export default React.memo(VitalsBox);

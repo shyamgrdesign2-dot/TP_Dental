@@ -26,7 +26,7 @@ import TabInvestigationBox from "../../components/tab_design/TabInvestigationBox
 import TabFollowUpBox from "../../components/tab_design/TabFollowUpBox";
 import OphthalmologyExamPanel from "../../components/ophthalmology/OphthalmologyExamPanel";
 
-import VitalsBox from "../../components/VitalsBox";
+import VitalsBoxMobile from "../../components/VitalsBoxMobile";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
 import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
@@ -2422,7 +2422,7 @@ function TabPrescription() {
             className="modalWidth-700"
             width="auto"
           >
-            <VitalsBox
+            <VitalsBoxMobile
               handleDrawerVital={handleDrawerVital}
               handleCollapsed={(flag) => handleCollapsed(flag)}
               isGrowthChart={isGrowthChart}

@@ -6,6 +6,7 @@ import styles from './ConsultationDrawer.module.css';
 import vitalsIcon from '../assets/images/Vitals.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import VitalsBox from './VitalsBox';
+import VitalsBoxMobile from './VitalsBoxMobile';
 import { isMobile, isTablet } from 'react-device-detect';
 import { useSelector } from 'react-redux';
 import './mobile/MobileVitalsEditSheet.scss';
@@ -356,7 +357,7 @@ const VitalsRichTextEditor = ({
         >
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ flex: 1, overflowY: 'auto' }}>
-              <VitalsBox
+              <VitalsBoxMobile
                 ref={vitalsBoxRef}
                 key={`vitals-mobile-${vitalsDrawer}`}
                 handleDrawerVital={() => setVitalsDrawer(false)}
@@ -413,6 +414,22 @@ const VitalsRichTextEditor = ({
           width={600}
           bodyStyle={{ overflowY: 'auto', maxHeight: 'calc(100vh - 24px)', paddingBottom: 24 }}
         >
+          {(isMobile && !isTablet) ? (
+          <VitalsBoxMobile
+            key={`vitals-drawer-${vitalsDrawer}`}
+            handleDrawerVital={() => setVitalsDrawer(false)}
+            handleCollapsed={(flag) => {
+              if (flag === 1) {
+                setVitalsDrawer(false);
+              }
+            }}
+            initialVitals={mergedVitals}
+            onVitalsSave={handleVitalsSave}
+            isVoiceAmbientFlow={isVoiceAmbientFlow}
+            patient_data={patient_data}
+            vitalsFlow={vitalsFlow}
+          />
+          ) : (
           <VitalsBox
             key={`vitals-drawer-${vitalsDrawer}`}
             handleDrawerVital={() => setVitalsDrawer(false)}
@@ -427,6 +444,7 @@ const VitalsRichTextEditor = ({
             patient_data={patient_data}
             vitalsFlow={vitalsFlow}
           />
+          )}
         </Drawer>
       )}
     </>
