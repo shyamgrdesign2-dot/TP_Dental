@@ -285,13 +285,11 @@ function MobileGynecHistoryEdit({
   const handleAgeAtMenarcheSave = (data) => {
     if (data.ageAtMenarche !== null) setAgeAtMenarche(String(data.ageAtMenarche));
     setMenarcheNotes(data.menarcheNotes || '');
-    setIsEditMode(true);
   };
 
   const handleCycleDetailsSave = (data) => {
     if (data.intervalOfCycle !== null) setIntervalOfCycle(String(data.intervalOfCycle));
     setCycleNotes(data.cycleNotes || '');
-    setIsEditMode(true);
   };
 
   const handleFlowDetailsSave = (data) => {
@@ -299,20 +297,17 @@ function MobileGynecHistoryEdit({
     setClots(data.clots);
     if (data.numberOfPadsPerDay !== null) setNumberOfPadsPerDay(String(data.numberOfPadsPerDay));
     setFlowNotes(data.flowNotes || '');
-    setIsEditMode(true);
   };
 
   const handlePainDetailsSave = (data) => {
     setOccurrenceOfPain(data.occurrenceOfPain || '');
     setPainNotes(data.painNotes || '');
-    setIsEditMode(true);
   };
 
   const handleLifecycleDetailsSave = (data) => {
     if (data.ageAtMenopause !== null) setAgeAtMenopause(String(data.ageAtMenopause));
     setTypeOfMenopause(data.typeOfMenopause || '');
     setReproductiveNotes(data.reproductiveNotes || '');
-    setIsEditMode(true);
   };
 
   // Render button group
