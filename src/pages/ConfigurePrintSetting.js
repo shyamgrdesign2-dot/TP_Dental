@@ -86,6 +86,7 @@ function ConfigurePrintSetting() {
     }, [divRef]);
 
     useEffect(() => {
+        let caseManagerDataToUse = caseManagerData;
         const fetchVoiceAmbientData = async () => {
             if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
                 const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
@@ -128,27 +129,27 @@ function ConfigurePrintSetting() {
                                 }
                             }
                             
-                            return; 
+                            caseManagerDataToUse = { ...caseManagerData, ...action.payload };
                         }
                     } catch (error) {
                     }
                 }
             }
             
-            if (!caseManagerData) {
+            if (!caseManagerDataToUse) {
                 return;
             }
             
-            const rxIdToUse = rxId || caseManagerData?.smart_prescription_filename;
+            const rxIdToUse = rxId || caseManagerDataToUse?.smart_prescription_filename;
             const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
-            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerData?.isRxDigitize && !rxIdToUse);
+            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerDataToUse?.isRxDigitize && !rxIdToUse);
             const isVoiceAmbientFlow = rxIdToUse && !isSnapRx;
             const shouldFetchData = (isSnapRx && isAfterDigitization) || isVoiceAmbientFlow;
 
-            const hasMergedMedicine = caseManagerData?.medicine && 
-                                      Array.isArray(caseManagerData.medicine) && 
-                                      caseManagerData.medicine.length > 0;
-            const isVoiceAmbientRx = caseManagerData?.isVoiceAmbientRx;
+            const hasMergedMedicine = caseManagerDataToUse?.medicine && 
+                                      Array.isArray(caseManagerDataToUse.medicine) && 
+                                      caseManagerDataToUse.medicine.length > 0;
+            const isVoiceAmbientRx = caseManagerDataToUse?.isVoiceAmbientRx;
             
             if (hasMergedMedicine && (isVoiceAmbientRx || isSnapRx) && (rxIdToUse || isSnapRx)) {
                 return;
@@ -164,8 +165,8 @@ function ConfigurePrintSetting() {
                     
                     if (isSnapRx) {
                         voiceAmbientResponse = await getSnapRxDigitization(
-                            caseManagerData?.patient_data?.patient_unique_id,
-                            caseManagerData?.tcm_id,
+                            caseManagerDataToUse?.patient_data?.patient_unique_id,
+                            caseManagerDataToUse?.tcm_id,
                             null
                         );
                     } else if (isAmbientMode) {
@@ -427,7 +428,7 @@ function ConfigurePrintSetting() {
                             
                             
                             if (Array.isArray(data.labResults) && data.labResults.length > 0) {
-                                const consultationDate = caseManagerData?.patient_data?.patient_consultaion_date || caseManagerData?.consultation_date || moment().format('YYYY-MM-DD');
+                                const consultationDate = caseManagerDataToUse?.patient_data?.patient_consultaion_date || caseManagerDataToUse?.consultation_date || moment().format('YYYY-MM-DD');
                                 const labParamsDataArray = [];
                                 
                                 const groupedByDate = {};
@@ -608,13 +609,13 @@ function ConfigurePrintSetting() {
                         const transformedData = transformVoiceAmbientData(prescriptionData);
                         
                         if (transformedData) {
-                            let followUpDate = transformedData.follow_up_date || transformedData.followUp || caseManagerData?.follow_up_date;
+                            let followUpDate = transformedData.follow_up_date || transformedData.followUp || caseManagerDataToUse?.follow_up_date;
                             if (followUpDate && typeof followUpDate === 'string' && followUpDate.trim() !== '' && !moment(followUpDate, moment.ISO_8601, true).isValid()) {
                                 const relativeDateMatch = followUpDate.match(/(\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years)(\(s\))?/i);
                                 if (relativeDateMatch) {
                                     const value = parseInt(relativeDateMatch[1]);
                                     const unit = relativeDateMatch[2].toLowerCase();
-                                    const consultationDate = caseManagerData?.patient_data?.patient_consultaion_date || moment().format('YYYY-MM-DD');
+                                    const consultationDate = caseManagerDataToUse?.patient_data?.patient_consultaion_date || moment().format('YYYY-MM-DD');
                                     const baseDate = moment(consultationDate);
                                     
                                     if (unit.includes('year')) {
@@ -631,14 +632,14 @@ function ConfigurePrintSetting() {
                                 followUpDate = getFormattedDate(followUpDate);
                             }
                             const mergedModuleContents = [
-                                ...(caseManagerData?.moduleContents || []),
+                                ...(caseManagerDataToUse?.moduleContents || []),
                                 ...(transformedData.moduleContents || []),
                             ];
                             const merged = {
-                                ...caseManagerData,
+                                ...caseManagerDataToUse,
                                 ...(transformedData.medicine && { medicine: transformedData.medicine }),
                                 isVoiceAmbientRx: !isSnapRx,
-                                isRxDigitize: isSnapRx || caseManagerData?.isRxDigitize,
+                                isRxDigitize: isSnapRx || caseManagerDataToUse?.isRxDigitize,
                                 ...(transformedData.diagnosis && { diagnosis: transformedData.diagnosis }),
                                 ...(transformedData.advice && { advice: transformedData.advice }),
                                 ...(transformedData.investigation && { investigation: transformedData.investigation }),
@@ -651,21 +652,21 @@ function ConfigurePrintSetting() {
                                 ...(transformedData.others && Array.isArray(transformedData.others) && { others: transformedData.others }),
                                 ...(transformedData.vaccinations && { vaccinations: transformedData.vaccinations }),
                                 ...(mergedModuleContents.length > 0 && { moduleContents: mergedModuleContents }),
-                                smart_prescription_filename: caseManagerData?.smart_prescription_filename,
+                                smart_prescription_filename: caseManagerDataToUse?.smart_prescription_filename,
                             };
                             setPrescriptionDataFromApi(merged);
                         } else {
-                            setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
+                            setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
                         }
                     } else {
-                        setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
+                        setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
                     }
                 } catch (error) {
-                    setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
+                    setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
                 }
             }
             
-            const patientId = caseManagerData?.patient_data?.patient_unique_id;
+            const patientId = caseManagerDataToUse?.patient_data?.patient_unique_id;
             if (patientId) {
                 try {
                     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -691,8 +692,7 @@ function ConfigurePrintSetting() {
         };
         
         fetchVoiceAmbientData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [caseManagerData, rxId, isAmbientRx]);
+    }, [caseManagerData, rxId, isAmbientRx, smartRxFile, isAfterDigitization]);
 
     useEffect(() => {
         if (caseManagerData) {

@@ -681,6 +681,11 @@ const LabInvestigationTable = ({
   };
 
   useEffect(() => {
+    // Reset ref when patient context changes so isInitialEmpty is correct for the new patient
+    hasHadInvestigationsRef.current = false;
+  }, [patient_data?.patient_unique_id]);
+
+  useEffect(() => {
     if (labInvestigation.length > 0) hasHadInvestigationsRef.current = true;
   }, [labInvestigation.length]);
 

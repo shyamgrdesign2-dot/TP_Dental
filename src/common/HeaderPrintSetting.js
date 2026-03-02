@@ -282,6 +282,18 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         files: state?.files || state?.smartRxFile
                     } 
                 });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page,
+                        smartRxFile: state?.smartRxFile || state?.files
+                    }
+                });
             } else {
                 navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
             }
