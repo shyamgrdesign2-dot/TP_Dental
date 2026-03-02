@@ -31,6 +31,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   MEDICAL_RECORDS: 3,
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
+  HEALTH_CHECKUP_REPORT: 6,
 };
 
 export const TAB_QUEUE = 0;
@@ -90,6 +91,7 @@ export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
+export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -136,6 +138,7 @@ export const S_PHARMACY = "pharmacy";
 export const S_IPD = "ipd";
 export const S_OPD_BILLING = "opd_billing";
 export const S_RECEPTIONIST_AGENT = "receptionist_agent";
+export const GB_MED_INVESTIGATION = "VoiceRx_B2B_med_investigations";
 
 // Medical Records - Document Upload Configuration
 export const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
@@ -456,5 +459,5 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
 
 // Custom Canvas Size Increased upto 20 
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [
-  524,25734
+  524,25734,30098
 ];
