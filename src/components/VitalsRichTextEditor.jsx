@@ -1,11 +1,15 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Drawer } from 'antd';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Drawer, Button } from 'antd';
 import moment from 'moment';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import styles from './ConsultationDrawer.module.css';
 import vitalsIcon from '../assets/images/Vitals.svg';
 import addEditIcon from '../assets/images/Icon.svg';
 import VitalsBox from './VitalsBox';
+import VitalsBoxMobile from './VitalsBoxMobile';
+import { isMobile, isTablet } from 'react-device-detect';
+import { useSelector } from 'react-redux';
+import './mobile/MobileVitalsEditSheet.scss';
 import { enrichVitalsWithCalculations } from '../utils/vitalsCalculations';
 
 const VitalsRichTextEditor = ({
@@ -13,13 +17,23 @@ const VitalsRichTextEditor = ({
   onUpdate,
   isProcessing = false,
   className = '',
+  mergedVitals: mergedVitalsProp,
+  apiVitals,
   isVoiceAmbientFlow = false,
   patient_data,
   vitalsFlow,
+  showWhenEmpty = false,
 }) => {
   const [vitalsDrawer, setVitalsDrawer] = useState(false);
+  const previousVitalsRef = useRef(vitalsAndBodyComposition);
+  const editorKeysRef = useRef(new Set());
 
   const mergedVitals = useMemo(() => {
+    // Use mergedVitalsProp if provided, otherwise process vitalsAndBodyComposition
+    if (mergedVitalsProp) {
+      return mergedVitalsProp;
+    }
+    
     const rxPadVitals = vitalsAndBodyComposition || {};
     const keyMapping = {
       'temp': 'temperature',
@@ -100,7 +114,7 @@ const VitalsRichTextEditor = ({
     }
 
     return cleanedVitals;
-  }, [vitalsAndBodyComposition, patient_data]);
+  }, [mergedVitalsProp, vitalsAndBodyComposition, patient_data]);
 
   const extractNumericValue = (value, unit) => {
     if (!value) return value;
@@ -132,7 +146,7 @@ const VitalsRichTextEditor = ({
     const vitalsHiddenIds = ['tcv_id', 'tcbc_id', 'dev_unique_id', 'pam_id'];
     const date = currentVitals.date || moment().format('YYYY-MM-DD');
     const formattedDate = moment(date, ['YYYY-MM-DD', 'DD MMM YYYY', 'DD MMM, YY']).format('DD MMM YYYY');
-    
+    const toCanonical = (k) => k.toLowerCase().replace(/\s+/g, '');
     const vitalFieldMap = {
       'temp': { label: 'Temperature', unit: 'Frh' },
       'temperature': { label: 'Temperature', unit: 'Frh' },
@@ -161,54 +175,55 @@ const VitalsRichTextEditor = ({
       'bsa': { label: 'BSA', unit: 'm²' },
       'BSA': { label: 'BSA', unit: 'm²' },
     };
-    
     const fieldOrder = [
       'temperature', 'pulse', 'respRate', 'Systolic', 'Diastolic', 'spo2',
       'General RBS', 'FIB4', 'Waist Circumference', 'ofc',
       'height', 'weight', 'BMI', 'BMR', 'BSA'
     ];
-    
     const vitalPairs = [];
-    const processedKeys = new Set();
-    
+    const processedCanonical = new Set();
     fieldOrder.forEach(fieldKey => {
       const value = currentVitals[fieldKey];
       if (value !== undefined && value !== null) {
         const strValue = String(value).trim();
-        if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null' && !processedKeys.has(fieldKey)) {
+        const canonical = toCanonical(fieldKey);
+        if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null' && !processedCanonical.has(canonical)) {
           const fieldInfo = vitalFieldMap[fieldKey];
           if (fieldInfo) {
             const cleanValue = extractNumericValue(strValue, fieldInfo.unit);
-            const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit) 
-              ? `${cleanValue} ${fieldInfo.unit}` 
+            const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit)
+              ? `${cleanValue} ${fieldInfo.unit}`
               : cleanValue;
             vitalPairs.push(`${fieldInfo.label}: ${displayValue}`);
-            processedKeys.add(fieldKey);
+            processedCanonical.add(canonical);
           }
         }
       }
     });
 
-    // Skip BP/blood_press in Rx pad; only Systolic and Diastolic are shown above
     const bpDisplayKeys = ['blood_press', 'bloodPressure', 'BP'];
-
-    Object.entries(currentVitals).forEach(([key, value]) => {
-      if (key === 'date' || processedKeys.has(key) || vitalsHiddenIds.includes(key) || bpDisplayKeys.includes(key)) return; // Don't show internal IDs or BP in Rx Pad
+    const allKeys = new Set([...Object.keys(currentVitals), ...Array.from(editorKeysRef.current)]);
+    allKeys.forEach((key) => {
+      if (key === 'date' || vitalsHiddenIds.includes(key) || bpDisplayKeys.includes(key)) return;
+      const canonical = toCanonical(key);
+      if (processedCanonical.has(canonical)) return;
+      const value = currentVitals[key];
       const strValue = String(value || '').trim();
       if (strValue !== '' && strValue !== 'undefined' && strValue !== 'null') {
         const fieldInfo = vitalFieldMap[key];
         if (fieldInfo) {
           const cleanValue = extractNumericValue(strValue, fieldInfo.unit);
-          const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit) 
-            ? `${cleanValue} ${fieldInfo.unit}` 
+          const displayValue = fieldInfo.unit && shouldAddUnit(cleanValue, fieldInfo.unit)
+            ? `${cleanValue} ${fieldInfo.unit}`
             : cleanValue;
           vitalPairs.push(`${fieldInfo.label}: ${displayValue}`);
         } else {
           const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/\b(bp|rr|spo2|rbs|ofc|fib4)\b/gi, match => match.toUpperCase()).replace(/\s+/g, ' ').trim();
           vitalPairs.push(`${formattedKey}: ${strValue}`);
         }
+        processedCanonical.add(canonical);
       }
-      });
+    });
 
     if (vitalPairs.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
@@ -238,14 +253,37 @@ const VitalsRichTextEditor = ({
     onUpdate(vitalsObject);
   }, [onUpdate]);
 
+  const isMobileDevice = isMobile && !isTablet;
+  const vitalsLoading = useSelector((state) => state.vitals?.loading ?? false);
+  const vitalsBoxRef = useRef(null);
+  const [hasVitalsData, setHasVitalsData] = useState(false);
+
+  const handleVitalsDataChange = useCallback((hasData) => {
+    setHasVitalsData(hasData);
+  }, []);
+
+  const handleMobileDone = useCallback(() => {
+    if (vitalsBoxRef.current?.onAddUpdateClicked) {
+      vitalsBoxRef.current.onAddUpdateClicked();
+    }
+  }, []);
 
   const hasVitalsToDisplay = !isProcessing && mergedVitals &&
     Object.values(mergedVitals).some(value => {
       const strValue = String(value || '').trim();
       return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
     });
+  const hasApiVitals = !isProcessing && apiVitals &&
+    Object.values(apiVitals).some(value => {
+      const strValue = String(value ?? '').trim();
+      return strValue !== '' && strValue !== 'undefined' && strValue !== 'null';
+    });
+  const hasProductionVitals = !isProcessing && vitalsAndBodyComposition &&
+    Object.values(vitalsAndBodyComposition).some(value =>
+      value !== undefined && value !== null && value !== ''
+    );
 
-  if (!isProcessing && !hasVitalsToDisplay) {
+  if (!showWhenEmpty && !isProcessing && !hasVitalsToDisplay && !hasApiVitals && !hasProductionVitals) {
     return null;
   }
 
@@ -273,16 +311,17 @@ const VitalsRichTextEditor = ({
 
   return (
     <>
-    <div className={`${styles['vitals-rich-text-editor']} ${className}`}>
-      <div className={styles['vitals-content-box']}>
-        <div className={styles['vitals-header']}>
+      <div className={`${styles['vitals-rich-text-editor']} ${className}`}>
+        <div className={styles['vitals-content-box']}>
+          <div className={styles['vitals-header']}>
             <div className={styles['medical-history-header-left']}>
-          <div className={styles['vitals-icon']}>
-          <img src={vitalsIcon} alt="Vitals" />
-          </div>
-          <span className={styles['vitals-title']}>Vitals</span>
-        </div>
+            <div className={styles['vitals-icon']}>
+              <img src={vitalsIcon} alt="Vitals" />
+            </div>
+            <span className={styles['vitals-title']}>Vitals</span>
+            </div>
             <button
+              type="button"
               className={styles['medical-history-action-button']}
               onClick={() => setVitalsDrawer(true)}
             >
@@ -307,32 +346,112 @@ const VitalsRichTextEditor = ({
         </div>
       </div>
     </div>
-      <Drawer
-        className="vitals-drawer-scrollable"
-        closeIcon={false}
-        placement="right"
-        onClose={() => setVitalsDrawer(false)}
-        open={vitalsDrawer}
-        width={600}
-        bodyStyle={{ overflowY: 'auto', maxHeight: 'calc(100vh - 24px)', paddingBottom: 24 }}
-      >
-        <VitalsBox
-          key={`vitals-drawer-${vitalsDrawer}`}
-          handleDrawerVital={() => setVitalsDrawer(false)}
-          handleCollapsed={(flag) => {
-            if (flag === 1) {
-              setVitalsDrawer(false);
-            }
-          }}
-          initialVitals={mergedVitals}
-          onVitalsSave={handleVitalsSave}
-          isVoiceAmbientFlow={isVoiceAmbientFlow}
-          patient_data={patient_data}
-          vitalsFlow={vitalsFlow}
-        />
-      </Drawer>
+
+      {isMobileDevice ? (
+        <Drawer
+          placement="bottom"
+          onClose={() => setVitalsDrawer(false)}
+          open={vitalsDrawer}
+          height="90vh"
+          className="mobile-vitals-bottom-sheet"
+          closable={false}
+          maskClosable
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <VitalsBoxMobile
+                ref={vitalsBoxRef}
+                key={`vitals-mobile-${vitalsDrawer}`}
+                handleDrawerVital={() => setVitalsDrawer(false)}
+                handleCollapsed={(flag) => {
+                  if (flag === 1) {
+                    setVitalsDrawer(false);
+                  }
+                }}
+                initialVitals={mergedVitals}
+                onVitalsUpdate={onUpdate}
+                onVitalsSave={handleVitalsSave}
+                hideHeaderButton={false}
+                hideHeaderElements={false}
+                onVitalsDataChange={handleVitalsDataChange}
+                isVoiceAmbientFlow={isVoiceAmbientFlow}
+                patient_data={patient_data}
+                vitalsFlow={vitalsFlow}
+              />
+            </div>
+            {/* Mobile bottom footer Done commented out; header Done in VitalsBox is used for save/close.
+                Structure and props kept so footer can be re-enabled later without breaking callers. */}
+            {/* <div style={{
+              padding: '16px',
+              borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+              background: '#fff',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 10
+            }}>
+              <Button
+                type="primary"
+                onClick={handleMobileDone}
+                loading={vitalsLoading}
+                disabled={!hasVitalsData}
+                style={{
+                  width: '100%',
+                  height: '44px',
+                  fontWeight: 600,
+                  borderRadius: '8px'
+                }}
+              >
+                Done
+              </Button>
+            </div> */}
+          </div>
+        </Drawer>
+      ) : (
+        <Drawer
+          className="vitals-drawer-scrollable"
+          closeIcon={false}
+          placement="right"
+          onClose={() => setVitalsDrawer(false)}
+          open={vitalsDrawer}
+          width={600}
+          bodyStyle={{ overflowY: 'auto', maxHeight: 'calc(100vh - 24px)', paddingBottom: 24 }}
+        >
+          {(isMobile && !isTablet) ? (
+          <VitalsBoxMobile
+            key={`vitals-drawer-${vitalsDrawer}`}
+            handleDrawerVital={() => setVitalsDrawer(false)}
+            handleCollapsed={(flag) => {
+              if (flag === 1) {
+                setVitalsDrawer(false);
+              }
+            }}
+            initialVitals={mergedVitals}
+            onVitalsSave={handleVitalsSave}
+            isVoiceAmbientFlow={isVoiceAmbientFlow}
+            patient_data={patient_data}
+            vitalsFlow={vitalsFlow}
+          />
+          ) : (
+          <VitalsBox
+            key={`vitals-drawer-${vitalsDrawer}`}
+            handleDrawerVital={() => setVitalsDrawer(false)}
+            handleCollapsed={(flag) => {
+              if (flag === 1) {
+                setVitalsDrawer(false);
+              }
+            }}
+            initialVitals={mergedVitals}
+            onVitalsSave={handleVitalsSave}
+            isVoiceAmbientFlow={isVoiceAmbientFlow}
+            patient_data={patient_data}
+            vitalsFlow={vitalsFlow}
+          />
+          )}
+        </Drawer>
+      )}
     </>
   );
 };
 
 export default VitalsRichTextEditor;
+
