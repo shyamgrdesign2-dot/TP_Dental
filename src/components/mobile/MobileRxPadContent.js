@@ -1386,6 +1386,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
           labResults={prescriptionData?.labResults || []}
           onUpdate={handleLabResultsUpdate}
           isProcessing={isProcessing}
+          hideAddEditButton
         />
       )}
 
