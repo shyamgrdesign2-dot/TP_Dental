@@ -58,7 +58,7 @@ function SmartRxPreview() {
     const navigate = useNavigate();
 
     const { state } = useLocation();
-    const { patient_data, isDigitiseRxSubmit} = state
+    const { patient_data, isDigitiseRxSubmit } = state || {};
 
     const buildUrlWithLanguage = (url, language) => {
         if (!url) return null;
@@ -473,7 +473,14 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx", page: state?.page } })
+            let filesForPrint = smartRxFile;
+            if (smartRxFile?.length > 0 && typeof smartRxFile[0] === "string") {
+                try {
+                    const response = await api.post(FETCH_SMART_RX, { tcm_id: state.tcm_id }, baseUrl);
+                    if (response?.data?.length) filesForPrint = response.data;
+                } catch (e) {}
+            }
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile: filesForPrint, from: "/print-smart-rx", page: state?.page } })
         } else {
             errorMessage(action.error)
         }

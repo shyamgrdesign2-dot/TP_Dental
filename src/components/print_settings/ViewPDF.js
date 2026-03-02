@@ -263,7 +263,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData, isDigitisedPrintConfig } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
-    const labParamsData = caseManagerData?.labParamsData
+    // Prefer lab data from prop (Lab Results API via context); fall back to case manager (e.g. written Rx flow has no lab in case manager)
+    const labParamsData = props.labParamsData ?? caseManagerData?.labParamsData ?? [];
     const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
     const hasOphthalValue = (value) => {
         if (value === 0 || value === "0") return true;
@@ -545,7 +546,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const isSmartSyncPrescription = smartRxData && smartRxData[0]?.smart_prescription_file;
+    const getWrittenRxImageUrl = (item) => {
+      if (item == null) return undefined;
+      if (typeof item === "string") return (item.startsWith("http") || item.startsWith("blob:") || item.startsWith("data:")) ? item : undefined;
+      return item?.smart_prescription_file || item?.fileUrl || item?.url || item?.preview || item?.showFile || item?.src || item?.imageUrl;
+    };
+    const isSmartSyncPrescription = smartRxData && smartRxData?.length > 0 && !!getWrittenRxImageUrl(smartRxData[0]);
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -795,8 +801,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
             // (zydusLabData?.data?.length > 0) ||
             
-            // Check smart sync data
-            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0))
+            // Check smart sync data (treat undefined isCustomSSRX as "0" for snap/smart written flow)
+            (isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
             
         );
     };
@@ -873,7 +879,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     
     return (
         <Document>
-            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1" ) &&
+            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") &&
                 <Page
                     size="A4"
                     style={[paddingStyles, {
@@ -884,19 +890,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     wrap={true}
                 >
                     <>
-                        {/* Smart RX Images for Custom SSRX - Show at the beginning */}
-                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1" ) && (
-                            smartRxData?.map((item, i) => (
-                                <View key={i}>
-                                    <View style={{ width: '100%', height: '100%' }}>
-                                        <Image
-                                            style={{ width: '100%', height: '100%' }}
-                                            src={item.smart_prescription_file}
-                                            objectFit="contain"
-                                        />
+                        {/* Smart/Snap RX Images for Custom SSRX - Show at the beginning */}
+                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") && (
+                            smartRxData?.map((item, i) => {
+                                const src = getWrittenRxImageUrl(item);
+                                return src ? (
+                                    <View key={i}>
+                                        <View style={{ width: '100%', height: '100%' }}>
+                                            <Image
+                                                style={{ width: '100%', height: '100%' }}
+                                                src={src}
+                                                objectFit="contain"
+                                            />
+                                        </View>
                                     </View>
-                                </View>
-                            ))
+                                ) : null;
+                            })
                         )}
                     </>
                 </Page>
@@ -1183,7 +1192,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 10: 
                                     return (todayVaccines?.given?.length || todayVaccines?.due?.length);
                                 case 11: 
-                                    return caseManagerData?.smart_prescription_filename?.length;
+                                    return caseManagerData?.smart_prescription_filename?.length || (smartRxData && smartRxData.length > 0);
                                 case 12: 
                                     return growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0;
                                 case 13: 
@@ -2804,18 +2813,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 11 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" ) && (
-                                            smartRxData?.map((item, i) => (
-                                                <View key={i}>
-                                                    <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
-                                                        <Image
-                                                            style={{ width: '100%', height: '100%' }}
-                                                            src={item.smart_prescription_file}
-                                                            objectFit="contain"
-                                                        />
+                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && (
+                                            smartRxData?.map((item, i) => {
+                                                const src = getWrittenRxImageUrl(item);
+                                                return src ? (
+                                                    <View key={i}>
+                                                        <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
+                                                            <Image
+                                                                style={{ width: '100%', height: '100%' }}
+                                                                src={src}
+                                                                objectFit="contain"
+                                                            />
+                                                        </View>
                                                     </View>
-                                                </View>
-                                            ))
+                                                ) : null;
+                                            })
                                         )}
                                     </>
                                 ) : option?.id === 12 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
