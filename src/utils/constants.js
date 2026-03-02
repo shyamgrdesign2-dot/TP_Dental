@@ -459,5 +459,5 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
 
 // Custom Canvas Size Increased upto 20 
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [
-  524,25734
+  524,25734,30098
 ];
