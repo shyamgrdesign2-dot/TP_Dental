@@ -59,30 +59,10 @@ export const fetchPrefillObstetricDetails = async function (patient_unique_id) {
   return res;
 };
 
-/**
- * Normalize prefill payload for API: height and weight must be integers (API requirement).
- * Strips units (e.g. "170m", "70 kg") and parses to number; omits key if invalid.
- */
-function normalizePrefillPayload(payload) {
-  const normalized = payload && typeof payload === "object" ? { ...payload } : {};
-  if (normalized.height !== undefined && normalized.height !== null && String(normalized.height).trim() !== "") {
-    const num = parseInt(String(normalized.height).replace(/[^0-9]/g, ""), 10);
-    if (!Number.isNaN(num)) normalized.height = num;
-    else delete normalized.height;
-  }
-  if (normalized.weight !== undefined && normalized.weight !== null && String(normalized.weight).trim() !== "") {
-    const num = parseFloat(String(normalized.weight).replace(/[^0-9.]/g, ""));
-    if (!Number.isNaN(num)) normalized.weight = Math.round(num);
-    else delete normalized.weight;
-  }
-  return normalized;
-}
-
 export const updatePrefillObstetricData = async function (payload, userId) {
   let res = {};
   try {
-    const normalizedPayload = normalizePrefillPayload(payload);
-    res = await api.patch(`/prefilled/${userId}`, normalizedPayload, baseUrl);
+    res = await api.patch(`/prefilled/${userId}`, payload, baseUrl);
   } catch (e) {
     console.error("Error while updating prefill Obstetric Data: ", e);
   }

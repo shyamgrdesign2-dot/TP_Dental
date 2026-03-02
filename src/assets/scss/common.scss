@@ -944,17 +944,17 @@ body {
 
 // Certificate details page
 .certificate-box {
-    width: 188px;
+    width: 223px; 
     background:#fafafb; 
     text-align: center; 
     border-radius:10px; 
     overflow: hidden;
     .pfd-box{
-        height: 154px;
+        height:180px;
     }
     .leave-ui{
         border-top: solid #E2E2EA 1px; 
-        padding:8px;
+        padding:11px 14px 11px 14px;
     }
 }
 
