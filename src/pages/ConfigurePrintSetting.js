@@ -849,7 +849,8 @@ function ConfigurePrintSetting() {
                 const vitalsForConsultation = allVitals.filter(
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === consultationDate
                 );
-                const rawLabParams = caseManagerData?.labParamsData || [];
+                // Lab results come only from Lab Results API (state labParamsData), not from case manager
+                const rawLabParams = labParamsData && Array.isArray(labParamsData) ? labParamsData : [];
                 const labParamsToday = rawLabParams.filter(
                     (l) => (l?.date || l?.createdAt) && moment(l.date || l.createdAt).format("YYYY-MM-DD") === todayStr
                 );
@@ -914,8 +915,9 @@ function ConfigurePrintSetting() {
                 } else {
                     copyPrintSettings.prescription.case_option = computedCaseOption;
                 }
+                const writtenRxOptionTitle = state?.from === "/snap-rx/preview" ? "Snap" : "SmartRx";
                 if (!copyPrintSettings.prescription.case_option.some(o => o.id === 11)) {
-                    copyPrintSettings.prescription.case_option.push({ id: 11, title: "SmartRx", format: "inline", enable: "Y", custom_status: "Y" });
+                    copyPrintSettings.prescription.case_option.push({ id: 11, title: writtenRxOptionTitle, format: "inline", enable: "Y", custom_status: "Y" });
                 }
                 // Vitals (7): add explicitly when we have vitals data, since defaultOptions may not include id 7
                 if (allowedIds.includes(7) && !copyPrintSettings.prescription.case_option.some(o => o.id === 7)) {
@@ -1109,18 +1111,20 @@ function ConfigurePrintSetting() {
             const hasSmartRxFiles = (smartRxFile && smartRxFile.length > 0) || caseManagerData?.smart_prescription_filename;
             const showWrittenRxOption = hasSmartRxFiles && isWrittenRxSnapSmart;
             if (showWrittenRxOption && copyPrintSettings?.prescription?.case_option) {
+                const writtenRxOptionTitle = state?.from === "/snap-rx/preview" ? "Snap" : "SmartRx";
                 const smartRxOption = copyPrintSettings.prescription.case_option.find(option => option.id === 11);
                 if (!smartRxOption) {
                     const vaccinesIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 10);
                     const insertIndex = vaccinesIndex !== -1 ? vaccinesIndex + 1 : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIndex, 0, {
                         id: 11,
-                        title: "SmartRx",
+                        title: writtenRxOptionTitle,
                         format: "inline",
                         enable: "Y",
                         custom_status: "Y"
                     });
                 } else {
+                    smartRxOption.title = writtenRxOptionTitle;
                     if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
                         smartRxOption.enable = "Y";
                         smartRxOption.custom_status = "Y";
@@ -1190,7 +1194,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
+    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId, labParamsData, labParamsData?.length]);
 
     useEffect(() => {
         // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true

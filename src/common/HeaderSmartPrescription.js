@@ -578,7 +578,7 @@ function HeaderPrescription({
         state: {
           ...action.payload,
           patient_data: patient_data,
-          smartRxFile: smartRxFiles,
+          smartRxFile: (files && files.length > 0) ? files : smartRxFiles,
           page: "prescription",
           carePlanAssignments,
         },
