@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { Button, Row, Col, Spin } from "antd";
+import { Button, Row, Col, Spin, Select } from "antd";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
 import axios from "axios";
 import { saveAs } from "file-saver";
@@ -20,12 +20,13 @@ import wtsp from "../assets/images/wtsp.svg";
 import loadingImg from "../assets/images/loading.png";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
+import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
@@ -52,19 +53,20 @@ function GenRxPrescriptionPrintView() {
   const printRef = useRef();
 
   const { loading } = useSelector((state) => state.caseManager);
-  const { profile } = useSelector((state) => state.doctors);
+  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
 
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
-  const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
+  const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language || 1);
+  const encodedData = btoa(selectedLang.toString());
 
-  const initialUrl = state?.print_url ? buildUrlWithParams(state.print_url, isAmbientMode) : null;
-  const [printUrl, setPrintUrl] = useState(initialUrl);
-  const [previewUrl, setPreviewUrl] = useState(initialUrl);
+  const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
+  const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
@@ -90,18 +92,42 @@ function GenRxPrescriptionPrintView() {
     }
   }, []);
 
+
+  const getPatientDefaultLanguage = async () => {
+    const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
+    if (res?.settings?.defaultLanguage) {
+      setSelectedLang(res?.settings?.defaultLanguage);
+    }
+  };
+
+  useEffect(() => {
+    getPatientDefaultLanguage();
+  }, []);
+
+  useEffect(() => {
+    if (!state?.print_url) return;
+    const encodedData = btoa(selectedLang.toString());
+    setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
+  }, [selectedLang, state?.print_url, pam_id]);
+
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
-      const response = await axios({
-        url: printUrl,
-        method: "GET",
-        responseType: "blob", // Important for binary data
-      });
-      const blob = new Blob([response.data], {
-        type: response.headers["content-type"],
-      });
-      saveAs(blob, `${Date.now()}.pdf`);
+      if (currentSessionRx) {
+        const response = await fetch(currentSessionRx);
+        const blob = await response.blob();
+        saveAs(blob, `${Date.now()}.pdf`);
+      } else {
+        const response = await axios({
+          url: printUrl,
+          method: "GET",
+          responseType: "blob", // Important for binary data
+        });
+        const blob = new Blob([response.data], {
+          type: response.headers["content-type"],
+        });
+        saveAs(blob, `${Date.now()}.pdf`);
+      }
     } catch (error) {
       console.error("Error downloading file:", error);
       // Handle errors gracefully, e.g., display an error message to the user
@@ -116,7 +142,26 @@ function GenRxPrescriptionPrintView() {
     //   state: state,
     // });
     // navigate(0, { replace: true });
-    sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+    if (currentSessionRx) {
+      try {
+        const response = await fetch(currentSessionRx);
+        const blob = await response.blob();
+        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+          type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const { uploadDocsToAzure } = await import("./medicalRecords/service");
+        const res = await uploadDocsToAzure(formData);
+        const downloadUrl = res?.[0]?.url;
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+      } catch (error) {
+        console.error("Error uploading PDF for download:", error);
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+      }
+    } else {
+      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+    }
   };
 
   async function onDocumentLoadSuccess(successEvent) {
@@ -126,14 +171,19 @@ function GenRxPrescriptionPrintView() {
     setPrintBlob(blob);
   }
 
-  // Effect to update URLs when mode changes or on initial load
-  useEffect(() => {
-    if (state?.print_url) {
-      const updatedUrl = buildUrlWithParams(state.print_url, isAmbientMode);
-      setPreviewUrl(updatedUrl);
-      setPrintUrl(updatedUrl);
-    }
-  }, [isAmbientMode, state?.print_url]);
+  const onSelect = useCallback(
+    (data) => {
+      const encodedData = btoa(data.toString());
+      setPrintUrl(`${currentSessionRx || state?.print_url || ''}&pam_id=${pam_id}&lg=${encodedData}`);
+      setSelectedLang(data);
+      updatePatientDefaultLanguage({
+        patientId: patient_data?.patient_unique_id,
+        default_language: data,
+      });
+      setCurrentSessionRx(null);
+    },
+    [currentSessionRx, state?.print_url, pam_id, patient_data?.patient_unique_id]
+  );
 
   const handleSendToWhatsapp = async () => {
     const clinic_name = getClinicName(profile?.hospital_data);
@@ -172,6 +222,47 @@ function GenRxPrescriptionPrintView() {
       errorMessage(WTSAP_ERR_MESSAGE);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const configurePrintUrl = async () => {
+    var sendData = {
+      patient_unique_id:
+        patient_data !== undefined ? patient_data.patient_unique_id : 0,
+      tcm_id: state.tcm_id,
+      configurePrintSetting: true
+    };
+    try {
+      const action = await dispatch(viewCaseManager(sendData));
+      if (action.meta.requestStatus === "fulfilled") {
+        if (state?.isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+        
+        navigate('/configure_print_setting', { 
+          state: { 
+            ...state, 
+            selectedLang: selectedLang, 
+            caseManagerData: {
+              ...action.payload, 
+              patient_data: {
+                ...action.payload.patient_data, 
+                pm_id: patient_data?.pm_id
+              }
+            }, 
+            pam_id: pam_id, 
+            isAmbientRx: isAmbientRx,
+            rxId: rxId || state?.rxId,
+            from: "/gen-rx-print" 
+          } 
+        });
+      } else {
+        errorMessage(action.error);
+      }
+    } catch (error) {
+      errorMessage(error);
     }
   };
 
@@ -249,13 +340,32 @@ function GenRxPrescriptionPrintView() {
     }
   };
 
-  const printInAppContent = () => {
+  const printInAppContent = async () => {
     // navigate(`/gen-rx-print/?url=${printUrl}&key=print`, {
     //   replace: true,
     //   state,
     // });
     // navigate(0, { replace: true });
-    sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    if (currentSessionRx) {
+      try {
+        const response = await fetch(currentSessionRx);
+        const blob = await response.blob();
+        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+          type: "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const { uploadDocsToAzure } = await import("./medicalRecords/service");
+        const res = await uploadDocsToAzure(formData);
+        const printUrl = res?.[0]?.url;
+        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+      } catch (error) {
+        console.error("Error uploading PDF for print:", error);
+        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+      }
+    } else {
+      sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    }
   };
 
   return (
@@ -274,6 +384,11 @@ function GenRxPrescriptionPrintView() {
       >
         <Row gutter={{ xl: 40, lg: 0 }} justify="center">
           <Col md={7} lg={7} xl={7}>
+            {isMobile ? '' : <div className="d-flex align-items-center justify-content-end h-38" onClick={configurePrintUrl}>
+              <i className="icon-setting me-2"></i>
+              <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>
+            </div>
+            }
             <div
               className={`${
                 !isMobile
@@ -287,6 +402,11 @@ function GenRxPrescriptionPrintView() {
               }}
             >
               <div>
+                {!isMobile ? '' : <div className="d-flex align-items-center mb-14 h-38" onClick={configurePrintUrl}>
+                  <i className="icon-setting me-2"></i>
+                  <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>
+                </div>
+                }
                 <Button
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
@@ -365,6 +485,16 @@ function GenRxPrescriptionPrintView() {
             <div className={isMobile ? "p-20" : ""}>
               <div className="d-flex align-itms-center justify-content-between">
                 <div className="titleprint">Preview</div>
+                <div className="d-flex align-items-center">
+                  <label className="fontroboto">Select Language</label>
+                  <Select
+                    placeholder="English"
+                    className="ms-3 appointmentselect"
+                    value={selectedLang}
+                    onSelect={onSelect}
+                    options={LANGUAGE_LIST}
+                  />
+                </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
@@ -404,7 +534,10 @@ function GenRxPrescriptionPrintView() {
                           {"No PDF file specified."}
                         </div>
                       }
-                      file={previewUrl}
+                      file={currentSessionRx || printUrl}
+                      onLoadError={() => {
+                        setCurrentSessionRx(null);
+                      }}
                       onLoadSuccess={onDocumentLoadSuccess}
                     >
                       {Array.apply(null, Array(numPages))
