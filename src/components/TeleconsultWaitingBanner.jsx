@@ -3,21 +3,61 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
+import moment from "moment";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import ApiAppointments from "../api/services/ApiAppointments";
 import videoGreenIcon from "../assets/images/video-green.svg";
-import {
-  removeWaitingBanner,
-  setJoinToken,
-} from "../redux/teleconsultNotificationSlice";
+import { removeWaitingBanner } from "../redux/teleconsultNotificationSlice";
+import { TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX } from "../utils/constants";
 import "./TeleconsultWaitingBanner.scss";
+
+const DATE_FORMAT = "YYYY-MM-DD";
+
+/** Fetch appointment list for a date and tab, return the record matching pam_id or null. */
+async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
+  try {
+    const result = await ApiAppointments.getAllAppointment({
+      startDate: dateStr,
+      endDate: dateStr,
+      apStatue,
+      page: 0,
+    });
+    const list = result?.data?.app_data || result?.app_data || [];
+    const record = list.find((e) => String(e?.pam_id) === String(pamId));
+    return record || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Try to find appointment by pam_id across multiple dates and tabs (queue, finished, draft). */
+async function findAppointmentByPamId(pamId) {
+  const pamIdStr = String(pamId);
+  if (!pamIdStr) return null;
+  const tabs = [TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX];
+  const dates = [
+    moment().format(DATE_FORMAT),
+    moment().subtract(1, "day").format(DATE_FORMAT),
+    moment().add(1, "day").format(DATE_FORMAT),
+  ];
+  for (const dateStr of dates) {
+    for (const apStatue of tabs) {
+      const record = await findAppointmentByPamIdInList(pamId, dateStr, apStatue);
+      if (record) return record;
+    }
+  }
+  return null;
+}
 
 export default function TeleconsultWaitingBanner({ payload, onClose }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [joinLoading, setJoinLoading] = useState(false);
 
-  const patientName = payload?.patientName || "Patient";
-  const appointmentTime = payload?.appointmentTime || "";
+  // Avoid "Patient Patient": show "Patient" only when we have no real name
+  const hasRealName = payload?.patientName && String(payload.patientName).trim();
+  const patientLabel = hasRealName ? `Patient ${payload.patientName.trim()}` : "Patient";
+  const appointmentTime = payload?.appointmentTime ?? "";
 
   const handleClose = () => {
     onClose?.();
@@ -36,25 +76,37 @@ export default function TeleconsultWaitingBanner({ payload, onClose }) {
       const joinPayload = data?.joinPayload;
       const token = joinPayload?.token ?? data?.token;
       if (token) {
-        const patientData = payload?.prescriptionContext || null;
-        if (patientData && (patientData.pam_id != null || patientData.patient_unique_id != null)) {
-          const videoConsultData =
-            patientData.pam_id != null
-              ? {
-                  pam_id: patientData.pam_id,
-                  pam_status_type_appointment: 2,
-                }
-              : undefined;
-          navigate("/prescription", {
-            state: {
-              patient_data: patientData,
-              videoConsultData,
-              teleconsultAutoJoin: { consultationId: payload.consultationId, token },
-            },
-          });
-        } else {
-          dispatch(setJoinToken(token));
+        let patientData =
+          payload?.prescriptionContext &&
+          (payload.prescriptionContext.pam_id != null ||
+            payload.prescriptionContext.patient_unique_id != null)
+            ? payload.prescriptionContext
+            : null;
+
+        if (!patientData) {
+          patientData = await findAppointmentByPamId(appointmentId);
         }
+
+        if (!patientData) {
+          patientData = {
+            pam_id: appointmentId,
+            ...(payload?.patient_unique_id != null && {
+              patient_unique_id: payload.patient_unique_id,
+            }),
+          };
+        }
+
+        const videoConsultData = {
+          pam_id: patientData.pam_id ?? appointmentId,
+          pam_status_type_appointment: 2,
+        };
+        navigate("/prescription", {
+          state: {
+            patient_data: patientData,
+            videoConsultData,
+            teleconsultAutoJoin: { consultationId: payload.consultationId, token },
+          },
+        });
         dispatch(removeWaitingBanner(payload.consultationId));
       } else {
         message.error(
@@ -80,7 +132,7 @@ export default function TeleconsultWaitingBanner({ payload, onClose }) {
           className="teleconsult-waiting-banner__icon"
         />
         <p className="teleconsult-waiting-banner__text">
-          Patient <strong>{patientName}</strong> has joined the Tele-Consultation
+          <strong>{patientLabel}</strong> has joined the Tele-Consultation
           scheduled at <strong>{appointmentTime || "—"}</strong>!
         </p>
       </div>

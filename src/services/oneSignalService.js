@@ -1,20 +1,18 @@
 /**
  * OneSignal integration for real-time teleconsult status notifications.
- * Uses existing env pattern (CRA: process.env.REACT_APP_*).
+ * Aligned with working HTML test flow: init → requestPermission → optIn → login.
  * Communicates with UI via custom events to avoid coupling to React/Redux.
  */
 
 import OneSignal from "react-onesignal";
+import config from "../config";
 
 const CUSTOM_EVENT_TELECONSULT = "teleconsult-notification";
 
 const isDev = typeof process !== "undefined" && process.env?.NODE_ENV !== "production";
 
 function getOneSignalAppId() {
-  const appId =
-    typeof process !== "undefined" && process.env?.REACT_APP_ONESIGNAL_APP_ID
-      ? process.env.REACT_APP_ONESIGNAL_APP_ID
-      : undefined;
+  const appId = config?.onesignal_app_id;
   if (isDev) {
     console.log("[OneSignal] getOneSignalAppId:", appId ? `${appId.slice(0, 8)}...` : "NOT SET");
   }
@@ -71,6 +69,7 @@ let listenerAttached = false;
 
 /**
  * Initialize OneSignal once. Safe to call multiple times; only runs once.
+ * After init, attaches foregroundWillDisplay listener (same as working HTML test).
  */
 export async function initOneSignal() {
   if (isDev) console.log("[OneSignal] initOneSignal() called");
@@ -90,9 +89,53 @@ export async function initOneSignal() {
     await OneSignal.init({
       appId,
       allowLocalhostAsSecureOrigin: true,
+      // Use existing app service worker (PWA + MoEngage) so only one SW is active; OneSignal is merged into it
+      serviceWorkerPath: "serviceworker.js",
+      serviceWorkerParam: { scope: "/" },
     });
     initialized = true;
     if (isDev) console.log("[OneSignal] OneSignal.init() success");
+
+    // Attach foreground listener exactly like working HTML test (no preventDefault, no display())
+    OneSignal.Notifications.addEventListener("foregroundWillDisplay", (event) => {
+      const notification = event.notification;
+      console.log("[OneSignal] Foreground notification received:", notification);
+
+      const raw = notification.additionalData;
+      if (!raw || typeof raw !== "object") return;
+
+      // Read these directly from raw so they are not lost (OneSignal object may not serialize via JSON.stringify)
+      const appointmentTime =
+        (raw.appointmentTime != null ? String(raw.appointmentTime).trim() : null) ||
+        (raw.appointment_time != null ? String(raw.appointment_time).trim() : null) ||
+        "";
+      const patientName =
+        (raw.patientName != null ? String(raw.patientName).trim() : null) ||
+        (raw.patient_name != null ? String(raw.patient_name).trim() : null) ||
+        "";
+
+      const consultationId = raw.consultationId ?? raw.id;
+      if (!consultationId) return;
+
+      // Backend may omit status; infer from message or default to WAITING
+      const status =
+        raw.status && ["CREATED", "WAITING", "ONGOING", "ENDED"].includes(raw.status)
+          ? raw.status
+          : /waiting|wait/i.test(String(raw.message || ""))
+            ? "WAITING"
+            : "CREATED";
+
+      const payload = {
+        consultationId,
+        appointmentId: raw.appointmentId,
+        status,
+        message: raw.message,
+        patientName,
+        appointmentTime,
+      };
+      if (isDev) console.log("[OneSignal] Emitting payload (patientName, appointmentTime):", payload.patientName, payload.appointmentTime);
+      emitTeleconsultNotification(payload);
+    });
   } catch (e) {
     console.error("[OneSignal] Init failed", e);
   }
@@ -100,104 +143,41 @@ export async function initOneSignal() {
 
 /**
  * Register the doctor's external user ID for targeted push (must match backend include_external_user_ids).
- * Call only after authentication is confirmed.
+ * Call only after requestPermission + optIn (done in bootstrap).
  */
 export async function registerDoctorExternalId(doctorId) {
-  console.log("[OneSignal] registerDoctorExternalId called", { doctorId, initialized });
+  if (isDev) console.log("[OneSignal] registerDoctorExternalId called", { doctorId, initialized });
   if (!doctorId || !initialized) {
-    console.log("[OneSignal] registerDoctorExternalId skipped (no doctorId or not initialized)");
+    if (isDev) console.log("[OneSignal] registerDoctorExternalId skipped (no doctorId or not initialized)");
     return;
   }
   return loginDoctorExternalId(doctorId);
 }
 
-/** Max time (ms) to wait for push subscription to exist after optIn before trying login. */
-const LOGIN_WAIT_SUBSCRIPTION_MS = 30000;
-/** Poll interval (ms) when waiting for subscription. */
-const LOGIN_POLL_MS = 500;
-
-function hasSubscription(os) {
-  if (!os?.User?.PushSubscription) return false;
-  const sub = os.User.PushSubscription;
-  return !!(sub.id || sub.token || sub.optedIn);
-}
-
 /**
- * Call OneSignal.login(doctorId). The SDK throws "reading 'tt'" until the push subscription exists.
- * We request browser permission if needed, call optIn(), wait for subscription, then login.
+ * Call OneSignal.login(doctorId). Permission and optIn are done in bootstrap before this.
  */
 export async function loginDoctorExternalId(doctorId) {
   if (!doctorId) return;
   const id = String(doctorId);
 
+  if (!initialized) {
+    if (isDev) console.log("[OneSignal] loginDoctorExternalId skipped (not initialized)");
+    return;
+  }
+
   try {
-    const perm =
-      typeof window !== "undefined" && "Notification" in window
-        ? Notification.permission
-        : "unsupported";
-    console.log("[OneSignal] loginDoctorExternalId: Notification.permission =", perm);
+    await OneSignal.login(id);
+    if (isDev) console.log("[OneSignal] loginDoctorExternalId success for", id);
 
-    if (perm === "denied") {
-      console.warn("[OneSignal] loginDoctorExternalId: notifications denied; unblock in browser to get teleconsult alerts.");
-      return;
-    }
-
-    if (perm === "default" && typeof Notification !== "undefined" && typeof Notification.requestPermission === "function") {
-      console.log("[OneSignal] loginDoctorExternalId: requesting notification permission...");
-      const result = await Notification.requestPermission();
-      console.log("[OneSignal] loginDoctorExternalId: requestPermission result =", result);
-      if (result === "denied") return;
-    }
-
+    // Debug logs after login
     const os = typeof window !== "undefined" ? window.OneSignal : undefined;
-    if (os && os.User && os.User.PushSubscription && typeof os.User.PushSubscription.optIn === "function") {
-      console.log("[OneSignal] loginDoctorExternalId: calling optIn()...");
-      await os.User.PushSubscription.optIn().catch(() => {});
-    }
-
-    if (perm === "granted") {
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-
-    let loginDone = false;
-    const doLogin = async () => {
-      if (loginDone) return;
-      loginDone = true;
-      try {
-        console.log("[OneSignal] loginDoctorExternalId: subscription ready, calling login...");
-        await OneSignal.login(id);
-        console.log("[OneSignal] loginDoctorExternalId success for", id);
-      } catch (e) {
-        console.error("[OneSignal] loginDoctorExternalId failed", e);
+    if (os?.User) {
+      console.log("[OneSignal] External ID:", os.User.externalId);
+      if (os.User.PushSubscription) {
+        console.log("[OneSignal] Opted In:", os.User.PushSubscription.optedIn);
+        console.log("[OneSignal] Subscription ID:", os.User.PushSubscription.id);
       }
-    };
-
-    const sub = os?.User?.PushSubscription;
-    if (sub && typeof sub.addEventListener === "function") {
-      const onChange = () => {
-        if (hasSubscription(os)) {
-          sub.removeEventListener("change", onChange);
-          doLogin();
-        }
-      };
-      sub.addEventListener("change", onChange);
-    }
-
-    const deadline = Date.now() + LOGIN_WAIT_SUBSCRIPTION_MS;
-    while (Date.now() < deadline && !loginDone) {
-      if (hasSubscription(os)) {
-        await doLogin();
-        return;
-      }
-      await new Promise((r) => setTimeout(r, LOGIN_POLL_MS));
-    }
-
-    if (!loginDone) {
-      console.warn(
-        "[OneSignal] loginDoctorExternalId: no push subscription after",
-        LOGIN_WAIT_SUBSCRIPTION_MS / 1000,
-        "s (allow notifications to receive teleconsult alerts). Skipping login."
-      );
     }
   } catch (e) {
     console.error("[OneSignal] loginDoctorExternalId failed", e);
@@ -205,7 +185,7 @@ export async function loginDoctorExternalId(doctorId) {
 }
 
 /**
- * Attach foreground and click listeners for teleconsult notifications. Prevents duplicate listeners.
+ * Attach click listener for teleconsult notifications (foreground listener is in initOneSignal).
  */
 export function listenForTeleconsultNotifications() {
   if (isDev) console.log("[OneSignal] listenForTeleconsultNotifications() called");
@@ -215,27 +195,13 @@ export function listenForTeleconsultNotifications() {
     return;
   }
   if (listenerAttached) {
-    if (isDev) console.log("[OneSignal] Listeners already attached; skipping.");
+    if (isDev) console.log("[OneSignal] Click listener already attached; skipping.");
     return;
   }
 
   try {
-    OneSignal.Notifications.addEventListener("foregroundWillDisplay", (event) => {
-      const ev = event;
-      const data = ev?.notification?.additionalData;
-      if (isDev) console.log("[OneSignal] foregroundWillDisplay", { additionalData: data });
-      const payload = parsePayload(data);
-      if (payload && isPayloadValid(payload)) {
-        if (isDev) console.log("[OneSignal] foregroundWillDisplay valid payload", payload);
-        emitTeleconsultNotification(payload);
-      } else if (isDev) {
-        console.log("[OneSignal] foregroundWillDisplay invalid or missing payload", { payload, raw: data });
-      }
-    });
-
     OneSignal.Notifications.addEventListener("click", (event) => {
-      const ev = event;
-      const data = ev?.notification?.additionalData;
+      const data = event?.notification?.additionalData;
       if (isDev) console.log("[OneSignal] notification click", { additionalData: data });
       const payload = parsePayload(data);
       if (payload && isPayloadValid(payload)) {
@@ -247,9 +213,9 @@ export function listenForTeleconsultNotifications() {
     });
 
     listenerAttached = true;
-    if (isDev) console.log("[OneSignal] Notification listeners attached");
+    if (isDev) console.log("[OneSignal] Notification click listener attached");
   } catch (e) {
-    console.error("[OneSignal] Failed to add notification listeners", e);
+    console.error("[OneSignal] Failed to add notification click listener", e);
   }
 }
 

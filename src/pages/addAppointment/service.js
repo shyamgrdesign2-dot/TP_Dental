@@ -56,7 +56,7 @@ export const getTeleconsultSlotsList = async (doctorId, date) => {
 export const bookTeleconsult = async (data) => {
     let res = {};
     try {
-        const body = { ...data, pam_status_type_appointment: 2 };
+        const body = { ...data, appointment_type: 2 };
         const response = await api.post("/api/v1/appointment", body, baseUrl);
         const responseData = response?.data ?? response;
         const appointmentId = responseData?.appointment_id ?? responseData?.appointmentId;
