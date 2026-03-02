@@ -105,9 +105,10 @@ function GenRxPrescriptionPrintView() {
   }, []);
 
   useEffect(() => {
+    if (!state?.print_url) return;
     const encodedData = btoa(selectedLang.toString());
     setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
-  }, [selectedLang]);
+  }, [selectedLang, state?.print_url, pam_id]);
 
   const handleDownload = async () => {
     setDownloadLoading(true);
@@ -173,7 +174,7 @@ function GenRxPrescriptionPrintView() {
   const onSelect = useCallback(
     (data) => {
       const encodedData = btoa(data.toString());
-      setPrintUrl(`${currentSessionRx || state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
+      setPrintUrl(`${currentSessionRx || state?.print_url || ''}&pam_id=${pam_id}&lg=${encodedData}`);
       setSelectedLang(data);
       updatePatientDefaultLanguage({
         patientId: patient_data?.patient_unique_id,
@@ -181,7 +182,7 @@ function GenRxPrescriptionPrintView() {
       });
       setCurrentSessionRx(null);
     },
-    [selectedLang, printUrl]
+    [currentSessionRx, state?.print_url, pam_id, patient_data?.patient_unique_id]
   );
 
   const handleSendToWhatsapp = async () => {
@@ -489,7 +490,7 @@ function GenRxPrescriptionPrintView() {
                   <Select
                     placeholder="English"
                     className="ms-3 appointmentselect"
-                    value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
+                    value={selectedLang}
                     onSelect={onSelect}
                     options={LANGUAGE_LIST}
                   />

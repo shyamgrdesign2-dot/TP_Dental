@@ -458,12 +458,15 @@ function SmartRxPreview() {
     }, [showDigitalRx]);
 
     const handleLanguageSelect = useCallback((data) => {
-        const newUrl = buildUrlWithLanguage(basePrintUrl, data);
+        let newUrl = buildUrlWithLanguage(basePrintUrl, data);
+        if (newUrl) {
+            newUrl = updateRxDigitizeInUrl(newUrl, showDigitalRx);
+        }
         setPrintUrl(newUrl);
         setPreviewUrl(newUrl);
         setSelectedLang(data);
         setCurrentSessionRx(null);
-    }, [basePrintUrl]);
+    }, [basePrintUrl, showDigitalRx]);
 
     const configurePrintUrl = async () => {
         var sendData = {
@@ -738,7 +741,7 @@ function SmartRxPreview() {
                                     <Select
                                         placeholder=""
                                         className="appointmentselect"
-                                        value={LANGUAGE_LIST.find(item => item.value == selectedLang)}
+                                        value={selectedLang}
                                         onSelect={handleLanguageSelect}
                                         options={LANGUAGE_LIST}
                                     />

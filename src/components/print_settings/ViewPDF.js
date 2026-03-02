@@ -555,7 +555,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       if (typeof item === "string") return (item.startsWith("http") || item.startsWith("blob:") || item.startsWith("data:")) ? item : undefined;
       return item?.smart_prescription_file || item?.fileUrl || item?.url || item?.preview || item?.showFile || item?.src || item?.imageUrl;
     };
-    const isSmartSyncPrescription = smartRxData && smartRxData?.length > 0 && !!getWrittenRxImageUrl(smartRxData[0]);
+    const isSmartSyncPrescription =
+      Array.isArray(smartRxData) &&
+      smartRxData.some((item) => !!getWrittenRxImageUrl(item));
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -802,7 +804,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData, prescriptionVaccines) ||
             // (zydusLabData?.data?.length > 0) ||
             
             // Check smart sync data (treat undefined isCustomSSRX as "0" for snap/smart written flow)
@@ -812,7 +814,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     // Utility function to check if any custom module options are enabled and have data
-    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) => {
+    const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData, prescriptionVaccines) => {
         if (!printSettings?.prescription?.case_option) return false;
         
         return printSettings?.prescription?.case_option?.some(option => {
@@ -852,7 +854,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 case 9: // Follow Up Date
                     return caseManagerData?.follow_up_date;
                 case 10: // Vaccines
-                    return (transformGivenVaccines?.template?.length > 0 || todayVaccines?.due?.length > 0 || todayVaccines?.given?.length > 0);
+                    return (
+                        transformGivenVaccines?.length > 0 ||
+                        todayVaccines?.due?.length > 0 ||
+                        todayVaccines?.given?.length > 0 ||
+                        prescriptionVaccines?.length > 0
+                    );
                 // case 11: // smartSync
                 //     return caseManagerData?.visit_advice;
                 case 12: // Growth Chart
@@ -1194,9 +1201,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 91: 
                                     return caseManagerData.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                                 case 10: 
-                                    return (todayVaccines?.given?.length || todayVaccines?.due?.length);
+                                    return (
+                                        todayVaccines?.given?.length ||
+                                        todayVaccines?.due?.length ||
+                                        prescriptionVaccines?.length
+                                    );
                                 case 11: 
-                                    return caseManagerData?.smart_prescription_filename?.length || (smartRxData && smartRxData.length > 0);
+                                    return (
+                                        caseManagerData?.smart_prescription_filename?.length ||
+                                        (Array.isArray(smartRxData) &&
+                                            smartRxData.some((item) => !!getWrittenRxImageUrl(item)))
+                                    );
                                 case 12: 
                                     return growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0;
                                 case 13: 
