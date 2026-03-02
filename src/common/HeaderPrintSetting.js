@@ -190,7 +190,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         } 
                     });
                 } else {
-                    navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                    navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx } });
                 }
             } else {
                 errorMessage(action.error)
@@ -327,7 +327,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     } 
                 });
             } else {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
             }
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));
