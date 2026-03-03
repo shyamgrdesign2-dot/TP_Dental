@@ -1227,9 +1227,9 @@ export const getDurationTitle = (LanguageId, tmm_duration_type) => {
       "week(s)": "সপ্তাহগুলি",
       "month(s)": "মাস",
       "year(s)": "বছর",
-      "to be continued": "To Be Continued",
+      'to be continued': 'চালু রাখুন ',
       stat: "স্ট্যাট",
-      "till required": "Till required",
+      'till required': 'প্রয়োজনে '
     },
     13: {
       //Odia

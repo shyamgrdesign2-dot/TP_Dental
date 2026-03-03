@@ -48,6 +48,7 @@ function Welcome1(props) {
         (state) => state.uploadDoc
     );
     const { planDetails } = useSelector((state) => state.subscription);
+    const { reports: healthCheckupReports, healthReportConsultationsLoading } = useSelector((state) => state.healthCheckupReport);
     const { service_mappings } = planDetails || {};
     const VOICE_RX_planDetails = service_mappings?.find(
       (e) => e.service_name === S_VOICE_RX
@@ -64,10 +65,16 @@ function Welcome1(props) {
         handleUploadDocPopup,
         handleDrawerUploadDoc,
         abhaHeaderActions,
-        patientAdmissionStatus
+        patientAdmissionStatus,
+        handleGenerateHealthCheckupReport
     } = props;
+
+    const isDraftRx = viewCaseManagerData?.is_draft;
     
     const isTablet = useTabletViewport();
+
+    const canRepeatDraftRx = isDraftRx && isSaveAsDraftRxAccessableFromGB;
+    const canResumeDraftRx = canRepeatDraftRx && viewCaseManagerData?.doctor_data?.um_id === userId;
 
     const handleClickOutside = (event) => {
         if (!consultButtonRef?.current?.contains(event.target)) {
@@ -189,20 +196,21 @@ function Welcome1(props) {
         if (!voiceRxId || !patient_data) return;
 
         try {
-            let copyResponse = await copyAmbientRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+            const newAppointmentId = viewCaseManagerData?.tcm_id || 0;
+            let copyResponse = await copyAmbientRx(voiceRxId, newAppointmentId);
             let isAmbientRxType = copyResponse?.success;
 
             if (!isAmbientRxType) {
-                copyResponse = await copyVoiceRx(voiceRxId, viewCaseManagerData?.tcm_id || 0);
+                copyResponse = await copyVoiceRx(voiceRxId, newAppointmentId);
             }
 
             if (!copyResponse?.success) {
                 const ambientCheck = await getAmbientRx(voiceRxId);
-                isAmbientRxType = ambientCheck?.success || ambientCheck?.data ? true : false;
+                isAmbientRxType = ambientCheck?.success && ambientCheck?.data;
             }
 
             window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
-            const copiedRxId = copyResponse?.success 
+            const copiedRxId = copyResponse?.success
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 
@@ -339,6 +347,8 @@ function Welcome1(props) {
                             <h1 className='mt-2 mb-3'>{'Certificate'}</h1>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
                             <h1 className='mt-2 mb-3'>{'ABHA Records'}</h1>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT ? (
+                            <h1 className='mt-2 mb-3'>{'Health Check-up Report'}</h1>
                         ) : (
                             <h1 className='mt-2 mb-3'>{'Medical Records'}</h1>
                         )}
@@ -387,7 +397,7 @@ function Welcome1(props) {
                                     )}
 
 
-                                    {!!viewCaseManagerData?.is_draft && viewCaseManagerData?.doctor_data?.um_id === userId && isSaveAsDraftRxAccessableFromGB && 
+                                    {!!canResumeDraftRx && 
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
                                             onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
@@ -411,7 +421,7 @@ function Welcome1(props) {
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
-                                            Repeat {viewCaseManagerData?.is_draft && isSaveAsDraftRxAccessableFromGB 
+                                            Repeat {canRepeatDraftRx 
                                                 ? isTablet ? "" : "Draft" 
                                                 : (
                                                     <>
@@ -830,7 +840,7 @@ function Welcome1(props) {
                                 </Button>
                             )}
                         </div>
-                    ) : sidebarKey === 3 && allUploadedDocs?.length > 0 && (
+                    ) : sidebarKey === 3 && allUploadedDocs?.length > 0 ? (
                         <div>
                             <Button
                                 variant="primary"
@@ -856,6 +866,12 @@ function Welcome1(props) {
                                 {/* )} */}
                                 <i className="icon-upload" />
                                 {"Upload new report"}
+                            </Button>
+                        </div>
+                    ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT && healthCheckupReports?.length > 0 && (
+                        <div>
+                            <Button type="primary" className='btn-41 px-4' onClick={handleGenerateHealthCheckupReport} disabled={healthReportConsultationsLoading} loading={healthReportConsultationsLoading}>
+                                {healthReportConsultationsLoading ? 'Generating...' : 'Generate New Report'}
                             </Button>
                         </div>
                     )}

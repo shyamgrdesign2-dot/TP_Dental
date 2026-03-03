@@ -18,7 +18,6 @@ const BiometricCapturePopup = ({
   const jqueryLoadedRef = useRef(false);
   const abortControllerRef = useRef(null);
 
-  // Load jQuery if not available (required for Mantra RD Service)
   useEffect(() => {
     if (!window.$ && !jqueryLoadedRef.current) {
       const jqueryScript = document.createElement("script");
@@ -47,43 +46,13 @@ const BiometricCapturePopup = ({
       setIsCapturing(false);
       deviceInfoRef.current = null;
 
-      // Abort any ongoing operations
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
       abortControllerRef.current = new AbortController();
 
-      // Wait for jQuery to be ready, then start discovery
-      const startDiscovery = () => {
-        if (window.$) {
-          window.$.support.cors = true;
-          jqueryLoadedRef.current = true;
-          handleDiscoverAndCapture();
-        } else if (jqueryLoadedRef.current) {
-          // jQuery is loading, wait a bit
-          setTimeout(() => {
-            if (window.$) {
-              handleDiscoverAndCapture();
-            }
-          }, 500);
-        } else {
-          // Wait for jQuery to load
-          const checkJQuery = setInterval(() => {
-            if (window.$) {
-              window.$.support.cors = true;
-              jqueryLoadedRef.current = true;
-              clearInterval(checkJQuery);
-              handleDiscoverAndCapture();
-            }
-          }, 100);
-          
-          return () => clearInterval(checkJQuery);
-        }
-      };
-
-      startDiscovery();
+      startInIframeCapture();
     } else {
-      // Abort any ongoing operations when modal closes
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -92,20 +61,39 @@ const BiometricCapturePopup = ({
     }
   }, [open]);
 
+  function startInIframeCapture() {
+    const startDiscovery = () => {
+      if (window.$) {
+        window.$.support.cors = true;
+        jqueryLoadedRef.current = true;
+        handleDiscoverAndCapture();
+      } else if (jqueryLoadedRef.current) {
+        setTimeout(() => {
+          if (window.$) handleDiscoverAndCapture();
+        }, 500);
+      } else {
+        const checkJQuery = setInterval(() => {
+          if (window.$) {
+            window.$.support.cors = true;
+            jqueryLoadedRef.current = true;
+            clearInterval(checkJQuery);
+            handleDiscoverAndCapture();
+          }
+        }, 100);
+      }
+    };
+    startDiscovery();
+  }
+
   const handleDiscoverAndCapture = async () => {
     try {
       setStatus("Discovering device...");
-      
-      // Discover device
       const deviceInfo = await discoverDevice((statusMsg) => {
         if (!statusMsg.includes("port:")) {
           setStatus(statusMsg);
         }
       });
-      
       deviceInfoRef.current = deviceInfo;
-      
-      // Start capture after discovery
       setTimeout(() => {
         handleCapture();
       }, 500);
@@ -146,7 +134,6 @@ const BiometricCapturePopup = ({
       setStatus("Captured Successfully");
       setIsCapturing(false);
 
-      // Close popup after 2 seconds and call success callback
       setTimeout(() => {
         onCaptureSuccess(fingerprintData);
         onClose();

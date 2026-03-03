@@ -82,6 +82,8 @@ import {
   GB_OPTHAL_MODULE,
   GB_SAVE_AS_DRAFT_RX,
   GB_APPT_SEQUENCE,
+  GB_HEALTH_CHECKUP_REPORT,
+  PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -281,6 +283,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
+  const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
@@ -1388,6 +1391,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
+    if (isHealthCheckupReportAccessableFromGB) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              navigate("/patient_details", { state: { patient_data: record, sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT } });
+            }}
+          >
+            Generate Health Check-up Report
+          </span>
+        ),
+        key: "generateHealthCheckupReport",
+      });
+    }
+
     if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       items.push({
         label: (
@@ -1438,7 +1456,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onPatientDetailsClick = async (record) => {
-    goToPatientDetails(record, "/patient_details");
+    goToPatientDetails({...record, ...(selectedTab === TAB_DRAFT_RX && { pam_id: 0, tcm_id: 0 })}, "/patient_details");
   };
 
   const goToPatientDetails = async (record, route) => {
@@ -3087,7 +3105,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
   };
-  console.log('INTEL ==> appointmentSelectedFromMenu', appointmentSelectedFromMenu);
 
   const disabledDate = (current) => {
     // Can not select days before today and today

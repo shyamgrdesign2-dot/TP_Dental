@@ -10,9 +10,11 @@ import CashManagerContext from '../context/CashManagerContext';
 
 import {
     addUpdateVitals,
+    clearListVitalsToday,
     getPatientBirthWeight,
-    getVitals,
+    setVitalsIdsFromAddVitals,
 } from "../redux/vitalsSlice";
+import ApiVitals from "../api/services/ApiVitals";
 import moment from "moment";
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRICS } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -20,23 +22,41 @@ import { useAccess } from "../pages/vaccination/useAccess";
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD MMM, YY'
+function resolveVitalsIds(listVitalsTodayIds, patientUniqueId, firstRow) {
+  const toId = (v) => (v != null && v !== '' && v !== 0 && v !== '0') ? Number(v) : null;
+  const fromRow = firstRow
+    ? { tcv_id: toId(firstRow.tcv_id), tcbc_id: toId(firstRow.tcbc_id), dev_unique_id: toId(firstRow.dev_unique_id) }
+    : { tcv_id: null, tcbc_id: null, dev_unique_id: null };
+  const samePatient = listVitalsTodayIds != null && String(listVitalsTodayIds.patient_unique_id) === String(patientUniqueId);
+  const fromRedux = samePatient ? listVitalsTodayIds : null;
+  return {
+    tcv_id: fromRow.tcv_id ?? fromRedux?.tcv_id ?? 0,
+    tcbc_id: fromRow.tcbc_id ?? fromRedux?.tcbc_id ?? 0,
+    dev_unique_id: fromRow.dev_unique_id ?? fromRedux?.dev_unique_id ?? 0
+  };
+}
 
 function VitalsBox(props) {
 
     const scrollContainerRef = useRef(null);
     const inputRef = useRef([]);
 
-    const { handleDrawerVital, handleCollapsed } = props
+    const { handleDrawerVital, handleCollapsed, initialVitals, onVitalsSave, isVoiceAmbientFlow = false, patient_data: patientDataProp, vitalsFlow: vitalsFlowProp } = props;
+    const isVoiceAmbientSnapSmartFlow = isVoiceAmbientFlow;
 
     const {
       selectedVitalsList,
       loading,
       patientBirthWeight: storedPatientBirthWeight,
+      listVitalsTodayIds,
     } = useSelector((state) => state.vitals);
     const dispatch = useDispatch();
 
-    const { patient_data, vitalsData, setVitalsData } = useContext(CashManagerContext);
+    const { patient_data: patientDataContext, vitalsData, setVitalsData } = useContext(CashManagerContext);
+    const patient_data = patientDataProp ?? patientDataContext;
+    const flowForRedux = vitalsFlowProp ?? 'voice';
     const [childVitalsData, setChildVitalsData] = useState([]);
+    const [voiceAmbientSaving, setVoiceAmbientSaving] = useState(false);
     const [dateString, setDateString] = useState(null);
     const [patientBirthWeight, setPatientBirthWeight] = useState(
       vitalsData?.[0]?.patient_birth_weight || storedPatientBirthWeight
@@ -49,7 +69,36 @@ function VitalsBox(props) {
     const { profile, userId } = useSelector((state) => state.doctors);
     const { isPediatricAccessable } = useAccess();
 
+    const calculate = useCallback((H, W) => {
+        var height = 0, weight = 0, bmi = "", bmr = "", bsa = "";
+        if (H != '' && H != 0) {
+            height = parseFloat(H);
+        } else {
+            height = 0;
+        }
+        if (W != '' && W != 0) {
+            weight = parseFloat(W);
+        } else {
+            weight = 0;
+        }
+        const calBMI = (weight / height / height) * 10000;
+        bmi = weight && height ? isFinite(calBMI) ? calBMI.toFixed(2) : '' : '';
+        var age = patient_data !== undefined && patient_data.ageYears !== undefined ? patient_data.ageYears : 0;
+        if (patient_data !== undefined && patient_data.pm_gender == 'Male') {
+            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
+        } else {
+            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
+        }
+        const calBSA = Math.sqrt(height * weight / 3600);
+        bsa = weight && height ? isFinite(calBSA) ? calBSA.toFixed(2) : '' : '';
+        return { bmi: bmi, bmr: bmr, bsa: bsa };
+    }, [patient_data]);
+
     useEffect(() => {
+        if (isVoiceAmbientSnapSmartFlow) return;
+        if (typeof setVitalsData !== 'function') return; 
         if (selectedVitalsList.length > 0) {
             const updatedData = selectedVitalsList.map((e, i) => {
                 return { ...e, systolic: e.blood_press ? e.blood_press.split('/')[0] : '', diastolic: e.blood_press ? e.blood_press.split('/')[1] : '' };
@@ -79,40 +128,80 @@ function VitalsBox(props) {
                 waist_circumference: ''
             })));
         }
-    }, [selectedVitalsList, measurements]);
+    }, [selectedVitalsList, measurements, isVoiceAmbientSnapSmartFlow, setVitalsData]);
 
+    const emptyVitalsRow = useMemo(() => {
+        let cal = calculate('', '');
+        return {
+            date: moment().format(dateFormat),
+            dev_unique_id: 0,
+            tcv_id: 0,
+            tcbc_id: 0,
+            temp: '', pres: '', resp_rate: '', systolic: '', diastolic: '', spo2: '',
+            height: '', weight: '', fib4: '', waist_circumference: '', ofc: '',
+            bmi: cal.bmi, bmr: cal.bmr, bsa: cal.bsa, general_rbs: ''
+        };
+    }, [calculate]);
+
+    // Build a single vitals row from initialVitals prop (voice/ambient/snap/smart or when parent passes initial data)
+    const rowFromInitialVitals = useMemo(() => {
+        if (!initialVitals || typeof initialVitals !== 'object') return null;
+        const v = initialVitals;
+        const date = v.date || moment().format(dateFormat);
+        const height = String(v.height || '').trim();
+        const weight = String(v.weight || '').trim();
+        let cal = calculate(height, weight);
+        return {
+            date,
+            dev_unique_id: v.dev_unique_id ?? 0,
+            tcv_id: v.tcv_id ?? 0,
+            tcbc_id: v.tcbc_id ?? 0,
+            temp: String(v.temperature || v.temp || '').trim(),
+            pres: String(v.pulse || v.pres || '').trim(),
+            resp_rate: String(v.respRate || v.resp_rate || '').trim(),
+            systolic: String(v.Systolic || v.systolic || '').trim(),
+            diastolic: String(v.Diastolic || v.diastolic || '').trim(),
+            spo2: String(v.spo2 || '').trim(),
+            height,
+            weight,
+            ofc: String(v.ofc || v.OFC || '').trim(),
+            general_rbs: String(v['General RBS'] || v.general_rbs || v.generalRBS || v.genralRBS || '').trim(),
+            fib4: String(v.FIB4 || v.fib4 || '').trim(),
+            waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
+            bmi: v.bmi || cal.bmi,
+            bmr: v.bmr || cal.bmr,
+            bsa: v.bsa || cal.bsa
+        };
+    }, [initialVitals, calculate]);
+
+    // Decide what fills childVitalsData: voice/ambient use initialVitals or empty row; consult uses vitalsData (context) or keeps existing childVitalsData
     useEffect(() => {
-        setChildVitalsData([...vitalsData])
-    }, [vitalsData]);
+        const idKeys = ['date', 'tcv_id', 'tcbc_id', 'dev_unique_id', 'pam_id'];
+        const hasInitialData = initialVitals && typeof initialVitals === 'object' &&
+            Object.keys(initialVitals).filter(k => !idKeys.includes(k)).some(k => (initialVitals[k] != null && String(initialVitals[k]).trim() !== ''));
+        const noContextSetVitals = typeof setVitalsData !== 'function';
 
-    useEffect(() => {
-        if (childVitalsData.length === 0) {
-            let cal = calculate('', '');
-            childVitalsData.push({
-                date: moment().format(dateFormat),
-                dev_unique_id: 0,
-                tcv_id: 0,
-                tcbc_id: 0,
-                temp: '',
-                pres: '',
-                resp_rate: '',
-                systolic: '',
-                diastolic: '',
-                spo2: '',
-                height: '',
-                weight: '',
-                fib4: '',
-                waist_circumference: '',
-                ofc: '',
-                bmi: cal.bmi,
-                bmr: cal.bmr,
-                bsa: cal.bsa,
-                general_rbs: ''
-
-            });
-            setChildVitalsData((prev) => [...prev]);
+        if (isVoiceAmbientSnapSmartFlow || noContextSetVitals) {
+            const hasData = initialVitals && Object.keys(initialVitals).filter(k => k !== 'date').some(k => (initialVitals[k] && String(initialVitals[k]).trim()));
+            if (hasData && rowFromInitialVitals) {
+                setChildVitalsData([rowFromInitialVitals]);
+            } else {
+                setChildVitalsData([emptyVitalsRow]);
+            }
+            return;
         }
-    }, [childVitalsData]);
+        if (selectedVitalsList.length === 0 && hasInitialData && rowFromInitialVitals) {
+            setChildVitalsData([rowFromInitialVitals]);
+            return;
+        }
+        // Consult: sync from context when it has data; otherwise keep existing childVitalsData (don't overwrite with [])
+        setChildVitalsData((prev) => (Array.isArray(vitalsData) && vitalsData.length > 0 ? [...vitalsData] : prev));
+    }, [isVoiceAmbientSnapSmartFlow, vitalsData, rowFromInitialVitals, initialVitals, emptyVitalsRow, selectedVitalsList.length, setVitalsData]);
+
+    useEffect(() => {
+        if (isVoiceAmbientSnapSmartFlow) return;
+        setChildVitalsData((prev) => (prev.length > 0 ? prev : [emptyVitalsRow]));
+    }, [childVitalsData.length, isVoiceAmbientSnapSmartFlow, emptyVitalsRow]);
 
     const onChange = useCallback(
         (date, dateString) => {
@@ -163,39 +252,6 @@ function VitalsBox(props) {
         }
     }, [childVitalsData.length])
 
-    const calculate = (H, W) => {
-        var height = 0, weight = 0, bmi = "", bmr = "", bsa = ""
-
-        if (H != '' && H != 0) {
-            height = parseFloat(H)
-        } else {
-            height = 0
-        }
-
-        if (W != '' && W != 0) {
-            weight = parseFloat(W)
-        } else {
-            weight = 0
-        }
-
-        const calBMI = (weight / height / height) * 10000
-        bmi = weight && height ? isFinite(calBMI) ? calBMI.toFixed(2) : '' : '';
-
-        var age = patient_data !== undefined && patient_data.ageYears !== undefined ? patient_data.ageYears : 0
-        if (patient_data !== undefined && patient_data.pm_gender == 'Male') {
-            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
-        } else {
-            const calBMR = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-            bmr = weight && height ? isFinite(calBMR) ? calBMR.toFixed(2) : '' : '';
-        }
-
-        const calBSA = Math.sqrt(height * weight / 3600);
-        bsa = weight && height ? isFinite(calBSA) ? calBSA.toFixed(2) : '' : '';
-
-        return { bmi: bmi, bmr: bmr, bsa: bsa }
-    }
-
     const onChangeInput = useCallback(
         (value, i, flag) => {
             const updateValue = onlyDecimalFormat(value);
@@ -237,7 +293,85 @@ function VitalsBox(props) {
         [childVitalsData]
     );
 
+    const childVitalsDataToVitalsObject = useCallback((items) => {
+        if (!items || items.length === 0) return {};
+        const item = items[0];
+        const blood_press = (item.systolic && item.diastolic) ? `${item.systolic}/${item.diastolic}` : '';
+        return {
+            date: item.date || moment().format('YYYY-MM-DD'),
+            temperature: item.temp,
+            pulse: item.pres,
+            respRate: item.resp_rate,
+            Systolic: item.systolic,
+            Diastolic: item.diastolic,
+            blood_press: blood_press || undefined,
+            spo2: item.spo2,
+            height: item.height,
+            weight: item.weight,
+            ofc: item.ofc,
+            'General RBS': item.general_rbs,
+            FIB4: item.fib4,
+            'Waist Circumference': item.waist_circumference,
+            BMI: item.bmi,
+            BMR: item.bmr,
+            BSA: item.bsa
+        };
+    }, []);
+
     const onAddUpdateClicked = async () => {
+        // Voice / Ambient / Snap / Smart only: use listVitalsTodayIds, direct addVitals, setVitalsIdsFromAddVitals (same ids for update)
+        if (isVoiceAmbientSnapSmartFlow) {
+            if (!patient_data?.patient_unique_id) {
+                errorMessage('Patient is required to save vitals.');
+                return;
+            }
+            setVoiceAmbientSaving(true);
+            try {
+                const today = moment().format('YYYY-MM-DD');
+                const ids = resolveVitalsIds(listVitalsTodayIds, patient_data.patient_unique_id, childVitalsData[0]);
+                const dataWithIds = childVitalsData.map((row, i) => ({
+                    ...row,
+                    tcv_id: i === 0 ? ids.tcv_id : (row.tcv_id ?? 0),
+                    tcbc_id: i === 0 ? ids.tcbc_id : (row.tcbc_id ?? 0),
+                    dev_unique_id: i === 0 ? ids.dev_unique_id : (row.dev_unique_id ?? 0)
+                }));
+                const sendData = {
+                    patient_unique_id: patient_data.patient_unique_id,
+                    pm_pid: patient_data.pm_pid ?? 0,
+                    pm_id: patient_data.pm_id ?? 0,
+                    pam_id: patient_data.pam_id ?? 0,
+                    patient_birth_weight: patientBirthWeight,
+                    data: dataWithIds
+                };
+                const addRes = await ApiVitals.addUpdateVitals(sendData);
+                if (addRes?.status !== false && addRes?.statusCode !== 400) {
+                    const savedVitals = addRes?.data && Array.isArray(addRes.data) ? addRes.data : [];
+                    const todaySaved = savedVitals.find(v => (v.date || '').toString().startsWith(today)) || savedVitals[0];
+                    const responseIds = {
+                        tcv_id: todaySaved?.tcv_id ?? 0,
+                        tcbc_id: todaySaved?.tcbc_id ?? 0,
+                        dev_unique_id: todaySaved?.dev_unique_id ?? 0
+                    };
+                    dispatch(setVitalsIdsFromAddVitals({ flow: flowForRedux, patient_unique_id: patient_data.patient_unique_id, tcv_id: responseIds.tcv_id, tcbc_id: responseIds.tcbc_id, dev_unique_id: responseIds.dev_unique_id }));
+                    dispatch(clearListVitalsToday()); // form first row (via parent state) is source of truth after save
+                    const vitalsObject = childVitalsDataToVitalsObject(childVitalsData);
+                    const vitalsObjectWithIds = { ...vitalsObject, ...responseIds };
+                    if (typeof onVitalsSave === 'function') {
+                        onVitalsSave(vitalsObjectWithIds);
+                    }
+                    if (typeof handleCollapsed === 'function') handleCollapsed(1);
+                    if (typeof handleDrawerVital === 'function') handleDrawerVital();
+                } else {
+                    errorMessage(addRes?.error || addRes?.message || 'Failed to save vitals');
+                }
+            } catch (err) {
+                errorMessage(err?.message || err?.response?.data?.error || 'Failed to save vitals');
+            } finally {
+                setVoiceAmbientSaving(false);
+            }
+            return;
+        }
+
         const clinic_name = getClinicName(profile?.hospital_data);
         window.Moengage.track_event("TP_vitals_updated", {
             clinic_name,
@@ -361,7 +495,7 @@ function VitalsBox(props) {
                         </Button>
                         <div className="modal-title">Vitals</div>
                     </div>
-                    <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={loading} disabled={childVitalsData.length > 0 ? false : true}>
+                    <Button onClick={onAddUpdateClicked} className='btn btn-primary3 btn-41 px-4 me-20' loading={isVoiceAmbientSnapSmartFlow ? voiceAmbientSaving : loading} disabled={childVitalsData.length > 0 ? false : true}>
                         Done
                     </Button>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AutoComplete, Input, Button } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
@@ -15,7 +15,7 @@ import { removeBeforeWhiteSpace, getHmTypeIndicator, getClinic } from '../utils/
 import ApiInvestigation from '../api/services/ApiInvestigation';
 import { env } from '../EnvironmentConfig';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from '../utils/constants';
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, GB_MED_INVESTIGATION } from '../utils/constants';
 import { getDecodedToken } from '../utils/localStorage';
 import CommonModal from '../common/CommonModal';
 import config from '../config';
@@ -26,6 +26,7 @@ const LabInvestigationTable = ({
   labInvestigation = [],
   onUpdate,
   isProcessing = false,
+  isMedInvestigationFeatureOn: isMedInvestigationFeatureOnProp,
 }) => {
   const dispatch = useDispatch();
   const { profile } = useSelector(
@@ -43,6 +44,7 @@ const LabInvestigationTable = ({
   const [fuzzySearchResults, setFuzzySearchResults] = useState([]); // Store fuzzy search results
   const [editingRow, setEditingRow] = useState(null); // itemId when entire row is being edited (tablet view)
   const [rowEditValues, setRowEditValues] = useState({}); // Store edit values for all fields in a row
+  const hasHadInvestigationsRef = useRef(false); // Show "No investigations found" only after user had items and deleted them
   const [isTablet, setIsTablet] = useState(false);
   const [showNonZydusWarning, setShowNonZydusWarning] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
@@ -50,6 +52,8 @@ const LabInvestigationTable = ({
     return localStorage.getItem('dontShowZydusWarning') === 'true';
   });
 
+  const isMedInvestigationOnFromGB = useFeatureIsOn(GB_MED_INVESTIGATION);
+  const isMedInvestigationFeatureOn = isMedInvestigationFeatureOnProp ?? isMedInvestigationOnFromGB;
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
@@ -676,6 +680,15 @@ const LabInvestigationTable = ({
     onUpdate(reorderedInvestigations);
   };
 
+  useEffect(() => {
+    // Reset ref when patient context changes so isInitialEmpty is correct for the new patient
+    hasHadInvestigationsRef.current = false;
+  }, [patient_data?.patient_unique_id]);
+
+  useEffect(() => {
+    if (labInvestigation.length > 0) hasHadInvestigationsRef.current = true;
+  }, [labInvestigation.length]);
+
   if (isProcessing) {
     return (
       <div className={styles['investigation-content-box']}>
@@ -694,8 +707,11 @@ const LabInvestigationTable = ({
     );
   }
 
+  const isInitialEmpty = isMedInvestigationFeatureOn && labInvestigation.length === 0 && !hasHadInvestigationsRef.current;
+  const showEmptyMessage = labInvestigation.length === 0 && (isMedInvestigationFeatureOn ? hasHadInvestigationsRef.current : true);
+
   return (
-    <div className={styles['investigation-content-box']}>
+    <div className={`${styles['investigation-content-box']} ${isInitialEmpty ? styles['compact-default'] : ''}`}>
       <div className={styles['investigation-header']}>
         <div className={styles['investigation-icon']}>
           <img src={investigationIcon} alt="Investigation" />
@@ -836,7 +852,7 @@ const LabInvestigationTable = ({
                     />
                   ) : (
                     <span className={styles['note-text']}>
-                      {item.notes || '-'}
+                      {item.notes || item.lineItem || item.instruction|| '-'}
                     </span>
                   )}
                 </td>
@@ -880,7 +896,7 @@ const LabInvestigationTable = ({
             </Droppable>
         </table>
         
-        {labInvestigation.length === 0 && (
+        {showEmptyMessage && (
           <div className={styles['empty-state']}>
             <p>No investigations found</p>
           </div>

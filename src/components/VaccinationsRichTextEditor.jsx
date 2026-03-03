@@ -21,7 +21,8 @@ const VaccinationsRichTextEditor = ({
 
     return vaccinations.filter((vaccination = {}) => {
       const baseText = vaccination.name || vaccination.lineItem || '';
-      return baseText && baseText.trim() !== '';
+      const hasExtra = (vaccination.schedule || vaccination.brand || vaccination.notes || '').toString().trim() !== '';
+      return (baseText && baseText.trim() !== '') || hasExtra;
     }).length;
   }, [vaccinations]);
 
@@ -39,12 +40,28 @@ const VaccinationsRichTextEditor = ({
     return `vaccinations-${keyVersionRef.current}`;
   }, [nonEmptyCount]);
 
+  const formatOneVaccination = useCallback((vaccination) => {
+    if (typeof vaccination === 'string') return vaccination;
+    const name = vaccination.name || '';
+    const parts = [];
+    if (vaccination.brand) parts.push(`brand: ${vaccination.brand}`);
+    if (vaccination.schedule) parts.push(`schedule: ${vaccination.schedule}`);
+    if (vaccination.notes) parts.push(vaccination.notes);
+    if (vaccination.severity) parts.push(vaccination.severity);
+    if (vaccination.duration) parts.push(vaccination.duration);
+    if (vaccination.type) parts.push(vaccination.type);
+    if (parts.length > 0) {
+      return name ? `${name} (${parts.join(', ')})` : parts.join(', ');
+    }
+    return name || vaccination.lineItem || '';
+  }, []);
+
   const initialSlateValue = useMemo(() => {
     const currentItems = vaccinations || [];
     let editorItems = editorItemsRef.current || [];
     
     if (editorItems.length === 0 && currentItems.length > 0) {
-      editorItems = currentItems.map(vacc => vacc.name || vacc.lineItem || '');
+      editorItems = currentItems.map((vacc) => formatOneVaccination(vacc));
       editorItemsRef.current = editorItems;
     }
     
@@ -54,31 +71,14 @@ const VaccinationsRichTextEditor = ({
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
-    const formattedVaccinations = allItems.map((vaccination) => {
-      if (typeof vaccination === 'string') {
-        return vaccination;
-      }
-      const name = vaccination.name || '';
-      const parts = [];
-      
-      if (vaccination.severity) parts.push(vaccination.severity);
-      if (vaccination.duration) parts.push(vaccination.duration);
-      if (vaccination.notes) parts.push(vaccination.notes);
-      if (vaccination.type) parts.push(vaccination.type);
-      
-      if (parts.length > 0) {
-        return `${name} (${parts.join(', ')})`;
-      }
-      
-      return name || vaccination.lineItem || '';
-    });
+    const formattedVaccinations = allItems.map((v) => formatOneVaccination(v));
     
     if (formattedVaccinations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
 
     return arrayToSlateBulletList(formattedVaccinations);
-  }, [vaccinations]);
+  }, [vaccinations, formatOneVaccination]);
 
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);

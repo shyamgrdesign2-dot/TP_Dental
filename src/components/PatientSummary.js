@@ -15,7 +15,7 @@ import styles from "./PatientSummary.module.scss";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import ApiCaseManager from "../api/services/ApiCaseManager";
-import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx, copyAmbientRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "../pages/snapRx/services/snapRxService";
 import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../utils/utils";
 import { setShowSCPopup } from "../redux/ddxSlice";
@@ -182,7 +182,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const extractSnapRxData = useCallback((snapRxData) => {
     if (!snapRxData) return null;
 
-    // Extract symptoms
+    // Extract symptoms: support name, lineItem (old and new structure)
     const symptoms = (snapRxData.symptoms || []).map(item => ({
       name: item.name || item.symptom_name || item.refinedName || item.lineItem || "",
       severity: item.severity || "",
@@ -190,19 +190,20 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       notes: item.notes || item.note || ""
     })).filter(item => item.name && item.name.trim() !== "");
 
-          // Extract diagnosis
+    // Extract diagnosis
     const diagnosis = (snapRxData.diagnosis || []).map(item => ({
-              name: item.name || "",
-              since: item.since || "",
-              status: item.status || "",
-              notes: item.notes || item.lineItem || ""
+      name: item.name || item.tds_name || item.lineItem || "",
+      since: item.since || "",
+      status: item.status || "",
+      notes: item.notes || item.note || item.lineItem || ""
     })).filter(item => item.name);
 
-          // Extract examination
-          const examination = (snapRxData.examination || []).map(item => ({
-            name: item.name || item.lineItem || "",
-            notes: item.notes || ""
-    })).filter(item => item.name);
+    // Extract examination: support old (examination) and new (examinations) with findings
+    const examination = (snapRxData.examinations || snapRxData.examination || []).map(item => ({
+      name: item.name || item.examination_name || item.lineItem || "",
+      notes: item.notes || item.note || (item.findings ? `Findings: ${item.findings}` : "") || "",
+      findings: item.findings || ""
+    })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract medications
     const medications = (snapRxData.medications || []).map(item => ({
@@ -215,11 +216,11 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               notes: item.notes || item.note || ""
     })).filter(item => item.name);
 
-    // Extract lab investigation
+    // Extract lab investigation: support old (tests) and new (labInvestigation), name/lineItem
     const labInvestigation = (snapRxData.labInvestigation || snapRxData.tests || []).map(item => ({
-      name: item.name || item.refinedName || "",
-      notes: item.notes || ""
-    })).filter(item => item.name);
+      name: typeof item === "string" ? item : (item.name || item.refinedName || item.lineItem || ""),
+      notes: typeof item === "string" ? "" : (item.notes || item.instruction || "")
+    })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract advice
           let advice = [];
@@ -258,27 +259,28 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const extractSmartRxData = useCallback((smartRxData) => {
     if (!smartRxData) return null;
 
-    // Extract symptoms
+    // Extract symptoms: support name, lineItem (old and new structure)
     const symptoms = (smartRxData.symptoms || []).map(item => ({
-      name: item.name || item.symptom_name || "",
+      name: item.name || item.symptom_name || item.lineItem || "",
       severity: item.severity || "",
       duration: item.duration || item.since || "",
       notes: item.notes || item.note || ""
-    })).filter(item => item.name);
+    })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract diagnosis
     const diagnosis = (smartRxData.diagnosis || []).map(item => ({
-      name: item.name || "",
+      name: item.name || item.tds_name || item.lineItem || "",
       since: item.since || "",
       status: item.status || "",
-      notes: item.notes || item.lineItem || ""
+      notes: item.notes || item.note || item.lineItem || ""
     })).filter(item => item.name);
 
-    // Extract examination
+    // Extract examination: support old (examination) and new (examinations) with findings
     const examination = (smartRxData.examinations || smartRxData.examination || []).map(item => ({
-      name: item.name || item.lineItem || "",
-            notes: item.notes || ""
-    })).filter(item => item.name);
+      name: item.name || item.examination_name || item.lineItem || "",
+      notes: item.notes || item.note || (item.findings ? `Findings: ${item.findings}` : "") || "",
+      findings: item.findings || ""
+    })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract medications
     const medications = (smartRxData.medications || []).map(item => ({
@@ -291,11 +293,11 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       notes: item.notes || item.note || ""
     })).filter(item => item.name);
 
-    // Extract lab investigation
+    // Extract lab investigation: support old (tests) and new (labInvestigation), name/lineItem
     const labInvestigation = (smartRxData.labInvestigation || smartRxData.tests || []).map(item => ({
-      name: item.name || item.refinedName || "",
-            notes: item.notes || ""
-    })).filter(item => item.name);
+      name: typeof item === "string" ? item : (item.name || item.refinedName || item.lineItem || ""),
+      notes: typeof item === "string" ? "" : (item.notes || item.instruction || "")
+    })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract advice
     let advice = [];
@@ -982,21 +984,22 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       notes: item.note || item.notes || item.lineItem || ""
     }));
 
-    // Extract examination
-    const examination = (prescriptionData.examination || []).map(item => ({
+    // Extract examination: support old (examination) and new (examinations) structure
+    const examination = (prescriptionData.examinations || prescriptionData.examination || []).map(item => ({
       name: item.examination_name || item.name || item.lineItem || "",
-      notes: item.note || item.notes || ""
+      notes: item.note || item.notes || item.findings || "",
+      findings: item.findings || ""
     }));
 
     // Extract medications - handle multiple formats:
-    // 1. Snap Rx format (with dosage, frequency, etc. already extracted)
-    // 2. Consult prescription format (from viewCaseManager with tmm_* fields)
-    // 3. Regular prescription format (Voice/Ambient Rx)
-    const medications = (prescriptionData.medicine || []).map(item => {
-      // If item is already an object with full details (from Snap Rx), return as is
+    // 1. New structure: prescriptionData.medications (Voice/Ambient/Snap/Smart)
+    // 2. Old structure: prescriptionData.medicine (Consult)
+    const medicationsSource = prescriptionData.medications || prescriptionData.medicine || [];
+    const medications = medicationsSource.map(item => {
+      // If item is already an object with full details (Snap/Smart/Voice/Ambient - new structure)
       if (item && typeof item === 'object' && (item.dosage !== undefined || item.frequency !== undefined || item.quantity !== undefined) && !item.tmm_medicine_name) {
         return {
-          name: item.name || "",
+          name: item.name || item.groundedMedicineName || item.lineItem || "",
           dosage: item.dosage || item.unitPerDose || "",
           frequency: item.frequency || "",
           schedule: item.schedule || item.when || "",
@@ -1075,7 +1078,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       }
       
       // Otherwise, it's an object from regular prescription (Voice/Ambient Rx format)
-      const medicineName = item.medicine_name || item.name || "";
+      const medicineName = item.medicine_name || item.name || item.groundedMedicineName || item.lineItem || "";
       const dosage = item.strength && item.unit ? `${item.strength} ${item.unit}`.trim() : (item.dosage || "");
       return {
         name: medicineName,
@@ -1162,12 +1165,12 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       }
     }
 
-    // Extract lab investigation/tests
+    // Extract lab investigation/tests: support old (tests/investigation) and new (labInvestigation), name/lineItem/instruction
     const labInvestigation = (prescriptionData.labInvestigation || prescriptionData.tests || prescriptionData.investigation || []).map(item => {
-      const name = typeof item === 'string' ? item : (item.name || item.investigation_name || item.refinedName || "");
-      const notes = typeof item === 'string' ? "" : (item.notes || "");
+      const name = typeof item === 'string' ? item : (item.name || item.investigation_name || item.refinedName || item.lineItem || "");
+      const notes = typeof item === 'string' ? "" : (item.notes || item.instruction || "");
       return { name, notes };
-    }).filter(item => item.name);
+    }).filter(item => item.name && item.name.trim() !== "");
 
     // Extract dynamic fields
     const dynamicFields = (prescriptionData.dynamicFields || []).map(item => ({
@@ -1329,23 +1332,37 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 return (
                 <span 
                   className={styles.repeatRxLink} 
-                  onClick={() => {
+                  onClick={async () => {
                     window.Moengage?.track_event("repeat_rx_click", {
                       "doctor_id": viewCaseManagerData?.doctor_data?.um_id,
                       "patient_id": patient_data?.patient_unique_id || 0,
                       "rx_date": lastPrescriptionData.consultation_date
                     });
-                    navigate("/prescription", { 
-                      state: { 
-                        patient_data: patient_data, 
-                        send_path: "voice_rx_consult", 
-                        caseManagerData: { 
-                          ...lastPrescriptionData, 
-                          tcm_id: 0, 
-                          consultation_date: moment().format('YYYY-MM-DD HH:mm:ss') 
-                        } 
-                      } 
-                    });
+                    const rxId = filenameToUse;
+                    const newAppointmentId = viewCaseManagerData?.tcm_id ?? 0;
+                    if (!rxId || !patient_data) return;
+                    try {
+                      const copyResponse = await copyAmbientRx(rxId, newAppointmentId);
+                      if (!copyResponse?.success) {
+                        console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
+                        return;
+                      }
+                      const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
+                      navigate("/prescription", {
+                        state: {
+                          patient_data: patient_data,
+                          send_path: "voice_rx_consult",
+                          caseManagerData: {
+                            ...lastPrescriptionData,
+                            smart_prescription_filename: copiedRxId,
+                            tcm_id: 0,
+                            consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+                          }
+                        }
+                      });
+                    } catch (error) {
+                      console.error("[PatientSummary Repeat Rx] Error", error);
+                    }
                   }}
                 >
                   <i className="icon-reload"></i>
@@ -1765,7 +1782,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                     <ul className={styles.lastVisitList}>
                       {summaryData.lastVisitSummary.labInvestigation.map((lab, idx) => (
                         <li key={idx} className={styles.lastVisitListItem}>
-                          {lab.name}{lab.notes && ` (${lab.notes})`}
+                          {lab.name}{(lab.instruction || lab.lineItem) && ` (${lab.instruction || lab.lineItem})`}
                         </li>
                       ))}
                     </ul>

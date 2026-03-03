@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
@@ -21,7 +21,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
     const {isGynaecHistoryAccessable} = useAccess();
@@ -165,6 +165,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         });
 
     const [pdfUrl, setPdfUrl] = useState(null)
+    const pdfUrlRef = useRef(null);
     const [numPages, setNumPages] = useState();
     const [loadSuccess, setLoadSuccesss] = useState(false);
 
@@ -188,11 +189,17 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         //     setPdfUrl(URL.createObjectURL(blob))
         // }
         const makePDFUrl = async () => {
-            const blob = await pdf(<ViewPDF
+            if (!caseManagerData || !caseManagerData.patient_data) {
+                return;
+            }
+            const smartRxDataForPdf = Array.isArray(smartRxFile) ? smartRxFile : (smartRxFile ? [smartRxFile] : []);
+
+            const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
                 mode={mode}
                 caseManagerData={caseManagerData}
                 carePlanAssignments={carePlanAssignments}
-                smartRxData={smartRxFile}
+                smartRxData={smartRxData}
+                isDigitisedPrintConfig={isDigitisedPrintConfig}
                 columns={columns}
                 initialRows={initialRows}
                 frequencyList={frequencyList}
@@ -215,11 +222,46 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
                 ophthalModuleData={ophthalModuleData}
             />).toBlob();
-            setPdfUrl(URL.createObjectURL(blob))
-            dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
+
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
+
+            try {
+                const blob = await renderPdfWithSmartRx(smartRxDataForPdf);
+                const url = URL.createObjectURL(blob);
+                pdfUrlRef.current = url;
+                setPdfUrl(url);
+                dispatch(setCurrentSessionRx(url));
+            } catch (err) {
+                if (smartRxDataForPdf?.length > 0) {
+                    try {
+                        const blobFallback = await renderPdfWithSmartRx([]);
+                        const urlFallback = URL.createObjectURL(blobFallback);
+                        pdfUrlRef.current = urlFallback;
+                        setPdfUrl(urlFallback);
+                        dispatch(setCurrentSessionRx(urlFallback));
+                    } catch (fallbackErr) {
+                        console.error("Fallback PDF render failed:", fallbackErr);
+                    }
+                } else {
+                    throw err;
+                }
+            }
         }
-        caseManagerData && makePDFUrl()
+        // Only generate PDF if caseManagerData exists and has patient_data
+        // This prevents generating PDF with empty/incomplete data
+        if (caseManagerData && caseManagerData.patient_data) {
+            makePDFUrl().catch((err) => {
+                console.error("Error generating PDF URL:", err);
+            });
+        }
         return () => {
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
             setLoadSuccesss(false)
         };
     }, [
@@ -242,6 +284,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         frequencyList,
         timingList,
         labParamsData,
+        customModules,
         hospitalSearchResults,
         carePlanAssignments,
         smartRxFile,
@@ -257,11 +300,10 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
     return (
         <>
-            {pdfUrl && (
+            {pdfUrl ? (
                 <Document
                     loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%", height: '100%' }} />}
                     error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-                    noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
                     file={pdfUrl}
                     onLoadSuccess={onDocumentLoadSuccess}>
                     {Array.apply(null, Array(numPages))
@@ -280,6 +322,8 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                             );
                         })}
                 </Document>
+            ) : (
+                <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%", height: '100%' }} />
             )}
         </>
     )
