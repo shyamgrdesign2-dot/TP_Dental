@@ -15,11 +15,12 @@ const TabUploadDocumentList = ({
   setIsEditDocument,
   handleUploadDocPopup,
   setUploadDocDrawer,
+  isTabRx
 }) => {
   const { allUploadedDocs } = useSelector((state) => state.uploadDoc);
   return (
     <div>
-      <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+      <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
         Medical Records
         <Button
           type="text"

@@ -13,7 +13,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function TabVitalsList(props) {
 
-    const { handleDrawerVital, handleCollapsed } = props
+    const { handleDrawerVital, handleCollapsed, isTabRx } = props
     const { state } = useLocation();
     const { patient_data } = state;
     const { isPediatricAccessable } = useAccess();
@@ -293,7 +293,7 @@ function TabVitalsList(props) {
 
     return (
         <>
-            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? "tab-rx-header" : ""}`}>
                 Vitals
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>

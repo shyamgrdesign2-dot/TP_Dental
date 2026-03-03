@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
-const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabParamsDrawer, handleViewLabParamsDrawer }) => {
+const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabParamsDrawer, handleViewLabParamsDrawer, isTabRx }) => {
 
   const [labParamsdeatils, setLabParamsdeatils] = useState([]);
 
@@ -67,7 +67,7 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
 
   return (
     <div>
-      <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+      <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
         Lab Results
         <Button
           type="text"

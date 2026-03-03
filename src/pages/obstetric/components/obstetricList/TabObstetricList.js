@@ -8,7 +8,7 @@ import { isPrimigravida } from "../../utils/helper";
 import moment from "moment";
 import AncImmunisationList from "./AncImmunisationList";
 
-const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
+const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric, isTabRx }) => {
   const { obstetricDetails: allObstetricDetails } = useSelector(
     (state) => state.obstetric
   );
@@ -322,7 +322,7 @@ const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
 
   return (
     <>
-      <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+      <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
         Obstetric History
         <Button
           type="text"

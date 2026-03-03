@@ -29,7 +29,7 @@ const ReadMore = ({ children }) => {
 
 function TabMedicalHistoryList(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, isTabRx } = props
 
     const { medicalHistoryData } = useContext(CashManagerContext);
 
@@ -207,7 +207,7 @@ function TabMedicalHistoryList(props) {
 
     return (
         <>
-            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
                 History
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>
