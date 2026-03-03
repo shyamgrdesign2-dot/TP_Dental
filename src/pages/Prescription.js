@@ -124,8 +124,8 @@ import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
-import TeleconsultFloatingWindow from "../components/TeleconsultFloatingWindow";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
+import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
@@ -196,7 +196,7 @@ function Prescription() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin } = state || {};
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx } = state || {};
   
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
@@ -415,8 +415,8 @@ function Prescription() {
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
-  const [teleconsultAuthToken, setTeleconsultAuthToken] = useState(null);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
   const { servicesList } = useSelector((state) => state.doctors);
@@ -429,9 +429,9 @@ function Prescription() {
 
   useEffect(() => {
     if (teleconsultAutoJoin?.token) {
-      setTeleconsultAuthToken(teleconsultAutoJoin.token);
+      dispatch(setJoinToken(teleconsultAutoJoin.token));
     }
-  }, [teleconsultAutoJoin?.token]);
+  }, [teleconsultAutoJoin?.token, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -490,6 +490,7 @@ function Prescription() {
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
+  console.log("[Prescription Type-2] isTeleConsultEnabled:", isTeleConsultEnabled, "videoConsultData?.pam_status_type_appointment:", videoConsultData?.pam_status_type_appointment, "isVideoConsultAvailableType2:", isVideoConsultAvailableType2, "isNormalConsultFlow:", isNormalConsultFlow, "showTeleconsultIcon:", isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2);
   const contextApi = {
     patient_data,
     send_path,
@@ -698,7 +699,7 @@ function Prescription() {
       const data = response?.data ?? response;
       const token = data?.joinPayload?.token ?? data?.token;
       if (token) {
-        setTeleconsultAuthToken(token);
+        dispatch(setJoinToken(token));
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }
@@ -1993,10 +1994,10 @@ function Prescription() {
               handleGenRx={handleGenRx}
               handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
               isVideoConsultLoading={isInitiatingCall}
-              showTeleconsultIcon={isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2}
+              showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2}
               onTeleconsultClick={handleTeleconsultClick}
               isTeleconsultJoinLoading={isTeleconsultJoinLoading}
-              isTeleconsultActive={!!teleconsultAuthToken}
+              isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
             />
@@ -2529,13 +2530,6 @@ function Prescription() {
             patientName={patient_data?.pm_fullname}
             appointmentId={videoConsultData?.pam_id}
             callAction={videoConsultAction}
-          />
-        )}
-        {teleconsultAuthToken && (
-          <TeleconsultFloatingWindow
-            authToken={teleconsultAuthToken}
-            doctorName={profile?.um_name || profile?.doctor_name}
-            onClose={() => setTeleconsultAuthToken(null)}
           />
         )}
           </>

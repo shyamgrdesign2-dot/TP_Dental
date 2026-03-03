@@ -97,8 +97,8 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
-import TeleconsultFloatingWindow from "../../components/TeleconsultFloatingWindow";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
+import { setJoinToken } from "../../redux/teleconsultNotificationSlice";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -416,8 +416,8 @@ function TabPrescription() {
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
-  const [teleconsultAuthToken, setTeleconsultAuthToken] = useState(null);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
   const isNormalConsultFlow = !fromVoiceRecording && !send_path && !digitizedData;
@@ -429,9 +429,9 @@ function TabPrescription() {
 
   useEffect(() => {
     if (teleconsultAutoJoin?.token) {
-      setTeleconsultAuthToken(teleconsultAutoJoin.token);
+      dispatch(setJoinToken(teleconsultAutoJoin.token));
     }
-  }, [teleconsultAutoJoin?.token]);
+  }, [teleconsultAutoJoin?.token, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1525,7 +1525,7 @@ function TabPrescription() {
       const data = response?.data ?? response;
       const token = data?.joinPayload?.token ?? data?.token;
       if (token) {
-        setTeleconsultAuthToken(token);
+        dispatch(setJoinToken(token));
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }
@@ -1562,7 +1562,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!teleconsultAuthToken} isTabPrescription />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -2591,13 +2591,6 @@ function TabPrescription() {
           patientName={patient_data?.pm_fullname}
           appointmentId={videoConsultData?.pam_id}
           callAction={videoConsultAction}
-        />
-      )}
-      {teleconsultAuthToken && (
-        <TeleconsultFloatingWindow
-          authToken={teleconsultAuthToken}
-          doctorName={profile?.um_name || profile?.doctor_name}
-          onClose={() => setTeleconsultAuthToken(null)}
         />
       )}
     </CashManagerContext.Provider>

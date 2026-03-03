@@ -32,6 +32,7 @@ import iconMobile from "../assets/images/icon-mobile.svg";
 
 import config from "../config";
 import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns } from "../redux/doctorsSlice";
+import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
 import defaultprofile from "../assets/images/default-profile.svg";
@@ -711,6 +712,8 @@ function Header({ locationPath }) {
 
       // Show loader
       setIsLoading(true);
+
+      dispatch(clearTeleconsultNotification());
 
       setTimeout(async () => {
         try {

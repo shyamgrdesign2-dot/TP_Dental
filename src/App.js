@@ -30,6 +30,7 @@ import DoctorWebsiteSetting from "./pages/DoctorWebsiteSetting";
 import MessageCreateCampaign from "./pages/MessageCreateCampaign";
 
 import { store, persistor } from "./redux/store";
+import { clearTeleconsultNotification } from "./redux/teleconsultNotificationSlice";
 import {
   FROM_NATIVE_APP,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -132,6 +133,8 @@ function App() {
     try {
       if (window.isLoggingOut) return;
       window.isLoggingOut = true;
+
+      store.dispatch(clearTeleconsultNotification());
 
       const statuses = await openUrlsSilently(urlsToOpen);
       console.log("URL statuses:", statuses);
