@@ -35,10 +35,15 @@ RUN find /app/build -name "*.map" -type f -delete
 # Use Nginx as the production server
 FROM nginx:stable-alpine
 
+# Enable Brotli module
+RUN apk add --no-cache nginx-mod-http-brotli
+
 # Copy the built React app to Nginx's web server directory
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Validate nginx config during build
+RUN nginx -t
 
 # Expose port 80 for the Nginx server
 EXPOSE 80
