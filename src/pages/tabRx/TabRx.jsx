@@ -29,6 +29,7 @@ import {
   OPTHAL_PAD_MODULE_ID,
   OPTHAL_PAD_MODULE,
   GB_OPTHAL_MODULE,
+  GB_VIDEO_CONSULT,
 } from "../../utils/constants";
 
 import {
@@ -139,9 +140,13 @@ import {
   getTokenData,
   isVoiceRxFree,
 } from "../../utils/utils";
-import VideoConsultModal from "../../components/VideoConsultModal";
-import { GB_VIDEO_CONSULT } from "../../utils/constants";
-import ApiVideoConsult from "../../api/services/ApiVideoConsult";
+
+import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
+import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
+import ApiVideoConsult, {
+  createOpthalPrescription,
+  updateOpthalPrescription,
+} from "../../api/services/ApiVideoConsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
@@ -170,6 +175,7 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
+import VideoConsultModal from "../../components/VideoConsultModal";
 
 function TabRx() {
   const {
@@ -628,11 +634,11 @@ function TabRx() {
   const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
   const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
     caseManagerData?.smart_prescription_filename ||
-      (inputText &&
-        typeof inputText === "string" &&
-        inputText.trim().length > 0) ||
-      (fromVoiceRecording && audioBlob) ||
-      false,
+    (inputText &&
+      typeof inputText === "string" &&
+      inputText.trim().length > 0) ||
+    (fromVoiceRecording && audioBlob) ||
+    false,
   );
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
@@ -1707,7 +1713,7 @@ function TabRx() {
         )} */}
         {!showOnlyDrawer && (
           <>
-            <TabRxHeader
+            <TabRxHeaderV2
               isVaccinationEnabled={isVaccinationAccessable}
               isGrowthChartEnabled={isGrowthChartAccessable}
               gynecHistory={updatedGynecHistory}
@@ -1721,420 +1727,43 @@ function TabRx() {
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
               <Layout>
-                <div
-                  className={`prescription-sidebar ${
-                    isApexAISelected ? "prescription-sidebar-ai" : ""
-                  }`}
-                  style={{
-                    background:
-                      "radial-gradient(circle, #161558 0%, #4B4AD5 100%)",
-                  }}
-                >
-                  {isApexAISelected ? (
-                    <>
-                      <img
-                        src={ddxVector}
-                        alt="ddxVector"
-                        className="prescription-sidebar-ai-vector"
-                      />
-                      <img
-                        src={ddxVector}
-                        alt="ddxVectorReverse"
-                        className="prescription-sidebar-ai-vector-reverse"
-                      />
-                      <button
-                        type="button"
-                        className="mb-3 text-center btn btn-action"
-                        onClick={handleApexAIClose}
-                        style={{ padding: "6px 10px" }}
-                      >
-                        <div
-                          className={"prescription-tab-button"}
-                          style={{ backgroundColor: "white", borderRadius: 16 }}
-                        >
-                          <i
-                            className="icon-Cross"
-                            style={{ color: "#7742FE" }}
-                          />
-                        </div>
-                      </button>
-                      {isGroundingAccessableForZydus && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(12)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 12
-                                    ? groundingImgDark
-                                    : groundingImgWhite
-                                }
-                                alt="Grounding"
-                                width={42}
-                                height={42}
-                              />
-                            </div>
-                            <label className="text-white mt-1">
-                              AI Formu..
-                            </label>
-                          </div>
-                        </button>
-                      )}
-                      {(tp_monetization_enable || isFreeVoiceRxUser) && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(10)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 10
-                                    ? genRxImg
-                                    : voiceRxDefault
-                                }
-                                alt="VoiceRx"
-                                width={42}
-                                height={42}
-                              />
-                            </div>
-                            <label className="text-white mt-1">Voice Rx</label>
-                          </div>
-                        </button>
-                      )}
-                      {(isApexAIAccessable || tp_monetization_enable) && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(9)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 9 ? ddxImg : ddxInactiveImg
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">DDx</label>
-                          </div>
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {customizedPadLeftList?.map((e, i) => {
-                        return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={() =>
-                              vitalsData.length === 0 &&
-                              vitalsPastList.length === 0 &&
-                              !patientBirthWeight
-                                ? handleDrawerVital()
-                                : openCollapsed(1)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag == 1 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 1 ? vitalsDark : vitalsWhite
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Vitals</label>
-                          </button>
-                        ) : e.tmdpm_id === 3 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={() =>
-                              medicalHistoryData.length === 0 &&
-                              !updatedGynecHistory
-                                ? handleDrawerMedicalHistory()
-                                : openCollapsed(2)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag == 2 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 2
-                                    ? medicalHistoryDark
-                                    : medicalHistoryWhite
-                                }
-                                alt="Medical History"
-                              />
-                            </div>
-                            <label className="text-white mt-1">History</label>
-                          </button>
-                        ) : e.tmdpm_id === 8 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action position-relative"
-                            onClick={() =>
-                              privateNotesList?.length === 0
-                                ? handleDrawerPrivateNotes()
-                                : openCollapsed(4)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px  ${
-                                collapsedFlag == 4 && "active"
-                              }`}
-                            >
-                              {privateNotesList?.length > 0 && (
-                                <div className="notes-dot">
-                                  {privateNotesList?.length > 5
-                                    ? "5+"
-                                    : privateNotesList?.length}
-                                </div>
-                              )}
-                              <img
-                                src={
-                                  collapsedFlag == 4
-                                    ? privateNotesDark
-                                    : privateNotesWhite
-                                }
-                                alt="Private Notes"
-                              />
-                            </div>
-                            <label className="text-white mt-1">
-                              Private Notes
-                            </label>
-                          </button>
-                        ) : e.tmdpm_id === 7 &&
-                          e.tmdpm_status === 0 &&
-                          isVaccinationAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={handleDrawerVaccination}
-                          >
-                            <div
-                              className={`bg-secondary-light prescription-tab-button rounded-10px ${
-                                collapsedFlag === 3 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 3
-                                    ? vaccinationDark
-                                    : vaccinationWhite
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Vaccine</label>
-                          </button>
-                        ) : e.tmdpm_id === 16 &&
-                          e.tmdpm_status === 0 &&
-                          isGrowthChartAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={handleDrawerGrowth}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 5 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 5
-                                    ? growthChartDark
-                                    : growthChart
-                                }
-                                alt="Growth"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Growth</label>
-                          </button>
-                        ) : e.tmdpm_id === 17 &&
-                          e.tmdpm_status === 0 &&
-                          isGynaecHistoryAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              examinationHistory?.length === 0 &&
-                              !shouldShowAncHistory &&
-                              !shouldShowImmunisation &&
-                              !obstetricDetails?.lmp &&
-                              !obstetricDetails?.edd &&
-                              !obstetricDetails?.gravidity &&
-                              !obstetricDetails?.parity &&
-                              !obstetricDetails?.livingChildren &&
-                              !obstetricDetails?.abortion &&
-                              !obstetricDetails?.ectopicPregnancies &&
-                              !obstetricDetails?.ceed
-                                ? handleDrawerObstetric()
-                                : openCollapsed(6)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 6 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 6
-                                    ? obstetricDark
-                                    : obstetricWhite
-                                }
-                                alt="Obstetric"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Obstetric</label>
-                          </button>
-                        ) : e.tmdpm_id === 18 && e.tmdpm_status === 0 ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              allUploadedDocs.length === 0
-                                ? handleAddClick()
-                                : openCollapsed(7)
-                            }
-                          >
-                            {/* {isAndroid && !isBrowser ? (
-                          <div
-                            ref={fileInputRef}
-                            onClick={handleUploadDocPopup}
-                            style={{ display: "none" }}
-                          />
-                        ) : ( */}
-                            <input
-                              type="file"
-                              multiple
-                              ref={fileInputRef}
-                              onChange={handleFileUpload}
-                              accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
-                              style={{ display: "none" }}
-                            />
-                            {/* )} */}
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 7 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 7
-                                    ? medicalRecordsDark
-                                    : medicalRecordsWhite
-                                }
-                                alt="records"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Records</label>
-                          </button>
-                        ) : e.tmdpm_id === 19 && e.tmdpm_status === 0 ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              labParamsData?.length === 0
-                                ? handleAddLabParamsDrawer()
-                                : openCollapsed(8)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 8 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 8
-                                    ? labParamsDark
-                                    : labParamsWhite
-                                }
-                                alt="lab"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Lab</label>
-                          </button>
-                        ) : e.tmdpm_id === 22 &&
-                          e.tmdpm_status === 0 &&
-                          isCarePlanEnabled ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() => openCollapsed(11)}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 11 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 11
-                                    ? carePlanIconDark
-                                    : carePlanIcon
-                                }
-                                alt="Care Plan"
-                                style={{ width: "24px", height: "24px" }}
-                              />
-                            </div>
-                            <label className="text-white mt-1">Care Plan</label>
-                          </button>
-                        ) : null;
-                      })}
-                    </>
-                  )}
-                </div>
+                <TabRxNavPanel
+                  isApexAISelected={isApexAISelected}
+                  handleApexAIClose={handleApexAIClose}
+                  isGroundingAccessableForZydus={isGroundingAccessableForZydus}
+                  tp_monetization_enable={tp_monetization_enable}
+                  isFreeVoiceRxUser={isFreeVoiceRxUser}
+                  isApexAIAccessable={isApexAIAccessable}
+                  openCollapsed={openCollapsed}
+                  collapsedFlag={collapsedFlag}
+                  customizedPadLeftList={customizedPadLeftList}
+                  vitalsData={vitalsData}
+                  vitalsPastList={vitalsPastList}
+                  patientBirthWeight={patientBirthWeight}
+                  handleDrawerVital={handleDrawerVital}
+                  medicalHistoryData={medicalHistoryData}
+                  updatedGynecHistory={updatedGynecHistory}
+                  handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+                  isVaccinationAccessable={isVaccinationAccessable}
+                  handleDrawerVaccination={handleDrawerVaccination}
+                  privateNotesList={privateNotesList}
+                  handleDrawerPrivateNotes={handleDrawerPrivateNotes}
+                  isGrowthChartAccessable={isGrowthChartAccessable}
+                  handleDrawerGrowth={handleDrawerGrowth}
+                  isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                  examinationHistory={examinationHistory}
+                  shouldShowAncHistory={shouldShowAncHistory}
+                  shouldShowImmunisation={shouldShowImmunisation}
+                  obstetricDetails={obstetricDetails}
+                  handleDrawerObstetric={handleDrawerObstetric}
+                  allUploadedDocs={allUploadedDocs}
+                  handleAddClick={handleAddClick}
+                  fileInputRef={fileInputRef}
+                  handleFileUpload={handleFileUpload}
+                  labParamsData={labParamsData}
+                  handleAddLabParamsDrawer={handleAddLabParamsDrawer}
+                  isCarePlanEnabled={isCarePlanEnabled}
+                />
                 <Sider
                   trigger={null}
                   collapsible
@@ -2146,6 +1775,7 @@ function TabRx() {
                       mode={caseManagerData !== undefined ? EDIT : ADD}
                       handleDrawerVital={handleDrawerVital}
                       handleCollapsed={() => setCollapsed(!collapsed)}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 2 ? (
                     <TabMedicalHistoryList
@@ -2153,18 +1783,21 @@ function TabRx() {
                       handleDrawerMedicalHistory={handleDrawerMedicalHistory}
                       handleCollapsed={() => setCollapsed(!collapsed)}
                       gynecHistory={updatedGynecHistory}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 4 ? (
                     <TabPrivateNotesList
                       mode={caseManagerData !== undefined ? EDIT : ADD}
                       handleDrawerPrivateNotes={handleDrawerPrivateNotes}
                       handleCollapsed={() => setCollapsed(!collapsed)}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 6 ? (
                     <TabObstetricList
                       obstetricDrawer={obstetricDrawer}
                       handleCollapsed={() => setCollapsed(!collapsed)}
                       handleDrawerObstetric={handleDrawerObstetric}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 7 ? (
                     <TabUploadDocumentList
@@ -2178,6 +1811,7 @@ function TabRx() {
                       setIsEditDocument={setIsEditDocument}
                       handleUploadDocPopup={handleUploadDocPopup}
                       setUploadDocDrawer={setUploadDocDrawer}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 8 ? (
                     <TabLabParametersList
@@ -2185,6 +1819,7 @@ function TabRx() {
                       labParamsData={labParamsData}
                       handleAddLabParamsDrawer={handleAddLabParamsDrawer}
                       handleViewLabParamsDrawer={handleViewLabParamsDrawer}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 9 &&
                     (isApexAIAccessable || tp_monetization_enable) ? (
@@ -2195,12 +1830,14 @@ function TabRx() {
                       handleDDxKnowMore={handleDDxKnowMore}
                       getGenerateDDx={getGenerateDDx}
                       isDDxGenerated={isDDxGenerated}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 10 &&
                     (tp_monetization_enable || isFreeVoiceRxUser) ? (
                     <TabVoiceRx
                       handleGenRxKnowMore={handleGenRxKnowMore}
                       setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 11 && isCarePlanEnabled ? (
                     <TabCarePlanList
@@ -2212,13 +1849,14 @@ function TabRx() {
                       userId={userId}
                       clinicId={decodedToken?.result?.clinic_id}
                       carePlanPlaceholder={carePlanPlaceholder}
+                      isTabRx={true}
                     />
                   ) : (
                     collapsedFlag === 12 &&
                     isGroundingAccessableForZydus && (
                       <GroundingBox
                         handleGroundingKnowMore={handleGroundingKnowMore}
-                      />
+                        />
                     )
                   )}
                 </Sider>
