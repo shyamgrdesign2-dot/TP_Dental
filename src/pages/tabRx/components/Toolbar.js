@@ -153,7 +153,8 @@ const Toolbar = ({
         <ToolButton tool="pen" icon={FaPen} />
         <ToolButton tool="highlighter" icon={FaHighlighter} />
         <ToolButton tool="eraser" icon={FaEraser} />
-        <ToolButton tool="text" icon={FaFont} />
+        {/* Not Required as of now (got removed - keeping this for future cases)*/}
+        {/* <ToolButton tool="text" icon={FaFont} /> */}
 
         <div className={`divider ${orientation}`} />
 
