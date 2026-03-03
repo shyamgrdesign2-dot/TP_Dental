@@ -18,7 +18,9 @@ const CanvasEngine = ({
   panOffset,
   setPanOffset,
   onInteractionStart,
-  backgroundImage
+  onPageFocus,
+  backgroundImage,
+  embeddedInScroll = false
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -65,9 +67,9 @@ const CanvasEngine = ({
     };
   };
 
-  // Helper to center the view on a specific point
+  // Helper to center the view on a specific point (no-op when embedded in scroll)
   const centerViewOnPoint = (targetX, targetY) => {
-     if (!containerRef.current) return;
+     if (embeddedInScroll || !containerRef.current) return;
      const containerW = containerRef.current.clientWidth;
      const containerH = containerRef.current.clientHeight;
 
@@ -222,6 +224,7 @@ const CanvasEngine = ({
     e.preventDefault();
     e.target.setPointerCapture(e.pointerId);
     if (onInteractionStart) onInteractionStart();
+    if (onPageFocus) onPageFocus();
 
     // 4. PANNING
     if (toolSettings.activeTool === 'move' || isTouch) {
@@ -382,7 +385,10 @@ const CanvasEngine = ({
       const delta = -e.deltaY * zoomSensitivity;
       const newZoom = Math.min(Math.max(zoomLevel + delta, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
       
-      if (containerRef.current) {
+      if (embeddedInScroll) {
+        // In scroll mode: only zoom, no pan (scroll handles navigation)
+        setZoomLevel(newZoom);
+      } else if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
           const mouseY = e.clientY - rect.top;
@@ -399,7 +405,8 @@ const CanvasEngine = ({
           setZoomLevel(newZoom);
       }
 
-    } else {
+    } else if (!embeddedInScroll) {
+      // Only pan when not in scroll mode (let scroll container handle vertical scroll)
        setPanOffset({ x: panOffset.x - e.deltaX, y: panOffset.y - e.deltaY });
     }
   };
@@ -408,6 +415,7 @@ const CanvasEngine = ({
 
   const handleTextInteractionStart = (e, id, type, handle) => {
      e.stopPropagation();
+     if (onPageFocus) onPageFocus();
      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
@@ -506,7 +514,7 @@ const CanvasEngine = ({
   return (
     <div 
       ref={containerRef}
-      className="tab-rx-canvas-container"
+      className={`tab-rx-canvas-container ${embeddedInScroll ? 'embedded-in-scroll' : ''}`}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -546,6 +554,7 @@ const CanvasEngine = ({
                     }}
                     onMouseDown={(e) => {
                          if (!isSelected) {
+                            if (onPageFocus) onPageFocus();
                             setSelectedTextId(el.id);
                          }
                     }}

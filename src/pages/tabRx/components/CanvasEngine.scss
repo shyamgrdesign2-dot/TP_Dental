@@ -6,6 +6,12 @@
   touch-action: none;
   cursor: crosshair;
 
+  /* When embedded in scroll: allow vertical scroll with touch */
+  &.embedded-in-scroll {
+    touch-action: pan-y;
+    flex: none; /* Don't grow - parent controls size */
+  }
+
   .canvas-wrapper {
     transform-origin: 0 0;
     width: 794px;
