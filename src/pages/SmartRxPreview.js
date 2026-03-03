@@ -57,8 +57,9 @@ function SmartRxPreview() {
 
     const navigate = useNavigate();
 
-    const { state } = useLocation();
-    const { patient_data, isDigitiseRxSubmit } = state || {};
+    const location = useLocation();
+    const state = location?.state || {};
+    const { patient_data, isDigitiseRxSubmit, tcm_id } = state || {};
 
     const buildUrlWithLanguage = (url, language) => {
         if (!url) return null;
@@ -160,7 +161,7 @@ function SmartRxPreview() {
         try {
             const sendData = {
                 patient_unique_id: patient_data?.patient_unique_id || 0,
-                tcm_id: state.tcm_id
+                tcm_id: tcm_id
             };
             const action = await dispatch(viewCaseManager(sendData));
             setViewCaseManagerData(action.payload);
@@ -173,13 +174,13 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if(state.tcm_id && patient_data?.patient_unique_id){
+            if (tcm_id && patient_data?.patient_unique_id) {
                 const viewCaseManagerData = await getCaseManagerData();
-                setViewCaseManagerData(viewCaseManagerData)
+                setViewCaseManagerData(viewCaseManagerData);
             }
         };
         fetchData();
-    }, [state.tcm_id, patient_data?.patient_unique_id]);
+    }, [tcm_id, patient_data?.patient_unique_id]);
 
     // Update smartRxFile when state changes (e.g., when coming back from print config)
     // Update smartRxFile when state changes (e.g., when coming back from print config)
@@ -196,7 +197,7 @@ function SmartRxPreview() {
             const cleanedToken = token.replace(/['"]+/g, '');
     
                 // API call for Rx Digitisation
-                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state.tcm_id}`, {
+                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${tcm_id}`, {
                     headers: {
                         'Authorization': `Bearer ${cleanedToken}`,
                     },
