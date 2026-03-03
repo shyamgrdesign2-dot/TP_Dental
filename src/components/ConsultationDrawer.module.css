@@ -1007,30 +1007,6 @@
   /* Allow container to grow dynamically with content */
 }
 
-/* Compact layout when Rx pad shows medication/lab by default with no items (no "No medications found" message) */
-.medications-content-box.compact-default,
-.investigation-content-box.compact-default {
-  padding: 10px 16px;
-  margin-bottom: 12px;
-}
-
-.medications-content-box.compact-default .medications-table-container,
-.investigation-content-box.compact-default .investigation-table-container {
-  margin-bottom: 8px;
-  max-height: 120px;
-  min-height: 0;
-}
-
-.medications-content-box.compact-default .medications-header,
-.investigation-content-box.compact-default .investigation-header {
-  margin-bottom: 8px;
-}
-
-.medications-content-box.compact-default .search-container,
-.investigation-content-box.compact-default .search-container {
-  padding: 6px 0;
-}
-
 /* Header styles for all parameters */
 .symptoms-header,
 .examination-header,

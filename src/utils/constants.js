@@ -138,7 +138,6 @@ export const S_PHARMACY = "pharmacy";
 export const S_IPD = "ipd";
 export const S_OPD_BILLING = "opd_billing";
 export const S_RECEPTIONIST_AGENT = "receptionist_agent";
-export const GB_MED_INVESTIGATION = "VoiceRx_B2B_med_investigations";
 
 // Medical Records - Document Upload Configuration
 export const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
@@ -454,7 +453,8 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
   "9825337281",
   "9825023998",
   "9978957799",
-  "9167437770"
+  "9167437770",
+  "8980019439"
 ];
 
 // Custom Canvas Size Increased upto 20 

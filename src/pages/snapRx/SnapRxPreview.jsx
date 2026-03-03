@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Row, Col, Spin, message, Select } from "antd";
+import { Button, Row, Col, Spin, message } from "antd";
 import "./SnapRxPreview.scss";
 import {
   isMobile,
@@ -13,7 +13,7 @@ import axios from "axios";
 import { saveAs } from "file-saver";
 import { jwtDecode } from "jwt-decode";
 
-import { errorMessage, trackEvent, sendMessageToParent } from "../../utils/utils";
+import { errorMessage, trackEvent } from "../../utils/utils";
 import api from "../../api/services/axiosService";
 
 import visitEnd from "../../assets/images/end-visit.svg";
@@ -29,14 +29,12 @@ import {
   MESSAGE_KEY,
   WHATS_APP_API,
   WTSAP_ERR_MESSAGE,
-  LANGUAGE_LIST,
 } from "../../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import { viewCaseManager } from "../../redux/caseManagerSlice";
-import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../../api/services/DefaultLanguageService";
 
 import { pdfjs, Document, Page } from "react-pdf";
 
@@ -58,38 +56,13 @@ function SnapRxPreview() {
   const navigate = useNavigate();
 
   const { state } = useLocation();
-  const { patient_data, files, pam_id } = state || {};
+  const { patient_data, files } = state || {};
 
-  const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
-
-  const buildUrlWithLanguage = (url, language) => {
-    if (!url) return null;
-    try {
-      const urlObj = new URL(url);
-      urlObj.searchParams.delete("lg");
-      urlObj.searchParams.delete("rx");
-      urlObj.searchParams.set("rx", "0");
-      if (language) {
-        const encodedData = btoa(language.toString());
-        urlObj.searchParams.set("lg", encodedData);
-      }
-      return urlObj.toString();
-    } catch (error) {
-      return url;
-    }
-  };
-
-  const initialLanguage = defaultPrintSettings?.default_language || 1;
-
-  const [selectedLang, setSelectedLang] = useState(initialLanguage);
-  const basePrintUrl = state?.print_rx_url || state?.print_url || null;
-  const initialUrl = basePrintUrl
-    ? buildUrlWithLanguage(basePrintUrl, initialLanguage)
-    : null;
-
-  const [printUrl, setPrintUrl] = useState(initialUrl);
-  const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx || null);
+  const [printUrl, setPrintUrl] = useState(
+    state !== undefined ? `${state?.print_rx_url || state?.print_url}` : null
+  );
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
   const [tokenData, setTokenData] = useState(null);
@@ -100,24 +73,11 @@ function SnapRxPreview() {
   const [isLoading, setIsLoading] = useState(false);
   const [buttonText, setButtonText] = useState("Send to WhatsApp");
 
+  const { profile } = useSelector((state) => state.doctors);
+
   const [showProgressbar, setShowProgressbar] = useState(false);
   const [showDigitalRx, setShowDigitalRx] = useState(false);
   const progressRef = useRef(null);
-
-  useEffect(() => {
-    if (state?.smartRxFile && state.smartRxFile.length > 0) {
-      setSmartRxFile(state.smartRxFile);
-    } else if (state?.files && state.files.length > 0) {
-      setSmartRxFile(state.files);
-    }
-  }, [state?.files, state?.smartRxFile, state?.from]);
-
-  // When returning from Configure Print Setting with "No, Apply on This Rx Only", use the PDF blob so print reflects user's config
-  useEffect(() => {
-    if (state?.from === "/configure_print_setting" && state?.currentSessionRx) {
-      setCurrentSessionRx(state.currentSessionRx);
-    }
-  }, [state?.from, state?.currentSessionRx]);
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlDigitization = env.digitization_api_url;
@@ -189,25 +149,14 @@ function SnapRxPreview() {
     const fetchData = async () => {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
+        setShowDigitalRx(
+          viewCaseManagerData?.isRxDigitize && state?.page === "digitise"
+        );
         setViewCaseManagerData(viewCaseManagerData);
-        
-        // After print configuration, show digitized Rx if we were configuring for digitized Rx
-        if (state?.from === "/configure_print_setting") {
-          // Only use page state to determine if we were configuring for digitized Rx
-          // Don't use viewCaseManagerData?.isRxDigitize as it can be true even when configuring written Rx
-          setShowDigitalRx(state?.page === "digitise");
-        } else if (state?.page === "digitise") {
-          // After digitization, show digitised Rx first by default
-          setShowDigitalRx(true);
-        } else {
-          // Default: show digitized Rx only if it's digitized and page is "digitise"
-          const shouldShowDigital = viewCaseManagerData?.isRxDigitize && state?.page === "digitise";
-          setShowDigitalRx(shouldShowDigital);
-        }
       }
     };
     fetchData();
-  }, [state?.tcm_id, patient_data?.patient_unique_id, selectedLang]);
+  }, [state?.tcm_id, patient_data?.patient_unique_id]);
 
   const fetchRxDigitisedData = async () => {
     try {
@@ -249,61 +198,6 @@ function SnapRxPreview() {
     }
   }, []);
 
-  const getPatientDefaultLanguage = async () => {
-    if (!patient_data?.patient_unique_id) return;
-    try {
-      const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
-      if (res?.settings?.defaultLanguage) {
-        setSelectedLang(res.settings.defaultLanguage);
-      }
-    } catch (error) {
-      console.error("Error fetching patient default language:", error);
-    }
-  };
-
-  useEffect(() => {
-    getPatientDefaultLanguage();
-  }, [patient_data?.patient_unique_id]);
-
-  useEffect(() => {
-    const encodedData = btoa(selectedLang.toString());
-    const baseUrl = state?.print_rx_url || state?.print_url;
-    if (!baseUrl) return;
-
-    // When returning from Configure Print Setting with "No, Apply on This Rx Only", we have a blob in state.currentSessionRx – don't clear it so the preview/print uses the configured PDF
-    const keepSessionBlob = state?.from === "/configure_print_setting" && state?.currentSessionRx;
-
-    try {
-      const urlObj = new URL(baseUrl);
-      
-      // Always remove rxDigitize first, then set it based on showDigitalRx
-      urlObj.searchParams.delete('rxDigitize');
-      
-      if (pam_id != null) urlObj.searchParams.set('pam_id', pam_id.toString());
-      urlObj.searchParams.set('lg', encodedData);
-      
-      // Only set rxDigitize=true for digital Rx, otherwise leave it removed (which means written Rx)
-      if (showDigitalRx) {
-        urlObj.searchParams.set('rxDigitize', 'true');
-      }
-      
-      const newUrl = urlObj.toString();
-      setPrintUrl(newUrl);
-      if (!keepSessionBlob) setCurrentSessionRx(null);
-    } catch (error) {
-      let url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}lg=${encodedData}`;
-      if (pam_id != null) url += `&pam_id=${pam_id}`;
-      // Remove rxDigitize parameter completely
-      url = url.replace(/[?&]rxDigitize=[^&]*/g, '');
-      // Only add rxDigitize=true for digital Rx
-      if (showDigitalRx) {
-        url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
-      }
-      setPrintUrl(url);
-      if (!keepSessionBlob) setCurrentSessionRx(null);
-    }
-  }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, state?.currentSessionRx, viewCaseManagerData?.isRxDigitize]);
-
   const handleDownload = async () => {
     try {
       if (showDigitalRx) {
@@ -313,21 +207,15 @@ function SnapRxPreview() {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       }
-      if (currentSessionRx) {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
-        saveAs(blob, `${Date.now()}.pdf`);
-      } else {
-        const response = await axios({
-          url: printUrl,
-          method: "GET",
-          responseType: "blob",
-        });
-        const blob = new Blob([response.data], {
-          type: response.headers["content-type"],
-        });
-        saveAs(blob, `${Date.now()}.pdf`);
-      }
+      const response = await axios({
+        url: printUrl,
+        method: "GET",
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"],
+      });
+      saveAs(blob, `${Date.now()}.pdf`);
     } catch (error) {
       console.error("Error downloading file:", error);
     }
@@ -341,34 +229,11 @@ function SnapRxPreview() {
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
     }
-    if (currentSessionRx) {
-      try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
-          type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("../medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const downloadUrl =
-          Array.isArray(res) && res[0] && typeof res[0].url === "string"
-            ? res[0].url
-            : null;
-        if (downloadUrl) {
-          sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
-        } else {
-          console.error("Azure upload did not return a valid download URL", res);
-          sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-        }
-      } catch (error) {
-        console.error("Error uploading PDF for download:", error);
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-      }
-    } else {
-      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-    }
+    navigate(`/prescription_print_view/?url=${printUrl}&key=download`, {
+      replace: true,
+      state: state,
+    });
+    navigate(0, { replace: true });
   };
 
   async function onDocumentLoadSuccess(successEvent) {
@@ -401,19 +266,28 @@ function SnapRxPreview() {
     }
   };
 
-  const onSelect = useCallback(
-    (data) => {
-      const encodedData = btoa(data.toString());
-      setPrintUrl(`${currentSessionRx || (state?.print_rx_url || state?.print_url)}&pam_id=${pam_id}&lg=${encodedData}`);
-      setSelectedLang(data);
-      updatePatientDefaultLanguage({
-        patientId: patient_data?.patient_unique_id,
-        default_language: data,
-      });
-      setCurrentSessionRx(null);
-    },
-    [currentSessionRx, state?.print_rx_url, state?.print_url, patient_data?.patient_unique_id, pam_id]
-  );
+  const updateRxDigitizeInUrl = (url, showDigitalRx) => {
+    const urlObj = new URL(url);
+
+    if (showDigitalRx) {
+      urlObj.searchParams.set("rxDigitize", "true");
+      setButtonText("Send to WhatsApp");
+    } else {
+      urlObj.searchParams.delete("rxDigitize");
+      setButtonText("Send to WhatsApp");
+    }
+
+    return urlObj.toString();
+  };
+
+  // Effect to update printUrl when showDigitalRx changes
+  useEffect(() => {
+    if (printUrl) {
+      const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
+      setPreviewUrl(updatedUrl);
+      setPrintUrl(updatedUrl);
+    }
+  }, [showDigitalRx]);
 
   const handleSendToWhatsapp = async () => {
     const body = {
@@ -501,82 +375,49 @@ function SnapRxPreview() {
   };
 
   const printInAppContent = async () => {
-    if (currentSessionRx) {
-      // If currentSessionRx is a blob URL, fetch the blob and upload it
-      try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
-          type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("../medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const uploadedPrintUrl =
-          Array.isArray(res) && res[0] && typeof res[0].url === "string"
-            ? res[0].url
-            : null;
-        if (uploadedPrintUrl) {
-          sendMessageToParent(EVENTS.PRINT, { url: uploadedPrintUrl });
-        } else {
-          console.error("Azure upload did not return a valid print URL", res);
-          sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-        }
-      } catch (error) {
-        console.error("Error uploading PDF for print:", error);
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-      }
-    } else {
-      sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-    }
+    navigate(`/snap-rx/preview/?url=${printUrl}&key=print`, {
+      replace: true,
+      state: state,
+    });
+    navigate(0, { replace: true });
   };
 
-  const PRINT_IFRAME_ID = "snap-rx-print-iframe";
-
   const printContent = async () => {
-    try {
-      if (!printBlob) {
-        throw new Error("Print blob is not available");
+    if (isMobile || osName == "Linux") {
+      try {
+        const blobURL = URL.createObjectURL(printBlob);
+        const printWindow = window.open(blobURL, "_blank");
+
+        if (!printWindow) {
+          console.error("Unable to open new window for printing");
+          return;
+        }
+
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            URL.revokeObjectURL(blobURL);
+          }, 1000);
+        };
+      } catch (error) {
+        console.error("Error occurred while printing:", error);
       }
-
-      const blobURL = URL.createObjectURL(printBlob);
-
-      const existingPrintIframe = document.getElementById(PRINT_IFRAME_ID);
-      if (existingPrintIframe) existingPrintIframe.remove();
-
-      const iframe = document.createElement("iframe");
-      iframe.id = PRINT_IFRAME_ID;
+    } else {
+      var blobURL = URL.createObjectURL(printBlob);
+      document.querySelectorAll("iframe").forEach(function (iframe) {
+        iframe.parentNode.removeChild(iframe);
+      });
+      var iframe = document.createElement("iframe");
+      document.body.appendChild(iframe);
       iframe.style.display = "none";
       iframe.src = blobURL;
-
-      iframe.onerror = () => {
-        URL.revokeObjectURL(blobURL);
-        iframe.remove();
-        console.error("Failed to load print content");
-        errorMessage("Failed to print prescription");
-      };
-
-      iframe.onload = () => {
-        try {
-          requestAnimationFrame(() => {
-            iframe.focus();
-            iframe.contentWindow.print();
-            URL.revokeObjectURL(blobURL);
-            iframe.remove();
-          });
-        } catch (error) {
-          console.error("Error during print:", error);
+      iframe.onload = function () {
+        setTimeout(function () {
+          iframe.focus();
+          iframe.contentWindow.print();
           URL.revokeObjectURL(blobURL);
-          iframe.remove();
-          errorMessage("Failed to print prescription");
-        }
+        }, 1);
       };
-
-      document.body.appendChild(iframe);
-    } catch (error) {
-      console.error("Error in printContent:", error);
-      errorMessage("Failed to print prescription");
     }
   };
 
@@ -590,29 +431,7 @@ function SnapRxPreview() {
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
       navigate("/configure_print_setting", {
-        state: {
-          caseManagerData: {
-            ...action.payload,
-            patient_data: {
-              ...(action.payload?.patient_data || {}),
-              ...(patient_data || {}),
-            },
-          },
-          smartRxFile: smartRxFile && smartRxFile.length ? smartRxFile : (state?.files || []),
-          patient_data: {
-            ...(action.payload?.patient_data || {}),
-            ...(patient_data || {}),
-          },
-          pam_id: state?.pam_id || patient_data?.pam_id || 0,
-          tcm_id: state?.tcm_id,
-          print_url: state?.print_rx_url || state?.print_url,
-          selectedLang: selectedLang,
-          from: "/snap-rx/preview",
-          // Pass page state if it exists (indicates digitized Rx flow)
-          // If state?.page === "digitise", we're configuring for digitized Rx
-          // If state?.page is undefined/null, we're configuring for written Rx
-          page: state?.page
-        },
+        state: { caseManagerData: action.payload, smartRxFile },
       });
     } else {
       errorMessage(action.error);
@@ -635,7 +454,7 @@ function SnapRxPreview() {
       >
         <Row gutter={{ xl: 40, lg: 0 }} justify="center">
           <Col md={7} lg={7} xl={7}>
-            {!isMobile && (showDigitalRx || state?.from === "/configure_print_setting" || viewCaseManagerData?.isRxDigitize) ? (
+            {!isMobile && showDigitalRx ? (
               <div
                 className="d-flex align-items-center justify-content-end h-38"
                 onClick={configurePrintUrl}
@@ -660,12 +479,6 @@ function SnapRxPreview() {
               }}
             >
               <div>
-                {!isMobile ? '' : (showDigitalRx || state?.from === "/configure_print_setting" || viewCaseManagerData?.isRxDigitize) && (
-                  <div className="d-flex align-items-center mb-14 h-38" onClick={configurePrintUrl}>
-                    <i className="icon-setting me-2"></i>
-                    <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>
-                  </div>
-                )}
                 <Button
                   type="text"
                   className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
@@ -772,9 +585,7 @@ function SnapRxPreview() {
               {!showProgressbar &&
                 isSnapRxDigitizationAccessable &&
                 smartRxFile?.length > 0 &&
-                state?.page !== "digitise" &&
-                !(state?.from === "/configure_print_setting" && state?.page === "digitise") &&
-                !showDigitalRx && (
+                state?.page !== "digitise" && (
                   <div className="digitise-cta-container">
                     <div className="content-box">
                       <div className="d-flex">
@@ -809,51 +620,31 @@ function SnapRxPreview() {
             <div className={isMobile ? "p-20" : ""}>
               <div className="d-flex align-itms-center justify-content-between">
                 <div className="titleprint">Preview</div>
-                <div className="d-flex align-items-center flex-wrap gap-3">
-                  {((viewCaseManagerData?.isRxDigitize && state?.page === "digitise") ||
-                    (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
-                      <div>
-                        <button
-                          className={`digital-btn ${
-                            !showDigitalRx
-                              ? "digitise-toggle-btn"
-                              : "active-digitise-toggle-btn"
-                          }`}
-                          onClick={() => {
-                            setCurrentSessionRx(null); // Clear cached session Rx to force reload with new URL
-                            setShowDigitalRx(true);
-                          }}
-                        >
-                          Digital Rx
-                        </button>
-                        <button
-                          className={`written-btn ${
-                            showDigitalRx
-                              ? "digitise-toggle-btn"
-                              : "active-digitise-toggle-btn"
-                          }`}
-                          onClick={() => {
-                            setCurrentSessionRx(null);
-                            setShowDigitalRx(false);
-                          }}
-                        >
-                          Written Rx
-                        </button>
-                      </div>
-                    )}
-                  {(state?.page === "digitise" || (state?.from === "/configure_print_setting" && state?.page === "digitise")) && (
-                    <>
-                      <label className="fontroboto">Select Language</label>
-                      <Select
-                        placeholder="English"
-                        className="ms-3 appointmentselect"
-                        value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
-                        onSelect={onSelect}
-                        options={LANGUAGE_LIST}
-                      />
-                    </>
+                {viewCaseManagerData?.isRxDigitize &&
+                  state?.page === "digitise" && (
+                    <div>
+                      <button
+                        className={`digital-btn ${
+                          !showDigitalRx
+                            ? "digitise-toggle-btn"
+                            : "active-digitise-toggle-btn"
+                        }`}
+                        onClick={() => setShowDigitalRx(true)}
+                      >
+                        Digital Rx
+                      </button>
+                      <button
+                        className={`written-btn ${
+                          showDigitalRx
+                            ? "digitise-toggle-btn"
+                            : "active-digitise-toggle-btn"
+                        }`}
+                        onClick={() => setShowDigitalRx(false)}
+                      >
+                        Written Rx
+                      </button>
+                    </div>
                   )}
-                </div>
               </div>
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
@@ -893,10 +684,7 @@ function SnapRxPreview() {
                           {"No PDF file specified."}
                         </div>
                       }
-                      file={currentSessionRx || printUrl}
-                      onLoadError={() => {
-                        setCurrentSessionRx(null);
-                      }}
+                      file={!showDigitalRx ? printUrl : previewUrl}
                       onLoadSuccess={onDocumentLoadSuccess}
                     >
                       {Array.apply(null, Array(numPages))
