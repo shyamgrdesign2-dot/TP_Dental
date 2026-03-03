@@ -29,6 +29,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const previousPage = state?.from;
+    const { selectedLang, isAmbientRx, rxId, print_url } = state || {};
 
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const decodedToken = getDecodedToken();
@@ -148,13 +149,53 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             const action = await dispatch(savePrintsettings(sendData));
 
             if (action.meta.requestStatus === "fulfilled") {
-                navigate(previousPage ?? "/prescription_print_view", {
-                    replace: true,
-                    state: {
-                        ...state,
-                        currentSessionRx, // pass the freshly generated PDF (URL string) back
-                    },
-                });
+                if (previousPage === "/gen-rx-print") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/gen-rx-print", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            print_url: print_url,
+                            isAmbientRx: isAmbientRx,
+                            rxId: rxId,
+                            currentSessionRx: null
+                        } 
+                    });
+                } else if (previousPage === "/snap-rx/preview") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/snap-rx/preview", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            currentSessionRx: null,
+                            from: "/configure_print_setting",
+                            page: state?.page, // Preserve page state to indicate if it's after digitization
+                            smartRxFile: state?.smartRxFile || state?.files,
+                            files: state?.files || state?.smartRxFile
+                        } 
+                    });
+                } else if (previousPage === "/print-smart-rx") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/print-smart-rx", { 
+                        replace: true, 
+                        state: { 
+                            ...state, 
+                            selectedLang: updatedSelectedLang,
+                            currentSessionRx: null,
+                            from: "/configure_print_setting",
+                            page: state?.page, // Preserve page state to indicate if it's after digitization
+                            smartRxFile: state?.smartRxFile || state?.files
+                        } 
+                    });
+                } else {
+                    if (previousPage) {
+                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx } });
+                    } else {
+                        navigate(-1, { replace: true, state: { ...state, currentSessionRx } });
+                    }
+                }
             } else {
                 errorMessage(action.error)
             }
@@ -171,7 +212,48 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
         let update_json = { ...printSettings }
         delete update_json['qrcode']
         if (JSON.stringify(defaultPrintSettings) == JSON.stringify(update_json)) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+            if (previousPage === "/gen-rx-print") {
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: currentSessionRx,
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
+                    } 
+                });
+            } else {
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                }
+            }
         } else {
             setFlag(1)
             showHideBackModal()
@@ -184,9 +266,111 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
 
     const onYesLeaveClick = async() => {
         if (flag === 1) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+            if (previousPage === "/gen-rx-print") {
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page,
+                        smartRxFile: state?.smartRxFile || state?.files
+                    }
+                });
+            } else {
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: null } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: null } });
+                }
+            }
         } else if (flag === 3) {
-            navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
+            if (previousPage === "/gen-rx-print") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/gen-rx-print", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        print_url: print_url,
+                        isAmbientRx: isAmbientRx,
+                        rxId: rxId,
+                        currentSessionRx: currentSessionRx
+                    } 
+                });
+            } else if (previousPage === "/snap-rx/preview") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/snap-rx/preview", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files,
+                        files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: updatedSelectedLang,
+                        currentSessionRx: currentSessionRx,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
+                    } 
+                });
+            } else {
+                let sessionRxToPass = currentSessionRx;
+                if (
+                    previousPage === "/prescription_print_view" &&
+                    typeof currentSessionRx === "string" &&
+                    currentSessionRx.startsWith("blob:")
+                ) {
+                    try {
+                        const res = await fetch(currentSessionRx);
+                        const blob = await res.blob();
+                        sessionRxToPass = blob;
+                    } catch (err) {
+                        console.error("Failed to hydrate session Rx blob before navigation", err);
+                    }
+                }
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
+                }
+            }
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));
             if(action.meta.requestStatus === "fulfilled") {

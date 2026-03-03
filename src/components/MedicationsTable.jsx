@@ -17,7 +17,7 @@ import { capitalize, removeBeforeWhiteSpace, getTokenData, onlyNumberFormat, has
 import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { env } from '../EnvironmentConfig';
-import { GB_ZYDUS_USER, EXTRA_OPTIONS } from '../utils/constants';
+import { GB_ZYDUS_USER, EXTRA_OPTIONS, GB_MED_INVESTIGATION } from '../utils/constants';
 import ApiMedication from '../api/services/ApiMedication';
 import CustomMedicinePopup from './CustomMedicinePopup';
 import config from '../config';
@@ -27,6 +27,7 @@ const MedicationsTable = ({
   medications = [],
   onUpdate,
   isProcessing = false,
+  isMedInvestigationFeatureOn: isMedInvestigationFeatureOnProp,
 }) => {
   const dispatch = useDispatch();
   const { parentOptionsList, loading } = useSelector((state) => state.medication);
@@ -35,6 +36,8 @@ const MedicationsTable = ({
   const { tcmId } = useContext(CashManagerContext);
   const { profile, siteId, storeCode, frequencyList, timingList } = useSelector((state) => state.doctors);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isMedInvestigationOnFromGB = useFeatureIsOn(GB_MED_INVESTIGATION);
+  const isMedInvestigationFeatureOn = isMedInvestigationFeatureOnProp ?? isMedInvestigationOnFromGB;
   const tokenData = getTokenData();
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
@@ -50,6 +53,7 @@ const MedicationsTable = ({
   const [originalEditValue, setOriginalEditValue] = useState(''); // Track original value to detect if user edited
   const isFuzzySearchInProgress = useRef(false); // Track when fuzzy search is in progress
   const hasFuzzyResults = useRef(false); // Track if we have fuzzy results to avoid checking state in useEffect
+  const hasHadMedicationsRef = useRef(false); // Show "No medications found" only after user had items and deleted them
   const [editingRow, setEditingRow] = useState(null);
   const [rowEditValues, setRowEditValues] = useState({});
   const [isTablet, setIsTablet] = useState(false);
@@ -331,6 +335,10 @@ const MedicationsTable = ({
       onUpdate(updatedMedications);
     }
   }, [medications, onUpdate]);
+
+  useEffect(() => {
+    if (medications.length > 0) hasHadMedicationsRef.current = true;
+  }, [medications.length]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -1009,8 +1017,11 @@ const MedicationsTable = ({
     );
   }
 
+  const isInitialEmpty = isMedInvestigationFeatureOn && medications.length === 0 && !hasHadMedicationsRef.current;
+  const showEmptyMessage = medications.length === 0 && (isMedInvestigationFeatureOn ? hasHadMedicationsRef.current : true);
+
   return (
-    <div className={styles['medications-content-box']}>
+    <div className={`${styles['medications-content-box']} ${isInitialEmpty ? styles['compact-default'] : ''}`}>
       <div className={styles['medications-header']}>
         <div className={styles['medications-icon']}>
           <img src={medicationsIcon} alt="Medications" />
@@ -1489,7 +1500,7 @@ const MedicationsTable = ({
             </Droppable>
         </table>
         
-        {medications.length === 0 && (
+        {showEmptyMessage && (
           <div className={styles['empty-state']}>
             <p>No medications found</p>
           </div>
