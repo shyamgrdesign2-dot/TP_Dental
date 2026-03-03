@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dropdown, message } from 'antd';
+import { Dropdown, message, Button } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import CanvasEngine from './CanvasEngine';
 import Toolbar from './Toolbar';
 import TemplateSidebar from './TemplateSidebar';
 import RxTemplateUploadDrawer from '../../smartSync/components/RxTemplateUploadDrawer';
+import CommonModal from '../../../common/CommonModal';
 import { getTemplates } from '../services/templateService';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { generateId } from '../utils/geometry';
+import alertIcon from '../../../assets/images/alertIcon.svg';
 import './TabRxCanvas.scss';
 
 const INITIAL_TOOL_SETTINGS = {
@@ -81,6 +83,10 @@ const TabRxCanvas = ({
   const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
+  
+  // Delete confirmation modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
 
   // Helper to fit canvas to available space
   const fitCanvasToScreen = useCallback(() => {
@@ -306,7 +312,23 @@ const TabRxCanvas = ({
     setRedoStack([]);
   }, [pagesMetadata]);
 
-  // Delete a page
+  // Show delete confirmation modal
+  const showDeleteModal = useCallback((pageIndex) => {
+    if (pagesMetadata.length <= 1) {
+      message.warning('Cannot delete the last page');
+      return;
+    }
+    setPageToDeleteIndex(pageIndex);
+    setIsDeleteModalOpen(true);
+  }, [pagesMetadata.length]);
+
+  // Hide delete confirmation modal
+  const hideDeleteModal = useCallback(() => {
+    setIsDeleteModalOpen(false);
+    setPageToDeleteIndex(null);
+  }, []);
+
+  // Delete a page (called after confirmation)
   const handleDeletePage = useCallback((pageIndex) => {
     if (pagesMetadata.length <= 1) {
       message.warning('Cannot delete the last page');
@@ -338,12 +360,23 @@ const TabRxCanvas = ({
     } else if (currentPageIndex > pageIndex) {
       // If we deleted a page before the current one, adjust index
       setCurrentPageIndex(currentPageIndex - 1);
+    } else if (currentPageIndex === pageIndex) {
+      // If we deleted the current page, move to previous page or stay at 0
+      setCurrentPageIndex(Math.max(0, pageIndex - 1));
     }
 
     setUndoStack([]);
     setRedoStack([]);
-    message.success('Page deleted');
+    message.success('Page deleted successfully');
   }, [pagesMetadata, currentPageIndex]);
+
+  // Confirm and delete page
+  const confirmDeletePage = useCallback(() => {
+    if (pageToDeleteIndex !== null) {
+      handleDeletePage(pageToDeleteIndex);
+      hideDeleteModal();
+    }
+  }, [pageToDeleteIndex, handleDeletePage, hideDeleteModal]);
 
   const refreshTemplates = useCallback(async () => {
     try {
@@ -497,15 +530,22 @@ const TabRxCanvas = ({
                 }
               ];
 
+              const isSelected = currentPageIndex === pageIndex;
+
               return (
                 <div 
                   key={pageId} 
-                  className="canvas-page-block"
+                  className={`canvas-page-block ${isSelected ? 'selected' : ''}`}
                   style={{
                     width: A4_BASE_WIDTH * zoomLevel,
                     height: A4_BASE_HEIGHT * zoomLevel
                   }}
                 >
+                  {/* Page Number Label */}
+                  <div className="page-number-label">
+                    Page {pageIndex + 1}
+                  </div>
+                  
                   <CanvasEngine
                     strokes={pageStrokes}
                     setStrokes={(newStrokes) => {
@@ -541,7 +581,7 @@ const TabRxCanvas = ({
                       className="page-action-btn delete-btn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeletePage(pageIndex);
+                        showDeleteModal(pageIndex);
                       }}
                       disabled={pagesMetadata.length <= 1}
                       title="Delete Page"
@@ -592,6 +632,44 @@ const TabRxCanvas = ({
         onClose={handleDrawerUploadCanvas}
         onSave={handleCanvasUploaded}
         source="tab-rx"
+      />
+
+      {/* Delete Page Confirmation Modal */}
+      <CommonModal
+        isModalOpen={isDeleteModalOpen}
+        onCancel={hideDeleteModal}
+        modalWidth={500}
+        title="You may lose your data"
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Are you sure you want to delete this page? <br />
+                  This action cannot be undone and you will lose all data on this page.
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={confirmDeletePage}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  style={{ cursor: 'pointer' }}
+                >
+                  Delete
+                </div>
+                <Button
+                  onClick={hideDeleteModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
       />
     </div>
   );

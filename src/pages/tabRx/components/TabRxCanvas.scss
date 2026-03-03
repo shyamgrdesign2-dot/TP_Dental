@@ -137,9 +137,28 @@
     background: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     border-radius: 12px;
-    border: 1px solid #A461D8;
+    border: 1px solid transparent;
     overflow: hidden;
     position: relative;
+    transition: border-color 0.2s ease;
+
+    &.selected {
+      border: 1px solid #A461D8;
+    }
+
+    .page-number-label {
+      position: absolute;
+      // top: 2px;
+      // left: 1px;
+      font-size: 12px;
+      color: #ba7de9 !important;
+      font-weight: 500;
+      z-index: 10;
+      pointer-events: none;
+      background: #EDDFF7;
+      padding: 3px 10px;
+      border-radius: 4px 0 12px 0;
+    }
 
     .tab-rx-canvas-container {
       width: 100%;
