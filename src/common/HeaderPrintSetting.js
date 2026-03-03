@@ -351,10 +351,24 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     } 
                 });
             } else {
+                let sessionRxToPass = currentSessionRx;
+                if (
+                    previousPage === "/prescription_print_view" &&
+                    typeof currentSessionRx === "string" &&
+                    currentSessionRx.startsWith("blob:")
+                ) {
+                    try {
+                        const res = await fetch(currentSessionRx);
+                        const blob = await res.blob();
+                        sessionRxToPass = blob;
+                    } catch (err) {
+                        console.error("Failed to hydrate session Rx blob before navigation", err);
+                    }
+                }
                 if (previousPage) {
-                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
                 } else {
-                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
                 }
             }
         } else {
