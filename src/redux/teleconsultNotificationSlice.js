@@ -44,6 +44,7 @@ const teleconsultNotificationSlice = createSlice({
     },
     clearTeleconsultNotification: (state) => {
       state.waitingBanners = [];
+      state.appointmentStatusByAppointmentId = {};
       state.joinToken = null;
       state.lastShownStatusKey = null;
     },

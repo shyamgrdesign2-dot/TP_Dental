@@ -1463,7 +1463,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
     
-    // Create video consultation data object for type 1 (video consult) or type 2 (teleconsult)
     const videoConsultData = (record.pam_status_type_appointment === 1 || record.pam_status_type_appointment === 2) ? {
       pam_id: record.pam_id,
       pam_status_type_appointment: record.pam_status_type_appointment,

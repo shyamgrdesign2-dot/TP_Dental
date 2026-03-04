@@ -16,17 +16,17 @@ ApiTeleconsult.getHasVideoSlots = function (doctorId, hmId) {
 };
 
 ApiTeleconsult.getSlots = function (doctorId, date) {
-  return api.get(
-    `/api/v1/appointment/listSlots?doctorId=${doctorId}&date=${date}&pam_status_type_appointment=2`,
-    baseUrl
-  );
+  const params = new URLSearchParams();
+  if (doctorId != null && doctorId !== "") params.set("doctorId", String(doctorId));
+  if (date != null && date !== "") params.set("date", String(date));
+  params.set("pam_status_type_appointment", "2");
+  return api.get(`/api/v1/appointment/listSlots?${params.toString()}`, baseUrl);
 };
 
 ApiTeleconsult.checkVideoAvailability = function (appointmentId) {
-  return api.get(
-    `/api/v1/teleconsult/check-video-availability?appointmentId=${appointmentId}`,
-    baseUrl
-  );
+  const params = new URLSearchParams();
+  if (appointmentId != null && appointmentId !== "") params.set("appointmentId", String(appointmentId));
+  return api.get(`/api/v1/teleconsult/check-video-availability?${params.toString()}`, baseUrl);
 };
 
 export default ApiTeleconsult;

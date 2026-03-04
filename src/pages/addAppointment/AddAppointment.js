@@ -376,18 +376,25 @@ function AddAppointment() {
   const [appointmentMode, setAppointmentMode] = useState("in_clinic");
 
   useEffect(() => {
+    let cancelled = false;
     const doctorId = selectedDoctor || getTokenData()?.user_id;
     const hmId = getTokenData()?.clinic_id;
     if (!doctorId || !isTeleConsultEnabled) {
       setHasVideoSlotsFromApi(false);
-      return;
+      return () => {};
     }
     ApiTeleconsult.getHasVideoSlots(doctorId, hmId)
       .then((res) => {
+        if (cancelled) return;
         const data = res?.data ?? res;
         setHasVideoSlotsFromApi(!!data?.hasVideoSlots);
       })
-      .catch(() => setHasVideoSlotsFromApi(false));
+      .catch(() => {
+        if (!cancelled) setHasVideoSlotsFromApi(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isTeleConsultEnabled, selectedDoctor]);
 
   // Helper function to find the first available section

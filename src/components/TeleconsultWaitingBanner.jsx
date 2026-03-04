@@ -13,7 +13,6 @@ import "./TeleconsultWaitingBanner.scss";
 
 const DATE_FORMAT = "YYYY-MM-DD";
 
-/** Fetch appointment list for a date and tab, return the record matching pam_id or null. */
 async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
   try {
     const result = await ApiAppointments.getAllAppointment({
@@ -22,7 +21,7 @@ async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
       apStatue,
       page: 0,
     });
-    const list = result?.data?.app_data || result?.app_data || [];
+    const list = result?.data?.app_data ?? [];
     const record = list.find((e) => String(e?.pam_id) === String(pamId));
     return record || null;
   } catch {
@@ -30,7 +29,6 @@ async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
   }
 }
 
-/** Try to find appointment by pam_id across multiple dates and tabs (queue, finished, draft). */
 async function findAppointmentByPamId(pamId) {
   const pamIdStr = String(pamId);
   if (!pamIdStr) return null;
@@ -54,7 +52,6 @@ export default function TeleconsultWaitingBanner({ payload, onClose }) {
   const navigate = useNavigate();
   const [joinLoading, setJoinLoading] = useState(false);
 
-  // Avoid "Patient Patient": show "Patient" only when we have no real name
   const hasRealName = payload?.patientName && String(payload.patientName).trim();
   const patientLabel = hasRealName ? `Patient ${payload.patientName.trim()}` : "Patient";
   const appointmentTime = payload?.appointmentTime ?? "";

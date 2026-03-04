@@ -36,6 +36,23 @@ body{
         height: 60px;
         box-shadow: -1px -1px 0px 0px #E2E2EA inset;
 
+        .teleconsult-video-btn {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            padding: 8px;
+            border: 1px solid #D1D5DB;
+            border-radius: 10px;
+            background: transparent;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            &:hover {
+                background-color: transparent !important;
+                border-color: #D1D5DB !important;
+            }
+        }
+
         &.headerprescription--tablet {
             background: #fff;
             padding-left: 0;
@@ -85,43 +102,9 @@ body{
                 max-width: 140px;
             }
 
-            .teleconsult-video-btn {
-                width: 42px;
-                height: 42px;
-                min-width: 42px;
-                padding: 8px;
-                border: 1px solid #D1D5DB;
-                border-radius: 10px;
-                background: transparent;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                &:hover {
-                    background-color: transparent !important;
-                    border-color: #D1D5DB !important;
-                }
-            }
-
             .teleconsult-video-btn + .headerprescription-tablet-sep {
                 margin-inline-start: 8px;
             }
         }
-    }
-}
-
-.teleconsult-video-btn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    padding: 8px;
-    border: 1px solid #D1D5DB;
-    border-radius: 10px;
-    background: transparent;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    &:hover {
-        background-color: transparent !important;
-        border-color: #D1D5DB !important;
     }
 }

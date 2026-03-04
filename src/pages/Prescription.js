@@ -490,7 +490,6 @@ function Prescription() {
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
-  console.log("[Prescription Type-2] isTeleConsultEnabled:", isTeleConsultEnabled, "videoConsultData?.pam_status_type_appointment:", videoConsultData?.pam_status_type_appointment, "isVideoConsultAvailableType2:", isVideoConsultAvailableType2, "isNormalConsultFlow:", isNormalConsultFlow, "showTeleconsultIcon:", isNormalConsultFlow && isTeleConsultEnabled && !!isVideoConsultAvailableType2);
   const contextApi = {
     patient_data,
     send_path,
@@ -688,7 +687,7 @@ function Prescription() {
   };
 
   const handleTeleconsultClick = async () => {
-    const appointmentId = pamId || patient_data?.pam_id;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
     if (!appointmentId) {
       message.error("No appointment selected");
       return;

@@ -7,6 +7,7 @@ import {
   initOneSignal,
   listenForTeleconsultNotifications,
   registerDoctorExternalId,
+  resetOneSignalState,
 } from "../services/oneSignalService";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_TELE_CONSULT } from "../utils/constants";
@@ -15,6 +16,7 @@ import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
 import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 
 let oneSignalFlowStarted = false;
+let lastOneSignalDoctorId = null;
 
 export default function AppTeleconsultBootstrap() {
   const dispatch = useDispatch();
@@ -26,30 +28,49 @@ export default function AppTeleconsultBootstrap() {
   const isTeleConsultEnabledFromGB = useFeatureIsOn(GB_TELE_CONSULT);
   const isLoginPage = location.pathname === "/login";
   const isReceptionist = searchParams.has("receptionist");
+  const doctorId = getDecodedToken()?.result?.user_id ?? null;
   const showFloatingWindow = joinToken && !isLoginPage && !isReceptionist;
   const doctorName = profile?.um_name || profile?.doctor_name || "Doctor";
 
   useEffect(() => {
     if (!isTeleConsultEnabledFromGB || isLoginPage || isReceptionist) return;
 
-    const token = getDecodedToken();
-    const doctorId = token?.result?.user_id;
-    if (!doctorId) return;
+    if (!doctorId) {
+      resetOneSignalState();
+      oneSignalFlowStarted = false;
+      lastOneSignalDoctorId = null;
+      return;
+    }
 
-    if (oneSignalFlowStarted) return;
+    if (oneSignalFlowStarted && lastOneSignalDoctorId === doctorId) return;
+
+    if (lastOneSignalDoctorId !== null && lastOneSignalDoctorId !== doctorId) {
+      resetOneSignalState();
+      oneSignalFlowStarted = false;
+    }
+
+    lastOneSignalDoctorId = doctorId;
     oneSignalFlowStarted = true;
 
-    initOneSignal()
-      .then(async () => {
+    (async () => {
+      try {
+        if (!(await initOneSignal())) {
+          oneSignalFlowStarted = false;
+          resetOneSignalState();
+          return;
+        }
         listenForTeleconsultNotifications();
         await OneSignal.Notifications.requestPermission();
         if (!OneSignal.User.PushSubscription.optedIn) {
           await OneSignal.User.PushSubscription.optIn();
         }
         await registerDoctorExternalId(String(doctorId));
-      })
-      .catch(console.error);
-  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist]);
+      } catch {
+        oneSignalFlowStarted = false;
+        resetOneSignalState();
+      }
+    })();
+  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId]);
 
   const handleCloseFloatingWindow = () => {
     dispatch(setJoinToken(null));
