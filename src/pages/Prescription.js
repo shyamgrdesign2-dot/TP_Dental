@@ -125,7 +125,7 @@ import GroundingBox from "../components/GroundingBox";
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
-import { setJoinToken } from "../redux/teleconsultNotificationSlice";
+import { setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
@@ -430,8 +430,11 @@ function Prescription() {
   useEffect(() => {
     if (teleconsultAutoJoin?.token) {
       dispatch(setJoinToken(teleconsultAutoJoin.token));
+      if (videoConsultData?.pam_id != null) {
+        dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
+      }
     }
-  }, [teleconsultAutoJoin?.token, dispatch]);
+  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -699,6 +702,7 @@ function Prescription() {
       const token = data?.joinPayload?.token ?? data?.token;
       if (token) {
         dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }

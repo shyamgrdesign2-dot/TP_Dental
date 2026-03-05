@@ -98,7 +98,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
-import { setJoinToken } from "../../redux/teleconsultNotificationSlice";
+import { setJoinToken, setActiveTeleconsultAppointmentId } from "../../redux/teleconsultNotificationSlice";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -430,8 +430,11 @@ function TabPrescription() {
   useEffect(() => {
     if (teleconsultAutoJoin?.token) {
       dispatch(setJoinToken(teleconsultAutoJoin.token));
+      if (videoConsultData?.pam_id != null) {
+        dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
+      }
     }
-  }, [teleconsultAutoJoin?.token, dispatch]);
+  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1526,6 +1529,7 @@ function TabPrescription() {
       const token = data?.joinPayload?.token ?? data?.token;
       if (token) {
         dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }

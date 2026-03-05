@@ -7,6 +7,8 @@ const initialState = {
   appointmentStatusByAppointmentId: {},
   /** Token from join API when user joins from notification (enables global floating window) */
   joinToken: null,
+  /** pam_id of the appointment for which the current floating-window call is active (used to close window when that appointment is cancelled) */
+  activeTeleconsultAppointmentId: null,
   /** Last status+consultationId we showed toast for (avoid duplicate toasts) */
   lastShownStatusKey: null,
 };
@@ -38,6 +40,12 @@ const teleconsultNotificationSlice = createSlice({
     },
     setJoinToken: (state, action) => {
       state.joinToken = action.payload;
+      if (action.payload == null) {
+        state.activeTeleconsultAppointmentId = null;
+      }
+    },
+    setActiveTeleconsultAppointmentId: (state, action) => {
+      state.activeTeleconsultAppointmentId = action.payload;
     },
     setLastShownStatusKey: (state, action) => {
       state.lastShownStatusKey = action.payload;
@@ -46,6 +54,7 @@ const teleconsultNotificationSlice = createSlice({
       state.waitingBanners = [];
       state.appointmentStatusByAppointmentId = {};
       state.joinToken = null;
+      state.activeTeleconsultAppointmentId = null;
       state.lastShownStatusKey = null;
     },
   },
@@ -56,6 +65,7 @@ export const {
   removeWaitingBanner,
   setAppointmentTeleconsultStatus,
   setJoinToken,
+  setActiveTeleconsultAppointmentId,
   setLastShownStatusKey,
   clearTeleconsultNotification,
 } = teleconsultNotificationSlice.actions;

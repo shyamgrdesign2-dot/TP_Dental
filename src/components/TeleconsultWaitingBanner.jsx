@@ -7,7 +7,7 @@ import moment from "moment";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiAppointments from "../api/services/ApiAppointments";
 import videoGreenIcon from "../assets/images/video-green.svg";
-import { removeWaitingBanner, setJoinToken } from "../redux/teleconsultNotificationSlice";
+import { removeWaitingBanner, setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
 import { TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX } from "../utils/constants";
 import "./TeleconsultWaitingBanner.scss";
 
@@ -97,7 +97,9 @@ export default function TeleconsultWaitingBanner({ payload, onClose }) {
           pam_id: patientData.pam_id ?? appointmentId,
           pam_status_type_appointment: 2,
         };
+        const pamId = patientData.pam_id ?? appointmentId;
         dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(pamId));
         navigate("/prescription", {
           state: {
             patient_data: patientData,

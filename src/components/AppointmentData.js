@@ -129,6 +129,7 @@ import {
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { changeSortOrder } from "../redux/doctorsSlice";
+import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 import CreateCertificate from "./medical_certificate/CreateCertificate";
 import { resetVaccineState } from "../redux/vaccineSlice";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
@@ -214,7 +215,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     snapRxUnDigitisedIds,
     draftRxCount,
   } = useSelector((state) => state.records);
-  const { appointmentStatusByAppointmentId } = useSelector(
+  const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId } = useSelector(
     (state) => state.teleconsultNotification
   );
   const dispatch = useDispatch();
@@ -2995,6 +2996,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     };
                     const action = await dispatch(cancelAppointments(sendData));
                     if (action.meta.requestStatus === "fulfilled") {
+                      if (activeTeleconsultAppointmentId != null && String(sendData.pam_id) === String(activeTeleconsultAppointmentId)) {
+                        dispatch(setJoinToken(null));
+                      }
                       handleConfirmationModal();
                       message.open({
                         key: MESSAGE_KEY,
@@ -3031,7 +3035,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         }
       />
     );
-  }, [isConfirmationModalOpen]);
+  }, [isConfirmationModalOpen, activeTeleconsultAppointmentId]);
 
   const END_VISIT_REASON_DISPLAY_MODAL = useMemo(() => {
     return (
