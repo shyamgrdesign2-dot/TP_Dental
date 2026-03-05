@@ -85,6 +85,7 @@ import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
 // import notesWhite from '../../assets/images/notes-white.svg';
 // import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
+import { Content } from "antd/es/layout/layout";
 import Vaccination from "../vaccination/Vaccination";
 import GrowthChart from "../growthChart/GrowthChart";
 import { viewPatient } from "../../redux/appointmentsSlice";
@@ -143,6 +144,8 @@ import {
 
 import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
 import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
+import TabRxCanvas from "./components/TabRxCanvas";
+import { uploadTabRxFiles } from "./services/tabRxService";
 import ApiVideoConsult, {
   createOpthalPrescription,
   updateOpthalPrescription,
@@ -511,6 +514,182 @@ function TabRx() {
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] =
     useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+  
+  // Canvas state
+  const canvasRef = useRef(null);
+  const [smartRxFiles, setSmartRxFiles] = useState([]);
+  const [isCustomSSRX, setIsCustomSSRX] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [canvasLoader, setCanvasLoader] = useState(false);
+  const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
+  const [hasCanvasContent, setHasCanvasContent] = useState(false);
+  const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
+  
+  // Handle template drawer toggle
+  const handleToggleTemplateDrawer = useCallback(() => {
+    setShowTemplateDrawer(prev => !prev);
+  }, []);
+  
+  // Handle canvas content change notification
+  const handleCanvasContentChange = useCallback((hasContent) => {
+    setHasCanvasContent(hasContent);
+  }, []);
+  
+  // Check canvas content on mount and when canvas ref changes
+  useEffect(() => {
+    const checkCanvasContent = () => {
+      if (canvasRef.current) {
+        try {
+          const canvasData = canvasRef.current.getCanvasData();
+          if (canvasData) {
+            // Check if there are any strokes on any page
+            const hasStrokes = canvasData.strokesByPage && 
+              Object.values(canvasData.strokesByPage).some(strokes => 
+                Array.isArray(strokes) && strokes.length > 0
+              );
+            
+            // Check if there are any text elements on any page
+            const hasTextElements = canvasData.textElementsByPage && 
+              Object.values(canvasData.textElementsByPage).some(textElements => 
+                Array.isArray(textElements) && textElements.length > 0 &&
+                textElements.some(el => el.content && el.content.trim().length > 0)
+              );
+            
+            const hasContent = hasStrokes || hasTextElements;
+            setHasCanvasContent(hasContent);
+          } else {
+            setHasCanvasContent(false);
+          }
+        } catch (error) {
+          // Ignore errors
+        }
+      }
+    };
+    
+    // Check immediately after a short delay to allow canvas to initialize
+    const timeout = setTimeout(checkCanvasContent, 100);
+    
+    // Also check periodically to catch any changes that might not trigger callbacks
+    // Reduced frequency to avoid performance issues
+    const interval = setInterval(checkCanvasContent, 2000);
+    
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [canvasRef]);
+  
+  // Handle canvas submission - convert canvas to files and upload
+  const handleCanvasSubmit = useCallback(async () => {
+    console.log('🖼️ [TabRx] handleCanvasSubmit called');
+    
+    if (!canvasRef.current) {
+      console.log('❌ [TabRx] No canvasRef.current, returning empty');
+      return { files: [], blobs: [] };
+    }
+    
+    setCanvasLoader(true);
+    try {
+      console.log('📤 [TabRx] Exporting canvas to images...');
+      const { files, blobs } = await canvasRef.current.exportToImages();
+      console.log('✅ [TabRx] Export complete:', { 
+        filesCount: files.length, 
+        blobsCount: blobs.length,
+        fileNames: files.map(f => f.name),
+        fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
+      });
+      
+      if (files.length > 0) {
+        console.log('📤 [TabRx] Starting file upload...', { 
+          filesToUpload: files.length,
+          fileNames: files.map(f => f.name)
+        });
+        
+        // Upload files using tab-rx service
+        const uploadResult = await uploadTabRxFiles(files, (progress) => {
+          console.log('📊 [TabRx] Upload progress:', progress + '%');
+        });
+        
+        console.log('📤 [TabRx] Upload result:', uploadResult);
+        
+        if (uploadResult.success) {
+          console.log('✅ [TabRx] Upload successful, updating state...');
+          
+          // Extract uploaded file names from API response
+          const uploadedFileNames = uploadResult.uploadedFileNames || [];
+          console.log('📋 [TabRx] Uploaded file names from API:', uploadedFileNames);
+          
+          // Update files with the names returned from API
+          // Create new File objects with the API-returned names
+          const updatedFiles = files.map((file, index) => {
+            const apiFileName = uploadedFileNames[index];
+            if (apiFileName) {
+              // Create a new File object with the API-returned name
+              // Keep the original blob but update the filename
+              return new File([file], apiFileName, { type: file.type });
+            }
+            // Fallback to original name if API didn't return a name for this file
+            return file;
+          });
+          
+          console.log('📝 [TabRx] Updated files with API names:', {
+            originalNames: files.map(f => f.name),
+            apiNames: uploadedFileNames,
+            updatedNames: updatedFiles.map(f => f.name)
+          });
+          
+          // Store the updated files with API-returned names
+          setSmartRxFiles(updatedFiles);
+          
+          const canvasData = canvasRef.current.getCanvasData();
+          console.log('📋 [TabRx] Canvas data:', {
+            selectedTemplateId: canvasData.selectedTemplateId,
+            pagesCount: canvasData.pagesMetadata?.length,
+            pagesMetadata: canvasData.pagesMetadata
+          });
+          
+          if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
+            setIsCustomSSRX(true);
+            setSelectedTemplateId(canvasData.selectedTemplateId);
+            console.log('✅ [TabRx] Set isCustomSSRX=true, selectedTemplateId=', canvasData.selectedTemplateId);
+          } else {
+            console.log('ℹ️ [TabRx] Blank canvas or no template selected');
+          }
+          
+          // Return updated files with API names
+          return { files: updatedFiles, blobs };
+        } else {
+          console.error('❌ [TabRx] Upload failed:', uploadResult);
+          errorMessage('Error uploading canvas files. Please try again.');
+        }
+      } else {
+        console.log('⚠️ [TabRx] No files to upload (all blank or empty)');
+      }
+      
+      console.log('✅ [TabRx] handleCanvasSubmit returning:', { 
+        filesCount: files.length,
+        fileNames: files.map(f => f.name)
+      });
+      return { files, blobs };
+    } catch (error) {
+      console.error('❌ [TabRx] Error submitting canvas:', error);
+      errorMessage('Error uploading canvas files. Please try again.');
+      return { files: [], blobs: [] };
+    } finally {
+      setCanvasLoader(false);
+    }
+  }, []);
+  
+  // Handle canvas clear
+  const handleCanvasClear = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.clearCanvas();
+      setSmartRxFiles([]);
+      setIsCustomSSRX(false);
+      setSelectedTemplateId(null);
+      setHasCanvasContent(false);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1724,6 +1903,17 @@ function TabRx() {
                 isVideoConsultAvailable ? handleVideoConsult : null
               }
               isVideoConsultLoading={isInitiatingCall}
+              smartRxFiles={smartRxFiles}
+              isCustomSSRX={isCustomSSRX}
+              selectedTemplateId={selectedTemplateId}
+              canvasData={canvasRef.current?.getCanvasData() || null}
+              canvasRef={canvasRef}
+              hasCanvasContent={hasCanvasContent}
+              onCanvasClear={handleCanvasClear}
+              onCanvasSubmit={handleCanvasSubmit}
+              onToggleTemplateDrawer={handleToggleTemplateDrawer}
+              isEndVisitLoading={isEndVisitLoading}
+              setIsEndVisitLoading={setIsEndVisitLoading}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
               <Layout>
@@ -1860,6 +2050,15 @@ function TabRx() {
                     )
                   )}
                 </Sider>
+                {/* <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}> */}
+                  <TabRxCanvas
+                    ref={canvasRef}
+                    patient={patient_data}
+                    showTemplateDrawer={showTemplateDrawer}
+                    onToggleTemplateDrawer={handleToggleTemplateDrawer}
+                    onContentChange={handleCanvasContentChange}
+                  />
+                {/* </Content> */}
               </Layout>
             </div>
           </>
@@ -2132,17 +2331,22 @@ function TabRx() {
           </Drawer>
         )}
 
-        {isLoading ? (
-          <div>
-            <Spin
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                zIndex: "9999",
-              }}
-              size="large"
-            />
+        {(isLoading || isEndVisitLoading || canvasLoader) ? (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <Spin size="large" />
           </div>
         ) : null}
       </>

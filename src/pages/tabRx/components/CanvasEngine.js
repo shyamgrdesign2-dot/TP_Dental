@@ -4,7 +4,7 @@ import { getMidPoint, generateId, splitStroke } from '../utils/geometry';
 import { FaGripVertical, FaGripHorizontal, FaTimes, FaCheck, FaTrash } from 'react-icons/fa';
 import './CanvasEngine.scss';
 
-const CanvasEngine = ({
+const CanvasEngine = React.forwardRef(({
   strokes,
   setStrokes,
   textElements,
@@ -21,9 +21,14 @@ const CanvasEngine = ({
   onPageFocus,
   backgroundImage,
   embeddedInScroll = false
-}) => {
+}, ref) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  
+  // Expose canvas ref to parent
+  React.useImperativeHandle(ref, () => ({
+    getCanvas: () => canvasRef.current
+  }), []);
   
   // Local state
   const [currentStroke, setCurrentStroke] = useState(null);
@@ -43,12 +48,21 @@ const CanvasEngine = ({
   const [selectedTextId, setSelectedTextId] = useState(null);
   const [textDragState, setTextDragState] = useState(null);
 
-  // Load background image
+  // Load background image with CORS support to avoid tainted canvas
   useEffect(() => {
     if (backgroundImage) {
       const img = new Image();
+      // Set crossOrigin to avoid tainted canvas errors when exporting
+      img.crossOrigin = "anonymous";
       img.src = backgroundImage;
-      img.onload = () => setBgImageObj(img);
+      img.onload = () => {
+        setBgImageObj(img);
+      };
+      img.onerror = (error) => {
+        console.warn('⚠️ [CanvasEngine] Failed to load background image (CORS or other error):', error);
+        // If image fails to load due to CORS, set to null to use blank background
+        setBgImageObj(null);
+      };
     } else {
       setBgImageObj(null);
     }
@@ -377,7 +391,7 @@ const CanvasEngine = ({
   };
 
   // --- Pointer-Based Zoom Logic (Wheel) ---
-  const handleWheel = (e) => {
+  const handleWheel = useCallback((e) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       
@@ -409,7 +423,19 @@ const CanvasEngine = ({
       // Only pan when not in scroll mode (let scroll container handle vertical scroll)
        setPanOffset({ x: panOffset.x - e.deltaX, y: panOffset.y - e.deltaY });
     }
-  };
+  }, [zoomLevel, panOffset, embeddedInScroll, setZoomLevel, setPanOffset]);
+
+  // Add wheel event listener with non-passive option to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
 
   // --- Text Interaction Logic ---
 
@@ -515,7 +541,6 @@ const CanvasEngine = ({
     <div 
       ref={containerRef}
       className={`tab-rx-canvas-container ${embeddedInScroll ? 'embedded-in-scroll' : ''}`}
-      onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -639,6 +664,8 @@ const CanvasEngine = ({
       </div>
     </div>
   );
-};
+});
+
+CanvasEngine.displayName = 'CanvasEngine';
 
 export default CanvasEngine;
