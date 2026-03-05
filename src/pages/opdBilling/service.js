@@ -12,6 +12,27 @@ export const fetchPrintSetting = async function (doctorId, billType) {
       }`,
       baseUrl
     );
+    // Ensure ABHA ID and ABHA Registration Number exist in patientInfo; add only if not present (check by id or title)
+    const ensureAbhaFields = (arr) => {
+      if (!Array.isArray(arr)) return;
+
+      const ensureItem = (id, title) => {
+        const exists = arr.some(
+          (item) => item?.id === id || (item?.title && String(item.title).trim() === title)
+        );
+        if (!exists) {
+          arr.push({ id, title, enabled: false });
+        }
+      };
+
+      ensureItem(8, "ABHA ID");
+      ensureItem(9, "ABHA Registration Number");
+    };
+
+    const patientInfo = res?.headerFooter?.patientInfo;
+    if (Array.isArray(patientInfo)) {
+      ensureAbhaFields(patientInfo);
+    }
   } catch (e) {
     console.error("Error while fetching Print settings details: ", e);
   }

@@ -63,6 +63,10 @@ export const patientDataShow = (id, patient_data, billData, profile) => {
     }`;
   } else if (id == 7) {
     value = patient_data?.address ?? "-";
+  } else if (id == 8) {
+    value = patient_data?.abha_address ? `${patient_data?.abha_address}` : "-";
+  } else if (id == 9) {
+    value = patient_data?.abha_number ? `${patient_data?.abha_number}` : "-";
   }
   return value;
 };
@@ -119,6 +123,10 @@ export const patientIpdDataShow = (id, patient_data, billData, profile) => {
   }
   else if (id == 15) {
     value = billData?.admission?.metadata?.tpano ?? "-";
+  } else if (id == 18) {
+    value = patient_data?.abha_address ?? "-";
+  } else if (id == 19) {
+    value = patient_data?.abha_number ?? "-";
   }
   return value;
 };

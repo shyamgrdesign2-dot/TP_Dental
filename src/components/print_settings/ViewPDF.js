@@ -261,7 +261,7 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData, abhaDetails } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const labParamsData = caseManagerData?.labParamsData
     const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
@@ -377,6 +377,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = `${caseManagerData?.patient_data?.patient_id ? caseManagerData?.patient_data?.patient_id : '-'}`
         } else if (id == 14) {
             value = `${caseManagerData?.patient_data?.patient_dob ? caseManagerData?.patient_data?.patient_dob : '-'}`
+        } else if (id == 15) {
+            value = `${abhaDetails?.abha_address ? abhaDetails?.abha_address : "-"}`;
+        } else if (id == 16) {
+            value = `${abhaDetails?.abha_number ? abhaDetails?.abha_number : "-"}`;
         }
         return value
     }
