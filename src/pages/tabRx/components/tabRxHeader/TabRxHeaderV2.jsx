@@ -123,6 +123,17 @@ function TabRxHeaderV2({
     selectedCarePlan,
     handleVideoConsult,
     isVideoConsultLoading,
+    smartRxFiles = [],
+    isCustomSSRX = false,
+    selectedTemplateId = null,
+    canvasData = null,
+    canvasRef = null,
+    hasCanvasContent = false,
+    onCanvasClear = null,
+    onCanvasSubmit = null,
+    onToggleTemplateDrawer = null,
+    isEndVisitLoading = false,
+    setIsEndVisitLoading = null,
 }) {
     const {
         profile,
@@ -1362,7 +1373,9 @@ function TabRxHeaderV2({
     }, [customizeDrawer]);
 
     const handleSelectLetterHead = () => {
-        //TODO: open TabRx letter head modal
+        if (onToggleTemplateDrawer) {
+            onToggleTemplateDrawer();
+        }
     }
 
     const hasOpthalValues = useCallback(() => {
@@ -1704,12 +1717,78 @@ function TabRxHeaderV2({
     };
 
     async function onEndVisitClick() {
-        if (
-            symptomsData.length > 0 &&
-            symptomsData.filter((e) => e.symptom_name == "").length > 0
-        ) {
-            errorMessage("Please fillup symptom name");
-        } else if (
+        console.log('🚀 [TabRxHeaderV2] onEndVisitClick called');
+        
+        // Set loading state to show full-page spinner
+        if (setIsEndVisitLoading) {
+            setIsEndVisitLoading(true);
+        }
+        
+        try {
+            // Handle canvas submission before end visit if canvas submit handler is provided
+            // This should match SmartPrescription flow: upload files first, then use them in case manager
+            let canvasFiles = [];
+            let canvasBlobs = [];
+            let freshCanvasData = null;
+            
+            if (onCanvasSubmit) {
+                console.log('📤 [TabRxHeaderV2] Calling onCanvasSubmit...');
+                try {
+                    const result = await onCanvasSubmit();
+                    console.log('✅ [TabRxHeaderV2] onCanvasSubmit result:', {
+                        filesCount: result?.files?.length || 0,
+                        blobsCount: result?.blobs?.length || 0,
+                        fileNames: result?.files?.map(f => f.name) || []
+                    });
+                    canvasFiles = result?.files || [];
+                    canvasBlobs = result?.blobs || [];
+                    
+                    // Get fresh canvas data after upload
+                    if (canvasRef && canvasRef.current) {
+                        try {
+                            freshCanvasData = canvasRef.current.getCanvasData();
+                            console.log('📋 [TabRxHeaderV2] Fresh canvas data:', {
+                                selectedTemplateId: freshCanvasData?.selectedTemplateId,
+                                pagesCount: freshCanvasData?.pagesMetadata?.length,
+                                hasStrokes: freshCanvasData?.strokesByPage && Object.values(freshCanvasData.strokesByPage).some(s => Array.isArray(s) && s.length > 0),
+                                hasText: freshCanvasData?.textElementsByPage && Object.values(freshCanvasData.textElementsByPage).some(t => Array.isArray(t) && t.length > 0)
+                            });
+                        } catch (err) {
+                            console.error('❌ [TabRxHeaderV2] Error getting fresh canvas data:', err);
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ [TabRxHeaderV2] Error submitting canvas:', error);
+                    // Continue with end visit even if canvas submission fails
+                }
+            } else {
+                console.log('⚠️ [TabRxHeaderV2] No onCanvasSubmit handler provided');
+            }
+            
+            // Use uploaded canvas files if available, otherwise fall back to smartRxFiles prop
+            const finalSmartRxFiles = canvasFiles.length > 0 ? canvasFiles : smartRxFiles;
+            console.log('📦 [TabRxHeaderV2] Final smartRxFiles:', {
+                source: canvasFiles.length > 0 ? 'uploaded' : 'prop',
+                count: finalSmartRxFiles?.length || 0,
+                fileNames: finalSmartRxFiles?.map(f => f.name) || []
+            });
+            
+            // Use fresh canvas data if available, otherwise use prop
+            const finalCanvasData = freshCanvasData || canvasData;
+            console.log('📋 [TabRxHeaderV2] Final canvas data:', {
+                source: freshCanvasData ? 'fresh' : 'prop',
+                pagesCount: finalCanvasData?.pagesMetadata?.length,
+                selectedTemplateId: finalCanvasData?.selectedTemplateId
+            });
+            
+            // Validation checks - return early if validation fails
+            if (
+                symptomsData.length > 0 &&
+                symptomsData.filter((e) => e.symptom_name == "").length > 0
+            ) {
+                errorMessage("Please fillup symptom name");
+                return;
+            } else if (
             examinationData.length > 0 &&
             examinationData.filter((e) => e.examination_name == "").length > 0
         ) {
@@ -1739,8 +1818,11 @@ function TabRxHeaderV2({
             investigationData.filter((e) => e.investigation_name == "").length > 0
         ) {
             errorMessage("Please fillup investigation name");
-        } else {
-            const opthalPayload = buildOpthalPayload({
+            return;
+        }
+        
+        // Main end visit logic
+        const opthalPayload = buildOpthalPayload({
                 sections: OPHTHALMOLOGY_SECTIONS,
                 tables: ophthalmologyExam?.tables,
                 extraFields: ophthalmologyExam?.extraFields,
@@ -1822,6 +1904,60 @@ function TabRxHeaderV2({
                 pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
                 labReportID: labReportID,
                 zydusSelectedLabParams: zydusSelectedLabParams,
+                smart_prescription_filename: finalSmartRxFiles?.map(f => f.name) || [],
+                isCustomSSRX: ((finalSmartRxFiles && finalSmartRxFiles.length > 0) || isCustomSSRX) ? "1" : "0",
+                custom_ss_data: (() => {
+                    console.log('🔍 [TabRxHeaderV2] Checking custom_ss_data conditions...');
+                    
+                    // Only send custom_ss_data if:
+                    // 1. Files were uploaded (finalSmartRxFiles.length > 0), OR
+                    // 2. There's actual canvas content (strokes or text)
+                    const hasUploadedFiles = finalSmartRxFiles && finalSmartRxFiles.length > 0;
+                    console.log('📦 [TabRxHeaderV2] Has uploaded files:', hasUploadedFiles, { count: finalSmartRxFiles?.length || 0 });
+                    
+                    // Check if there's actual canvas content using fresh data
+                    let hasCanvasContent = false;
+                    if (finalCanvasData) {
+                        const hasStrokes = finalCanvasData.strokesByPage && 
+                            Object.values(finalCanvasData.strokesByPage).some(strokes => 
+                                Array.isArray(strokes) && strokes.length > 0
+                            );
+                        const hasTextElements = finalCanvasData.textElementsByPage && 
+                            Object.values(finalCanvasData.textElementsByPage).some(textElements => 
+                                Array.isArray(textElements) && textElements.length > 0 &&
+                                textElements.some(el => el.content && el.content.trim().length > 0)
+                            );
+                        hasCanvasContent = hasStrokes || hasTextElements;
+                        console.log('🎨 [TabRxHeaderV2] Has canvas content:', hasCanvasContent, { hasStrokes, hasTextElements });
+                    }
+                    
+                    // Don't send custom_ss_data if no files uploaded and no canvas content
+                    if (!hasUploadedFiles && !hasCanvasContent) {
+                        console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no files and no content');
+                        return null;
+                    }
+                    
+                    // Only send if we have pages metadata
+                    if (!finalCanvasData || !finalCanvasData.pagesMetadata || finalCanvasData.pagesMetadata.length === 0) {
+                        console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no pages metadata');
+                        return null;
+                    }
+                    
+                    const customSSData = {
+                        custom_ss_data: {
+                            template_id: selectedTemplateId && selectedTemplateId !== 'blank' ? selectedTemplateId : null,
+                            template_title: selectedTemplateId && selectedTemplateId !== 'blank' && templates?.length > 0 ? (templates.find(t => t.id === selectedTemplateId)?.title || null) : null,
+                            pages: finalCanvasData.pagesMetadata.map((meta, index) => ({
+                                page_order: index + 1,
+                                page_type: meta.type || 'blank',
+                                template_page_index: meta.templateImageIndex !== null && meta.templateImageIndex !== undefined ? meta.templateImageIndex : null
+                            }))
+                        }
+                    };
+                    
+                    console.log('✅ [TabRxHeaderV2] Sending custom_ss_data:', customSSData);
+                    return customSSData;
+                })(),
             };
 
             const decodedToken = getDecodedToken();
@@ -1839,6 +1975,20 @@ function TabRxHeaderV2({
                 };
             }
 
+            // Log the final payload before sending
+            console.log('📋 [TabRxHeaderV2] Final sendData payload:', {
+                action: sendData.action,
+                tcm_id: sendData.tcm_id,
+                patient_unique_id: sendData.patient_unique_id,
+                pam_id: sendData.pam_id,
+                smart_prescription_filename: sendData.smart_prescription_filename,
+                isCustomSSRX: sendData.isCustomSSRX,
+                custom_ss_data: sendData.custom_ss_data,
+                hasSymptoms: sendData.symptoms?.length > 0,
+                hasMedication: sendData.medicine?.length > 0,
+                hasVitals: sendData.vitals?.length > 0
+            });
+            
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0
                 ? window.Moengage.track_event("TP_Consultation_ended", {
@@ -1893,6 +2043,7 @@ function TabRxHeaderV2({
                     action = await caseManagerPromise;
                 }
             }
+            
             if (action.meta.requestStatus === "fulfilled") {
                 if (
                     opthalModuleAutoAdded &&
@@ -2170,6 +2321,14 @@ function TabRxHeaderV2({
             } else {
                 errorMessage(action.error);
             }
+        } catch (error) {
+            console.error('❌ [TabRxHeaderV2] Error in onEndVisitClick:', error);
+            errorMessage('Failed to end visit. Please try again.');
+        } finally {
+            // Reset loading state
+            if (setIsEndVisitLoading) {
+                setIsEndVisitLoading(false);
+            }
         }
     }
 
@@ -2270,6 +2429,40 @@ function TabRxHeaderV2({
             </>
         );
     }, [popOverVideo]);
+    // Helper function to check if canvas has content
+    const checkCanvasContent = () => {
+        // First check the prop (reactive state from parent)
+        if (hasCanvasContent) return true;
+        
+        // Fallback: Try to get fresh canvas data from ref if available
+        let currentCanvasData = canvasData;
+        if (canvasRef && canvasRef.current) {
+            try {
+                currentCanvasData = canvasRef.current.getCanvasData();
+            } catch (error) {
+                // If ref call fails, use prop data
+                currentCanvasData = canvasData;
+            }
+        }
+        
+        if (!currentCanvasData) return false;
+        
+        // Check if there are any strokes on any page
+        const hasStrokes = currentCanvasData.strokesByPage && 
+            Object.values(currentCanvasData.strokesByPage).some(strokes => 
+                Array.isArray(strokes) && strokes.length > 0
+            );
+        
+        // Check if there are any text elements on any page
+        const hasTextElements = currentCanvasData.textElementsByPage && 
+            Object.values(currentCanvasData.textElementsByPage).some(textElements => 
+                Array.isArray(textElements) && textElements.length > 0 &&
+                textElements.some(el => el.content && el.content.trim().length > 0)
+            );
+        
+        return hasStrokes || hasTextElements;
+    };
+
     const hasEnteredData = () => {
         return (
             symptomsData.length > 0 ||
@@ -2281,6 +2474,8 @@ function TabRxHeaderV2({
             medicationData.length > 0 ||
             vitalsData.length > 0 ||
             medicalHistoryData.length > 0 ||
+            smartRxFiles?.length > 0 ||
+            checkCanvasContent() ||
             privateNotesData ||
             followUpDate ||
             additionalNote ||
