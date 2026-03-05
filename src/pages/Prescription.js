@@ -1999,6 +1999,7 @@ function Prescription() {
               isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
+              hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper">
           <img src={hey} alt="vitals" className="me-3 hey" />

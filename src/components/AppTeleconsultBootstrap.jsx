@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import { message } from "antd";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import OneSignal from "react-onesignal";
 import {
@@ -77,6 +78,7 @@ export default function AppTeleconsultBootstrap() {
   // automatically drop the video call so they can proceed with the Voice Rx flow.
   useEffect(() => {
     if (isVoiceRxRoute && joinToken) {
+      message.info("Voice Rx does not support tele consultation", 3);
       dispatch(setJoinToken(null));
     }
   }, [isVoiceRxRoute, joinToken, dispatch]);
