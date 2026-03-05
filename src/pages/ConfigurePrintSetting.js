@@ -92,7 +92,8 @@ function ConfigurePrintSetting() {
         getPatientBills();
         fetchAbhaDetails();
     }, []);
-        let caseManagerDataToUse = caseManagerData;
+
+    useEffect(() => {
         const fetchVoiceAmbientData = async () => {
             if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
                 const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
