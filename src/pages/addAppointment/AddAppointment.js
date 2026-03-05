@@ -633,6 +633,9 @@ function AddAppointment() {
   useEffect(() => {
     if (state != null) {
       setClickedPatient(state?.patient_data)
+      if (state?.appointmentMode) {
+        setAppointmentMode(state.appointmentMode);
+      }
       setSelectedDoctor(state?.selectedDoctor)
       setSelectedDate(dayjs(state?.selectedDate))
       setSelectedTimeSlot(state?.selectedTimeSlot)

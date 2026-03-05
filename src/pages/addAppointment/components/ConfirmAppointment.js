@@ -167,7 +167,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         } else if (searchQuery.length > 0 && isAlphabet(searchQuery)) {
@@ -181,7 +182,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         } else {
@@ -194,7 +196,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         }

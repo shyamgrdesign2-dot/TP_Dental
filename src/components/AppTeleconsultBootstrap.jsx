@@ -27,9 +27,10 @@ export default function AppTeleconsultBootstrap() {
 
   const isTeleConsultEnabledFromGB = useFeatureIsOn(GB_TELE_CONSULT);
   const isLoginPage = location.pathname === "/login";
+  const isVoiceRxRoute = location.pathname.startsWith("/voice-rx");
   const isReceptionist = searchParams.has("receptionist");
   const doctorId = getDecodedToken()?.result?.user_id ?? null;
-  const showFloatingWindow = joinToken && !isLoginPage && !isReceptionist;
+  const showFloatingWindow = joinToken && !isLoginPage && !isReceptionist && !isVoiceRxRoute;
   const doctorName = profile?.um_name || profile?.doctor_name || "Doctor";
 
   useEffect(() => {
@@ -71,6 +72,14 @@ export default function AppTeleconsultBootstrap() {
       }
     })();
   }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId]);
+
+  // If user navigates into any Voice Rx consult route while a teleconsult call is active,
+  // automatically drop the video call so they can proceed with the Voice Rx flow.
+  useEffect(() => {
+    if (isVoiceRxRoute && joinToken) {
+      dispatch(setJoinToken(null));
+    }
+  }, [isVoiceRxRoute, joinToken, dispatch]);
 
   const handleCloseFloatingWindow = () => {
     dispatch(setJoinToken(null));
