@@ -1621,7 +1621,7 @@ const ConsultationDrawer = ({
           if (!isFromSC) {
             let prescriptionData = null;
             let conversationData = null;
-            // PUT/POST: always use digitizeData (fresh AI output); fallback to editedData only when no digitizeData
+            // Rx pad: always display from digitizeData when present (voice/ambient); fallback to editedData only when no digitizeData
             const editedData = finalResponseData.editedData ?? actualData?.editedData ?? responseData?.editedData ?? null;
             const digitizeDataRaw = finalResponseData.digitizeData ?? finalResponseData.history?.[0]?.digitize ?? actualData?.digitizeData ?? responseData?.digitizeData ?? null;
             const dataForPad = digitizeDataRaw ?? editedData;
