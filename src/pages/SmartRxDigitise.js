@@ -625,7 +625,7 @@ function SmartRxDigitise() {
     }
   };
 
-  // Navigate back to Smart Rx preview with full state so tcm_id is never lost (same as ai_flow_prod after-save navigation)
+  // Navigate back to Smart Rx preview without saving: pass state WITHOUT page "digitise" so preview shows Written Rx + Digitise Now (not Digital Rx)
   const handleBackToPreview = useCallback(() => {
     navigate("/print-smart-rx", {
       replace: true,
@@ -638,7 +638,7 @@ function SmartRxDigitise() {
         print_url: printUrl ?? state?.print_url,
         print_rx_url: state?.print_rx_url,
         showProgressbar: false,
-        page: "digitise",
+        // Do NOT pass page: "digitise" — only save flow sets that; back-without-save should show Written Rx + Digitise Now
       },
     });
   }, [navigate, patient_data, smartRxFile, smartRxFilesData, tcm_id, pam_id, printUrl, state?.print_url, state?.print_rx_url]);
