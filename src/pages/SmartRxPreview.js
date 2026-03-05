@@ -105,7 +105,11 @@ function SmartRxPreview() {
     const [showProgressbar, setShowProgressbar] = useState(false);
     const [isEditedData, setIsEditedData] = useState(null);
     const [rxDigitisedData, setRxDigitisedData] = useState(null);
+    // API may return isRxDigitize as "1"/"0"; only "1" or true means digitised (avoid "0" being truthy)
+    const isRxDigitisedForTabs = viewCaseManagerData?.isRxDigitize === true || viewCaseManagerData?.isRxDigitize === "1";
+    // After digitisation we navigate with page "digitise"; show toggle and digitised URL even if API not updated yet
     const isBackFromDigitise = state?.page === "digitise";
+    const showDigitalWrittenToggle = isRxDigitisedForTabs || isBackFromDigitise;
     const [showDigitalRx, setShowDigitalRx] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
     const progressRef = useRef(null);
@@ -190,9 +194,11 @@ function SmartRxPreview() {
         }
     }, [state, navigate]);
 
-    // When navigating back from smart-rx-digitise: show only Written Rx (no Digital tab, no language)
+    // After digitisation: default to Digital Rx so digitised URL (rxDigitize=true) is used and toggle is visible
     useEffect(() => {
-        if (isBackFromDigitise) setShowDigitalRx(false);
+        if (isBackFromDigitise) {
+            setShowDigitalRx(true);
+        }
     }, [isBackFromDigitise]);
 
     // Update smartRxFile when state changes (e.g., when coming back from print config)
@@ -669,7 +675,7 @@ function SmartRxPreview() {
                                             </p>
                                         </div>
                                     )}
-                                    {!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && (
+                                    {!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
                                         <div className="digitise-container p-3 rounded-10px">
                                             <div className="digitise-box-top">
                                                 <img src={successIcon} alt="success" width="40px" height="40px" />
@@ -744,13 +750,13 @@ function SmartRxPreview() {
                             <div className="d-flex align-itms-center justify-content-between">
                                 <div className="titleprint">Preview</div>
                                 <div className="d-flex align-items-center flex-wrap gap-3">
-                                    { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" && !isBackFromDigitise &&
+                                    { showDigitalWrittenToggle && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
                                         <div>
                                             <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
                                             <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
                                         </div>
                                     }
-                                    {!isBackFromDigitise && !(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
+                                    {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
                                     <Select
                                         placeholder=""
                                         className="appointmentselect"
