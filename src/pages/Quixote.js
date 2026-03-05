@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
@@ -165,6 +165,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         });
 
     const [pdfUrl, setPdfUrl] = useState(null)
+    const pdfUrlRef = useRef(null);
     const [numPages, setNumPages] = useState();
     const [loadSuccess, setLoadSuccesss] = useState(false);
 
@@ -222,18 +223,27 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 ophthalModuleData={ophthalModuleData}
             />).toBlob();
 
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
+
             try {
                 const blob = await renderPdfWithSmartRx(smartRxDataForPdf);
                 const url = URL.createObjectURL(blob);
+                pdfUrlRef.current = url;
                 setPdfUrl(url);
                 dispatch(setCurrentSessionRx(url));
             } catch (err) {
                 if (smartRxDataForPdf?.length > 0) {
                     try {
                         const blobFallback = await renderPdfWithSmartRx([]);
-                        setPdfUrl(URL.createObjectURL(blobFallback));
-                        dispatch(setCurrentSessionRx(URL.createObjectURL(blobFallback)));
+                        const urlFallback = URL.createObjectURL(blobFallback);
+                        pdfUrlRef.current = urlFallback;
+                        setPdfUrl(urlFallback);
+                        dispatch(setCurrentSessionRx(urlFallback));
                     } catch (fallbackErr) {
+                        console.error("Fallback PDF render failed:", fallbackErr);
                     }
                 } else {
                     throw err;
@@ -243,9 +253,15 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         // Only generate PDF if caseManagerData exists and has patient_data
         // This prevents generating PDF with empty/incomplete data
         if (caseManagerData && caseManagerData.patient_data) {
-            makePDFUrl()
+            makePDFUrl().catch((err) => {
+                console.error("Error generating PDF URL:", err);
+            });
         }
         return () => {
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
             setLoadSuccesss(false)
         };
     }, [
