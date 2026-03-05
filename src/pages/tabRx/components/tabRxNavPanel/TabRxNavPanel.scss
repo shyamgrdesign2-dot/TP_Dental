@@ -12,7 +12,6 @@ $mid-purple: #313097;
     // background: radial-gradient(256.21% 808.53% at -194.95% 36.46%, #161558 0%, #4B4AD5 100%), #FFF;
     position: relative;
     overflow-y: auto;
-    overflow-x: hidden;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {
@@ -41,8 +40,37 @@ $mid-purple: #313097;
         }
 
         &.active {
+            position: relative;
+            background: rgba(255, 255, 255, 0.25);
+
             .icon-container {
-                background: rgba(255, 255, 255, 0.4);
+                background: white !important;
+            }
+
+            &::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 3px;
+                background: white;
+                border-top-right-radius: 12px;
+                border-bottom-right-radius: 12px;
+            }
+
+            &::after {
+                content: "";
+                position: absolute;
+                right: 0px;
+                top: 50%;
+                transform: translateY(50%);
+                width: 0;
+                height: 0;
+                border-top: 8px solid transparent;
+                border-bottom: 8px solid transparent;
+                border-left: 8px solid rgba(255, 255, 255, 0.25);
+                rotate: 180deg;
             }
         }
 
