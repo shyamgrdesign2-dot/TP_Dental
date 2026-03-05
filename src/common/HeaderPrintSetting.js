@@ -52,6 +52,10 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
 
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
     const [flag, setFlag] = useState(0);
+    const hideApplyOnThisRxOnly =
+        previousPage === "/gen-rx-print" ||
+        previousPage === "/snap-rx/preview" ||
+        previousPage === "/print-smart-rx";
 
     const onDefaultPrintsettings = async () => {
         setFlag(2)
@@ -435,9 +439,11 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                                     </div>
                                     <div className="mt-4">
                                         <div className="d-flex align-items-center mt-2 justify-content-end">
-                                            <div onClick={onYesLeaveClick} className="me-4 text-decoration-underline btn p-0 text-main">
-                                                {flag == 1 ? 'Yes Leave' : flag === 3 ? "No, Apply on This Rx Only" : 'Yes'}
-                                            </div>
+                                            {!(flag === 3 && hideApplyOnThisRxOnly) && (
+                                                <div onClick={onYesLeaveClick} className="me-4 text-decoration-underline btn p-0 text-main">
+                                                    {flag == 1 ? 'Yes Leave' : flag === 3 ? "No, Apply on This Rx Only" : 'Yes'}
+                                                </div>
+                                            )}
                                             <Button onClick={flag === 3 ? onSavePrintSettingsClick : showHideBackModal} className="lh-lg btn btn-primary3 btn-41 px-4">
                                                 <span>{flag == 1 ? 'No, Stay' : flag === 3 ? "Yes, Set as Default for All Rx" : 'No'}</span>
                                             </Button>
