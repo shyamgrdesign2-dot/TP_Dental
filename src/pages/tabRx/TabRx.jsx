@@ -176,6 +176,7 @@ import {
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
 import VideoConsultModal from "../../components/VideoConsultModal";
+import { getMetadata } from "./services/templateService";
 
 function TabRx() {
   const {
@@ -511,6 +512,37 @@ function TabRx() {
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] =
     useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkWelcomePopup = async () => {
+      try {
+        const result = await getMetadata();
+        if (isMounted && result?.success && result?.data) {
+          const format = result?.data?.format;
+          const letterHeadFlag = result?.data?.isSelectLetterHead;
+
+          if (letterHeadFlag !== undefined) {
+            setIsSelectLetterHead(letterHeadFlag);
+          }
+
+          if (!format) {
+            setShowWelcomePopup(true);
+          } else {
+            setShowWelcomePopup(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching metadata format:", error);
+      }
+    };
+    checkWelcomePopup();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1856,7 +1888,7 @@ function TabRx() {
                     isGroundingAccessableForZydus && (
                       <GroundingBox
                         handleGroundingKnowMore={handleGroundingKnowMore}
-                        />
+                      />
                     )
                   )}
                 </Sider>
@@ -2237,6 +2269,13 @@ function TabRx() {
           callAction={videoConsultAction}
         />
       )}
+
+      <TabRxWelcomePopup
+        open={showWelcomePopup}
+        onClose={() => setShowWelcomePopup(false)}
+        onSuccess={() => setShowWelcomePopup(false)}
+        isSelectLetterHead={isSelectLetterHead}
+      />
     </CashManagerContext.Provider>
   );
 }
