@@ -490,7 +490,7 @@ function GenRxPrescriptionPrintView() {
                   <Select
                     placeholder="English"
                     className="ms-3 appointmentselect"
-                    value={LANGUAGE_LIST.find((item) => item.value == selectedLang)}
+                    value={selectedLang}
                     onSelect={onSelect}
                     options={LANGUAGE_LIST}
                   />

@@ -250,15 +250,20 @@ function SnapRxPreview() {
   }, []);
 
   const getPatientDefaultLanguage = async () => {
-    const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
-    if (res?.settings?.defaultLanguage) {
-      setSelectedLang(res?.settings?.defaultLanguage);
+    if (!patient_data?.patient_unique_id) return;
+    try {
+      const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
+      if (res?.settings?.defaultLanguage) {
+        setSelectedLang(res.settings.defaultLanguage);
+      }
+    } catch (error) {
+      console.error("Error fetching patient default language:", error);
     }
   };
 
   useEffect(() => {
     getPatientDefaultLanguage();
-  }, []);
+  }, [patient_data?.patient_unique_id]);
 
   useEffect(() => {
     const encodedData = btoa(selectedLang.toString());
@@ -274,7 +279,7 @@ function SnapRxPreview() {
       // Always remove rxDigitize first, then set it based on showDigitalRx
       urlObj.searchParams.delete('rxDigitize');
       
-      urlObj.searchParams.set('pam_id', pam_id.toString());
+      if (pam_id != null) urlObj.searchParams.set('pam_id', pam_id.toString());
       urlObj.searchParams.set('lg', encodedData);
       
       // Only set rxDigitize=true for digital Rx, otherwise leave it removed (which means written Rx)
@@ -286,7 +291,8 @@ function SnapRxPreview() {
       setPrintUrl(newUrl);
       if (!keepSessionBlob) setCurrentSessionRx(null);
     } catch (error) {
-      let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
+      let url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}lg=${encodedData}`;
+      if (pam_id != null) url += `&pam_id=${pam_id}`;
       // Remove rxDigitize parameter completely
       url = url.replace(/[?&]rxDigitize=[^&]*/g, '');
       // Only add rxDigitize=true for digital Rx
@@ -346,8 +352,16 @@ function SnapRxPreview() {
         formData.append(file?.name, file);
         const { uploadDocsToAzure } = await import("../medicalRecords/service");
         const res = await uploadDocsToAzure(formData);
-        const downloadUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+        const downloadUrl =
+          Array.isArray(res) && res[0] && typeof res[0].url === "string"
+            ? res[0].url
+            : null;
+        if (downloadUrl) {
+          sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+        } else {
+          console.error("Azure upload did not return a valid download URL", res);
+          sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        }
       } catch (error) {
         console.error("Error uploading PDF for download:", error);
         sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
@@ -499,8 +513,16 @@ function SnapRxPreview() {
         formData.append(file?.name, file);
         const { uploadDocsToAzure } = await import("../medicalRecords/service");
         const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        const uploadedPrintUrl =
+          Array.isArray(res) && res[0] && typeof res[0].url === "string"
+            ? res[0].url
+            : null;
+        if (uploadedPrintUrl) {
+          sendMessageToParent(EVENTS.PRINT, { url: uploadedPrintUrl });
+        } else {
+          console.error("Azure upload did not return a valid print URL", res);
+          sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        }
       } catch (error) {
         console.error("Error uploading PDF for print:", error);
         sendMessageToParent(EVENTS.PRINT, { url: printUrl });
@@ -510,6 +532,8 @@ function SnapRxPreview() {
     }
   };
 
+  const PRINT_IFRAME_ID = "snap-rx-print-iframe";
+
   const printContent = async () => {
     try {
       if (!printBlob) {
@@ -518,15 +542,19 @@ function SnapRxPreview() {
 
       const blobURL = URL.createObjectURL(printBlob);
 
-      document.querySelectorAll("iframe").forEach((iframe) => iframe.remove());
+      const existingPrintIframe = document.getElementById(PRINT_IFRAME_ID);
+      if (existingPrintIframe) existingPrintIframe.remove();
 
       const iframe = document.createElement("iframe");
+      iframe.id = PRINT_IFRAME_ID;
       iframe.style.display = "none";
       iframe.src = blobURL;
 
       iframe.onerror = () => {
         URL.revokeObjectURL(blobURL);
-        throw new Error("Failed to load print content");
+        iframe.remove();
+        console.error("Failed to load print content");
+        errorMessage("Failed to print prescription");
       };
 
       iframe.onload = () => {
@@ -535,10 +563,12 @@ function SnapRxPreview() {
             iframe.focus();
             iframe.contentWindow.print();
             URL.revokeObjectURL(blobURL);
+            iframe.remove();
           });
         } catch (error) {
           console.error("Error during print:", error);
           URL.revokeObjectURL(blobURL);
+          iframe.remove();
           errorMessage("Failed to print prescription");
         }
       };
