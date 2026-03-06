@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { message } from "antd";
-/** Event name for teleconsult notification payloads (e.g. from push or other sources). */
-const TELECONSULT_NOTIFICATION_EVENT = "teleconsult-notification";
 import {
   addWaitingBanner,
   removeWaitingBanner,
@@ -10,6 +8,9 @@ import {
   setLastShownStatusKey,
 } from "../redux/teleconsultNotificationSlice";
 import TeleconsultWaitingBanner from "./TeleconsultWaitingBanner";
+
+/** Event name for teleconsult notification payloads (e.g. from push or other sources). */
+const TELECONSULT_NOTIFICATION_EVENT = "teleconsult-notification";
 
 const STATUS = {
   CREATED: "CREATED",
