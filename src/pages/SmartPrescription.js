@@ -410,12 +410,10 @@ function SmartPrescription() {
       const response = await ApiVideoConsult.initiateTeleCall(videoConsultData?.pam_id);      
       if (response.message === "success") {
         if (response.action === "join-video-call" && response.callJoinUrlForDoctor) {
-          // Video call - open modal with iframe
           setVideoConsultUrl(response.callJoinUrlForDoctor);
           setVideoConsultAction(response.action);
           setIsVideoModalVisible(true);
         } else if (response.action === "join-audio-call") {
-          // Audio call - show message to user
           message.info(response.displayMessage || "Audio call initiated successfully");
         }
         

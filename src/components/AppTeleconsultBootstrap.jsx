@@ -1,0 +1,47 @@
+import React, { useEffect } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { message } from "antd";
+import TeleconsultNotificationHandler from "./TeleconsultNotificationHandler";
+import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
+import { setJoinToken } from "../redux/teleconsultNotificationSlice";
+
+export default function AppTeleconsultBootstrap() {
+  const dispatch = useDispatch();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
+  const profile = useSelector((state) => state.doctors?.profile);
+
+  const isLoginPage = location.pathname === "/login";
+  const isVoiceRxRoute = location.pathname.startsWith("/voice-rx");
+  const isReceptionist = searchParams.has("receptionist");
+  const showFloatingWindow = joinToken && !isLoginPage && !isReceptionist && !isVoiceRxRoute;
+  const doctorName = profile?.um_name || profile?.doctor_name || "Doctor";
+
+  // If user navigates into any Voice Rx consult route while a teleconsult call is active,
+  // automatically drop the video call so they can proceed with the Voice Rx flow.
+  useEffect(() => {
+    if (isVoiceRxRoute && joinToken) {
+      message.info("Voice Rx does not support tele consultation", 3);
+      dispatch(setJoinToken(null));
+    }
+  }, [isVoiceRxRoute, joinToken, dispatch]);
+
+  const handleCloseFloatingWindow = () => {
+    dispatch(setJoinToken(null));
+  };
+
+  return (
+    <>
+      <TeleconsultNotificationHandler />
+      {showFloatingWindow && (
+        <TeleconsultFloatingWindow
+          authToken={joinToken}
+          doctorName={doctorName}
+          onClose={handleCloseFloatingWindow}
+        />
+      )}
+    </>
+  );
+}
