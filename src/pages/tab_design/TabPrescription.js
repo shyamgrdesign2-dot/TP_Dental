@@ -105,7 +105,7 @@ import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
 import TabCustomModule from "../../components/tab_design/TabCustomModule";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
-import ConsultationDrawerMobile from "../../components/ConsultationDrawerMobile";
+import ConsultationDrawer from "../../components/ConsultationDrawer";
 import MobileRxPad from "../../components/mobile/MobileRxPad";
 import MobileConsultationSummary from "../../components/mobile/MobileConsultationSummary";
 import { useDeviceType } from "../../utils/deviceDetection";
@@ -1727,7 +1727,7 @@ function TabPrescription() {
               existingData={mobileRxData}
             />
           ) : (
-          <ConsultationDrawerMobile
+          <ConsultationDrawer
             visible={isGenRxDrawerVisible}
             onClose={() => setIsGenRxDrawerVisible(false)}
             handleGenRxKnowMore={handleGenRxKnowMore}
