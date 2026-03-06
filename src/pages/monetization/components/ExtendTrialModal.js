@@ -18,6 +18,7 @@ import { services } from "../../../redux/doctorsSlice";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../../../redux/subscriptionSlice";
 import { deviceType, osName } from "react-device-detect";
+import "./ExtendTrialModal.scss";
 
 function ExtendTrialModal() {
     const navigate = useNavigate();
@@ -140,10 +141,12 @@ function ExtendTrialModal() {
             footer={null}
             width={1020}
             // onCancel={() => setIsExpiredModalOpen(false)}
-            className="expired-model position-relative"
+            centered
+            className="expired-model expired-model-responsive position-relative"
+            style={{ padding: 0, maxWidth: "100%" }}
             // maskClosable={false} Uncomment this when model mask closable true
             destroyOnClose>
-            <Card>
+            <Card className="extend-trial-modal-card">
                 {/* className="expired-red-card" Add this class using red color background in above Card tag*/}
                 <>
                     <img className="expiredInfographic" src={expiredInfographic} alt="Your trial plan has Expired" />
