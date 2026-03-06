@@ -9,7 +9,8 @@ export const usePrintPayloadPdf = ({
   showSnapRxImages,
   payloadOverride,
   skipFetch = false,
-} = {}) => {
+  zydusSelectedLabParams = null,
+}) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,7 +88,7 @@ export const usePrintPayloadPdf = ({
       setIsGenerating(true);
       setError(null);
       try {
-        const blob = await renderPrintPayloadToBlob(payload, {
+        const blob = await renderPrintPayloadToBlob({...payload, zydusLabData: zydusSelectedLabParams}, {
           selectedLang,
           isGynaecHistoryAccessable,
           showSnapRxImages,
