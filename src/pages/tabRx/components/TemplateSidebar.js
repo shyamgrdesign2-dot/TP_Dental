@@ -403,9 +403,9 @@ const TemplateSidebar = ({
         >
           <Radio checked={selectedTemplateId === 'blank'} />
           <div className="template-thumbnail blank-thumbnail">
-            <div className="blank-canvas-icon">
+            {/* <div className="blank-canvas-icon">
               <FileTextOutlined />
-            </div>
+            </div> */}
           </div>
           <div className="tab-rx-template-info">
             <div className="template-name">Blank Canvas</div>

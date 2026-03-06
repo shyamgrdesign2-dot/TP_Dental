@@ -85,6 +85,10 @@ body {
     }
     .bg-secondary {
         background-color: $themesecondary !important;
+        color: $white !important;
+    }
+    .tab-rx-header {
+        background: linear-gradient(92deg, #3736A6 -2.01%, #262688 83.76%), #FFF !important;
     }
     .fs-8 {
         font-size: 8px !important;

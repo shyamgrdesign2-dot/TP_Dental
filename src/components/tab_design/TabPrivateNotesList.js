@@ -26,7 +26,7 @@ const ReadMore = ({ children }) => {
 
 function TabPrivateNotesList(props) {
 
-    const { handleDrawerPrivateNotes, handleCollapsed } = props
+    const { handleDrawerPrivateNotes, handleCollapsed, isTabRx } = props
     const { privateNotesList } = useSelector((state) => state.medicalhistory);
     const dispatch = useDispatch();
 
@@ -38,7 +38,7 @@ function TabPrivateNotesList(props) {
 
     return (
         <>
-            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
                 Private Notes
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>

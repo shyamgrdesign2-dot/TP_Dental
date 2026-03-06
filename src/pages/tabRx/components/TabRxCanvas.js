@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Dropdown, message } from 'antd';
+import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
+import { Dropdown, message, Button } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { v4 as uuidv4 } from 'uuid';
 import CanvasEngine from './CanvasEngine';
 import Toolbar from './Toolbar';
 import TemplateSidebar from './TemplateSidebar';
 import RxTemplateUploadDrawer from '../../smartSync/components/RxTemplateUploadDrawer';
+import CommonModal from '../../../common/CommonModal';
 import { getTemplates } from '../services/templateService';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { generateId } from '../utils/geometry';
+import alertIcon from '../../../assets/images/alertIcon.svg';
 import './TabRxCanvas.scss';
 
 const INITIAL_TOOL_SETTINGS = {
@@ -19,12 +22,15 @@ const INITIAL_TOOL_SETTINGS = {
   fontSize: 16
 };
 
-const TabRxCanvas = ({ 
+const TabRxCanvas = forwardRef(({ 
   patient = null,
   onSave = null,
   onExit = null,
-  backgroundImage = null 
-}) => {
+  backgroundImage = null,
+  showTemplateDrawer = true,
+  onToggleTemplateDrawer = null,
+  onContentChange = null
+}, ref) => {
   // Application State - Multi-page support
   // Pages metadata: Array of page objects with { id, type: 'blank' | 'template', templateId, templateImageIndex }
   const [pagesMetadata, setPagesMetadata] = useState([{ id: generateId(), type: 'blank', templateId: null, templateImageIndex: null }]);
@@ -78,9 +84,149 @@ const TabRxCanvas = ({
   
   // Template State
   const [selectedTemplateId, setSelectedTemplateId] = useState('blank');
-  const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
+  
+  // Delete confirmation modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
+  
+  // Refs to access canvas elements for export
+  const canvasRefsByPage = useRef({});
+  
+  // Expose export method via ref
+  useImperativeHandle(ref, () => ({
+    exportToImages: async () => {
+      console.log('📤 [TabRxCanvas] exportToImages called', { pagesCount: pagesMetadata.length });
+      const files = [];
+      const blobs = [];
+      
+      for (let i = 0; i < pagesMetadata.length; i++) {
+        const pageMeta = pagesMetadata[i];
+        const pageId = pageMeta.id;
+        const canvasEngineRef = canvasRefsByPage.current[pageId];
+        
+        console.log(`📄 [TabRxCanvas] Processing page ${i + 1} (${pageId}):`, {
+          hasRef: !!canvasEngineRef,
+          hasGetCanvas: !!(canvasEngineRef?.getCanvas),
+          refType: typeof canvasEngineRef,
+          refKeys: canvasEngineRef ? Object.keys(canvasEngineRef) : []
+        });
+        
+        if (!canvasEngineRef || typeof canvasEngineRef.getCanvas !== 'function') {
+          console.warn(`⚠️ [TabRxCanvas] No valid ref for page ${i + 1}:`, {
+            hasRef: !!canvasEngineRef,
+            hasGetCanvas: typeof canvasEngineRef?.getCanvas === 'function'
+          });
+          continue;
+        }
+        
+        // Get the actual canvas element from CanvasEngine
+        // Note: canvasEngineRef is the imperative handle object (not a ref with .current)
+        // It directly has getCanvas() method
+        const canvas = canvasEngineRef.getCanvas();
+        
+        if (!canvas) {
+          console.warn(`⚠️ [TabRxCanvas] No canvas element for page ${i + 1}`);
+          continue;
+        }
+        
+        console.log(`✅ [TabRxCanvas] Got canvas for page ${i + 1}:`, {
+          width: canvas.width,
+          height: canvas.height,
+          hasStrokes: strokesByPage[pageId]?.length > 0,
+          strokesCount: strokesByPage[pageId]?.length || 0,
+          hasText: textElementsByPage[pageId]?.length > 0,
+          textCount: textElementsByPage[pageId]?.length || 0
+        });
+        
+        try {
+          // Try to convert canvas to blob directly
+          let blob;
+          try {
+            blob = await new Promise((resolve, reject) => {
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error('Canvas to Blob conversion failed'));
+                }
+              }, 'image/jpeg', 0.95);
+            });
+          } catch (taintedError) {
+            // If canvas is tainted, create a new canvas and redraw everything
+            if (taintedError.message?.includes('Tainted') || taintedError.name === 'SecurityError') {
+              console.warn(`⚠️ [TabRxCanvas] Canvas tainted for page ${i + 1}, using fallback export method`);
+              blob = await exportCanvasWithFallback(pageMeta, strokesByPage[pageId] || [], textElementsByPage[pageId] || []);
+            } else {
+              throw taintedError;
+            }
+          }
+          
+          const fileName = `${uuidv4()}.jpeg`;
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
+          
+          console.log(`📦 [TabRxCanvas] Page ${i + 1} converted:`, {
+            fileName,
+            fileSize: `${(file.size / 1024).toFixed(2)}KB`,
+            sizeInBytes: file.size,
+            threshold: 5 * 1000,
+            passesThreshold: file.size > 5 * 1000
+          });
+          
+          // Check if file has meaningful content (5KB threshold)
+          // OR if there are actual strokes/text elements (even if file is small)
+          const hasStrokes = strokesByPage[pageId]?.length > 0;
+          const hasText = textElementsByPage[pageId]?.some(el => el.content && el.content.trim().length > 0);
+          const hasContent = hasStrokes || hasText;
+          
+          if (file.size > 5 * 1000 || hasContent) {
+            console.log(`✅ [TabRxCanvas] Including page ${i + 1} in export:`, {
+              reason: file.size > 5 * 1000 ? 'file size' : 'has content',
+              hasStrokes,
+              hasText
+            });
+            blobs.push(blob);
+            files.push(file);
+          } else {
+            console.log(`⏭️ [TabRxCanvas] Skipping page ${i + 1}: blank canvas (no content and size < 5KB)`);
+          }
+        } catch (error) {
+          console.error(`❌ [TabRxCanvas] Error converting canvas for page ${i + 1}:`, error);
+        }
+      }
+      
+      console.log(`✅ [TabRxCanvas] Export complete:`, {
+        filesCount: files.length,
+        blobsCount: blobs.length,
+        fileNames: files.map(f => f.name),
+        fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
+      });
+      
+      return { files, blobs };
+    },
+    getCanvasData: () => {
+      return {
+        pagesMetadata,
+        strokesByPage,
+        textElementsByPage,
+        selectedTemplateId
+      };
+    },
+    clearCanvas: () => {
+      // Reset to blank canvas
+      const newPageId = generateId();
+      setPagesMetadata([{ id: newPageId, type: 'blank', templateId: null, templateImageIndex: null }]);
+      setStrokesByPage({ [newPageId]: [] });
+      setTextElementsByPage({ [newPageId]: [] });
+      setCurrentPageIndex(0);
+      setSelectedTemplateId('blank');
+      // Notify parent that content is cleared
+      if (onContentChange) {
+        onContentChange(false);
+      }
+    }
+  }), [pagesMetadata, strokesByPage, textElementsByPage, selectedTemplateId, onContentChange]);
 
   // Helper to fit canvas to available space
   const fitCanvasToScreen = useCallback(() => {
@@ -144,6 +290,108 @@ const TabRxCanvas = ({
     return null;
   }, [templates]);
 
+  // Fallback export method: Create a new canvas and redraw everything to avoid tainted canvas errors
+  const exportCanvasWithFallback = useCallback(async (pageMeta, strokes, textElements) => {
+    console.log(`🔄 [TabRxCanvas] Using fallback export for page with template:`, {
+      templateId: pageMeta.templateId,
+      imageIndex: pageMeta.templateImageIndex,
+      strokesCount: strokes.length,
+      textCount: textElements.length
+    });
+    
+    // Create a new canvas
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = A4_BASE_WIDTH;
+    exportCanvas.height = A4_BASE_HEIGHT;
+    const ctx = exportCanvas.getContext('2d');
+    
+    // Draw white background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    
+    // Load and draw background image with CORS
+    const backgroundUrl = getBackgroundForPage(pageMeta);
+    if (backgroundUrl) {
+      try {
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+          bgImg.onload = resolve;
+          bgImg.onerror = () => {
+            console.warn('⚠️ [TabRxCanvas] Failed to load background image for fallback export, using blank background');
+            resolve(); // Continue without background image
+          };
+          bgImg.src = backgroundUrl;
+        });
+        
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
+          ctx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
+        }
+      } catch (error) {
+        console.warn('⚠️ [TabRxCanvas] Error loading background image for fallback export:', error);
+      }
+    }
+    
+    // Draw strokes
+    const { getMidPoint } = require('../utils/geometry');
+    strokes.forEach((stroke) => {
+      if (stroke.points.length < 2) return;
+      
+      ctx.beginPath();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.thickness;
+      
+      if (stroke.tool === 'highlighter') {
+        ctx.globalAlpha = 0.3;
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.lineWidth = stroke.thickness * 2;
+      } else {
+        ctx.globalAlpha = 1.0;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      
+      const p0 = stroke.points[0];
+      ctx.moveTo(p0.x, p0.y);
+      
+      for (let i = 1; i < stroke.points.length - 1; i++) {
+        const p1 = stroke.points[i];
+        const p2 = stroke.points[i + 1];
+        const mid = getMidPoint(p1, p2);
+        ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
+      }
+      
+      const last = stroke.points[stroke.points.length - 1];
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+      
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = 'source-over';
+    });
+    
+    // Draw text elements
+    textElements.forEach((textEl) => {
+      if (!textEl.content || !textEl.content.trim()) return;
+      
+      ctx.fillStyle = textEl.color || '#000000';
+      ctx.font = `${textEl.fontSize || 16}px Arial`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(textEl.content, textEl.x, textEl.y);
+    });
+    
+    // Convert to blob
+    return new Promise((resolve, reject) => {
+      exportCanvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Fallback canvas to Blob conversion failed'));
+        }
+      }, 'image/jpeg', 0.95);
+    });
+  }, [getBackgroundForPage]);
+
   // Handlers
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, ZOOM_CONSTRAINTS.MAX));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.1, ZOOM_CONSTRAINTS.MIN));
@@ -157,10 +405,17 @@ const TabRxCanvas = ({
     const pageStrokes = strokesByPage[pageId] || [];
     setUndoStack(prev => [...prev, pageStrokes]);
     setRedoStack([]); 
-    setStrokesByPage(prev => ({
-      ...prev,
-      [pageId]: [...pageStrokes, newStroke]
-    }));
+    setStrokesByPage(prev => {
+      const updated = {
+        ...prev,
+        [pageId]: [...pageStrokes, newStroke]
+      };
+      // Notify parent of content change
+      if (onContentChange) {
+        onContentChange(true);
+      }
+      return updated;
+    });
     // Update currentPageIndex based on pageId
     const pageIndex = pagesMetadata.findIndex(p => p.id === pageId);
     if (pageIndex !== -1) {
@@ -168,7 +423,7 @@ const TabRxCanvas = ({
     }
     setIsSaving(true);
     setTimeout(() => setIsSaving(false), 800);
-  }, [strokesByPage, pagesMetadata]);
+  }, [strokesByPage, pagesMetadata, onContentChange]);
 
   const handleEraseStart = useCallback((pageId) => {
     const pageStrokes = strokesByPage[pageId] || [];
@@ -306,7 +561,23 @@ const TabRxCanvas = ({
     setRedoStack([]);
   }, [pagesMetadata]);
 
-  // Delete a page
+  // Show delete confirmation modal
+  const showDeleteModal = useCallback((pageIndex) => {
+    if (pagesMetadata.length <= 1) {
+      message.warning('Cannot delete the last page');
+      return;
+    }
+    setPageToDeleteIndex(pageIndex);
+    setIsDeleteModalOpen(true);
+  }, [pagesMetadata.length]);
+
+  // Hide delete confirmation modal
+  const hideDeleteModal = useCallback(() => {
+    setIsDeleteModalOpen(false);
+    setPageToDeleteIndex(null);
+  }, []);
+
+  // Delete a page (called after confirmation)
   const handleDeletePage = useCallback((pageIndex) => {
     if (pagesMetadata.length <= 1) {
       message.warning('Cannot delete the last page');
@@ -338,12 +609,23 @@ const TabRxCanvas = ({
     } else if (currentPageIndex > pageIndex) {
       // If we deleted a page before the current one, adjust index
       setCurrentPageIndex(currentPageIndex - 1);
+    } else if (currentPageIndex === pageIndex) {
+      // If we deleted the current page, move to previous page or stay at 0
+      setCurrentPageIndex(Math.max(0, pageIndex - 1));
     }
 
     setUndoStack([]);
     setRedoStack([]);
-    message.success('Page deleted');
+    message.success('Page deleted successfully');
   }, [pagesMetadata, currentPageIndex]);
+
+  // Confirm and delete page
+  const confirmDeletePage = useCallback(() => {
+    if (pageToDeleteIndex !== null) {
+      handleDeletePage(pageToDeleteIndex);
+      hideDeleteModal();
+    }
+  }, [pageToDeleteIndex, handleDeletePage, hideDeleteModal]);
 
   const refreshTemplates = useCallback(async () => {
     try {
@@ -420,7 +702,7 @@ const TabRxCanvas = ({
       {/* Template Drawer */}
       <TemplateSidebar
         visible={showTemplateDrawer}
-        onClose={() => setShowTemplateDrawer(false)}
+        onClose={onToggleTemplateDrawer || (() => {})}
         selectedTemplateId={selectedTemplateId}
         onTemplateSelect={handleTemplateSelect}
         onAddNew={handleAddNewTemplate}
@@ -428,40 +710,6 @@ const TabRxCanvas = ({
         onTemplatesUpdate={setTemplates}
       />
 
-      {/* Optional Header Bar */}
-      {patient && (
-        <div className="tab-rx-header">
-          <div className="header-info">
-            <h2>{patient.name || 'Patient'}</h2>
-            {patient.age && <p>Age: {patient.age}</p>}
-          </div>
-          <div className="header-actions">
-            <button
-              onClick={() => setShowTemplateDrawer(true)}
-              className="select-template-button"
-            >
-              Select Letterhead
-            </button>
-            {onSave && (
-              <button
-                onClick={handleSave}
-                disabled={saveStatus === 'saving'}
-                className="save-button"
-              >
-                {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
-              </button>
-            )}
-            {onExit && (
-              <button
-                onClick={onExit}
-                className="exit-button"
-              >
-                Exit
-              </button>
-            )}
-          </div>
-        </div>
-      )}
       
       <div className="canvas-wrapper-container">
         {/* Scrollable pages container - all pages stacked vertically */}
@@ -497,29 +745,76 @@ const TabRxCanvas = ({
                 }
               ];
 
+              const isSelected = currentPageIndex === pageIndex;
+
               return (
                 <div 
                   key={pageId} 
-                  className="canvas-page-block"
+                  className={`canvas-page-block ${isSelected ? 'selected' : ''}`}
                   style={{
                     width: A4_BASE_WIDTH * zoomLevel,
                     height: A4_BASE_HEIGHT * zoomLevel
                   }}
                 >
+                  {/* Page Number Label */}
+                  <div className="page-number-label">
+                    Page {pageIndex + 1}
+                  </div>
+                  
                   <CanvasEngine
+                    ref={(canvasRef) => {
+                      if (canvasRef) {
+                        canvasRefsByPage.current[pageId] = canvasRef;
+                      } else {
+                        delete canvasRefsByPage.current[pageId];
+                      }
+                    }}
                     strokes={pageStrokes}
                     setStrokes={(newStrokes) => {
-                      setStrokesByPage(prev => ({
-                        ...prev,
-                        [pageId]: newStrokes
-                      }));
+                      setStrokesByPage(prev => {
+                        const prevStrokes = prev[pageId] || [];
+                        const updated = {
+                          ...prev,
+                          [pageId]: newStrokes
+                        };
+                        // Notify parent if content changed
+                        if (onContentChange) {
+                          const hasContent = newStrokes.length > 0;
+                          // Check if content state changed
+                          const prevHasContent = prevStrokes.length > 0;
+                          if (hasContent !== prevHasContent) {
+                            onContentChange(hasContent);
+                          } else if (hasContent) {
+                            // Content exists, ensure parent knows
+                            onContentChange(true);
+                          }
+                        }
+                        return updated;
+                      });
                     }}
                     textElements={pageTextElements}
                     setTextElements={(newTextElements) => {
-                      setTextElementsByPage(prev => ({
-                        ...prev,
-                        [pageId]: newTextElements
-                      }));
+                      setTextElementsByPage(prev => {
+                        const prevTextElements = prev[pageId] || [];
+                        const updated = {
+                          ...prev,
+                          [pageId]: newTextElements
+                        };
+                        // Notify parent if content changed
+                        if (onContentChange) {
+                          const hasContent = newTextElements.length > 0 && 
+                            newTextElements.some(el => el.content && el.content.trim().length > 0);
+                          const prevHasContent = prevTextElements.length > 0 && 
+                            prevTextElements.some(el => el.content && el.content.trim().length > 0);
+                          if (hasContent !== prevHasContent) {
+                            onContentChange(hasContent);
+                          } else if (hasContent) {
+                            // Content exists, ensure parent knows
+                            onContentChange(true);
+                          }
+                        }
+                        return updated;
+                      });
                     }}
                     onStrokeComplete={(newStroke) => handleStrokeComplete(pageId, newStroke)}
                     onEraseStart={() => handleEraseStart(pageId)}
@@ -541,7 +836,7 @@ const TabRxCanvas = ({
                       className="page-action-btn delete-btn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeletePage(pageIndex);
+                        showDeleteModal(pageIndex);
                       }}
                       disabled={pagesMetadata.length <= 1}
                       title="Delete Page"
@@ -593,8 +888,48 @@ const TabRxCanvas = ({
         onSave={handleCanvasUploaded}
         source="tab-rx"
       />
+
+      {/* Delete Page Confirmation Modal */}
+      <CommonModal
+        isModalOpen={isDeleteModalOpen}
+        onCancel={hideDeleteModal}
+        modalWidth={500}
+        title="You may lose your data"
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Are you sure you want to delete this page? <br />
+                  This action cannot be undone and you will lose all data on this page.
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={confirmDeletePage}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  style={{ cursor: 'pointer' }}
+                >
+                  Delete
+                </div>
+                <Button
+                  onClick={hideDeleteModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
     </div>
   );
-};
+});
+
+TabRxCanvas.displayName = 'TabRxCanvas';
 
 export default TabRxCanvas;

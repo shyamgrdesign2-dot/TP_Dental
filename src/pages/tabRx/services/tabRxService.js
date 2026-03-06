@@ -46,65 +46,102 @@ export const getTabRxFiles = async (tcmId, patientUniqueId) => {
 // Upload files for tab-rx
 // files: Array of File/Blob objects or { file: File/Blob, fieldName?: string }
 export const uploadTabRxFiles = async (files, onProgress) => {
+  console.log('📤 [tabRxService] uploadTabRxFiles called', { 
+    filesCount: files?.length || 0,
+    fileNames: files?.map(f => f?.name || 'unnamed') || [],
+    fileSizes: files?.map(f => f?.size ? `${(f.size / 1024).toFixed(2)}KB` : 'unknown') || []
+  });
+  
   try {
     // Validate files
     if (!files || !Array.isArray(files) || files.length === 0) {
+      console.error('❌ [tabRxService] Files validation failed:', { files });
       throw new Error('Files array is required and must not be empty');
     }
 
     const formData = new FormData();
     
     // Append files to form data
-    // Based on curl: --form '=@"..."' - the field name appears to be empty or optional
+    // Note: Based on curl example, empty field names are used, but we'll use a proper field name
+    // to ensure FormData is properly constructed and visible in network inspector
     files.forEach((fileItem, index) => {
       if (!fileItem) {
         throw new Error(`File at index ${index} is undefined`);
       }
       
       let file;
-      let fieldName = ''; // Empty field name as per curl example
       
       // Support both direct File/Blob or object with file property
       if (fileItem instanceof File || fileItem instanceof Blob) {
         file = fileItem;
       } else if (fileItem.file) {
         file = fileItem.file;
-        fieldName = fileItem.fieldName || '';
       } else {
-        throw new Error(`Invalid file format at index ${index}. Expected File, Blob, or { file: File/Blob, fieldName?: string }`);
+        throw new Error(`Invalid file format at index ${index}. Expected File, Blob, or { file: File/Blob }`);
       }
       
-      // Append with empty or specified field name
-      if (fieldName) {
-        formData.append(fieldName, file);
-      } else {
-        // Append with empty field name (some APIs accept this)
-        formData.append('', file);
-      }
+      // Append file - using empty field name as per API requirement (curl shows --form '=@"..."')
+      // Some browsers/network inspectors may not show empty field names, but the API accepts them
+      formData.append('', file);
+      
+      console.log(`📎 [tabRxService] Appended file ${index + 1}:`, { 
+        name: file.name, 
+        size: `${(file.size / 1024).toFixed(2)}KB`,
+        type: file.type,
+        fieldName: '(empty as per API requirement)'
+      });
     });
     
+    // Debug: Log FormData entries to verify they're being added
+    console.log('📦 [tabRxService] FormData entries:', {
+      entryCount: Array.from(formData.entries()).length,
+      entries: Array.from(formData.entries()).map(([key, value]) => ({
+        key: key || '(empty)',
+        valueType: value instanceof File ? 'File' : typeof value,
+        fileName: value instanceof File ? value.name : 'N/A',
+        fileSize: value instanceof File ? `${(value.size / 1024).toFixed(2)}KB` : 'N/A'
+      }))
+    });
+    
+    console.log('📦 [tabRxService] FormData created, making API call...');
     const requestConfig = {
       headers: { 
-        'Content-Type': 'multipart/form-data',
+        // Don't set Content-Type manually - axios will set it with proper boundary for FormData
         Authorization: `Bearer ${cleanedToken}`
       },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.lengthComputable) {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`📊 [tabRxService] Upload progress: ${percentCompleted}%`);
           onProgress(percentCompleted);
         }
       },
       ...baseUrl
     };
     
+    console.log('🚀 [tabRxService] Calling POST /api/v1/tab-rx/upload-files...');
     const response = await api.post('/api/v1/tab-rx/upload-files', formData, requestConfig);
+    const responseData = response.data || response;
+    console.log('✅ [tabRxService] Upload successful:', responseData);
+    
+    // Extract uploaded file names from response
+    // Response format: { uploaded_files: ["tab_rx_1772688725577_6124949174.jpeg", ...] }
+    const uploadedFileNames = responseData?.uploaded_files || responseData?.data?.uploaded_files || [];
+    console.log('📋 [tabRxService] Uploaded file names from API:', uploadedFileNames);
     
     return {
       success: true,
-      data: response.data || response
+      data: responseData,
+      uploadedFileNames: uploadedFileNames // Return the file names from API response
     };
   } catch (error) {
-    console.error('Failed to upload tab-rx files:', error);
+    console.error('❌ [tabRxService] Failed to upload tab-rx files:', error);
+    console.error('❌ [tabRxService] Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      stack: error.stack
+    });
     let errorMessage = 'Upload failed. Please try again.';
     
     if (error.response?.data?.message) {

@@ -29,6 +29,7 @@ import {
   OPTHAL_PAD_MODULE_ID,
   OPTHAL_PAD_MODULE,
   GB_OPTHAL_MODULE,
+  GB_VIDEO_CONSULT,
 } from "../../utils/constants";
 
 import {
@@ -84,6 +85,7 @@ import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
 // import notesWhite from '../../assets/images/notes-white.svg';
 // import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
+import { Content } from "antd/es/layout/layout";
 import Vaccination from "../vaccination/Vaccination";
 import GrowthChart from "../growthChart/GrowthChart";
 import { viewPatient } from "../../redux/appointmentsSlice";
@@ -139,9 +141,15 @@ import {
   getTokenData,
   isVoiceRxFree,
 } from "../../utils/utils";
-import VideoConsultModal from "../../components/VideoConsultModal";
-import { GB_VIDEO_CONSULT } from "../../utils/constants";
-import ApiVideoConsult from "../../api/services/ApiVideoConsult";
+
+import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
+import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
+import TabRxCanvas from "./components/TabRxCanvas";
+import { uploadTabRxFiles } from "./services/tabRxService";
+import ApiVideoConsult, {
+  createOpthalPrescription,
+  updateOpthalPrescription,
+} from "../../api/services/ApiVideoConsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
@@ -170,6 +178,8 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
+import VideoConsultModal from "../../components/VideoConsultModal";
+import { getMetadata } from "./services/templateService";
 
 function TabRx() {
   const {
@@ -505,6 +515,216 @@ function TabRx() {
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] =
     useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+  
+  // Canvas state
+  const canvasRef = useRef(null);
+  const [smartRxFiles, setSmartRxFiles] = useState([]);
+  const [isCustomSSRX, setIsCustomSSRX] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [canvasLoader, setCanvasLoader] = useState(false);
+  const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
+  const [hasCanvasContent, setHasCanvasContent] = useState(false);
+  const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
+  
+  // Welcome popup state
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
+  
+  // Handle template drawer toggle
+  const handleToggleTemplateDrawer = useCallback(() => {
+    setShowTemplateDrawer(prev => !prev);
+  }, []);
+  
+  // Handle canvas content change notification
+  const handleCanvasContentChange = useCallback((hasContent) => {
+    setHasCanvasContent(hasContent);
+  }, []);
+  
+  // Check welcome popup on mount
+  useEffect(() => {
+    let isMounted = true;
+    const checkWelcomePopup = async () => {
+      try {
+        const result = await getMetadata();
+        if (isMounted && result?.success && result?.data) {
+          const format = result?.data?.format;
+          const letterHeadFlag = result?.data?.isSelectLetterHead;
+
+          if (letterHeadFlag !== undefined) {
+            setIsSelectLetterHead(letterHeadFlag);
+          }
+
+          if (!format) {
+            setShowWelcomePopup(true);
+          } else {
+            setShowWelcomePopup(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching metadata format:", error);
+      }
+    };
+    checkWelcomePopup();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  
+  // Check canvas content on mount and when canvas ref changes
+  useEffect(() => {
+    const checkCanvasContent = () => {
+      if (canvasRef.current) {
+        try {
+          const canvasData = canvasRef.current.getCanvasData();
+          if (canvasData) {
+            // Check if there are any strokes on any page
+            const hasStrokes = canvasData.strokesByPage && 
+              Object.values(canvasData.strokesByPage).some(strokes => 
+                Array.isArray(strokes) && strokes.length > 0
+              );
+            
+            // Check if there are any text elements on any page
+            const hasTextElements = canvasData.textElementsByPage && 
+              Object.values(canvasData.textElementsByPage).some(textElements => 
+                Array.isArray(textElements) && textElements.length > 0 &&
+                textElements.some(el => el.content && el.content.trim().length > 0)
+              );
+            
+            const hasContent = hasStrokes || hasTextElements;
+            setHasCanvasContent(hasContent);
+          } else {
+            setHasCanvasContent(false);
+          }
+        } catch (error) {
+          // Ignore errors
+        }
+      }
+    };
+    
+    // Check immediately after a short delay to allow canvas to initialize
+    const timeout = setTimeout(checkCanvasContent, 100);
+    
+    // Also check periodically to catch any changes that might not trigger callbacks
+    // Reduced frequency to avoid performance issues
+    const interval = setInterval(checkCanvasContent, 2000);
+    
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [canvasRef]);
+  
+  // Handle canvas submission - convert canvas to files and upload
+  const handleCanvasSubmit = useCallback(async () => {
+    console.log('🖼️ [TabRx] handleCanvasSubmit called');
+    
+    if (!canvasRef.current) {
+      console.log('❌ [TabRx] No canvasRef.current, returning empty');
+      return { files: [], blobs: [] };
+    }
+    
+    setCanvasLoader(true);
+    try {
+      console.log('📤 [TabRx] Exporting canvas to images...');
+      const { files, blobs } = await canvasRef.current.exportToImages();
+      console.log('✅ [TabRx] Export complete:', { 
+        filesCount: files.length, 
+        blobsCount: blobs.length,
+        fileNames: files.map(f => f.name),
+        fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
+      });
+      
+      if (files.length > 0) {
+        console.log('📤 [TabRx] Starting file upload...', { 
+          filesToUpload: files.length,
+          fileNames: files.map(f => f.name)
+        });
+        
+        // Upload files using tab-rx service
+        const uploadResult = await uploadTabRxFiles(files, (progress) => {
+          console.log('📊 [TabRx] Upload progress:', progress + '%');
+        });
+        
+        console.log('📤 [TabRx] Upload result:', uploadResult);
+        
+        if (uploadResult.success) {
+          console.log('✅ [TabRx] Upload successful, updating state...');
+          
+          // Extract uploaded file names from API response
+          const uploadedFileNames = uploadResult.uploadedFileNames || [];
+          console.log('📋 [TabRx] Uploaded file names from API:', uploadedFileNames);
+          
+          // Update files with the names returned from API
+          // Create new File objects with the API-returned names
+          const updatedFiles = files.map((file, index) => {
+            const apiFileName = uploadedFileNames[index];
+            if (apiFileName) {
+              // Create a new File object with the API-returned name
+              // Keep the original blob but update the filename
+              return new File([file], apiFileName, { type: file.type });
+            }
+            // Fallback to original name if API didn't return a name for this file
+            return file;
+          });
+          
+          console.log('📝 [TabRx] Updated files with API names:', {
+            originalNames: files.map(f => f.name),
+            apiNames: uploadedFileNames,
+            updatedNames: updatedFiles.map(f => f.name)
+          });
+          
+          // Store the updated files with API-returned names
+          setSmartRxFiles(updatedFiles);
+          
+          const canvasData = canvasRef.current.getCanvasData();
+          console.log('📋 [TabRx] Canvas data:', {
+            selectedTemplateId: canvasData.selectedTemplateId,
+            pagesCount: canvasData.pagesMetadata?.length,
+            pagesMetadata: canvasData.pagesMetadata
+          });
+          
+          if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
+            setIsCustomSSRX(true);
+            setSelectedTemplateId(canvasData.selectedTemplateId);
+            console.log('✅ [TabRx] Set isCustomSSRX=true, selectedTemplateId=', canvasData.selectedTemplateId);
+          } else {
+            console.log('ℹ️ [TabRx] Blank canvas or no template selected');
+          }
+          
+          // Return updated files with API names
+          return { files: updatedFiles, blobs };
+        } else {
+          console.error('❌ [TabRx] Upload failed:', uploadResult);
+          errorMessage('Error uploading canvas files. Please try again.');
+        }
+      } else {
+        console.log('⚠️ [TabRx] No files to upload (all blank or empty)');
+      }
+      
+      console.log('✅ [TabRx] handleCanvasSubmit returning:', { 
+        filesCount: files.length,
+        fileNames: files.map(f => f.name)
+      });
+      return { files, blobs };
+    } catch (error) {
+      console.error('❌ [TabRx] Error submitting canvas:', error);
+      errorMessage('Error uploading canvas files. Please try again.');
+      return { files: [], blobs: [] };
+    } finally {
+      setCanvasLoader(false);
+    }
+  }, []);
+  
+  // Handle canvas clear
+  const handleCanvasClear = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRef.current.clearCanvas();
+      setSmartRxFiles([]);
+      setIsCustomSSRX(false);
+      setSelectedTemplateId(null);
+      setHasCanvasContent(false);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -628,11 +848,11 @@ function TabRx() {
   const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
   const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
     caseManagerData?.smart_prescription_filename ||
-      (inputText &&
-        typeof inputText === "string" &&
-        inputText.trim().length > 0) ||
-      (fromVoiceRecording && audioBlob) ||
-      false,
+    (inputText &&
+      typeof inputText === "string" &&
+      inputText.trim().length > 0) ||
+    (fromVoiceRecording && audioBlob) ||
+    false,
   );
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
@@ -1707,7 +1927,7 @@ function TabRx() {
         )} */}
         {!showOnlyDrawer && (
           <>
-            <TabRxHeader
+            <TabRxHeaderV2
               isVaccinationEnabled={isVaccinationAccessable}
               isGrowthChartEnabled={isGrowthChartAccessable}
               gynecHistory={updatedGynecHistory}
@@ -1718,423 +1938,57 @@ function TabRx() {
                 isVideoConsultAvailable ? handleVideoConsult : null
               }
               isVideoConsultLoading={isInitiatingCall}
+              smartRxFiles={smartRxFiles}
+              isCustomSSRX={isCustomSSRX}
+              selectedTemplateId={selectedTemplateId}
+              canvasData={canvasRef.current?.getCanvasData() || null}
+              canvasRef={canvasRef}
+              hasCanvasContent={hasCanvasContent}
+              onCanvasClear={handleCanvasClear}
+              onCanvasSubmit={handleCanvasSubmit}
+              onToggleTemplateDrawer={handleToggleTemplateDrawer}
+              isEndVisitLoading={isEndVisitLoading}
+              setIsEndVisitLoading={setIsEndVisitLoading}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
               <Layout>
-                <div
-                  className={`prescription-sidebar ${
-                    isApexAISelected ? "prescription-sidebar-ai" : ""
-                  }`}
-                  style={{
-                    background:
-                      "radial-gradient(circle, #161558 0%, #4B4AD5 100%)",
-                  }}
-                >
-                  {isApexAISelected ? (
-                    <>
-                      <img
-                        src={ddxVector}
-                        alt="ddxVector"
-                        className="prescription-sidebar-ai-vector"
-                      />
-                      <img
-                        src={ddxVector}
-                        alt="ddxVectorReverse"
-                        className="prescription-sidebar-ai-vector-reverse"
-                      />
-                      <button
-                        type="button"
-                        className="mb-3 text-center btn btn-action"
-                        onClick={handleApexAIClose}
-                        style={{ padding: "6px 10px" }}
-                      >
-                        <div
-                          className={"prescription-tab-button"}
-                          style={{ backgroundColor: "white", borderRadius: 16 }}
-                        >
-                          <i
-                            className="icon-Cross"
-                            style={{ color: "#7742FE" }}
-                          />
-                        </div>
-                      </button>
-                      {isGroundingAccessableForZydus && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(12)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 12
-                                    ? groundingImgDark
-                                    : groundingImgWhite
-                                }
-                                alt="Grounding"
-                                width={42}
-                                height={42}
-                              />
-                            </div>
-                            <label className="text-white mt-1">
-                              AI Formu..
-                            </label>
-                          </div>
-                        </button>
-                      )}
-                      {(tp_monetization_enable || isFreeVoiceRxUser) && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(10)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 10
-                                    ? genRxImg
-                                    : voiceRxDefault
-                                }
-                                alt="VoiceRx"
-                                width={42}
-                                height={42}
-                              />
-                            </div>
-                            <label className="text-white mt-1">Voice Rx</label>
-                          </div>
-                        </button>
-                      )}
-                      {(isApexAIAccessable || tp_monetization_enable) && (
-                        <button
-                          type="button"
-                          className="mb-3 text-center btn btn-action"
-                          onClick={() => openCollapsed(9)}
-                        >
-                          <div
-                            className={`prescription-tab-button rounded-10px flex align-items-center flex-column`}
-                            style={{
-                              backgroundColor: "inherit",
-                              height: "100%",
-                            }}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px`}
-                              style={{ backgroundColor: "inherit" }}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 9 ? ddxImg : ddxInactiveImg
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">DDx</label>
-                          </div>
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {customizedPadLeftList?.map((e, i) => {
-                        return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={() =>
-                              vitalsData.length === 0 &&
-                              vitalsPastList.length === 0 &&
-                              !patientBirthWeight
-                                ? handleDrawerVital()
-                                : openCollapsed(1)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag == 1 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 1 ? vitalsDark : vitalsWhite
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Vitals</label>
-                          </button>
-                        ) : e.tmdpm_id === 3 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={() =>
-                              medicalHistoryData.length === 0 &&
-                              !updatedGynecHistory
-                                ? handleDrawerMedicalHistory()
-                                : openCollapsed(2)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag == 2 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag == 2
-                                    ? medicalHistoryDark
-                                    : medicalHistoryWhite
-                                }
-                                alt="Medical History"
-                              />
-                            </div>
-                            <label className="text-white mt-1">History</label>
-                          </button>
-                        ) : e.tmdpm_id === 8 && e.tmdpm_status === 0 ? (
-                          <button
-                            key={i}
-                            type="button"
-                            className="mb-3 text-center btn btn-action position-relative"
-                            onClick={() =>
-                              privateNotesList?.length === 0
-                                ? handleDrawerPrivateNotes()
-                                : openCollapsed(4)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px  ${
-                                collapsedFlag == 4 && "active"
-                              }`}
-                            >
-                              {privateNotesList?.length > 0 && (
-                                <div className="notes-dot">
-                                  {privateNotesList?.length > 5
-                                    ? "5+"
-                                    : privateNotesList?.length}
-                                </div>
-                              )}
-                              <img
-                                src={
-                                  collapsedFlag == 4
-                                    ? privateNotesDark
-                                    : privateNotesWhite
-                                }
-                                alt="Private Notes"
-                              />
-                            </div>
-                            <label className="text-white mt-1">
-                              Private Notes
-                            </label>
-                          </button>
-                        ) : e.tmdpm_id === 7 &&
-                          e.tmdpm_status === 0 &&
-                          isVaccinationAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={handleDrawerVaccination}
-                          >
-                            <div
-                              className={`bg-secondary-light prescription-tab-button rounded-10px ${
-                                collapsedFlag === 3 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 3
-                                    ? vaccinationDark
-                                    : vaccinationWhite
-                                }
-                                alt="Vitals"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Vaccine</label>
-                          </button>
-                        ) : e.tmdpm_id === 16 &&
-                          e.tmdpm_status === 0 &&
-                          isGrowthChartAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            onClick={handleDrawerGrowth}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 5 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 5
-                                    ? growthChartDark
-                                    : growthChart
-                                }
-                                alt="Growth"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Growth</label>
-                          </button>
-                        ) : e.tmdpm_id === 17 &&
-                          e.tmdpm_status === 0 &&
-                          isGynaecHistoryAccessable ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              examinationHistory?.length === 0 &&
-                              !shouldShowAncHistory &&
-                              !shouldShowImmunisation &&
-                              !obstetricDetails?.lmp &&
-                              !obstetricDetails?.edd &&
-                              !obstetricDetails?.gravidity &&
-                              !obstetricDetails?.parity &&
-                              !obstetricDetails?.livingChildren &&
-                              !obstetricDetails?.abortion &&
-                              !obstetricDetails?.ectopicPregnancies &&
-                              !obstetricDetails?.ceed
-                                ? handleDrawerObstetric()
-                                : openCollapsed(6)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 6 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 6
-                                    ? obstetricDark
-                                    : obstetricWhite
-                                }
-                                alt="Obstetric"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Obstetric</label>
-                          </button>
-                        ) : e.tmdpm_id === 18 && e.tmdpm_status === 0 ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              allUploadedDocs.length === 0
-                                ? handleAddClick()
-                                : openCollapsed(7)
-                            }
-                          >
-                            {/* {isAndroid && !isBrowser ? (
-                          <div
-                            ref={fileInputRef}
-                            onClick={handleUploadDocPopup}
-                            style={{ display: "none" }}
-                          />
-                        ) : ( */}
-                            <input
-                              type="file"
-                              multiple
-                              ref={fileInputRef}
-                              onChange={handleFileUpload}
-                              accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
-                              style={{ display: "none" }}
-                            />
-                            {/* )} */}
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 7 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 7
-                                    ? medicalRecordsDark
-                                    : medicalRecordsWhite
-                                }
-                                alt="records"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Records</label>
-                          </button>
-                        ) : e.tmdpm_id === 19 && e.tmdpm_status === 0 ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() =>
-                              labParamsData?.length === 0
-                                ? handleAddLabParamsDrawer()
-                                : openCollapsed(8)
-                            }
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 8 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 8
-                                    ? labParamsDark
-                                    : labParamsWhite
-                                }
-                                alt="lab"
-                              />
-                            </div>
-                            <label className="text-white mt-1">Lab</label>
-                          </button>
-                        ) : e.tmdpm_id === 22 &&
-                          e.tmdpm_status === 0 &&
-                          isCarePlanEnabled ? (
-                          <button
-                            type="button"
-                            className="mb-3 text-center btn btn-action"
-                            style={{ padding: "0px" }}
-                            onClick={() => openCollapsed(11)}
-                          >
-                            <div
-                              className={`prescription-tab-button rounded-10px ${
-                                collapsedFlag === 11 && "active"
-                              }`}
-                            >
-                              <img
-                                src={
-                                  collapsedFlag === 11
-                                    ? carePlanIconDark
-                                    : carePlanIcon
-                                }
-                                alt="Care Plan"
-                                style={{ width: "24px", height: "24px" }}
-                              />
-                            </div>
-                            <label className="text-white mt-1">Care Plan</label>
-                          </button>
-                        ) : null;
-                      })}
-                    </>
-                  )}
-                </div>
+                <TabRxNavPanel
+                  isApexAISelected={isApexAISelected}
+                  handleApexAIClose={handleApexAIClose}
+                  isGroundingAccessableForZydus={isGroundingAccessableForZydus}
+                  tp_monetization_enable={tp_monetization_enable}
+                  isFreeVoiceRxUser={isFreeVoiceRxUser}
+                  isApexAIAccessable={isApexAIAccessable}
+                  openCollapsed={openCollapsed}
+                  collapsedFlag={collapsedFlag}
+                  customizedPadLeftList={customizedPadLeftList}
+                  vitalsData={vitalsData}
+                  vitalsPastList={vitalsPastList}
+                  patientBirthWeight={patientBirthWeight}
+                  handleDrawerVital={handleDrawerVital}
+                  medicalHistoryData={medicalHistoryData}
+                  updatedGynecHistory={updatedGynecHistory}
+                  handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+                  isVaccinationAccessable={isVaccinationAccessable}
+                  handleDrawerVaccination={handleDrawerVaccination}
+                  privateNotesList={privateNotesList}
+                  handleDrawerPrivateNotes={handleDrawerPrivateNotes}
+                  isGrowthChartAccessable={isGrowthChartAccessable}
+                  handleDrawerGrowth={handleDrawerGrowth}
+                  isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                  examinationHistory={examinationHistory}
+                  shouldShowAncHistory={shouldShowAncHistory}
+                  shouldShowImmunisation={shouldShowImmunisation}
+                  obstetricDetails={obstetricDetails}
+                  handleDrawerObstetric={handleDrawerObstetric}
+                  allUploadedDocs={allUploadedDocs}
+                  handleAddClick={handleAddClick}
+                  fileInputRef={fileInputRef}
+                  handleFileUpload={handleFileUpload}
+                  labParamsData={labParamsData}
+                  handleAddLabParamsDrawer={handleAddLabParamsDrawer}
+                  isCarePlanEnabled={isCarePlanEnabled}
+                />
                 <Sider
                   trigger={null}
                   collapsible
@@ -2146,6 +2000,7 @@ function TabRx() {
                       mode={caseManagerData !== undefined ? EDIT : ADD}
                       handleDrawerVital={handleDrawerVital}
                       handleCollapsed={() => setCollapsed(!collapsed)}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 2 ? (
                     <TabMedicalHistoryList
@@ -2153,18 +2008,21 @@ function TabRx() {
                       handleDrawerMedicalHistory={handleDrawerMedicalHistory}
                       handleCollapsed={() => setCollapsed(!collapsed)}
                       gynecHistory={updatedGynecHistory}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 4 ? (
                     <TabPrivateNotesList
                       mode={caseManagerData !== undefined ? EDIT : ADD}
                       handleDrawerPrivateNotes={handleDrawerPrivateNotes}
                       handleCollapsed={() => setCollapsed(!collapsed)}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 6 ? (
                     <TabObstetricList
                       obstetricDrawer={obstetricDrawer}
                       handleCollapsed={() => setCollapsed(!collapsed)}
                       handleDrawerObstetric={handleDrawerObstetric}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 7 ? (
                     <TabUploadDocumentList
@@ -2178,6 +2036,7 @@ function TabRx() {
                       setIsEditDocument={setIsEditDocument}
                       handleUploadDocPopup={handleUploadDocPopup}
                       setUploadDocDrawer={setUploadDocDrawer}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 8 ? (
                     <TabLabParametersList
@@ -2185,6 +2044,7 @@ function TabRx() {
                       labParamsData={labParamsData}
                       handleAddLabParamsDrawer={handleAddLabParamsDrawer}
                       handleViewLabParamsDrawer={handleViewLabParamsDrawer}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 9 &&
                     (isApexAIAccessable || tp_monetization_enable) ? (
@@ -2195,12 +2055,14 @@ function TabRx() {
                       handleDDxKnowMore={handleDDxKnowMore}
                       getGenerateDDx={getGenerateDDx}
                       isDDxGenerated={isDDxGenerated}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 10 &&
                     (tp_monetization_enable || isFreeVoiceRxUser) ? (
                     <TabVoiceRx
                       handleGenRxKnowMore={handleGenRxKnowMore}
                       setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}
+                      isTabRx={true}
                     />
                   ) : collapsedFlag === 11 && isCarePlanEnabled ? (
                     <TabCarePlanList
@@ -2212,6 +2074,7 @@ function TabRx() {
                       userId={userId}
                       clinicId={decodedToken?.result?.clinic_id}
                       carePlanPlaceholder={carePlanPlaceholder}
+                      isTabRx={true}
                     />
                   ) : (
                     collapsedFlag === 12 &&
@@ -2222,6 +2085,15 @@ function TabRx() {
                     )
                   )}
                 </Sider>
+                {/* <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}> */}
+                  <TabRxCanvas
+                    ref={canvasRef}
+                    patient={patient_data}
+                    showTemplateDrawer={showTemplateDrawer}
+                    onToggleTemplateDrawer={handleToggleTemplateDrawer}
+                    onContentChange={handleCanvasContentChange}
+                  />
+                {/* </Content> */}
               </Layout>
             </div>
           </>
@@ -2494,17 +2366,22 @@ function TabRx() {
           </Drawer>
         )}
 
-        {isLoading ? (
-          <div>
-            <Spin
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: "50%",
-                zIndex: "9999",
-              }}
-              size="large"
-            />
+        {(isLoading || isEndVisitLoading || canvasLoader) ? (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+            }}
+          >
+            <Spin size="large" />
           </div>
         ) : null}
       </>
@@ -2599,6 +2476,13 @@ function TabRx() {
           callAction={videoConsultAction}
         />
       )}
+
+      <TabRxWelcomePopup
+        open={showWelcomePopup}
+        onClose={() => setShowWelcomePopup(false)}
+        onSuccess={() => setShowWelcomePopup(false)}
+        isSelectLetterHead={isSelectLetterHead}
+      />
     </CashManagerContext.Provider>
   );
 }
