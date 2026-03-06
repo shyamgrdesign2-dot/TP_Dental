@@ -259,11 +259,48 @@ const styles = StyleSheet.create({
 const module_id = process.env.REACT_APP_ENV !== "prod" ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
 const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
+const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
+
+function getAiFlowMedicationDisplayList(medicine) {
+    if (!Array.isArray(medicine) || medicine.length === 0) return [];
+    return medicine.map((item, index) => {
+        const tmm_unit = item.tmm_unit ?? item.unit_id ?? 2;
+        const unitTitle = AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] || 'Unit';
+        const medicineUnit = Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
+            ? item.medicineUnit
+            : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
+        return {
+            ...item,
+            index,
+            tmm_id: item.tmm_id ?? item.unique_id ?? `ai-${index}`,
+            tmm_medicine_name: item.tmm_medicine_name || item.name || item.medicine_name || item.lineItem || '',
+            tmm_generic: item.tmm_generic ?? item.corrected_name ?? item.metadata?.tmm_generic ?? item.generic ?? '',
+            tmm_unit: tmm_unit,
+            medicineUnit,
+            tmm_dosage: item.tmm_dosage ?? item.dosage ?? '',
+            tcm_tmm_freq_morning: item.tcm_tmm_freq_morning ?? item.freqMorning,
+            tcm_tmm_freq_afternoon: item.tcm_tmm_freq_afternoon ?? item.freqAfternoon,
+            tcm_tmm_freq_evening: item.tcm_tmm_freq_evening ?? item.freqEvening,
+            tcm_tmm_freq_night: item.tcm_tmm_freq_night ?? item.freqNight,
+            tmf_block: item.tmf_block ?? 0,
+            tmm_freq_type: item.tmm_freq_type ?? item.freq_type,
+            tmm_time: item.tmm_time ?? item.time_id ?? 1,
+            tmm_days: item.tmm_days ?? item.days,
+            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? 'day(s)',
+            display_qty: item.display_qty ?? item.quantity ?? item.qty ?? '',
+            tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? '',
+        };
+    });
+}
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData, abhaDetails } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
-    const labParamsData = caseManagerData?.labParamsData
+    const isAiFlowMedication = !!(isDigitisedPrintConfig || caseManagerData?.isVoiceAmbientRx || caseManagerData?.isRxDigitize);
+    const aiFlowMedicationList = isAiFlowMedication ? getAiFlowMedicationDisplayList(caseManagerData?.medicine) : [];
+    // Prefer lab data from prop (Lab Results API via context); fall back to case manager (e.g. written Rx flow has no lab in case manager)
+    const labParamsData = props.labParamsData ?? caseManagerData?.labParamsData ?? [];
     const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
     const hasOphthalValue = (value) => {
         if (value === 0 || value === "0") return true;
@@ -346,6 +383,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const transformGivenVaccines = transformGivenVaccineData(todayVaccines?.given);
+    const prescriptionVaccines = Array.isArray(caseManagerData?.vaccinations) ? caseManagerData.vaccinations : [];
 
     const patientDataShow = (id) => {
         var value = ''
@@ -478,6 +516,40 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return unitPerDoseFormat;
     }
 
+    const convertRelativeDateToDate = (relativeDateString, consultationDate) => {
+        if (!relativeDateString || typeof relativeDateString !== 'string' || relativeDateString.trim() === '') {
+            return relativeDateString;
+        }
+        const trimmed = relativeDateString.trim();
+        const numericRelativeMatch = trimmed.match(/(\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years)(\(s\))?/i);
+        if (numericRelativeMatch) {
+            const value = parseInt(numericRelativeMatch[1], 10);
+            const unit = numericRelativeMatch[2].toLowerCase();
+            const baseDate = consultationDate ? moment(consultationDate) : moment();
+            if (unit.includes('year')) return baseDate.add(value, 'years').format('YYYY-MM-DD');
+            if (unit.includes('month')) return baseDate.add(value, 'months').format('YYYY-MM-DD');
+            if (unit.includes('week')) return baseDate.add(value, 'weeks').format('YYYY-MM-DD');
+            return baseDate.add(value, 'days').format('YYYY-MM-DD');
+        }
+        const afterPhraseMatch = trimmed.match(/after\s+(two|one|three|four|five|six|seven|eight|nine|ten|\d+)\s*(day|days|week|weeks|month|months|year|years)(\(s\))?/i);
+        if (afterPhraseMatch) {
+            const wordOrNum = afterPhraseMatch[1].toLowerCase();
+            const numMap = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+            const value = numMap[wordOrNum] != null ? numMap[wordOrNum] : parseInt(wordOrNum, 10);
+            if (Number.isNaN(value)) return relativeDateString;
+            const unit = (afterPhraseMatch[2] || '').toLowerCase();
+            const baseDate = consultationDate ? moment(consultationDate) : moment();
+            if (unit.includes('year')) return baseDate.add(value, 'years').format('YYYY-MM-DD');
+            if (unit.includes('month')) return baseDate.add(value, 'months').format('YYYY-MM-DD');
+            if (unit.includes('week')) return baseDate.add(value, 'weeks').format('YYYY-MM-DD');
+            return baseDate.add(value, 'days').format('YYYY-MM-DD');
+        }
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed) || /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(trimmed)) {
+            if (moment(trimmed).isValid()) return relativeDateString;
+        }
+        return relativeDateString;
+    };
+
     const onCalFollowUp = (start_date, end_date) => {
         const dateB = moment(start_date);
         const dateC = moment(end_date);
@@ -514,7 +586,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const isSmartSyncPrescription = smartRxData && smartRxData[0]?.smart_prescription_file;
+    const getWrittenRxImageUrl = (item) => {
+      if (item == null) return undefined;
+      if (typeof item === "string") return (item.startsWith("http") || item.startsWith("blob:") || item.startsWith("data:")) ? item : undefined;
+      if (typeof File !== 'undefined' && item instanceof File) return URL.createObjectURL(item);
+      return item?.smart_prescription_file || item?.fileUrl || item?.url || item?.preview || item?.showFile || item?.src || item?.imageUrl;
+    };
+    const isSmartSyncPrescription = smartRxData && smartRxData?.length > 0 && !!getWrittenRxImageUrl(smartRxData[0]);
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -764,8 +842,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
             // (zydusLabData?.data?.length > 0) ||
             
-            // Check smart sync data
-            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0))
+            // Check smart sync data (treat undefined isCustomSSRX as "0" for snap/smart written flow)
+            (isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
             
         );
     };
@@ -811,7 +889,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 case 9: // Follow Up Date
                     return caseManagerData?.follow_up_date;
                 case 10: // Vaccines
-                    return (transformGivenVaccines?.template?.length > 0 || todayVaccines?.due?.length > 0 || todayVaccines?.given?.length > 0);
+                    return (
+                        transformGivenVaccines?.length > 0 ||
+                        todayVaccines?.due?.length > 0 ||
+                        todayVaccines?.given?.length > 0 ||
+                        prescriptionVaccines?.length > 0
+                    );
                 // case 11: // smartSync
                 //     return caseManagerData?.visit_advice;
                 case 12: // Growth Chart
@@ -830,8 +913,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     return caseManagerData?.zydusSelectedLabParams?.length > 0;
                 case 19: // Care Plan Assignments
                     return activeCarePlans.length > 0;
-                case 91: // Vaccines
-                    return caseManagerData?.visit_advice;
+                case 91: // Others / Notes
+                    return caseManagerData?.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                 case 20: // Ophthalmology Module
                     return hasOphthalModuleData;
                 default:
@@ -839,10 +922,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             }
         });
     };
-
+    
     return (
         <Document>
-            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1" ) &&
+            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") &&
                 <Page
                     size="A4"
                     style={[paddingStyles, {
@@ -853,19 +936,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     wrap={true}
                 >
                     <>
-                        {/* Smart RX Images for Custom SSRX - Show at the beginning */}
-                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1" ) && (
-                            smartRxData?.map((item, i) => (
-                                <View key={i}>
-                                    <View style={{ width: '100%', height: '100%' }}>
-                                        <Image
-                                            style={{ width: '100%', height: '100%' }}
-                                            src={item.smart_prescription_file}
-                                            objectFit="contain"
-                                        />
+                        {/* Smart/Snap RX Images for Custom SSRX - Show at the beginning */}
+                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") && (
+                            smartRxData?.map((item, i) => {
+                                const src = getWrittenRxImageUrl(item);
+                                return src ? (
+                                    <View key={i}>
+                                        <View style={{ width: '100%', height: '100%' }}>
+                                            <Image
+                                                style={{ width: '100%', height: '100%' }}
+                                                src={src}
+                                                objectFit="contain"
+                                            />
+                                        </View>
                                     </View>
-                                </View>
-                            ))
+                                ) : null;
+                            })
                         )}
                     </>
                 </Page>
@@ -1148,11 +1234,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 9: 
                                     return caseManagerData.follow_up_date;
                                 case 91: 
-                                    return caseManagerData.visit_advice;
+                                    return caseManagerData.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                                 case 10: 
-                                    return (todayVaccines?.given?.length || todayVaccines?.due?.length);
+                                    return (
+                                        todayVaccines?.given?.length ||
+                                        todayVaccines?.due?.length ||
+                                        prescriptionVaccines?.length
+                                    );
                                 case 11: 
-                                    return caseManagerData?.smart_prescription_filename?.length;
+                                    return (
+                                        caseManagerData?.smart_prescription_filename?.length ||
+                                        (Array.isArray(smartRxData) &&
+                                            smartRxData.some((item) => !!getWrittenRxImageUrl(item)))
+                                    );
                                 case 12: 
                                     return growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0;
                                 case 13: 
@@ -1225,7 +1319,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             return false;
                         };
-                        return printSettings?.prescription?.case_option?.map((option, index) => {
+                        return (
+                            <>
+                                {printSettings?.prescription?.case_option?.map((option, index) => {
                             const customModule = caseManagerData?.moduleContents?.find(e => {
                                 return e.module_id === option?.id
                             });
@@ -1255,6 +1351,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }
                             
                             const isLastOption = index === (printSettings?.prescription?.case_option?.length - 1);
+                            
+                            // Check if this is a custom module and if it has data
+                            const hasCustomModuleData = option?.is_custom_module === true && customModule?.content?.some((item) => {
+                                if (item?.title || item?.notes) return true;
+                                const dataKeys = Object.keys(item || {}).filter(k => k !== 'id' && k !== 'order');
+                                return dataKeys.some(k => item[k] != null && String(item[k]).trim() !== '');
+                            });
+                            
+                            // Skip rendering if it's a custom module with no data
+                            if (option?.is_custom_module === true && !hasCustomModuleData) {
+                                return null;
+                            }
                             
                             // // Check if this is a custom module and if it has data
                             // const hasCustomModuleData = (() => {
@@ -1372,22 +1480,39 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>
                                                         Symptoms:&nbsp;
                                                     </Text>
-                                                    <View style={styles.table}>
+                                                    {(() => {
+                                                        const allStringFormat = caseManagerData.symptoms.every(item => {
+                                                            if (item.isStringFormat) return true;
+                                                            const hasStructuredData = (item.since && item.since !== '') || (item.severity && item.severity !== '') || (item.note && item.note !== '');
+                                                            return !hasStructuredData;
+                                                        });
+                                                        return (
+                                                            <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                                {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SINCE</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SEVERITY</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.5, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                         </View>
+                                                                )}
                                                         {caseManagerData.symptoms.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                        {allStringFormat ? (
+                                                                            <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.symptom_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>{item.symptom_name}&nbsp;</Text>
+                                                                        ) : (
+                                                                            <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.symptom_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.symptom_name}&nbsp;</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.since ? item.since : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.severity ? item.severity : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.5, color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.note ? item.note : '-'}&nbsp;</Text>
+                                                                            </>
+                                                                        )}
                                                             </View>
                                                         ))}
                                                     </View>
+                                                        );
+                                                    })()}
                                                 </View>
                                             )
                                         )}
@@ -1426,10 +1551,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         )
                                                     })}
                                                 </View>
-                                            ) : (
+                                            ) : (() => {
+                                                const allStringFormat = caseManagerData.examination.every(item => {
+                                                    const hasStructuredData = (item.note && item.note !== '');
+                                                    return !hasStructuredData;
+                                                });
+                                                return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Examinations:&nbsp;</Text>
-                                                    <View style={styles.table}>
+                                                        <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                            {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed wrap={false}>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>
                                                                 NAME
@@ -1438,19 +1569,29 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 NOTE
                                                             </Text>
                                                         </View>
+                                                            )}
                                                         {caseManagerData.examination.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                    {allStringFormat ? (
+                                                                        <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.examination_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>
+                                                                            {item.examination_name}&nbsp;
+                                                                        </Text>
+                                                                    ) : (
+                                                                        <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.examination_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
                                                                     {item.examination_name}&nbsp;
                                                                 </Text>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
                                                                     {item.note ? item.note : '-'}&nbsp;
                                                                 </Text>
+                                                                        </>
+                                                                    )}
                                                             </View>
                                                         ))}
                                                     </View>
                                                 </View>
-                                            )
+                                                );
+                                            })()
                                         )}
                                     </>
                                 ) : option?.id === 3 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
@@ -1508,39 +1649,117 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         )
                                                     })}
                                                 </View>
-                                            ) : (
+                                            ) : (() => {
+                                                const allStringFormat = caseManagerData.diagnosis.every(item => {
+                                                    if (item.isStringFormat) return true;
+                                                    const hasStructuredData = (item.since && item.since !== '') || (item.status && item.status !== '') || (item.note && item.note !== '');
+                                                    return !hasStructuredData;
+                                                });
+                                                return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Diagnosis:&nbsp;</Text>
-                                                    <View style={styles.table}>
+                                                        <View style={[styles.table, { borderTop: allStringFormat ? '1px solid #171725' : 'none', borderRight: '1px solid #171725' }]}>
+                                                            {!allStringFormat && (
                                                         <View style={styles.headerRow} fixed>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SINCE</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.2, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>STATUS</Text>
                                                             <Text style={[styles.headerCell, { flex: 0.5, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                         </View>
+                                                            )}
                                                         {caseManagerData.diagnosis.map((item, i) => (
                                                             <View style={styles.row} key={i} wrap={false}>
+                                                                    {allStringFormat ? (
+                                                                        <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.tds_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, borderRight: '1px solid #171725' }]}>{`${item.tds_name}${item?.icd_code && option?.show_icd_code !== false ? ` (${item?.icd_code})` : ''}`}&nbsp;</Text>
+                                                                    ) : (
+                                                                        <>
                                                                 <Text style={[styles.cell, { color: '#171725', fontFamily: getIndianLanguageFont(item.tds_name, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tds_name}${item?.icd_code && option?.show_icd_code !== false ? ` (${item?.icd_code})` : ''}`}&nbsp;</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.since ? item.since : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.2, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.status ? item.status : '-'}</Text>
                                                                 <Text style={[styles.cell, { flex: 0.5, color: '#171725', fontFamily: getIndianLanguageFont(item.note, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.note ? item.note : '-'}&nbsp;</Text>
+                                                                        </>
+                                                                    )}
                                                             </View>
                                                         ))}
                                                     </View>
                                                 </View>
-                                            )
+                                                );
+                                            })()
                                         )}
                                     </>
                                 ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {caseManagerData.medicine.length > 0 && (
+                                        {isAiFlowMedication && aiFlowMedicationList.length > 0 ? (
+                                            <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Medication (Rx):&nbsp;</Text>
+                                                <View style={styles.table}>
+                                                    <View style={styles.headerRow} fixed>
+                                                        <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("S.NO")}</Text>
+                                                        <Text style={[styles.headerCell, { fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("MEDICINE")}</Text>
+                                                        <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4 }}>
+                                                            <View style={{ flexGrow: 1, flexDirection: 'row' }}>
+                                                                {option?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.45, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DOSE")}</Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("FREQUENCY")}</Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.53, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DURATION")}</Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("QTY")}</Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.7, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("NOTES")}</Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                    {aiFlowMedicationList.map((item, i) => (
+                                                        <View style={styles.row} key={item.tmm_id || i} wrap={false}>
+                                                            <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
+                                                            <View style={styles.cell}>
+                                                                <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.tmm_medicine_name || item.name || ''}</Text>
+                                                                {option?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
+                                                                ) : null}
+                                                            </View>
+                                                            <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
+                                                                {option?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                        {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                    </Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {item.tmf_block === 0 || item.tmf_block === '' ? ((item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night) ? (option?.numeric_frequency ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}` : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, option?.is_dosage_decimal)) : '-') : `(${frequencyList?.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`}{'\n'}{timingList?.find((x) => x.tmt_id === item.tmm_time) !== undefined && timingList?.find((x) => x.tmt_id === item.tmm_time)?.tmt_title !== 'None' ? timingList?.find((x) => x.tmt_id === item.tmm_time)?.[timeingLang()] : ''}
+                                                                    </Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.cell, { flex: 0.53, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type) ? durationLang(capitalize(item.tmm_duration_type, true)) : isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'}
+                                                                    </Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.display_qty ? item.display_qty : '-'}</Text>
+                                                                )}
+                                                                {option?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.cell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.tmm_remarks ? item.tmm_remarks : '-'}&nbsp;</Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        ) : caseManagerData.medicine.length > 0 ? (
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, marginBottom: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
                                                     {medicationData?.map((pItem, i) => {
                                                         return (
                                                             <Text key={i}>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -1557,7 +1776,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         ...Object.values(
                                                                                             Object.fromEntries(
                                                                                                 Object.entries({
-                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? item.tmm_generic : "",
+                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
                                                                                                         ? item.tmm_dosage && item.tmm_unit
@@ -1633,7 +1852,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -1650,7 +1869,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         ...Object.values(
                                                                                             Object.fromEntries(
                                                                                                 Object.entries({
-                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? item.tmm_generic : "",
+                                                                                                    modiGeneric: option?.medicine_with_generic && ii === 0 ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || "") : "",
 
                                                                                                     modiUnitPerDose: option?.medicine_option?.includes("dose")
                                                                                                         ? item.tmm_dosage && item.tmm_unit
@@ -1759,9 +1978,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={styles.row} key={i} wrap={false}>
                                                                 <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
                                                                 <View style={styles.cell}>
-                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name}</Text>
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || ''}</Text>
                                                                     {option?.medicine_with_generic && (
-                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic}</Text>
+                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic || pItem.corrected_name || pItem.metadata?.tmm_generic || ''}</Text>
                                                                     )}
                                                                 </View>
                                                                 <View style={{ flex: 
@@ -1820,7 +2039,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </View>
                                                 </View>
                                             )
-                                        )}
+                                        ) : null}
                                     </>
                                 ) : option?.id === 5 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
@@ -2452,11 +2671,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </View>
                                             )
                                         )}
+                                        {Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Others:&nbsp;{'\n'}</Text>
+                                                {caseManagerData.others.map((item, i) => (
+                                                    <Text key={i} style={{ marginTop: PX_TO_PT * 4, color: '#171725', fontFamily: getIndianLanguageFont(typeof item === 'string' ? item : (item?.text ?? item?.name ?? ''), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                        {i + 1}. {typeof item === 'string' ? item : (item?.text ?? item?.name ?? '')}
+                                                    </Text>
+                                                ))}
+                                            </View>
+                                        )}
                                     </>
                                 ) : option?.id === 10 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         <>
-                                            {(transformGivenVaccines?.length > 0 || todayVaccines?.due?.length > 0) && (
+                                            {(transformGivenVaccines?.length > 0 || todayVaccines?.due?.length > 0 || prescriptionVaccines?.length > 0) && (
                                                 option?.format === 'inline' ? (
                                                     <>
                                                         {transformGivenVaccines?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
@@ -2518,6 +2747,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     </Text>
                                                                 )
                                                             })}
+                                                        </Text>}
+                                                        {prescriptionVaccines?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
+                                                            <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Vaccination :&nbsp;{'\n'}</Text>
+                                                            {prescriptionVaccines?.map((item, i) => (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * 6, lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item?.name || item?.lineItem || '-'}&nbsp;</Text>
+                                                                    {(item?.schedule || item?.brand || item?.notes) && (
+                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {[item?.schedule && `Schedule : ${item.schedule}`, item?.brand && `Brand : ${item.brand}`, item?.notes && `Note : ${item.notes}`].filter(Boolean).join(' | ')}
+                                                                        </Text>
+                                                                    )}
+                                                                    <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{i !== prescriptionVaccines?.length - 1 ? ', ' : ''}</Text>
+                                                                </Text>
+                                                            ))}
                                                         </Text>}
                                                     </>
                                                 ) : option?.format === 'listview' ? (
@@ -2582,6 +2825,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </View>}
+                                                        {prescriptionVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                            <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Vaccination :&nbsp;{'\n'}</Text>
+                                                            {prescriptionVaccines?.map((item, i) => (
+                                                                <Text key={i} style={{ marginTop: PX_TO_PT * (i === 0 ? 4 : 2), lineHeight: 1.4 }}>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
+                                                                    <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item?.name || item?.lineItem || '-'}&nbsp;</Text>
+                                                                    {(item?.schedule || item?.brand || item?.notes) && (
+                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
+                                                                            {[item?.schedule && `Schedule : ${item.schedule}`, item?.brand && `Brand : ${item.brand}`, item?.notes && `Note : ${item.notes}`].filter(Boolean).join(' | ')}
+                                                                        </Text>
+                                                                    )}
+                                                                </Text>
+                                                            ))}
+                                                        </View>}
                                                     </>
                                                 ) : (
                                                     <>
@@ -2639,6 +2896,33 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ))}
                                                             </View>
                                                         </View>}
+                                                        {prescriptionVaccines?.length > 0 && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                            <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Vaccination :&nbsp;{'\n'}</Text>
+                                                            <View style={styles.table}>
+                                                                <View style={styles.headerRow} fixed>
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>SCHEDULE</Text>
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>BRAND</Text>
+                                                                    <Text style={[styles.headerCell, { flex: 0.8, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
+                                                                </View>
+                                                                {prescriptionVaccines?.map((item, i) => (
+                                                                    <View style={styles.row} key={i} wrap={false}>
+                                                                        <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                            {item?.name || item?.lineItem || '-'}
+                                                                        </Text>
+                                                                        <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                            {item?.schedule || '-'}
+                                                                        </Text>
+                                                                        <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                            {item?.brand || '-'}
+                                                                        </Text>
+                                                                        <Text style={[styles.cell, { flex: 0.8, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                            {item?.notes || '-'}&nbsp;
+                                                                        </Text>
+                                                                    </View>
+                                                                ))}
+                                                            </View>
+                                                        </View>}
                                                     </>
                                                 )
                                             )}
@@ -2646,18 +2930,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 11 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" ) && (
-                                            smartRxData?.map((item, i) => (
-                                                <View key={i}>
-                                                    <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
-                                                        <Image
-                                                            style={{ width: '100%', height: '100%' }}
-                                                            src={item.smart_prescription_file}
-                                                            objectFit="contain"
-                                                        />
+                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && (
+                                            smartRxData?.map((item, i) => {
+                                                const src = getWrittenRxImageUrl(item);
+                                                return src ? (
+                                                    <View key={i}>
+                                                        <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
+                                                            <Image
+                                                                style={{ width: '100%', height: '100%' }}
+                                                                src={src}
+                                                                objectFit="contain"
+                                                            />
+                                                        </View>
                                                     </View>
-                                                </View>
-                                            ))
+                                                ) : null;
+                                            })
                                         )}
                                     </>
                                 ) : option?.id === 12 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
@@ -5924,17 +6211,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         // Check if this is V2 module directly from customModule
                                         const isV2 = customModule?.module_version === 'v2';
                                         
-                                        // Get field names directly from the first content item (if v2)
                                         const getFieldKeys = (item) => {
                                             if (!item || typeof item !== 'object') return [];
-                                            // Exclude 'id' and any other non-field keys
-                                            return Object.keys(item).filter(key => key !== 'id');
+                                            return Object.keys(item).filter(key => key !== 'id' && key !== 'order');
                                         };
                                         
                                         // Get field keys from first content item (for v2)
                                         const fieldKeys = isV2 && customModule?.content?.length > 0 
                                             ? getFieldKeys(customModule.content[0]) 
                                             : [];
+                                        // When order === 0, render v2 as single-column table (header = field key, one column of values)
+                                        const isV2SingleColumn = isV2 && fieldKeys.length > 0 && customModule?.content?.length > 0 &&
+                                            (customModule.content[0].order === 0 || customModule.content[0].order === '0');
 
                                         // Helper to check if V2 content has any data
                                         const hasV2Content = (item) => {
@@ -6055,43 +6343,86 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </View>
                                             );
                                         } else {
-                                            // Table format
+                                            // Table format (same as consult follow dynamic modules: two-column table with header)
                                             const moduleName = customModule?.name || customModule?.module_name;
                                             return (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                     <Text fixed style={{ color: '#171725', fontFamily: getIndianLanguageFont(moduleName, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>{moduleName}:&nbsp;</Text>
                                                     <View style={styles.table}>
                                                         <View style={styles.headerRowFixed} fixed/>
-                                                        {customModule.module_version === "v2" && (
-                                                            // V2: Render column headers with field keys
-                                                            <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                {fieldKeys.map((fieldKey, idx) => {
-                                                                    const flexPerColumn = 1 / fieldKeys.length;
+                                                        {customModule.module_version === "v2" ? (
+                                                            // V2: When order === 0, single column (header = field key; rows = values). Else multi-column.
+                                                            isV2SingleColumn ? (
+                                                                <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                    <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(fieldKeys[0], printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
+                                                                        {fieldKeys[0].toUpperCase()}&nbsp;
+                                                                    </Text>
+                                                                </View>
+                                                            ) : (
+                                                                <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                    {fieldKeys.map((fieldKey, idx) => {
+                                                                        const flexPerColumn = 1 / fieldKeys.length;
+                                                                        return (
+                                                                            <Text 
+                                                                                key={idx}
+                                                                                style={[
+                                                                                    styles.dynamicModuleCell, 
+                                                                                    { 
+                                                                                        flex: flexPerColumn, 
+                                                                                        color: '#171725', 
+                                                                                        fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
+                                                                                        fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                        fontWeight: 700,
+                                                                                        textTransform: 'uppercase'
+                                                                                    }
+                                                                                ]}
+                                                                            >
+                                                                                {fieldKey.toUpperCase()}&nbsp;
+                                                                            </Text>
+                                                                        );
+                                                                    })}
+                                                                </View>
+                                                            )
+                                                        ) : (
+                                                            // V1: single item with "Label: Value" in notes → one column (header = Label, row = Value). Else two-column NAME | VALUE.
+                                                            (() => {
+                                                                const first = customModule?.content?.[0];
+                                                                const notesStr = first?.notes && String(first.notes).trim();
+                                                                const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
+                                                                const isV1SingleColumn = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < notesStr.length - 1;
+                                                                const v1Label = isV1SingleColumn ? notesStr.slice(0, colonIdx).trim() : null;
+                                                                const v1Value = isV1SingleColumn ? notesStr.slice(colonIdx + 1).trim() : null;
+                                                                if (isV1SingleColumn && v1Label != null && v1Value != null) {
                                                                     return (
-                                                                        <Text 
-                                                                            key={idx}
-                                                                            style={[
-                                                                                styles.dynamicModuleCell, 
-                                                                                { 
-                                                                                    flex: flexPerColumn, 
-                                                                                    color: '#171725', 
-                                                                                    fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
-                                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
-                                                                                    fontWeight: 700,
-                                                                                    textTransform: 'uppercase'
-                                                                                }
-                                                                            ]}
-                                                                        >
-                                                                            {fieldKey.toUpperCase()}&nbsp;
-                                                                        </Text>
+                                                                        <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(v1Label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
+                                                                                {v1Label.toUpperCase()}&nbsp;
+                                                                            </Text>
+                                                                        </View>
                                                                     );
-                                                                })}
-                                                            </View>
+                                                                }
+                                                                return (
+                                                                    <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>NAME&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>VALUE&nbsp;</Text>
+                                                                    </View>
+                                                                );
+                                                            })()
                                                         )}
                                                         {customModule?.content.map((item, i) => {
                                                             if (customModule.module_version === "v2") {
-
-                                                                // V2: Render all fields in columns using fieldKeys from content
+                                                                // V2 with order === 0: single column – one cell per row (value only)
+                                                                if (isV2SingleColumn) {
+                                                                    const value = item[fieldKeys[0]] != null ? String(item[fieldKeys[0]]).trim() : '-';
+                                                                    return (
+                                                                        <View style={styles.row} key={i} wrap={false}>
+                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                                {value || '-'}&nbsp;
+                                                                            </Text>
+                                                                        </View>
+                                                                    );
+                                                                }
+                                                                // V2 multi-column: Render all fields in columns using fieldKeys from content
                                                                 const fieldValues = fieldKeys.map(fieldKey => item[fieldKey] || '-');
                                                                 const flexPerColumn = 1 / fieldKeys.length;
                                                                 
@@ -6117,11 +6448,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     </View>
                                                                 );
                                                             } else {
-                                                                // V1: Original rendering
+                                                                // V1: Single item with "Label: Value" in notes → one column (value only). Else two columns.
+                                                                const notesStr = item?.notes && String(item.notes).trim();
+                                                                const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
+                                                                const isV1SingleCol = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < (notesStr?.length ?? 0) - 1;
+                                                                if (isV1SingleCol) {
+                                                                    const val = notesStr.slice(colonIdx + 1).trim().replace(/ /g, '\u00A0') || '-';
+                                                                    return (
+                                                                        <View style={styles.row} key={i} wrap={false}>
+                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(val, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{val}&nbsp;</Text>
+                                                                        </View>
+                                                                    );
+                                                                }
+                                                                const col1 = (item?.title && String(item.title).trim()) ? item.title : (i + 1);
+                                                                const col2 = (item?.notes && String(item.notes).trim()) ? item.notes.replace(/ /g, '\u00A0') : '-';
                                                                 return (
                                                                     <View style={styles.row} key={i} wrap={false}>
-                                                                        {customModule?.content?.some((item) => item.title) && <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.title || '-'}&nbsp;</Text>}
-                                                                        {customModule?.content?.some((item) => item.notes) && <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.notes?.replace(/ /g, '\u00A0') || '-'}&nbsp;</Text>}
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(col1, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{col1}&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(col2, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{col2}&nbsp;</Text>
                                                                     </View>
                                                                 );
                                                             }
@@ -6219,7 +6563,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 </View>
                             )
                         
-                        });
+                        })}
+                            </>
+                        );
                         })()}
                     {/* </View> */}
 
