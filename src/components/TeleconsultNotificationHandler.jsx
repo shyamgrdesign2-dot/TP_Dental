@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { message } from "antd";
-import { TELECONSULT_NOTIFICATION_EVENT } from "../services/oneSignalService";
+/** Event name for teleconsult notification payloads (e.g. from push or other sources). */
+const TELECONSULT_NOTIFICATION_EVENT = "teleconsult-notification";
 import {
   addWaitingBanner,
   removeWaitingBanner,
