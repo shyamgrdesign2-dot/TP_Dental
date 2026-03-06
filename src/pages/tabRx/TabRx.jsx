@@ -515,7 +515,7 @@ function TabRx() {
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] =
     useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
-  
+
   // Canvas state
   const canvasRef = useRef(null);
   const [smartRxFiles, setSmartRxFiles] = useState([]);
@@ -525,21 +525,22 @@ function TabRx() {
   const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
   const [hasCanvasContent, setHasCanvasContent] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
-  
+
   // Welcome popup state
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
-  
+  const [userFormatPref, setUserFormatPref] = useState(null);
+
   // Handle template drawer toggle
   const handleToggleTemplateDrawer = useCallback(() => {
     setShowTemplateDrawer(prev => !prev);
   }, []);
-  
+
   // Handle canvas content change notification
   const handleCanvasContentChange = useCallback((hasContent) => {
     setHasCanvasContent(hasContent);
   }, []);
-  
+
   // Check welcome popup on mount
   useEffect(() => {
     let isMounted = true;
@@ -552,6 +553,10 @@ function TabRx() {
 
           if (letterHeadFlag !== undefined) {
             setIsSelectLetterHead(letterHeadFlag);
+          }
+
+          if (format) {
+            setUserFormatPref(format);
           }
 
           if (!format) {
@@ -569,7 +574,7 @@ function TabRx() {
       isMounted = false;
     };
   }, []);
-  
+
   // Check canvas content on mount and when canvas ref changes
   useEffect(() => {
     const checkCanvasContent = () => {
@@ -578,18 +583,18 @@ function TabRx() {
           const canvasData = canvasRef.current.getCanvasData();
           if (canvasData) {
             // Check if there are any strokes on any page
-            const hasStrokes = canvasData.strokesByPage && 
-              Object.values(canvasData.strokesByPage).some(strokes => 
+            const hasStrokes = canvasData.strokesByPage &&
+              Object.values(canvasData.strokesByPage).some(strokes =>
                 Array.isArray(strokes) && strokes.length > 0
               );
-            
+
             // Check if there are any text elements on any page
-            const hasTextElements = canvasData.textElementsByPage && 
-              Object.values(canvasData.textElementsByPage).some(textElements => 
+            const hasTextElements = canvasData.textElementsByPage &&
+              Object.values(canvasData.textElementsByPage).some(textElements =>
                 Array.isArray(textElements) && textElements.length > 0 &&
                 textElements.some(el => el.content && el.content.trim().length > 0)
               );
-            
+
             const hasContent = hasStrokes || hasTextElements;
             setHasCanvasContent(hasContent);
           } else {
@@ -600,60 +605,60 @@ function TabRx() {
         }
       }
     };
-    
+
     // Check immediately after a short delay to allow canvas to initialize
     const timeout = setTimeout(checkCanvasContent, 100);
-    
+
     // Also check periodically to catch any changes that might not trigger callbacks
     // Reduced frequency to avoid performance issues
     const interval = setInterval(checkCanvasContent, 2000);
-    
+
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [canvasRef]);
-  
+
   // Handle canvas submission - convert canvas to files and upload
   const handleCanvasSubmit = useCallback(async () => {
     console.log('🖼️ [TabRx] handleCanvasSubmit called');
-    
+
     if (!canvasRef.current) {
       console.log('❌ [TabRx] No canvasRef.current, returning empty');
       return { files: [], blobs: [] };
     }
-    
+
     setCanvasLoader(true);
     try {
       console.log('📤 [TabRx] Exporting canvas to images...');
       const { files, blobs } = await canvasRef.current.exportToImages();
-      console.log('✅ [TabRx] Export complete:', { 
-        filesCount: files.length, 
+      console.log('✅ [TabRx] Export complete:', {
+        filesCount: files.length,
         blobsCount: blobs.length,
         fileNames: files.map(f => f.name),
         fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
       });
-      
+
       if (files.length > 0) {
-        console.log('📤 [TabRx] Starting file upload...', { 
+        console.log('📤 [TabRx] Starting file upload...', {
           filesToUpload: files.length,
           fileNames: files.map(f => f.name)
         });
-        
+
         // Upload files using tab-rx service
         const uploadResult = await uploadTabRxFiles(files, (progress) => {
           console.log('📊 [TabRx] Upload progress:', progress + '%');
         });
-        
+
         console.log('📤 [TabRx] Upload result:', uploadResult);
-        
+
         if (uploadResult.success) {
           console.log('✅ [TabRx] Upload successful, updating state...');
-          
+
           // Extract uploaded file names from API response
           const uploadedFileNames = uploadResult.uploadedFileNames || [];
           console.log('📋 [TabRx] Uploaded file names from API:', uploadedFileNames);
-          
+
           // Update files with the names returned from API
           // Create new File objects with the API-returned names
           const updatedFiles = files.map((file, index) => {
@@ -666,23 +671,23 @@ function TabRx() {
             // Fallback to original name if API didn't return a name for this file
             return file;
           });
-          
+
           console.log('📝 [TabRx] Updated files with API names:', {
             originalNames: files.map(f => f.name),
             apiNames: uploadedFileNames,
             updatedNames: updatedFiles.map(f => f.name)
           });
-          
+
           // Store the updated files with API-returned names
           setSmartRxFiles(updatedFiles);
-          
+
           const canvasData = canvasRef.current.getCanvasData();
           console.log('📋 [TabRx] Canvas data:', {
             selectedTemplateId: canvasData.selectedTemplateId,
             pagesCount: canvasData.pagesMetadata?.length,
             pagesMetadata: canvasData.pagesMetadata
           });
-          
+
           if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
             setIsCustomSSRX(true);
             setSelectedTemplateId(canvasData.selectedTemplateId);
@@ -690,7 +695,7 @@ function TabRx() {
           } else {
             console.log('ℹ️ [TabRx] Blank canvas or no template selected');
           }
-          
+
           // Return updated files with API names
           return { files: updatedFiles, blobs };
         } else {
@@ -700,8 +705,8 @@ function TabRx() {
       } else {
         console.log('⚠️ [TabRx] No files to upload (all blank or empty)');
       }
-      
-      console.log('✅ [TabRx] handleCanvasSubmit returning:', { 
+
+      console.log('✅ [TabRx] handleCanvasSubmit returning:', {
         filesCount: files.length,
         fileNames: files.map(f => f.name)
       });
@@ -714,7 +719,7 @@ function TabRx() {
       setCanvasLoader(false);
     }
   }, []);
-  
+
   // Handle canvas clear
   const handleCanvasClear = useCallback(() => {
     if (canvasRef.current) {
@@ -2086,13 +2091,15 @@ function TabRx() {
                   )}
                 </Sider>
                 {/* <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}> */}
-                  <TabRxCanvas
-                    ref={canvasRef}
-                    patient={patient_data}
-                    showTemplateDrawer={showTemplateDrawer}
-                    onToggleTemplateDrawer={handleToggleTemplateDrawer}
-                    onContentChange={handleCanvasContentChange}
-                  />
+                <TabRxCanvas
+                  ref={canvasRef}
+                  patient={patient_data}
+                  profile={profile}
+                  initialTemplateId={userFormatPref === 2 ? 'standard' : 'blank'}
+                  showTemplateDrawer={showTemplateDrawer}
+                  onToggleTemplateDrawer={handleToggleTemplateDrawer}
+                  onContentChange={handleCanvasContentChange}
+                />
                 {/* </Content> */}
               </Layout>
             </div>
@@ -2480,7 +2487,10 @@ function TabRx() {
       <TabRxWelcomePopup
         open={showWelcomePopup}
         onClose={() => setShowWelcomePopup(false)}
-        onSuccess={() => setShowWelcomePopup(false)}
+        onSuccess={(format) => {
+          setShowWelcomePopup(false);
+          setUserFormatPref(format);
+        }}
         isSelectLetterHead={isSelectLetterHead}
       />
     </CashManagerContext.Provider>
