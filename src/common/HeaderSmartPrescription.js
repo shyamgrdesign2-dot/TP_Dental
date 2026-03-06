@@ -64,7 +64,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
 import VideoConsultButton from "../components/VideoConsultButton";
 
 function HeaderPrescription({
@@ -537,18 +537,22 @@ function HeaderPrescription({
         const tokenData = decodedToken?.result;
         const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
+        const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
+          patient_data?.patient_unique_id,
+          generatedTcmId,
+          'smart-rx submit',
+        );
+
         if (generatedTcmId > 0 && selectedCarePlan) {
-          if (tcmId !== 0 && selectedCarePlan?.plan_name) {
-            // Editing existing consultation: update care plan name against tcm_id
+          if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
           } else if (
-            tcmId === 0 &&
+            !hasExistingCarePlan &&
             selectedCarePlan?.plan_id &&
             patient_data?.patient_unique_id &&
             tokenData?.user_id &&
             tokenData?.clinic_id
           ) {
-            // New consultation: assign care plan with tcm_id
             await assignCarePlan({
               plan_id: selectedCarePlan.plan_id,
               um_id: tokenData.user_id,
@@ -567,7 +571,11 @@ function HeaderPrescription({
       try {
         if (patient_data?.patient_unique_id) {
           const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-          carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
+          carePlanAssignments = Array.isArray(assignmentsResp?.data)
+            ? assignmentsResp.data
+            : Array.isArray(assignmentsResp)
+            ? assignmentsResp
+            : assignmentsResp?.assignments || [];
         }
       } catch (cpFetchErr) {
         console.error('Failed to fetch care plan assignments for smart rx print state:', cpFetchErr);

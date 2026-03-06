@@ -168,6 +168,21 @@ export const getDefaultPrintsettings = createAsyncThunk(
     let result = {};
     result = await ApiPrintSettings.getDefaultPrintsettings(data);
     if (result.status) {
+      const patientInfo = result?.data?.header_footer?.patient_info;
+      if (Array.isArray(patientInfo)) {
+        const ensureItem = (id, title) => {
+          const exists = patientInfo.some(
+            (item) =>
+              item?.id === id ||
+              (item?.title && String(item.title).trim() === title)
+          );
+          if (!exists) {
+            patientInfo.push({ id, title, enable: "N" });
+          }
+        };
+        ensureItem(15, "ABHA ID");
+        ensureItem(16, "ABHA Registration Number");
+      }
       return result.data;
     } else {
       throw Error(result.error);
@@ -433,7 +448,10 @@ const doctorsSlice = createSlice({
       if (typeof opthalModuleAutoAdded === "boolean") {
         state.opthalModuleAutoAdded = opthalModuleAutoAdded;
       }
-    }
+    },
+    // Clear cached doctor profile when user switches (e.g. new login from Medeco)
+    // Returns a fresh copy of initialState to avoid mutations
+    clearDoctorProfile: () => ({ ...initialState }),
   },
   extraReducers: (builder) => {
     builder
@@ -679,5 +697,5 @@ const doctorsSlice = createSlice({
   },
 });
 
-export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile, setCustomizedPadLists } = doctorsSlice.actions
+export const { setUserId, updateStatusMoengageB2C, changeLogoStatus, changeSortOrder, updatePatientCertificateList, updateWebsitePublish, updateDragDrop, updateHasLocation, setB2C_Profile, setCustomizedPadLists, clearDoctorProfile } = doctorsSlice.actions
 export default doctorsSlice.reducer;

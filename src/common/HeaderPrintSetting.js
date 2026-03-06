@@ -190,7 +190,11 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         } 
                     });
                 } else {
-                    navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx } });
+                    if (previousPage) {
+                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx } });
+                    } else {
+                        navigate(-1, { replace: true, state: { ...state, currentSessionRx } });
+                    }
                 }
             } else {
                 errorMessage(action.error)
@@ -244,7 +248,11 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     } 
                 });
             } else {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: currentSessionRx } });
+                }
             }
         } else {
             setFlag(1)
@@ -282,20 +290,12 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         files: state?.files || state?.smartRxFile
                     } 
                 });
-            } else if (previousPage === "/print-smart-rx") {
-                navigate("/print-smart-rx", {
-                    replace: true,
-                    state: {
-                        ...state,
-                        selectedLang: selectedLang,
-                        currentSessionRx: null,
-                        from: "/configure_print_setting",
-                        page: state?.page,
-                        smartRxFile: state?.smartRxFile || state?.files
-                    }
-                });
             } else {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: null } });
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: null } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: null } });
+                }
             }
         } else if (flag === 3) {
             if (previousPage === "/gen-rx-print") {
@@ -339,7 +339,25 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     } 
                 });
             } else {
-                navigate(previousPage ?? "/prescription_print_view", { replace: true, state: { ...state, currentSessionRx: currentSessionRx, fromConfigurePrintSetting: true } });
+                let sessionRxToPass = currentSessionRx;
+                if (
+                    previousPage === "/prescription_print_view" &&
+                    typeof currentSessionRx === "string" &&
+                    currentSessionRx.startsWith("blob:")
+                ) {
+                    try {
+                        const res = await fetch(currentSessionRx);
+                        const blob = await res.blob();
+                        sessionRxToPass = blob;
+                    } catch (err) {
+                        console.error("Failed to hydrate session Rx blob before navigation", err);
+                    }
+                }
+                if (previousPage) {
+                    navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
+                } else {
+                    navigate(-1, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
+                }
             }
         } else {
             const action = await dispatch(getDefaultPrintsettings({ default: true }));

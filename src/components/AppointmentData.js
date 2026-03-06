@@ -2773,6 +2773,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     if (recentBillDrawer && isReceptionist) {
       getPatientBills(appointmentSelectedFromMenu);
     }
+    if (createBillDrawer) {
+      setBillData(null);
+    }
   }, [createBillDrawer]);
 
   const handleAddAdvanceDrawer = useCallback(() => {
@@ -3670,7 +3673,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             isBackModalOpen={isBackModalOpen}
             showHideBackModal={showHideBackModal}
             patientData={appointmentSelectedFromMenu}
-            editBillData={billData}
+            editBillData={billData && Object.keys(billData).length > 0 ? {...billData, patient: {...billData?.patient, patientId: billData?.patientId || billData?.patient?.patientId}} : null}
+            setEditedBillData={setBillData}
           />
         </Drawer>
       )}

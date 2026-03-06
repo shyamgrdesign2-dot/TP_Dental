@@ -355,7 +355,7 @@ const uat = {
     4851751290017377, 754811713438773, 912841712741834, 7591750931025038, 396741719906700
   ],
   munshi_hospital_business_ids: [749611704175237],
-  medeco_webview_url: "https://pm-doctor-tatva-pwa-qa.tatvacare.in",
+  medeco_webview_url: "https://pm-doctor-tatva-pwa-uat.tatvacare.in",
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://pm-uat-doctor-portal.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",

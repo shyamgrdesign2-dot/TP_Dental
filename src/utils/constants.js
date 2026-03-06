@@ -455,7 +455,8 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
   "9825337281",
   "9825023998",
   "9978957799",
-  "9167437770"
+  "9167437770",
+  "8980019439"
 ];
 
 // Custom Canvas Size Increased upto 20 

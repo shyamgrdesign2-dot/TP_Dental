@@ -27,7 +27,7 @@ import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent } from "../utils/utils";
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX } from "../utils/constants";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
 
 import visitEnd from '../assets/images/end-visit.svg';
 import imgCloseVisit from '../assets/images/close-visit.svg';
@@ -1356,22 +1356,31 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             try {
               // Ensure care plan is linked to the definitive consultation id
               const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-      
+
+              const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
+                patient_data?.patient_unique_id,
+                generatedTcmId,
+                'draft',
+              );
+
               if (generatedTcmId > 0 && selectedCarePlan) {
-                if (tcmId !== 0 && selectedCarePlan?.plan_name) {
-                  // Editing existing consultation: update care plan name against tcm_id
+                if (
+                  hasExistingCarePlan &&
+                  selectedCarePlan?.plan_name
+                ) {
+                  // Editing existing consultation with existing care plan: update care plan name against tcm_id
                   await updateCarePlanName(
                     parseInt(generatedTcmId),
                     selectedCarePlan.plan_name,
                   );
                 } else if (
-                  tcmId === 0 &&
+                  !hasExistingCarePlan &&
                   selectedCarePlan?.plan_id &&
                   patient_data?.patient_unique_id &&
                   tokenData?.user_id &&
                   tokenData?.clinic_id
                 ) {
-                  // New consultation: assign care plan with tcm_id
+                  // First-time care plan assignment for this consultation (including new consultations): assign care plan with tcm_id
                   await assignCarePlan({
                     plan_id: selectedCarePlan.plan_id,
                     um_id: tokenData.user_id,
@@ -1382,7 +1391,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
               }
             } catch (error) {
-              console.error("Care plan sync after save as draft rx failed:", error);
+              console.error(
+                "Care plan sync after save as draft rx failed:",
+                error,
+              );
             }
       
             message.open({
@@ -1593,18 +1605,22 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const tokenData = decodedToken?.result;
                     const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
+                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
+                        patient_data?.patient_unique_id,
+                        generatedTcmId,
+                        'submit',
+                    );
+
                     if (generatedTcmId > 0 && selectedCarePlan) {
-                        if (tcmId !== 0 && selectedCarePlan?.plan_name) {
-                            // Editing existing consultation: update care plan name against tcm_id
+                        if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
                         } else if (
-                            tcmId === 0 &&
+                            !hasExistingCarePlan &&
                             selectedCarePlan?.plan_id &&
                             patient_data?.patient_unique_id &&
                             tokenData?.user_id &&
                             tokenData?.clinic_id
                         ) {
-                            // New consultation: assign care plan with tcm_id
                             await assignCarePlan({
                                 plan_id: selectedCarePlan.plan_id,
                                 um_id: tokenData.user_id,

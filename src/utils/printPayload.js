@@ -63,6 +63,7 @@ export const renderPrintPayloadToBlob = async (
     labReportData,
     ophthalModuleData,
     zydusLabData,
+    abhaDetails
   } = payload;
 
   const combinedCaseManagerData = {
@@ -121,6 +122,7 @@ export const renderPrintPayloadToBlob = async (
       ophthalModuleData={ophthalModuleData}
       zydusLabData={zydusLabData}
       showSnapRxImages={showSnapRxImages}
+      abhaDetails={abhaDetails}
     />
   ).toBlob();
 };

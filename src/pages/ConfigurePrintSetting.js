@@ -37,6 +37,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
+import ApiAbha from "../api/services/ApiAbha";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 function ConfigurePrintSetting() {
@@ -74,6 +75,7 @@ function ConfigurePrintSetting() {
     const footerImageShowRef = useRef(false);
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
+    const [abhaDetails, setAbhaDetails] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -86,7 +88,12 @@ function ConfigurePrintSetting() {
     }, [divRef]);
 
     useEffect(() => {
-        let caseManagerDataToUse = caseManagerData;
+        growthChartDetails.getGrowthChartDetails();
+        getPatientBills();
+        fetchAbhaDetails();
+    }, []);
+
+    useEffect(() => {
         const fetchVoiceAmbientData = async () => {
             if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
                 const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
@@ -129,27 +136,27 @@ function ConfigurePrintSetting() {
                                 }
                             }
                             
-                            caseManagerDataToUse = { ...caseManagerData, ...action.payload };
+                            return; 
                         }
                     } catch (error) {
                     }
                 }
             }
             
-            if (!caseManagerDataToUse) {
+            if (!caseManagerData) {
                 return;
             }
             
-            const rxIdToUse = rxId || caseManagerDataToUse?.smart_prescription_filename;
+            const rxIdToUse = rxId || caseManagerData?.smart_prescription_filename;
             const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
-            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerDataToUse?.isRxDigitize && !rxIdToUse);
+            const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerData?.isRxDigitize && !rxIdToUse);
             const isVoiceAmbientFlow = rxIdToUse && !isSnapRx;
             const shouldFetchData = (isSnapRx && isAfterDigitization) || isVoiceAmbientFlow;
 
-            const hasMergedMedicine = caseManagerDataToUse?.medicine && 
-                                      Array.isArray(caseManagerDataToUse.medicine) && 
-                                      caseManagerDataToUse.medicine.length > 0;
-            const isVoiceAmbientRx = caseManagerDataToUse?.isVoiceAmbientRx;
+            const hasMergedMedicine = caseManagerData?.medicine && 
+                                      Array.isArray(caseManagerData.medicine) && 
+                                      caseManagerData.medicine.length > 0;
+            const isVoiceAmbientRx = caseManagerData?.isVoiceAmbientRx;
             
             if (hasMergedMedicine && (isVoiceAmbientRx || isSnapRx) && (rxIdToUse || isSnapRx)) {
                 return;
@@ -165,8 +172,8 @@ function ConfigurePrintSetting() {
                     
                     if (isSnapRx) {
                         voiceAmbientResponse = await getSnapRxDigitization(
-                            caseManagerDataToUse?.patient_data?.patient_unique_id,
-                            caseManagerDataToUse?.tcm_id,
+                            caseManagerData?.patient_data?.patient_unique_id,
+                            caseManagerData?.tcm_id,
                             null
                         );
                     } else if (isAmbientMode) {
@@ -306,11 +313,19 @@ function ConfigurePrintSetting() {
                                 const isAlreadyFormatted = data.medications.some(med => med.tmm_medicine_name || med.tmm_id);
                                 
                                 if (isAlreadyFormatted) {
-                                    transformed.medicine = data.medications.map(med => ({
-                                        ...med,
-                                        unique_id: med.unique_id || med._id || med.tmm_id || `voice-${Date.now()}-${Math.random()}`,
-                                        change: med.change || 0
-                                    }));
+                                    const aiFlowUnitMap = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
+                                    transformed.medicine = data.medications.map(med => {
+                                        const unitId = med.tmm_unit ?? med.unit_id ?? 2;
+                                        const medicineUnit = (Array.isArray(med.medicineUnit) && med.medicineUnit.length > 0)
+                                            ? med.medicineUnit
+                                            : [{ tmu_id: unitId, tmu_title: aiFlowUnitMap[unitId] || 'Unit' }];
+                                        return {
+                                            ...med,
+                                            unique_id: med.unique_id || med._id || med.tmm_id || `voice-${Date.now()}-${Math.random()}`,
+                                            change: med.change || 0,
+                                            medicineUnit
+                                        };
+                                    });
                                 } else {
                                     transformed.medicine = data.medications.map((med, index) => {
                                         let days = med.days || med.tmm_days || 0;
@@ -400,7 +415,9 @@ function ConfigurePrintSetting() {
                                             tmm_remarks: med.notes || med.note || med.tmm_remarks || "",
                                             unique_id: med.unique_id || med._id || med.id || `voice-${Date.now()}-${index}`,
                                             change: med.change || 0,
-                                            medicineUnit: med.medicineUnit || []
+                                            medicineUnit: (Array.isArray(med.medicineUnit) && med.medicineUnit.length > 0)
+                                                ? med.medicineUnit
+                                                : [{ tmu_id: unitId, tmu_title: ({ 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' })[unitId] || 'Unit' }]
                                         };
                                     });
                                 }
@@ -428,7 +445,7 @@ function ConfigurePrintSetting() {
                             
                             
                             if (Array.isArray(data.labResults) && data.labResults.length > 0) {
-                                const consultationDate = caseManagerDataToUse?.patient_data?.patient_consultaion_date || caseManagerDataToUse?.consultation_date || moment().format('YYYY-MM-DD');
+                                const consultationDate = caseManagerData?.patient_data?.patient_consultaion_date || caseManagerData?.consultation_date || moment().format('YYYY-MM-DD');
                                 const labParamsDataArray = [];
                                 
                                 const groupedByDate = {};
@@ -607,15 +624,14 @@ function ConfigurePrintSetting() {
                         };
                         
                         const transformedData = transformVoiceAmbientData(prescriptionData);
-                        
                         if (transformedData) {
-                            let followUpDate = transformedData.follow_up_date || transformedData.followUp || caseManagerDataToUse?.follow_up_date;
+                            let followUpDate = transformedData.follow_up_date || transformedData.followUp || caseManagerData?.follow_up_date;
                             if (followUpDate && typeof followUpDate === 'string' && followUpDate.trim() !== '' && !moment(followUpDate, moment.ISO_8601, true).isValid()) {
                                 const relativeDateMatch = followUpDate.match(/(\d+)\s*(Day|Days|Week|Weeks|Month|Months|Year|Years)(\(s\))?/i);
                                 if (relativeDateMatch) {
                                     const value = parseInt(relativeDateMatch[1]);
                                     const unit = relativeDateMatch[2].toLowerCase();
-                                    const consultationDate = caseManagerDataToUse?.patient_data?.patient_consultaion_date || moment().format('YYYY-MM-DD');
+                                    const consultationDate = caseManagerData?.patient_data?.patient_consultaion_date || moment().format('YYYY-MM-DD');
                                     const baseDate = moment(consultationDate);
                                     
                                     if (unit.includes('year')) {
@@ -632,14 +648,14 @@ function ConfigurePrintSetting() {
                                 followUpDate = getFormattedDate(followUpDate);
                             }
                             const mergedModuleContents = [
-                                ...(caseManagerDataToUse?.moduleContents || []),
+                                ...(caseManagerData?.moduleContents || []),
                                 ...(transformedData.moduleContents || []),
                             ];
                             const merged = {
-                                ...caseManagerDataToUse,
+                                ...caseManagerData,
                                 ...(transformedData.medicine && { medicine: transformedData.medicine }),
                                 isVoiceAmbientRx: !isSnapRx,
-                                isRxDigitize: isSnapRx || caseManagerDataToUse?.isRxDigitize,
+                                isRxDigitize: isSnapRx || caseManagerData?.isRxDigitize,
                                 ...(transformedData.diagnosis && { diagnosis: transformedData.diagnosis }),
                                 ...(transformedData.advice && { advice: transformedData.advice }),
                                 ...(transformedData.investigation && { investigation: transformedData.investigation }),
@@ -652,21 +668,21 @@ function ConfigurePrintSetting() {
                                 ...(transformedData.others && Array.isArray(transformedData.others) && { others: transformedData.others }),
                                 ...(transformedData.vaccinations && { vaccinations: transformedData.vaccinations }),
                                 ...(mergedModuleContents.length > 0 && { moduleContents: mergedModuleContents }),
-                                smart_prescription_filename: caseManagerDataToUse?.smart_prescription_filename,
+                                smart_prescription_filename: caseManagerData?.smart_prescription_filename,
                             };
                             setPrescriptionDataFromApi(merged);
                         } else {
-                            setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
+                            setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
                         }
                     } else {
-                        setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
+                        setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
                     }
                 } catch (error) {
-                    setPrescriptionDataFromApi({ ...caseManagerDataToUse, isVoiceAmbientRx: true });
+                    setPrescriptionDataFromApi({ ...caseManagerData, isVoiceAmbientRx: true });
                 }
             }
             
-            const patientId = caseManagerDataToUse?.patient_data?.patient_unique_id;
+            const patientId = caseManagerData?.patient_data?.patient_unique_id;
             if (patientId) {
                 try {
                     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -850,7 +866,7 @@ function ConfigurePrintSetting() {
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === consultationDate
                 );
                 // Lab results come only from Lab Results API (state labParamsData), not from case manager
-                const rawLabParams = labParamsData && Array.isArray(labParamsData) ? labParamsData : [];
+                const rawLabParams = caseManagerData?.labParamsData || [];
                 const labParamsToday = rawLabParams.filter(
                     (l) => (l?.date || l?.createdAt) && moment(l.date || l.createdAt).format("YYYY-MM-DD") === todayStr
                 );
@@ -875,6 +891,8 @@ function ConfigurePrintSetting() {
                 if (caseManagerData?.vaccinations?.length > 0) allowedIds.push(10);
                 const hasOthersData = (caseManagerData?.visit_advice?.trim()) || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                 if (hasOthersData) allowedIds.push(91);
+                const hasFollowUp = !!(caseManagerData?.follow_up_date && String(caseManagerData.follow_up_date).trim());
+                if (hasFollowUp) allowedIds.push(9);
                 allowedIds.push(11);
                 const defaultMedicalHistoryOption = (caseManagerData?.medical_history || [])
                     .filter(item => item && (item.tags?.length > 0 || item.no_know_history))
@@ -920,6 +938,11 @@ function ConfigurePrintSetting() {
                     copyPrintSettings.prescription.case_option.push({ id: 11, title: writtenRxOptionTitle, format: "inline", enable: "Y", custom_status: "Y" });
                 }
                 // Vitals (7): add explicitly when we have vitals data, since defaultOptions may not include id 7
+                if (allowedIds.includes(9) && !copyPrintSettings.prescription.case_option.some(o => o.id === 9)) {
+                    const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
+                    const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
+                    copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 9, title: "Follow Up", format: "inline", enable: "Y", custom_status: "Y" });
+                }
                 if (allowedIds.includes(7) && !copyPrintSettings.prescription.case_option.some(o => o.id === 7)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
@@ -971,6 +994,7 @@ function ConfigurePrintSetting() {
 
             // After digitization or voice/ambient: ensure ALL modules that have data are in print config (same as digitised snap/smart). Use dataForPrescription so voice/ambient API vaccinations are included.
             if (useDigitisedStyleConfig && copyPrintSettings?.prescription?.case_option) {
+                const hasMedicationData = (dataForPrescription?.medicine?.length ?? 0) > 0;
                 const todayStr = moment().format("YYYY-MM-DD");
                 const vitalsForToday = (dataForPrescription?.vitals || []).filter(
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === todayStr
@@ -1015,6 +1039,7 @@ function ConfigurePrintSetting() {
                 addIfMissing(2, "Examination", "inline", {}, true);
                 addIfMissing(1, "Symptoms", "inline", {}, true);
 
+                if (hasMedicationData) addIfMissing(4, "Medication", "table");
                 if (vitalsForToday.length > 0) addIfMissing(7, "Vitals", "table");
                 if (hasLabData) addIfMissing(15, "Lab Results", "table");
                 if (hasMedicalHistory) {
@@ -1194,7 +1219,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId, labParamsData, labParamsData?.length]);
+    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length , caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
 
     useEffect(() => {
         // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true
@@ -1244,6 +1269,13 @@ function ConfigurePrintSetting() {
         setPatientWalletBalance(patientWalletBalanceRes?.advanceDepositBalance);
     };
 
+    const fetchAbhaDetails = async () => {
+        const abhaDetails = await ApiAbha.fetchAbhaDetails(caseManagerData?.patient_data?.patient_unique_id);
+        if (abhaDetails && Object.keys(abhaDetails).length > 0) {
+            setAbhaDetails(abhaDetails);
+        }
+    };
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -1274,7 +1306,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

@@ -14,6 +14,29 @@ import moment from "moment";
 import { sendMessageToParent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
 import { EditBillDeployedDate } from "./constants";
+import ApiAbha from "../../../api/services/ApiAbha";
+
+/**
+ * Enriches patient_data with ABHA details (abha_address, abha_number) when available.
+ * Uses patientId for the API call when provided.
+ * @param {Object} patientData - Patient data object to enrich
+ * @param {string} patientId - Patient unique ID for fetching ABHA details
+ * @returns {Promise<Object>} Patient data with abha_address and abha_number merged in
+ */
+export const enrichPatientDataWithAbha = async (patientData, patientId) => {
+  if (!patientData || !patientId) return patientData;
+  try {
+    const abhaDetails = await ApiAbha.fetchAbhaDetails(patientId);
+    return {
+      ...patientData,
+      abha_address: abhaDetails?.abha_address,
+      abha_number: abhaDetails?.abha_number,
+    };
+  } catch (error) {
+    console.error("Error while fetching ABHA details:", error);
+    return patientData;
+  }
+};  
 
 export const handleDownload = async (
   pdfUrl,

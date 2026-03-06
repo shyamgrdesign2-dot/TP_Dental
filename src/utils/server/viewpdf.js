@@ -507,6 +507,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     patientWalletBalance,
     zydusLabData,
     customModules,
+    abhaDetails,
   } = props;
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
@@ -820,6 +821,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       value = `${caseManagerData?.patient_data?.patient_id ? caseManagerData?.patient_data?.patient_id : "-"}`;
     } else if (id == 14) {
       value = `${caseManagerData?.patient_data?.patient_dob ? caseManagerData?.patient_data?.patient_dob : "-"}`;
+    } else if (id == 15) {
+      value = `${abhaDetails?.abha_address ? abhaDetails?.abha_address : "-"}`;
+    } else if (id == 16) {
+      value = `${abhaDetails?.abha_number ? abhaDetails?.abha_number : "-"}`;
     }
     return value;
   };
