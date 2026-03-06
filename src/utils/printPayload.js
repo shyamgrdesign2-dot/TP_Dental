@@ -72,7 +72,7 @@ export const renderPrintPayloadToBlob = async (
     labParamsData,
     labReportData,
     ophthalModuleData,
-    ...(zydusLabData?.data ? { zydusSelectedLabParams: zydusLabData.data } : {}),
+    ...(zydusLabData?.length > 0 ? { zydusSelectedLabParams: zydusLabData } : {}),
   };
 
   const todayVaccines = {
@@ -120,7 +120,7 @@ export const renderPrintPayloadToBlob = async (
       patientWalletBalance={patientWalletBalance}
       selectedLang={resolvedLang}
       ophthalModuleData={ophthalModuleData}
-      zydusLabData={zydusLabData}
+      zydusLabData={zydusLabData.length > 0 ? {data: zydusLabData} : null}
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
     />

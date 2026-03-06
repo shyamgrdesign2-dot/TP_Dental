@@ -196,6 +196,7 @@ function PrescriptionPrintView() {
         isGynaecHistoryAccessable,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        zydusSelectedLabParams,
     });
 
     useEffect(() => {
