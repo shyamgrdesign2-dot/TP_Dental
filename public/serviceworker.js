@@ -1,6 +1,6 @@
 /*! For license information please see serviceworker.js.LICENSE.txt */
 
-// MoEngage service worker
+// Import MoEngage service worker
 importScripts("https://cdn.moengage.com/release/dc_3/serviceworker_cdn.min.latest.js");
 
 // PWA Service Worker for Tatva Practice Mobile

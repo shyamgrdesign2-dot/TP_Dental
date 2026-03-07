@@ -4,8 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Drawer, message, Spin, Tooltip, Popover } from "antd";
 
 import ConfirmAppointment from "./components/ConfirmAppointment";
-import { addAppointment, getSlotsList, getTeleconsultSlotsList, bookTeleconsult } from "./service";
-import ApiTeleconsult from "../../api/services/ApiTeleconsult";
+import { addAppointment, getSlotsList } from "./service";
 import { errorMessage, getTokenData, getClinicName, sendMessageToParent } from "../../utils/utils";
 import Form from "react-bootstrap/Form";
 import { DatePicker, Tabs, Select } from "antd";
@@ -27,13 +26,7 @@ import { jwtDecode } from "jwt-decode";
 import {
   MESSAGE_KEY,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
-  GB_TELE_CONSULT,
 } from "../../utils/constants";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import hospitalSvg from "../../assets/images/hospital.svg";
-import hospitalWhiteSvg from "../../assets/images/hospital-white.svg";
-import videoSvg from "../../assets/images/video.svg";
-import videoWhiteSvg from "../../assets/images/video-white.svg";
 import { isChrome, isSafari } from "react-device-detect";
 import config from "../../config";
 import axios from "axios";
@@ -371,31 +364,6 @@ function AddAppointment() {
   const { videoList } = useSelector((state) => state.doctors);
   // Add new state for loading
   const [isBookingAppointment, setIsBookingAppointment] = useState(false);
-  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
-  const [hasVideoSlotsFromApi, setHasVideoSlotsFromApi] = useState(false);
-  const [appointmentMode, setAppointmentMode] = useState("in_clinic");
-
-  useEffect(() => {
-    let cancelled = false;
-    const doctorId = selectedDoctor || getTokenData()?.user_id;
-    const hmId = getTokenData()?.clinic_id;
-    if (!doctorId || !isTeleConsultEnabled) {
-      setHasVideoSlotsFromApi(false);
-      return () => {};
-    }
-    ApiTeleconsult.getHasVideoSlots(doctorId, hmId)
-      .then((res) => {
-        if (cancelled) return;
-        const data = res?.data ?? res;
-        setHasVideoSlotsFromApi(!!data?.hasVideoSlots);
-      })
-      .catch(() => {
-        if (!cancelled) setHasVideoSlotsFromApi(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isTeleConsultEnabled, selectedDoctor]);
 
   // Helper function to find the first available section
   const getFirstAvailableSection = (timeSlots) => {
@@ -544,6 +512,7 @@ function AddAppointment() {
   }, []);
 
   useEffect(() => {
+    // Update useEffect for handling slots fetching
     const fetchSlots = async () => {
       if (selectedDoctor || (profile?.um_name && selectedDate)) {
         setIsLoadingSlots(true);
@@ -552,20 +521,22 @@ function AddAppointment() {
           const decoded = jwtDecode(token);
           setTokenData(decoded.result);
           const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
-          const doctorId = selectedDoctor || decoded.result?.user_id;
-          const useTeleSlots = isTeleConsultEnabled && appointmentMode === "teleconsult";
-          const response = useTeleSlots
-            ? await getTeleconsultSlotsList(doctorId, formattedDate)
-            : await getSlotsList(doctorId, formattedDate);
+          const response = await getSlotsList(
+            selectedDoctor || decoded.result?.user_id,
+            formattedDate
+          );
 
           if (response?.status) {
             const generatedSlots = generateTimeSlots(response.slots || []);
             setTimeSlots(generatedSlots);
 
-            if (dayjs(selectedDate).isSame(dayjs(), "day")) {
+            // Determine which tab should be active
+            if (dayjs(selectedDate).isSame(dayjs(), 'day')) {
+              // For current date
               const currentSection = getCurrentTimeSection();
               setActiveTab(getNextAvailableSection(generatedSlots, currentSection));
             } else {
+              // For past or future dates
               setActiveTab(getFirstAvailableSection(generatedSlots));
             }
           } else {
@@ -589,7 +560,7 @@ function AddAppointment() {
     };
 
     fetchSlots();
-  }, [selectedDoctor, selectedDate, isTeleConsultEnabled, appointmentMode]);
+  }, [selectedDoctor, selectedDate]);
 
   // Make sure doctorList is properly mapped to doctorOptions
   const doctorOptions = doctorList?.map((doctor) => ({
@@ -605,9 +576,6 @@ function AddAppointment() {
 
   const handleDoctorChange = (value) => {
     setSelectedDoctor(value);
-    setAppointmentMode("in_clinic");
-    setSelectedTimeSlot(null);
-    setSelectedSlotDetails(null);
     setActiveTab(getCurrentTimeSection()); // Reset tab to current time section
   };
 
@@ -633,9 +601,6 @@ function AddAppointment() {
   useEffect(() => {
     if (state != null) {
       setClickedPatient(state?.patient_data)
-      if (state?.appointmentMode) {
-        setAppointmentMode(state.appointmentMode);
-      }
       setSelectedDoctor(state?.selectedDoctor)
       setSelectedDate(dayjs(state?.selectedDate))
       setSelectedTimeSlot(state?.selectedTimeSlot)
@@ -738,14 +703,7 @@ function AddAppointment() {
         sendData.appointment_remark = remarks;
       }
 
-      const isTeleBooking = isTeleConsultEnabled && appointmentMode === "teleconsult";
-      if (isTeleBooking) {
-        sendData = { ...sendData, patient_unique_id: String(sendData.patient_unique_id) };
-      }
-
-      const response = isTeleBooking
-        ? await bookTeleconsult(sendData)
-        : await addAppointment(sendData);
+    const response = await addAppointment(sendData);
     if (response?.status) {
       // Close the drawer
       setConfirmAppointment(false);
@@ -779,9 +737,9 @@ function AddAppointment() {
         setRemarks("");
         setClickedPatient(null);
 
+        // Refresh slots
         const formattedDate = dayjs(selectedDate).format("YYYY-MM-DD");
-        const refreshSlots = isTeleBooking ? getTeleconsultSlotsList : getSlotsList;
-        const slotsResponse = await refreshSlots(selectedDoctor, formattedDate);
+        const slotsResponse = await getSlotsList(selectedDoctor, formattedDate);
         if (slotsResponse?.status) {
           const generatedSlots = generateTimeSlots(slotsResponse.slots || []);
           setTimeSlots(generatedSlots);
@@ -1019,77 +977,6 @@ function AddAppointment() {
         <div className="pb-5">&nbsp;</div>
       </div>
       <div className={`border rounded-4 appointment-wrap p-4`}>
-        {isTeleConsultEnabled && hasVideoSlotsFromApi && (
-          <div
-            style={{
-              width: 400,
-              height: 52,
-              backgroundColor: "#F5F5F5",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              padding: "4px",
-              marginBottom: 12,
-            }}
-          >
-            <button
-              type="button"
-              className="d-flex align-items-center justify-content-center gap-2 border-0"
-              style={{
-                width: 300,
-                height: 44,
-                borderRadius: 8,
-                backgroundColor: appointmentMode === "in_clinic" ? "#FFFFFF" : "#F5F5F5",
-                color: appointmentMode === "in_clinic" ? "#4B4AD5" : "#454551",
-                fontSize: 16,
-                fontWeight: 500,
-              }}
-              onClick={() => {
-                setAppointmentMode("in_clinic");
-                setSelectedTimeSlot(null);
-                setSelectedSlotDetails(null);
-              }}
-            >
-              <img
-                src={appointmentMode === "in_clinic" ? hospitalSvg : hospitalWhiteSvg}
-                alt=""
-                width={20}
-                height={20}
-                aria-hidden
-              />
-              In-clinic
-            </button>
-            <button
-              type="button"
-              className="d-flex align-items-center justify-content-center gap-2 border-0"
-              style={{
-                width: 300,
-                height: 44,
-                borderRadius: 8,
-                backgroundColor: appointmentMode === "teleconsult" ? "#FFFFFF" : "#F5F5F5",
-                color: appointmentMode === "teleconsult" ? "#4B4AD5" : "#454551",
-                fontSize: 16,
-                fontWeight: 500,
-              }}
-              onClick={() => {
-                setAppointmentMode("teleconsult");
-                setSelectedTimeSlot(null);
-                setSelectedSlotDetails(null);
-              }}
-            >
-              <img
-                src={appointmentMode === "teleconsult" ? videoSvg : videoWhiteSvg}
-                alt=""
-                width={20}
-                height={20}
-                aria-hidden
-              />
-              Tele-Consultation
-            </button>
-          </div>
-        )}
         <div className="d-flex align-items-center justify-content-between">
           <DatePicker
             // value={selectedDate}
@@ -1300,7 +1187,6 @@ function AddAppointment() {
           setSelectedCategories={setSelectedCategories}
           remarks={remarks}
           setRemarks={setRemarks}
-          isTeleConsultSlot={isTeleConsultEnabled && appointmentMode === "teleconsult"}
         />
       </Drawer>
     </>

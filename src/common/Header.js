@@ -29,9 +29,9 @@ import AISuite from "../assets/images/ai-suite.png";
 import Notification from "../assets/images/navbar-icons/notification.svg";
 import ReceiptText from "../assets/images/navbar-icons/receipt-text.svg";
 import iconMobile from "../assets/images/icon-mobile.svg";
+
 import config from "../config";
 import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns, clearDoctorProfile } from "../redux/doctorsSlice";
-import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
 import defaultprofile from "../assets/images/default-profile.svg";
@@ -711,8 +711,6 @@ function Header({ locationPath }) {
 
       // Show loader
       setIsLoading(true);
-
-      dispatch(clearTeleconsultNotification());
 
       setTimeout(async () => {
         try {

@@ -323,7 +323,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         )
     );
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
-    const isTeleconsultType2 = Number(caseManagerData?.pam_status_type_appointment) === 2;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
     const { growthChartData, growthChartImageData, todayGrowthChartData } =
@@ -6612,11 +6611,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
                                             </Text>
                                         )}
-                                        {isTeleconsultType2 && (
-                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
-                                                Note: This Prescription generated via teleconsultation.
-                                            </Text>
-                                        )}
                                     </View>
                                 </View>
                             ) : (
@@ -6635,11 +6629,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {printSettings?.header_footer?.other_settings?.qualification_enable === 'Y' && (
                                             <Text style={[styles.extraText, { fontWeight: 400, color: '#000' }]}>
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
-                                            </Text>
-                                        )}
-                                        {isTeleconsultType2 && (
-                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
-                                                Note: This Prescription generated via teleconsultation.
                                             </Text>
                                         )}
                                     </View>
@@ -6688,11 +6677,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {printSettings?.header_footer?.other_settings?.qualification_enable === 'Y' && (
                                             <Text style={[styles.extraText, { fontWeight: 400, color: '#000' }]}>
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
-                                            </Text>
-                                        )}
-                                        {isTeleconsultType2 && (
-                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
-                                                Note: This Prescription generated via teleconsultation.
                                             </Text>
                                         )}
                                     </View>
