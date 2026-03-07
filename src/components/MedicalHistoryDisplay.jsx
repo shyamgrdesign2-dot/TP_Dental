@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Drawer } from 'antd';
-import { isMobile, isTablet } from 'react-device-detect';
 import MedicalHistoryBox from './MedicalHistoryBox';
-import MedicalHistoryBoxMobile from './MedicalHistoryBoxMobile';
 import './MedicalHistoryDisplay.scss';
 
 const MedicalHistoryDisplay = ({
@@ -203,19 +201,11 @@ const MedicalHistoryDisplay = ({
         open={medicalHistoryDrawer}
         width="75%"
       >
-        {(isMobile && !isTablet) ? (
-          <MedicalHistoryBoxMobile
-            handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={() => {}}
-            onSave={handleSaveMedicalHistory}
-          />
-        ) : (
-          <MedicalHistoryBox
-            handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-            handleCollapsed={() => {}}
-            onSave={handleSaveMedicalHistory}
-          />
-        )}
+        <MedicalHistoryBox
+          handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+          handleCollapsed={() => {}}
+          onSave={handleSaveMedicalHistory}
+        />
       </Drawer>
     </div>
   );

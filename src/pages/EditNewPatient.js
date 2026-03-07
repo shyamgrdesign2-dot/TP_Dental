@@ -8,7 +8,8 @@ import PatientForm from "../components/PatientForm";
 function EditNewPatient() {
 
     const { state } = useLocation();
-    const { patient_data } = state || {};
+    
+    const { patient_data } = state || {}
 
     return (
         <PatientForm mode={EDIT} patient_data={patient_data} />
