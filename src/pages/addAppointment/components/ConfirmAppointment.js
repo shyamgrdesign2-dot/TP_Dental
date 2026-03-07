@@ -21,7 +21,8 @@ function ConfirmAppointment({
     selectedCategories,
     setSelectedCategories,
     remarks,
-    setRemarks
+    setRemarks,
+    isTeleConsultSlot
 }) {
 
     const navigate = useNavigate();
@@ -166,7 +167,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         } else if (searchQuery.length > 0 && isAlphabet(searchQuery)) {
@@ -180,7 +182,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         } else {
@@ -193,7 +196,8 @@ function ConfirmAppointment({
                     selectedTimeSlot: selectedTimeSlot,
                     selectedCaseType: selectedCaseType,
                     selectedCategories: selectedCategories,
-                    remarks: remarks
+                    remarks: remarks,
+                    appointmentMode: isTeleConsultSlot ? "teleconsult" : "in_clinic"
                 }
             });
         }
@@ -238,7 +242,7 @@ function ConfirmAppointment({
                             {dayjs(selectedTimeSlot.start, "HH:mm:ss").format("hh:mm A")}
                             {selectedDate.isSame(dayjs(), 'day') && " (Today)"}
                             {selectedDate.isSame(dayjs().add(1, 'day'), 'day') && " (Tomorrow)"}
-                            <span className="fw-normal"> | {selectedDate.format("Do MMM YYYY")} </span>
+                            <span className="fw-normal"> | {selectedDate.format("Do MMM YYYY")}{isTeleConsultSlot ? " | Tele-Consultation" : ""} </span>
                         </>
                     )}
                 </div>

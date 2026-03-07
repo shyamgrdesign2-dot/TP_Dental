@@ -512,6 +512,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
     caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
+  const isTeleconsultType2 = Number(caseManagerData?.pam_status_type_appointment) === 2;
 
   if (isPediatricAccessable) {
     printSettings?.header_footer?.patient_info?.forEach((item) => {
@@ -14071,6 +14072,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             ? printSettings?.header_footer?.other_settings
                                 ?.qualification
                             : caseManagerData?.doctor_data?.um_qualifications}
+                        </Text>
+                      )}
+                      {isTeleconsultType2 && (
+                        <Text
+                          style={[
+                            styles.extraText,
+                            {
+                              fontWeight: 400,
+                              color: "#000",
+                              marginBottom: PX_TO_PT * 20,
+                            },
+                          ]}
+                        >
+                          Note: This Prescription generated via teleconsultation.
                         </Text>
                       )}
                     </View>
