@@ -37,8 +37,6 @@ const LabResultsRichTextEditor = ({
   skipAutoFetchAndMerge = false,
   /** When true, LabParams will apply raw prefill (value/units parsing). Set only for voice/snap/ambient/smart; keep false for consult. */
   enableLabPrefillFromVoiceSnapSmart = false,
-  /** When true, hide the Add/Edit Lab Results button (e.g. on mobile Rx Pad). */
-  hideAddEditButton = false,
 }) => {
   const [labResultsDrawer, setLabResultsDrawer] = useState(false);
   const [drawerInstanceKey, setDrawerInstanceKey] = useState(0);
@@ -387,20 +385,18 @@ const LabResultsRichTextEditor = ({
             </div>
             <span className={styles['lab-results-title']}>Lab Results</span>
           </div>
-          {!hideAddEditButton && (
-            <button
-              type="button"
-              className={styles['medical-history-action-button']}
-              onClick={handleOpenLabResultsDrawer}
-            >
-              <img
-                src={addEditIcon}
-                alt="Add/Edit"
-                className={styles['medical-history-action-icon']}
-              />
-              <span>Add/Edit Lab Results</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className={styles['medical-history-action-button']}
+            onClick={handleOpenLabResultsDrawer}
+          >
+            <img
+              src={addEditIcon}
+              alt="Add/Edit"
+              className={styles['medical-history-action-icon']}
+            />
+            <span>Add/Edit Lab Results</span>
+          </button>
         </div>
         <div className="editor-container lab-results-readonly">
           <RichTextEditor

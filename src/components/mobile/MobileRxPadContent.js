@@ -32,7 +32,7 @@ import deleteIcon from '../../assets/images/Delete.svg';
 import frameIcon from '../../assets/mobile/Frame_3.svg';
 import logoutIcon from '../../assets/mobile/logout.svg';
 // Rich Text Editor Components
-import VitalsRichTextEditorMobile from './VitalsRichTextEditorMobile';
+import VitalsRichTextEditor from '../VitalsRichTextEditor';
 import MedicalHistoryRichTextEditor from '../MedicalHistoryRichTextEditor';
 import ExaminationRichTextEditor from '../ExaminationRichTextEditor';
 import DiagnosisRichTextEditor from '../DiagnosisRichTextEditor';
@@ -1196,7 +1196,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
         weight: String(vitalsData.weight || '').trim(),
         ofc: String(vitalsData.ofc || vitalsData.OFC || '').trim(),
         sugar: String(vitalsData.sugar || '').trim(),
-        general_rbs: String(vitalsData['General RBS'] || vitalsData.general_rbs || vitalsData.generalRBS || vitalsData.genralRBS || '').trim(),
+        general_rbs: String(vitalsData['General RBS'] || vitalsData.general_rbs || '').trim(),
         fib4: String(vitalsData.FIB4 || vitalsData.fib4 || '').trim(),
         waist_circumference: String(vitalsData['Waist Circumference'] || vitalsData.waist_circumference || '').trim(),
         bmi: String(vitalsData.BMI || vitalsData.bmi || '').trim(),
@@ -1303,7 +1303,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     <div className="mobile-rx-pad-content-wrapper">
       {/* Rich Text Editor Sections */}
       {/* Vitals section always visible so user can add vitals when starting empty */}
-      <VitalsRichTextEditorMobile
+      <VitalsRichTextEditor
         vitalsAndBodyComposition={enrichedVitals}
         onUpdate={handleVitalsUpdate}
         isProcessing={isProcessing}
@@ -1386,7 +1386,6 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
           labResults={prescriptionData?.labResults || []}
           onUpdate={handleLabResultsUpdate}
           isProcessing={isProcessing}
-          hideAddEditButton
         />
       )}
 
