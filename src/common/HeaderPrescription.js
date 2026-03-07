@@ -55,7 +55,6 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
-import videoSvg from '../assets/images/video.svg';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
 import {
@@ -66,7 +65,7 @@ import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redu
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -1840,7 +1839,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
                     <Col sm="auto" className='h-100'>
@@ -1992,25 +1991,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </Button>
                                 </div>
                             </Tooltip> */}
-                            {showTeleconsultIcon && (
-                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0}>
-                                    <span className={isTeleconsultActive ? "d-inline-block" : ""}>
-                                        <button
-                                            type="button"
-                                            className={`btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn ${!isTablet ? 'me-20' : ''}`}
-                                            style={isTablet ? {marginLeft: '10px'} : {}}
-                                            onClick={onTeleconsultClick}
-                                            disabled={isTeleconsultJoinLoading || isTeleconsultActive}
-                                        >
-                                            {isTeleconsultJoinLoading ? (
-                                                <LoadingOutlined style={{ fontSize: 24, ...(!isTablet && { marginLeft: '10px' }) }} />
-                                            ) : (
-                                                <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} style={isTablet ? { marginLeft: '10px' } : {}} />
-                                            )}
-                                        </button>
-                                    </span>
-                                </Tooltip>
-                            )}
                             {handleVideoConsult && (
                                 <VideoConsultButton 
                                     onClick={handleVideoConsult} 
@@ -2018,8 +1998,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 />
                             )}
                             {
-                                (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && !hideVoiceRxIcon ? (
-                                    isTablet ?
+                                (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx ? (
+                                    isTablet ? 
                                         <>
                                             <div className="headerprescription-tablet-sep" aria-hidden="true" />
                                             <TabVoiceRxButton onClick={handleGenRx} /> 
