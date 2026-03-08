@@ -2307,7 +2307,7 @@ function TabRxHeaderV2({
                     }
                 }
 
-                navigate("/prescription_print_view", {
+                navigate("/tab-rx-prescription", {
                     replace: true,
                     state: {
                         ...action.payload,

@@ -12,6 +12,7 @@ import { useReactToPrint } from "react-to-print";
 import {
   errorMessage,
   getClinic,
+  getTokenData,
   isIPad,
   sendMessageToParent,
   trackEvent,
@@ -28,13 +29,17 @@ import { viewCaseManager } from "../../../../redux/caseManagerSlice";
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../../../../api/services/ApiGynec";
 import {
+  FAILED_VERIFICATION,
+  FREE,
   LANGUAGE_LIST,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
+  S_RX_DIGITIZATION,
   WHATS_APP_API,
   WTSAP_ERR_MESSAGE,
   ZYDUS_WHATS_APP_API,
   ZYDUS_WHATSAPP_ENABLED_DOCTORS,
+  FETCH_SMART_RX,
 } from "../../../../utils/constants";
 import { env } from "../../../../EnvironmentConfig";
 import CreateBill from "../../../opdBilling/components/createBill/CreateBill";
@@ -68,6 +73,9 @@ import EditIcon from "../../../../assets/images/edit-white.png";
 import ReceiptTextPrimary from "../../../../assets/images/receipt-text-white.svg";
 import DownloadIcon from "../../../../assets/images/download.svg";
 import printIcon from "../../../../assets/images/printer.svg";
+import successIcon from "../../../../assets/images/success-icon.svg";
+import { services } from "../../../../redux/doctorsSlice";
+import { checkCredits } from "../../../../redux/monetizationSlice";
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
@@ -75,6 +83,25 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker;
 //     "pdfjs-dist/build/pdf.worker.min.js",
 //     import.meta.url
 // ).toString();
+
+const containerStyle = {
+  width: "100%",
+  height: "25px",
+  borderRadius: "16px",
+  background:
+    "linear-gradient(180deg, #DBEFDC 0%, #EDF7ED 50%, #DBEFDC 100%)",
+  overflow: "hidden",
+};
+
+const progressStyle = {
+  height: "100%",
+  width: "0%",
+  borderRadius: "16px",
+  background:
+    "linear-gradient(180deg, #94CF96 0%, #70BF73 50.35%, #94CF96 100%)",
+  transition: "width 0.1s ease-in-out",
+};
+
 function TabRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -83,6 +110,8 @@ function TabRxPrescriptionPrintView() {
   const { userId, profile, defaultPrintSettings } = useSelector(
     (state) => state.doctors,
   );
+  const { servicesList } = useSelector((state) => state.doctors);
+  const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
   const dispatch = useDispatch();
@@ -96,7 +125,8 @@ function TabRxPrescriptionPrintView() {
     labParamsData: passedLabParamsData,
     zydusSelectedLabParams,
     labReportID,
-  } = state;
+    smartRxFilesData,
+  } = state || {};
 
   const [selectedLang, setSelectedLang] = useState(
     defaultPrintSettings?.default_language &&
@@ -105,7 +135,15 @@ function TabRxPrescriptionPrintView() {
       : 1,
   );
   const encodedData = btoa(selectedLang.toString());
-
+  const [cvtDrawer, setCvtDrawer] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [smartRxFile, setSmartRxFile] = useState([]);
+  const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
+  const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
+  const [showProgressbar, setShowProgressbar] = useState(false);
+  const progressRef = useRef(null);
   const [printUrl, setPrintUrl] = useState(
     state !== undefined
       ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`
@@ -161,10 +199,49 @@ function TabRxPrescriptionPrintView() {
   const [billData, setBillData] = useState(null);
 
   const baseUrl = env.lab_params_api_url;
+  const caseManagerBaseUrl = env.casemanager_api_url;
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
+
+  // Initialize smart Rx files when coming from flows that pass smartRxFilesData in navigation state
+  useEffect(() => {
+    if (Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0) {
+      setSmartRxFile(smartRxFilesData);
+      return;
+    }
+
+    // Fallback: if no smartRxFilesData was passed but this Rx has smart_prescription_filename,
+    // fetch the smart prescription images the same way as in Cardiology.
+    const shouldFetch =
+      !smartRxFilesData &&
+      state?.tcm_id &&
+      state?.smart_prescription_filename &&
+      typeof state.smart_prescription_filename === "string" &&
+      state.smart_prescription_filename.includes(".jpeg");
+
+    if (!shouldFetch) {
+      return;
+    }
+
+    const fetchSmartRxFiles = async () => {
+      try {
+        const payload = { tcm_id: state.tcm_id };
+        const response = await api.post(FETCH_SMART_RX, payload, caseManagerBaseUrl);
+        if (response?.data?.length) {
+          setSmartRxFile(response.data);
+        } else {
+          setSmartRxFile([]);
+        }
+      } catch (error) {
+        console.error("Error fetching smart Rx files in TabRxPrescriptionPrintView:", error);
+        setSmartRxFile([]);
+      }
+    };
+
+    fetchSmartRxFiles();
+  }, [smartRxFilesData, state, caseManagerBaseUrl]);
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
@@ -494,20 +571,16 @@ function TabRxPrescriptionPrintView() {
   const onEditPrescriptionClick = async () => {
     // Best-effort: sync care plan assignment/update based on available info
     await syncCarePlanAssignmentIfNeeded();
-    var sendData = {
-      patient_unique_id:
-        patient_data !== undefined ? patient_data.patient_unique_id : 0,
-      tcm_id: state.tcm_id,
-    };
-    const action = await dispatch(viewCaseManager(sendData));
-    if (action.meta.requestStatus === "fulfilled") {
-      navigate("/prescription", {
-        replace: true,
-        state: { patient_data: patient_data, caseManagerData: action.payload },
-      });
-    } else {
-      errorMessage(action.error);
-    }
+
+    navigate("/tab-rx", {
+      state: {
+        patient_data: patient_data,
+        tcm_id: state?.tcm_id,
+        pam_id: pam_id,
+        fromEditRx: true,
+        smartRxFilesData: smartRxFile,
+      },
+    });
   };
 
   const syncCarePlanAssignmentIfNeeded = async () => {
@@ -681,7 +754,7 @@ function TabRxPrescriptionPrintView() {
             zydusSelectedLabParams: zydusSelectedLabParams,
           },
           pam_id: pam_id,
-          from: "/prescription_print_view",
+          from: "/tab-rx-prescription",
         },
       });
     } else {
@@ -694,6 +767,100 @@ function TabRxPrescriptionPrintView() {
     (pdfFile instanceof Blob && pdfFile.size > 0) ||
     (typeof pdfFile === "string" && pdfFile.length > 0),
   );
+
+  const handleViewDigitiseRx = async() => {
+    const isCustomSSRX = Boolean(viewCaseManagerData?.isCustomSSRX === "1");
+    navigate("/smart-rx-digitise", {
+        state: {
+            patient_data: patient_data,
+            smartRxFilesData: smartRxFile,
+            tcm_id: state.tcm_id,
+            pam_id: state?.pam_id,
+            print_url: state.print_url,
+            digitisedData: rxDigitiseApiResponse,
+            type:"new",
+            isCustomSSRX : isCustomSSRX
+        },
+    })
+  };
+
+  const handleDrawerCvtKnowMore = useCallback(() => {
+    setCvtDrawer(!cvtDrawer);
+  }, [cvtDrawer]);
+
+  const showHideSubModal = useCallback(() => {
+    setIsSubModalOpen(!isSubModalOpen);
+  }, [isSubModalOpen]);
+
+  const handleDigitiseRx = async () => {
+    if (RX_DIGITIZATION_planDetails?.plan_tier === FREE && RX_DIGITIZATION_planDetails?.credit_balance <= 0) {
+        showHideSubModal()
+    } else if (RX_DIGITIZATION_planDetails?.plan_tier === FAILED_VERIFICATION) {
+        showHideSubModal()
+    } else {
+        let sendData = {
+            b2c_id: profile?.b2c,
+            service_name: S_RX_DIGITIZATION
+        }
+
+        const action = await dispatch(checkCredits(sendData));
+        if (action.meta.requestStatus === "fulfilled") {
+            if (action?.payload?.hasOwnProperty("service_name")) {
+                if (action?.payload?.plan_tier === FREE && action?.payload?.credit_balance <= 0) {
+                    if (action?.payload?.credit_balance != RX_DIGITIZATION_planDetails?.credit_balance) {
+                        await dispatch(services(sendData?.b2c_id))
+                    }
+                    showHideSubModal()
+                } else if (action?.payload?.plan_tier === FAILED_VERIFICATION) {
+                    showHideSubModal()
+                } else {
+                    try {
+                        // Guard: ensure prerequisites
+                        if (!(smartRxFile?.length > 0 && token)) return;
+                        const isCustomSSRX = Boolean(viewCaseManagerData?.isCustomSSRX === "1");
+                        const path = "/smart-rx-digitise";
+                        const navState = {
+                            patient_data: patient_data,
+                            smartRxFilesData: smartRxFile,
+                            tcm_id: state.tcm_id,
+                            pam_id: state?.pam_id,
+                            print_url: state.print_url,                                // digitisedData: rxDigitiseApiResponse,
+                            type: "new",
+                            isCustomSSRX : isCustomSSRX
+                        };
+                        const tokenData = getTokenData();
+                        const clinic = getClinic(profile?.hospital_data);
+                        const type = isCustomSSRX ? 1 : 0;
+                        window.Moengage.track_event("TP_DigitizeSSRx", {
+                            patient_id: patient_data?.patient_unique_id || "",
+                            patient_name: patient_data?.pm_fullname || "",
+                              doctor_id: profile?.doctor_unique_id,
+                              doctor_name: profile?.um_name,
+                              doctor_specialty: profile?.dp_name,
+                              clinic_id: tokenData?.clinic_id,
+                              clinic_name: clinic?.hm_name,
+                              rx_id: state.tcm_id || " ",
+                              type: type,
+                              source: "print Preview page",
+                              device_details: navigator.userAgent
+                          });
+        
+                        navigate(path, { state: navState });
+                    } catch (error) {
+                        console.error('Error in handleDigitiseRx:', error);
+                    }
+                }
+            } else {
+                typeof action?.payload?.data?.error === 'object' ?
+                    errorMessage(action?.payload?.data?.error?.description)
+                    :
+                    errorMessage(action?.payload?.data?.message)
+            }
+        } else {
+            errorMessage(action.payload.message)
+        }
+    }
+  };
 
   return (
     <>
@@ -870,6 +1037,71 @@ function TabRxPrescriptionPrintView() {
                     </>
                   ) : null;
                 })()}
+                {showProgressbar && !isRxDigitiseComplete && (
+                    <div className="digitise-container d-flex p-3 rounded-10px">
+                        <div style={containerStyle}>
+                            <div ref={progressRef} style={progressStyle}></div>
+                        </div>
+                        <p className="digitise-header" style={{ padding: "16px 0" }}>
+                            {`${patient_data?.pm_fullname}'s Rx is getting Digitised!`}
+                        </p>
+                        <p className="digitise-info">
+                            Our AI engine is converting handwritten Rx into digital Rx. This may take up to 30 sec
+                        </p>
+                    </div>
+                )}
+                {!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
+                    <div className="digitise-container p-3 rounded-10px">
+                        <div className="digitise-box-top">
+                            <img src={successIcon} alt="success" width="40px" height="40px" />
+                            <div>
+                                <p className="digitise-header">
+                                    {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
+                                </p>
+                                <p className="digitise-info">
+                                    Digitise Rx to enhance patient care, streamline workflow, and unlock new revenue.
+                                    <button className="know-more-btn" onClick={handleDrawerCvtKnowMore}>
+                                        <span className="know-more-text" style={{
+                                            color:"rgba(255, 255, 255, 0.80) !important",
+                                            fontSize: "14px",
+                                            textDecoration: "underline",
+                                            textDecorationColor: "rgba(255, 255, 255, 0.80)"
+                                        }}>Know More</span>
+                                    </button>
+                                </p>
+                            </div>
+                        </div>
+                        <button onClick={handleDigitiseRx} className="digitise-btn">
+                            Digitise Rx Now <span>&#8594;</span> 
+                        </button>
+                    </div>
+                )} 
+                {isRxDigitiseComplete && (
+                    <div className="digitise-container p-3 rounded-10px">
+                        <div className="digitise-box-top">
+                            <img src={successIcon} alt="success" width="40px" height="40px" />
+                            <div>
+                                <p className="digitise-header">
+                                    {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
+                                </p>
+                                <p className="digitise-info">
+                                    Digitise Rx to enhance patient care, streamline workflow, and unlock new revenue.
+                                    <button className="know-more-btn" onClick={handleDrawerCvtKnowMore}>
+                                        <span className="know-more-text" style={{
+                                            color:"rgba(255, 255, 255, 0.80) !important",
+                                            fontSize: "14px",
+                                            textDecoration: "underline",
+                                            textDecorationColor: "rgba(255, 255, 255, 0.80)"
+                                        }}>Know More</span>
+                                    </button>
+                                </p>
+                            </div>
+                        </div>
+                        <button onClick={handleViewDigitiseRx} className="digitise-btn">
+                            View Digitised Rx <span>&#8594;</span> 
+                        </button>
+                    </div>
+                )}
               </div>
               {/* <div className="bg-body d-flex p-3 rounded-10px border">
                                 <img src={messageSent} alt="whatsapp Message" className='align-self-baseline me-3' />

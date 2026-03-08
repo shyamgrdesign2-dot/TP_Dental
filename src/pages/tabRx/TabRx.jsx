@@ -10,6 +10,7 @@ import {
 import moment from "moment";
 import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
+import api from "../../api/services/axiosService";
 import { env } from "../../EnvironmentConfig";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -31,6 +32,7 @@ import {
   GB_OPTHAL_MODULE,
   GB_VIDEO_CONSULT,
 } from "../../utils/constants";
+import { FETCH_SMART_RX } from "../../utils/constants";
 
 import {
   getPatientBirthWeight,
@@ -180,6 +182,7 @@ import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import { getMetadata } from "./services/templateService";
+import { viewCaseManager } from "../../redux/caseManagerSlice";
 
 function TabRx() {
   const {
@@ -291,10 +294,20 @@ function TabRx() {
     digitizedData,
     inputText,
     send_path,
+    tcm_id,
+    pam_id,
+    fromEditRx,
+    smartRxFilesData,
   } = state || {};
   const chartType = state?.chartType;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
-  const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+  const tcmId =
+    caseManagerData !== undefined
+      ? caseManagerData.tcm_id
+      : tcm_id || 0;
+  const pamId =
+    caseManagerData !== undefined
+      ? caseManagerData.pam_id
+      : pam_id || patient_data?.pam_id || 0;
   const consultationDate =
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
@@ -303,6 +316,39 @@ function TabRx() {
   useEffect(() => {
     dispatch(resetVitalsState());
   }, []);
+
+  // When coming from edit flows that only passed identifiers, fetch caseManagerData here
+  useEffect(() => {
+    if (!fromEditRx || caseManagerData || !patient_data || !tcmId) {
+      return;
+    }
+
+    const fetchCaseManagerData = async () => {
+      try {
+        const sendData = {
+          patient_unique_id: patient_data?.patient_unique_id || 0,
+          tcm_id: tcmId,
+        };
+        const action = await dispatch(viewCaseManager(sendData));
+        if (action.meta.requestStatus === "fulfilled") {
+          navigate(location.pathname, {
+            replace: true,
+            state: {
+              ...state,
+              caseManagerData: action.payload,
+            },
+          });
+        } else {
+          message.error(action.error || "Failed to load prescription");
+        }
+      } catch (e) {
+        console.error("Error fetching case manager data for TabRx:", e);
+        message.error("Failed to load prescription");
+      }
+    };
+
+    fetchCaseManagerData();
+  }, [fromEditRx, caseManagerData, patient_data, tcmId, dispatch, navigate, location, state]);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"
@@ -525,6 +571,7 @@ function TabRx() {
   const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
   const [hasCanvasContent, setHasCanvasContent] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   
   // Welcome popup state
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
@@ -569,6 +616,57 @@ function TabRx() {
       isMounted = false;
     };
   }, []);
+
+  // Initialize smartRxFiles and canvas background when editing existing prescription
+  useEffect(() => {
+    if (smartRxFilesData && Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0) {
+      setSmartRxFiles(smartRxFilesData);
+      setHasCanvasContent(true);
+      const firstUrl = smartRxFilesData[0]?.smart_prescription_file;
+      if (firstUrl) {
+        setBackgroundImageUrl(firstUrl);
+      }
+    }
+  }, [smartRxFilesData]);
+  
+  // Fallback: if no smartRxFilesData was passed but caseManagerData indicates a smart Rx image,
+  // fetch the smart prescription images (works for flows like TabRxPrescriptionPrintView).
+  useEffect(() => {
+    const shouldFetch =
+      (!smartRxFilesData || smartRxFilesData.length === 0) &&
+      caseManagerData &&
+      typeof caseManagerData.smart_prescription_filename === "string" &&
+      caseManagerData.smart_prescription_filename.includes(".jpeg") &&
+      tcmId;
+
+    if (!shouldFetch) {
+      return;
+    }
+
+    const fetchSmartRxFiles = async () => {
+      try {
+        const payload = { tcm_id: tcmId };
+        const response = await api.post(FETCH_SMART_RX, payload, env.casemanager_api_url);
+        if (response?.data?.length) {
+          setSmartRxFiles(response.data);
+          setHasCanvasContent(true);
+          const first = response.data[0];
+          const firstUrl =
+            first?.smart_prescription_file ||
+            first?.fileUrl ||
+            first?.url ||
+            null;
+          if (firstUrl) {
+            setBackgroundImageUrl(firstUrl);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching smart Rx files in TabRx:", error);
+      }
+    };
+
+    fetchSmartRxFiles();
+  }, [smartRxFilesData, caseManagerData, tcmId]);
   
   // Check canvas content on mount and when canvas ref changes
   useEffect(() => {
@@ -1620,7 +1718,7 @@ function TabRx() {
         userId,
       );
       // Destructure to remove createdAt and createdBy
-      const { createdAt, createdBy, ...updatedData } = data;
+      const { createdAt, createdBy, ...updatedData } = data || {};
 
       setUpdatedGynecHistory(updatedData);
     } catch (error) {
@@ -2089,6 +2187,7 @@ function TabRx() {
                   <TabRxCanvas
                     ref={canvasRef}
                     patient={patient_data}
+                    backgroundImage={backgroundImageUrl}
                     showTemplateDrawer={showTemplateDrawer}
                     onToggleTemplateDrawer={handleToggleTemplateDrawer}
                     onContentChange={handleCanvasContentChange}

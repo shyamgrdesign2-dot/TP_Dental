@@ -78,6 +78,7 @@ import AbhaStandalone from "./pages/abha/AbhaStandalone";
 import AddNewPatient from "./pages/AddNewPatient";
 import TabRx from "./pages/tabRx/TabRx";
 import TabRxCanvas from "./pages/tabRx/components/TabRxCanvas";
+import TabRxPrescriptionPrintView from "./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -492,6 +493,7 @@ function App() {
                   path="smart-prescription"
                   element={<SmartPrescription />}
                 />
+                <Route path="tab-rx-prescription" element={<TabRxPrescriptionPrintView />} />
                 <Route path="print-smart-rx" element={<SmartRxPreview />} />
                 <Route path="doctor_profile" element={<DoctorProfile />} />
                 <Route
