@@ -10,6 +10,7 @@ import CommonModal from '../../../common/CommonModal';
 import { getTemplates } from '../services/templateService';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { generateId } from '../utils/geometry';
+import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
 import alertIcon from '../../../assets/images/alertIcon.svg';
 import './TabRxCanvas.scss';
 
@@ -22,8 +23,10 @@ const INITIAL_TOOL_SETTINGS = {
   fontSize: 16
 };
 
-const TabRxCanvas = forwardRef(({ 
+const TabRxCanvas = forwardRef(({
   patient = null,
+  profile = null,
+  initialTemplateId = 'blank',
   onSave = null,
   onExit = null,
   backgroundImage = null,
@@ -34,12 +37,12 @@ const TabRxCanvas = forwardRef(({
   // Application State - Multi-page support
   // Pages metadata: Array of page objects with { id, type: 'blank' | 'template', templateId, templateImageIndex }
   const [pagesMetadata, setPagesMetadata] = useState([{ id: generateId(), type: 'blank', templateId: null, templateImageIndex: null }]);
-  
+
   // Store strokes and textElements per page: { [pageId]: data }
   const [strokesByPage, setStrokesByPage] = useState({});
   const [textElementsByPage, setTextElementsByPage] = useState({});
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  
+
   // Initialize strokes and textElements for all pages in metadata
   useEffect(() => {
     setStrokesByPage(prev => {
@@ -61,36 +64,57 @@ const TabRxCanvas = forwardRef(({
       return updated;
     });
   }, [pagesMetadata]);
-  
+
   // Current page data (derived from page-specific state)
   const currentPageId = pagesMetadata[currentPageIndex]?.id;
   const strokes = currentPageId ? (strokesByPage[currentPageId] || []) : [];
   const textElements = currentPageId ? (textElementsByPage[currentPageId] || []) : [];
-  
+
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
-  
+
   // Viewport State
   const [zoomLevel, setZoomLevel] = useState(1.0);
-  const [panOffset, setPanOffset] = useState({ x: 20, y: 20 }); 
+  const [panOffset, setPanOffset] = useState({ x: 20, y: 20 });
 
   // Tool State
   const [toolSettings, setToolSettings] = useState(INITIAL_TOOL_SETTINGS);
   const [showToolbarSettings, setShowToolbarSettings] = useState(false);
-  
+
   // UI State
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
-  
+
   // Template State
-  const [selectedTemplateId, setSelectedTemplateId] = useState('blank');
+  const [selectedTemplateId, setSelectedTemplateId] = useState(initialTemplateId);
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
-  
+
+  // Sync with prop when it arrives from parent component (e.g. from backend metadata fetch)
+  useEffect(() => {
+    if (initialTemplateId && initialTemplateId !== selectedTemplateId) {
+      setSelectedTemplateId(initialTemplateId);
+      setCurrentPageIndex(0);
+
+      const newPageId = generateId();
+      if (initialTemplateId === 'blank') {
+        setPagesMetadata([{ id: newPageId, type: 'blank', templateId: null, templateImageIndex: null }]);
+      } else if (initialTemplateId === 'standard') {
+        setPagesMetadata([{ id: newPageId, type: 'template', templateId: 'standard', templateImageIndex: null }]);
+      } else {
+        // If it's a custom template, we let handleTemplateSelect handle it or rely on the user.
+        // For standard and blank, we initialize directly.
+        setPagesMetadata([{ id: newPageId, type: 'template', templateId: initialTemplateId, templateImageIndex: null }]);
+      }
+      setStrokesByPage({ [newPageId]: [] });
+      setTextElementsByPage({ [newPageId]: [] });
+    }
+  }, [initialTemplateId]);
+
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
-  
+
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
   
@@ -100,19 +124,19 @@ const TabRxCanvas = forwardRef(({
       console.log('📤 [TabRxCanvas] exportToImages called', { pagesCount: pagesMetadata.length });
       const files = [];
       const blobs = [];
-      
+
       for (let i = 0; i < pagesMetadata.length; i++) {
         const pageMeta = pagesMetadata[i];
         const pageId = pageMeta.id;
         const canvasEngineRef = canvasRefsByPage.current[pageId];
-        
+
         console.log(`📄 [TabRxCanvas] Processing page ${i + 1} (${pageId}):`, {
           hasRef: !!canvasEngineRef,
           hasGetCanvas: !!(canvasEngineRef?.getCanvas),
           refType: typeof canvasEngineRef,
           refKeys: canvasEngineRef ? Object.keys(canvasEngineRef) : []
         });
-        
+
         if (!canvasEngineRef || typeof canvasEngineRef.getCanvas !== 'function') {
           console.warn(`⚠️ [TabRxCanvas] No valid ref for page ${i + 1}:`, {
             hasRef: !!canvasEngineRef,
@@ -120,17 +144,17 @@ const TabRxCanvas = forwardRef(({
           });
           continue;
         }
-        
+
         // Get the actual canvas element from CanvasEngine
         // Note: canvasEngineRef is the imperative handle object (not a ref with .current)
         // It directly has getCanvas() method
         const canvas = canvasEngineRef.getCanvas();
-        
+
         if (!canvas) {
           console.warn(`⚠️ [TabRxCanvas] No canvas element for page ${i + 1}`);
           continue;
         }
-        
+
         console.log(`✅ [TabRxCanvas] Got canvas for page ${i + 1}:`, {
           width: canvas.width,
           height: canvas.height,
@@ -139,7 +163,7 @@ const TabRxCanvas = forwardRef(({
           hasText: textElementsByPage[pageId]?.length > 0,
           textCount: textElementsByPage[pageId]?.length || 0
         });
-        
+
         try {
           // Try to convert canvas to blob directly
           let blob;
@@ -162,10 +186,10 @@ const TabRxCanvas = forwardRef(({
               throw taintedError;
             }
           }
-          
+
           const fileName = `${uuidv4()}.jpeg`;
           const file = new File([blob], fileName, { type: 'image/jpeg' });
-          
+
           console.log(`📦 [TabRxCanvas] Page ${i + 1} converted:`, {
             fileName,
             fileSize: `${(file.size / 1024).toFixed(2)}KB`,
@@ -173,13 +197,13 @@ const TabRxCanvas = forwardRef(({
             threshold: 5 * 1000,
             passesThreshold: file.size > 5 * 1000
           });
-          
+
           // Check if file has meaningful content (5KB threshold)
           // OR if there are actual strokes/text elements (even if file is small)
           const hasStrokes = strokesByPage[pageId]?.length > 0;
           const hasText = textElementsByPage[pageId]?.some(el => el.content && el.content.trim().length > 0);
           const hasContent = hasStrokes || hasText;
-          
+
           if (file.size > 5 * 1000 || hasContent) {
             console.log(`✅ [TabRxCanvas] Including page ${i + 1} in export:`, {
               reason: file.size > 5 * 1000 ? 'file size' : 'has content',
@@ -195,14 +219,14 @@ const TabRxCanvas = forwardRef(({
           console.error(`❌ [TabRxCanvas] Error converting canvas for page ${i + 1}:`, error);
         }
       }
-      
+
       console.log(`✅ [TabRxCanvas] Export complete:`, {
         filesCount: files.length,
         blobsCount: blobs.length,
         fileNames: files.map(f => f.name),
         fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
       });
-      
+
       return { files, blobs };
     },
     getCanvasData: () => {
@@ -230,15 +254,15 @@ const TabRxCanvas = forwardRef(({
 
   // Helper to fit canvas to available space
   const fitCanvasToScreen = useCallback(() => {
-     const drawerWidth = showTemplateDrawer ? 320 : 0;
-     const availableWidth = window.innerWidth - drawerWidth - 40; 
-     
-     let optimalZoom = availableWidth / A4_BASE_WIDTH;
-     optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), 1.2); 
-     
-     setZoomLevel(optimalZoom);
-     const centeredX = (availableWidth - (A4_BASE_WIDTH * optimalZoom)) / 2 + 20;
-     setPanOffset({ x: Math.max(20, centeredX), y: 40 });
+    const drawerWidth = showTemplateDrawer ? 320 : 0;
+    const availableWidth = window.innerWidth - drawerWidth - 40;
+
+    let optimalZoom = availableWidth / A4_BASE_WIDTH;
+    optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), 1.2);
+
+    setZoomLevel(optimalZoom);
+    const centeredX = (availableWidth - (A4_BASE_WIDTH * optimalZoom)) / 2 + 20;
+    setPanOffset({ x: Math.max(20, centeredX), y: 40 });
   }, [showTemplateDrawer]);
 
   useEffect(() => {
@@ -267,13 +291,17 @@ const TabRxCanvas = forwardRef(({
     }
 
     if (pageMeta.type === 'template' && pageMeta.templateId) {
+      if (pageMeta.templateId === 'standard') {
+        return generateStandardTemplateBackground(profile);
+      }
+
       const template = templates.find(t => t.id === pageMeta.templateId);
       if (!template) {
         return null;
       }
 
       const imageIndex = pageMeta.templateImageIndex ?? 0;
-      
+
       if (template.uploaded_files && template.uploaded_files.length > 0) {
         const file = template.uploaded_files[imageIndex];
         if (file) {
@@ -298,17 +326,17 @@ const TabRxCanvas = forwardRef(({
       strokesCount: strokes.length,
       textCount: textElements.length
     });
-    
+
     // Create a new canvas
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = A4_BASE_WIDTH;
     exportCanvas.height = A4_BASE_HEIGHT;
     const ctx = exportCanvas.getContext('2d');
-    
+
     // Draw white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-    
+
     // Load and draw background image with CORS
     const backgroundUrl = getBackgroundForPage(pageMeta);
     if (backgroundUrl) {
@@ -323,7 +351,7 @@ const TabRxCanvas = forwardRef(({
           };
           bgImg.src = backgroundUrl;
         });
-        
+
         if (bgImg.complete && bgImg.naturalWidth > 0) {
           ctx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
         }
@@ -331,18 +359,18 @@ const TabRxCanvas = forwardRef(({
         console.warn('⚠️ [TabRxCanvas] Error loading background image for fallback export:', error);
       }
     }
-    
+
     // Draw strokes
     const { getMidPoint } = require('../utils/geometry');
     strokes.forEach((stroke) => {
       if (stroke.points.length < 2) return;
-      
+
       ctx.beginPath();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = stroke.thickness;
-      
+
       if (stroke.tool === 'highlighter') {
         ctx.globalAlpha = 0.3;
         ctx.globalCompositeOperation = 'multiply';
@@ -351,35 +379,35 @@ const TabRxCanvas = forwardRef(({
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';
       }
-      
+
       const p0 = stroke.points[0];
       ctx.moveTo(p0.x, p0.y);
-      
+
       for (let i = 1; i < stroke.points.length - 1; i++) {
         const p1 = stroke.points[i];
         const p2 = stroke.points[i + 1];
         const mid = getMidPoint(p1, p2);
         ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
       }
-      
+
       const last = stroke.points[stroke.points.length - 1];
       ctx.lineTo(last.x, last.y);
       ctx.stroke();
-      
+
       ctx.globalAlpha = 1.0;
       ctx.globalCompositeOperation = 'source-over';
     });
-    
+
     // Draw text elements
     textElements.forEach((textEl) => {
       if (!textEl.content || !textEl.content.trim()) return;
-      
+
       ctx.fillStyle = textEl.color || '#000000';
       ctx.font = `${textEl.fontSize || 16}px Arial`;
       ctx.textBaseline = 'top';
       ctx.fillText(textEl.content, textEl.x, textEl.y);
     });
-    
+
     // Convert to blob
     return new Promise((resolve, reject) => {
       exportCanvas.toBlob((blob) => {
@@ -404,7 +432,7 @@ const TabRxCanvas = forwardRef(({
   const handleStrokeComplete = useCallback((pageId, newStroke) => {
     const pageStrokes = strokesByPage[pageId] || [];
     setUndoStack(prev => [...prev, pageStrokes]);
-    setRedoStack([]); 
+    setRedoStack([]);
     setStrokesByPage(prev => {
       const updated = {
         ...prev,
@@ -469,9 +497,9 @@ const TabRxCanvas = forwardRef(({
         templateId: selectedTemplateId,
         status: 'draft'
       };
-      
+
       onSave(sessionData);
-      
+
       setTimeout(() => {
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
@@ -483,12 +511,18 @@ const TabRxCanvas = forwardRef(({
     setSelectedTemplateId(templateId);
     // Reset to first page when template changes
     setCurrentPageIndex(0);
-    
+
     // Initialize pages based on template
     if (templateId === 'blank' || !templateId) {
       // Blank template - single blank page
       const newPageId = generateId();
       setPagesMetadata([{ id: newPageId, type: 'blank', templateId: null, templateImageIndex: null }]);
+      setStrokesByPage({ [newPageId]: [] });
+      setTextElementsByPage({ [newPageId]: [] });
+    } else if (templateId === 'standard') {
+      // Standard template - single template page
+      const newPageId = generateId();
+      setPagesMetadata([{ id: newPageId, type: 'template', templateId: 'standard', templateImageIndex: null }]);
       setStrokesByPage({ [newPageId]: [] });
       setTextElementsByPage({ [newPageId]: [] });
     } else {
@@ -520,7 +554,7 @@ const TabRxCanvas = forwardRef(({
   const handleAddPage = useCallback((afterIndex, pageType) => {
     const newPageId = generateId();
     let newPageMeta;
-    
+
     if (pageType === 'blank') {
       newPageMeta = { id: newPageId, type: 'blank', templateId: null, templateImageIndex: null };
     } else if (pageType === 'same') {
@@ -651,17 +685,17 @@ const TabRxCanvas = forwardRef(({
   // Handle canvas upload - refresh templates and auto-select new template
   const handleCanvasUploaded = useCallback(async (templateData) => {
     message.success(`Template "${templateData.title}" uploaded successfully!`);
-    
+
     // Close the upload drawer first
     setUploadCanvasDrawer(false);
-    
+
     // Refresh the templates list to show the newly uploaded template
     try {
       const result = await getTemplates();
       if (result.success) {
         const updatedTemplates = result.data || [];
         setTemplates(updatedTemplates);
-        
+
         // Auto-select the newly created template using updated templates
         if (templateData && templateData.id) {
           const newTemplate = updatedTemplates.find(t => t.id === templateData.id);
@@ -669,7 +703,7 @@ const TabRxCanvas = forwardRef(({
             // Use the updated templates directly for selection
             setSelectedTemplateId(templateData.id);
             setCurrentPageIndex(0);
-            
+
             // Initialize pages based on the new template
             const pageCount = newTemplate.uploaded_files?.length || newTemplate.pages?.length || 1;
             const newPages = Array.from({ length: pageCount }, (_, i) => ({
@@ -679,7 +713,7 @@ const TabRxCanvas = forwardRef(({
               templateImageIndex: i
             }));
             setPagesMetadata(newPages);
-            
+
             // Initialize strokes and textElements for new pages
             const newStrokes = {};
             const newTextElements = {};
@@ -702,15 +736,16 @@ const TabRxCanvas = forwardRef(({
       {/* Template Drawer */}
       <TemplateSidebar
         visible={showTemplateDrawer}
-        onClose={onToggleTemplateDrawer || (() => {})}
+        onClose={onToggleTemplateDrawer || (() => { })}
         selectedTemplateId={selectedTemplateId}
         onTemplateSelect={handleTemplateSelect}
         onAddNew={handleAddNewTemplate}
         templates={templates}
         onTemplatesUpdate={setTemplates}
+        profile={profile}
       />
 
-      
+
       <div className="canvas-wrapper-container">
         {/* Scrollable pages container - all pages stacked vertically */}
         {/* 
@@ -719,7 +754,7 @@ const TabRxCanvas = forwardRef(({
           This works even when TabRxCanvas is embedded inside a layout with its 
           own left sidebar, because we only adjust the internal right padding.
         */}
-        <div 
+        <div
           className="canvas-pages-scroll"
           style={{
             paddingRight: showTemplateDrawer ? 320 : 0
@@ -730,7 +765,7 @@ const TabRxCanvas = forwardRef(({
               const pageId = pageMeta.id;
               const pageStrokes = strokesByPage[pageId] || [];
               const pageTextElements = textElementsByPage[pageId] || [];
-              
+
               // Get dropdown menu items for add page
               const getAddPageMenuItems = () => [
                 {
@@ -748,8 +783,8 @@ const TabRxCanvas = forwardRef(({
               const isSelected = currentPageIndex === pageIndex;
 
               return (
-                <div 
-                  key={pageId} 
+                <div
+                  key={pageId}
                   className={`canvas-page-block ${isSelected ? 'selected' : ''}`}
                   style={{
                     width: A4_BASE_WIDTH * zoomLevel,
@@ -760,7 +795,7 @@ const TabRxCanvas = forwardRef(({
                   <div className="page-number-label">
                     Page {pageIndex + 1}
                   </div>
-                  
+
                   <CanvasEngine
                     ref={(canvasRef) => {
                       if (canvasRef) {
@@ -802,9 +837,9 @@ const TabRxCanvas = forwardRef(({
                         };
                         // Notify parent if content changed
                         if (onContentChange) {
-                          const hasContent = newTextElements.length > 0 && 
+                          const hasContent = newTextElements.length > 0 &&
                             newTextElements.some(el => el.content && el.content.trim().length > 0);
-                          const prevHasContent = prevTextElements.length > 0 && 
+                          const prevHasContent = prevTextElements.length > 0 &&
                             prevTextElements.some(el => el.content && el.content.trim().length > 0);
                           if (hasContent !== prevHasContent) {
                             onContentChange(hasContent);
@@ -823,13 +858,13 @@ const TabRxCanvas = forwardRef(({
                     zoomLevel={zoomLevel}
                     setZoomLevel={setZoomLevel}
                     panOffset={{ x: 0, y: 0 }}
-                    setPanOffset={() => {}}
+                    setPanOffset={() => { }}
                     onInteractionStart={handleInteractionStart}
                     onPageFocus={() => setCurrentPageIndex(pageIndex)}
                     backgroundImage={backgroundImage && pageIndex === 0 ? backgroundImage : getBackgroundForPage(pageMeta)}
                     embeddedInScroll={true}
                   />
-                  
+
                   {/* Page Action Buttons */}
                   <div className="page-action-buttons">
                     <button
@@ -843,14 +878,14 @@ const TabRxCanvas = forwardRef(({
                     >
                       <DeleteOutlined />
                     </button>
-                    
+
                     <Dropdown
                       menu={{ items: getAddPageMenuItems() }}
                       trigger={['click']}
                       placement="topRight"
                       overlayClassName="page-add-dropdown"
                     >
-                      <button 
+                      <button
                         className="page-action-btn add-btn"
                         onClick={(e) => e.stopPropagation()}
                         title="Add Page"

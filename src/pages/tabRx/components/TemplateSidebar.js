@@ -13,16 +13,18 @@ import download from '../../../assets/images/document-download.svg';
 import edit from '../../../assets/images/document-edit.svg';
 import trash from '../../../assets/images/trash.svg';
 import alertIcon from '../../../assets/images/alertIcon.svg';
+import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
 import './TemplateSidebar.scss';
 
-const TemplateSidebar = ({ 
+const TemplateSidebar = ({
   visible,
   onClose,
-  selectedTemplateId, 
-  onTemplateSelect, 
+  selectedTemplateId,
+  onTemplateSelect,
   onAddNew,
   templates = [],
-  onTemplatesUpdate
+  onTemplatesUpdate,
+  profile
 }) => {
   const [loading, setLoading] = useState(true);
   const [downloadingTemplateId, setDownloadingTemplateId] = useState(null);
@@ -89,7 +91,7 @@ const TemplateSidebar = ({
   // Handle template download
   const handleDownloadTemplate = async (templateId) => {
     setDownloadingTemplateId(templateId);
-    
+
     try {
       const template = templates.find(t => t.id === templateId);
       if (!template) {
@@ -103,30 +105,30 @@ const TemplateSidebar = ({
       }
 
       const fileName = `${template.title.replace(/[^a-z0-9]/gi, '_')}_template.pdf`;
-      
+
       try {
         const pdfBlob = await convertImagesToPDF(template.uploaded_files, template.title);
         saveAs(pdfBlob, fileName);
         message.success(`Downloaded PDF: ${fileName}`, 3);
-        
+
       } catch (conversionError) {
         message.error(`Failed to convert template to PDF: ${conversionError.message}`, 6);
-        
+
         try {
           const totalFiles = template.uploaded_files.length;
           message.info(`Downloading ${totalFiles} image(s) individually...`, 2);
-          
+
           let successCount = 0;
           let failureCount = 0;
-          
+
           for (let i = 0; i < totalFiles; i++) {
             const file = template.uploaded_files[i];
             const imageFileName = `${template.title.replace(/[^a-z0-9]/gi, '_')}_page_${i + 1}.jpg`;
-            
+
             try {
               await downloadSingleFile(file.file_url, imageFileName);
               successCount++;
-              
+
               if (i < totalFiles - 1) {
                 await new Promise(resolve => setTimeout(resolve, 500));
               }
@@ -134,7 +136,7 @@ const TemplateSidebar = ({
               failureCount++;
             }
           }
-          
+
           if (successCount === totalFiles) {
             message.success(`All ${totalFiles} images downloaded successfully`, 3);
           } else if (successCount > 0) {
@@ -146,7 +148,7 @@ const TemplateSidebar = ({
           message.error('Failed to download template images. Please try again', 4);
         }
       }
-      
+
     } catch (error) {
       message.error(`Failed to download template: ${error.message}. Please try again`);
     } finally {
@@ -171,7 +173,7 @@ const TemplateSidebar = ({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
+
         try {
           const response = await axios({
             url: file.file_url,
@@ -181,7 +183,7 @@ const TemplateSidebar = ({
 
           const blob = response.data;
           const reader = new FileReader();
-          
+
           const imageData = await new Promise((resolve, reject) => {
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
@@ -272,23 +274,23 @@ const TemplateSidebar = ({
   // Handle template delete
   const handleDeleteTemplate = async () => {
     if (!deleteTemplateId) return;
-    
+
     setIsDeleting(true);
     const isLastTemplate = templates && templates.length === 1;
-    
+
     try {
       const result = await deleteCustomSyncPadTemplate(deleteTemplateId);
       if (result.success) {
         message.success('Template deleted successfully');
-        
+
         // Refresh templates
         await loadTemplates();
-        
+
         // If deleted template was selected, reset to blank
         if (selectedTemplateId === deleteTemplateId && onTemplateSelect) {
           onTemplateSelect('blank');
         }
-        
+
         if (isLastTemplate) {
           // If it was the last template, close drawer
           onClose();
@@ -319,7 +321,7 @@ const TemplateSidebar = ({
 
   const getTemplateMenuItems = (template) => {
     const isDownloading = downloadingTemplateId === template.id;
-    
+
     return [
       {
         key: 'download',
@@ -390,79 +392,94 @@ const TemplateSidebar = ({
         </div>
 
         <div className="template-sidebar-content">
-        {/* Add New Letterhead Button */}
-        <button className="add-new-letterhead-btn" onClick={handleAddNew}>
-          <PlusOutlined className="add-icon" />
-          <span className="add-text">Add New Letterhead</span>
-        </button>
+          {/* Add New Letterhead Button */}
+          <button className="add-new-letterhead-btn" onClick={handleAddNew}>
+            <PlusOutlined className="add-icon" />
+            <span className="add-text">Add New Letterhead</span>
+          </button>
 
-        {/* Blank Canvas Option */}
-        <div 
-          className={`template-option ${selectedTemplateId === 'blank' ? 'selected' : ''}`}
-          onClick={handleBlankCanvas}
-        >
-          <Radio checked={selectedTemplateId === 'blank'} />
-          <div className="template-thumbnail blank-thumbnail">
-            {/* <div className="blank-canvas-icon">
+          {/* Blank Canvas Option */}
+          <div
+            className={`template-option ${selectedTemplateId === 'blank' ? 'selected' : ''}`}
+            onClick={handleBlankCanvas}
+          >
+            <Radio checked={selectedTemplateId === 'blank'} />
+            <div className="template-thumbnail blank-thumbnail">
+              {/* <div className="blank-canvas-icon">
               <FileTextOutlined />
             </div> */}
+            </div>
+            <div className="tab-rx-template-info">
+              <div className="template-name">Blank Canvas</div>
+              <div className="template-meta">1 Page Letterhead</div>
+            </div>
           </div>
-          <div className="tab-rx-template-info">
-            <div className="template-name">Blank Canvas</div>
-            <div className="template-meta">1 Page Letterhead</div>
-          </div>
-        </div>
 
-        {/* Templates List */}
-        {loading ? (
-          <div className="templates-loading">Loading templates...</div>
-        ) : templates.length > 0 ? (
-          templates.map((template) => {
-            const thumbnail = getTemplateThumbnail(template);
-            const isSelected = selectedTemplateId === template.id;
-            
-            return (
-              <div
-                key={template.id}
-                className={`template-option ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleTemplateSelect(template.id)}
-              >
-                <Radio checked={isSelected} />
-                <div className="template-thumbnail">
-                  {thumbnail ? (
-                    <img src={thumbnail} alt={template.title} />
-                  ) : (
-                    <div className="template-placeholder">
-                      <FileTextOutlined />
-                    </div>
-                  )}
-                </div>
-                <div className="tab-rx-template-info">
-                  <div className="template-name">{template.title || 'Untitled Template'}</div>
-                  <div className="template-meta">
-                    {template.uploaded_files?.length || 1} Page Letterhead
-                  </div>
-                </div>
-                <Dropdown
-                  menu={{ items: getTemplateMenuItems(template) }}
-                  trigger={['click']}
-                  onClick={(e) => e.stopPropagation()}
+          {/* Standard Template Option */}
+          <div
+            className={`template-option ${selectedTemplateId === 'standard' ? 'selected' : ''}`}
+            onClick={() => handleTemplateSelect('standard')}
+          >
+            <Radio checked={selectedTemplateId === 'standard'} />
+            <div className="template-thumbnail">
+              <img src={generateStandardTemplateBackground(profile)} alt="Standard Template" />
+            </div>
+            <div className="tab-rx-template-info">
+              <div className="template-name">Standard Template</div>
+              <div className="template-meta">1 Page Letterhead</div>
+            </div>
+          </div>
+
+          {/* Templates List */}
+          {loading ? (
+            <div className="templates-loading">Loading templates...</div>
+          ) : templates.length > 0 ? (
+            templates.map((template) => {
+              const thumbnail = getTemplateThumbnail(template);
+              const isSelected = selectedTemplateId === template.id;
+
+              return (
+                <div
+                  key={template.id}
+                  className={`template-option ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleTemplateSelect(template.id)}
                 >
-                  <button 
-                    className="template-menu-btn"
+                  <Radio checked={isSelected} />
+                  <div className="template-thumbnail">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt={template.title} />
+                    ) : (
+                      <div className="template-placeholder">
+                        <FileTextOutlined />
+                      </div>
+                    )}
+                  </div>
+                  <div className="tab-rx-template-info">
+                    <div className="template-name">{template.title || 'Untitled Template'}</div>
+                    <div className="template-meta">
+                      {template.uploaded_files?.length || 1} Page Letterhead
+                    </div>
+                  </div>
+                  <Dropdown
+                    menu={{ items: getTemplateMenuItems(template) }}
+                    trigger={['click']}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreOutlined />
-                  </button>
-                </Dropdown>
-              </div>
-            );
-          })
-        ) : (
-          <div className="templates-empty">
-            No templates found. Click "Add New Letterhead" to create one.
-          </div>
-        )}
+                    <button
+                      className="template-menu-btn"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreOutlined />
+                    </button>
+                  </Dropdown>
+                </div>
+              );
+            })
+          ) : (
+            <div className="templates-empty">
+              No templates found. Click "Add New Letterhead" to create one.
+            </div>
+          )}
         </div>
       </div>
 
