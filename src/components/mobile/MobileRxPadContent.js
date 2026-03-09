@@ -1299,19 +1299,28 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prescriptionData?.vitalsAndBodyComposition]);
 
+  // Match desktop: show Vitals module only when there is valid vitals content
+  const hasValidVitals =
+    prescriptionData?.vitalsAndBodyComposition &&
+    typeof prescriptionData.vitalsAndBodyComposition === "object" &&
+    Object.values(prescriptionData.vitalsAndBodyComposition || {}).some(
+      (v) => v != null && String(v).trim?.()?.length > 0
+    );
+
   return (
     <div className="mobile-rx-pad-content-wrapper">
-      {/* Rich Text Editor Sections */}
-      {/* Vitals section always visible so user can add vitals when starting empty */}
-      <VitalsRichTextEditorMobile
-        vitalsAndBodyComposition={enrichedVitals}
-        onUpdate={handleVitalsUpdate}
-        isProcessing={isProcessing}
-        patient_data={patient_data}
-        isVoiceAmbientFlow={isVoiceAmbientFlow}
-        vitalsFlow={vitalsFlow}
-        showWhenEmpty={true}
-      />
+      {/* Rich Text Editor Sections - Vitals only when has content (match desktop) */}
+      {hasValidVitals && (
+        <VitalsRichTextEditorMobile
+          vitalsAndBodyComposition={enrichedVitals}
+          onUpdate={handleVitalsUpdate}
+          isProcessing={isProcessing}
+          patient_data={patient_data}
+          isVoiceAmbientFlow={isVoiceAmbientFlow}
+          vitalsFlow={vitalsFlow}
+          showWhenEmpty={false}
+        />
+      )}
 
       {(() => {
         // Show medical history if either Rx pad has it OR context has it (for repeat/edit Rx)
