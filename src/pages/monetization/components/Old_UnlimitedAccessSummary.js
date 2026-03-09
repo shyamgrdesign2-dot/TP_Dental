@@ -213,7 +213,7 @@ function UnlimitedAccessSummary({ selectedServices, setSelectedServices }) {
                     service_id: service.service_id,
                     no_of_years: service.validity / 12
                 })),
-                referral_code: referralCode || null,
+                // referral_code: referralCode || null,
                 request_id: Date.now()
             };
             
