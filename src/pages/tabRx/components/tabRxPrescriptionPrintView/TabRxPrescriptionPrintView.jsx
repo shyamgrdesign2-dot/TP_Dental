@@ -199,7 +199,6 @@ function TabRxPrescriptionPrintView() {
   const [billData, setBillData] = useState(null);
 
   const baseUrl = env.lab_params_api_url;
-  const caseManagerBaseUrl = env.casemanager_api_url;
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -211,43 +210,31 @@ function TabRxPrescriptionPrintView() {
       setSmartRxFile(smartRxFilesData);
       return;
     }
-
-    // Fallback: if no smartRxFilesData was passed but this Rx has smart_prescription_filename,
-    // fetch the smart prescription images the same way as in Cardiology.
-    const shouldFetch =
-      !smartRxFilesData &&
-      state?.tcm_id &&
-      state?.smart_prescription_filename &&
-      typeof state.smart_prescription_filename === "string" &&
-      state.smart_prescription_filename.includes(".jpeg");
-
-    if (!shouldFetch) {
-      return;
-    }
-
-    const fetchSmartRxFiles = async () => {
-      try {
-        const payload = { tcm_id: state.tcm_id };
-        const response = await api.post(FETCH_SMART_RX, payload, caseManagerBaseUrl);
-        if (response?.data?.length) {
-          setSmartRxFile(response.data);
-        } else {
-          setSmartRxFile([]);
-        }
-      } catch (error) {
-        console.error("Error fetching smart Rx files in TabRxPrescriptionPrintView:", error);
-        setSmartRxFile([]);
-      }
-    };
-
     fetchSmartRxFiles();
-  }, [smartRxFilesData, state, caseManagerBaseUrl]);
-
+  }, []);
+  
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
       fetchGynecHistory();
     }
   }, [isGynaecHistoryAccessable]);
+
+  const fetchSmartRxFiles = async () => {
+    const payload = {
+      tcm_id: state?.tcm_id,
+    };
+    const baseUrl = { customBaseUrl: env.casemanager_api_url };
+    try {
+      const response = await api.post(FETCH_SMART_RX, payload, baseUrl);
+      if (response?.data?.length) {
+        setSmartRxFile(response?.data);
+      } else {
+        setSmartRxFile(null);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
 
   const fetchGynecHistory = async () => {
     try {

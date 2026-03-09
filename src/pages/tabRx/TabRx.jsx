@@ -2028,182 +2028,180 @@ function TabRx() {
             mode={mode}
           />
         )} */}
-        {!showOnlyDrawer && (
-          <>
-            <TabRxHeaderV2
-              isVaccinationEnabled={isVaccinationAccessable}
-              isGrowthChartEnabled={isGrowthChartAccessable}
-              gynecHistory={updatedGynecHistory}
-              labParamsData={labParamsData}
-              handleGenRx={handleGenRx}
-              selectedCarePlan={selectedCarePlan}
-              handleVideoConsult={
-                isVideoConsultAvailable ? handleVideoConsult : null
-              }
-              isVideoConsultLoading={isInitiatingCall}
-              smartRxFiles={smartRxFiles}
-              isCustomSSRX={isCustomSSRX}
-              selectedTemplateId={selectedTemplateId}
-              canvasData={canvasRef.current?.getCanvasData() || null}
-              canvasRef={canvasRef}
-              hasCanvasContent={hasCanvasContent}
-              onCanvasClear={handleCanvasClear}
-              onCanvasSubmit={handleCanvasSubmit}
-              onToggleTemplateDrawer={handleToggleTemplateDrawer}
-              isEndVisitLoading={isEndVisitLoading}
-              setIsEndVisitLoading={setIsEndVisitLoading}
-            />
-            <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
-              <Layout>
-                <TabRxNavPanel
-                  isApexAISelected={isApexAISelected}
-                  handleApexAIClose={handleApexAIClose}
-                  isGroundingAccessableForZydus={isGroundingAccessableForZydus}
-                  tp_monetization_enable={tp_monetization_enable}
-                  isFreeVoiceRxUser={isFreeVoiceRxUser}
-                  isApexAIAccessable={isApexAIAccessable}
-                  openCollapsed={openCollapsed}
-                  collapsedFlag={collapsedFlag}
-                  customizedPadLeftList={customizedPadLeftList}
-                  vitalsData={vitalsData}
-                  vitalsPastList={vitalsPastList}
-                  patientBirthWeight={patientBirthWeight}
-                  handleDrawerVital={handleDrawerVital}
-                  medicalHistoryData={medicalHistoryData}
-                  updatedGynecHistory={updatedGynecHistory}
-                  handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-                  isVaccinationAccessable={isVaccinationAccessable}
-                  handleDrawerVaccination={handleDrawerVaccination}
-                  privateNotesList={privateNotesList}
-                  handleDrawerPrivateNotes={handleDrawerPrivateNotes}
-                  isGrowthChartAccessable={isGrowthChartAccessable}
-                  handleDrawerGrowth={handleDrawerGrowth}
-                  isGynaecHistoryAccessable={isGynaecHistoryAccessable}
-                  examinationHistory={examinationHistory}
-                  shouldShowAncHistory={shouldShowAncHistory}
-                  shouldShowImmunisation={shouldShowImmunisation}
-                  obstetricDetails={obstetricDetails}
-                  handleDrawerObstetric={handleDrawerObstetric}
-                  allUploadedDocs={allUploadedDocs}
-                  handleAddClick={handleAddClick}
-                  fileInputRef={fileInputRef}
-                  handleFileUpload={handleFileUpload}
-                  labParamsData={labParamsData}
-                  handleAddLabParamsDrawer={handleAddLabParamsDrawer}
-                  isCarePlanEnabled={isCarePlanEnabled}
-                />
-                <Sider
-                  trigger={null}
-                  collapsible
-                  collapsed={collapsed}
-                  className={collapsed ? "tabsider" : "tabsider1"}
-                >
-                  {collapsedFlag === 1 ? (
-                    <TabVitalsList
-                      mode={caseManagerData !== undefined ? EDIT : ADD}
-                      handleDrawerVital={handleDrawerVital}
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      isTabRx={true}
+        <>
+          <TabRxHeaderV2
+            isVaccinationEnabled={isVaccinationAccessable}
+            isGrowthChartEnabled={isGrowthChartAccessable}
+            gynecHistory={updatedGynecHistory}
+            labParamsData={labParamsData}
+            handleGenRx={handleGenRx}
+            selectedCarePlan={selectedCarePlan}
+            handleVideoConsult={
+              isVideoConsultAvailable ? handleVideoConsult : null
+            }
+            isVideoConsultLoading={isInitiatingCall}
+            smartRxFiles={smartRxFiles}
+            isCustomSSRX={isCustomSSRX}
+            selectedTemplateId={selectedTemplateId}
+            canvasData={canvasRef.current?.getCanvasData() || null}
+            canvasRef={canvasRef}
+            hasCanvasContent={hasCanvasContent}
+            onCanvasClear={handleCanvasClear}
+            onCanvasSubmit={handleCanvasSubmit}
+            onToggleTemplateDrawer={handleToggleTemplateDrawer}
+            isEndVisitLoading={isEndVisitLoading}
+            setIsEndVisitLoading={setIsEndVisitLoading}
+          />
+          <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
+            <Layout>
+              <TabRxNavPanel
+                isApexAISelected={isApexAISelected}
+                handleApexAIClose={handleApexAIClose}
+                isGroundingAccessableForZydus={isGroundingAccessableForZydus}
+                tp_monetization_enable={tp_monetization_enable}
+                isFreeVoiceRxUser={isFreeVoiceRxUser}
+                isApexAIAccessable={isApexAIAccessable}
+                openCollapsed={openCollapsed}
+                collapsedFlag={collapsedFlag}
+                customizedPadLeftList={customizedPadLeftList}
+                vitalsData={vitalsData}
+                vitalsPastList={vitalsPastList}
+                patientBirthWeight={patientBirthWeight}
+                handleDrawerVital={handleDrawerVital}
+                medicalHistoryData={medicalHistoryData}
+                updatedGynecHistory={updatedGynecHistory}
+                handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+                isVaccinationAccessable={isVaccinationAccessable}
+                handleDrawerVaccination={handleDrawerVaccination}
+                privateNotesList={privateNotesList}
+                handleDrawerPrivateNotes={handleDrawerPrivateNotes}
+                isGrowthChartAccessable={isGrowthChartAccessable}
+                handleDrawerGrowth={handleDrawerGrowth}
+                isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                examinationHistory={examinationHistory}
+                shouldShowAncHistory={shouldShowAncHistory}
+                shouldShowImmunisation={shouldShowImmunisation}
+                obstetricDetails={obstetricDetails}
+                handleDrawerObstetric={handleDrawerObstetric}
+                allUploadedDocs={allUploadedDocs}
+                handleAddClick={handleAddClick}
+                fileInputRef={fileInputRef}
+                handleFileUpload={handleFileUpload}
+                labParamsData={labParamsData}
+                handleAddLabParamsDrawer={handleAddLabParamsDrawer}
+                isCarePlanEnabled={isCarePlanEnabled}
+              />
+              <Sider
+                trigger={null}
+                collapsible
+                collapsed={collapsed}
+                className={collapsed ? "tabsider" : "tabsider1"}
+              >
+                {collapsedFlag === 1 ? (
+                  <TabVitalsList
+                    mode={caseManagerData !== undefined ? EDIT : ADD}
+                    handleDrawerVital={handleDrawerVital}
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 2 ? (
+                  <TabMedicalHistoryList
+                    mode={caseManagerData !== undefined ? EDIT : ADD}
+                    handleDrawerMedicalHistory={handleDrawerMedicalHistory}
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    gynecHistory={updatedGynecHistory}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 4 ? (
+                  <TabPrivateNotesList
+                    mode={caseManagerData !== undefined ? EDIT : ADD}
+                    handleDrawerPrivateNotes={handleDrawerPrivateNotes}
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 6 ? (
+                  <TabObstetricList
+                    obstetricDrawer={obstetricDrawer}
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    handleDrawerObstetric={handleDrawerObstetric}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 7 ? (
+                  <TabUploadDocumentList
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    handleDrawerMedicalReport={handleDrawerMedicalReport}
+                    fileInputRef={fileInputRef}
+                    handleFileUpload={handleFileUpload}
+                    handleAddClick={handleAddClick}
+                    handleDrawerUploadDoc={handleDrawerUploadDoc}
+                    setFilesData={setFilesData}
+                    setIsEditDocument={setIsEditDocument}
+                    handleUploadDocPopup={handleUploadDocPopup}
+                    setUploadDocDrawer={setUploadDocDrawer}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 8 ? (
+                  <TabLabParametersList
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    labParamsData={labParamsData}
+                    handleAddLabParamsDrawer={handleAddLabParamsDrawer}
+                    handleViewLabParamsDrawer={handleViewLabParamsDrawer}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 9 &&
+                  (isApexAIAccessable || tp_monetization_enable) ? (
+                  <TabDDxList
+                    generatedDDx={generatedDDx?.results}
+                    handleDDxDrawer={handleDDxDrawer}
+                    isDDxLoading={isDDxLoading}
+                    handleDDxKnowMore={handleDDxKnowMore}
+                    getGenerateDDx={getGenerateDDx}
+                    isDDxGenerated={isDDxGenerated}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 10 &&
+                  (tp_monetization_enable || isFreeVoiceRxUser) ? (
+                  <TabVoiceRx
+                    handleGenRxKnowMore={handleGenRxKnowMore}
+                    setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}
+                    isTabRx={true}
+                  />
+                ) : collapsedFlag === 11 && isCarePlanEnabled ? (
+                  <TabCarePlanList
+                    handleCollapsed={() => setCollapsed(!collapsed)}
+                    patientId={patient_data?.patient_unique_id}
+                    selectedTcmId={tcmId}
+                    selectedCarePlan={selectedCarePlan}
+                    setSelectedCarePlan={setSelectedCarePlan}
+                    userId={userId}
+                    clinicId={decodedToken?.result?.clinic_id}
+                    carePlanPlaceholder={carePlanPlaceholder}
+                    isTabRx={true}
+                  />
+                ) : (
+                  collapsedFlag === 12 &&
+                  isGroundingAccessableForZydus && (
+                    <GroundingBox
+                      handleGroundingKnowMore={handleGroundingKnowMore}
                     />
-                  ) : collapsedFlag === 2 ? (
-                    <TabMedicalHistoryList
-                      mode={caseManagerData !== undefined ? EDIT : ADD}
-                      handleDrawerMedicalHistory={handleDrawerMedicalHistory}
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      gynecHistory={updatedGynecHistory}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 4 ? (
-                    <TabPrivateNotesList
-                      mode={caseManagerData !== undefined ? EDIT : ADD}
-                      handleDrawerPrivateNotes={handleDrawerPrivateNotes}
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 6 ? (
-                    <TabObstetricList
-                      obstetricDrawer={obstetricDrawer}
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      handleDrawerObstetric={handleDrawerObstetric}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 7 ? (
-                    <TabUploadDocumentList
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      handleDrawerMedicalReport={handleDrawerMedicalReport}
-                      fileInputRef={fileInputRef}
-                      handleFileUpload={handleFileUpload}
-                      handleAddClick={handleAddClick}
-                      handleDrawerUploadDoc={handleDrawerUploadDoc}
-                      setFilesData={setFilesData}
-                      setIsEditDocument={setIsEditDocument}
-                      handleUploadDocPopup={handleUploadDocPopup}
-                      setUploadDocDrawer={setUploadDocDrawer}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 8 ? (
-                    <TabLabParametersList
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      labParamsData={labParamsData}
-                      handleAddLabParamsDrawer={handleAddLabParamsDrawer}
-                      handleViewLabParamsDrawer={handleViewLabParamsDrawer}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 9 &&
-                    (isApexAIAccessable || tp_monetization_enable) ? (
-                    <TabDDxList
-                      generatedDDx={generatedDDx?.results}
-                      handleDDxDrawer={handleDDxDrawer}
-                      isDDxLoading={isDDxLoading}
-                      handleDDxKnowMore={handleDDxKnowMore}
-                      getGenerateDDx={getGenerateDDx}
-                      isDDxGenerated={isDDxGenerated}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 10 &&
-                    (tp_monetization_enable || isFreeVoiceRxUser) ? (
-                    <TabVoiceRx
-                      handleGenRxKnowMore={handleGenRxKnowMore}
-                      setIsGenRxDrawerVisible={setIsGenRxDrawerVisible}
-                      isTabRx={true}
-                    />
-                  ) : collapsedFlag === 11 && isCarePlanEnabled ? (
-                    <TabCarePlanList
-                      handleCollapsed={() => setCollapsed(!collapsed)}
-                      patientId={patient_data?.patient_unique_id}
-                      selectedTcmId={tcmId}
-                      selectedCarePlan={selectedCarePlan}
-                      setSelectedCarePlan={setSelectedCarePlan}
-                      userId={userId}
-                      clinicId={decodedToken?.result?.clinic_id}
-                      carePlanPlaceholder={carePlanPlaceholder}
-                      isTabRx={true}
-                    />
-                  ) : (
-                    collapsedFlag === 12 &&
-                    isGroundingAccessableForZydus && (
-                      <GroundingBox
-                        handleGroundingKnowMore={handleGroundingKnowMore}
-                      />
-                    )
-                  )}
-                </Sider>
-                {/* <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}> */}
-                <TabRxCanvas
-                  ref={canvasRef}
-                  patient={patient_data}
-                  backgroundImage={backgroundImageUrl}
-                  profile={profile}
-                  initialTemplateId={userFormatPref === 2 ? 'standard' : 'blank'}
-                  showTemplateDrawer={showTemplateDrawer}
-                  onToggleTemplateDrawer={handleToggleTemplateDrawer}
-                  onContentChange={handleCanvasContentChange}
-                />
-                {/* </Content> */}
-              </Layout>
-            </div>
-          </>
-        )}
+                  )
+                )}
+              </Sider>
+              {/* <Content style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}> */}
+              <TabRxCanvas
+                ref={canvasRef}
+                patient={patient_data}
+                backgroundImage={backgroundImageUrl}
+                profile={profile}
+                initialTemplateId={userFormatPref === 2 ? 'standard' : 'blank'}
+                showTemplateDrawer={showTemplateDrawer}
+                onToggleTemplateDrawer={handleToggleTemplateDrawer}
+                onContentChange={handleCanvasContentChange}
+              />
+              {/* </Content> */}
+            </Layout>
+          </div>
+        </>
         {vitalDrawer && (
           <Drawer
             closeIcon={false}
