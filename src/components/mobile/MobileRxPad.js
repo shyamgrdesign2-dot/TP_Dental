@@ -1834,10 +1834,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           dispatch(updateCredits(sendData));
         }
         
-        // Refresh services list to update credit balance
-        if (!isFreeVoiceRxUser && (useVoiceRx || useDDX)) {
-          dispatch(services(profile?.b2c));
-        }
+        // Note: services list is automatically refreshed by updateCredits thunk
         
         // Use numeric tcm_id from addCaseManager/editCaseManager; viewCaseManager expects number
         const fromPayload = action?.payload?.tcm_id ?? tcmId;
