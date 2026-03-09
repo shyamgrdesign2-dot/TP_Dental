@@ -736,10 +736,12 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       if (!isFreeVoiceRxUser && (
         VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0
       )) {
+        setIsProcessing(false);
         showHideSubModal();
         return;
       }
       if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
+        setIsProcessing(false);
         showHideSubModal();
         return;
       }
@@ -758,11 +760,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               action?.payload?.credit_balance <= 0
             ) {
               await dispatch(services(sendData?.b2c_id));
+              setIsProcessing(false);
               showHideSubModal();
               return;
             } else if (
               action?.payload?.plan_tier === FAILED_VERIFICATION
             ) {
+              setIsProcessing(false);
               showHideSubModal();
               return;
             }
