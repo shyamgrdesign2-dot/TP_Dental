@@ -148,6 +148,7 @@ function VitalsBoxMobile(props) {
     }, [calculate]);
 
     // Build a single vitals row from initialVitals prop (voice/ambient/snap/smart or when parent passes initial data)
+    // parse bloodPressure into systolic/diastolic when Systolic/Diastolic are missing so Rx Pad form shows BP
     const rowFromInitialVitals = useMemo(() => {
         if (!initialVitals || typeof initialVitals !== 'object') return null;
         const v = initialVitals;
@@ -155,6 +156,18 @@ function VitalsBoxMobile(props) {
         const height = String(v.height || '').trim();
         const weight = String(v.weight || '').trim();
         let cal = calculate(height, weight);
+        let systolic = String(v.Systolic || v.systolic || '').trim();
+        let diastolic = String(v.Diastolic || v.diastolic || '').trim();
+        if (!systolic || !diastolic) {
+            const bp = v.bloodPressure || v.blood_press || '';
+            if (bp) {
+                const parts = String(bp).trim().split('/');
+                if (parts.length >= 2) {
+                    systolic = parts[0].trim();
+                    diastolic = parts[1].trim();
+                }
+            }
+        }
         return {
             date,
             dev_unique_id: v.dev_unique_id ?? 0,
@@ -163,8 +176,8 @@ function VitalsBoxMobile(props) {
             temp: String(v.temperature || v.temp || '').trim(),
             pres: String(v.pulse || v.pres || '').trim(),
             resp_rate: String(v.respRate || v.resp_rate || '').trim(),
-            systolic: String(v.Systolic || v.systolic || '').trim(),
-            diastolic: String(v.Diastolic || v.diastolic || '').trim(),
+            systolic,
+            diastolic,
             spo2: String(v.spo2 || '').trim(),
             height,
             weight,
