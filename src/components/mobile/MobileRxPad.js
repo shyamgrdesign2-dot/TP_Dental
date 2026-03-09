@@ -1824,7 +1824,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         
         // Credit deduction logic (matches desktop ConsultationDrawer)
         const useVoiceRx = !!(genRxDetails?._id || rxId); // Voice Rx was used if we have prescription ID
-        const useDDX = !!(prescriptionData?.diagnosis && prescriptionData.diagnosis.length > 0); // DDx was used if we have diagnosis
+        const useDDX = !!(prescriptionData?.ddxUsed); // DDx billing only when DDx workflow was explicitly used (not on diagnosis.length)
         
         if (!isFreeVoiceRxUser && useVoiceRx) {
           const sendData = {
