@@ -146,9 +146,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     (VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0)
   );
 
+  const openSubModal = useCallback(() => {
+    setIsSubModalOpen(true);
+  }, []);
+
   const showHideSubModal = useCallback(() => {
-    setIsSubModalOpen(!isSubModalOpen);
-  }, [isSubModalOpen]);
+    setIsSubModalOpen((prev) => !prev);
+  }, []);
 
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
@@ -186,10 +190,10 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     if (visible && (fromVoiceRecording || audioBlobFromLocation || inputTextFromLocation)) {
       // This is a Voice Rx entry - check credits
       if (isVoiceRxCreditExpired) {
-        showHideSubModal();
+        openSubModal();
       }
     }
-  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isVoiceRxCreditExpired, showHideSubModal]);
+  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isVoiceRxCreditExpired, openSubModal]);
 
   // Reset auto-submit ref ONLY when drawer closes (not when input values change)
   // This prevents infinite loop - input values stay in location.state even after processing
