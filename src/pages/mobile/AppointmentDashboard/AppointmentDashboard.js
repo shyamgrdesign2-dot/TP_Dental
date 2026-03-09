@@ -582,7 +582,7 @@ function AppointmentDashboard() {
   // Handle download Rx (same URL and behavior as Rx Preview download icon: language, rxDigitize, in-app download)
   const handleDownloadRx = useCallback(async (record) => {
     if (!record.print_rx_url) {
-      message.warning('Prescription not available for download');
+      errorMessage('Download URL is missing.');
       return;
     }
 
@@ -637,7 +637,6 @@ function AppointmentDashboard() {
 
       if (!isChrome && !isSafari) {
         sendMessageToParent(EVENTS.DOWNLOAD, { url: fullDownloadUrl });
-        message.success('Prescription download initiated');
         return;
       }
 
@@ -655,9 +654,8 @@ function AppointmentDashboard() {
         ? `prescription_${moment(record.apDate).format('YYYY-MM-DD')}.pdf`
         : `prescription_${record.pam_id || Date.now()}.pdf`;
       saveAs(blob, fileName);
-      message.success('Prescription downloaded successfully');
     } catch (error) {
-      message.error('Failed to download prescription');
+      errorMessage('Failed to download prescription');
     }
   }, [defaultPrintSettings, profile]);
 
