@@ -19,7 +19,9 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
 } from '../../../utils/constants';
-import { getClinic, getClinicName, getTokenData, errorMessage } from '../../../utils/utils';
+import { getClinic, getClinicName, getTokenData, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import { EVENTS } from '../../../utils/events';
+import { isChrome, isSafari } from 'react-device-detect';
 import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
 import { env } from '../../../EnvironmentConfig';
 import { jwtDecode } from 'jwt-decode';
@@ -577,33 +579,85 @@ function AppointmentDashboard() {
     }
   }, [defaultPrintSettings]);
 
-  // Handle download Rx
+  // Handle download Rx (same URL and behavior as Rx Preview download icon: language, rxDigitize, in-app download)
   const handleDownloadRx = useCallback(async (record) => {
     if (!record.print_rx_url) {
-      message.warning('Prescription not available for download');
+      errorMessage('Download URL is missing.');
       return;
     }
 
     try {
-      // Dynamic import for file-saver
+      // Same URL building as handlePrintRx (patient language + rxDigitize for digital Rx)
+      const getPatientDefaultLanguage = async () => {
+        try {
+          const res = await fetchPatientDefaultLanguage(record?.patient_unique_id);
+          if (res?.settings?.defaultLanguage) {
+            return res.settings.defaultLanguage;
+          }
+        } catch (error) {
+        }
+        return defaultPrintSettings?.default_language;
+      };
+
+      const updateRxDigitizeInUrl = async () => {
+        try {
+          if (!record.patient_unique_id || !record.tcm_id) {
+            return { url: record.print_rx_url, isDigitized: false };
+          }
+          const urlObj = new URL(record.print_rx_url);
+          urlObj.searchParams.delete("rxDigitize");
+          const snapRxDigitisedData = await getSnapRxDigitization(
+            record.patient_unique_id,
+            record.tcm_id
+          );
+          const isSnapRxdigitised = snapRxDigitisedData?.digitization?.isVerified && snapRxDigitisedData?.digitization?.isDigitize;
+          if (isSnapRxdigitised) {
+            urlObj.searchParams.set("rxDigitize", "true");
+          }
+          return { url: urlObj.toString(), isDigitized: isSnapRxdigitised };
+        } catch (error) {
+          return { url: record.print_rx_url, isDigitized: false };
+        }
+      };
+
+      const patientDefaultLanguage = await getPatientDefaultLanguage();
+      const encodedData = patientDefaultLanguage && patientDefaultLanguage !== "English"
+        ? btoa(patientDefaultLanguage.toString())
+        : "";
+      const { url: downloadUrl, isDigitized } = await updateRxDigitizeInUrl();
+      const fullDownloadUrl = `${downloadUrl}&lg=${encodedData}`;
+
+      if (isDigitized && window.Moengage && profile) {
+        window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+          Doctor_Name: profile?.um_name,
+          Doctor_Number: profile?.um_contact,
+          Doctor_Unique_Id: profile?.doctor_unique_id,
+        });
+      }
+
+      if (!isChrome && !isSafari) {
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: fullDownloadUrl });
+        return;
+      }
+
       const { default: saveAs } = await import('file-saver');
       const axios = (await import('axios')).default;
-
       const response = await axios({
-        url: record.print_rx_url,
+        url: fullDownloadUrl,
         method: 'GET',
         responseType: 'blob',
       });
-
       const blob = new Blob([response.data], {
         type: response.headers['content-type'] || 'application/pdf',
       });
-      saveAs(blob, `prescription_${record.pam_id || Date.now()}.pdf`);
-      message.success('Prescription downloaded successfully');
+      const fileName = record.apDate
+        ? `prescription_${moment(record.apDate).format('YYYY-MM-DD')}.pdf`
+        : `prescription_${record.pam_id || Date.now()}.pdf`;
+      saveAs(blob, fileName);
     } catch (error) {
-      message.error('Failed to download prescription');
+      errorMessage('Failed to download prescription');
     }
-  }, []);
+  }, [defaultPrintSettings, profile]);
 
   // Handle walk-in consultation
   const handleWalkInConsultation = useCallback(() => {
