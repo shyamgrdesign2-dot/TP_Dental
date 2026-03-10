@@ -18,7 +18,7 @@ import successIcon from '../assets/images/success-icon.svg';
 import cvtInfoIcon from '../assets/images/cvt-info.svg';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE } from "../utils/constants";
+import { FAILED_VERIFICATION, FETCH_SMART_RX, FREE, GB_SMARTSYNC_CVT, MESSAGE_KEY, RX_DIGITIZATION, S_RX_DIGITIZATION, WHATS_APP_API, WTSAP_ERR_MESSAGE, LANGUAGE_LIST } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import config from "../../src/config";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -57,11 +57,37 @@ function SmartRxPreview() {
 
     const navigate = useNavigate();
 
+    const location = useLocation();
     const { state } = useLocation();
-    const { patient_data, isDigitiseRxSubmit} = state
+    const { patient_data, isDigitiseRxSubmit } = state || {};
 
-    const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}` : null);
-    const [previewUrl, setPreviewUrl] = useState(null);
+    const buildUrlWithLanguage = (url, language) => {
+        if (!url) return null;
+        try {
+            const urlObj = new URL(url);
+            urlObj.searchParams.delete('lg');
+            urlObj.searchParams.delete('rx');
+            urlObj.searchParams.set('rx', '0');
+            if (language) {
+                const encodedData = btoa(language.toString());
+                urlObj.searchParams.set('lg', encodedData);
+            }
+            return urlObj.toString();
+        } catch (error) {
+            return url;
+        }
+    };
+
+    // Default to English for all users
+    const initialLanguage = 1;
+
+    const [selectedLang, setSelectedLang] = useState(initialLanguage);
+    const basePrintUrl = state?.print_url || null;
+    const initialUrl = basePrintUrl ? buildUrlWithLanguage(basePrintUrl, initialLanguage) : null;
+
+    const [printUrl, setPrintUrl] = useState(initialUrl);
+    const [previewUrl, setPreviewUrl] = useState(initialUrl);
+    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx || null);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
@@ -79,6 +105,11 @@ function SmartRxPreview() {
     const [showProgressbar, setShowProgressbar] = useState(false);
     const [isEditedData, setIsEditedData] = useState(null);
     const [rxDigitisedData, setRxDigitisedData] = useState(null);
+    // API may return isRxDigitize as "1"/"0"; only "1" or true means digitised (avoid "0" being truthy)
+    const isRxDigitisedForTabs = viewCaseManagerData?.isRxDigitize === true || viewCaseManagerData?.isRxDigitize === "1";
+    // After digitisation we navigate with page "digitise"; show toggle and digitised URL even if API not updated yet
+    const isBackFromDigitise = state?.page === "digitise";
+    const showDigitalWrittenToggle = isRxDigitisedForTabs || isBackFromDigitise;
     const [showDigitalRx, setShowDigitalRx] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
     const progressRef = useRef(null);
@@ -135,7 +166,7 @@ function SmartRxPreview() {
         try {
             const sendData = {
                 patient_unique_id: patient_data?.patient_unique_id || 0,
-                tcm_id: state.tcm_id
+                tcm_id: state?.tcm_id
             };
             const action = await dispatch(viewCaseManager(sendData));
             setViewCaseManagerData(action.payload);
@@ -148,20 +179,44 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if(state.tcm_id && patient_data?.patient_unique_id){
+            if (state?.tcm_id && patient_data?.patient_unique_id) {
                 const viewCaseManagerData = await getCaseManagerData();
-                setViewCaseManagerData(viewCaseManagerData)
+                setViewCaseManagerData(viewCaseManagerData);
             }
         };
         fetchData();
-    }, [state.tcm_id, patient_data?.patient_unique_id]);
+    }, [state?.tcm_id, patient_data?.patient_unique_id]);
+
+    // Redirect when page is opened without navigation state (e.g. direct URL or refresh)
+    useEffect(() => {
+        if (!state) {
+            navigate(-1);
+        }
+    }, [state, navigate]);
+
+    // After digitisation: default to Digital Rx so digitised URL (rxDigitize=true) is used and toggle is visible
+    useEffect(() => {
+        if (isBackFromDigitise) {
+            setShowDigitalRx(true);
+        }
+    }, [isBackFromDigitise]);
+
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    // Update smartRxFile when state changes (e.g., when coming back from print config)
+    useEffect(() => {
+        if (state?.smartRxFile && state.smartRxFile.length > 0) {
+            setSmartRxFile(state.smartRxFile);
+        } else if (state?.files && state.files.length > 0) {
+            setSmartRxFile(state.files);
+        }
+    }, [state?.smartRxFile, state?.files, state?.from]);
 
     const fetchRxDigitisedData = async () => {
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
     
                 // API call for Rx Digitisation
-                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state.tcm_id}`, {
+                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state?.tcm_id}`, {
                     headers: {
                         'Authorization': `Bearer ${cleanedToken}`,
                     },
@@ -196,13 +251,19 @@ function SmartRxPreview() {
                     Doctor_Unique_Id: profile?.doctor_unique_id,
                 });
             }
-            const response = await axios({
-                url: printUrl,
-                method: 'GET',
-                responseType: 'blob', // Important for binary data
-            });
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            saveAs(blob, `${Date.now()}.pdf`);
+            if (currentSessionRx) {
+                const response = await fetch(currentSessionRx);
+                const blob = await response.blob();
+                saveAs(blob, `${Date.now()}.pdf`);
+            } else {
+                const response = await axios({
+                    url: printUrl,
+                    method: 'GET',
+                    responseType: 'blob', // Important for binary data
+                });
+                const blob = new Blob([response.data], { type: response.headers['content-type'] });
+                saveAs(blob, `${Date.now()}.pdf`);
+            }
         } catch (error) {
             console.error('Error downloading file:', error);
             // Handle errors gracefully, e.g., display an error message to the user
@@ -217,7 +278,8 @@ function SmartRxPreview() {
                 Doctor_Unique_Id: profile?.doctor_unique_id,
             });
         }
-        navigate(`/prescription_print_view/?url=${printUrl}&key=download`, { replace: true, state: state })
+        const urlToUse = currentSessionRx || printUrl;
+        navigate(`/prescription_print_view/?url=${urlToUse}&key=download`, { replace: true, state: { ...state, currentSessionRx } });
         navigate(0, { replace: true });
     };
 
@@ -244,6 +306,11 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
+          // Only fetch if we don't have smartRxFile from state
+          if (state?.smartRxFile?.length > 0 || state?.files?.length > 0) {
+              return;
+          }
+          
           const payload = {
             tcm_id: state?.tcm_id,
           };
@@ -261,7 +328,13 @@ function SmartRxPreview() {
           }
         };
         fetchData();
-    }, []);
+    }, [state?.tcm_id, state?.smartRxFile, state?.files]);
+
+    useEffect(() => {
+        if (state?.from === "/configure_print_setting" && state?.currentSessionRx) {
+            setCurrentSessionRx(state?.currentSessionRx);
+        }
+    }, [state?.from, state?.currentSessionRx]);
 
     const tempRxDigitise = async () => {
     
@@ -277,7 +350,7 @@ function SmartRxPreview() {
             formData.append('doctorId', data.result.user_id);
             formData.append('patientId', patient_data.patient_unique_id);
             formData.append('appointmentId', state?.pam_id);
-            formData.append('caseId', state.tcm_id);
+            formData.append('caseId', state?.tcm_id);
         
             try {
                 const cleanedToken = token.replace(/['"]+/g, '');
@@ -335,9 +408,9 @@ function SmartRxPreview() {
                             const navState = {
                                 patient_data: patient_data,
                                 smartRxFilesData: smartRxFile,
-                                tcm_id: state.tcm_id,
+                                tcm_id: state?.tcm_id,
                                 pam_id: state?.pam_id,
-                                print_url: state.print_url,                                // digitisedData: rxDigitiseApiResponse,
+                                print_url: state?.print_url,                                // digitisedData: rxDigitiseApiResponse,
                                 type: "new",
                                 isCustomSSRX : isCustomSSRX
                             };
@@ -352,7 +425,7 @@ function SmartRxPreview() {
                                   doctor_specialty: profile?.dp_name,
                                   clinic_id: tokenData?.clinic_id,
                                   clinic_name: clinic?.hm_name,
-                                  rx_id: state.tcm_id || " ",
+                                  rx_id: state?.tcm_id || " ",
                                   type: type,
                                   source: "print Preview page",
                                   device_details: navigator.userAgent
@@ -404,6 +477,14 @@ function SmartRxPreview() {
         }
     }, [showDigitalRx]);
 
+    const handleLanguageSelect = useCallback((data) => {
+        const newUrl = buildUrlWithLanguage(basePrintUrl, data);
+        setPrintUrl(newUrl);
+        setPreviewUrl(newUrl);
+        setSelectedLang(data);
+        setCurrentSessionRx(null);
+    }, [basePrintUrl]);
+
     const configurePrintUrl = async () => {
         var sendData = {
             patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -412,7 +493,14 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" } })
+            let filesForPrint = smartRxFile;
+            if (smartRxFile?.length > 0 && typeof smartRxFile[0] === "string") {
+                try {
+                    const response = await api.post(FETCH_SMART_RX, { tcm_id: state?.tcm_id }, baseUrl);
+                    if (response?.data?.length) filesForPrint = response.data;
+                } catch (e) {}
+            }
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile: filesForPrint, from: "/print-smart-rx", page: state?.page } })
         } else {
             errorMessage(action.error)
         }
@@ -471,8 +559,8 @@ function SmartRxPreview() {
                             state: {
                                 patient_data: patient_data,
                                 smartRxFilesData: smartRxFile,
-                                tcm_id: state.tcm_id,
-                                print_url: state.print_url,
+                                tcm_id: state?.tcm_id,
+                                print_url: state?.print_url,
                                 digitisedData: response?.data,
                                 pam_id: state?.pam_id,
                                 type:"edit",
@@ -504,15 +592,17 @@ function SmartRxPreview() {
             state: {
                 patient_data: patient_data,
                 smartRxFilesData: smartRxFile,
-                tcm_id: state.tcm_id,
+                tcm_id: state?.tcm_id,
                 pam_id: state?.pam_id,
-                print_url: state.print_url,
+                print_url: state?.print_url,
                 digitisedData: rxDigitiseApiResponse,
                 type:"new",
                 isCustomSSRX : isCustomSSRX
             },
         })
     };
+
+    if (!state) return null;
 
     return (
         <>
@@ -659,12 +749,23 @@ function SmartRxPreview() {
                         <div className={isMobile ? 'p-20' : ''}>
                             <div className="d-flex align-itms-center justify-content-between">
                                 <div className="titleprint">Preview</div>
-                               { viewCaseManagerData?.isRxDigitize && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
-                                    <div>
-                                        <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
-                                        <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
-                                    </div>
-                                }
+                                <div className="d-flex align-items-center flex-wrap gap-3">
+                                    { showDigitalWrittenToggle && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
+                                        <div>
+                                            <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
+                                            <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
+                                        </div>
+                                    }
+                                    {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
+                                    <Select
+                                        placeholder=""
+                                        className="appointmentselect"
+                                        value={LANGUAGE_LIST.find(item => item.value == selectedLang)}
+                                        onSelect={handleLanguageSelect}
+                                        options={LANGUAGE_LIST}
+                                    />
+                                    )}
+                                </div>
                             </div>
                             <div className="rounded-20px bg-white mt-20 overflow-hidden">
 
@@ -674,7 +775,7 @@ function SmartRxPreview() {
                                         loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                         error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                         noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={!showDigitalRx ? printUrl : previewUrl }
+                                        file={currentSessionRx || (!showDigitalRx ? printUrl : previewUrl) }
                                         onLoadSuccess={onDocumentLoadSuccess}>
                                         {Array.apply(null, Array(numPages))
                                             .map((x, i) => i + 1)

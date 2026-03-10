@@ -15,6 +15,7 @@ import contactSupport from "../assets/images/messages-secondary.svg";
 import arrowRight from "../assets/images/arrow-right-primary.svg";
 import GenRxKnowMore from "./GenRxKnowMore";
 import VideoModal from "../common/VideoModal";
+import { isMobile, isTablet } from "react-device-detect";
 import { getClinic, isVoiceRxFree, isZydus } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -138,9 +139,10 @@ const VoiceRxPromoModal = () => {
       footer={null}
       width={931}
       centered
-      className="monetization-popup-modal"
+      className="monetization-popup-modal monetization-popup-modal-responsive"
       style={{
         padding: 0,
+        maxWidth: '100%',
       }}
     >
       <div
@@ -281,25 +283,27 @@ const VoiceRxPromoModal = () => {
                 setShowVideo(true);
               }}
             ></div>
-            <Button
-              type="button"
-              className="monetization-popup-know-more-link"
-              onClick={(e) => {
-                e.preventDefault();
-                // Track MoEngage event for know more click
-                if (window.Moengage) {
-                  window.Moengage.track_event(
-                    "TP_VoiceRx_KnowMoreClick",
-                    moeData
-                  );
-                }
-                // Handle know more action
-                showHideVideoListPopover();
-              }}
-            >
-              Know more about Voice Rx
-              <img src={arrowRight} alt="Arrow Right" />
-            </Button>
+            {!(isMobile && !isTablet) && (
+              <Button
+                type="button"
+                className="monetization-popup-know-more-link"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Track MoEngage event for know more click
+                  if (window.Moengage) {
+                    window.Moengage.track_event(
+                      "TP_VoiceRx_KnowMoreClick",
+                      moeData
+                    );
+                  }
+                  // Handle know more action
+                  showHideVideoListPopover();
+                }}
+              >
+                Know more about Voice Rx
+                <img src={arrowRight} alt="Arrow Right" />
+              </Button>
+            )}
             <div className="monetization-popup-divider"></div>
           </div>
 
