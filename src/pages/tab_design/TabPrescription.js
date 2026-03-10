@@ -9,7 +9,7 @@ import { env } from "../../EnvironmentConfig";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_VIDEO_CONSULT, GB_TELE_CONSULT, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../../redux/vitalsSlice";
 import { getPatientLastHistory, listPrivateNotes } from "../../redux/medicalhistorySlice";
@@ -26,9 +26,9 @@ import TabInvestigationBox from "../../components/tab_design/TabInvestigationBox
 import TabFollowUpBox from "../../components/tab_design/TabFollowUpBox";
 import OphthalmologyExamPanel from "../../components/ophthalmology/OphthalmologyExamPanel";
 
-import VitalsBoxMobile from "../../components/VitalsBoxMobile";
+import VitalsBox from "../../components/VitalsBox";
 import TabVitalsList from "../../components/tab_design/TabVitalsList";
-import MedicalHistoryBoxMobile from "../../components/MedicalHistoryBoxMobile";
+import MedicalHistoryBox from "../../components/MedicalHistoryBox";
 import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistoryList";
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
@@ -96,9 +96,9 @@ import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
+import VideoConsultButton from "../../components/VideoConsultButton";
 import VideoConsultModal from "../../components/VideoConsultModal";
-import ApiTeleconsult from "../../api/services/ApiTeleconsult";
-import { setJoinToken, setActiveTeleconsultAppointmentId } from "../../redux/teleconsultNotificationSlice";
+import { GB_VIDEO_CONSULT } from "../../utils/constants";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -106,9 +106,6 @@ import TabCustomModule from "../../components/tab_design/TabCustomModule";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
-import MobileRxPad from "../../components/mobile/MobileRxPad";
-import MobileConsultationSummary from "../../components/mobile/MobileConsultationSummary";
-import { useDeviceType } from "../../utils/deviceDetection";
 import Carousel from "react-multi-carousel";
 import GenRxBanner from "../../components/GenRxBanner";
 import TatvaAiBanner from "../../components/TatvaAiBanner";
@@ -136,7 +133,6 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 
 function TabPrescription() {
-  const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const {
     customizedPadLeftList,
     customizedPadRightList: originalCustomizedPadRightList,
@@ -156,7 +152,6 @@ function TabPrescription() {
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
-  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
@@ -228,12 +223,12 @@ function TabPrescription() {
     
     return combined;
   }, [customModules, hospitalSearchResults, userId]);
-  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx } = state || {};
+  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path } = state || {};
   const chartType = state?.chartType;
-  const tcmId = caseManagerData != null ? caseManagerData.tcm_id : 0;
-  const pamId = caseManagerData != null ? caseManagerData.pam_id : 0;
+  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
+  const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
   const consultationDate =
-    caseManagerData != null
+    caseManagerData !== undefined
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
@@ -420,25 +415,13 @@ function TabPrescription() {
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
-  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
-  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
-  const isNormalConsultFlow = !fromVoiceRecording && !send_path && !digitizedData;
-
-  const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
-  const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
+  // Check if video consultation is available for this patient
+  const isVideoConsultAvailable = isVideoConsultAccessible && 
+                                   videoConsultData?.pam_status_type_appointment === 1;
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
-
-  useEffect(() => {
-    if (teleconsultAutoJoin?.token) {
-      dispatch(setJoinToken(teleconsultAutoJoin.token));
-      if (videoConsultData?.pam_id != null) {
-        dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
-      }
-    }
-  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -560,80 +543,14 @@ function TabPrescription() {
   const [isFileTypeError, setIsFileTypeError] = useState(null);
   const [genRxKnowMoreDrawer, setGenRxKnowMoreDrawer] = useState(false);
   const [groundingKnowMoreDrawer, setGroundingKnowMoreDrawer] = useState(false);
-  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(() => {
-    const s = location?.state || {};
-    // From End Visit Edit: show Consultation Summary and "Your Rx is ready" card first, not RX pad
-    if (s.fromEndVisitEdit) return false;
-    // From Add New Patient on mobile walk-in: open mobile Rx pad so user gets mobile view
-    if (s.fromWalkInMobile) return true;
-    return (
-      s.caseManagerData?.smart_prescription_filename ||
-      (s.inputText && typeof s.inputText === 'string' && s.inputText.trim().length > 0) ||
-      (s.fromVoiceRecording && s.audioBlob) ||
-      false
-    );
-  });
+  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
+    caseManagerData?.smart_prescription_filename || 
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    (fromVoiceRecording && audioBlob) ||
+    false
+  );
   const [tatvaAiKnowMoreDrawer, setTatvaAiKnowMoreDrawer] = useState(false);
   const [showShimmer, setShowShimmer] = useState(false);
-  const [mobileRxData, setMobileRxData] = useState(null);
-  
-  // Initialize mobileQueries from location.state to persist across navigation
-  // IMPORTANT: This only runs on component MOUNT, not on re-renders
-  const [mobileQueries, setMobileQueries] = useState(() => {
-    const stateQueries = location.state?.mobileQueries;
-    
-    if (stateQueries && Array.isArray(stateQueries) && stateQueries.length > 0) {
-      return stateQueries;
-    }
-    return [];
-  });
-
-  // Helper function to check if two queries are equal (for deduplication)
-  const areQueriesEqual = useCallback((q1, q2) => {
-    if (typeof q1 === 'string' && typeof q2 === 'string') {
-      return q1.trim() === q2.trim();
-    }
-    if (typeof q1 === 'object' && typeof q2 === 'object') {
-      // Compare text content
-      const text1 = (q1?.text || '').trim();
-      const text2 = (q2?.text || '').trim();
-      if (text1 !== text2) return false;
-      
-      // Compare isAudio flag
-      if (q1?.isAudio !== q2?.isAudio) return false;
-      
-      // For audio queries, compare duration as well (with tolerance)
-      if (q1?.isAudio && q2?.isAudio) {
-        const dur1 = q1?.duration || 0;
-        const dur2 = q2?.duration || 0;
-        if (Math.abs(dur1 - dur2) > 1) return false; // Allow 1 second tolerance
-      }
-      
-      // For ambient mode, compare conversations
-      if (q1?.conversations && q2?.conversations) {
-        if (q1.conversations.length !== q2.conversations.length) return false;
-        const convs1 = JSON.stringify(q1.conversations.map(c => ({
-          speaker: c.speaker,
-          text: c.text || c.message || c.content
-        })));
-        const convs2 = JSON.stringify(q2.conversations.map(c => ({
-          speaker: c.speaker,
-          text: c.text || c.message || c.content
-        })));
-        if (convs1 !== convs2) return false;
-      }
-      
-      return true;
-    }
-    return false;
-  }, []);
-
-  // SIMPLIFIED SYNC: Only restore from location.state on mount/navigation, don't create circular syncs
-  // Like web version: queries are managed in component state, not synced back and forth
-  
-  useEffect(() => {
-    // Track mobileQueries changes if needed
-  }, [mobileQueries]);
 
   const getAllObstetricDetails = async () => {
     const obstetricResponse = await fetchObstetricDetails(patient_data.patient_unique_id);
@@ -777,7 +694,7 @@ function TabPrescription() {
   ]);
 
   useEffect(() => {
-    if (caseManagerData != null) {
+    if (caseManagerData !== undefined) {
       if (
         caseManagerData.vitals?.length > 0 &&
         customizedPadLeftList.findIndex(
@@ -981,9 +898,9 @@ function TabPrescription() {
       patient_unique_id: String(patient_data?.patient_unique_id),
       hm_id: String(decodedToken?.result?.clinic_id),
       pam_id:
-        patient_data != null && patient_data.pam_id !== undefined
+        patient_data !== undefined && patient_data.pam_id !== undefined
           ? String(patient_data.pam_id)
-          : caseManagerData != null && caseManagerData.pam_id !== undefined
+          : caseManagerData !== undefined
           ? String(caseManagerData.pam_id)
           : 0,
     };
@@ -1062,7 +979,7 @@ function TabPrescription() {
       });
       setLabParamsData(response.data?.data?.results || []);
     } catch (error) {
-      // Error fetching lab params
+      console.error("Error fetching lab params:", error);
     }
   };
 
@@ -1280,7 +1197,7 @@ function TabPrescription() {
   }, [selectedVitalsList]);
 
   useEffect(() => {
-    if (caseManagerData != null) {
+    if (caseManagerData !== undefined) {
       if (caseManagerData.private_notes && customizedPadLeftList.findIndex((e) => e.tmdpm_id === 8 && e.tmdpm_status === 0) !== -1 && privateNotesList.findIndex((e) => e.id === caseManagerData.private_notes.id) !== -1 && tcmId) {
         setPrivateNotesData(caseManagerData.private_notes);
       }
@@ -1335,7 +1252,7 @@ function TabPrescription() {
 
       setUpdatedGynecHistory(updatedData);
     } catch (error) {
-      // Error fetching gynec history
+      console.error('Error fetching gynec history:', error);
     }
   };
 
@@ -1480,7 +1397,7 @@ function TabPrescription() {
         // The CarePlanDropdown component handles its own data fetching
       }
     } catch (error) {
-      // Error fetching care plan names
+      console.error("Error fetching care plan names:", error);
     }
   };
   
@@ -1586,184 +1503,20 @@ function TabPrescription() {
     }
   };
 
-  const handleTeleconsultClick = async () => {
-    const appointmentId = pamId || patient_data?.pam_id;
-    if (!appointmentId) {
-      message.error("No appointment selected");
-      return;
-    }
-    setIsTeleconsultJoinLoading(true);
-    try {
-      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
-      const data = response?.data ?? response;
-      const token = data?.joinPayload?.token ?? data?.token;
-      if (token) {
-        dispatch(setJoinToken(token));
-        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
-      } else {
-        message.error("Teleconsult unavailable as appointment time has passed");
-      }
-    } catch (error) {
-      message.error("Teleconsult unavailable at the moment.");
-    } finally {
-      setIsTeleconsultJoinLoading(false);
-    }
-  };
-
-  // Check if we are in Voice Rx flow (regardless of drawer visibility)
-  const isInVoiceRxFlow =
-    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
-    (fromVoiceRecording && audioBlob) ||
-    caseManagerData?.smart_prescription_filename ||
-    (mobileQueries && mobileQueries.length > 0) ||
-    (mobileRxData?.prescriptionData || mobileRxData?.genRxDetails);
-
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
-  const showOnlyDrawer = isGenRxDrawerVisible && isInVoiceRxFlow;
-
-  // Handle Rx Pad data ready callback for mobile
-  const handleMobileRxDataReady = (data) => {
-    setMobileRxData(data);
-    
-    // Add new query to queries array if provided
-    if (data?.query) {
-      setMobileQueries((prevQueries) => {
-        // If editing, replace last query
-        const isEditing = data.isEditing;
-        
-        if (isEditing) {
-          const newQueries = [...prevQueries.slice(0, -1), data.query];
-          return newQueries;
-        }
-        
-        // Check for duplicates before adding new query
-        const isDuplicate = prevQueries.some(existingQuery => 
-          areQueriesEqual(existingQuery, data.query)
-        );
-        
-        if (isDuplicate) {
-          return prevQueries; // Don't add duplicate
-        }
-        
-        // Add new query
-        const newQueries = [...prevQueries, data.query];
-        return newQueries;
-      });
-    }
-  };
-
-  // Sync Rx Pad state to parent and close when Quick Edit is tapped (preserves data for Consultation Summary and merge on typed/voice)
-  const handleQuickEditFromRxPad = useCallback((state) => {
-    setMobileRxData({
-      prescriptionData: state.prescriptionData,
-      genRxDetails: state.genRxDetails,
-      fullTranscript: state.fullTranscript,
-      conversations: state.conversations,
-    });
-    setMobileQueries(state.queries || []);
-    setIsGenRxDrawerVisible(false);
-  }, []);
-
-  // On mobile, when coming from Add New Patient (walk-in), show only mobile Rx pad (no web sidebar)
-  const fromWalkInMobile = location.state?.fromWalkInMobile;
-  if (isMobileDevice && !isTablet && fromWalkInMobile) {
-    return (
-      <CashManagerContext.Provider value={contextApi}>
-        <MobileRxPad
-          visible={true}
-          onClose={() => {
-            setIsGenRxDrawerVisible(false);
-            const { fromWalkInMobile: _, ...restState } = location.state || {};
-            navigate('/prescription', { state: { ...restState, patient_data: patient_data || location.state?.patient_data }, replace: true });
-          }}
-          onDataReady={handleMobileRxDataReady}
-          onQuickEdit={handleQuickEditFromRxPad}
-          queries={mobileQueries}
-          existingData={mobileRxData}
-        />
-      </CashManagerContext.Provider>
-    );
-  }
-
-  // On mobile, when in Voice Rx flow, show RX Pad (if open) or Consultation Summary (if closed)
-  // This ensures we never show the tab view when in Voice Rx flow
-  if (isMobileDevice && !isTablet && isInVoiceRxFlow) {
-    return (
-      <CashManagerContext.Provider value={contextApi}>
-        {isGenRxDrawerVisible ? (
-          <MobileRxPad
-            visible={isGenRxDrawerVisible}
-            onClose={() => {
-              setIsGenRxDrawerVisible(false);
-            }}
-            onDataReady={handleMobileRxDataReady}
-            onQuickEdit={handleQuickEditFromRxPad}
-            queries={mobileQueries}
-            existingData={mobileRxData}
-          />
-        ) : (
-          <MobileConsultationSummary
-            onOpenRxPad={() => {
-              setIsGenRxDrawerVisible(true);
-            }}
-            onTypedInputSubmit={(inputText) => {
-              // Update location.state with typed input and open Rx Pad
-              // CRITICAL: Explicitly preserve mode, patient_data, caseManagerData to maintain context
-              navigate('/prescription', {
-                state: {
-                  ...location.state,
-                  inputText,
-                  fromVoiceRecording: false,
-                  mode: mode || location.state?.mode || 'dictation', // Preserve mode!
-                  patient_data: patient_data || location.state?.patient_data,
-                  caseManagerData: caseManagerData || location.state?.caseManagerData,
-                  consent: location.state?.consent, // For ambient mode
-                  existingPrescriptionData: mobileRxData?.prescriptionData,
-                  existingGenRxDetails: mobileRxData?.genRxDetails,
-                  mobileQueries: mobileQueries, // Pass current queries
-                },
-                replace: true,
-              });
-              setIsGenRxDrawerVisible(true);
-            }}
-            onVoiceRxClick={() => {
-              // Navigate for voice recording with existing data
-              // CRITICAL: Preserve all context
-              navigate('/voice-recording', {
-                state: {
-                  patient_data: patient_data || location.state?.patient_data,
-                  mode: mode || location.state?.mode || 'dictation', // Preserve mode!
-                  isFromTabView: true,
-                  caseManagerData: caseManagerData || location.state?.caseManagerData,
-                  consent: location.state?.consent,
-                  existingPrescriptionData: mobileRxData?.prescriptionData,
-                  existingGenRxDetails: mobileRxData?.genRxDetails,
-                  mobileQueries: mobileQueries, // Persist current queries
-                }
-              });
-            }}
-            mobileRxData={mobileRxData}
-            queries={mobileQueries}
-          />
-        )}
-      </CashManagerContext.Provider>
-    );
-  }
+  const showOnlyDrawer = isGenRxDrawerVisible && (
+    // Typed input from Voice Rx
+    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+    // Audio recording from Voice Rx (dictation or ambient mode)
+    (fromVoiceRecording && audioBlob) ||
+    // Coming from edit prescription (print view)
+    caseManagerData?.smart_prescription_filename
+  );
 
   return (
     <CashManagerContext.Provider value={contextApi}>
       <>
         {isGenRxDrawerVisible && (
-          (isMobileDevice && !isTablet) ? (
-            <MobileRxPad
-              visible={isGenRxDrawerVisible}
-              onClose={() => setIsGenRxDrawerVisible(false)}
-              onDataReady={handleMobileRxDataReady}
-              onQuickEdit={handleQuickEditFromRxPad}
-              queries={mobileQueries}
-              existingData={mobileRxData}
-            />
-          ) : (
           <ConsultationDrawer
             visible={isGenRxDrawerVisible}
             onClose={() => setIsGenRxDrawerVisible(false)}
@@ -1773,11 +1526,10 @@ function TabPrescription() {
             typedInputText={inputText}
             mode={mode}
           />
-          )
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -2459,7 +2211,7 @@ function TabPrescription() {
             className="modalWidth-700"
             width="auto"
           >
-            <VitalsBoxMobile
+            <VitalsBox
               handleDrawerVital={handleDrawerVital}
               handleCollapsed={(flag) => handleCollapsed(flag)}
               isGrowthChart={isGrowthChart}
@@ -2474,7 +2226,7 @@ function TabPrescription() {
           open={medicalHistoryDrawer}
           width="100%"
         >
-          <MedicalHistoryBoxMobile
+          <MedicalHistoryBox
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
