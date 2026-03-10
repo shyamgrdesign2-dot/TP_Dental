@@ -30,7 +30,6 @@ import DoctorWebsiteSetting from "./pages/DoctorWebsiteSetting";
 import MessageCreateCampaign from "./pages/MessageCreateCampaign";
 
 import { store, persistor } from "./redux/store";
-import { clearDoctorProfile, getProfile } from "./redux/doctorsSlice";
 import { clearTeleconsultNotification } from "./redux/teleconsultNotificationSlice";
 import {
   FROM_NATIVE_APP,

@@ -1136,7 +1136,7 @@ function Cardiology(props) {
     // navigate(0, { replace: true });
   };
 
-  const handleEditRxClick = () => {
+  const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id:
