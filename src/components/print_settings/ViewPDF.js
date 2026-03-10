@@ -479,6 +479,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         .filter((key) => key in dentalDiagnosis)
         .map((key) => ({ key, value: formatDiagnosisValue(dentalDiagnosis?.[key]) }))
         .filter((row) => String(row.value || "").trim() !== "");
+    const dentalToothDiagramNotes = (() => {
+        const notes = dentalDiagnosis?.toothDiagramNotes;
+        if (Array.isArray(notes)) {
+            return notes
+                .filter((note) => note != null && String(note).trim() !== "")
+                .map((note) => String(note))
+                .join("\n");
+        }
+        if (notes == null) return "";
+        return String(notes);
+    })();
+    const hasToothDiagramNotes = String(dentalToothDiagramNotes || "").trim() !== "";
     const dentalComplaintRows = [
         { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
         { key: "symptom", label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER" },
@@ -520,7 +532,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         dentalComplaintRowsFiltered.length > 0 ||
         hasTeethData ||
         dentalDiagnosisRows.length > 0 ||
-        dentalTreatmentRowsFiltered.length > 0;
+        dentalTreatmentRowsFiltered.length > 0 ||
+        hasToothDiagramNotes;
     const dentalQuadrantSections = [
         { key: "UPPER_LEFT", label: "UPPER_LEFT" },
         { key: "UPPER_RIGHT", label: "UPPER_RIGHT" },
@@ -1627,6 +1640,23 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </View>
                                                     </View>
                                                 ))}
+                                            </View>
+                                        )}
+
+                                        {hasToothDiagramNotes && (
+                                            <View style={styles.dentalTable}>
+                                                <View style={styles.dentalRow}>
+                                                    <View style={styles.dentalCellLabel}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                            TOOTH DIAGRAM NOTES
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.dentalCellValue}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                            {dentalToothDiagramNotes}
+                                                        </Text>
+                                                    </View>
+                                                </View>
                                             </View>
                                         )}
 
