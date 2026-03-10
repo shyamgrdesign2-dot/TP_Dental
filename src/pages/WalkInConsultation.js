@@ -8,8 +8,8 @@ import React, {
 import { AutoComplete, Input, Button, Dropdown } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import { isMobile } from "react-device-detect";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { useDeviceType } from "../utils/deviceDetection";
 
 import TabHeader from "../components/tab_design/TabHeader";
 import CommonModal from "../common/CommonModal";
@@ -32,9 +32,6 @@ import AbhaDrawer from "../components/abha/AbhaDrawer";
 
 function WalkInConsultation() {
   const navigate = useNavigate();
-  const { isMobile: isMobileDevice, isTablet } = useDeviceType();
-  const isMobileOnly = isMobileDevice && !isTablet;
-  const isMobile = isMobileDevice;
 
   const { profile, userId } = useSelector((state) => state.doctors);
   const { patients, error } = useSelector((state) => state.records);
@@ -613,7 +610,7 @@ function WalkInConsultation() {
         });
       }
     }
-    if (!isMobileOnly) {
+    if (!isMobile) {
       data.push({
         key: -1,
         value: "Add New Patient",
@@ -1018,7 +1015,7 @@ function WalkInConsultation() {
     navigate("/voice-rx-consult", {
       state: { 
         patient_data: patient,
-        isFromTabView: isMobileOnly
+        isFromTabView: isMobile
       },
     });
   };
@@ -1029,9 +1026,9 @@ function WalkInConsultation() {
 
   return (
     <>
-      {isMobileOnly && <TabHeader flag={1} title="Start Walk-in Consultation" onClick={goToAddPatient} />}
+      {isMobile && <TabHeader flag={1} title="Start Walk-in Consultation" onClick={goToAddPatient} />}
       <div
-        className={`${!isMobileOnly && "border rounded-4 appointment-wrap"} p-4`}
+        className={`${!isMobile && "border rounded-4 appointment-wrap"} p-4`}
       >
         <label className="mb-2 fontroboto fs-16 fw-medium">
           {" "}
@@ -1043,7 +1040,7 @@ function WalkInConsultation() {
             value={searchQuery}
             onSearch={onSearchParent}
             options={searchOptions}
-            className={`${isMobileOnly ? "autocomplete-ios" : "w-100"
+            className={`${isMobile ? "autocomplete-ios" : "w-100"
               } autocomplete-custom`}
             // onSelect={onSelect}
             onFocus={onFocusParent}
@@ -1051,9 +1048,9 @@ function WalkInConsultation() {
             open={autoCompleteFlag}
             // defaultActiveFirstOption={true}
             defaultOpen
-            listHeight={isMobileOnly ? keyboardOpen ? window.innerHeight - 180 : window.innerHeight - 180 : 320}
+            listHeight={isMobile ? keyboardOpen ? window.innerHeight - 180 : window.innerHeight - 180 : 320}
             autoFocus
-            popupClassName={`walkincomplete ${isMobileOnly && "walkincomplete-mobile"
+            popupClassName={`walkincomplete ${isMobile && "walkincomplete-mobile"
               }`}
           >
             <Input

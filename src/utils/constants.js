@@ -113,7 +113,6 @@ export const GB_SNAP_RX_DIGITIZATION = "snap-rx-digitization";
 export const GB_DISABLE_MSG91_OTP_FLOW = "disable-msg91-otp-flow";
 export const GB_CARE_PLAN = "care-plan-dropdown";
 export const GB_VIDEO_CONSULT = "video-consult";
-export const GB_TELE_CONSULT = "tele-consult";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
@@ -139,7 +138,6 @@ export const S_PHARMACY = "pharmacy";
 export const S_IPD = "ipd";
 export const S_OPD_BILLING = "opd_billing";
 export const S_RECEPTIONIST_AGENT = "receptionist_agent";
-export const GB_MED_INVESTIGATION = "VoiceRx_B2B_med_investigations";
 
 // Medical Records - Document Upload Configuration
 export const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
