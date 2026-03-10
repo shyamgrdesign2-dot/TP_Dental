@@ -249,6 +249,20 @@ const DigitisedPrescription = ({
   const dentalDiagnosis = useMemo(() => {
     return dentalDataSource?.diagnosis || {};
   }, [dentalDataSource]);
+  const dentalToothDiagramNotes = useMemo(() => {
+    const notes = dentalDiagnosis?.toothDiagramNotes;
+    if (Array.isArray(notes)) {
+      return notes
+        .filter((note) => note != null && String(note).trim() !== "")
+        .map((note) => String(note))
+        .join("\n");
+    }
+    if (notes == null) return "";
+    return String(notes);
+  }, [dentalDiagnosis]);
+  const hasToothDiagramNotes = useMemo(() => {
+    return String(dentalToothDiagramNotes || "").trim() !== "";
+  }, [dentalToothDiagramNotes]);
   const dentalDiagnosisFields = useMemo(() => {
     const order = [
       "stains",
@@ -319,6 +333,41 @@ const DigitisedPrescription = ({
     },
     [dispatch, dentalDataFromStore, onRxEdited, setData]
   );
+  const updateDentalToothDiagramNotes = useCallback(
+    (rawValue) => {
+      let nextDentalData = null;
+      const nextValue = String(rawValue ?? "");
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const diagnosis = { ...(prevDentalData?.diagnosis || {}) };
+        diagnosis.toothDiagramNotes = nextValue;
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        nextDentalData = {
+          ...prevDentalData,
+          diagnosis,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
   const dentalTeeth = useMemo(() => {
     const teeth = dentalDataSource?.diagnosis?.teeth;
     return Array.isArray(teeth) ? teeth : [];
@@ -344,8 +393,15 @@ const DigitisedPrescription = ({
     );
     const hasPlans = Array.isArray(dentalTreatmentPlans?.items) && dentalTreatmentPlans.items.length > 0;
     const hasTeeth = Array.isArray(dentalTeeth) && dentalTeeth.length > 0;
-    return data?.dental === true || !!dentalDataSource || hasComplaints || hasPlans || hasTeeth;
-  }, [data, dentalDataSource, dentalComplaints, dentalTreatmentPlans, dentalTeeth]);
+    return (
+      data?.dental === true ||
+      !!dentalDataSource ||
+      hasComplaints ||
+      hasPlans ||
+      hasTeeth ||
+      hasToothDiagramNotes
+    );
+  }, [data, dentalDataSource, dentalComplaints, dentalTreatmentPlans, dentalTeeth, hasToothDiagramNotes]);
 
   useEffect(() => {
     if (dentalDataSource && !dentalDataFromStore) {
@@ -2052,6 +2108,55 @@ const DigitisedPrescription = ({
                 </tbody>
               </table>
 
+
+              {dentalDiagnosisRows.length > 0 && (
+                <table className="dental-table dental-diagnosis-table">
+                  <thead>
+                    <tr>
+                      <th>Diagnosis Field</th>
+                      <th>Selected Values</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dentalDiagnosisRows.map((row) => (
+                      <tr key={`dental-dx-${row.key}`}>
+                        <td className="dental-label-cell">{row.label}</td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-selected-input"
+                            value={row.value}
+                            onChange={(e) =>
+                              updateDentalDiagnosisField(
+                                row.key,
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {(hasToothDiagramNotes || dentalDiagnosis?.toothDiagramNotes != null) && (
+                <table className="dental-table dental-tooth-diagram-table">
+                  <tbody>
+                    <tr>
+                      <td className="dental-label-cell">TOOTH DIAGRAM NOTES</td>
+                      <td>
+                        <textarea
+                          className="dental-table-input dental-textarea"
+                          value={dentalToothDiagramNotes}
+                          onChange={(e) => updateDentalToothDiagramNotes(e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+
               <div className="dental-quadrant-grid">
                 {dentalQuadrantSections.map((section) => {
                   const items = dentalTeethBySection?.[section.key] || [];
@@ -2122,36 +2227,6 @@ const DigitisedPrescription = ({
                 })}
               </div>
 
-              {dentalDiagnosisRows.length > 0 && (
-                <table className="dental-table dental-diagnosis-table">
-                  <thead>
-                    <tr>
-                      <th>Diagnosis Field</th>
-                      <th>Selected Values</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dentalDiagnosisRows.map((row) => (
-                      <tr key={`dental-dx-${row.key}`}>
-                        <td className="dental-label-cell">{row.label}</td>
-                        <td>
-                          <input
-                            type="text"
-                            className="dental-selected-input"
-                            value={row.value}
-                            onChange={(e) =>
-                              updateDentalDiagnosisField(
-                                row.key,
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
 
               <div className="dental-table-title">TREATMENT PLAN(S)</div>
               <table className="dental-table dental-treatment-table">

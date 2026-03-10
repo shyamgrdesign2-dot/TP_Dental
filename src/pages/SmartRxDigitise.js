@@ -77,7 +77,7 @@ function SmartRxDigitise() {
 
   const baseUrlRxDigitise = env.rx_digitization;
   const clinicName = getClinicName(profile?.hospital_data);
-  const isManyaClinic = (clinicName || "").trim().toLowerCase() === "manya";
+  const isManyaClinic = (clinicName || "") === "Manya Dental - Hongasandra";
   const isSmartRxDigitisePath = location?.pathname === "/smart-rx-digitise";
   const shouldUseCustomRxDigitize = isManyaClinic && isSmartRxDigitisePath;
 
@@ -659,6 +659,296 @@ function SmartRxDigitise() {
             },
           }
         );
+      //   response = {
+      //     "status": true,
+      //     "data": {
+      //         "results": {
+      //             "metadata": {
+      //                 "branch": "",
+      //                 "doctorName": "PALLAVI",
+      //                 "caseNo": "22-05-2024 (01)",
+      //                 "date": "22-05-2024",
+      //                 "patientName": "Ashwini K",
+      //                 "age": "36",
+      //                 "gender": "F",
+      //                 "dob": "03/02/1988",
+      //                 "occupation": "B.E",
+      //                 "address": "Suraksha Sunflower Apt",
+      //                 "contactNo": "9886129122",
+      //                 "consent": {
+      //                     "datetime": "22-05-2024",
+      //                     "sign": "Signed"
+      //                 },
+      //                 "surgicalConsent": {
+      //                     "consentText": "",
+      //                     "patientSign": "",
+      //                     "doctorSign": "",
+      //                     "datetime": ""
+      //                 }
+      //             },
+      //             "diagnosis": {
+      //                 "stains": {
+      //                     "lessThan1Percent": false,
+      //                     "lessThan5Percent": false,
+      //                     "lessThan10Percent": false,
+      //                     "fiveTo30Percent": false,
+      //                     "moreThan10Percent": false,
+      //                     "moreThan30Percent": false
+      //                 },
+      //                 "calculus": {
+      //                     "lessThan1Percent": false,
+      //                     "lessThan5Percent": false,
+      //                     "lessThan10Percent": false,
+      //                     "fiveTo30Percent": false,
+      //                     "moreThan10Percent": false,
+      //                     "moreThan30Percent": false
+      //                 },
+      //                 "oralHygieneStatus": [
+      //                     "Stn + Cal"
+      //                 ],
+      //                 "periodontalseverity": {
+      //                     "gingivitis": false,
+      //                     "severeGingivitis": false,
+      //                     "moderatePeriodontitis": false,
+      //                     "severePeriodontitis": false
+      //                 },
+      //                 "orthodonticFindings": {
+      //                     "overjet": false,
+      //                     "overbite": false,
+      //                     "crowding": false,
+      //                     "spacing": false,
+      //                     "tfo": false,
+      //                     "collapsedBite": false,
+      //                     "tmj": false,
+      //                     "extraOralFindings": false
+      //                 },
+      //                 "orthodonticInterventionRequired": {
+      //                     "yes": true,
+      //                     "no": false
+      //                 },
+      //                 "habitsPedo": {
+      //                     "lipSucking": false,
+      //                     "thumbSucking": false,
+      //                     "tongueThristing": false,
+      //                     "mouthBreathing": false
+      //                 },
+      //                 "toothDiagramNotes": [
+      //                     "Fluorosis present Grade II Moderate to Grade III",
+      //                     "Tooth 41: Mildly-Rotated",
+      //                     "Wisdom Teeth (18, 28, 38, 48): Clinically missing",
+      //                     "While biting, the metal mesial marginal ridge of tooth 16 is hitting on the distal aspect of tooth 15",
+      //                     "Patient is trying to adjust for occlusion on the left side"
+      //                 ],
+      //                 "teeth": [
+      //                     {
+      //                         "toothNum": 2,
+      //                         "toothSection": "UPPER_RIGHT",
+      //                         "diagnose": "Deep class II Caries"
+      //                     },
+      //                     {
+      //                         "toothNum": 3,
+      //                         "toothSection": "UPPER_RIGHT",
+      //                         "diagnose": "Metal Crown without RCT"
+      //                     },
+      //                     {
+      //                         "toothNum": 8,
+      //                         "toothSection": "UPPER_LEFT",
+      //                         "diagnose": "PFM Crown"
+      //                     },
+      //                     {
+      //                         "toothNum": 13,
+      //                         "toothSection": "UPPER_LEFT",
+      //                         "diagnose": "Pit caries (mesially)"
+      //                     },
+      //                     {
+      //                         "toothNum": 14,
+      //                         "toothSection": "UPPER_LEFT",
+      //                         "diagnose": "Pit caries (distally)"
+      //                     },
+      //                     {
+      //                         "toothNum": 19,
+      //                         "toothSection": "LOWER_LEFT",
+      //                         "diagnose": "Class I Amalgam restoration"
+      //                     },
+      //                     {
+      //                         "toothNum": 30,
+      //                         "toothSection": "LOWER_RIGHT",
+      //                         "diagnose": "Class I composite"
+      //                     },
+      //                     {
+      //                         "toothNum": 31,
+      //                         "toothSection": "LOWER_RIGHT",
+      //                         "diagnose": "Metal Crown RCT treated"
+      //                     },
+      //                     {
+      //                         "toothNum": 32,
+      //                         "toothSection": "LOWER_RIGHT",
+      //                         "diagnose": "Mild TOP, Pocket present distally"
+      //                     }
+      //                 ]
+      //             },
+      //             "complaints": {
+      //                 "chiefComplaint": "Pt complain of pain in rt. lower back Tooth",
+      //                 "symptom": "Cavity, tooth ache",
+      //                 "otherDiseases": "NIL",
+      //                 "medications": "NIL",
+      //                 "drugAllergy": "NIL",
+      //                 "pregnancy": "No",
+      //                 "covidStatus": null,
+      //                 "habits": "NIL",
+      //                 "dentalHistory": "n/o Crown",
+      //                 "pain": "NIL",
+      //                 "notes": "NIL"
+      //             },
+      //             "treatmentPlans": {
+      //                 "items": [
+      //                     {
+      //                         "srno": 1,
+      //                         "treatment": "Consultation",
+      //                         "toothNum": "",
+      //                         "rate": 400,
+      //                         "count": 1,
+      //                         "estimate": 400
+      //                     },
+      //                     {
+      //                         "srno": 2,
+      //                         "treatment": "IOPA",
+      //                         "toothNum": "6",
+      //                         "rate": 100,
+      //                         "count": 2,
+      //                         "estimate": 200
+      //                     },
+      //                     {
+      //                         "srno": 3,
+      //                         "treatment": "Oral prophylaxis",
+      //                         "toothNum": "",
+      //                         "rate": 1000,
+      //                         "count": 1,
+      //                         "estimate": 1000
+      //                     },
+      //                     {
+      //                         "srno": 4,
+      //                         "treatment": "Encaratin A Review",
+      //                         "toothNum": "4",
+      //                         "rate": 1800,
+      //                         "count": 1,
+      //                         "estimate": 1800
+      //                     },
+      //                     {
+      //                         "srno": 5,
+      //                         "treatment": "Restn - GIC",
+      //                         "toothNum": "17",
+      //                         "rate": 800,
+      //                         "count": 1,
+      //                         "estimate": 800
+      //                     },
+      //                     {
+      //                         "srno": 6,
+      //                         "treatment": "Ortho consultation",
+      //                         "toothNum": "",
+      //                         "rate": 0,
+      //                         "count": 1,
+      //                         "estimate": 0
+      //                     }
+      //                 ],
+      //                 "notes": "Perio-consultation by Dr. Naved. Scaling advised by Dr. Naved & Adi. Case reviewed by Dr. Yamini. Patient informed about overhanging metal crown with respect to tooth #6. Recommendations: Water floss advised."
+      //             },
+      //             "workDone": {
+      //                 "items": [
+      //                     {
+      //                         "date": "22/5/24",
+      //                         "workDone": "Consultation + X-ray, Oral prophylaxis, Class II resin restoration with GIC base",
+      //                         "ptr": "",
+      //                         "ttReview": "",
+      //                         "payment": 3400,
+      //                         "balance": null,
+      //                         "remarks": "Dr. Pallavi",
+      //                         "doctorAndAssistant": "",
+      //                         "nextAppointment": "27/5/24 at 11:30 am for follow-up",
+      //                         "clinicalNotes": "Mesial margin of metal crown adjusted with respect to tooth 6 as it was hitting the distal ridge of tooth 5.",
+      //                         "implantDetails": {
+      //                             "productName": "",
+      //                             "productCode": "",
+      //                             "dimensions": "",
+      //                             "torque": "",
+      //                             "graftDetails": "",
+      //                             "sutureDetails": ""
+      //                         }
+      //                     },
+      //                     {
+      //                         "date": "31/5/24",
+      //                         "workDone": "Composite restoration, High point reduction with respect to metal crown on tooth 6",
+      //                         "ptr": "",
+      //                         "ttReview": "",
+      //                         "payment": 800,
+      //                         "balance": null,
+      //                         "remarks": "Dr. Pallavi",
+      //                         "doctorAndAssistant": "",
+      //                         "nextAppointment": "14/6/24 at 7:30 pm for follow-up on tooth 6",
+      //                         "clinicalNotes": "Patient advised flossing. To be kept on follow-up.",
+      //                         "implantDetails": {
+      //                             "productName": "",
+      //                             "productCode": "",
+      //                             "dimensions": "",
+      //                             "torque": "",
+      //                             "graftDetails": "",
+      //                             "sutureDetails": ""
+      //                         }
+      //                     }
+      //                 ],
+      //                 "notes": "5% discount. Payment method: UPI."
+      //             },
+      //             "visitHistory": {
+      //                 "items": [
+      //                     {
+      //                         "date": "10/6/24",
+      //                         "items": [
+      //                             "Crown removal with tooth 6 done",
+      //                             "Crown structure decayed subgingivally",
+      //                             "Advice: Extraction of tooth 6, Implant for tooth 6, Graft for tooth 6, Crown for tooth 6",
+      //                             "Cost for crown removal: 1000 - 2000",
+      //                             "Cost for implant: 28000",
+      //                             "Cost for graft: 7000 + 2000",
+      //                             "Payment Status: 6500 / 10000 Balance"
+      //                         ]
+      //                     },
+      //                     {
+      //                         "date": "11/6/24",
+      //                         "items": [
+      //                             "Next Appointment: Scheduled for 11/6/24 @ 4pm for implant placement with tooth 6",
+      //                             "Advice: CBCT",
+      //                             "Treatment Plan for Tooth 5: RCT for tooth 5, Crown for tooth 5",
+      //                             "Cost for RCT on tooth 5: 5500",
+      //                             "Payment Status: 6500 / 10000 Balance",
+      //                             "RCT on tooth 5 done. Status: Temp placed",
+      //                             "Extraction of tooth 6 done",
+      //                             "Implant placed",
+      //                             "Grafting Details: Autologous bone + graft + PRP + membrane",
+      //                             "Implant Details: Brand: OSSTEM IMPLANT, Product: TSIII SA Fixture, Size: R Ø5.5xH10 R, LOT: FTN24C457",
+      //                             "4 BBS sutures placed (2+2)",
+      //                             "Total cost: 38475",
+      //                             "Next Appointment: 18/6/24 for suture removal with Dr Yamin"
+      //                         ]
+      //                     },
+      //                     {
+      //                         "date": "19/6/24",
+      //                         "items": [
+      //                             "Follow-up done",
+      //                             "Suture removal done",
+      //                             "Findings: Healing satisfactory",
+      //                             "Additional Note: in progress BBS suture pending for removal",
+      //                             "Future Elements: RCT appointment scheduled for 25/6/24 at 5pm with Dr Yamin"
+      //                         ]
+      //                     }
+      //                 ],
+      //                 "notes": "Partially visible words in the left margin: 'pinal', 'usion)'."
+      //             },
+      //             "transcription": "### Document Identity\n- **Document Type**: Patient Registration and Medical History Form\n- **Source**: MANYA DENTAL ™\n- **Case Number**: 22-05-2024 (01)\n- **Date**: 22-05-2024\n\n---\n\n### Entity Information\n- **Clinic Name**: MANYA DENTAL ™\n- **Operating Doctor (OP DR)**: PALLAVI\n\n#### Patient Details\n- **Patient Name**: Ashwini K\n- **Age**: 36\n- **Gender**: F (Female)\n- **Date of Birth (DOB)**: 03/02/1988\n- **Occupation**: B.E\n- **Address**: Suraksha Sunflower Apt\n- **Contact No**: 9886129122\n\n---\n\n### Patient Consent\n- **Consent Statement**: \"I consent to the consultation and for any additional procedures required for the diagnosis such as x-ray and physical examination. I have signed this consent voluntarily out of my free will without any pressure and in my full senses.\"\n- **Signature**: A signature is present.\n- **Signature Type**: To be signed by patient/guardian in case of minor.\n- **Date/Time of Signature**: 22-05-2024\n\n---\n\n### Medical Assessment (To be filled by Doctor)\n\n#### Chief Complaint\n- **Primary Complaint**: Pt complain of pain in rt. lower back Tooth\n- **Associated Symptoms**: Cavity, tooth ache\n- **Onset**: yesterday\n\n#### Systemic Health Status\n- **HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER**: normal\n\n#### Medical History\n- **Other Diseases**: no\n- **Medication**: no\n- **H/O Drug Allergy**: no\n- **Pregnancy**: no\n\n#### Habits\n- **Tobacco/Smoking/Grinding Teeth**: no\n\n#### Dental History\n- **Dental History**: n/o Crown (no history of Crown)\n- **Head/Jaw/Neck Pain**: no\n\n#### Notes\n- The notes section is empty.\n\n---\n\n### Administrative Information\n- **Page Number**: 1\n\n### **Medical Document Extraction**\n\n---\n\n#### **1. Document Identity**\n*   **Document Title**: DIAGNOSIS\n*   **Page Number**: 2\n\n---\n\n#### **2. Diagnosis & General Findings**\n*   **Oral Hygiene Status**: Stn + Cal (Stain and Calculus)\n*   **Orthodontic Findings**: Fluorosis present Grade II Moderate to Grade III.\n*   **Habits (Pedo)**: No habits (Lip Sucking, Thumb Sucking, Tongue Thrusting, Mouth Breathing) were indicated.\n*   **Orthodontic Intervention Required**: YES\n\n---\n\n#### **3. Dental Chart Findings (Per Quadrant)**\n\n**Quadrant 1: Upper Right**\n*   **Second Molar**: Deep class II Caries.\n*   **First Molar**: Metal Crown without RCT (Root Canal Treatment).\n\n**Quadrant 2: Upper Left**\n*   **Central Incisors**: PFM Crown (Porcelain Fused to Metal Crown) indicated.\n*   **Second Premolar**: Pit caries (mesially).\n*   **First Molar**: Pit caries (distally).\n\n**Quadrant 3: Lower Left**\n*   **First and Second Molars**: Class I Amalgam restoration.\n\n**Quadrant 4: Lower Right**\n*   **Second Premolar**: Class I composite.\n*   **First Molar**: Metal Crown RCT treated.\n*   **Second Molar**: NO TOP (No Tenderness On Percussion).\n*   **Third Molar (Wisdom Tooth) Area**:\n    *   **C/C (Chief Complaint)**: Mild TOP (Tenderness On Percussion) present.\n    *   Pocket present distally.\n\n---\n\n#### **4. Additional Clinical Observations & Notes**\n\n*   **Tooth Status**:\n    *   **Tooth 41 (Lower Right Central Incisor)**: Mildly-Rotated.\n    *   **Wisdom Teeth (18, 28, 38, 48)**: Clinically missing.\n\n*   **On O/E (On Oral Examination)**:\n    *   While biting, the metal mesial marginal ridge of tooth **16** is hitting on the distal aspect of tooth **15**.\n    *   (Patient is trying to adjust for occlusion on the left side).\n\n### Medical Document Extraction\n\n---\n\n#### **1. Document Identity**\n*   **Document Type**: Handwritten patient progress notes / treatment log.\n*   **Page Number**: 3\n\n---\n\n#### **2. Entity Information**\n*   **Patient Name**: Ashwini. K.\n*   **Patient Demographics**: 36/F (36-year-old Female)\n*   **Provider(s)**:\n    *   Dr. Yamin\n    *   Mahesh (noted in parentheses next to a signature)\n\n---\n\n#### **3. Chronological Medical Entries**\n\n**Date: 10/6/24**\n*   **Procedure**: Crown removal with tooth 6 done.\n*   **Findings**: Crown structure decayed subgingivally.\n*   **Advice (Adv)**:\n    *   Extraction (ext) of tooth 6.\n    *   Implant for tooth 6.\n    *   Graft for tooth 6.\n    *   Crown for tooth 6.\n*   **Financial Information**:\n    *   Cost for crown removal: 1000 - 2000\n    *   Cost for implant: 28,000\n    *   Cost for graft: 7000 + 2000\n    *   Payment Status: (6500 / 10000) Balance\n\n---\n\n**Date: 11/6/24 (Pre-Procedure & Planning)**\n*   **Next Appointment (N/A)**: Scheduled for 11/6/24 @ 4pm for implant placement with tooth 6.\n*   **Advice (Adv)**: CBCT.\n*   **Treatment Plan for Tooth 5**:\n    *   RCT (Root Canal Treatment) for tooth 5.\n    *   Crown for tooth 5.\n*   **Financial Information**:\n    *   Cost for RCT on tooth 5: 5500\n    *   Payment Status: (6500/10000) Balance.\n*   **Provider**: Signed by Yamin (Mahesh).\n\n---\n\n**Date: 11/6/24 (Procedure Record)**\n*   **Procedure 1**: RCT on tooth 5 done.\n    *   Status: Temp placed.\n*   **Procedure 2**: Extraction (extn) of tooth 6 done.\n*   **Procedure 3**: Implant placed.\n    *   **Grafting Details**: Autologous bone + graft + PRP + membrane.\n    *   **Implant Details**:\n        *   Handwritten Size: 5.5 X 10\n        *   **Sticker Information**:\n            *   **Brand**: OSSTEM IMPLANT\n            *   **Product**: TSIII SA Fixture\n            *   **Size**: R Ø5.5xH10 R\n            *   **LOT**: FTN24C457\n*   **Procedure 4**: 4 BBS sutures placed (2+2).\n*   **Financial Information**: Total cost noted as (38475).\n*   **Next Appointment (N/A)**: 18/6/24 for suture removal with Dr Yamin.\n*   **Provider**: Signed by Yamin.\n\n---\n\n**Date: 19/6/24**\n*   **Visit Type**: F/U (Follow-up) done.\n*   **Procedure**: Suture removal done.\n*   **Findings**: Healing satisfactory.\n*   **Additional Note**: \"in progress BBS suture pending for removal\" is also written.\n*   **Future Elements**: RCT app (appointment) scheduled for 25/6/24 at 5pm with Dr Yamin.\n*   **Provider**: Signed by Yamin.\n\n---\n\n#### **4. Marginalia**\n*   Partially visible words in the left margin: \"pinal\", \"usion)\". The full context is not visible.\n\n### **Document Identification**\n- **Document Type:** Handwritten Dental Treatment Record / Progress Notes\n- **Page Number:** 4\n\n### **Provider Information**\n- **Primary Provider:** Dr. Pallavi\n- **Associated Staff/Signatories:**\n    - Sachi (noted with Dr. Pallavi's signature on 29/6/24)\n    - Revathi (noted with Pallavi's signature on 10/7/24)\n\n---\n\n### **Treatment Chronology**\n\n#### **Visit Date: 29/6/24**\n- **Assessment:** PTR - Good\n- **Procedures Performed:**\n    - Single sitting RCT (Root Canal Treatment) done on tooth/site \"5t\".\n    - Closed Temp rest (Temporary restoration) done on tooth/site \"5t\".\n- **Scheduled Next Appointment (N/A):**\n    - **Date:** 1/7/24\n    - **Time:** 5:30 pm\n    - **Purpose:** Crown prep for teeth/sites \"5t & 7t\".\n- **Financial Note:**\n    - Payment of 5,500/- was made on 11/6/24.\n\n---\n\n#### **Visit Date: 5/7/24**\n- **Assessment:** PTR: Good\n- **Procedures Performed:**\n    - Crown prep done on tooth/site \"5t\".\n        - **Warranty:** (10 yrs) waranti\n    - Rest (Restoration) GZC (Glass Ionomer Cement) done dresially (Cbon) on tooth/site \"7t\".\n    - U/L (Upper/Lower) Alginate impression done for Crown.\n    - **Shade Selection:** Sh-2M2\n- **Financial Details:**\n    - Cost for tooth \"5t\": 6,500/-\n    - Cost for tooth \"7t\": 800/-\n    - **Subtotal:** 7,300\n    - **Discount:** 5% discom\n    - **Total Amount:** 6,935/-\n- **Scheduled Next Appointment (N/A):**\n    - **Date:** 10/7/24\n    - **Time:** 4:30 pm\n    - **Purpose:** Crown cementation.\n\n---\n\n#### **Visit Date: 10/7/24**\n- **Assessment:** PTR good\n- **Procedures Performed:**\n    - PFM (Porcelain Fused to Metal) Crown Cementation done on tooth/site \"5t\".\n        - **Note:** (10 yrs)\n- **Patient Instructions:**\n    - Post-cementation instructions given.\n- **Scheduled Next Appointment (N/A):**\n    - **Date:** 17/7/24\n    - **Purpose:** follow-up.\n\n---\n\n### **Administrative & Marginalia**\n- **Top Right Corner:** Handwritten note \"Wo As\".\n- **Left Margin:** Pre-printed text fields are present:\n    - ORA\n    - ORT\n    - HA!\n    - OR\n\n### Document Identity\n- **Document Type**: Treatment Plan\n- **Title**: TREATMENT PLAN(S)\n- **Page Number**: 5\n\n### Entity Information\n- **Medical Professionals Mentioned**:\n    - Dr. Naved\n    - Dr. Yamini\n    - Adi (Role unclear, possibly an assistant or another professional)\n\n### Treatment Plan Details\n\n| S NO | TREATMENT | TOOTH NUMBER | RATE | COUNT | ESTIMATE | NOTES |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n| 1. | Consultation | | 400/- | | | |\n| 2. | IOPA | 54 | 100 | 2 | 200/- | |\n| 3. | Oral prophylaxis | | 1000/- | | | |\n| 4. | Encaratin A Review | 4 (with a horizontal line through it) | 1800/- | | | Sub-note: -> RCT followed by Crown -> 5000/- -> 2.5K - 10K |\n| 5. | Restn - GIC (Restoration - Glass Ionomer Cement) | 17 | 800/- | | | |\n| 6. | Ortho consultation | | | | | Counselled but pt. is not willing |\n\n### Handwritten Notes & Observations\n- **Perio-Consultation**: A perio-consultation was done by Dr. Naved.\n- **Scaling**: Scaling was advised by Dr. Naved & Adi.\n- **Case Review**: The case was also shown to Dr. Yamini.\n- **Patient Information**: The patient has been informed about an overhanging metal crown with respect to tooth #6 (written with a Palmer notation symbol for the upper left first molar).\n- **Recommendations**: Water floss has been advised.\n\n### **Comprehensive Medical Document Extraction**\n\n---\n\n### **1. Document Identity**\n*   **Document Type**: Patient Treatment and Payment Ledger\n*   **Page Number**: 6\n*   **Column Headers**: DATE, WORK DONE, PAYMENT, BALANCE, REMARKS\n\n---\n\n### **2. Administrative & Financial Information**\n*   **Handwritten Annotation (Top of Page)**: (5% discount)\n*   **Payment Method Noted**: UPI\n\n---\n\n### **3. Patient Treatment Records (Chronological)**\n\n#### **Patient: Sachin**\n*   **Treating Doctor**: Dr. Pallavi\n*   **Date**: 22/5/24\n    *   **Work Done**:\n        *   Consultation + X-ray (Teeth noted as 5| and J5|)\n        *   Oral prophylaxis\n        *   Class II resin restoration with GIC base (Tooth noted as 5|)\n    *   **Clinical Notes**:\n        *   Mesial margin of metal crown adjusted with respect to tooth 6| as it was hitting the distal ridge of tooth 5|.\n        *   This was noted as a potential reason for pain with respect to tooth 5|.\n    *   **Payment**:\n        *   400 + 200\n        *   1000\n        *   1800\n        *   **Total**: 3400\n*   **Future Elements**:\n    *   **Next Appointment**: 27/5/24 at 11:30 am for follow-up.\n    *   **Planned Work**: Restoration for tooth 6| is noted.\n\n---\n\n#### **Patient: Revathy**\n*   **Treating Doctor**: Dr. Pallavi\n*   **Date**: 31/5/24\n    *   **Clinical Findings**:\n        *   Mild TOP (Tenderness on Percussion) present with respect to tooth 5|.\n    *   **Work Done**:\n        *   Composite restoration done (note seems to trail off with \"but Pitt\").\n        *   High point reduction done with respect to metal crown on tooth 6|.\n    *   **Recommendations & Patient Instructions**:\n        *   Patient has been advised flossing.\n        *   To be kept on follow-up.\n    *   **Payment**: 800 (Associated with teeth noted as 6S and 7|)\n*   **Future Elements**:\n    *   **Next Appointment**: 14/6/24 at 7:30 pm for follow-up on tooth 6S|.\n\n---\n\n#### **Patient: Mahesh**\n*   **Treating Doctor**: Dr. Pallavi\n*   **Other Name Noted**: Yamini\n*   **Date**: 10/6/24\n    *   **Work Done**: Consultation done.\n*   **Future Elements**:\n    *   **Next Appointment**: 11/6/24 at 4 pm for implant with tooth 6|.\n*   **Date**: 11/6/24\n    *   **Work Done**: Implant done.\n*   **Future Elements**:\n    *   **Next Appointment**: 18/6/24 for RCT (Root Canal Treatment).\n\n### **Document Information**\n*   **Document Type**: Patient Treatment and Payment Log\n*   **Page Number**: 7\n\n### **Personnel Mentioned**\n*   Dr. Pallavi\n*   Dr. Ajay (also written as Dr. Ajs, Dr. Ajy)\n*   Sachin\n\n---\n\n### **Treatment and Financial Log**\n\n**Date: 11/12/25**\n*   **Work Done**:\n    *   Oral prophylaxis done\n    *   GIC Class II restn bond done (restn likely means restoration)\n    *   Class II composite c̄ GAC bone done (c̄ means \"with\")\n    *   Tooth notation: +6\n*   **PTR**: +7\n*   **Payment**:\n    *   1200/-\n    *   1200/-\n    *   2300/-\n    *   Subtotal: 4700/-\n*   **Remarks**: Dr. Pallavi, (Sachin)\n\n---\n\n**Date: 24/12/25**\n*   **Work Done**: Healing Collar placed ist 6+ (ist likely refers to the first stage of the implant procedure, 6+ is likely tooth notation for the upper right first molar)\n*   **PTR**: the\n*   **Payment**:\n    *   Procedure noted as Zr (10y) (likely Zirconia crown with a 10-year warranty)\n    *   6,000 paid\n*   **Balance**: Bal -> 6,000\n*   **Remarks**: Dr. Ajs (likely Dr. Ajay), (Sachin)\n\n---\n\n**Date: 31/12/25**\n*   **Work Done**: Implant-level Impression made\n*   **PTR**: the\n*   **Payment**: 6,000 paid\n*   **Remarks**: Dr. Ajay, (Sachin)\n\n---\n\n### **Scheduled Appointments**\n\n*   **Appointment 1**:\n    *   **Purpose**: Implant Crown 2nd stage\n    *   **With**: Dr. Ajay\n    *   **Date & Time**: 13/12/25 at 5:00 pm\n    *   **Notes**: Payment status noted as \"UPL\".\n\n*   **Appointment 2**:\n    *   **Purpose**: Implant impression\n    *   **With**: Dr. Ajay\n    *   **Date & Time**: 31/12/25 @ 12:30\n    *   **Location/Note**: @ CM4\n\n*   **Appointment 3**:\n    *   **Purpose**: Jig trial\n    *   **With**: Dr. Ajy (likely Dr. Ajay)\n    *   **Date & Time**: 3/12/25 @ 6:30 (*Note: This date precedes the previous entry of 31/12/25 and is likely a typo for 3/1/26*)\n    *   **Location/Note**: @ CM4"
+      //         },
+      //         "ocrModel": "zyvelor",
+      //         "timeTakenInMs": 133522
+      //     }
+      // }
       } else {
         const formData = new FormData();
 
