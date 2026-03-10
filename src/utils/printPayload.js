@@ -120,7 +120,7 @@ export const renderPrintPayloadToBlob = async (
       patientWalletBalance={patientWalletBalance}
       selectedLang={resolvedLang}
       ophthalModuleData={ophthalModuleData}
-      zydusLabData={zydusLabData.length > 0 ? {data: zydusLabData} : null}
+      zydusLabData={zydusLabData?.length > 0 ? {data: zydusLabData} : null}
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
     />
