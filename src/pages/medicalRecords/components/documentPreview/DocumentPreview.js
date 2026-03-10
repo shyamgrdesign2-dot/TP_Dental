@@ -18,8 +18,7 @@ import {
   useControls,
 } from "react-zoom-pan-pinch";
 import { useSelector } from "react-redux";
-import { isMobile } from "react-device-detect";
-import { isInNativeApp } from "../../../../utils/utils";
+import { isBrowser } from "react-device-detect";
 import dayjs from "dayjs";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
@@ -243,163 +242,6 @@ const DocumentPreview = ({
     );
   };
 
-  if (isMobile) {
-    return (
-      <div className="mobile-document-preview">
-        <div className="mobile-document-preview-header">
-          <div className="mobile-document-preview-info">
-            <div className="mobile-document-preview-title">{categoryName}</div>
-            <div className="mobile-document-preview-date">
-              {dayjs(cardData?.investigation_date).format("DD MMM, YYYY")}
-            </div>
-          </div>
-          <button
-            className="mobile-document-preview-close"
-            onClick={onClose}
-            type="button"
-          >
-            <i className="icon-Cross" />
-          </button>
-        </div>
-
-        {cardData?.notes && (
-          <div className="mobile-document-preview-notes">
-            <strong>Notes:</strong> {cardData?.notes}
-          </div>
-        )}
-
-        <div className="mobile-document-preview-content">
-          {isPdf ? (
-            <Worker
-              workerUrl={`https://unpkg.com/pdfjs-dist@2.6.347/build/pdf.worker.min.js`}
-            >
-              <Viewer
-                renderLoader={() => (
-                  <Spin
-                    style={{
-                      position: "absolute",
-                      zIndex: 0,
-                      left: "50%",
-                      top: "50%",
-                    }}
-                  />
-                )}
-                fileUrl={cardData?.url}
-                plugins={[zoomPluginInstance, pageNavigationPluginInstance]}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                onDocumentLoad={onLoadSuccess}
-                onPageChange={onPageChange}
-                httpHeaders={
-                  cardData?.url?.startsWith(config.zydus_proxy_url) && {
-                    Authorization: `Bearer ${
-                      localStorage.getItem(
-                        PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN
-                      ) == null
-                        ? null
-                        : JSON.parse(
-                            localStorage.getItem(
-                              PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN
-                            )
-                          )
-                    }`,
-                  }
-                }
-              />
-            </Worker>
-          ) : isVideo ? (
-            <div className="mobile-document-preview-video">
-              {videoError ? (
-                <div className="mobile-document-preview-error">
-                  <i className="icon-video" />
-                  <h3>Unable to Play Video</h3>
-                  <p>
-                    Your browser cannot play this video format. Please download
-                    the file to view it.
-                  </p>
-                  <Button
-                    className="btn btn-primary3"
-                    onClick={() =>
-                      isInNativeApp() ? handleInAppDownload() : handleDownload()
-                    }
-                  >
-                    <i className="icon-download" style={{ marginRight: "8px" }} />
-                    Download Video
-                  </Button>
-                </div>
-              ) : (
-                <video
-                  ref={videoRef}
-                  src={cardData?.url}
-                  controls
-                  controlsList="nodownload"
-                  preload="metadata"
-                  playsInline
-                  onError={() => setVideoError(true)}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    maxHeight: "70vh",
-                    backgroundColor: "#000",
-                  }}
-                >
-                  Your browser does not support the video tag.
-                </video>
-              )}
-            </div>
-          ) : (
-            <div className="mobile-document-preview-image">
-              <img
-                ref={imgRef}
-                src={cardData?.url}
-                alt="document"
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  maxHeight: "70vh",
-                  objectFit: "contain",
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="mobile-document-preview-actions">
-          <button
-            className="mobile-document-preview-action-btn"
-            onClick={() =>
-              isInNativeApp() ? handleInAppDownload() : handleDownload()
-            }
-            type="button"
-          >
-            <i className="icon-download" />
-            <span>Download</span>
-          </button>
-          {!cardData?.url?.startsWith(config.zydus_proxy_url) && (
-            <>
-              <button
-                className="mobile-document-preview-action-btn"
-                onClick={handleEdit}
-                type="button"
-              >
-                <i className="icon-Edit" />
-                <span>Edit</span>
-              </button>
-              <button
-                className="mobile-document-preview-action-btn"
-                onClick={toggleDeletePopup}
-                type="button"
-              >
-                <i className="icon-delete" />
-                <span>Delete</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div onMouseMove={resetControlsTimeout}>
       <Card bordered={false} className="search-modalCard">
@@ -445,7 +287,7 @@ const DocumentPreview = ({
                 className="icon-download"
                 style={{ cursor: "pointer", color: "white" }}
                 onClick={() =>
-                  isInNativeApp() ? handleInAppDownload() : handleDownload()
+                  !isBrowser ? handleInAppDownload() : handleDownload()
                 }
               />
 
@@ -599,7 +441,7 @@ const DocumentPreview = ({
                   </p>
                   <Button
                     className="btn btn-primary3"
-                    onClick={() => isInNativeApp() ? handleInAppDownload() : handleDownload()}
+                    onClick={() => !isBrowser ? handleInAppDownload() : handleDownload()}
                   >
                     <i className="icon-download" style={{ marginRight: "8px" }} />
                     Download Video

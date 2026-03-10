@@ -1007,30 +1007,6 @@
   /* Allow container to grow dynamically with content */
 }
 
-/* Compact layout when Rx pad shows medication/lab by default with no items (no "No medications found" message) */
-.medications-content-box.compact-default,
-.investigation-content-box.compact-default {
-  padding: 10px 16px;
-  margin-bottom: 12px;
-}
-
-.medications-content-box.compact-default .medications-table-container,
-.investigation-content-box.compact-default .investigation-table-container {
-  margin-bottom: 8px;
-  max-height: 120px;
-  min-height: 0;
-}
-
-.medications-content-box.compact-default .medications-header,
-.investigation-content-box.compact-default .investigation-header {
-  margin-bottom: 8px;
-}
-
-.medications-content-box.compact-default .search-container,
-.investigation-content-box.compact-default .search-container {
-  padding: 6px 0;
-}
-
 /* Header styles for all parameters */
 .symptoms-header,
 .examination-header,
@@ -1137,19 +1113,11 @@
 .additional-notes-title,
 .follow-up-title {
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 20px;
-  color: #454551 !important;
+  color: #454551;
   margin: 0;
-}
-
-/* Align icon + title in Lab Results (and similar) headers - matches section-header .header-left */
-.medical-history-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
 }
 
 /* Editor container styles for all parameters */

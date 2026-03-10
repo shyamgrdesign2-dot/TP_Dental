@@ -3,12 +3,12 @@ import { Dropdown, Button, Drawer, Spin, message } from "antd";
 import Card from 'react-bootstrap/Card';
 import moment from "moment";
 import { useNavigate } from 'react-router-dom';
-import { isChrome, isSafari, isMobile } from "react-device-detect";
+import { isChrome, isSafari } from "react-device-detect";
 
 import { useSelector, useDispatch } from "react-redux";
 
 import notcertificate from '../../assets/images/not-certificate.svg';
-import emptyIllustration from '../../assets/mobile/empty_illustration.svg';
+import certificatepdf from '../../assets/images/certificate-pdf.svg';
 import CreateCertificate from "./CreateCertificate";
 import PdfThumbnail from "../../common/PdfThumbnail";
 import { listPatientCertificate, deletePatientCertificate } from "../../redux/doctorsSlice";
@@ -20,7 +20,7 @@ import visitEnd from '../../assets/images/end-visit.svg';
 import imgCloseVisit from '../../assets/images/close-visit.svg';
 import { EVENTS } from "../../utils/events";
 
-function CertificateDetails({ patient_data, onCreateCertificateClick }) {
+function CertificateDetails({ patient_data }) {
 
     const navigate = useNavigate();
 
@@ -47,6 +47,8 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
     };
 
     async function printInAppContent(item) {
+        // navigate(`/patient_details/?url=${item?.certificate}&key=print`, { replace: true, state: { patient_data: patient_data } })
+        // navigate(0, { replace: true });
         sendMessageToParent(EVENTS.PRINT, { url: item?.certificate });
     };
 
@@ -95,49 +97,35 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
 
     return (
         <div className="appointment-wrap PatientDetailswrap m-0">
-            <Card style={isMobile ? { border: 'none', backgroundColor: '#FAF8FD' } : {}}>
-                <div className='p-20 overflow-y-auto' style={{ height: "calc(100vh - 117px)", ...(isMobile ? { padding: '16px' } : {}) }}>
+            <Card>
+                <div className='p-20 overflow-y-auto' style={{ height: "calc(100vh - 117px)" }}>
                     {loading ? (
                         <div className='align-items-center text-center'>
                             <Spin />
                         </div>
                     ) : (
                         patientCertificateList?.length > 0 ? (
-                            <div 
-                                className={isMobile ? '' : 'd-flex flex-wrap'}
-                                style={isMobile ? {
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(2, 1fr)',
-                                    gap: '12px',
-                                    padding: 0
-                                } : {}}
-                            >
+                            <div className="d-flex flex-wrap">
                                 {patientCertificateList?.map((item, index) => {
                                     return (
-                                        <div 
-                                            key={index} 
-                                            className={`certificate-box border ${isMobile ? '' : 'me-4 mb-4'}`}
-                                            style={isMobile ? {
-                                                width: '100%',
-                                                margin: 0
-                                            } : {}}
-                                        >
+                                        <div key={index} className="certificate-box border me-4 mb-4">
                                             <div className="pfd-box d-flex justify-content-center align-items-center cursor-pointer"
                                                 onClick={() => navigate('/certificate_print_view', { state: { ...item, viewable: true } })}>
+                                                {/* <img src={certificatepdf} alt="Certificate PDF" /> */}
                                                 <PdfThumbnail pdfUrl={item?.certificate} index={index} thumbnailUrl={item?.thumbnailUrl} />
                                             </div>
                                             <div className="bg-selected leave-ui d-flex justify-content-between">
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <h5 className="fw-semibold m-0 text-start text-truncate" style={{ fontSize: '12px' }}>{item?.tcu_title}</h5>
-                                                    <div className="text-start" style={{ fontSize: '10px', whiteSpace: 'pre-wrap', wordWrap: 'break-word', color: '#454551', fontWeight: 400, letterSpacing: '0.1px' }}>{moment(item?.tcu_created_date).format('DD MMM, YYYY, hh:mm A')}</div>
+                                                <div className="text-truncate">
+                                                    <h5 className="fw-semibold fs-14 m-0 text-start text-truncate">{item?.tcu_title}</h5>
+                                                    <div className="text-start">{moment(item?.tcu_created_date).format('DD MMM, YYYY LT')}</div>
                                                 </div>
-                                                <Dropdown className='btn btn-outline btn-more certificate-more-btn p-0 mt-1'
+                                                <Dropdown className='btn btn-outline btn-more p-0 mt-1'
                                                     menu={{
                                                         items: getMenuItems(item),
                                                     }}
                                                     trigger={['click']}>
                                                     <a onClick={(e) => e.preventDefault()}>
-                                                        <i className='icon-More iconrotate270'></i>
+                                                        <i className='icon-More'></i>
                                                     </a>
                                                 </Dropdown>
                                             </div>
@@ -146,63 +134,27 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
                                 })}
                             </div>
                         ) : (
-                            isMobile ? (
-                                // Mobile Empty State
-                                <div className="certificate-empty-state-mobile">
-                                    <div className="certificate-empty-state">
-                                        <img
-                                            src={emptyIllustration}
-                                            alt="No certificate"
-                                            className="certificate-empty-icon"
-                                        />
-                                        <div className="certificate-empty-message">
-                                            No certificate created for this patient.
-                                        </div>
-                                        <Button
-                                            type="primary"
-                                            onClick={onCreateCertificateClick || handleCreateCertificateDrawer}
-                                            className="btn btn-primary3 btn-text-white px-4 btn-41 certificate-empty-create-btn"
-                                            style={{
-                                                display: "flex",
-                                                justifyContent: "center",
-                                                alignItems: "center",
-                                                gap: "8px",
-                                                width: "100%",
-                                                maxWidth: "343px",
-                                                marginTop: "24px",
-                                            }}
-                                        >
-                                            <i className="icon-Add" style={{ fontSize: "18px" }} />
-                                            Create New Certificate
-                                        </Button>
-                                    </div>
+                            <div className="certificate-not d-flex justify-content-center flex-column align-items-center my-5 py-5">
+                                <img src={notcertificate} alt="not certificate" />
+                                <div className="text-center fs-14 text-main lh-base fw-normal fontroboto mb-20 mt-20">
+                                    Certificate Not Found! <br />No certificate created for this patient.
                                 </div>
-                            ) : (
-                                // Desktop Empty State
-                                <div className="certificate-not d-flex justify-content-center flex-column align-items-center my-5 py-5">
-                                    <img src={notcertificate} alt="not certificate" />
-                                    <div className="text-center fs-14 text-main lh-base fw-normal fontroboto mb-20 mt-20">
-                                        Certificate Not Found! <br />No certificate created for this patient.
-                                    </div>
-                                    <Button type="primary" onClick={handleCreateCertificateDrawer} className="btn px-4 btn-41">Create Certificate</Button>
-                                </div>
-                            )
+                                <Button type="primary" onClick={handleCreateCertificateDrawer} className="btn px-4 btn-41">Create Certificate</Button>
+                            </div>
                         )
                     )}
 
-                    {/* Desktop Create Certificate Drawer - Only show when not using mobile handlers */}
-                    {!onCreateCertificateClick && (
-                        <Drawer
-                            className="modalWidth-563" width="auto"
-                            title="Create Certificate"
-                            placement="right"
-                            closable
-                            open={createCertificateDrawer}
-                            onClose={handleCreateCertificateDrawer}
-                        >
-                            <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
-                        </Drawer>
-                    )}
+                    <Drawer
+                        className="modalWidth-563" width="auto"
+                        title="Create Certificate"
+                        placement="right"
+                        closable
+                        open={createCertificateDrawer}
+                        onClose={handleCreateCertificateDrawer}
+                        // key="left"
+                    >
+                        <CreateCertificate handleCreateCertificateDrawer={handleCreateCertificateDrawer} patient_data={patient_data} replace={false} />
+                    </Drawer>
                 </div>
             </Card>
         </div>

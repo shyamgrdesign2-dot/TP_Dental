@@ -329,7 +329,7 @@ function PersonalDetails({ form, mode = ADD, patient_data }) {
                         </Col>
                         <Col xs={24} sm={24} md={12} lg={12}>
                             <Form.Item name="pm_gender" label="Gender" rules={rules.gender}>
-                                <Radio.Group className={`d-flex gender-radio`} onChange={handleGenderChange}>
+                                <Radio.Group className={`d-flex gender-radio ${isMobile ? 'segmented-radio-mobile' : ''}`} onChange={handleGenderChange}>
                                     <Radio.Button className="w-100 text-center" value="Male">Male</Radio.Button>
                                     <Radio.Button className="w-100 text-center" value="Female">Female</Radio.Button>
                                     <Radio.Button className="w-100 text-center" value="Other">Other</Radio.Button>
