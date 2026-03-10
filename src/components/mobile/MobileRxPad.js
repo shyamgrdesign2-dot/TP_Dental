@@ -3,7 +3,7 @@ import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getDecodedToken } from '../../utils/localStorage';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION } from '../../utils/constants';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, MESSAGE_KEY } from '../../utils/constants';
 import {
   generateAmbientRx,
   updateAmbientRx,
@@ -19,22 +19,18 @@ import { addPatientLabReports } from '../../api/services/ApiLabParams';
 import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/caseManagerSlice';
 import { addUpdateVitals, getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from '../../redux/vitalsSlice';
 import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
-import { checkCredits, updateCredits } from '../../redux/monetizationSlice';
-import { services } from '../../redux/doctorsSlice';
 import { ADD } from '../../utils/constants';
 import ApiVitals from '../../api/services/ApiVitals';
 import { enrichVitalsWithCalculations } from '../../utils/vitalsCalculations';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
-import { errorMessage, isVoiceRxFree } from '../../utils/utils';
+import { errorMessage } from '../../utils/utils';
 import CashManagerContext from '../../context/CashManagerContext';
 import MobileRxPadProcessing from './MobileRxPadProcessing';
 import MobileRxPadSkeleton from './MobileRxPadSkeleton';
 import MobileRxPadContent from './MobileRxPadContent';
 import MobileEndVisitScreen from './MobileEndVisitScreen';
 import RxPadInfoBottomSheet from './RxPadInfoBottomSheet';
-import ExpiredSubModal from '../../pages/monetization/components/ExpiredSubModal';
-import FreeTrialButton from '../../pages/monetization/components/FreeTrialButton';
 import documentNormalSvg from '../../assets/mobile/document-normal.svg';
 import minimiseIcon from '../../assets/images/minimise.svg';
 import infoIcon from '../../assets/mobile/Icon (2).svg';
@@ -64,7 +60,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, servicesList } = useSelector((state) => state.doctors);
+  const { profile } = useSelector((state) => state.doctors);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext) || {};
 
@@ -96,7 +92,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const [showInfoBottomSheet, setShowInfoBottomSheet] = useState(false);
   const [endVisitCaseManagerData, setEndVisitCaseManagerData] = useState(null); // Store saved caseManagerData with print_url
   const [isEndingVisit, setIsEndingVisit] = useState(false); // Loading state for saving
-  const [isSubModalOpen, setIsSubModalOpen] = useState(false); // Credit modal state
   // Initialize with existing data if in review mode, otherwise wait for API
   const [prescriptionData, setPrescriptionData] = useState(() => {
     if (isReviewMode) {
@@ -136,24 +131,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const decodedToken = getDecodedToken();
   const doctorId = decodedToken?.result?.user_id;
 
-  // Credit and trial logic (matches desktop ConsultationDrawer)
-  const isFreeVoiceRxUser = isVoiceRxFree();
-  const VOICE_RX_planDetails = servicesList?.find(service => service.service_name === S_VOICE_RX);
-  const DDX_planDetails = servicesList?.find(service => service.service_name === S_DDX);
-  
-  const isVoiceRxCreditExpired = !isFreeVoiceRxUser && (
-    VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION ||
-    (VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0)
-  );
-
-  const openSubModal = useCallback(() => {
-    setIsSubModalOpen(true);
-  }, []);
-
-  const showHideSubModal = useCallback(() => {
-    setIsSubModalOpen((prev) => !prev);
-  }, []);
-
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -184,16 +161,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       hasAutoSubmittedRef.current = false;
     }
   }, [location.key, location.state]);
-
-  // Entry point credit validation for Voice Rx flows
-  useEffect(() => {
-    if (visible && (fromVoiceRecording || audioBlobFromLocation || inputTextFromLocation)) {
-      // This is a Voice Rx entry - check credits
-      if (isVoiceRxCreditExpired) {
-        openSubModal();
-      }
-    }
-  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isVoiceRxCreditExpired, openSubModal]);
 
   // Reset auto-submit ref ONLY when drawer closes (not when input values change)
   // This prevents infinite loop - input values stay in location.state even after processing
@@ -732,48 +699,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
     try {
-      // Real-time credit check before voice processing (matches desktop ConsultationDrawer)
-      if (!isFreeVoiceRxUser && (
-        VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0
-      )) {
-        setIsProcessing(false);
-        showHideSubModal();
-        return;
-      }
-      if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
-        setIsProcessing(false);
-        showHideSubModal();
-        return;
-      }
-
-      // Additional real-time credit validation via API
-      if (!isFreeVoiceRxUser) {
-        const sendData = {
-          b2c_id: profile?.b2c,
-          service_name: S_VOICE_RX,
-        };
-        const action = await dispatch(checkCredits(sendData));
-        if (action.meta.requestStatus === "fulfilled") {
-          if (action?.payload?.hasOwnProperty("service_name")) {
-            if (
-              action?.payload?.plan_tier === FREE &&
-              action?.payload?.credit_balance <= 0
-            ) {
-              await dispatch(services(sendData?.b2c_id));
-              setIsProcessing(false);
-              showHideSubModal();
-              return;
-            } else if (
-              action?.payload?.plan_tier === FAILED_VERIFICATION
-            ) {
-              setIsProcessing(false);
-              showHideSubModal();
-              return;
-            }
-          }
-        }
-      }
-
       let response;
       const patientId = patient_data?.patient_unique_id || '';
       const admissionId = caseManagerData?.admission_id || null;
@@ -1821,29 +1746,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
       if (action.meta.requestStatus === "fulfilled") {
         dispatch(clearListVitalsToday());
-        
-        // Credit deduction logic (matches desktop ConsultationDrawer)
-        const useVoiceRx = !!(genRxDetails?._id || rxId); // Voice Rx was used if we have prescription ID
-        const useDDX = !!(prescriptionData?.ddxUsed); // DDx billing only when DDx workflow was explicitly used (not on diagnosis.length)
-        
-        if (!isFreeVoiceRxUser && useVoiceRx) {
-          const sendData = {
-            b2c_id: profile?.b2c,
-            service_name: S_VOICE_RX,
-          };
-          dispatch(updateCredits(sendData));
-        }
-        
-        if (useDDX) {
-          const sendData = {
-            b2c_id: profile?.b2c,
-            service_name: S_DDX,
-          };
-          dispatch(updateCredits(sendData));
-        }
-        
-        // Note: services list is automatically refreshed by updateCredits thunk
-        
         // Use numeric tcm_id from addCaseManager/editCaseManager; viewCaseManager expects number
         const fromPayload = action?.payload?.tcm_id ?? tcmId;
         const numericTcmId = typeof fromPayload === 'number' ? fromPayload : parseInt(fromPayload, 10);
@@ -1959,12 +1861,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           <div className="rx-pad-title-section">
             <img src={documentNormalSvg} alt="Rx Pad" className="rx-pad-icon" />
             <span className="rx-pad-title">Rx Pad</span>
-            {!isFreeVoiceRxUser && (
-              <FreeTrialButton
-                title={S_VOICE_RX}
-                showHideSubModal={showHideSubModal}
-              />
-            )}
             <button 
               className="rx-pad-info-button" 
               onClick={() => setShowInfoBottomSheet(true)}
@@ -2044,26 +1940,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       visible={showInfoBottomSheet}
       onClose={() => setShowInfoBottomSheet(false)}
     />
-
-    {/* Credit/Trial Modal */}
-    {!isFreeVoiceRxUser && visible && (
-      <ExpiredSubModal
-        title={S_VOICE_RX}
-        styles={{
-          overlay: {
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 1050,
-          },
-        }}
-        isSubModalOpen={isSubModalOpen}
-        showHideSubModal={showHideSubModal}
-      />
-    )}
     </>
   );
 }

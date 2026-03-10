@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
-import { getProfile, services } from '../../../redux/doctorsSlice';
+import { getProfile } from '../../../redux/doctorsSlice';
 import { isMobile } from 'react-device-detect';
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
 import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from '../../../utils/constants';
@@ -44,13 +44,6 @@ function MobileVoiceRxConsult() {
       dispatch(getProfile());
     }
   }, [dispatch, profile, profileLoading]);
-
-  // Refresh services list when component mounts to ensure credit balance is up to date
-  useEffect(() => {
-    if (profile?.b2c) {
-      dispatch(services(profile.b2c));
-    }
-  }, [dispatch, profile?.b2c]);
 
   // Use useMemo to recalculate clinic/clinicName when profile changes
   // This ensures values update when profile loads (critical on real mobile devices)
@@ -238,7 +231,7 @@ function MobileVoiceRxConsult() {
           <img src={arrowLeftIcon} alt="Back" />
         </button>
         <h1 className="header-title">Consultation</h1>
-        {!isFreeVoiceRxUser && (
+        {showVoiceRxTrialModal && (
           <div className="mobile-voice-rx-header-trial">
             <FreeTrialButton
               title={S_VOICE_RX}
