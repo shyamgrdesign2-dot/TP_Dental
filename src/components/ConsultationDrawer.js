@@ -1621,7 +1621,7 @@ const ConsultationDrawer = ({
           if (!isFromSC) {
             let prescriptionData = null;
             let conversationData = null;
-            // Rx pad: always display from digitizeData when present (voice/ambient); fallback to editedData only when no digitizeData
+            // PUT/POST: always use digitizeData (fresh AI output); fallback to editedData only when no digitizeData
             const editedData = finalResponseData.editedData ?? actualData?.editedData ?? responseData?.editedData ?? null;
             const digitizeDataRaw = finalResponseData.digitizeData ?? finalResponseData.history?.[0]?.digitize ?? actualData?.digitizeData ?? responseData?.digitizeData ?? null;
             const dataForPad = digitizeDataRaw ?? editedData;
@@ -3117,7 +3117,7 @@ const ConsultationDrawer = ({
           weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
           ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
           sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
-          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
+          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.generalRBS || cleanVitals.genralRBS || '').trim(),
           fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
           waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
           bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Routes,
   Route,
+  Navigate,
   useSearchParams,
   useNavigate,
   useLocation,
@@ -9,14 +10,16 @@ import {
 import * as Sentry from "@sentry/react";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
-import { isMobile, isChrome, isSafari } from "react-device-detect";
+import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
 
 import AppointmentList from "./pages/AppointmentList";
 import PatientDetails from "./pages/PatientDetails";
+import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import Prescription from "./pages/Prescription";
 import SmartPrescription from "./pages/SmartPrescription";
 import SmartRxPreview from "./pages/SmartRxPreview";
@@ -30,6 +33,8 @@ import DoctorWebsiteSetting from "./pages/DoctorWebsiteSetting";
 import MessageCreateCampaign from "./pages/MessageCreateCampaign";
 
 import { store, persistor } from "./redux/store";
+import { clearDoctorProfile, getProfile } from "./redux/doctorsSlice";
+import { clearTeleconsultNotification } from "./redux/teleconsultNotificationSlice";
 import {
   FROM_NATIVE_APP,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -53,6 +58,7 @@ import GenRxPrescriptionPrintView from "./pages/GenRxPrescriptionPrintView";
 import BillingDashboard from "./pages/opdBilling/components/billingDashboard/BillingDashboard";
 import BillingSettings from "./pages/opdBilling/components/advanceBillSettings/BillingSettings";
 import AllPatients from "./pages/allPatients.js/AllPatients";
+import MobileAllPatients from "./pages/mobile/AllPatients/AllPatients";
 import AddAppointment from "./pages/addAppointment/AddAppointment";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
@@ -72,10 +78,13 @@ import SnapRxDigitise from "./pages/snapRx/SnapRxDigitise";
 import AppointmentAgent from "./pages/appointmentAgent/AppointmentAgent";
 import AppointmentSuccess from "./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess";
 import VoiceRxConsult from "./pages/VoiceRxConsult";
+import MobileVoiceRxConsult from "./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult";
+import MobileVoiceRecording from "./pages/mobile/VoiceRecording/MobileVoiceRecording";
 import OpdBill from "./pages/opdBilling/OpdBill";
 import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
 import AddNewPatient from "./pages/AddNewPatient";
+import AppTeleconsultBootstrap from "./components/AppTeleconsultBootstrap";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -96,6 +105,7 @@ function App() {
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
+  const { isMobile: isMobileDevice, isPWA } = useDeviceType();
   const [getToken, setToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_AUTH_TOKEN
   );
@@ -108,6 +118,7 @@ function App() {
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
   const token = getToken();
+  const isMobileOrPWA = isMobileDevice || isPWA;
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -131,6 +142,8 @@ function App() {
     try {
       if (window.isLoggingOut) return;
       window.isLoggingOut = true;
+
+      store.dispatch(clearTeleconsultNotification());
 
       const statuses = await openUrlsSilently(urlsToOpen);
       console.log("URL statuses:", statuses);
@@ -253,10 +266,28 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Handle authToken in URL
-    if (authToken) {
-      setToken(authToken);
-      localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+    // Handle authToken in URL (e.g. from Medeco redirect)
+    if (!authToken) return;
+    setToken(authToken);
+    localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
+
+    // Only clear cached profile and fetch when the user actually changed
+    // so we show the new user and avoid stale data; skip if same user to avoid loading flash
+    let tokenDoctorId = null;
+    try {
+      const decoded = jwtDecode(authToken);
+      tokenDoctorId = decoded?.result?.doctor_unique_id ?? decoded?.result?.user_id ?? null;
+    } catch (_) {
+      console.warn("[TP Medeco] Failed to decode authToken");
+    }
+
+    const currentProfile = store.getState()?.doctors?.profile;
+    const currentDoctorId = currentProfile?.doctor_unique_id ?? currentProfile?.user_id ?? null;
+    const isSameUser = tokenDoctorId && currentDoctorId && String(tokenDoctorId) === String(currentDoctorId);
+
+    if (!isSameUser) {
+      store.dispatch(clearDoctorProfile());
+      store.dispatch(getProfile());
     }
   }, [authToken]);
 
@@ -273,11 +304,12 @@ function App() {
     if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
       params.delete("authToken");
+      const afterSearch = params.toString();
       if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
         navigate(
           {
             pathname: "/",
-            search: params.toString(),
+            search: afterSearch,
           },
           { replace: true }
         );
@@ -363,6 +395,27 @@ function App() {
       return;
     }
 
+    if (isMobileOrPWA) {
+      if (localRedirectTo && localRedirectTo !== "/" && localRedirectTo !== "") {
+        if (localRedirectTo === "profile") {
+          navigate("/doctor_profile");
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else if (redirectReady && localRedirectTo) {
+          navigate(localRedirectTo);
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else {
+          navigate("/");
+        }
+      } else {
+        if (location.pathname !== "/") {
+          navigate("/");
+        }
+      }
+      return;
+    }
+
     if (isChrome || isSafari) {
       // Determine and execute redirection
       const redirectPath =
@@ -380,7 +433,7 @@ function App() {
 
       navigate(redirectPath);
     }
-  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady]);
+  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady, isMobileOrPWA, location.pathname]);
 
   //Upgraded Services Modal
   const upgrade_services = searchParams.get("upgrade_services");
@@ -416,12 +469,15 @@ function App() {
           console.error(details);
         }}
       >
+        {!isMobileOrPWA && (
         <TalkativeWidget
           region="au"
           configUuid="3f5d31d7-aae5-43f2-903a-2dc2d90a36f3"
         />
+        )}
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
+            <AppTeleconsultBootstrap />
             {!isLoginPage && (
               <div
                 style={{
@@ -430,9 +486,13 @@ function App() {
                   zIndex: 199,
                 }}
               >
-                <DemoExpirationBanner />
-                <PlanExpirationBanner />
-                <ExpiredPlanCard />
+                {!isMobileOrPWA && (
+                  <>
+                    <DemoExpirationBanner />
+                    <PlanExpirationBanner />
+                    <ExpiredPlanCard />
+                  </>
+                )}
                 <DoctorModal />
                 <BottomSheetManager />
               </div>
@@ -468,7 +528,16 @@ function App() {
                   path="create-campaign"
                   element={<MessageCreateCampaign />}
                 />
-                <Route path="patient_details" element={<PatientDetails />} />
+                <Route 
+                  path="patient_details" 
+                  element={
+                    isMobileDevice && !isTablet ? (
+                      <MobilePatientDetails />
+                    ) : (
+                      <PatientDetails />
+                    )
+                  } 
+                />
                 <Route
                   path="prescription"
                   element={isMobile ? <TabPrescription /> : <Prescription />}
@@ -509,15 +578,28 @@ function App() {
                   path="billing-dashboard"
                   element={<BillingDashboard />}
                 />
-                <Route path="all_patients" element={<AllPatients />} />
+                <Route 
+                  path="all_patients" 
+                  element={(isMobile && !isTablet) ? <MobileAllPatients /> : <AllPatients />} 
+                />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
-                {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
+                {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
                 <Route path="snap-rx" element={<SnapRx />} />
                 <Route path="snap-rx/preview" element={<SnapRxPreview />} />
                 <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
                 <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
-                <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
+                <Route 
+                  path="voice-rx-consult" 
+                  element={
+                    isMobileDevice && !isTablet ? (
+                      <MobileVoiceRxConsult />
+                    ) : (
+                      <VoiceRxConsult />
+                    )
+                  } 
+                />
+                <Route path="voice-recording" element={<MobileVoiceRecording />} />
                 <Route
                   path="get-unlimited-access"
                   element={<GetUnlimitedAccess />}
