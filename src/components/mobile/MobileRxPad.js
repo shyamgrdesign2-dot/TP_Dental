@@ -38,24 +38,6 @@ import visitEndIcon from '../../assets/images/end-visit.svg';
 import closeVisitIcon from '../../assets/images/close-visit.svg';
 import './MobileRxPad.scss';
 
-/** ensure voice BP (bloodPressure) populates Rx Pad by deriving Systolic/Diastolic when missing. */
-function normalizeVitalsBloodPressure(vitals) {
-  if (!vitals || typeof vitals !== 'object') return vitals;
-  const v = vitals;
-  let systolic = String(v.Systolic ?? v.systolic ?? '').trim();
-  let diastolic = String(v.Diastolic ?? v.diastolic ?? '').trim();
-  const bloodPressure = v.bloodPressure ?? v.blood_press ?? '';
-  if ((!systolic || !diastolic) && bloodPressure) {
-    const parts = String(bloodPressure).trim().split('/');
-    if (parts.length >= 2) {
-      systolic = parts[0].trim();
-      diastolic = parts[1].trim();
-    }
-  }
-  if (!systolic && !diastolic) return vitals;
-  return { ...v, Systolic: systolic, Diastolic: diastolic };
-}
-
 function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [], existingData = null }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -395,16 +377,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             if (cancelled) return;
             const toSet = (validated && typeof validated === 'object') ? validated : (parsed && typeof parsed === 'object' ? parsed : null);
             if (toSet != null) {
-              const rawV = toSet.vitalsAndBodyComposition;
-              const normalizedV = rawV && typeof rawV === 'object' && Object.keys(rawV).length > 0
-                ? normalizeVitalsBloodPressure(rawV)
-                : rawV;
-              const toSetWithVitals = normalizedV
-                ? { ...toSet, vitalsAndBodyComposition: normalizedV }
-                : toSet;
-              setPrescriptionData(toSetWithVitals);
-              if (normalizedV && Object.keys(normalizedV).length > 0) {
-                persistVitalsFromApiResponse(normalizedV);
+              setPrescriptionData(toSet);
+              if (toSet.vitalsAndBodyComposition && Object.keys(toSet.vitalsAndBodyComposition).length > 0) {
+                persistVitalsFromApiResponse(toSet.vitalsAndBodyComposition);
               }
             }
           }
@@ -434,16 +409,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             if (cancelled) return;
             const toSet = (validated && typeof validated === 'object') ? validated : (fromResponse && typeof fromResponse === 'object' ? fromResponse : null);
             if (toSet != null) {
-              const rawV = toSet.vitalsAndBodyComposition;
-              const normalizedV = rawV && typeof rawV === 'object' && Object.keys(rawV).length > 0
-                ? normalizeVitalsBloodPressure(rawV)
-                : rawV;
-              const toSetWithVitals = normalizedV
-                ? { ...toSet, vitalsAndBodyComposition: normalizedV }
-                : toSet;
-              setPrescriptionData(toSetWithVitals);
-              if (normalizedV && Object.keys(normalizedV).length > 0) {
-                persistVitalsFromApiResponse(normalizedV);
+              setPrescriptionData(toSet);
+              if (toSet.vitalsAndBodyComposition && Object.keys(toSet.vitalsAndBodyComposition).length > 0) {
+                persistVitalsFromApiResponse(toSet.vitalsAndBodyComposition);
               }
             }
           }
@@ -1157,12 +1125,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
           // Single short delay then show content (avoids double-load: was 700ms + 2s skeleton)
           const transitionMs = 220;
-          // normalize voice BP so Rx Pad shows Systolic/Diastolic when API returns only bloodPressure
-          const rawVitals = validatedData?.vitalsAndBodyComposition;
-          const normalizedVitals = rawVitals && typeof rawVitals === 'object' && Object.keys(rawVitals).length > 0
-            ? normalizeVitalsBloodPressure(rawVitals)
-            : rawVitals;
-
           setTimeout(() => {
             // Use callback pattern to merge data (matches web version setPrescriptionData logic)
             setPrescriptionData((prevData) => {
@@ -1172,7 +1134,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                   ...prevDynamicFields,
                   ...apiDynamicFields,
                 };
-                const vitalsToSet = normalizedVitals ?? validatedData?.vitalsAndBodyComposition;
 
                 if (isUpdatingRx && prevData) {
                   const hasMeaningfulData = validatedData.symptoms?.length > 0 || 
@@ -1183,7 +1144,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                   if (hasMeaningfulData) {
                     return {
                       ...validatedData,
-                      vitalsAndBodyComposition: vitalsToSet ?? validatedData?.vitalsAndBodyComposition,
                       medicalHistory: validatedData.medicalHistory || prevData?.medicalHistory || [],
                       dynamicFields: mergedDynamicFields,
                     };
@@ -1198,14 +1158,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
                 } else {
                   return {
                     ...validatedData,
-                    vitalsAndBodyComposition: vitalsToSet ?? validatedData?.vitalsAndBodyComposition,
                     medicalHistory: validatedData.medicalHistory || prevData?.medicalHistory || [],
                     dynamicFields: mergedDynamicFields,
                   };
                 }
               });
-              if (normalizedVitals && Object.keys(normalizedVitals).length > 0) {
-                setTimeout(() => persistVitalsFromApiResponse(normalizedVitals), 0);
+              if (validatedData?.vitalsAndBodyComposition && Object.keys(validatedData.vitalsAndBodyComposition).length > 0) {
+                setTimeout(() => persistVitalsFromApiResponse(validatedData.vitalsAndBodyComposition), 0);
               }
 
               // Calculate final prescription data for onDataReady callback (before state update)
