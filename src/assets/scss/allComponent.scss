@@ -1822,6 +1822,201 @@ body {
   background: #fff;
 }
 
+.dental-section {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dental-table-title {
+  margin: 16px 0 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  color: #3f3f46;
+}
+
+.dental-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cfcfd6;
+  background: #fff;
+
+  th,
+  td {
+    border: 1px solid #cfcfd6;
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+
+  th {
+    background: #f6f6f8;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #4b4b57;
+  }
+}
+
+.dental-label-cell {
+  width: 38%;
+  background: #fafafa;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #4b4b57;
+  text-transform: uppercase;
+}
+
+.dental-table-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #2f2f38;
+  outline: none;
+}
+
+.dental-textarea {
+  resize: vertical;
+  min-height: 28px;
+}
+
+.dental-diagnosis-table {
+  margin-top: 16px;
+
+  th {
+    text-align: left;
+  }
+}
+
+.dental-selected-input {
+  width: 100%;
+  border: 2px solid #9f9fa6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #2f2f38;
+  background: #fff;
+}
+
+.dental-quadrant-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #cfcfd6;
+  margin-top: 16px;
+}
+
+.dental-quadrant-cell {
+  border-right: 1px solid #cfcfd6;
+  border-bottom: 1px solid #cfcfd6;
+  padding: 12px;
+  min-height: 180px;
+}
+
+.dental-quadrant-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.dental-quadrant-cell:nth-child(3),
+.dental-quadrant-cell:nth-child(4) {
+  border-bottom: none;
+}
+
+.dental-quadrant-title {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+  color: #2f2f38;
+}
+
+.dental-quadrant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dental-tooth-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c1c1c8;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.dental-tooth-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f2f38;
+}
+
+.dental-tooth-num {
+  width: 56px;
+  border: 1px solid #d3d3da;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+  text-align: center;
+}
+
+.dental-tooth-sep {
+  font-weight: 600;
+  color: #2f2f38;
+}
+
+.dental-tooth-diagnose {
+  flex: 1;
+  border: 1px solid #d3d3da;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.dental-tooth-num:focus,
+.dental-tooth-diagnose:focus {
+  outline: none;
+  border-color: #4b4ad5;
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
+}
+
+.dental-add-tooth {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px dashed #b7b7c2;
+  color: #4b4b57;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dental-add-tooth:hover {
+  border-color: #4b4ad5;
+  color: #4b4ad5;
+}
+
+.dental-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+
+  .btn {
+    background: #fff;
+    border: 1px solid #4b4ad5;
+    color: #4b4ad5;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+}
+
 .digitised-data-section {
   display: flex;
   align-items: center;
