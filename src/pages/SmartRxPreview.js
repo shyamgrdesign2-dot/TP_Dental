@@ -570,7 +570,7 @@ function SmartRxPreview() {
                                     buttonText
                                 )}
                             </button>
-                            { isSmartSyncCVTAccessableFromGB && (
+                            { !isSmartSyncCVTAccessableFromGB && (
                                 <>
                                     {showProgressbar && !isRxDigitiseComplete && (
                                         <div className="digitise-container d-flex p-3 rounded-10px">
