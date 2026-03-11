@@ -176,7 +176,7 @@ function SmartPrescription() {
   const chartType = state?.chartType;
   // If fromRepeatRx is true, force tcmId to 0 to treat it as new consultation
   const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : (caseManagerData.tcm_id || 0);
-  const pamId = pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+  const pamId = fromRepeatRx ? 0 : pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
   const consultationDate =
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
