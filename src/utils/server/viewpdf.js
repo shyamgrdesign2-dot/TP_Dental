@@ -1064,7 +1064,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const dentalComplaints = dentalPdfData?.complaints || {};
   const dentalDiagnosis = dentalPdfData?.diagnosis || {};
   const dentalTreatmentItems = dentalPdfData?.treatmentPlans?.items || [];
+  const dentalWorkDone = dentalPdfData?.workDone || { items: [], notes: "" };
+  const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
   const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
+  const buildWorkDoneText = (item) => {
+    const workDone = item?.workDone ?? "";
+    const nextAppointment = item?.nextAppointment ?? "";
+    const workDoneText = String(workDone ?? "");
+    const nextText = String(nextAppointment ?? "").trim();
+    if (!nextText) return workDoneText;
+    const normalized = workDoneText.toLowerCase();
+    if (normalized.includes("next appointment")) return workDoneText;
+    const suffix = `Next Appointment: ${nextText}`;
+    if (!workDoneText.trim()) return suffix;
+    return `${workDoneText}\n${suffix}`;
+  };
   const dentalTeethBySection = dentalTeeth.reduce(
     (acc, tooth) => {
       const section = tooth?.toothSection;
@@ -1153,12 +1167,28 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ),
       )
     : [];
+  const dentalWorkDoneRowsFiltered = Array.isArray(dentalWorkDoneItems)
+    ? dentalWorkDoneItems.filter((item) =>
+        [
+          item?.date,
+          buildWorkDoneText(item),
+          item?.ptr,
+          item?.ttReview,
+          item?.payment,
+          item?.balance,
+          item?.remarks,
+        ].some((val) => isNonEmptyDentalValue(val)),
+      )
+    : [];
+  const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
   const hasDentalSectionData =
     dentalComplaintRowsFiltered.length > 0 ||
     hasTeethData ||
     dentalDiagnosisRows.length > 0 ||
     dentalTreatmentRowsFiltered.length > 0 ||
-    hasToothDiagramNotes;
+    hasToothDiagramNotes ||
+    dentalWorkDoneRowsFiltered.length > 0 ||
+    hasWorkDoneNotes;
   const dentalQuadrantSections = [
     { key: "UPPER_LEFT", label: "UPPER_LEFT" },
     { key: "UPPER_RIGHT", label: "UPPER_RIGHT" },
@@ -8874,6 +8904,113 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       </View>
                                     ))}
                                   </View>
+                                </>
+                              )}
+
+                              {(dentalWorkDoneRowsFiltered.length > 0 || hasWorkDoneNotes) && (
+                                <>
+                                  <Text
+                                    style={{
+                                      marginTop: PX_TO_PT * 6,
+                                      fontFamily: baseFontFamily,
+                                      fontSize: baseFontSize,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    WORK DONE
+                                  </Text>
+                                  {dentalWorkDoneRowsFiltered.length > 0 && (
+                                    <View style={styles.dentalTable}>
+                                      <View style={styles.dentalHeaderRow}>
+                                        {[
+                                          "DATE",
+                                          "WORK DONE",
+                                          "PTR",
+                                          "TT REVIEW",
+                                          "PAYMENT",
+                                          "BALANCE",
+                                          "REMARKS",
+                                        ].map((label, idx) => (
+                                          <View
+                                            key={label}
+                                            style={{
+                                              ...styles.dentalHeaderCell,
+                                              flex: idx === 1 ? 4 : 1,
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                fontFamily: baseFontFamily,
+                                                fontSize: baseFontSize,
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {label}
+                                            </Text>
+                                          </View>
+                                        ))}
+                                      </View>
+                                        {dentalWorkDoneRowsFiltered.map((item, i) => (
+                                          <View key={`wd-${i}`} style={styles.dentalRow}>
+                                            {[
+                                              item?.date,
+                                              buildWorkDoneText(item),
+                                              item?.ptr,
+                                              item?.ttReview,
+                                              item?.payment,
+                                              item?.balance,
+                                              item?.remarks,
+                                            ].map((val, idx) => (
+                                              <View
+                                                key={`${i}-${idx}`}
+                                                style={{
+                                                  ...styles.dentalCellValue,
+                                                  flex: idx === 1 ? 4 : 1,
+                                                }}
+                                              >
+                                              <Text
+                                                style={{
+                                                  fontFamily: baseFontFamily,
+                                                  fontSize: baseFontSize,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {val ?? ""}
+                                              </Text>
+                                            </View>
+                                          ))}
+                                        </View>
+                                      ))}
+                                    </View>
+                                  )}
+                                  {hasWorkDoneNotes && (
+                                    <View style={styles.dentalTable}>
+                                      <View style={styles.dentalRow}>
+                                        <View style={styles.dentalCellLabel}>
+                                          <Text
+                                            style={{
+                                              fontFamily: baseFontFamily,
+                                              fontSize: baseFontSize,
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            WORK DONE NOTES
+                                          </Text>
+                                        </View>
+                                        <View style={styles.dentalCellValue}>
+                                          <Text
+                                            style={{
+                                              fontFamily: baseFontFamily,
+                                              fontSize: baseFontSize,
+                                              fontWeight: 400,
+                                            }}
+                                          >
+                                            {dentalWorkDone?.notes ?? ""}
+                                          </Text>
+                                        </View>
+                                      </View>
+                                    </View>
+                                  )}
                                 </>
                               )}
                             </View>

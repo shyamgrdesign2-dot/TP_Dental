@@ -48,7 +48,7 @@ function ConfigurePrintSetting() {
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page } = state || {};
+    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page, dentalData } = state || {};
     const isAfterDigitization = page === "digitise";
 
     const [divWidth, setDivWidth] = useState(0);
@@ -152,6 +152,7 @@ function ConfigurePrintSetting() {
             const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerData?.isRxDigitize && !rxIdToUse);
             const isVoiceAmbientFlow = rxIdToUse && !isSnapRx;
             const shouldFetchData = (isSnapRx && isAfterDigitization) || isVoiceAmbientFlow;
+            // const shouldFetchData = true;
 
             const hasMergedMedicine = caseManagerData?.medicine && 
                                       Array.isArray(caseManagerData.medicine) && 
@@ -775,7 +776,7 @@ function ConfigurePrintSetting() {
         : baseCaseManager;
     // Digitised print config: do not pass written Rx file so preview shows only digitised content. Written Rx file is only for written Rx print config.
     const smartRxFileForPreview = isAfterDigitization ? undefined : smartRxFile;
-    const contextApi = { smartRxFile: smartRxFileForPreview, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
+    const contextApi = { smartRxFile: smartRxFileForPreview, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -1306,7 +1307,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

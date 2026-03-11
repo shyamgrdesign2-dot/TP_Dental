@@ -1,7 +1,8 @@
-import React, { useContext, useState, useCallback } from 'react';
+import React, { useContext, useState, useCallback, useEffect } from 'react';
 import { Navbar } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Popover } from 'antd';
+import axios from 'axios';
 import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -22,12 +23,14 @@ import PrintSettingsContext from '../context/PrintSettingsContext';
 import { addModule } from '../redux/customModuleSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
-import { GB_ZYDUS_USER } from '../utils/constants';
+import { GB_ZYDUS_USER, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../utils/constants';
 import { updatePatientDefaultLanguage } from '../api/services/DefaultLanguageService';
 
 function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();
+    const baseUrlRxDigitise = env.rx_digitization ;
     const { state } = useLocation();
+    const [token, setToken] = useState(null);
     const previousPage = state?.from;
     const { selectedLang, isAmbientRx, rxId, print_url } = state || {};
 
@@ -101,6 +104,34 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             </>
         );
     }, [popOverVideo]);
+
+    useEffect(() => {
+        const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+        if (token) {
+          try {
+            setToken(token);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+    }, []);
+
+    const fetchRxDigitisedData = async () => {
+        try {
+            const cleanedToken = token.replace(/['"]+/g, '');
+    
+                // API call for Rx Digitisation
+                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state?.tcm_id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${cleanedToken}`,
+                    },
+                });
+                return response.data; // return the data after it's fetched
+        }catch (error) {
+            console.error('Error fetching Rx Digitised Data:', error);
+            return null;
+        }
+    };
 
     const onSavePrintSettingsClick = async () => {
         if (printSettings?.letterhead_format == 0 && printSettings?.header_footer?.header?.doctor_info?.enable == 'N' && printSettings?.header_footer?.header?.clinic_info?.enable == 'N' && printSettings?.logo_enable == 'N') {
@@ -178,6 +209,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     });
                 } else if (previousPage === "/print-smart-rx") {
                     const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    const digitisedData = await fetchRxDigitisedData();
                     navigate("/print-smart-rx", { 
                         replace: true, 
                         state: { 
@@ -186,7 +218,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                             currentSessionRx: null,
                             from: "/configure_print_setting",
                             page: state?.page, // Preserve page state to indicate if it's after digitization
-                            smartRxFile: state?.smartRxFile || state?.files
+                            smartRxFile: state?.smartRxFile || state?.files,
+                            dentalData: digitisedData?.data?.editedData?.dynamicFields?.[0]?.dentalData
                         } 
                     });
                 } else {
