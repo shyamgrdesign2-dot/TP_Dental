@@ -23,6 +23,7 @@ import "cropperjs/dist/cropper.css";
 import { useTodayVaccines } from "./vaccination/useTodayVaccines";
 import { useGrowthChart } from "./growthChart/useGrowthChart";
 import useObstetric from "./obstetric/useObstetric";
+import { useAccess } from "./vaccination/useAccess";
 import { getModules } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
@@ -38,6 +39,7 @@ import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
+import { getGynecDetails } from "../api/services/ApiGynec";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 function ConfigurePrintSetting() {
@@ -76,11 +78,13 @@ function ConfigurePrintSetting() {
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
+    const [gynecHistoryData, setGynecHistoryData] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
 
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
+    const { isGynaecHistoryAccessable } = useAccess(caseManagerData?.patient_data?.patient_age);
 
 
     useEffect(() => {
@@ -92,6 +96,23 @@ function ConfigurePrintSetting() {
         getPatientBills();
         fetchAbhaDetails();
     }, []);
+
+    useEffect(() => {
+        const fetchGynecHistory = async () => {
+            try {
+                if (!isGynaecHistoryAccessable) return;
+                const patientId = caseManagerData?.patient_data?.patient_unique_id;
+                if (!patientId) return;
+                const data = await getGynecDetails(patientId, userId);
+                if (data && Object.keys(data).length > 0) {
+                    setGynecHistoryData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching gynec history for ConfigurePrintSetting:", error);
+            }
+        };
+        fetchGynecHistory();
+    }, [isGynaecHistoryAccessable, caseManagerData?.patient_data?.patient_unique_id, userId]);
 
     useEffect(() => {
         const fetchVoiceAmbientData = async () => {
@@ -108,35 +129,24 @@ function ConfigurePrintSetting() {
                         };
                         const action = await dispatch(viewCaseManager(sendData));
                         if (action.meta.requestStatus === "fulfilled" && action.payload) {
-                            if (action.payload.labParamsData && Array.isArray(action.payload.labParamsData) && action.payload.labParamsData.length > 0) {
-                                setLabParamsData(action.payload.labParamsData);
-                            }
-                            
                             const patientId = caseManagerData.patient_data.patient_unique_id;
-                            if (patientId && (!action.payload.labParamsData || !action.payload.labParamsData.length)) {
+                            if (patientId) {
                                 try {
                                     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
                                     const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
                                     const baseUrl = env.lab_params_api_url || config.lab_params_api_url;
-                                    
                                     const response = await axios.get(
                                         `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
-                                        {
-                                            headers: {
-                                                'Authorization': `Bearer ${cleanedToken}`,
-                                            },
-                                        }
+                                        { headers: { Authorization: `Bearer ${cleanedToken}` } }
                                     );
-                                    
-                                    if (response?.data?.data?.results && Array.isArray(response.data.data.results) && response.data.data.results.length > 0) {
-                                        const labResults = response.data.data.results;
-                                        setLabParamsData(labResults);
-                                    }
+                                    const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
+                                    const labArray = Array.isArray(labResults) ? labResults : [];
+                                    setLabParamsData(labArray);
                                 } catch (error) {
+                                    console.error('[ConfigurePrintSetting] lab-parameters/results API error (path 1)', error?.message, error?.response?.status);
                                 }
                             }
-                            
-                            return; 
+                            return;
                         }
                     } catch (error) {
                     }
@@ -688,21 +698,15 @@ function ConfigurePrintSetting() {
                     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
                     const cleanedToken = token ? token.replace(/['"]+/g, '') : '';
                     const baseUrl = env.lab_params_api_url || config.lab_params_api_url;
-                    
                     const response = await axios.get(
                         `${baseUrl}/api/v1/lab-parameters/results/${patientId}`,
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${cleanedToken}`,
-                            },
-                        }
+                        { headers: { Authorization: `Bearer ${cleanedToken}` } }
                     );
-                    
-                    if (response?.data?.data?.results && Array.isArray(response.data.data.results) && response.data.data.results.length > 0) {
-                        const labResults = response.data.data.results;
-                        setLabParamsData(labResults);
-                    }
+                    const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
+                    const labArray = Array.isArray(labResults) ? labResults : [];
+                    setLabParamsData(labArray);
                 } catch (error) {
+                    // Lab API optional; leave labParamsData unchanged on error
                 }
             }
         };
@@ -770,8 +774,12 @@ function ConfigurePrintSetting() {
     const baseCaseManager = dataSourceForPreview;
     const obstetricData = obstetricDetails?.data || obstetricDetails;
     const currentPregnancy = obstetricData?.currentPregnancy;
-    const enrichedCaseManagerData = baseCaseManager && (currentPregnancy || obstetricData) && !baseCaseManager?.gynecHistoryData && !baseCaseManager?.obsHistoryData
-        ? { ...baseCaseManager, gynecHistoryData: baseCaseManager.gynecHistoryData || currentPregnancy, obsHistoryData: baseCaseManager.obsHistoryData || obstetricData }
+    const enrichedCaseManagerData = baseCaseManager
+        ? {
+            ...baseCaseManager,
+            ...(gynecHistoryData && isGynaecHistoryAccessable && { gynecHistoryData }),
+            ...(obstetricData && { obsHistoryData: baseCaseManager.obsHistoryData || obstetricData }),
+        }
         : baseCaseManager;
     // Digitised print config: do not pass written Rx file so preview shows only digitised content. Written Rx file is only for written Rx print config.
     const smartRxFileForPreview = isAfterDigitization ? undefined : smartRxFile;
@@ -866,7 +874,7 @@ function ConfigurePrintSetting() {
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === consultationDate
                 );
                 // Lab results come only from Lab Results API (state labParamsData), not from case manager
-                const rawLabParams = caseManagerData?.labParamsData || [];
+                const rawLabParams = (labParamsData && labParamsData.length > 0) ? labParamsData : (caseManagerData?.labParamsData || []);
                 const labParamsToday = rawLabParams.filter(
                     (l) => (l?.date || l?.createdAt) && moment(l.date || l.createdAt).format("YYYY-MM-DD") === todayStr
                 );
@@ -875,25 +883,31 @@ function ConfigurePrintSetting() {
                 const medicalHistoryLen = caseManagerData?.medical_history?.length ?? 0;
                 const hasMedicalHistory = medicalHistoryLen > 0;
                 const allowedIds = [];
+                const isEnabledByDefault = (id) => {
+                    const opt = defaultOptions.find(o => o.id === id);
+                    // If backend has no opinion, keep legacy behaviour (treat as enabled)
+                    if (!opt) return true;
+                    return opt.enable !== "N";
+                };
                 // Include vitals if we have any for today OR for consultation date (record of today)
                 const hasVitalsForDisplay = vitalsForToday.length > 0 || vitalsForConsultation.length > 0;
-                if (hasVitalsForDisplay) allowedIds.push(7);
-                if (hasLabData) allowedIds.push(15);
-                if (hasMedicalHistory) allowedIds.push(8);
+                if (hasVitalsForDisplay && isEnabledByDefault(7)) allowedIds.push(7);
+                if (hasLabData && isEnabledByDefault(15)) allowedIds.push(15);
+                if (hasMedicalHistory && isEnabledByDefault(8)) allowedIds.push(8);
                 const obstetricData = obstetricDetails?.data || obstetricDetails;
                 const currentPregnancy = obstetricData?.currentPregnancy;
                 const pregnancyHistory = obstetricData?.pregnancyHistory;
                 const hasObstetricData = currentPregnancy && (currentPregnancy?.lmp || currentPregnancy?.edd || currentPregnancy?.ceed || (currentPregnancy?.gravidity != null) || (currentPregnancy?.parity != null) || (currentPregnancy?.livingChildren != null) || (currentPregnancy?.abortion != null) || (currentPregnancy?.ectopicPregnancies != null) || (Array.isArray(pregnancyHistory) && pregnancyHistory.length > 0));
                 const hasGynecFromCaseManager = caseManagerData?.gynecHistoryData && Object.keys(caseManagerData.gynecHistoryData).length > 0;
                 const hasObsFromCaseManager = caseManagerData?.obsHistoryData && Object.keys(caseManagerData.obsHistoryData).length > 0;
-                if (hasGynecFromCaseManager || hasObstetricData) allowedIds.push(13);
-                if (hasObsFromCaseManager || hasObstetricData) allowedIds.push(14);
-                if (caseManagerData?.vaccinations?.length > 0) allowedIds.push(10);
+                if ((hasGynecFromCaseManager || hasObstetricData) && isEnabledByDefault(13)) allowedIds.push(13);
+                if ((hasObsFromCaseManager || hasObstetricData) && isEnabledByDefault(14)) allowedIds.push(14);
+                if (caseManagerData?.vaccinations?.length > 0 && isEnabledByDefault(10)) allowedIds.push(10);
                 const hasOthersData = (caseManagerData?.visit_advice?.trim()) || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
-                if (hasOthersData) allowedIds.push(91);
+                if (hasOthersData && isEnabledByDefault(91)) allowedIds.push(91);
                 const hasFollowUp = !!(caseManagerData?.follow_up_date && String(caseManagerData.follow_up_date).trim());
-                if (hasFollowUp) allowedIds.push(9);
-                allowedIds.push(11);
+                if (hasFollowUp && isEnabledByDefault(9)) allowedIds.push(9);
+                if (isEnabledByDefault(11)) allowedIds.push(11);
                 const defaultMedicalHistoryOption = (caseManagerData?.medical_history || [])
                     .filter(item => item && (item.tags?.length > 0 || item.no_know_history))
                     .map(item => item.tmmhs_id);
@@ -909,8 +923,13 @@ function ConfigurePrintSetting() {
                     if (cp?.ancHistory?.some((a) => a?.enablePrint)) defaultObsHistoryOption.push("ancHistory");
                     if (cp?.immunisationHistory?.some((i) => i?.enablePrint)) defaultObsHistoryOption.push("immunisationHistory");
                 }
-                const computedCaseOption = defaultOptions.filter(o => allowedIds.includes(o.id)).map(o => {
-                    const base = { ...o, enable: "Y", custom_status: "Y", ...(o.id === 15 ? { title: "Lab Results" } : {}) };
+                // Start from doctor's saved default case_option for written Snap/SmartRx.
+                const defaultCaseOption = defaultOptions.map((o) => {
+                    const base = {
+                        ...o,
+                        custom_status: o.custom_status || "Y",
+                        ...(o.id === 15 ? { title: "Lab Results" } : {}),
+                    };
                     if (o.id === 8 && hasMedicalHistory && (!o.medical_history_option || o.medical_history_option.length === 0) && defaultMedicalHistoryOption.length > 0) {
                         base.medical_history_option = defaultMedicalHistoryOption;
                     }
@@ -919,63 +938,87 @@ function ConfigurePrintSetting() {
                     }
                     return base;
                 });
-                // Preserve user edits when "No, Apply on This Rx Only" – merge computed with existing printSettings instead of overwriting
+
+                // Preserve per‑Rx edits (Apply on This Rx Only) without changing default enable/disable flags.
                 const existingCaseOption = printSettingsRef.current?.prescription?.case_option || [];
                 if (existingCaseOption.length > 0) {
-                    const existingMap = new Map(existingCaseOption.map(o => [o.id, o]));
-                    copyPrintSettings.prescription.case_option = computedCaseOption.map(computedOpt => {
-                        const existing = existingMap.get(computedOpt.id);
-                    if (existing) {
-                        return { ...computedOpt, ...existing };
-                    }
-                    return computedOpt;
-                });
+                    const existingMap = new Map(existingCaseOption.map((o) => [o.id, o]));
+                    copyPrintSettings.prescription.case_option = defaultCaseOption.map((opt) => {
+                        const override = existingMap.get(opt.id);
+                        return override ? { ...opt, ...override } : opt;
+                    });
+                    // Also keep any per‑Rx-only sections that don't exist in defaults
+                    existingCaseOption.forEach((opt) => {
+                        if (!copyPrintSettings.prescription.case_option.some((o) => o.id === opt.id)) {
+                            copyPrintSettings.prescription.case_option.push({ ...opt });
+                        }
+                    });
                 } else {
-                    copyPrintSettings.prescription.case_option = computedCaseOption;
+                    copyPrintSettings.prescription.case_option = defaultCaseOption;
                 }
+
+                const existingIds = new Set(
+                    (copyPrintSettings.prescription.case_option || []).map((o) => o.id)
+                );
                 const writtenRxOptionTitle = state?.from === "/snap-rx/preview" ? "Snap" : "SmartRx";
-                if (!copyPrintSettings.prescription.case_option.some(o => o.id === 11)) {
-                    copyPrintSettings.prescription.case_option.push({ id: 11, title: writtenRxOptionTitle, format: "inline", enable: "Y", custom_status: "Y" });
+                if (isEnabledByDefault(11) && !existingIds.has(11)) {
+                    copyPrintSettings.prescription.case_option.push({
+                        id: 11,
+                        title: writtenRxOptionTitle,
+                        format: "inline",
+                        enable: "Y",
+                        custom_status: "Y",
+                    });
+                    existingIds.add(11);
                 }
-                // Vitals (7): add explicitly when we have vitals data, since defaultOptions may not include id 7
-                if (allowedIds.includes(9) && !copyPrintSettings.prescription.case_option.some(o => o.id === 9)) {
+                // Vitals, Follow Up, Lab Results, Medical History, Gynec/Obs History, Vaccination, Others:
+                // auto-add only when they don't exist in defaults; respect default enable/disable when present.
+                if (allowedIds.includes(9) && !existingIds.has(9)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 9, title: "Follow Up", format: "inline", enable: "Y", custom_status: "Y" });
+                    existingIds.add(9);
                 }
-                if (allowedIds.includes(7) && !copyPrintSettings.prescription.case_option.some(o => o.id === 7)) {
+                if (allowedIds.includes(7) && !existingIds.has(7)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 7, title: "Vitals", format: "table", enable: "Y", custom_status: "Y" });
+                    existingIds.add(7);
                 }
-                if (allowedIds.includes(15) && !copyPrintSettings.prescription.case_option.some(o => o.id === 15)) {
+                if (allowedIds.includes(15) && !existingIds.has(15)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 15, title: "Lab Results", format: "table", enable: "Y", custom_status: "Y" });
+                    existingIds.add(15);
                 }
-                if (allowedIds.includes(8) && !copyPrintSettings.prescription.case_option.some(o => o.id === 8)) {
+                if (allowedIds.includes(8) && !existingIds.has(8)) {
                     const medicalHistoryOption = (caseManagerData?.medical_history || [])
                         .filter(item => item && (item.tags?.length > 0 || item.no_know_history))
                         .map(item => item.tmmhs_id);
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 8, title: "Medical History", format: "table", enable: "Y", custom_status: "Y", medical_history_option: medicalHistoryOption.length > 0 ? medicalHistoryOption : (caseManagerData?.medical_history || []).map(item => item?.tmmhs_id).filter(Boolean) });
+                    existingIds.add(8);
                 }
-                if (allowedIds.includes(13) && !copyPrintSettings.prescription.case_option.some(o => o.id === 13)) {
+                if (allowedIds.includes(13) && !existingIds.has(13)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 13, title: "Gynec History", format: "table", enable: "Y", custom_status: "Y" });
+                    existingIds.add(13);
                 }
-                if (allowedIds.includes(14) && !copyPrintSettings.prescription.case_option.some(o => o.id === 14)) {
+                if (allowedIds.includes(14) && !existingIds.has(14)) {
                     const smartRxIdx = copyPrintSettings.prescription.case_option.findIndex(o => o.id === 11);
                     const insertIdx = smartRxIdx >= 0 ? smartRxIdx : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIdx, 0, { id: 14, title: "Obstetric History", format: "table", enable: "Y", custom_status: "Y", obs_history_option: defaultObsHistoryOption.length > 0 ? defaultObsHistoryOption : undefined });
+                    existingIds.add(14);
                 }
-                if (allowedIds.includes(10) && !copyPrintSettings.prescription.case_option.some(o => o.id === 10)) {
+                if (allowedIds.includes(10) && !existingIds.has(10)) {
                     copyPrintSettings.prescription.case_option.push({ id: 10, title: "Vaccination", format: "listview", enable: "Y", custom_status: "Y" });
+                    existingIds.add(10);
                 }
-                if (allowedIds.includes(91) && !copyPrintSettings.prescription.case_option.some(o => o.id === 91)) {
+                if (allowedIds.includes(91) && !existingIds.has(91)) {
                     copyPrintSettings.prescription.case_option.push({ id: 91, title: "Others", format: "listview", enable: "Y", custom_status: "Y" });
+                    existingIds.add(91);
                 }
             }
             if (isVoiceAmbientFlow && !isWrittenRxSnapSmart && copyPrintSettings?.prescription?.case_option) {
@@ -1132,13 +1175,15 @@ function ConfigurePrintSetting() {
                 });
             }
 
-            // Add SmartRx (written RX) option only for snap/smart written prescription – NOT for digitised prescription
+            // Add SmartRx (written RX) option only for snap/smart written prescription – NOT for digitised prescription.
+            // Respect doctor's default enable/disable; do NOT force-enable if it already exists in defaults.
             const hasSmartRxFiles = (smartRxFile && smartRxFile.length > 0) || caseManagerData?.smart_prescription_filename;
             const showWrittenRxOption = hasSmartRxFiles && isWrittenRxSnapSmart;
             if (showWrittenRxOption && copyPrintSettings?.prescription?.case_option) {
                 const writtenRxOptionTitle = state?.from === "/snap-rx/preview" ? "Snap" : "SmartRx";
                 const smartRxOption = copyPrintSettings.prescription.case_option.find(option => option.id === 11);
                 if (!smartRxOption) {
+                    // If SmartRx is missing entirely from defaults, add it as enabled.
                     const vaccinesIndex = copyPrintSettings.prescription.case_option.findIndex(option => option.id === 10);
                     const insertIndex = vaccinesIndex !== -1 ? vaccinesIndex + 1 : copyPrintSettings.prescription.case_option.length;
                     copyPrintSettings.prescription.case_option.splice(insertIndex, 0, {
@@ -1149,11 +1194,8 @@ function ConfigurePrintSetting() {
                         custom_status: "Y"
                     });
                 } else {
+                    // Keep existing enable/custom_status from defaults; only update the title.
                     smartRxOption.title = writtenRxOptionTitle;
-                    if (smartRxOption.enable !== "Y" || smartRxOption.custom_status !== "Y") {
-                        smartRxOption.enable = "Y";
-                        smartRxOption.custom_status = "Y";
-                    }
                 }
             }
 
@@ -1219,7 +1261,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length , caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
+    }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length, labParamsData?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
 
     useEffect(() => {
         // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true

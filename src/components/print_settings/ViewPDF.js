@@ -837,15 +837,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         />
     );
 
+    const option11 = printSettings?.prescription?.case_option?.find(o => o.id === 11);
+    const isSmartRxOptionEnabled = option11?.enable === 'Y' && option11?.custom_status === 'Y';
+
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
             hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
-            // (zydusLabData?.data?.length > 0) ||
-            
-            // Check smart sync data (treat undefined isCustomSSRX as "0" for snap/smart written flow)
-            (isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
-            
+            // Check smart sync data only when option 11 (Smart Rx) is enabled in print settings
+            (isSmartRxOptionEnabled && isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
         );
     };
 
@@ -926,7 +926,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     
     return (
         <Document>
-            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") &&
+            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") && isSmartRxOptionEnabled && (
                 <Page
                     size="A4"
                     style={[paddingStyles, {
@@ -956,7 +956,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         )}
                     </>
                 </Page>
-            }
+            )}
             {hasAnyData(caseManagerData) && (
                 <Page
                     size="A4"
@@ -1346,6 +1346,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     }}>
                                     </View>
                                 );
+                            }
+                            if (option?.type !== "page_break" && option?.enable !== "Y") {
+                                return null;
                             }
                             if (option?.type !== "page_break" && option?.enable === "Y") {
                                 hasRenderedPageBreak = false;
