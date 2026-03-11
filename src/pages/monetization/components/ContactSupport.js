@@ -26,7 +26,6 @@ function ContactSupport({ refs }) {
   return (
     <div
       id="contactSupport"
-      className="my-5"
       ref={(el) => refs && (refs.current.contactSupport = el)}
     >
       <span className="fs-12-1 fw-medium text-primary">Contact Support</span>
