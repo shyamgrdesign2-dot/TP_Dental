@@ -4298,6 +4298,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               }}
                                               key={ii}
                                             >
+                                              {option?.medicine_option?.length && isTapered && !isLastItem && (
+                                                <ThenConnector printSettings={printSettings} />
+                                              )}
                                               {option?.medicine_option?.includes(
                                                 "dose",
                                               ) && (
