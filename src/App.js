@@ -79,6 +79,7 @@ import AddNewPatient from "./pages/AddNewPatient";
 import TabRx from "./pages/tabRx/TabRx";
 import TabRxCanvas from "./pages/tabRx/components/TabRxCanvas";
 import TabRxPrescriptionPrintView from "./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView";
+import TabRxDigitization from "./pages/tabRx/components/Digitization";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -539,6 +540,10 @@ function App() {
                 <Route
                   path="abha-records/health-records"
                   element={<HealthRecords />}
+                />
+                <Route
+                  path="tabrx-digitization"
+                  element={<TabRxDigitization />}
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />

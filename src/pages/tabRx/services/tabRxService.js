@@ -173,9 +173,9 @@ export const upsertTabRxRx = async (rxData) => {
       throw new Error('tcm_id is required');
     }
     
-    if (!rxData.canvasFileName) {
-      throw new Error('canvasFileName is required');
-    }
+    // if (!rxData.canvasFileName) {
+    //   throw new Error('canvasFileName is required');
+    // }
 
     const requestConfig = {
       headers: { 

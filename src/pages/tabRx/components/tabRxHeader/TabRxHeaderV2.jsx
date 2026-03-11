@@ -38,9 +38,7 @@ import playIcons from "../../../../assets/images/tube-icon.svg";
 import fullicon from "../../../../assets/images/full-icon.svg";
 import settingsIcon from "../../../../assets/images/settings-icon.svg";
 import VideoModal from "../../../../common/VideoModal";
-import SaveDraft from "../../../../common/SaveDraft";
 import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton";
-import draftIcon from "../../../../assets/images/draft-icon.svg";
 import endIcon from "../../../../assets/images/end-icon.svg";
 import notesMultiple from "../../../../assets/images/notes-multiple.svg";
 import settingsNew from "../../../../assets/images/settings-new.svg";
@@ -63,12 +61,10 @@ import {
     S_DDX,
     S_VOICE_RX,
     OPTHAL_PAD_MODULE_ID,
-    GB_SAVE_AS_DRAFT_RX,
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
     updateCarePlanName,
-    getCarePlanAssignments,
 } from "../../../../pages/smartSync/services/carePlanService";
 
 import visitEnd from "../../../../assets/images/end-visit.svg";
@@ -85,7 +81,6 @@ import {
     addCaseManager,
     editCaseManager,
     getInvestigationAndMedicine,
-    draftToConsultation,
 } from "../../../../redux/caseManagerSlice";
 import { customizedPad, listVideo } from "../../../../redux/doctorsSlice";
 import GenRxButton from "../../../../components/GenRxButton";
@@ -109,6 +104,7 @@ import {
 } from "../../../../redux/ophthalmologyExamSlice";
 import useTabletViewport from "../../../../hooks/useTabletViewport";
 import CashManagerContext from "../../../../context/CashManagerContext";
+import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
 
 var oneClickCosultationTemplateId = 0;
 
@@ -233,11 +229,6 @@ function TabRxHeaderV2({
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isFreeVoiceRxUser = isVoiceRxFree();
-    const [saveDraftLoading, setSaveDraftLoading] = useState(false);
-    const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
-    const { isEditRx = false } = useLocation().state || {};
-    const shouldEnableDraft =
-        isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
 
     useEffect(() => {
         dispatch(oneClickTemplatesList());
@@ -1526,223 +1517,26 @@ function TabRxHeaderV2({
         };
     }, [ophthalmologyExam]);
 
-    const onSaveAsDraft = async () => {
-        if (saveDraftLoading) return;
-        setSaveDraftLoading(true);
-
-        try {
-            const opthalPayload = buildOpthalPayload({
-                sections: OPHTHALMOLOGY_SECTIONS,
-                tables: ophthalmologyExam?.tables,
-                extraFields: ophthalmologyExam?.extraFields,
-                visualAcuity: ophthalmologyExam?.visualAcuity,
-                tcmId,
-            });
-            const opthalId = ophthalmologyExam?.opthalPrescriptionId;
-            const opthalPatientId = patient_data?.patient_unique_id;
-            const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
-
-            const sendData = {
-                is_draft: 1,
-                action: tcmId == 0 ? "add" : "edit",
-                tcm_id: tcmId,
-                patient_unique_id:
-                    patient_data !== undefined ? patient_data.patient_unique_id : 0,
-                pam_id:
-                    patient_data !== undefined
-                        ? patient_data.hasOwnProperty("pam_id")
-                            ? patient_data.pam_id
-                            : pamId
-                        : 0,
-                consultation_date: consultationDate,
-                symptoms: symptomsData,
-                examination: examinationData,
-                surgeries: surgeriesData,
-                diagnosis: diagnosisData,
-                medicine: medicationData.map(({ medicineUnit, ...rest }) => rest),
-                advice: adviceData,
-                investigation: investigationData,
-                vitals: vitalsData,
-                follow_up_date: followUpDate,
-                visit_advice: additionalNote,
-                medical_history: medicalHistoryData,
-                private_notes_id:
-                    privateNotesData?.id !== undefined ? privateNotesData?.id : 0,
-                consultation_start_datetime: startTime,
-                oneclick_cosultation_template_id: oneClickCosultationTemplateId,
-                vaccines: {
-                    given: givenVaccines,
-                    due: updatedDueVaccines,
-                },
-                moduleContents: filterCustomModuleContent(customModuleContents),
-                pillup_fulfilment: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
-                labReportID: labReportID,
-                zydusSelectedLabParams: zydusSelectedLabParams,
-            };
-
-            const decodedToken = getDecodedToken();
-            const tokenData = decodedToken?.result;
-            if (
-                tokenData?.hospital_business_id == env.zydus_business_id &&
-                isZydusUserAccessableFromGB
-            ) {
-                sendData["zydus_details"] = {
-                    departmentId: patient_data?.departmentId,
-                    encounterId: patient_data?.encounterId,
-                    mrno: patient_data?.mrno,
-                    doctorCode: patient_data?.employeeId,
-                    zydusSelectedLabParams: zydusSelectedLabParams,
-                };
-            }
-
-            const caseManagerPromise =
-                tcmId == 0
-                    ? dispatch(addCaseManager(sendData))
-                    : dispatch(editCaseManager(sendData));
-            let action;
-
-            if (tcmId == 0) {
-                action = await caseManagerPromise;
-                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-                if (shouldSyncOpthal) {
-                    const opthalPayloadWithTcm = {
-                        ...opthalPayload,
-                        tcm_id: generatedTcmId,
-                    };
-                    if (opthalId) {
-                        await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, {
-                            patientId: opthalPatientId,
-                        });
-                    } else {
-                        await createOpthalPrescription(opthalPayloadWithTcm, {
-                            patientId: opthalPatientId,
-                        });
-                    }
-                }
-            } else {
-                if (shouldSyncOpthal) {
-                    const opthalPromise = opthalId
-                        ? updateOpthalPrescription(opthalId, opthalPayload, {
-                            patientId: opthalPatientId,
-                        })
-                        : createOpthalPrescription(opthalPayload, {
-                            patientId: opthalPatientId,
-                        });
-                    [action] = await Promise.all([caseManagerPromise, opthalPromise]);
-                } else {
-                    action = await caseManagerPromise;
-                }
-            }
-
-            if (action?.meta?.requestStatus === "fulfilled") {
-                if (
-                    opthalModuleAutoAdded &&
-                    customizedPadRightList?.some(
-                        (item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID,
-                    )
-                ) {
-                    dispatch(
-                        customizedPad({
-                            data: {
-                                default: false,
-                                reset: false,
-                                left: customizedPadLeftList,
-                                right: customizedPadRightList,
-                            },
-                        }),
-                    );
-                }
-                try {
-                    // Ensure care plan is linked to the definitive consultation id
-                    const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-                    if (generatedTcmId > 0 && selectedCarePlan) {
-                        if (tcmId !== 0 && selectedCarePlan?.plan_name) {
-                            // Editing existing consultation: update care plan name against tcm_id
-                            await updateCarePlanName(
-                                parseInt(generatedTcmId),
-                                selectedCarePlan.plan_name,
-                            );
-                        } else if (
-                            tcmId === 0 &&
-                            selectedCarePlan?.plan_id &&
-                            patient_data?.patient_unique_id &&
-                            tokenData?.user_id &&
-                            tokenData?.clinic_id
-                        ) {
-                            // New consultation: assign care plan with tcm_id
-                            await assignCarePlan({
-                                plan_id: selectedCarePlan.plan_id,
-                                um_id: tokenData.user_id,
-                                patient_unique_id: patient_data.patient_unique_id,
-                                hm_id: tokenData.clinic_id,
-                                tcm_id: parseInt(generatedTcmId),
-                            });
-                        }
-                    }
-                } catch (error) {
-                    console.error("Care plan sync after save as draft rx failed:", error);
-                }
-
-                message.open({
-                    key: MESSAGE_KEY,
-                    type: "",
-                    className: "message-appointment",
-                    content: (
-                        <div className="d-flex align-items-center">
-                            <img src={visitEnd} className="me-3" alt="Check Badge" />
-                            <div>
-                                <div className="title-common text-start fontroboto">
-                                    Rx Saved as Draft Successfully
-                                </div>
-                            </div>
-                            <img
-                                src={imgCloseVisit}
-                                className="ms-3"
-                                onClick={() => message.destroy()}
-                                alt="Close"
-                            />
-                        </div>
-                    ),
-                    duration: 5,
-                });
-                navigate("/", { replace: true });
-            }
-        } catch (error) {
-            console.error("Save as draft failed:", error);
-            errorMessage("Failed to save draft. Please try again.");
-        } finally {
-            setSaveDraftLoading(false);
-        }
-    };
-
     async function onEndVisitClick() {
-        console.log('🚀 [TabRxHeaderV2] onEndVisitClick called');
-        
+
         // Set loading state to show full-page spinner
         if (setIsEndVisitLoading) {
             setIsEndVisitLoading(true);
         }
-        
+
         try {
             // Handle canvas submission before end visit if canvas submit handler is provided
             // This should match SmartPrescription flow: upload files first, then use them in case manager
             let canvasFiles = [];
             let canvasBlobs = [];
             let freshCanvasData = null;
-            
+
             if (onCanvasSubmit) {
-                console.log('📤 [TabRxHeaderV2] Calling onCanvasSubmit...');
                 try {
                     const result = await onCanvasSubmit();
-                    console.log('✅ [TabRxHeaderV2] onCanvasSubmit result:', {
-                        filesCount: result?.files?.length || 0,
-                        blobsCount: result?.blobs?.length || 0,
-                        fileNames: result?.files?.map(f => f.name) || []
-                    });
                     canvasFiles = result?.files || [];
                     canvasBlobs = result?.blobs || [];
-                    
+
                     // Get fresh canvas data after upload
                     if (canvasRef && canvasRef.current) {
                         try {
@@ -1764,7 +1558,7 @@ function TabRxHeaderV2({
             } else {
                 console.log('⚠️ [TabRxHeaderV2] No onCanvasSubmit handler provided');
             }
-            
+
             // Use uploaded canvas files if available, otherwise fall back to smartRxFiles prop
             const finalSmartRxFiles = canvasFiles.length > 0 ? canvasFiles : smartRxFiles;
             console.log('📦 [TabRxHeaderV2] Final smartRxFiles:', {
@@ -1772,7 +1566,7 @@ function TabRxHeaderV2({
                 count: finalSmartRxFiles?.length || 0,
                 fileNames: finalSmartRxFiles?.map(f => f.name) || []
             });
-            
+
             // Use fresh canvas data if available, otherwise use prop
             const finalCanvasData = freshCanvasData || canvasData;
             console.log('📋 [TabRxHeaderV2] Final canvas data:', {
@@ -1780,7 +1574,7 @@ function TabRxHeaderV2({
                 pagesCount: finalCanvasData?.pagesMetadata?.length,
                 selectedTemplateId: finalCanvasData?.selectedTemplateId
             });
-            
+
             // Validation checks - return early if validation fails
             if (
                 symptomsData.length > 0 &&
@@ -1789,50 +1583,38 @@ function TabRxHeaderV2({
                 errorMessage("Please fillup symptom name");
                 return;
             } else if (
-            examinationData.length > 0 &&
-            examinationData.filter((e) => e.examination_name == "").length > 0
-        ) {
-            errorMessage("Please fillup examination name");
-        } else if (
-            surgeriesData.length > 0 &&
-            surgeriesData.filter((e) => e.name == "").length > 0
-        ) {
-            errorMessage("Please fillup surgery name");
-        } else if (
-            diagnosisData.length > 0 &&
-            diagnosisData.filter((e) => e.tds_name == "").length > 0
-        ) {
-            errorMessage("Please fillup diagnosis name");
-        } else if (
-            medicationData.length > 0 &&
-            medicationData.filter((e) => e.tmm_medicine_name == "").length > 0
-        ) {
-            errorMessage("Please fillup medication name");
-        } else if (
-            adviceData.length > 0 &&
-            adviceData.filter((e) => e.advice_name == "").length > 0
-        ) {
-            errorMessage("Please fillup advice name");
-        } else if (
-            investigationData.length > 0 &&
-            investigationData.filter((e) => e.investigation_name == "").length > 0
-        ) {
-            errorMessage("Please fillup investigation name");
-            return;
-        }
-        
-        // Main end visit logic
-        const opthalPayload = buildOpthalPayload({
-                sections: OPHTHALMOLOGY_SECTIONS,
-                tables: ophthalmologyExam?.tables,
-                extraFields: ophthalmologyExam?.extraFields,
-                visualAcuity: ophthalmologyExam?.visualAcuity,
-                tcmId,
-            });
+                examinationData.length > 0 &&
+                examinationData.filter((e) => e.examination_name == "").length > 0
+            ) {
+                errorMessage("Please fillup examination name");
+            } else if (
+                surgeriesData.length > 0 &&
+                surgeriesData.filter((e) => e.name == "").length > 0
+            ) {
+                errorMessage("Please fillup surgery name");
+            } else if (
+                diagnosisData.length > 0 &&
+                diagnosisData.filter((e) => e.tds_name == "").length > 0
+            ) {
+                errorMessage("Please fillup diagnosis name");
+            } else if (
+                medicationData.length > 0 &&
+                medicationData.filter((e) => e.tmm_medicine_name == "").length > 0
+            ) {
+                errorMessage("Please fillup medication name");
+            } else if (
+                adviceData.length > 0 &&
+                adviceData.filter((e) => e.advice_name == "").length > 0
+            ) {
+                errorMessage("Please fillup advice name");
+            } else if (
+                investigationData.length > 0 &&
+                investigationData.filter((e) => e.investigation_name == "").length > 0
+            ) {
+                errorMessage("Please fillup investigation name");
+                return;
+            }
 
-            const opthalId = ophthalmologyExam?.opthalPrescriptionId;
-            const opthalPatientId = patient_data?.patient_unique_id;
-            const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
 
             var sendData = {
                 action: tcmId == 0 ? "add" : "edit",
@@ -1908,41 +1690,41 @@ function TabRxHeaderV2({
                 isCustomSSRX: ((finalSmartRxFiles && finalSmartRxFiles.length > 0) || isCustomSSRX) ? "1" : "0",
                 custom_ss_data: (() => {
                     console.log('🔍 [TabRxHeaderV2] Checking custom_ss_data conditions...');
-                    
+
                     // Only send custom_ss_data if:
                     // 1. Files were uploaded (finalSmartRxFiles.length > 0), OR
                     // 2. There's actual canvas content (strokes or text)
                     const hasUploadedFiles = finalSmartRxFiles && finalSmartRxFiles.length > 0;
                     console.log('📦 [TabRxHeaderV2] Has uploaded files:', hasUploadedFiles, { count: finalSmartRxFiles?.length || 0 });
-                    
+
                     // Check if there's actual canvas content using fresh data
                     let hasCanvasContent = false;
                     if (finalCanvasData) {
-                        const hasStrokes = finalCanvasData.strokesByPage && 
-                            Object.values(finalCanvasData.strokesByPage).some(strokes => 
+                        const hasStrokes = finalCanvasData.strokesByPage &&
+                            Object.values(finalCanvasData.strokesByPage).some(strokes =>
                                 Array.isArray(strokes) && strokes.length > 0
                             );
-                        const hasTextElements = finalCanvasData.textElementsByPage && 
-                            Object.values(finalCanvasData.textElementsByPage).some(textElements => 
+                        const hasTextElements = finalCanvasData.textElementsByPage &&
+                            Object.values(finalCanvasData.textElementsByPage).some(textElements =>
                                 Array.isArray(textElements) && textElements.length > 0 &&
                                 textElements.some(el => el.content && el.content.trim().length > 0)
                             );
                         hasCanvasContent = hasStrokes || hasTextElements;
                         console.log('🎨 [TabRxHeaderV2] Has canvas content:', hasCanvasContent, { hasStrokes, hasTextElements });
                     }
-                    
+
                     // Don't send custom_ss_data if no files uploaded and no canvas content
                     if (!hasUploadedFiles && !hasCanvasContent) {
                         console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no files and no content');
                         return null;
                     }
-                    
+
                     // Only send if we have pages metadata
                     if (!finalCanvasData || !finalCanvasData.pagesMetadata || finalCanvasData.pagesMetadata.length === 0) {
                         console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no pages metadata');
                         return null;
                     }
-                    
+
                     const customSSData = {
                         custom_ss_data: {
                             template_id: selectedTemplateId && selectedTemplateId !== 'blank' ? selectedTemplateId : null,
@@ -1954,7 +1736,7 @@ function TabRxHeaderV2({
                             }))
                         }
                     };
-                    
+
                     console.log('✅ [TabRxHeaderV2] Sending custom_ss_data:', customSSData);
                     return customSSData;
                 })(),
@@ -1975,20 +1757,6 @@ function TabRxHeaderV2({
                 };
             }
 
-            // Log the final payload before sending
-            console.log('📋 [TabRxHeaderV2] Final sendData payload:', {
-                action: sendData.action,
-                tcm_id: sendData.tcm_id,
-                patient_unique_id: sendData.patient_unique_id,
-                pam_id: sendData.pam_id,
-                smart_prescription_filename: sendData.smart_prescription_filename,
-                isCustomSSRX: sendData.isCustomSSRX,
-                custom_ss_data: sendData.custom_ss_data,
-                hasSymptoms: sendData.symptoms?.length > 0,
-                hasMedication: sendData.medicine?.length > 0,
-                hasVitals: sendData.vitals?.length > 0
-            });
-            
             const clinic_name = getClinicName(profile?.hospital_data);
             tcmId == 0
                 ? window.Moengage.track_event("TP_Consultation_ended", {
@@ -2004,117 +1772,13 @@ function TabRxHeaderV2({
                     tcm_id: tcmId,
                 });
 
-            const caseManagerPromise = isDraft
-                ? dispatch(draftToConsultation(sendData))
-                : tcmId == 0
-                    ? dispatch(addCaseManager(sendData))
-                    : dispatch(editCaseManager(sendData));
-            let action;
+            const caseManagerPromise = tcmId == 0
+                ? dispatch(addCaseManager(sendData))
+                : dispatch(editCaseManager(sendData));
+            let action = await caseManagerPromise;
+console.log({action});
 
-            if (tcmId == 0) {
-                action = await caseManagerPromise;
-                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-                if (shouldSyncOpthal) {
-                    const opthalPayloadWithTcm = {
-                        ...opthalPayload,
-                        tcm_id: generatedTcmId,
-                    };
-                    if (opthalId) {
-                        await updateOpthalPrescription(opthalId, opthalPayloadWithTcm, {
-                            patientId: opthalPatientId,
-                        });
-                    } else {
-                        await createOpthalPrescription(opthalPayloadWithTcm, {
-                            patientId: opthalPatientId,
-                        });
-                    }
-                }
-            } else {
-                if (shouldSyncOpthal) {
-                    const opthalPromise = opthalId
-                        ? updateOpthalPrescription(opthalId, opthalPayload, {
-                            patientId: opthalPatientId,
-                        })
-                        : createOpthalPrescription(opthalPayload, {
-                            patientId: opthalPatientId,
-                        });
-                    [action] = await Promise.all([caseManagerPromise, opthalPromise]);
-                } else {
-                    action = await caseManagerPromise;
-                }
-            }
-            
             if (action.meta.requestStatus === "fulfilled") {
-                if (
-                    opthalModuleAutoAdded &&
-                    customizedPadRightList?.some(
-                        (item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID,
-                    )
-                ) {
-                    dispatch(
-                        customizedPad({
-                            data: {
-                                default: false,
-                                reset: false,
-                                left: customizedPadLeftList,
-                                right: customizedPadRightList,
-                            },
-                        }),
-                    );
-                }
-                try {
-                    // Ensure care plan is linked to the definitive consultation id
-                    const decodedToken = getDecodedToken();
-                    const tokenData = decodedToken?.result;
-                    const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-                    if (generatedTcmId > 0 && selectedCarePlan) {
-                        if (tcmId !== 0 && selectedCarePlan?.plan_name) {
-                            // Editing existing consultation: update care plan name against tcm_id
-                            await updateCarePlanName(
-                                parseInt(generatedTcmId),
-                                selectedCarePlan.plan_name,
-                            );
-                        } else if (
-                            tcmId === 0 &&
-                            selectedCarePlan?.plan_id &&
-                            patient_data?.patient_unique_id &&
-                            tokenData?.user_id &&
-                            tokenData?.clinic_id
-                        ) {
-                            // New consultation: assign care plan with tcm_id
-                            await assignCarePlan({
-                                plan_id: selectedCarePlan.plan_id,
-                                um_id: tokenData.user_id,
-                                patient_unique_id: patient_data.patient_unique_id,
-                                hm_id: tokenData.clinic_id,
-                                tcm_id: parseInt(generatedTcmId),
-                            });
-                        }
-                    }
-                } catch (error) {
-                    console.error("Care plan sync after submit failed:", error);
-                }
-
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(
-                            patient_data.patient_unique_id,
-                        );
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data)
-                            ? assignmentsResp.data
-                            : Array.isArray(assignmentsResp)
-                                ? assignmentsResp
-                                : assignmentsResp?.assignments || [];
-                    }
-                } catch (cpFetchErr) {
-                    console.error(
-                        "Failed to fetch care plan assignments for print state:",
-                        cpFetchErr,
-                    );
-                }
 
                 message.open({
                     key: MESSAGE_KEY,
@@ -2139,20 +1803,11 @@ function TabRxHeaderV2({
                     duration: 5,
                 });
 
-                if (useVoiceRx) {
-                    let sendData = {
-                        b2c_id: profile?.b2c,
-                        service_name: S_VOICE_RX,
-                    };
-                    dispatch(updateCredits(sendData));
-                }
-                if (useDDX) {
-                    let sendData = {
-                        b2c_id: profile?.b2c,
-                        service_name: S_DDX,
-                    };
-                    dispatch(updateCredits(sendData));
-                }
+                const upsertTabRxRxPromise = await upsertTabRxRx({
+                    patient_unique_id: patient_data?.patient_unique_id,
+                    tcm_id: action.payload?.tcm_id,
+                    pam_id: action.payload?.pam_id,
+                })
 
                 if (isAutofillSelected) {
                     await setAddToRx({
@@ -2161,161 +1816,14 @@ function TabRxHeaderV2({
                     });
                     dispatch(setSelectAutofill(false));
                 }
-
-                window.Moengage.track_event("Z_enter_getInvestigationAndMedicine", {
-                    clinic_name,
-                    patient_id: patient_data?.patient_unique_id,
-                    mrno: patient_data?.mrno,
-                    isInvestigationList: investigationData.length > 0 ? true : false,
-                    isMedicineList: medicationData.length > 0 ? true : false,
-                });
-
-                if (
-                    tokenData?.hospital_business_id == env.zydus_business_id &&
-                    isZydusUserAccessableFromGB &&
-                    patient_data?.mrno !== undefined &&
-                    (medicationData.length > 0 || investigationData.length > 0)
-                ) {
-                    window.Moengage.track_event(
-                        "Z_getInvestigationAndMedicine_API_before_call",
-                        {
-                            clinic_name,
-                            patient_id: patient_data?.patient_unique_id,
-                            tcm_id: action?.payload?.tcm_id,
-                        },
-                    );
-
-                    let sendInvestigationAndMedicine = {
-                        patient_unique_id:
-                            patient_data !== undefined ? patient_data.patient_unique_id : 0,
-                        tcm_id: action?.payload?.tcm_id,
-                    };
-                    const actionIM = await dispatch(
-                        getInvestigationAndMedicine(sendInvestigationAndMedicine),
-                    );
-                    if (actionIM.meta.requestStatus === "fulfilled") {
-                        window.Moengage.track_event(
-                            "Z_getInvestigationAndMedicine_API_Response",
-                            {
-                                clinic_name,
-                                patient_id: patient_data?.patient_unique_id,
-                                status: "suceess",
-                                investigationList:
-                                    investigationData.length > 0
-                                        ? actionIM?.payload?.investigation
-                                            .map((item) => item.investigation_name)
-                                            .join(", ")
-                                        : [],
-                                medicineList:
-                                    medicationData.length > 0
-                                        ? actionIM?.payload?.medicine
-                                            .map(
-                                                ({ tmm_medicine_name, display_qty, tmm_remarks }) =>
-                                                    JSON.stringify({
-                                                        name: tmm_medicine_name,
-                                                        quantity: display_qty,
-                                                        instruction: tmm_remarks,
-                                                    }),
-                                            )
-                                            .join(", ")
-                                        : [],
-                            },
-                        );
-
-                        let zydusSendData = {
-                            action: tcmId == 0 ? "add" : "edit",
-                            tcmId: action?.payload?.tcm_id,
-                            siteId: siteId,
-                            departmentId: patient_data?.departmentId,
-                            visitId: patient_data?.visitId,
-                            encounterId: patient_data?.encounterId,
-                            mrno: patient_data?.mrno,
-                            doctorCode: patient_data?.employeeId,
-                            storeCode: storeCode, // hardcoded value
-                            duplicateCheck: 1, // hardcoded value
-                            investigationList:
-                                investigationData.length > 0
-                                    ? actionIM?.payload?.investigation.map(
-                                        (item) => item.investigation_name,
-                                    )
-                                    : [],
-                            medicineList:
-                                medicationData.length > 0
-                                    ? actionIM?.payload?.medicine.map(
-                                        ({ tmm_medicine_name, display_qty, tmm_remarks }) => ({
-                                            name: tmm_medicine_name,
-                                            quantity: display_qty,
-                                            instruction: tmm_remarks,
-                                        }),
-                                    )
-                                    : [],
-                            pillupSwitch: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
-                        };
-
-                        window.Moengage.track_event("Z_placeIctOrder_API_before_call", {
-                            action: tcmId == 0 ? "add" : "edit",
-                            tcmId: action?.payload?.tcm_id,
-                            siteId: siteId,
-                            departmentId: patient_data?.departmentId,
-                            visitId: patient_data?.visitId,
-                            encounterId: patient_data?.encounterId,
-                            mrno: patient_data?.mrno,
-                            doctorCode: patient_data?.employeeId,
-                            storeCode: storeCode, // hardcoded value
-                            duplicateCheck: 1, // hardcoded value
-                            investigationList:
-                                investigationData.length > 0
-                                    ? actionIM?.payload?.investigation
-                                        .map((item) => item.investigation_name)
-                                        .join(", ")
-                                    : [],
-                            medicineList:
-                                medicationData.length > 0
-                                    ? actionIM?.payload?.medicine
-                                        .map(({ tmm_medicine_name, display_qty, tmm_remarks }) =>
-                                            JSON.stringify({
-                                                name: tmm_medicine_name,
-                                                quantity: display_qty,
-                                                instruction: tmm_remarks,
-                                            }),
-                                        )
-                                        .join(", ")
-                                    : [],
-                            pillupSwitch: isPillUpAccessableFromGB && pillupSwitch ? 1 : 0,
-                        });
-
-                        const actionPIO = await dispatch(placeIctOrder(zydusSendData));
-                        if (actionPIO.payload?.status !== 400) {
-                            window.Moengage.track_event("Z_placeIctOrder_API_Response", {
-                                status: "suceess",
-                            });
-                        } else {
-                            window.Moengage.track_event("Z_placeIctOrder_API_Response", {
-                                status: "failure",
-                                reason: actionPIO.payload.data.message,
-                            });
-                        }
-                    } else {
-                        window.Moengage.track_event(
-                            "Z_getInvestigationAndMedicine_API_Response",
-                            {
-                                clinic_name,
-                                status: "failure",
-                                reason: action.error,
-                            },
-                        );
-                    }
-                }
+                // const filesResponse = await getTabRxFiles(action.payload?.tcm_id, patient_data?.patient_unique_id);
 
                 navigate("/tab-rx-prescription", {
                     replace: true,
                     state: {
                         ...action.payload,
                         patient_data: patient_data,
-                        labParamsData: labParamsData,
-                        zydusSelectedLabParams: zydusSelectedLabParams,
-                        labReportID: labReportID,
-                        carePlanAssignments,
+                        // smartRxFilesData: canvasFiles.length > 0 ? canvasFiles : smartRxFiles,
                     },
                 });
             } else {
@@ -2433,7 +1941,7 @@ function TabRxHeaderV2({
     const checkCanvasContent = () => {
         // First check the prop (reactive state from parent)
         if (hasCanvasContent) return true;
-        
+
         // Fallback: Try to get fresh canvas data from ref if available
         let currentCanvasData = canvasData;
         if (canvasRef && canvasRef.current) {
@@ -2444,22 +1952,22 @@ function TabRxHeaderV2({
                 currentCanvasData = canvasData;
             }
         }
-        
+
         if (!currentCanvasData) return false;
-        
+
         // Check if there are any strokes on any page
-        const hasStrokes = currentCanvasData.strokesByPage && 
-            Object.values(currentCanvasData.strokesByPage).some(strokes => 
+        const hasStrokes = currentCanvasData.strokesByPage &&
+            Object.values(currentCanvasData.strokesByPage).some(strokes =>
                 Array.isArray(strokes) && strokes.length > 0
             );
-        
+
         // Check if there are any text elements on any page
-        const hasTextElements = currentCanvasData.textElementsByPage && 
-            Object.values(currentCanvasData.textElementsByPage).some(textElements => 
+        const hasTextElements = currentCanvasData.textElementsByPage &&
+            Object.values(currentCanvasData.textElementsByPage).some(textElements =>
                 Array.isArray(textElements) && textElements.length > 0 &&
                 textElements.some(el => el.content && el.content.trim().length > 0)
             );
-        
+
         return hasStrokes || hasTextElements;
     };
 
@@ -2539,22 +2047,15 @@ function TabRxHeaderV2({
                                             }
                                             className="me-4 text-decoration-underline btn p-0 color-red"
                                         >
-                                            {shouldEnableDraft
-                                                ? "Go Back Without Saving"
-                                                : "Yes, Leave"}
+                                            Yes, Leave
                                         </div>
                                         <Button
                                             onClick={() => {
-                                                shouldEnableDraft && onSaveAsDraft();
                                                 showHideBackModal();
                                             }}
                                             className="lh-lg btn btn-primary3 btn-41 px-4"
                                         >
-                                            {shouldEnableDraft ? (
-                                                <span>Save as Draft</span>
-                                            ) : (
-                                                <span>No, Stay</span>
-                                            )}
+                                            No, Stay
                                         </Button>
                                     </div>
                                 </div>
@@ -2687,23 +2188,6 @@ function TabRxHeaderV2({
 
                     <div className="divider"></div>
 
-                    {/* <Tooltip placement="bottom" title="Ready to print? Please enter your prescription details.">
-                <button className="pill-btn preview" onClick={() => window.print()}>
-                    <i className="icon-eye"></i> Preview
-                </button>
-            </Tooltip> */}
-
-                    {/* Standard Print/Save flow */}
-                    {shouldEnableDraft && (
-                        <button
-                            className="pill-btn draft"
-                            onClick={onSaveAsDraft}
-                            disabled={saveDraftLoading}
-                        >
-                            <img src={draftIcon} alt="Draft" /> Draft
-                        </button>
-                    )}
-
                     {/* End Visit Logic */}
                     <Tooltip
                         placement="bottom"
@@ -2717,7 +2201,7 @@ function TabRxHeaderV2({
                             onClick={() =>
                                 hasEnteredData() && onEndVisitClick()
                             }
-                            disabled={loading && !saveDraftLoading}
+                            disabled={loading}
                         >
                             <img src={endIcon} alt="End" /> End
                         </button>

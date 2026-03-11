@@ -148,10 +148,7 @@ import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
 import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
 import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
-import ApiVideoConsult, {
-  createOpthalPrescription,
-  updateOpthalPrescription,
-} from "../../api/services/ApiVideoConsult";
+import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
@@ -172,12 +169,6 @@ import {
   getModules,
   searchModulesByHospital,
 } from "../../redux/customModuleSlice";
-import { getOpthalPrescriptionDetails } from "../ophthalmology/service";
-import {
-  resetOpthalForm,
-  setLastOpthalPrescriptionData,
-  setOpthalPrescriptionId,
-} from "../../redux/ophthalmologyExamSlice";
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
 import VideoConsultModal from "../../components/VideoConsultModal";
@@ -558,9 +549,6 @@ function TabRx() {
   const isVideoConsultAvailable =
     isVideoConsultAccessible &&
     videoConsultData?.pam_status_type_appointment === 1;
-  const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] =
-    useState(false);
-  const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
 
   // Canvas state
   const canvasRef = useRef(null);
@@ -627,7 +615,7 @@ function TabRx() {
     if (smartRxFilesData && Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0) {
       setSmartRxFiles(smartRxFilesData);
       setHasCanvasContent(true);
-      const firstUrl = smartRxFilesData[0]?.smart_prescription_file;
+      const firstUrl = smartRxFilesData[0]?.fileUrl;
       if (firstUrl) {
         setBackgroundImageUrl(firstUrl);
       }
@@ -828,40 +816,6 @@ function TabRx() {
       setHasCanvasContent(false);
     }
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchOpthalPrescription = async () => {
-      dispatch(resetOpthalForm());
-      dispatch(setLastOpthalPrescriptionData(null));
-      dispatch(setOpthalPrescriptionId(null));
-      if (!tcmId) {
-        return;
-      }
-      try {
-        const response = await getOpthalPrescriptionDetails({
-          tcm_id: tcmId,
-          patientId: patient_data?.patient_unique_id,
-        });
-        const data = response?.data ?? response;
-        const payload = Array.isArray(data) ? data[0] : data;
-        if (!isMounted || !payload) {
-          return;
-        }
-        dispatch(setLastOpthalPrescriptionData(payload));
-        if (payload?._id) {
-          dispatch(setOpthalPrescriptionId(payload._id));
-        }
-        setLoadPrevOpthalSignal((prev) => prev + 1);
-      } catch (error) {
-        console.error("Error fetching opthal prescription details:", error);
-      }
-    };
-    fetchOpthalPrescription();
-    return () => {
-      isMounted = false;
-    };
-  }, [dispatch, tcmId]);
 
   const showHideSubModal = (object) => {
     object && setSubModalData(object);
