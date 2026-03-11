@@ -725,6 +725,11 @@ function Header({ locationPath }) {
         }
       }, 1000);
 
+      // Clear Redux doctor profile before clearing storage
+      // This ensures when user logs in again (via form), profile is null and getProfile() runs
+      console.log("[TP Medeco] Logout: clearing doctor profile and storage");
+      dispatch(clearDoctorProfile());
+
       // Clear storage - this is our confirmation of logout
       localStorage.clear();
       sessionStorage.clear();
@@ -735,7 +740,9 @@ function Header({ locationPath }) {
 
     } catch (error) {
       console.error("Error during logout:", error);
-      // Even if there's an error, clear storage and redirect
+      // Even if there's an error, clear Redux and storage and redirect
+      console.log("[TP Medeco] Logout (catch): clearing doctor profile and storage");
+      dispatch(clearDoctorProfile());
       localStorage.clear();
       sessionStorage.clear();
 
