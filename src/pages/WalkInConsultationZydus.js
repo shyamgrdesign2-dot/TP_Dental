@@ -187,7 +187,7 @@ function WalkInConsultationZydus() {
             navigate("/voice-rx-consult", {
                 state: {
                     patient_data: { ...result, mrno: record.mrno },
-                    isFromTabView: isMobileOnly,
+                    isFromTabView: isMobile,
                 },
             });
         } else {

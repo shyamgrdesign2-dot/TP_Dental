@@ -2246,7 +2246,7 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                rxDigitisedData && (
+                !rxDigitisedData?.editedData && (
                   <div className="digitise-info-cardiology">
                     <img
                       src={successIcon}
