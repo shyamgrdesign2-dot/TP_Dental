@@ -28,7 +28,7 @@ import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 import ApiAbha from "../api/services/ApiAbha";
 import GreenTick from "../assets/images/green_tick.svg";
-import '../components/PatientForm.mobile.scss';
+// import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
 
 const { TabPane } = Tabs;
