@@ -46,6 +46,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 function SmartRxPreview() {
 
     const divRef = useRef(null);
+    const [editedData, setEditedData] = useState(null);
     const printRef = useRef();
 
     const { servicesList } = useSelector((state) => state.doctors);
@@ -77,7 +78,7 @@ function SmartRxPreview() {
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
     const [showProgressbar, setShowProgressbar] = useState(false);
-    const [isEditedData, setIsEditedData] = useState(null);
+    // const [isEditedData, setIsEditedData] = useState(null);
     const [rxDigitisedData, setRxDigitisedData] = useState(null);
     const [showDigitalRx, setShowDigitalRx] = useState(false);
     const [cvtDrawer, setCvtDrawer] = useState(false);
@@ -270,6 +271,7 @@ function SmartRxPreview() {
 
         const digitisedData = await fetchRxDigitisedData();
         const appointmentId = digitisedData?.data?.appointmentId;
+        setEditedData(digitisedData?.data?.editedData);
 
         // Only proceed if digitisedData is null
         if (!digitisedData?.data) {
@@ -412,7 +414,7 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx", page: state?.page, dentalData: editedData?.dynamicFields?.[0]?.dentalData } })
         } else {
             errorMessage(action.error)
         }
@@ -570,7 +572,7 @@ function SmartRxPreview() {
                                     buttonText
                                 )}
                             </button>
-                            { !isSmartSyncCVTAccessableFromGB && (
+                            { isSmartSyncCVTAccessableFromGB && (
                                 <>
                                     {showProgressbar && !isRxDigitiseComplete && (
                                         <div className="digitise-container d-flex p-3 rounded-10px">
