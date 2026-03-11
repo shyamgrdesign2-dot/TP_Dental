@@ -3591,7 +3591,7 @@ function SmartPrescription() {
                               );
                               setUpdatedIndex(index);
                             }}
-                            style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                            style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed', border: 'none' } : {}}
                           >
                             <i className="icon-reload me-2 fs-5" />
                           </button>
@@ -3613,7 +3613,7 @@ function SmartPrescription() {
                                 );
                                 setUpdatedIndex(index);
                               }}
-                              style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                              style={fromRepeatRx && index < originalRxPagesCount ? { opacity: 0.5, cursor: 'not-allowed', border: 'none' } : {}}
                             >
                               <i className="icon-delete me-2 fs-5" />
                             </button>
