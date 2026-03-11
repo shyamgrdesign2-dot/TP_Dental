@@ -1137,11 +1137,19 @@
 .additional-notes-title,
 .follow-up-title {
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  color: #454551;
+  color: #454551 !important;
   margin: 0;
+}
+
+/* Align icon + title in Lab Results (and similar) headers - matches section-header .header-left */
+.medical-history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
 /* Editor container styles for all parameters */

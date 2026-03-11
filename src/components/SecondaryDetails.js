@@ -39,7 +39,7 @@ function SecondaryDetails({ form, mode = "ADD", patient_data }) {
     useEffect(() => {
         if (patients_details && mode === "EDIT") {
             form.setFieldsValue({
-                pm_blood_group: patients_details.pm_blood_group,
+                pm_blood_group: patients_details.pm_blood_group || patient_data?.pm_blood_group || patient_data?.patient_blood_group,
                 pm_married_status: patients_details.pm_married_status,
                 pm_occupation: patients_details.pm_occupation,
                 pm_email: patients_details.pm_email,
