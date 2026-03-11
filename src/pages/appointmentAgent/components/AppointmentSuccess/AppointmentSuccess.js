@@ -278,7 +278,7 @@ const AppointmentSuccess = () => {
                   />
                 )}
               </div>
-              {isAdmin && (
+              {isAdmin ? (
                 <div className="config-button align-items-center d-flex h-100" onClick={handleConfigSettings}>
                   <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
                     <path
@@ -298,7 +298,7 @@ const AppointmentSuccess = () => {
                   </svg>
                   Edit
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
