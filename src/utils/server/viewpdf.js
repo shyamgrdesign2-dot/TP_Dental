@@ -4304,7 +4304,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               {option?.medicine_option?.includes(
                                                 "dose",
                                               ) && (
-                                                <>
                                                   <Text
                                                     style={[
                                                       styles.cell,
@@ -4324,14 +4323,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                       },
                                                     ]}
                                                   >{`${item?.tmm_dosage && item?.tmm_unit ? `${formatUnitPerDose(item?.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit)?.tmu_title : ""}`}`}</Text>
-                                                  {isTapered && !isLastItem && (
-                                                    <ThenConnector
-                                                      printSettings={
-                                                        printSettings
-                                                      }
-                                                    />
-                                                  )}
-                                                </>
                                               )}
                                               {option?.medicine_option?.includes(
                                                 "frequency",
