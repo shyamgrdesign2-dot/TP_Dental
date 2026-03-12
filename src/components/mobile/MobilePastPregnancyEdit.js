@@ -440,7 +440,7 @@ function MobilePastPregnancyEdit({
           <div className="form-section">
             <p className="section-label">Required Information</p>
             <div className="form-grid">
-              <div className="form-item">
+              <div className="form-item full-width">
                 <span className="form-label">Gravida Number <span className="required">*</span></span>
                 <Select
                   value={gravidity}
@@ -453,7 +453,7 @@ function MobilePastPregnancyEdit({
                   disabled={isCompletePregnancy && currentGravidity}
                 />
               </div>
-              <div className="form-item">
+              <div className="form-item full-width" style={{ marginTop: 16 }}>
                 <span className="form-label">Outcome <span className="required">*</span></span>
                 <Select
                   value={outcome}
@@ -609,20 +609,20 @@ function MobilePastPregnancyEdit({
                 {outcome === 'Ectopic' ? 'Ectopic Details' : 'Miscarriage Details'}
               </p>
               <div className="form-grid">
-                <div className="form-item">
+                <div className="form-item full-width gestation-period-field">
                   <span className="form-label">Period of Gestation</span>
                   <Input
                     value={gestationPeriod}
                     onChange={(e) => handleNumberInput(e.target.value, setGestationPeriod, 50)}
                     placeholder="Enter"
-                    className="form-input"
+                    className="form-input gestation-period-input"
                     suffix="weeks"
                     inputMode="numeric"
                   />
                 </div>
 
                 {outcome === 'Ectopic' && (
-                  <div className="form-item">
+                  <div className="form-item full-width">
                     <span className="form-label">Location</span>
                     <Select
                       value={location}
@@ -638,7 +638,7 @@ function MobilePastPregnancyEdit({
                 )}
 
                 {outcome === 'Abortion' && (
-                  <div className="form-item">
+                  <div className="form-item full-width">
                     <span className="form-label">Type of Miscarriage</span>
                     <Select
                       value={typeOfAbortion}
@@ -654,7 +654,7 @@ function MobilePastPregnancyEdit({
                 )}
               </div>
 
-              <div className="form-item" style={{ marginTop: 12 }}>
+              <div className="form-item full-width" style={{ marginTop: 12 }}>
                 <span className="form-label">
                   Mode of {outcome === 'Ectopic' ? 'Management' : 'Miscarriage'}
                 </span>
