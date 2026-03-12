@@ -126,7 +126,6 @@
 .form-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 
   &.full-width {
     grid-column: 1 / -1;
@@ -206,6 +205,24 @@
   }
 }
 
+.gestation-period-field {
+  .gestation-period-input.ant-input-affix-wrapper {
+    width: auto;
+    max-width: 150px;
+    height: 36px;
+
+    .ant-input {
+      height: 34px;
+      padding: 0 8px;
+      font-size: 13px;
+    }
+
+    .ant-input-suffix {
+      font-size: 12px;
+    }
+  }
+}
+
 // Form Date Picker
 .form-date-picker {
   &.ant-picker {
@@ -232,11 +249,14 @@
 .form-radio-group {
   display: flex;
   gap: 0;
+  width: 100%;
 
   .ant-radio-button-wrapper {
+    flex: 1;
     height: 44px;
     line-height: 42px;
     padding: 0 16px;
+    text-align: center;
     font-family: 'Poppins', sans-serif;
     font-size: 14px;
     border-color: #E5E7EB;
