@@ -510,7 +510,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const isSmartSyncPrescription = smartRxData && smartRxData[0]?.smart_prescription_file;
+    const isSmartSyncPrescription = smartRxData && (smartRxData[0]?.smart_prescription_file || smartRxData?.[0]?.fileUrl);
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -856,7 +856,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     <View style={{ width: '100%', height: '100%' }}>
                                         <Image
                                             style={{ width: '100%', height: '100%' }}
-                                            src={item.smart_prescription_file}
+                                            src={item.smart_prescription_file || item?.fileUrl}
                                             objectFit="contain"
                                         />
                                     </View>
@@ -2648,7 +2648,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
                                                         <Image
                                                             style={{ width: '100%', height: '100%' }}
-                                                            src={item.smart_prescription_file}
+                                                            src={item.smart_prescription_file || item?.fileUrl}
                                                             objectFit="contain"
                                                         />
                                                     </View>

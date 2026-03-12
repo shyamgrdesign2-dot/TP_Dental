@@ -126,9 +126,7 @@ function TabRxPrescriptionPrintView() {
   const {
     patient_data,
     pam_id,
-    labParamsData: passedLabParamsData,
     zydusSelectedLabParams,
-    labReportID,
     smartRxFilesData,
   } = state || {};
 
@@ -143,9 +141,7 @@ function TabRxPrescriptionPrintView() {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [smartRxFile, setSmartRxFile] = useState([]);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
-  const [token, setToken] = useState(null);
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
-  const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
   const [showProgressbar, setShowProgressbar] = useState(false);
   const progressRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -227,12 +223,8 @@ function TabRxPrescriptionPrintView() {
     const fetchTabRxFiles = async () => {
       try {
         const response = await getTabRxFiles(state.tcm_id, patient_data?.patient_unique_id);
-
-        if (response?.data?.prescription_files) {
-          setSmartRxFile(response.data?.prescription_files);
-        } else {
-          setSmartRxFile([]);
-        }
+        setRxDigitiseComplete(!!response?.data?.digitization?.isDigitize)
+        setSmartRxFile(response?.data?.prescription_files || []);
       } catch (error) {
         console.error("Error fetching tab Rx files in TabRxPrescriptionPrintView:", error);
         setSmartRxFile([]);
@@ -645,7 +637,7 @@ function TabRxPrescriptionPrintView() {
         },
       });
     } else {
-      const isDigitised = viewCaseManagerData?.isRxDigitize == 1 || viewCaseManagerData?.isRxDigitize === true || state?.page === "digitise" || isRxDigitiseComplete || rxDigitiseApiResponse || state?.digitisedData;
+      const isDigitised = isRxDigitiseComplete || state?.page === "digitise" || state?.digitisedData;
       if (isDigitised) {
         setIsEditRxModalOpen(true);
       } else {
@@ -839,6 +831,7 @@ function TabRxPrescriptionPrintView() {
           },
           pam_id: pam_id,
           from: "/tab-rx-prescription",
+          smartRxFile
         },
       });
     } else {
@@ -1109,7 +1102,7 @@ function TabRxPrescriptionPrintView() {
                     </p>
                   </div>
                 )}
-                {!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
+                {!isRxDigitiseComplete && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
                   <div className="digitise-container p-3 rounded-10px">
                     <div className="digitise-box-top">
                       <img src={successIcon} alt="success" width="40px" height="40px" />

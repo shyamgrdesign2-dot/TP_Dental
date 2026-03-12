@@ -32,7 +32,8 @@ const TabRxCanvas = forwardRef(({
   backgroundImage = null,
   showTemplateDrawer = true,
   onToggleTemplateDrawer = null,
-  onContentChange = null
+  onContentChange = null,
+  backgroundImages = []
 }, ref) => {
   // Application State - Multi-page support
   // Pages metadata: Array of page objects with { id, type: 'blank' | 'template', templateId, templateImageIndex }
@@ -111,13 +112,46 @@ const TabRxCanvas = forwardRef(({
     }
   }, [initialTemplateId]);
 
+  // Handle external multi-page custom background images
+  const backgroundImagesStr = backgroundImages ? backgroundImages.join(',') : '';
+  useEffect(() => {
+    if (backgroundImages && backgroundImages.length > 0) {
+      // Check if we already have the same number of 'custom' pages with the same image content
+      // Ignore if we manually added more pages than what was initially passed
+      const hasInitialImages = backgroundImages.every((img, i) =>
+        pagesMetadata[i]?.type === 'custom' && pagesMetadata[i]?.customImage === img
+      );
+      if (hasInitialImages && pagesMetadata.length >= backgroundImages.length) return;
+
+      const newPages = backgroundImages.map((img, i) => ({
+        id: generateId(),
+        type: 'custom',
+        templateId: null,
+        templateImageIndex: i,
+        customImage: img
+      }));
+
+      setCurrentPageIndex(0);
+      setPagesMetadata(newPages);
+
+      const newStrokes = {};
+      const newTextElements = {};
+      newPages.forEach(page => {
+        newStrokes[page.id] = [];
+        newTextElements[page.id] = [];
+      });
+      setStrokesByPage(newStrokes);
+      setTextElementsByPage(newTextElements);
+    }
+  }, [backgroundImagesStr]);
+
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
 
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
-  
+
   // Expose export method via ref
   useImperativeHandle(ref, () => ({
     exportToImages: async () => {
@@ -861,7 +895,11 @@ const TabRxCanvas = forwardRef(({
                     setPanOffset={() => { }}
                     onInteractionStart={handleInteractionStart}
                     onPageFocus={() => setCurrentPageIndex(pageIndex)}
-                    backgroundImage={backgroundImage && pageIndex === 0 ? backgroundImage : getBackgroundForPage(pageMeta)}
+                    backgroundImage={
+                      pageMeta.type === 'custom'
+                        ? pageMeta.customImage
+                        : (backgroundImage && pageIndex === 0 ? backgroundImage : getBackgroundForPage(pageMeta))
+                    }
                     embeddedInScroll={true}
                   />
 

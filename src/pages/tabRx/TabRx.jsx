@@ -621,7 +621,7 @@ function TabRx() {
       }
     }
   }, [smartRxFilesData]);
-  
+
   // Fallback: if no smartRxFilesData was passed but caseManagerData indicates a smart Rx image,
   // fetch the smart prescription images (works for flows like TabRxPrescriptionPrintView).
   useEffect(() => {
@@ -660,7 +660,7 @@ function TabRx() {
 
     fetchSmartRxFiles();
   }, [smartRxFilesData, caseManagerData, tcmId]);
-  
+
   // Check canvas content on mount and when canvas ref changes
   useEffect(() => {
     const checkCanvasContent = () => {
@@ -2147,6 +2147,7 @@ function TabRx() {
               <TabRxCanvas
                 ref={canvasRef}
                 patient={patient_data}
+                backgroundImages={smartRxFiles.map(f => f?.fileUrl || f?.smart_prescription_file).filter(Boolean)}
                 backgroundImage={backgroundImageUrl}
                 profile={profile}
                 initialTemplateId={userFormatPref === 2 ? 'standard' : 'blank'}
