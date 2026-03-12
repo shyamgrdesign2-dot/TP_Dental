@@ -32,7 +32,7 @@ import { getTokenData, getHmTypeIndicator } from "../utils/utils";
 import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, GB_MED_INVESTIGATION } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
 import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
@@ -472,7 +472,6 @@ const DigitisedPrescription = ({
     GB_APOLLO_DISABLE_FEATURE
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isMedInvestigationOn = useFeatureIsOn(GB_MED_INVESTIGATION);
   const { hospital_business_id } = tokenData || {};
   const isApollo = config.APOLLO_BUSINESS_IDS.includes(hospital_business_id);
   const isGroundingAccessable = useGrounding();
@@ -2679,21 +2678,20 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {((sectionData.medications?.length > 0 && hasValidContent("medications")) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && (
+          {sectionData.medications?.length > 0 &&
+            hasValidContent("medications") && (
               <MedicationsTable
-                medications={sectionData.medications || []}
+                medications={sectionData.medications}
                 onUpdate={handleMedicationsUpdate}
                 isProcessing={false}
-                isMedInvestigationFeatureOn={isMedInvestigationOn}
               />
             )}
 
-          {((sectionData.labInvestigation?.length > 0) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && (
+          {sectionData.labInvestigation?.length > 0 && (
               <LabInvestigationTable
-                labInvestigation={sectionData.labInvestigation || []}
+                labInvestigation={sectionData.labInvestigation}
                 onUpdate={handleInvestigationUpdate}
                 isProcessing={false}
-                isMedInvestigationFeatureOn={isMedInvestigationOn}
               />
             )}
 

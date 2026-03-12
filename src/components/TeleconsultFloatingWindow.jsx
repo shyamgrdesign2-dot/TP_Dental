@@ -44,9 +44,7 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
 
   useEffect(() => {
     if (!meeting || !doctorName) return;
-    const displayName = doctorName.trim().toLowerCase().startsWith("dr.")
-      ? doctorName.trim()
-      : `Dr. ${doctorName.trim()}`;
+    const displayName = doctorName.trim();
     const setDisplayName = () => {
       if (meeting.changeDisplayName) {
         meeting.changeDisplayName(displayName).catch(() => {});

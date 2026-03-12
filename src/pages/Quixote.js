@@ -21,7 +21,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
     const {isGynaecHistoryAccessable} = useAccess();
@@ -188,17 +188,11 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         //     setPdfUrl(URL.createObjectURL(blob))
         // }
         const makePDFUrl = async () => {
-            if (!caseManagerData || !caseManagerData.patient_data) {
-                return;
-            }
-            const smartRxDataForPdf = Array.isArray(smartRxFile) ? smartRxFile : (smartRxFile ? [smartRxFile] : []);
-
-            const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
+            const blob = await pdf(<ViewPDF
                 mode={mode}
                 caseManagerData={caseManagerData}
                 carePlanAssignments={carePlanAssignments}
-                smartRxData={smartRxData}
-                isDigitisedPrintConfig={isDigitisedPrintConfig}
+                smartRxData={smartRxFile}
                 columns={columns}
                 initialRows={initialRows}
                 frequencyList={frequencyList}
@@ -223,30 +217,10 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 abhaDetails={props.abhaDetails}
                 dentalData={props.dentalData}
             />).toBlob();
-
-            try {
-                const blob = await renderPdfWithSmartRx(smartRxDataForPdf);
-                const url = URL.createObjectURL(blob);
-                setPdfUrl(url);
-                dispatch(setCurrentSessionRx(url));
-            } catch (err) {
-                if (smartRxDataForPdf?.length > 0) {
-                    try {
-                        const blobFallback = await renderPdfWithSmartRx([]);
-                        setPdfUrl(URL.createObjectURL(blobFallback));
-                        dispatch(setCurrentSessionRx(URL.createObjectURL(blobFallback)));
-                    } catch (fallbackErr) {
-                    }
-                } else {
-                    throw err;
-                }
-            }
+            setPdfUrl(URL.createObjectURL(blob))
+            dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
         }
-        // Only generate PDF if caseManagerData exists and has patient_data
-        // This prevents generating PDF with empty/incomplete data
-        if (caseManagerData && caseManagerData.patient_data) {
-            makePDFUrl()
-        }
+        caseManagerData && makePDFUrl()
         return () => {
             setLoadSuccesss(false)
         };
@@ -270,7 +244,6 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         frequencyList,
         timingList,
         labParamsData,
-        customModules,
         hospitalSearchResults,
         carePlanAssignments,
         smartRxFile,
