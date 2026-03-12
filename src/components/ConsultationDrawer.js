@@ -854,7 +854,7 @@ const ConsultationDrawer = ({
           // Ambient = conversation in history (API returns history[].conversation, no rxDigitizationHistory)
           const isAmbient = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
 
-          // Prescription sources (priority): editedData → digitizeData → refinedData → history[0].digitize
+          // GET: prefer editedData; fallback to digitizeData, then refinedData
           let prescriptionData = d.editedData ?? d.digitizeData ?? null;
           if (!prescriptionData) {
             prescriptionData = d.refinedData ?? null;
@@ -1980,10 +1980,10 @@ const ConsultationDrawer = ({
           if (!dataForParse) {
             throw new Error("No data received from API");
           }
-          // Rx pad: use editedData when present, else digitizeData, else refinedData
+          // PUT/POST: use digitizeData (fresh AI output); fallback to editedData only when no digitizeData
           const editedDataDictate = dataForParse.editedData ?? null;
           const digitizeDataDictate = dataForParse.digitizeData ?? dataForParse.history?.[0]?.digitize ?? null;
-          const dataForPadDictate = editedDataDictate ?? digitizeDataDictate ?? dataForParse.refinedData ?? null;
+          const dataForPadDictate = digitizeDataDictate ?? editedDataDictate ?? dataForParse.refinedData ?? null;
           if (digitizeDataDictate) lastDigitizeDataRef.current = digitizeDataDictate;
 
           let updatedTranscript = null;
@@ -1994,9 +1994,11 @@ const ConsultationDrawer = ({
             let conversationData = null;
 
             if (dataForPadDictate) {
-              prescriptionData = editedDataDictate
-                ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
-                : mapDigitizeDataToPrescription(digitizeDataDictate ?? dataForParse.refinedData);
+              prescriptionData = digitizeDataDictate
+                ? mapDigitizeDataToPrescription(digitizeDataDictate)
+                : (editedDataDictate
+                  ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
+                  : mapDigitizeDataToPrescription(dataForParse.refinedData));
             }
             if (!prescriptionData && (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition)) {
               prescriptionData = responseData;

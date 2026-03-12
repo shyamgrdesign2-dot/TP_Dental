@@ -292,10 +292,9 @@
       }
     }
   }
-}
 
-// Dropdown menu styling
-.ant-dropdown {
+}
+.module-list-item-dropdown {
   // High z-index to be visible, but can still be covered by sticky headers if needed
   z-index: 1050 !important;
 
@@ -363,7 +362,6 @@
   }
 }
 
-// Tooltip styling for disabled menu items (ModuleListItem)
 .ant-tooltip {
   &.module-list-item-disabled-tooltip {
     .ant-tooltip-inner {
@@ -428,3 +426,4 @@
     }
   }
 }
+

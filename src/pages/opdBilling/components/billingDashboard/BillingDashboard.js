@@ -507,7 +507,7 @@ function BillingDashboard({ patientData, fromPath }) {
               patientData={patientData}
               isDashboard={true}
               isPreviewFromTable={true}
-              editBillData={billData}
+              editBillData={billData && Object.keys(billData).length > 0 ? {...billData, patient: {...billData?.patient, patientId: billData?.patientId || patientData?.patient?.patientId}} : null}
               admissionId={billData?.admissionId}
               setEditedBillData={setBillData}
             />

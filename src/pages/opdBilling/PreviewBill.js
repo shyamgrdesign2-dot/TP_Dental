@@ -17,7 +17,7 @@ import {
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../../redux/billingSlice";
 import { useDispatch } from "react-redux";
 import { Container, Navbar } from "react-bootstrap";
-import { handleDownload, isEditBillDisabled, printContent } from "./utils/helper";
+import { handleDownload, isEditBillDisabled, printContent, enrichPatientDataWithAbha } from "./utils/helper";
 import { setLoadingStatus } from "../../redux/uploadDocSlice";
 import { db } from "../../firebase";
 import { deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -208,11 +208,12 @@ const PreviewBill = ({
     isGeneratingRef.current = true;
 
     try {
+      const patientDataWithAbha = await enrichPatientDataWithAbha(patientData, billDetails?.patientId);
       const blob = await pdf(
         <ViewBillPdf
           printSettings={isIpdBill ? ipdBillPrintSettings : billPrintSettings}
           isDepositReceipt={isDepositReceipt}
-          patientData={patientData}
+          patientData={patientDataWithAbha}
           profile={profile}
           billData={billDetails}
           totalAdvanceBalance={totalAdvanceBalance}

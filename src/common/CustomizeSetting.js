@@ -107,6 +107,18 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
         return { ...e };
       });
       updatedData = updatedData.filter((item) => item?.tmdpm_id !== 20);
+      const hasVaccination = updatedData.some((item) => item?.tmdpm_id === 7);
+      if (!hasVaccination) {
+        updatedData.push({
+          tmdpm_id: 7,
+          tmdpm_type: "L",
+          tmdpm_name: "Vaccination",
+          tmdpm_short_name: "Vaccination",
+          tmdpm_status: 1,
+          tmdpm_icon_url:
+            "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/vaccination.svg",
+        });
+      }
       setDataSourceLeft(updatedData);
     }
     dispatch(listVideo());

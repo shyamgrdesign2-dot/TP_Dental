@@ -78,15 +78,18 @@ jobs:
             --name pm-prod-doctor-portal \
             --resource-group tatva-prod \
             --revision ${{ steps.get_green.outputs.GREEN_REVISION }} \
-            --label green
+            --label green \
+            --yes
 
       - name: Re-label previous active revision as blue
+        if: steps.get_blue.outputs.BLUE_REVISION != ''
         run: |
           az containerapp revision label add \
             --name pm-prod-doctor-portal \
             --resource-group tatva-prod \
             --revision ${{ steps.get_blue.outputs.BLUE_REVISION }} \
-            --label blue
+            --label blue \
+            --yes
 
       - name: ✅ Done
         run: echo "Deployment complete. New green revision is deployed at 0% traffic. Ready for testing."

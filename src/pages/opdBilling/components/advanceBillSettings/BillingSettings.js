@@ -65,7 +65,7 @@ const BillingSettings = () => {
 
   const columns = [
     {
-      title: "ITEMS",
+      title: "ITEMS/SERVICES",
       dataIndex: "name",
       key: "name",
     },

@@ -35,6 +35,7 @@ import {
   formatDateWithOrdinal,
   handleDownload,
   printContent,
+  enrichPatientDataWithAbha,
 } from "../../../utils/helper.js";
 import AddAdvance from "../../advanceDeposit/AddAdvance.js";
 import ViewBillPdf from "../../viewBillPdf/ViewBillPdf.js";
@@ -252,25 +253,26 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
       if (status === 1) {
         handleDrawerPreviewBill();
       } else if (status === 2) {
+        const dataToUse =
+          patientData && Object.keys(patientData)?.length > 0
+            ? patientData
+            : {
+                pm_pid: record?.patient?.id,
+                pm_fullname: record?.patient?.name,
+                pm_gender: record?.patient?.gender,
+                pm_contact_no: record?.patient?.phone,
+                tpml_refrence_id: record?.patient?.refId,
+                ageDays: record?.patient?.ageDays,
+                ageMonths: record?.patient?.ageMonths,
+                ageYears: record?.patient?.ageYears,
+                pm_salutation: record?.patient?.salutation,
+                address: record?.patient?.address,
+              };
+        const patientDataWithAbha = await enrichPatientDataWithAbha(dataToUse, record?.patientId);
         const blob = await pdf(
           <ViewBillPdf
             printSettings={billPrintSettings}
-            patientData={
-              patientData && Object.keys(patientData)?.length > 0
-                ? patientData
-                : {
-                  pm_pid: record?.patient?.id,
-                  pm_fullname: record?.patient?.name,
-                  pm_gender: record?.patient?.gender,
-                  pm_contact_no: record?.patient?.phone,
-                  tpml_refrence_id: record?.patient?.refId,
-                  ageDays: record?.patient?.ageDays,
-                  ageMonths: record?.patient?.ageMonths,
-                  ageYears: record?.patient?.ageYears,
-                  pm_salutation: record?.patient?.salutation,
-                  address: record?.patient?.address,
-                }
-            }
+            patientData={patientDataWithAbha}
             profile={profile}
             billData={record}
             isDepositReceipt={true}

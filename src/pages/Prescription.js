@@ -127,7 +127,9 @@ import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
-import { GB_VIDEO_CONSULT } from "../utils/constants";
+import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
+import { setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
+import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
 import {
@@ -197,7 +199,7 @@ function Prescription() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText } = state || {};
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx } = state || {};
   
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
@@ -404,10 +406,10 @@ function Prescription() {
     false
   );
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
-  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const [pillupSwitch, setPillupSwitch] = useState(true);
   const [showSCBanner, setShowSCBanner] = useState(false);
   const [zydusTestReportDrawer, setZydusTestReportDrawer] = useState(false);
@@ -416,12 +418,26 @@ function Prescription() {
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
   const { servicesList } = useSelector((state) => state.doctors);
+
+  const isNormalConsultFlow = !fromVoiceRecording && !send_path && !digitizedData;
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [subModalData, setSubModalData] = useState(null);
   const [useVoiceRx, setUseVoiceRx] = useState(false);
+
+  useEffect(() => {
+    if (teleconsultAutoJoin?.token) {
+      dispatch(setJoinToken(teleconsultAutoJoin.token));
+      if (videoConsultData?.pam_id != null) {
+        dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
+      }
+    }
+  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -479,6 +495,7 @@ function Prescription() {
   }
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
+  const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const contextApi = {
     patient_data,
     send_path,
@@ -672,6 +689,30 @@ function Prescription() {
       message.error("Failed to start video consultation. Please try again.");
     } finally {
       setIsInitiatingCall(false);
+    }
+  };
+
+  const handleTeleconsultClick = async () => {
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+      if (token) {
+        dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
     }
   };
 
@@ -1965,10 +2006,15 @@ function Prescription() {
               labParamsData={labParamsData}
               zydusSelectedLabParams={zydusSelectedLabParams}
               handleGenRx={handleGenRx}
-          handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
-          isVideoConsultLoading={isInitiatingCall}
+              handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
+              isVideoConsultLoading={isInitiatingCall}
+              showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2}
+              onTeleconsultClick={handleTeleconsultClick}
+              isTeleconsultJoinLoading={isTeleconsultJoinLoading}
+              isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
+              hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper">
           <img src={hey} alt="vitals" className="me-3 hey" />

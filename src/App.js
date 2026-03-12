@@ -15,6 +15,7 @@ import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
 import { store, persistor } from "./redux/store";
+import { clearTeleconsultNotification } from "./redux/teleconsultNotificationSlice";
 import {
   FROM_NATIVE_APP,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -74,6 +75,7 @@ const OpdBill = React.lazy(() => import("./pages/opdBilling/OpdBill"));
 const HealthRecords = React.lazy(() => import("./pages/abhaRecords/HealthRecords"));
 const AbhaStandalone = React.lazy(() => import("./pages/abha/AbhaStandalone"));
 const AddNewPatient = React.lazy(() => import("./pages/AddNewPatient"));
+const AppTeleconsultBootstrap = React.lazy(() => import("./components/AppTeleconsultBootstrap"));
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -129,6 +131,8 @@ function App() {
     try {
       if (window.isLoggingOut) return;
       window.isLoggingOut = true;
+
+      store.dispatch(clearTeleconsultNotification());
 
       const statuses = await openUrlsSilently(urlsToOpen);
       console.log("URL statuses:", statuses);
@@ -420,6 +424,7 @@ function App() {
         />
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
+            <AppTeleconsultBootstrap />
             {!isLoginPage && (
               <div
                 style={{

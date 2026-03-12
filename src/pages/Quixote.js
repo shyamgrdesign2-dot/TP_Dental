@@ -214,6 +214,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 patientWalletBalance={props.patientWalletBalance}
                 selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
                 ophthalModuleData={ophthalModuleData}
+                abhaDetails={props.abhaDetails}
             />).toBlob();
             setPdfUrl(URL.createObjectURL(blob))
             dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
@@ -247,7 +248,8 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         smartRxFile,
         props.patientBills,
         props.advanceReceipts,
-        props.patientWalletBalance
+        props.patientWalletBalance,
+        props.abhaDetails
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

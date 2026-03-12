@@ -521,7 +521,8 @@ const ModuleListItem = ({ module, onAddToRx, onViewMore, onDelete }) => {
               open={dropdownVisible}
               onOpenChange={setDropdownVisible}
               placement="bottomRight"
-                  getPopupContainer={(trigger) => document.body}
+              overlayClassName="module-list-item-dropdown"
+              getPopupContainer={(trigger) => document.body}
             >
               <Button
                 type="text"
