@@ -5,6 +5,7 @@ import { useReactToPrint } from 'react-to-print';
 import moment from 'moment';
 import closeIcon from '../../assets/mobile/close 2.svg';
 import printIcon from '../../assets/mobile/Print.svg';
+import { handlePrintClick } from '../../utils/utils';
 import './MobileAncPrintPreview.scss';
 
 /**
@@ -85,10 +86,19 @@ const MobileAncPrintPreview = ({
       message.warning('Please select at least one test to print');
       return;
     }
+    if (!printableRef.current) {
+      message.error('Content not ready. Please try again.');
+      return;
+    }
     setIsPrinting(true);
-    setTimeout(() => {
-      handlePrintWeb();
-    }, 100);
+    // In app WebView: handlePrintClick uses html2pdf → upload → sendMessageToParent(EVENTS.PRINT).
+    // In tunnel/browser: handlePrintClick calls handlePrintWeb() (react-to-print).
+    handlePrintClick(
+      printableRef.current,
+      setIsPrinting,
+      handlePrintWeb,
+      'ancScheduler'
+    );
   };
 
   // Patient info
