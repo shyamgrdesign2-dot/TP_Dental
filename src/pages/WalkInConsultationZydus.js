@@ -195,6 +195,16 @@ function WalkInConsultationZydus() {
         }
     };
 
+    const onTabRxClick = async (record) => {
+        const action = await dispatch(synczyduspatient(record));
+        if (action.meta.requestStatus === "fulfilled") {
+            const result = action.payload;
+            navigate("/tab-rx", { state: { patient_data: { ...result, mrno: record.mrno } } });
+        } else {
+            errorMessage(action.error);
+        }
+    };
+
     const getMenuItems = (record) => {
         const items = [];
 
@@ -412,6 +422,7 @@ function WalkInConsultationZydus() {
                                 onSmartRxClick={onSmartRxClick}
                                 onSnapRxClick={onSnapRxClick}
                                 onVoiceRxClick={onVoiceRxClick}
+                                onTabRxClick={onTabRxClick}
                                 onConsultClick={onConsultClick}
                                 patient={patient}
                                 buttonStyle="walkin"
@@ -541,6 +552,7 @@ function WalkInConsultationZydus() {
                                             onSmartRxClick={onSmartRxClick}
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
+                                            onTabRxClick={onTabRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={clickedPatient}
                                             setAutoCompleteFlag={setAutoCompleteFlag}

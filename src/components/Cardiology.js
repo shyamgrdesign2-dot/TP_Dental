@@ -2078,6 +2078,12 @@ function Cardiology(props) {
     });
   };
 
+  const handleStartTabRx = () => {
+    navigate("/tab-rx", {
+      state: { patient_data: patient_data },
+    });
+  };
+
   const DraftRxAlert = () => {
     return (
       <div className="draft-rx-alert">
@@ -3615,6 +3621,7 @@ function Cardiology(props) {
                       onSmartRxClick={() => handleStartSmartRx()}
                       onSnapRxClick={() => handleStartSnapRx()}
                       onVoiceRxClick={() => handleStartVoiceRx()}
+                      onTabRxClick={() => handleStartTabRx()}
                       onConsultClick={() => handleStartConsult()}
                       patient={patient_data}
                       buttonStyle="walkin"
