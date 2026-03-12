@@ -853,7 +853,7 @@ const ConsultationDrawer = ({
           // Ambient = conversation in history (API returns history[].conversation, no rxDigitizationHistory)
           const isAmbient = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
 
-          // Prescription sources (priority): editedData → digitizeData → refinedData → history[0].digitize
+          // GET: prefer editedData; fallback to digitizeData, then refinedData
           let prescriptionData = d.editedData ?? d.digitizeData ?? null;
           if (!prescriptionData) {
             prescriptionData = d.refinedData ?? null;
@@ -1250,7 +1250,7 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA'];
+    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'fib4', 'waist_circumference'];
     const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
       if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
       const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
@@ -1261,6 +1261,10 @@ const ConsultationDrawer = ({
           result[key] = v;
         }
       });
+      const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
+      if (generalRBSVal !== undefined && generalRBSVal !== null && String(generalRBSVal).trim() !== '') {
+        result.general_rbs = String(generalRBSVal).trim();
+      }
       return result;
     };
 
@@ -1346,7 +1350,7 @@ const ConsultationDrawer = ({
           const { instruction, ...restItem } = item;
           const mappedItem = {
             ...restItem,
-            notes: item.notes || item.instruction || ''
+            notes: item.lineItem || item.instruction || item.notes ||''
           };
           // Preserve hm_type and um_id at top level for API compatibility
           // Check both top level and metadata
@@ -1439,8 +1443,10 @@ const ConsultationDrawer = ({
         mapped.ofc = mapped.headCircumference;
         delete mapped.headCircumference;
       }
-      if (mapped.genralRBS !== undefined) {
-        mapped.general_rbs = mapped["General RBS"] = mapped.genralRBS;
+      const generalRBSVal = mapped.generalRBS ?? mapped.genralRBS;
+      if (generalRBSVal !== undefined) {
+        mapped.general_rbs = generalRBSVal;
+        delete mapped.generalRBS;
         delete mapped.genralRBS;
       }
       digitizeData = { ...digitizeData, vitalsAndBodyComposition: mapped };
@@ -1489,9 +1495,10 @@ const ConsultationDrawer = ({
       mapped.headCircumference = mapped.ofc;
       delete mapped.ofc;
     }
-    if (mapped.general_rbs !== undefined || mapped["General RBS"] !== undefined) {
-      const val = mapped.general_rbs ?? mapped["General RBS"];
-      mapped.genralRBS = val;
+    const generalRBSVal = mapped.general_rbs ?? mapped["General RBS"] ?? mapped.generalRBS ?? mapped.genralRBS;
+    if (generalRBSVal !== undefined) {
+      mapped.genralRBS = generalRBSVal;
+      mapped.generalRBS = generalRBSVal;
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
@@ -1972,10 +1979,10 @@ const ConsultationDrawer = ({
           if (!dataForParse) {
             throw new Error("No data received from API");
           }
-          // Rx pad: use editedData when present, else digitizeData, else refinedData
+          // PUT/POST: use digitizeData (fresh AI output); fallback to editedData only when no digitizeData
           const editedDataDictate = dataForParse.editedData ?? null;
           const digitizeDataDictate = dataForParse.digitizeData ?? dataForParse.history?.[0]?.digitize ?? null;
-          const dataForPadDictate = editedDataDictate ?? digitizeDataDictate ?? dataForParse.refinedData ?? null;
+          const dataForPadDictate = digitizeDataDictate ?? editedDataDictate ?? dataForParse.refinedData ?? null;
           if (digitizeDataDictate) lastDigitizeDataRef.current = digitizeDataDictate;
 
           let updatedTranscript = null;
@@ -1986,9 +1993,11 @@ const ConsultationDrawer = ({
             let conversationData = null;
 
             if (dataForPadDictate) {
-              prescriptionData = editedDataDictate
-                ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
-                : mapDigitizeDataToPrescription(digitizeDataDictate ?? dataForParse.refinedData);
+              prescriptionData = digitizeDataDictate
+                ? mapDigitizeDataToPrescription(digitizeDataDictate)
+                : (editedDataDictate
+                  ? (editedDataDictate.symptoms !== undefined || editedDataDictate.medications !== undefined ? editedDataDictate : mapDigitizeDataToPrescription(editedDataDictate))
+                  : mapDigitizeDataToPrescription(dataForParse.refinedData));
             }
             if (!prescriptionData && (responseData.symptoms || responseData.medications || responseData.vitalsAndBodyComposition)) {
               prescriptionData = responseData;
@@ -2258,10 +2267,14 @@ const ConsultationDrawer = ({
         }),
       };
 
-      // Do not send tcv_id, tcbc_id, dev_unique_id in patch payload
       const editedDataForApi = { ...updatedPrescriptionData };
       if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
         const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
+        const generalRBSVal = vitalsRest.general_rbs ?? vitalsRest["General RBS"] ?? vitalsRest.generalRBS ?? vitalsRest.genralRBS;
+        if (generalRBSVal != null && String(generalRBSVal).trim() !== "") vitalsRest.generalRBS = String(generalRBSVal).trim();
+        delete vitalsRest.general_rbs;
+        delete vitalsRest["General RBS"];
+        delete vitalsRest.genralRBS;
         editedDataForApi.vitalsAndBodyComposition = vitalsRest;
       }
 
@@ -2826,7 +2839,7 @@ const ConsultationDrawer = ({
       weight: String(v.weight || v.Weight || '').trim(),
       ofc: String(v.ofc || v.OFC || '').trim(),
       sugar: String(v.sugar || v.Sugar || '').trim(),
-      general_rbs: String(v['General RBS'] || v.general_rbs || '').trim(),
+      general_rbs: String(v['General RBS'] || v.general_rbs || v.generalRBS || v.genralRBS || '').trim(),
       fib4: String(v.FIB4 || v.fib4 || '').trim(),
       waist_circumference: String(v['Waist Circumference'] || v.waist_circumference || '').trim(),
       bmi: String(v.BMI || v.bmi || '').trim(),

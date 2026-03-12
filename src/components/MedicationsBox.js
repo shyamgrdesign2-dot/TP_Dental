@@ -45,6 +45,7 @@ import { env } from "../EnvironmentConfig";
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
+import FreeBadge from "../common/FreeBadge";
 
 
 const { TextArea } = Input;
@@ -154,7 +155,12 @@ function MedicationsBox() {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
-        label: <div><span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}</div>,
+        label: (
+          <div>
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
+            <FreeBadge show={e?.is_free} />
+          </div>
+        ),
       });
     });
     if (doseCalculatorDrawer) {

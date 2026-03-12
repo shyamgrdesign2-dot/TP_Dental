@@ -1,9 +1,11 @@
 {
   "name": "react-thyrocare",
-  "version": "4.5.7",
+  "version": "4.5.8",
   "private": true,
   "homepage": "/",
   "dependencies": {
+    "@cloudflare/realtimekit-react": "^1.2.4",
+    "@cloudflare/realtimekit-react-ui": "^1.1.0",
     "@dnd-kit/core": "^6.1.0",
     "@dnd-kit/modifiers": "^7.0.0",
     "@dnd-kit/sortable": "^8.0.0",
@@ -82,6 +84,7 @@
     "slate-history": "^0.113.1",
     "slate-react": "^0.118.2",
     "slick-carousel": "^1.8.1",
+    "smart-webcomponents-react": "^25.5.0",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"

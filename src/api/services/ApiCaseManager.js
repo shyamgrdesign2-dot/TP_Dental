@@ -70,6 +70,10 @@ ApiCaseManager.listConsultations = function (data) {
     return api.post(`/api/v1/casemanager/listConsultations`, data, consultationBaseUrl);
 };
 
+ApiCaseManager.getRecentConsultations = function (patient_unique_id) {
+    return api.get(`/api/v1/casemanager/getRecentConsultations?patient_unique_id=${encodeURIComponent(patient_unique_id)}`, consultationBaseUrl);
+};
+
 ApiCaseManager.draftToConsultation = function (data) {
     return api.post(`/api/v1/casemanager/draft-to-consultation`, data, baseUrl);
 };

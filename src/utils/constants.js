@@ -31,6 +31,7 @@ export const PATIENT_DETAILS_SIDEBAR_KEYS = {
   MEDICAL_RECORDS: 3,
   BILL_PAYMENT: 4,
   ABHA_RECORDS: 5,
+  HEALTH_CHECKUP_REPORT: 6,
 };
 
 export const TAB_QUEUE = 0;
@@ -90,6 +91,7 @@ export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
+export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -111,6 +113,7 @@ export const GB_SNAP_RX_DIGITIZATION = "snap-rx-digitization";
 export const GB_DISABLE_MSG91_OTP_FLOW = "disable-msg91-otp-flow";
 export const GB_CARE_PLAN = "care-plan-dropdown";
 export const GB_VIDEO_CONSULT = "video-consult";
+export const GB_TELE_CONSULT = "tele-consult";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
@@ -451,10 +454,11 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
   "9825337281",
   "9825023998",
   "9978957799",
-  "9167437770"
+  "9167437770",
+  "8980019439"
 ];
 
 // Custom Canvas Size Increased upto 20 
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [
-  524,25734
+  524,25734,30098
 ];

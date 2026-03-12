@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Spin } from "antd";
 import ViewBillPdf from "./components/viewBillPdf/ViewBillPdf";
 import { isAndroid } from "react-device-detect";
+import { enrichPatientDataWithAbha } from "./utils/helper";
 
 const OpdBill = () => {
   const urlParams = new URLSearchParams(window.location.search);
@@ -97,11 +98,12 @@ const OpdBill = () => {
   };
 
   const makePDFUrl = async () => {
+    const patientDataWithAbha = await enrichPatientDataWithAbha(patientData, patientId);
     const blob = await pdf(
       <ViewBillPdf
         printSettings={billPrintSettings}
         isDepositReceipt={isDepositReceipt}
-        patientData={patientData}
+        patientData={patientDataWithAbha}
         profile={profile}
         billData={billDetails}
         totalAdvanceBalance={patientWalletBalance}

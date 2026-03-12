@@ -1140,7 +1140,7 @@ function Cardiology(props) {
     // navigate(0, { replace: true });
   };
 
-  const handleEditRxClick = () => {
+  const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
       doctor_id: profile?.doctor_unique_id,
       patient_id:
@@ -1177,21 +1177,43 @@ function Cardiology(props) {
         },
         });
       } else {
-       
+
+        let videoConsultData;
+        try {
+          const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+          if (tcmId) {
+            const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+            const statusType = response?.data?.pam_status_type_appointment;
+            const pamId = response?.data?.pam_id;
+
+            if (statusType === 2 && pamId) {
+              videoConsultData = {
+                pam_id: pamId,
+                pam_status_type_appointment: statusType,
+              };
+            } else {
+            }
+          } else {
+          }
+        } catch (error) {
+        }
+
         if (isAmbientRx) {
           window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
         } else {
           window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
         }
-        
-        navigate("/prescription", {
-          state: {
+
+        const prescriptionState = {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
           isEditRx: true,
-        },
-      });
+          ...(videoConsultData ? { videoConsultData } : {}),
+        };
+        navigate("/prescription", {
+          state: prescriptionState,
+        });
     }
   };
 
@@ -1619,7 +1641,7 @@ function Cardiology(props) {
                   {item?.name || 'N/A'}
                 </td>
                 <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
-                  {item?.notes || item?.note || '-'}
+                  {item?.lineItem || item?.instruction || item?.note || item?.notes || '-'}
                 </td>
               </tr>
             ))}

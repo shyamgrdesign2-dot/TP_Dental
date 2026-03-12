@@ -46,7 +46,7 @@ import {
   onlyDecimalFormat,
   trackEvent,
 } from "../../../../utils/utils";
-import { formatDateWithOrdinal } from "../../utils/helper";
+import { formatDateWithOrdinal, enrichPatientDataWithAbha } from "../../utils/helper";
 import PreviewBill from "../../PreviewBill";
 import ViewBillPdf from "../viewBillPdf/ViewBillPdf";
 import { pdf } from "@react-pdf/renderer";
@@ -660,14 +660,20 @@ function AddAdvance({
         pm_salutation: patient.salutation,
         address: patient.address,
       };
+      const dataToUse =
+        patientData && Object.keys(patientData).length > 0
+          ? patientData
+          : upadtedPatientData;
+      const patientDataWithAbha = await enrichPatientDataWithAbha(
+        dataToUse,
+        billData?.patientId ||
+          patientDetails?.patientUniqueId ||
+          record?.patientId,
+      );
       const blob = await pdf(
         <ViewBillPdf
           printSettings={billPrintSettings}
-          patientData={
-            patientData && Object.keys(patientData).length > 0
-              ? patientData
-              : upadtedPatientData
-          }
+          patientData={patientDataWithAbha}
           profile={profile}
           billData={record}
           isDepositReceipt={true}
@@ -783,7 +789,8 @@ function AddAdvance({
         patientId:
           patientDetails?.patientUniqueId ||
           patientData?.patientUniqueId ||
-          patientData?.patient_unique_id,
+          patientData?.patient_unique_id ||
+          patientData?.patientId,
         transactionType: selectedTab === 2 ? "Refund" : "Deposit",
         paymentModes: selectedTab === 2 ? [...refundModes] : [...advanceModes],
         totalAmount: selectedTab === 2 ? totalRefundAmount : totalAdvanceAmount,
@@ -856,6 +863,7 @@ function AddAdvance({
       sortOrder: sortConfig?.order || "desc",
       patientId:
         patientData?.patient_unique_id ||
+        patientData?.patientId ||
         billData?.patientId ||
         patientData?.patientUniqueId ||
         patientDetails?.patientUniqueId,
@@ -913,6 +921,7 @@ function AddAdvance({
         advanceModes.every((mode) => mode.paymentMode && mode.amount > 0) &&
         (patientData?.pm_fullname ||
           patientData?.patientName ||
+          patientData?.name ||
           patientDetails?.patientName)
       );
       // ) && (depositDate || patientData?.apDate) &&
@@ -923,6 +932,7 @@ function AddAdvance({
         refundModes.every((mode) => mode.paymentMode && mode.amount > 0) &&
         (patientData?.pm_fullname ||
           patientData?.patientName ||
+          patientData?.name ||
           patientDetails?.patientName)
       );
       //   (depositDate || patientData?.apDate) &&
@@ -1041,6 +1051,7 @@ function AddAdvance({
                         >
                           {patientData?.pm_fullname ||
                             patientData?.patientName ||
+                            patientData?.name ||
                             patientDetails?.patientName}
                         </span>
                       </div>
@@ -1049,6 +1060,7 @@ function AddAdvance({
                         <span className="patientInfo">
                           {patientData?.pm_contact_no ||
                             patientData?.mobileNumber ||
+                            patientData?.phone ||
                             patientDetails?.mobileNumber}
                         </span>
                       </div>
@@ -1057,6 +1069,7 @@ function AddAdvance({
                         <span className="patientInfo">
                           {patientData?.pm_pid ||
                             patientData?.pmPid ||
+                            patientData?.id ||
                             patientDetails?.patientId}
                         </span>
                       </div>

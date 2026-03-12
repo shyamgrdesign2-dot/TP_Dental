@@ -75,12 +75,15 @@ import {
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
   GB_VIDEO_CONSULT,
+  GB_TELE_CONSULT,
   GB_NEW_IPD,
   GB_NEW_IPD_HOS_BUSINESS_ID,
   TAB_DRAFT_RX,
   GB_OPTHAL_MODULE,
   GB_SAVE_AS_DRAFT_RX,
   GB_APPT_SEQUENCE,
+  GB_HEALTH_CHECKUP_REPORT,
+  PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -102,6 +105,9 @@ import suporticon from "../assets/images/suport-icon.svg";
 import windoc from "../assets/images/win-doc.png";
 import AbhaIcon from '../assets/images/abha-svg.svg';
 import videoIcon from "../assets/images/video_icon.svg";
+import videoSvg from "../assets/images/video.svg";
+import videoOngoingSvg from "../assets/images/video-ongoing.svg";
+import blinkingDotSvg from "../assets/images/blinking-dot.svg";
 import { saveAs } from "file-saver";
 
 import CommonModal from "../common/CommonModal";
@@ -123,6 +129,7 @@ import {
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { changeSortOrder } from "../redux/doctorsSlice";
+import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 import CreateCertificate from "./medical_certificate/CreateCertificate";
 import { resetVaccineState } from "../redux/vaccineSlice";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
@@ -208,6 +215,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     snapRxUnDigitisedIds,
     draftRxCount,
   } = useSelector((state) => state.records);
+  const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId } = useSelector(
+    (state) => state.teleconsultNotification
+  );
   const dispatch = useDispatch();
 
   const [date, setDate] = useState({
@@ -230,6 +240,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isAppointmentAgentAccessableFromGB =
     useFeatureIsOn("appointment-agent");
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
 
   const [zydusSearchQuery, setZydusSearchQuery] = useState("");
   const [matchedAppointment, setMatchedAppointment] = useState([]);
@@ -273,6 +284,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
   const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
+  const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
   const showHideSubModal = () => {
     setIsSubModalOpen(!isSubModalOpen);
@@ -1380,6 +1392,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
 
+    if (isHealthCheckupReportAccessableFromGB) {
+      items.push({
+        label: (
+          <span
+            onClick={() => {
+              navigate("/patient_details", { state: { patient_data: record, sidebarKey: PATIENT_DETAILS_SIDEBAR_KEYS.HEALTH_CHECKUP_REPORT } });
+            }}
+          >
+            Generate Health Check-up Report
+          </span>
+        ),
+        key: "generateHealthCheckupReport",
+      });
+    }
+
     if (record?.abhaAddress && profile?.HipID && profile?.abhaEnable) {
       items.push({
         label: (
@@ -1437,8 +1464,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     const decodedToken = getDecodedToken();
     const tokenData = decodedToken?.result;
     
-    // Create video consultation data object with only necessary fields
-    const videoConsultData = record.pam_status_type_appointment === 1 ? {
+    const videoConsultData = (record.pam_status_type_appointment === 1 || record.pam_status_type_appointment === 2) ? {
       pam_id: record.pam_id,
       pam_status_type_appointment: record.pam_status_type_appointment,
     } : undefined;
@@ -2267,13 +2293,41 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         const displayText = getDisplayText();
         const isVideoConsultation = isVideoConsultAccessibleFromGB &&
           record.pam_status_type_appointment === 1;
-        
+        const isTeleConsultation = isTeleConsultEnabled &&
+          record.pam_status_type_appointment === 2;
+        const teleconsultStatus = record.teleconsultStatus ?? appointmentStatusByAppointmentId?.[record.pam_id];
+        const isTeleconsultOngoing = isTeleConsultation && teleconsultStatus === "ONGOING";
+
         return (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div>
-              <span className="text-lowercase">
-              {selectedTab === TAB_FINISHED ? record.finishedTime : record.apTime} {displayText}
-              </span> <br />{" "}
+              <div style={{ display: "inline-flex", alignItems: "center" }}>
+                <span className="text-lowercase">
+                  {selectedTab === TAB_FINISHED ? record.finishedTime : record.apTime} {displayText}
+                </span>
+                {isTeleConsultation && (
+                  <span
+                    style={{
+                      padding: "2px 4px",
+                      flexShrink: 0,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "2px"
+                    }}
+                    title={isTeleconsultOngoing ? "Meeting in progress" : "Tele-Consultation"}
+                  >
+                    {isTeleconsultOngoing ? (
+                      <>
+                        <img src={videoOngoingSvg} alt="Meeting in progress" width="12" height="12" style={{ flexShrink: 0 }} />
+                        <img src={blinkingDotSvg} alt="" width="8" height="8" style={{ flexShrink: 0 }} />
+                      </>
+                    ) : (
+                      <img src={videoSvg} alt="Tele-Consultation" width="19" height="19" style={{ flexShrink: 0 }} />
+                    )}
+                  </span>
+                )}
+              </div>
+              <br />{" "}
               <small> {record.apDate}</small>
             </div>
             {isVideoConsultation && (
@@ -2727,6 +2781,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     if (recentBillDrawer && isReceptionist) {
       getPatientBills(appointmentSelectedFromMenu);
     }
+    if (createBillDrawer) {
+      setBillData(null);
+    }
   }, [createBillDrawer]);
 
   const handleAddAdvanceDrawer = useCallback(() => {
@@ -2950,6 +3007,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     };
                     const action = await dispatch(cancelAppointments(sendData));
                     if (action.meta.requestStatus === "fulfilled") {
+                      if (activeTeleconsultAppointmentId != null && String(sendData.pam_id) === String(activeTeleconsultAppointmentId)) {
+                        dispatch(setJoinToken(null));
+                      }
                       handleConfirmationModal();
                       message.open({
                         key: MESSAGE_KEY,
@@ -2986,7 +3046,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         }
       />
     );
-  }, [isConfirmationModalOpen]);
+  }, [isConfirmationModalOpen, activeTeleconsultAppointmentId]);
 
   const END_VISIT_REASON_DISPLAY_MODAL = useMemo(() => {
     return (
@@ -3621,7 +3681,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             isBackModalOpen={isBackModalOpen}
             showHideBackModal={showHideBackModal}
             patientData={appointmentSelectedFromMenu}
-            editBillData={billData}
+            editBillData={billData && Object.keys(billData).length > 0 ? {...billData, patient: {...billData?.patient, patientId: billData?.patientId || billData?.patient?.patientId}} : null}
+            setEditedBillData={setBillData}
           />
         </Drawer>
       )}

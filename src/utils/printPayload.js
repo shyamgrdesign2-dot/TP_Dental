@@ -63,7 +63,7 @@ export const renderPrintPayloadToBlob = async (
     labReportData,
     ophthalModuleData,
     zydusLabData,
-    abhaDetails,
+    abhaDetails
   } = payload;
 
   const combinedCaseManagerData = {
@@ -72,7 +72,7 @@ export const renderPrintPayloadToBlob = async (
     labParamsData,
     labReportData,
     ophthalModuleData,
-    ...(zydusLabData?.data ? { zydusSelectedLabParams: zydusLabData.data } : {}),
+    ...(zydusLabData?.length > 0 ? { zydusSelectedLabParams: zydusLabData } : {}),
   };
 
   const todayVaccines = {
@@ -111,6 +111,8 @@ export const renderPrintPayloadToBlob = async (
       smartRxData={smartDigitizeRxData}
       growthChartDetails={growthChartDetails}
       isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+      gynecHistoryData={gynecHistoryData}
+      labParamsData={labParamsData}
       obsHistoryData={obsHistoryData}
       customModules={normalizedCustomModules}
       patientBills={patientBills}
@@ -118,6 +120,7 @@ export const renderPrintPayloadToBlob = async (
       patientWalletBalance={patientWalletBalance}
       selectedLang={resolvedLang}
       ophthalModuleData={ophthalModuleData}
+      zydusLabData={zydusLabData?.length > 0 ? {data: zydusLabData} : null}
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
     />

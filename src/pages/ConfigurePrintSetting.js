@@ -31,6 +31,7 @@ import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
+import ApiAbha from "../api/services/ApiAbha";
 
 function ConfigurePrintSetting() {
 
@@ -61,6 +62,7 @@ function ConfigurePrintSetting() {
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
+    const [abhaDetails, setAbhaDetails] = useState(null);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -77,6 +79,7 @@ function ConfigurePrintSetting() {
     useEffect(() => {
         growthChartDetails.getGrowthChartDetails();
         getPatientBills();
+        fetchAbhaDetails();
     }, []);
 
     // Fetch care plan assignments for PDF rendering (used by Quixote/ViewPDF)
@@ -292,6 +295,13 @@ function ConfigurePrintSetting() {
         setPatientWalletBalance(patientWalletBalanceRes?.advanceDepositBalance);
     };
 
+    const fetchAbhaDetails = async () => {
+        const abhaDetails = await ApiAbha.fetchAbhaDetails(caseManagerData?.patient_data?.patient_unique_id);
+        if (abhaDetails && Object.keys(abhaDetails).length > 0) {
+            setAbhaDetails(abhaDetails);
+        }
+    };
+
     return (
         <PrintSettingsContext.Provider value={contextApi}>
             <>
@@ -316,7 +326,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>
