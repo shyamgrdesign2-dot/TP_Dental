@@ -830,6 +830,7 @@ function TabRxPrescriptionPrintView() {
             zydusSelectedLabParams: zydusSelectedLabParams,
           },
           pam_id: pam_id,
+          smartRxFile,
           from: "/tab-rx-prescription",
           smartRxFile
         },
