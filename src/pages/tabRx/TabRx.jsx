@@ -1334,6 +1334,7 @@ function TabRx() {
   // Drawer Vaccination
   const handleDrawerVaccination = (chartType) => {
     setCollapsedFlag(3);
+    setCollapsed(false);
     setVaccinationDrawer(!vaccinationDrawer);
     if (!vaccinationDrawer) {
       trackEvent("TP_Vac_Module", {
@@ -1351,6 +1352,7 @@ function TabRx() {
   // Drawer Growth Chart
   const handleDrawerGrowth = () => {
     setCollapsedFlag(5);
+    setCollapsed(false);
     setGrowthDrawer(!growthDrawer);
     setIsGrowthChart(!isGrowthChart);
   };
