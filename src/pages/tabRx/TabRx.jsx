@@ -615,7 +615,7 @@ function TabRx() {
     if (smartRxFilesData && Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0) {
       setSmartRxFiles(smartRxFilesData);
       setHasCanvasContent(true);
-      const firstUrl = smartRxFilesData[0]?.fileUrl;
+      const firstUrl = smartRxFilesData[0]?.smart_prescription_file || smartRxFilesData[0]?.fileUrl;
       if (firstUrl) {
         setBackgroundImageUrl(firstUrl);
       }
