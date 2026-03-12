@@ -168,6 +168,21 @@ export const getDefaultPrintsettings = createAsyncThunk(
     let result = {};
     result = await ApiPrintSettings.getDefaultPrintsettings(data);
     if (result.status) {
+      const patientInfo = result?.data?.header_footer?.patient_info;
+      if (Array.isArray(patientInfo)) {
+        const ensureItem = (id, title) => {
+          const exists = patientInfo.some(
+            (item) =>
+              item?.id === id ||
+              (item?.title && String(item.title).trim() === title)
+          );
+          if (!exists) {
+            patientInfo.push({ id, title, enable: "N" });
+          }
+        };
+        ensureItem(15, "ABHA ID");
+        ensureItem(16, "ABHA Registration Number");
+      }
       return result.data;
     } else {
       throw Error(result.error);

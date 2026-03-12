@@ -15,10 +15,10 @@ export const useAccess = (patientAge = 0) => {
   );
 
   return {
-    isVaccinationAccessable:
-      isVaccinationAccessableFromGB ||
-      profile?.dp_name === PAEDIATRICS ||
-      profile?.dp_id === NEO_NATOLOGISTS_DP_ID,
+    isVaccinationAccessable: true,
+      // isVaccinationAccessableFromGB ||
+      // profile?.dp_name === PAEDIATRICS ||
+      // profile?.dp_id === NEO_NATOLOGISTS_DP_ID,
     isGrowthChartAccessable:
       (isGrowthChartAccessableFromGB || profile?.dp_name === PAEDIATRICS || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) &&
       patientAge <= 18,

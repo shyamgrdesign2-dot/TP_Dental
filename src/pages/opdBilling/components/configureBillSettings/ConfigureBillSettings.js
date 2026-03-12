@@ -17,7 +17,8 @@ import { pdf } from "@react-pdf/renderer";
 import BillPageFormatLayout from "./BillPageFormatLayout";
 import BillHeaderFooterLayout from "./BillHeaderFooterLayout";
 import ViewBillPdf from "../viewBillPdf/ViewBillPdf";
-import { deletePrintSetting, updatePrintSetting } from "../../service";
+import { deletePrintSetting, fetchPrintSetting, updatePrintSetting } from "../../service";
+import { enrichPatientDataWithAbha } from "../../utils/helper";
 import { useSelector } from "react-redux";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../../../../redux/billingSlice";
 import { useDispatch } from "react-redux";
@@ -33,8 +34,10 @@ const ConfigureBillSettings = ({
   isIpdBill,
 }) => {
   const dispatch = useDispatch();
-  const { defaultPrintSettings, profile } = useSelector(
-    (state) => state.doctors
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
+  const { defaultPrintSettings, profile, userId } = useSelector(
+    (state) => state.doctors,
   );
   const { billPrintSettings, advancedSettings, ipdBillPrintSettings } = useSelector(
     (state) => state.billing
@@ -208,10 +211,14 @@ const ConfigureBillSettings = ({
   }, [printSettings, defaultPrintSettings]);
 
   const makePDFUrl = async () => {
+    const patientDataWithAbha = await enrichPatientDataWithAbha(
+      patientData,
+      billData?.patientId,
+    );
     const blob = await pdf(
       <ViewBillPdf
         printSettings={printSettings}
-        patientData={patientData}
+        patientData={patientDataWithAbha}
         profile={profile}
         billData={billData}
         isDepositReceipt={isDepositReceipt}
@@ -239,8 +246,19 @@ const ConfigureBillSettings = ({
     setLoadSuccesss(true);
   };
 
+  const getBillPrintSettings = async () => {
+    const printSettingsResponse = await fetchPrintSetting(
+      isReceptionist ? urlParams.get("um_id") : userId,
+    );
+    if (printSettingsResponse) {
+      setPrintSettings(printSettingsResponse);
+      dispatch(setBillPrintSettings(printSettingsResponse));
+    }
+  };
+
   const handleDefaultSettings = async () => {
     await deletePrintSetting(isIpdBill ? "ipdBill" : "");
+    getBillPrintSettings();
     showHideBackModal(null);
   };
 

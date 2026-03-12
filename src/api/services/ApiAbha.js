@@ -5,6 +5,7 @@ import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 
 const baseUrl = { customBaseUrl: config.abha_api_url };
 const abhaRecordsApiUrl = { customBaseUrl: config.abha_records_api_url };
+const ipdBaseUrl = { customBaseUrl: config.ipd_api_url };
 
 const ApiAbha = {};
 
@@ -162,7 +163,19 @@ ApiAbha.linkPatientUniqueidWithAbha = function (data) {
     data,
     baseUrl
   );
-}
+};
+
+/**
+ * Fetch ABHA details for a patient by patientUniqueId (IPD API).
+ * @param {string} patientUniqueId - Patient unique ID
+ * @returns {Promise} API response
+ */
+ApiAbha.fetchAbhaDetails = function (patientUniqueId) {
+  return api.get(
+    `/patients/fetch-abha-details?patientUniqueId=${patientUniqueId}`,
+    ipdBaseUrl
+  );
+};
 
 ApiAbha.downloadAbhaCard = function (data) {
   // Used axios directly for blob response

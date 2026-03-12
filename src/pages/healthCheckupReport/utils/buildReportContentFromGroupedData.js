@@ -1,0 +1,572 @@
+import { HEALTH_CHECKUP_REPORT_TEMPLATE_HTML } from "../constants";
+
+const PATIENT_HISTORY_ROW_NAMES = [
+  "Medical Condition",
+  "Allergies",
+  "Lifestyle",
+  "Family History",
+  "Surgical History",
+  "Additional History",
+];
+
+const GENERAL_EXAM_ROW_NAMES = [
+  "Temperature",
+  "BP",
+  "SpO2",
+  "RR",
+  "Pulse",
+  "Weight",
+  "Height",
+  "BMI",
+];
+
+const RADIOLOGY_ROW_NAMES = [
+  "X ray Chest",
+  "USG Whole Abdomen",
+  "Mammography",
+  "BMD",
+  "CT Coronary Angio",
+  "Carotid Colour Doppler",
+  "MRI",
+];
+
+const CONSULTATIONS_DEPARTMENT_ROW_NAMES = [
+  "Ophthalmologist",
+  "Dentist",
+  "ENT Surgeon",
+  "Orthopaedic Surgeon",
+  "Gynaecology",
+  "Dermatology",
+  "Cardiologist",
+  "Paediatric",
+  "Physician",
+];
+
+const GENERAL_RECOMMENDATIONS_TEXT =
+  "Regular health check ups can identify any early warning signs of major health issues. When you have a health check up, your doctor will talk to you about your and your family's medical history, enlisting your lifestyle and conditions including your diet, weight, physical activity, alcohol use and smoking habits etc. Your doctor may include health check up as an advice even if you are here for any other illnesses. Team of Zydus hospitals is grateful to you for your trust in us and we shall do our best to assure your complete well being.";
+
+function escapeHtml(str) {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatDate(d) {
+  if (!d) return "";
+  try {
+    const date = typeof d === "string" ? new Date(d) : d;
+    return isNaN(date.getTime())
+      ? String(d)
+      : date
+        .toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+        .replace(/\//g, "/");
+  } catch (_) {
+    return String(d);
+  }
+}
+
+function getPatientInfo(consultations, patient_data) {
+  const first = consultations?.[0];
+  const patient = patient_data || first?.patientData || {};
+  const name =
+    patient_data?.pm_fullname ||
+    patient?.patient_name ||
+    patient?.name ||
+    patient?.pm_name ||
+    "";
+  const age = patient_data?.ageYears || patient?.age || patient?.patient_age || "";
+  const gender =
+    patient_data?.pm_gender ||
+    patient?.gender ||
+    patient?.patient_gender ||
+    "";
+  const contact =
+    patient_data?.pm_contact_no ??
+    patient?.contact_no ??
+    patient?.phone ??
+    "";
+  const date = first?.consultation_date
+    ? formatDate(first.consultation_date)
+    : formatDate(new Date());
+  const mrno = patient?.pm_reference_id || patient?.mrn || "";
+  const packageDetails =
+    patient?.package_name ?? patient?.package_details ?? "";
+  return {
+    name: name || "",
+    ageGender: [age, gender].filter(Boolean).join(", ") || "",
+    contact: contact || "",
+    date: date || "",
+    patientId: mrno || "",
+    packageDetails: packageDetails || "",
+  };
+}
+
+/** Maps API dp_name to one of CONSULTATIONS_DEPARTMENT_ROW_NAMES. */
+function getDepartmentRowName(consultation) {
+  const doc = consultation?.doctor_data || consultation?.doctorData || {};
+  const dp = (doc.dp_name ?? doc.department_name ?? doc.specialty ?? "").trim();
+  if (!dp) return null;
+  const lower = dp.toLowerCase();
+  if (lower.includes("ophthalm")) return "Ophthalmologist";
+  if (lower.includes("dental") || lower.includes("dentist")) return "Dentist";
+  if (/\bent\b/.test(lower) || lower.includes("ear nose throat")) return "ENT Surgeon";
+  if (lower.includes("orthopaed") || lower.includes("orthoped"))
+    return "Orthopaedic Surgeon";
+  if (
+    lower.includes("gynaec") ||
+    lower.includes("gynec") ||
+    lower.includes("obstet")
+  )
+    return "Gynaecology";
+  if (lower.includes("dermat")) return "Dermatology";
+  if (lower.includes("cardio")) return "Cardiologist";
+  if (
+    lower.includes("paediatr") ||
+    lower.includes("pediatr") ||
+    lower.includes("paediatric")
+  )
+    return "Paediatric";
+  if (lower.includes("physician") || lower.includes("general"))
+    return "Physician";
+  return null;
+}
+
+/**
+ * Format one consultation as plain text (Symptoms, Examinations, Medical History, Diagnosis, Medicines, Advice).
+ */
+function formatConsultationAsPrintViewNotes(consultation) {
+  if (!consultation || typeof consultation !== "object") return "";
+  const parts = [];
+  const syms = consultation.symptoms ?? [];
+  if (syms.length > 0) {
+    const lines = syms.map((item) => {
+      const name = item.symptom_name ?? item.name ?? "";
+      const since = item.since ?? "";
+      const severity = item.severity ?? "";
+      const note = item.note ?? "";
+      const extra = [since && `since: ${since}`, severity && `severity: ${severity}`, note]
+        .filter(Boolean)
+        .join(", ");
+      return extra ? `${name} (${extra})` : name;
+    });
+    parts.push("Symptoms:\n" + lines.join(", "));
+  }
+  const exams = consultation.examination ?? [];
+  if (exams.length > 0) {
+    const lines = exams.map((item) => {
+      const name = item.examination_name ?? item.name ?? "";
+      const note = item.note ?? "";
+      return note ? `${name} (${note})` : name;
+    });
+    parts.push("Examinations:\n" + lines.join(", "));
+  }
+  const mh = consultation.medical_history ?? [];
+  if (mh.length > 0) {
+    const lines = mh
+      .map((item) => {
+        const title = item.title ?? item.name ?? item.conditionName ?? "";
+        const tags = item.tags;
+        const remarks =
+          item.medical_history_remarks ?? item.remarks ?? "";
+        if (Array.isArray(tags) && tags.length > 0) {
+          return tags
+            .map(
+              (t) =>
+                (t.title ?? t.conditionName ?? t.name ?? "") +
+                (t.details ?? t.value ? ` (${t.details ?? t.value})` : "")
+            )
+            .join(", ");
+        }
+        return remarks || title;
+      })
+      .filter(Boolean);
+    if (lines.length) parts.push("Medical History:\n" + lines.join("\n"));
+  }
+  const diag = consultation.diagnosis ?? [];
+  if (diag.length > 0) {
+    const lines = diag.map((item) => {
+      const name = item.tds_name ?? item.name ?? "";
+      const code = item.icd_code ?? "";
+      const note = item.note ?? "";
+      return code
+        ? `${name} (${code})${note ? ` - ${note}` : ""}`
+        : name + (note ? ` - ${note}` : "");
+    });
+    parts.push("Diagnosis:\n" + lines.join(", "));
+  }
+  const meds = consultation.medicine ?? [];
+  if (meds.length > 0) {
+    const lines = meds.map((item) => {
+      const name =
+        item.tmm_medicine_name ?? item.medicine_name ?? item.name ?? "";
+      const dosage = item.tmm_dosage ?? item.dosage ?? "";
+      const unit =
+        item.medicineUnit?.find(
+          (x) => x.tmu_id === (item.tmm_unit ?? item.unit)
+        )?.tmu_title ?? "";
+      const freq =
+        item.tcm_tmm_freq_morning ??
+          item.tcm_tmm_freq_afternoon ??
+          item.tcm_tmm_freq_evening ??
+          item.tcm_tmm_freq_night
+          ? [
+            item.tcm_tmm_freq_morning,
+            item.tcm_tmm_freq_afternoon,
+            item.tcm_tmm_freq_evening,
+            item.tcm_tmm_freq_night,
+          ]
+            .filter(Boolean)
+            .join("-")
+          : "";
+      const duration =
+        item.tmm_days && item.tmm_duration_type
+          ? `${item.tmm_days} ${item.tmm_duration_type}`
+          : item.tmm_duration_type ?? "";
+      const bits = [
+        name,
+        dosage && unit ? `${dosage} ${unit}` : dosage || unit,
+        freq,
+        duration,
+      ].filter(Boolean);
+      return bits.join(", ");
+    });
+    parts.push("Medicines:\n" + lines.join("\n"));
+  }
+  const adv = consultation.advice ?? [];
+  if (adv.length > 0) {
+    const lines = adv
+      .map((a) =>
+        typeof a === "string" ? a : a?.value ?? a?.advice ?? a?.text ?? ""
+      )
+      .filter(Boolean);
+    if (lines.length) parts.push("Advice:\n" + lines.join("\n"));
+  }
+  const visitAdvice = consultation.visit_advice;
+  if (
+    visitAdvice &&
+    typeof visitAdvice === "string" &&
+    visitAdvice.trim()
+  ) {
+    parts.push("Visit Advice:\n" + visitAdvice.trim());
+  }
+  return parts.join("\n\n");
+}
+
+function symptomsToHtmlList(symptoms) {
+  if (!symptoms || symptoms.length === 0) return "<p>&nbsp;</p>";
+  const items = symptoms
+    .map((item) => {
+      const name = escapeHtml(
+        item.symptom_name ?? item.name ?? item.value ?? ""
+      );
+      const duration = item.duration ?? item.since ?? "";
+      const severity = item.severity ?? item.status ?? "";
+      const notes = item.notes ?? item.remark ?? "";
+      const details = [duration, severity, notes].filter(Boolean).join(", ");
+      const detailStr = details ? ` (${escapeHtml(details)})` : "";
+      return `<li><p><strong>${name}</strong>${detailStr}</p></li>`;
+    })
+    .join("");
+  return `<ul>${items}</ul>`;
+}
+
+function medicalHistoryToHtmlList(items) {
+  if (!items || items.length === 0) return "<p>&nbsp;</p>";
+
+  const flatten = (item) => {
+    if (typeof item === "string") {
+      return `<li><p>${escapeHtml(item)}</p></li>`;
+    }
+    const title = item.title ?? item.name ?? item.conditionName ?? "";
+    const since = item.since ?? item.duration ?? "";
+    const status = item.status ?? item.state ?? "";
+    const medication = item.medication ?? "";
+    const notes =
+      item.notes ??
+      item.details ??
+      item.value ??
+      item.remarks ??
+      item.medical_history_remarks ??
+      "";
+    const detailParts = [];
+    if (since) detailParts.push(`Since: ${escapeHtml(since)}`);
+    if (status) detailParts.push(`Status: ${escapeHtml(status)}`);
+    if (medication) detailParts.push(`Medication: ${escapeHtml(medication)}`);
+    if (notes) detailParts.push(escapeHtml(notes));
+    const details = detailParts.join(" | ");
+
+    if (Array.isArray(item.tags) && item.tags.length > 0) {
+      return item.tags
+        .map((tag) => {
+          const tagName = escapeHtml(
+            tag.title ?? tag.conditionName ?? tag.name ?? ""
+          );
+          const tagDetails = tag.details ?? tag.value ?? "";
+          const tagSince = tag.since ?? "";
+          const tagStatus = tag.status ?? "";
+          const tagMeds = tag.medication ?? "";
+          const tagParts = [];
+          if (tagSince) tagParts.push(`Since: ${escapeHtml(tagSince)}`);
+          if (tagStatus) tagParts.push(`Status: ${escapeHtml(tagStatus)}`);
+          if (tagMeds) tagParts.push(`Medication: ${escapeHtml(tagMeds)}`);
+          if (tagDetails) tagParts.push(escapeHtml(tagDetails));
+          const tagDetailsStr = tagParts.join(" | ");
+          return `<li><p><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</p></li>`;
+        })
+        .join("");
+    }
+    return `<li><p><strong>${escapeHtml(title)}</strong>${details ? ` (${details})` : ""}</p></li>`;
+  };
+
+  const lis = items.map(flatten).flat().join("");
+  return `<ul>${lis}</ul>`;
+}
+
+/**
+ * Returns full report body HTML built from grouped consultation data.
+ * If no groupedConsultationData, returns the blank template HTML.
+ */
+export function buildReportContentFromGroupedData(
+  groupedConsultationData,
+  patient_data,
+  profile = null
+) {
+  if (!groupedConsultationData) {
+    return HEALTH_CHECKUP_REPORT_TEMPLATE_HTML;
+  }
+
+  const {
+    symptoms = [],
+    medical_history = [],
+    vitals = [],
+    advice = [],
+    consultations = [],
+  } = groupedConsultationData;
+
+  const patientInfo = getPatientInfo(consultations, patient_data);
+  const doctorName = profile?.um_name || profile?.name || profile?.doctorName || "";
+  const impressionText = doctorName
+    ? `Impression (Dr. ${escapeHtml(doctorName)})`
+    : "Impression (Dr. ______________)";
+
+  const today = new Date();
+  const dateStr = `${String(today.getDate()).padStart(2, "0")}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+  const preparedBy = doctorName ? escapeHtml(doctorName).toUpperCase() : "";
+
+  // Patient info table
+  const patientTable = `
+  <table class="report-patient-table">
+  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+  <tr>
+    <td class="report-patient-left">
+      <p>Patient Name: <strong>${escapeHtml(patientInfo.name)}</strong></p>
+      <p>Age/Gender: ${escapeHtml(patientInfo.ageGender)}</p>
+      <p>Contact No: ${escapeHtml(patientInfo.contact)}</p>
+    </td>
+    <td class="report-patient-right">
+      <p>Date: <strong>${escapeHtml(patientInfo.date)}</strong></p>
+      <p>MRN: <strong>${escapeHtml(patientInfo.patientId)}</strong></p>
+      <p>Package Details: <strong>${escapeHtml(patientInfo.packageDetails)}</strong></p>
+    </td>
+  </tr>
+  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+</table>
+`;
+
+  // Chief Complaints
+  const chiefHtml =
+    symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "<p>&nbsp;</p>";
+  const chiefSection = `
+<h2 class="report-section-title">Chief Complaints:</h2>
+<div class="report-section-box">${chiefHtml}</div>`;
+
+
+  // Patient History: aggregate by row name
+  const historyByRowName = {};
+  PATIENT_HISTORY_ROW_NAMES.forEach((name) => {
+    historyByRowName[name] = [];
+  });
+  medical_history.forEach((entry) => {
+    const data = entry?.data;
+    const items = Array.isArray(data)
+      ? data
+      : data && typeof data === "object"
+        ? [data]
+        : [];
+    items.forEach((item) => {
+      const title = (item?.title ?? item?.name ?? "").trim();
+      if (!title && !item?.tags) return;
+      const rowName =
+        PATIENT_HISTORY_ROW_NAMES.find(
+          (r) => r.toLowerCase() === title.toLowerCase()
+        ) ?? title;
+      if (!historyByRowName[rowName]) historyByRowName[rowName] = [];
+      historyByRowName[rowName].push(item);
+    });
+    if (entry?.data?.medical_history_remarks) {
+      const formatted = String(entry.data.medical_history_remarks).trim();
+      if (formatted)
+        historyByRowName["Additional History"].push({
+          name: "Note",
+          remarks: formatted,
+        });
+    }
+  });
+
+  const historyRows = PATIENT_HISTORY_ROW_NAMES.map((rowName) => {
+    const items = historyByRowName[rowName] || [];
+    const cellContent =
+      items.length > 0 ? medicalHistoryToHtmlList(items) : "<p>&#8203;</p>";
+    return `    <tr><td><p>${escapeHtml(rowName)}</p></td><td>${cellContent}</td></tr>`;
+  }).join("\n");
+
+  const patientHistorySection = `
+<h2 class="report-section-title">Patient History</h2>
+<table class="report-data-table">
+  <thead><tr><th><p>NAME</p></th><th><p>NOTE</p></th></tr></thead>
+  <tbody>
+${historyRows}
+  </tbody>
+</table>`;
+
+  // General Examination vitals
+  const latestVital =
+    [...vitals].reverse().find(
+      (v) =>
+        v &&
+        typeof v === "object" &&
+        (v.temp != null || v.blood_press != null || v.spo2 != null)
+    ) ?? vitals[vitals.length - 1];
+  const v = typeof latestVital === "object" ? latestVital : {};
+
+  const generalExaminationSection = `
+<h2 class="report-section-title">General Examination</h2>
+<table class="report-data-table report-general-exam-grid top-row-grid">
+  <tbody>
+    <tr>
+      <th><p>Temp</p></th><td><p>${escapeHtml(v.temp ?? "") || "&#8203;"}</p></td>
+      <th><p>BP</p></th><td><p>${escapeHtml(v.blood_press ?? "") || "&#8203;"}</p></td>
+      <th><p>SPO2</p></th><td><p>${escapeHtml(v.spo2 ?? "") || "&#8203;"}</p></td>
+      <th><p>RR</p></th><td><p>${escapeHtml(v.resp_rate ?? "") || "&#8203;"}</p></td>
+      <th><p>Pulse</p></th><td><p>${escapeHtml(v.pres ?? "") || "&#8203;"}</p></td>
+    </tr>
+  </tbody>
+</table>
+<table class="report-data-table report-general-exam-grid bottom-row-grid" style="margin-top: 24px;">
+  <tbody>
+    <tr>
+      <th><p>Weight</p></th><td><p>${escapeHtml(v.weight ?? "") || "&#8203;"}</p></td>
+      <th><p>Height</p></th><td><p>${escapeHtml(v.height ?? "") || "&#8203;"}</p></td>
+      <th><p>BMI</p></th><td><p>${escapeHtml(v.bmi ?? "") || "&#8203;"}</p></td>
+    </tr>
+  </tbody>
+</table>`;
+
+  // Radiology table (static row names, empty notes for now unless we have a mapping)
+  const radiologyRows = RADIOLOGY_ROW_NAMES.map(
+    (name) => `    <tr><td><p>${escapeHtml(name)}</p></td><td><p>&#8203;</p></td></tr>`
+  ).join("\n");
+
+  const radiologySection = `
+<h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
+<table class="report-data-table">
+  <thead><tr><th><p>NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <tbody>
+${radiologyRows}
+  </tbody>
+</table>`;
+
+  const consultationRows = CONSULTATIONS_DEPARTMENT_ROW_NAMES.map(
+    (rowDeptName) => {
+      const matching = consultations.filter(
+        (c) => getDepartmentRowName(c) === rowDeptName
+      );
+      const latest =
+        matching.length > 0
+          ? matching.reduce((a, b) =>
+            (a?.tcm_id ?? 0) >= (b?.tcm_id ?? 0) ? a : b
+          )
+          : null;
+      let doctorName = "";
+      let notesCell = "<p>&#8203;</p>";
+      if (latest) {
+        const docData = latest.doctor_data || latest.doctorData || {};
+        const docName =
+          docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
+        if (docName) doctorName = docName;
+        const notes = formatConsultationAsPrintViewNotes(latest);
+        if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
+      }
+      return `<tr><td><p>${escapeHtml(rowDeptName) + " " + escapeHtml(doctorName)}</p></td><td>${notesCell}</td></tr>`;
+    }
+  ).join("\n");
+
+  const consultationsSection = `
+<h2 class="report-section-title">Consultations</h2>
+<table class="report-data-table">
+  <thead><tr><th><p>DEPARTMENT & DOCTOR NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <tbody>
+${consultationRows}
+  </tbody>
+</table>`;
+
+  // Impression
+  const impressionSection = `
+<h2 class="report-section-title">${impressionText}</h2>
+<div class="report-section-box"><p>&nbsp;</p></div>`;
+
+  // Advice
+  const adviceText = advice
+    .map((a) => (typeof a === "string" ? a : a?.value ?? a?.advice ?? a?.text ?? ""))
+    .filter(Boolean)
+    .join("\n\n");
+  const adviceSection = `
+<h2 class="report-section-title">Advice</h2>
+<div class="report-section-box"><p>${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&nbsp;"}</p></div>`;
+
+  // General Recommendations (fixed text)
+  const generalRecSection = `
+<h2 class="report-section-title">General Recommendations</h2>
+<div class="report-section-box"><p>${escapeHtml(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
+
+
+  // Prepared By / Verified By
+  const preparedBySection = `
+<table class="report-data-table">
+  <thead><tr><th><p>PREPARED BY</p></th><th><p>DATE</p></th></tr></thead>
+  <tbody>
+    <tr><td><p>${preparedBy}</p></td><td><p>${escapeHtml(dateStr)}</p></td></tr>
+  </tbody>
+  <thead><tr><th><p>VERIFIED BY</p></th><th><p>DATE</p></th></tr></thead>
+  <tbody>
+    <tr><td><p>${preparedBy}</p></td><td><p>${escapeHtml(dateStr)}</p></td></tr>
+  </tbody>
+</table>`;
+
+  const headerSection = `<div class="report-doc-header">
+  <img src="/ZydusLogo.png" alt="Hospital Logo" class="report-doc-header-logo" />
+  <p class="report-doc-header-title">HEALTH CHECK-UP SUMMARY</p>
+</div>`;
+
+  return [
+    headerSection,
+    patientTable,
+    chiefSection,
+    patientHistorySection,
+    generalExaminationSection,
+    radiologySection,
+    consultationsSection,
+    impressionSection,
+    adviceSection,
+    generalRecSection,
+    preparedBySection,
+  ].join("\n\n");
+}

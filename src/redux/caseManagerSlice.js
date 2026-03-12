@@ -223,12 +223,12 @@ const caseManagerSlice = createSlice({
     initialState,
     reducers: {
         resetViewCaseManagerData: (state) => {
-          state.viewCaseManagerData = null;
+            state.viewCaseManagerData = null;
         },
         resetConsultations: (state) => {
             state.consultations = [];
         },
-      },
+    },
     extraReducers: (builder) => {
         builder
             .addCase(oneClickAddTemplate.pending, (state) => {

@@ -261,7 +261,7 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData, abhaDetails } = props
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
     const labParamsData = caseManagerData?.labParamsData
     const gynecHistoryData = props.gynecHistoryData || caseManagerData?.gynecHistoryData;
@@ -286,6 +286,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         )
     );
     const patientBirthWeight = caseManagerData?.patient_birth_weight ?? null;
+    const isTeleconsultType2 = Number(caseManagerData?.pam_status_type_appointment) === 2;
     const isPediatricAccessable = caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID || caseManagerData?.doctor_data?.dp_id == NEO_NATOLOGISTS_DP_ID;
 
     const { growthChartData, growthChartImageData, todayGrowthChartData } =
@@ -377,6 +378,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = `${caseManagerData?.patient_data?.patient_id ? caseManagerData?.patient_data?.patient_id : '-'}`
         } else if (id == 14) {
             value = `${caseManagerData?.patient_data?.patient_dob ? caseManagerData?.patient_data?.patient_dob : '-'}`
+        } else if (id == 15) {
+            value = `${abhaDetails?.abha_address ? abhaDetails?.abha_address : "-"}`;
+        } else if (id == 16) {
+            value = `${abhaDetails?.abha_number ? abhaDetails?.abha_number : "-"}`;
         }
         return value
     }
@@ -1776,13 +1781,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         const isLastItem = ii === innerMedication(pItem.index)?.length -1;
                                                                         return (
                                                                             <View style={{ flexGrow: 1, flexDirection: 'row', borderBottom: ii != innerMedication(pItem.index)?.length - 1 ? '1px solid #171725' : '0px' }} key={ii}>
+                                                                                {option?.medicine_option?.length && isTapered && !isLastItem && (
+                                                                                    <ThenConnector printSettings={printSettings} />
+                                                                                )}
                                                                                 {option?.medicine_option?.includes('dose') && (
-                                                                                  <>
                                                                                     <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit).tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit).tmu_title : ""}`}`}</Text>
-                                                                                    {isTapered && !isLastItem && (
-                                                                                      <ThenConnector printSettings={printSettings} />
-                                                                                    )}
-                                                                                  </>
                                                                                 )}
                                                                                 {option?.medicine_option?.includes('frequency') && (
                                                                                 <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
@@ -6261,6 +6264,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
                                             </Text>
                                         )}
+                                        {isTeleconsultType2 && (
+                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
+                                                Note: This Prescription generated via teleconsultation.
+                                            </Text>
+                                        )}
                                     </View>
                                 </View>
                             ) : (
@@ -6279,6 +6287,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {printSettings?.header_footer?.other_settings?.qualification_enable === 'Y' && (
                                             <Text style={[styles.extraText, { fontWeight: 400, color: '#000' }]}>
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
+                                            </Text>
+                                        )}
+                                        {isTeleconsultType2 && (
+                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
+                                                Note: This Prescription generated via teleconsultation.
                                             </Text>
                                         )}
                                     </View>
@@ -6327,6 +6340,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {printSettings?.header_footer?.other_settings?.qualification_enable === 'Y' && (
                                             <Text style={[styles.extraText, { fontWeight: 400, color: '#000' }]}>
                                                 {printSettings?.header_footer?.other_settings?.qualification ? printSettings?.header_footer?.other_settings?.qualification : caseManagerData?.doctor_data?.um_qualifications}
+                                            </Text>
+                                        )}
+                                        {isTeleconsultType2 && (
+                                            <Text style={[styles.extraText, { fontWeight: 400, color: '#000', marginBottom: PX_TO_PT * 20 }]}>
+                                                Note: This Prescription generated via teleconsultation.
                                             </Text>
                                         )}
                                     </View>
