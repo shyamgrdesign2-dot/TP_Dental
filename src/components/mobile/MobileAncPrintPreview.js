@@ -204,47 +204,54 @@ const MobileAncPrintPreview = ({
         <div ref={printableRef} className="anc-print-content">
           <style>
             {`
+              /* Applied always so html2pdf (html2canvas) on mobile captures styled content.
+                 html2canvas does not use @media print, so styles must be in default context. */
+              .anc-print-content {
+                padding: 20px;
+                font-family: 'Poppins', sans-serif;
+                width: 100%;
+                min-width: 600px;
+                box-sizing: border-box;
+              }
+              .anc-print-content .print-header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #4b4ad5;
+                padding-bottom: 15px;
+              }
+              .anc-print-content .print-header h1 {
+                font-size: 24px;
+                color: #4b4ad5;
+                margin: 0 0 10px 0;
+              }
+              .anc-print-content .patient-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-size: 14px;
+              }
+              .anc-print-content .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+                table-layout: fixed;
+              }
+              .anc-print-content .print-table th {
+                background-color: #f1f1f5;
+                padding: 10px;
+                text-align: left;
+                font-weight: 600;
+                border: 1px solid #ddd;
+              }
+              .anc-print-content .print-table td {
+                padding: 8px 10px;
+                border: 1px solid #ddd;
+              }
+              .anc-print-content .print-table tr:nth-child(even) {
+                background-color: #f9f9f9;
+              }
               @media print {
-                .anc-print-content {
-                  padding: 20px;
-                  font-family: 'Poppins', sans-serif;
-                }
-                .print-header {
-                  text-align: center;
-                  margin-bottom: 20px;
-                  border-bottom: 2px solid #4b4ad5;
-                  padding-bottom: 15px;
-                }
-                .print-header h1 {
-                  font-size: 24px;
-                  color: #4b4ad5;
-                  margin: 0 0 10px 0;
-                }
-                .patient-info {
-                  display: flex;
-                  justify-content: space-between;
-                  margin-bottom: 20px;
-                  font-size: 14px;
-                }
-                .print-table {
-                  width: 100%;
-                  border-collapse: collapse;
-                  margin-top: 15px;
-                }
-                .print-table th {
-                  background-color: #f1f1f5;
-                  padding: 10px;
-                  text-align: left;
-                  font-weight: 600;
-                  border: 1px solid #ddd;
-                }
-                .print-table td {
-                  padding: 8px 10px;
-                  border: 1px solid #ddd;
-                }
-                .print-table tr:nth-child(even) {
-                  background-color: #f9f9f9;
-                }
+                @page { size: A4; margin: 0.5in; }
               }
             `}
           </style>
