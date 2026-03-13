@@ -37,6 +37,7 @@ import { useTncConsent } from "./hooks/useTncConsent";
 import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
 import BottomSheetManager from "./components/bottomSheetManager";
 import FullPageLoader from "./pages/vaccination/components/Loader";
+import AppTeleconsultBootstrap from "./components/AppTeleconsultBootstrap";
 
 const AppointmentList = React.lazy(() => import("./pages/AppointmentList"));
 const PatientDetails = React.lazy(() => import("./pages/PatientDetails"));
@@ -75,7 +76,6 @@ const OpdBill = React.lazy(() => import("./pages/opdBilling/OpdBill"));
 const HealthRecords = React.lazy(() => import("./pages/abhaRecords/HealthRecords"));
 const AbhaStandalone = React.lazy(() => import("./pages/abha/AbhaStandalone"));
 const AddNewPatient = React.lazy(() => import("./pages/AddNewPatient"));
-const AppTeleconsultBootstrap = React.lazy(() => import("./components/AppTeleconsultBootstrap"));
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
