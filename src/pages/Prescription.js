@@ -196,7 +196,7 @@ function Prescription() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx } = state || {};
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx } = state || {};
   
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
@@ -368,8 +368,8 @@ function Prescription() {
     state?.tcm_id ??
     state?.tcmId ??
     0;
-  const tcmId = Number(rawTcmId) || 0;
-  const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+  const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : Number(rawTcmId);
+  const pamId = fromRepeatRx ? 0 : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
   const consultationDate =
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
