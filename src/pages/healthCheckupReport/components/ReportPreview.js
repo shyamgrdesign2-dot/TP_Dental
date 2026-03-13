@@ -2,13 +2,13 @@ import React, { useCallback, useRef, useState } from "react";
 import { Drawer, Button } from "antd";
 import dayjs from "dayjs";
 
-import ZydusLogo from "../../../assets/images/website-images/ZydusLogo.png";
+import ZydusLogo from "../../../assets/images/website-images/ZydusLogo.webp";
 import HealthCheckupDocument from "./HealthCheckupDocument";
 import { printReportWithIframe } from "../utils/printReportWithIframe";
 import "./HealthCheckupReportEditor.scss";
 
 import "./ReportPreview.scss";
-import editIconWhite from "../../../assets/images/edit-white.png";
+import editIconWhite from "../../../assets/images/edit-white.webp";
 import { MdChevronLeft } from "react-icons/md";
 
 function ReportPreview({
