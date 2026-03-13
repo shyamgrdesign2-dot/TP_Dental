@@ -26,6 +26,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { viewCaseManager } from "../redux/caseManagerSlice";
+import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import CommonModal from "../common/CommonModal";
@@ -48,7 +49,7 @@ function SmartRxPreview() {
     const divRef = useRef(null);
     const printRef = useRef();
 
-    const { servicesList } = useSelector((state) => state.doctors);
+    const { servicesList, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
     const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
     const {
         loading,
@@ -78,8 +79,11 @@ function SmartRxPreview() {
         }
     };
 
-    // Default to English for all users
-    const initialLanguage = 1;
+    // Same as consult flow: doctor default from print settings, then patient default from API when available
+    const initialLanguage =
+      defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English"
+        ? defaultPrintSettings.default_language
+        : 1;
 
     const [selectedLang, setSelectedLang] = useState(initialLanguage);
     const basePrintUrl = state?.print_url || null;
@@ -97,8 +101,6 @@ function SmartRxPreview() {
     const [smartRxFile, setSmartRxFile] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [buttonText, setButtonText] = useState("Send to WhatsApp");
-
-    const { profile } = useSelector((state) => state.doctors);
 
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
@@ -142,6 +144,18 @@ function SmartRxPreview() {
     useEffect(() => {
         setDivWidth(divRef.current?.offsetWidth);
     }, [divRef]);
+
+    const getPatientDefaultLanguage = async () => {
+        if (!patient_data?.patient_unique_id) return;
+        const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
+        if (res?.settings?.defaultLanguage) {
+            setSelectedLang(res.settings.defaultLanguage);
+        }
+    };
+
+    useEffect(() => {
+        getPatientDefaultLanguage();
+    }, [patient_data?.patient_unique_id]);
 
     useEffect(() => {
         message.open({

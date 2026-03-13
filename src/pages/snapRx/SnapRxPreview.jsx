@@ -79,7 +79,11 @@ function SnapRxPreview() {
     }
   };
 
-  const initialLanguage = defaultPrintSettings?.default_language || 1;
+  // Same as consult flow: doctor default from print settings, then patient default from API when available
+  const initialLanguage =
+    defaultPrintSettings?.default_language && defaultPrintSettings?.default_language !== "English"
+      ? defaultPrintSettings.default_language
+      : 1;
 
   const [selectedLang, setSelectedLang] = useState(initialLanguage);
   const basePrintUrl = state?.print_rx_url || state?.print_url || null;
@@ -143,6 +147,18 @@ function SnapRxPreview() {
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
+
+  const getPatientDefaultLanguage = async () => {
+    if (!patient_data?.patient_unique_id) return;
+    const res = await fetchPatientDefaultLanguage(patient_data.patient_unique_id);
+    if (res?.settings?.defaultLanguage) {
+      setSelectedLang(res.settings.defaultLanguage);
+    }
+  };
+
+  useEffect(() => {
+    getPatientDefaultLanguage();
+  }, [patient_data?.patient_unique_id]);
 
   useEffect(() => {
     message.open({
@@ -247,17 +263,6 @@ function SnapRxPreview() {
         console.error(e);
       }
     }
-  }, []);
-
-  const getPatientDefaultLanguage = async () => {
-    const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
-    if (res?.settings?.defaultLanguage) {
-      setSelectedLang(res?.settings?.defaultLanguage);
-    }
-  };
-
-  useEffect(() => {
-    getPatientDefaultLanguage();
   }, []);
 
   useEffect(() => {
