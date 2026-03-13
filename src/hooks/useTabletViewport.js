@@ -1,41 +1,22 @@
 import { useState, useEffect } from 'react';
 
-/**
- * Tablet viewport breakpoints (px).
- * Matches typical tablet widths: iPad mini (768), iPad (1024), etc.
- */
-const TABLET_MIN_WIDTH = 768;
-const TABLET_MAX_WIDTH = 1180;
+const TABLET_QUERY = '(min-width: 600px) and (max-width: 1280px)';
 
-/**
- * Returns whether the current viewport is in the tablet width range.
- * Uses window width + resize/orientation listeners so layout updates on rotate or resize.
- *
- * @returns {boolean} true when viewport width is >= 768 and <= 1180
- */
 export function useTabletViewport() {
   const [isTabletViewport, setIsTabletViewport] = useState(() => {
     if (typeof window === 'undefined') return false;
-    const w = window.innerWidth;
-    return w >= TABLET_MIN_WIDTH && w <= TABLET_MAX_WIDTH;
+    return window.matchMedia(TABLET_QUERY).matches;
   });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const update = () => {
-      const w = window.innerWidth;
-      const next = w >= TABLET_MIN_WIDTH && w <= TABLET_MAX_WIDTH;
-      setIsTabletViewport(prev => (prev === next ? prev : next));
-    };
+    const mql = window.matchMedia(TABLET_QUERY);
+    const update = (e) => setIsTabletViewport(e.matches);
 
-    window.addEventListener('resize', update);
-    window.addEventListener('orientationchange', update);
+    mql.addEventListener('change', update);
 
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('orientationchange', update);
-    };
+    return () => mql.removeEventListener('change', update);
   }, []);
 
   return isTabletViewport;
