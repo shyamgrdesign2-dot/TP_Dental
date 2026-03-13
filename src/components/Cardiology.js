@@ -3963,7 +3963,7 @@ function Cardiology(props) {
                 <p className="mt-4 fontroboto">
                   No visit found for this patient yet
                 </p>
-                <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", "marginLeft": "25%" }}>
+                <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", margin: "0 auto" }}>
                   {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <PrimaryActionButton
                       isSmartRxAccessible={isSmartSyncAccessableFromGB}
