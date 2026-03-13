@@ -61,7 +61,7 @@ const OnboardingCarousel = () => {
       title: "Supercharge Your",
       subtitle: "Research with TatvaAI",
       image: tatvaAiBanner,
-      imageAvif: heroAvifs.tatvaAiBanner,
+      imageAvif: null,
       utmKey: "tatvaai",
     },
     {
@@ -163,21 +163,24 @@ const OnboardingCarousel = () => {
               </div>
               <div className="banner-container">
                 <picture>
-                  <source srcSet={item.imageAvif} type="image/avif" />
+                  {item.imageAvif ? (
+                    <source srcSet={item.imageAvif} type="image/avif" />
+                  ) : null}
                   <source srcSet={item.image} type="image/webp" />
                   <img
                     src={item.image}
                     alt={item.title}
                     loading={index === 0 ? "eager" : "lazy"}
-                    fetchpriority={index === 0 ? "high" : "auto"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
                     width={641}
                     height={496}
                     style={{
-                      aspectRatio: "641 / 496",
-                      width: "100%",
-                      height: "auto",
                       display: "block",
+                      width: "100%",
+                      maxWidth: "641px",
+                      height: "auto",
+                      aspectRatio: "641 / 496",
                     }}
                   />
                 </picture>
