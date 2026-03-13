@@ -1843,7 +1843,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
-                    <Col sm="auto" className='h-100'>
+                    <Col sm="auto" className={`h-100 ${isTablet ? 'pr-0' : ''}`}>
                         <div className='align-items-center d-flex h-100'>
                             <div className='border-end h-100 text-center'>
                                 <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
