@@ -368,8 +368,8 @@ function Prescription() {
     state?.tcm_id ??
     state?.tcmId ??
     0;
-  const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : Number(rawTcmId);
-  const pamId = fromRepeatRx ? 0 : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+  const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : Number(rawTcmId);
+  const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
   const consultationDate =
     caseManagerData !== undefined
       ? caseManagerData.consultation_date
