@@ -402,7 +402,7 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null } } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null },fromRepeatRx: true } })
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
