@@ -7,37 +7,24 @@ import {
   useLocation,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
-import { Provider } from "react-redux";
-import { PersistGate } from "redux-persist/integration/react";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
-import { store, persistor } from "./redux/store";
-import { clearTeleconsultNotification } from "./redux/teleconsultNotificationSlice";
 import {
   FROM_NATIVE_APP,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
-  TNC_VERSION,
 } from "./utils/constants";
 import { useLocalStorage } from "./utils/localStorage";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./common/ErrorFallback";
-import TalkativeWidget from "./components/TalkativeWidget";
-import DemoExpirationBanner from "./common/DemoExpirationBanner";
-import PlanExpirationBanner from "./common/PlanExpirationBanner";
-import DoctorModal from "./common/DoctorModal";
-import ExpiredPlanCard from "./common/ExpiredPlanCard";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
-import UpgradeServicesModal from "./pages/monetization/components/UpgradeServicesModal";
-import BottomSheetManager from "./components/bottomSheetManager";
 import FullPageLoader from "./pages/vaccination/components/Loader";
-import AppTeleconsultBootstrap from "./components/AppTeleconsultBootstrap";
 
 const AppointmentList = React.lazy(() => import("./pages/AppointmentList"));
 const PatientDetails = React.lazy(() => import("./pages/PatientDetails"));
@@ -76,6 +63,25 @@ const OpdBill = React.lazy(() => import("./pages/opdBilling/OpdBill"));
 const HealthRecords = React.lazy(() => import("./pages/abhaRecords/HealthRecords"));
 const AbhaStandalone = React.lazy(() => import("./pages/abha/AbhaStandalone"));
 const AddNewPatient = React.lazy(() => import("./pages/AddNewPatient"));
+const TalkativeWidget = React.lazy(() => import("./components/TalkativeWidget"));
+const AppTeleconsultBootstrap = React.lazy(
+  () => import("./components/AppTeleconsultBootstrap")
+);
+const DemoExpirationBanner = React.lazy(
+  () => import("./common/DemoExpirationBanner")
+);
+const PlanExpirationBanner = React.lazy(
+  () => import("./common/PlanExpirationBanner")
+);
+const DoctorModal = React.lazy(() => import("./common/DoctorModal"));
+const ExpiredPlanCard = React.lazy(() => import("./common/ExpiredPlanCard"));
+const BottomSheetManager = React.lazy(
+  () => import("./components/bottomSheetManager")
+);
+const UpgradeServicesModal = React.lazy(
+  () => import("./pages/monetization/components/UpgradeServicesModal")
+);
+const AppStoreProvider = React.lazy(() => import("./redux/AppStoreProvider"));
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -132,7 +138,18 @@ function App() {
       if (window.isLoggingOut) return;
       window.isLoggingOut = true;
 
-      store.dispatch(clearTeleconsultNotification());
+      try {
+        const [{ store }, { clearTeleconsultNotification }] = await Promise.all([
+          import("./redux/store"),
+          import("./redux/teleconsultNotificationSlice"),
+        ]);
+        store.dispatch(clearTeleconsultNotification());
+      } catch (dispatchError) {
+        console.warn(
+          "Could not clear teleconsult notification during logout:",
+          dispatchError
+        );
+      }
 
       const statuses = await openUrlsSilently(urlsToOpen);
       console.log("URL statuses:", statuses);
@@ -404,6 +421,105 @@ function App() {
     setIsUpgradeModal(false);
   };
 
+  const appRoutes = (
+    <Suspense fallback={<FullPageLoader />}>
+      <SentryRoutes>
+        {/* Public route */}
+        <Route path="/login" element={<Onboarding />} />
+        <Route path="/our-offerings" element={<OurOffering />} />
+        <Route path="/final-setup" element={<FinalSetup />} />
+
+        {/* Restricted route - authorized only to get/upload snapRx files */}
+        <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
+        <Route
+          path="ophthal-snap-rx/mobile-upload"
+          element={<OphthalUploadRx />}
+        />
+
+        {/* ABHA Standalone - Can work with URL auth token */}
+        <Route path="/abha-standalone" element={<AbhaStandalone />} />
+
+        {/* Protected routes */}
+        <Route element={<PrivateRoute />}>
+          <Route path="/*" element={<AppointmentList />} />
+          <Route
+            path="create-campaign"
+            element={<MessageCreateCampaign />}
+          />
+          <Route path="patient_details" element={<PatientDetails />} />
+          <Route
+            path="prescription"
+            element={isMobile ? <TabPrescription /> : <Prescription />}
+          />
+          <Route
+            path="prescription_print_view"
+            element={<PrescriptionPrintView />}
+          />
+          <Route
+            path="configure_print_setting"
+            element={<ConfigurePrintSetting />}
+          />
+          <Route path="certificate" element={<MedicalCertificate />} />
+          <Route
+            path="certificate_print_view"
+            element={<CertificatePrintView />}
+          />
+          <Route
+            path="smart-prescription"
+            element={<SmartPrescription />}
+          />
+          <Route path="print-smart-rx" element={<SmartRxPreview />} />
+          <Route path="doctor_profile" element={<DoctorProfile />} />
+          <Route
+            path="doctor_website_setting"
+            element={<DoctorWebsiteSetting />}
+          />
+          <Route path="smart-rx-digitise" element={<SmartRxDigitise />} />
+          <Route
+            path="apollo-consultations"
+            element={<ApolloConsultations />}
+          />
+          <Route
+            path="gen-rx-print"
+            element={<GenRxPrescriptionPrintView />}
+          />
+          <Route
+            path="billing-dashboard"
+            element={<BillingDashboard />}
+          />
+          <Route path="all_patients" element={<AllPatients />} />
+          <Route path="billing-settings" element={<BillingSettings />} />
+          <Route path="add-appointment" element={<AddAppointment />} />
+          {isReceptionist ? (
+            <Route path="add_patient" element={<AddNewPatient />} />
+          ) : null}
+          <Route path="snap-rx" element={<SnapRx />} />
+          <Route path="snap-rx/preview" element={<SnapRxPreview />} />
+          <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
+          <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
+          <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
+          <Route
+            path="get-unlimited-access"
+            element={<GetUnlimitedAccess />}
+          />
+          <Route
+            path="appointment-agent"
+            element={<AppointmentAgent />}
+          />
+          <Route
+            path="appointment-agent/success"
+            element={<AppointmentSuccess />}
+          />
+          <Route
+            path="abha-records/health-records"
+            element={<HealthRecords />}
+          />
+        </Route>
+        <Route path="opd-bill" element={<OpdBill />} />
+      </SentryRoutes>
+    </Suspense>
+  );
+
   return (
     <GrowthBookProvider growthbook={growthbook}>
       <ErrorBoundary
@@ -418,132 +534,50 @@ function App() {
           console.error(details);
         }}
       >
-        <TalkativeWidget
-          region="au"
-          configUuid="3f5d31d7-aae5-43f2-903a-2dc2d90a36f3"
-        />
-        <Provider store={store}>
-          <PersistGate loading={null} persistor={persistor}>
-            <AppTeleconsultBootstrap />
-            {!isLoginPage && (
-              <div
-                style={{
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 199,
-                }}
-              >
-                <DemoExpirationBanner />
-                <PlanExpirationBanner />
-                <ExpiredPlanCard />
-                <DoctorModal />
-                <BottomSheetManager />
-              </div>
-            )}
-            {isUpgradeModal && (
-              <UpgradeServicesModal
-                isUpgradeModal={isUpgradeModal}
-                upgradeList={upgradeList}
-                handleUpgradeModal={handleUpgradeModal}
-              />
-            )}
-            <Suspense fallback={<FullPageLoader />}>
-              <SentryRoutes>
-                {/* Public route */}
-                {/* <Route path="/login" element={<AuthContainer />} /> */}
-                <Route path="/login" element={<Onboarding />} />
-                <Route path="/our-offerings" element={<OurOffering />} />
-                <Route path="/final-setup" element={<FinalSetup />} />
-
-                {/* Restricted route - authorized only to get/upload snapRx files */}
-                <Route path="snap-rx/mobile-upload" element={<UploadRx />} />
-                <Route
-                  path="ophthal-snap-rx/mobile-upload"
-                  element={<OphthalUploadRx />}
-                />
-
-                {/* ABHA Standalone - Can work with URL auth token */}
-                <Route path="/abha-standalone" element={<AbhaStandalone />} />
-
-                {/* Protected routes */}
-                <Route element={<PrivateRoute />}>
-                  <Route path="/*" element={<AppointmentList />} />
-                  <Route
-                    path="create-campaign"
-                    element={<MessageCreateCampaign />}
+        {!isLoginPage && (
+          <Suspense fallback={null}>
+            <TalkativeWidget
+              region="au"
+              configUuid="3f5d31d7-aae5-43f2-903a-2dc2d90a36f3"
+            />
+          </Suspense>
+        )}
+        {isLoginPage ? (
+          appRoutes
+        ) : (
+          <Suspense fallback={<FullPageLoader />}>
+            <AppStoreProvider>
+              <Suspense fallback={null}>
+                <AppTeleconsultBootstrap />
+              </Suspense>
+              <Suspense fallback={null}>
+                <div
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 199,
+                  }}
+                >
+                  <DemoExpirationBanner />
+                  <PlanExpirationBanner />
+                  <ExpiredPlanCard />
+                  <DoctorModal />
+                  <BottomSheetManager />
+                </div>
+              </Suspense>
+              {isUpgradeModal && (
+                <Suspense fallback={null}>
+                  <UpgradeServicesModal
+                    isUpgradeModal={isUpgradeModal}
+                    upgradeList={upgradeList}
+                    handleUpgradeModal={handleUpgradeModal}
                   />
-                  <Route path="patient_details" element={<PatientDetails />} />
-                  <Route
-                    path="prescription"
-                    element={isMobile ? <TabPrescription /> : <Prescription />}
-                  />
-                  <Route
-                    path="prescription_print_view"
-                    element={<PrescriptionPrintView />}
-                  />
-                  <Route
-                    path="configure_print_setting"
-                    element={<ConfigurePrintSetting />}
-                  />
-                  <Route path="certificate" element={<MedicalCertificate />} />
-                  <Route
-                    path="certificate_print_view"
-                    element={<CertificatePrintView />}
-                  />
-                  <Route
-                    path="smart-prescription"
-                    element={<SmartPrescription />}
-                  />
-                  <Route path="print-smart-rx" element={<SmartRxPreview />} />
-                  <Route path="doctor_profile" element={<DoctorProfile />} />
-                  <Route
-                    path="doctor_website_setting"
-                    element={<DoctorWebsiteSetting />}
-                  />
-                  <Route path="smart-rx-digitise" element={<SmartRxDigitise />} />
-                  <Route
-                    path="apollo-consultations"
-                    element={<ApolloConsultations />}
-                  />
-                  <Route
-                    path="gen-rx-print"
-                    element={<GenRxPrescriptionPrintView />}
-                  />
-                  <Route
-                    path="billing-dashboard"
-                    element={<BillingDashboard />}
-                  />
-                  <Route path="all_patients" element={<AllPatients />} />
-                  <Route path="billing-settings" element={<BillingSettings />} />
-                  <Route path="add-appointment" element={<AddAppointment />} />
-                  {isReceptionist ?<Route path="add_patient" element={<AddNewPatient />} /> : null}
-                  <Route path="snap-rx" element={<SnapRx />} />
-                  <Route path="snap-rx/preview" element={<SnapRxPreview />} />
-                  <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
-                  <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
-                  <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
-                  <Route
-                    path="get-unlimited-access"
-                    element={<GetUnlimitedAccess />}
-                  />
-                  <Route
-                    path="appointment-agent"
-                    element={<AppointmentAgent />}
-                  />
-                  <Route
-                    path="appointment-agent/success"
-                    element={<AppointmentSuccess />}
-                  />
-                  <Route
-                    path="abha-records/health-records"
-                    element={<HealthRecords />}
-                  />
-                </Route>
-                <Route path="opd-bill" element={<OpdBill />} />
-              </SentryRoutes>
-            </Suspense>
-          </PersistGate>
-        </Provider>
+                </Suspense>
+              )}
+              {appRoutes}
+            </AppStoreProvider>
+          </Suspense>
+        )}
       </ErrorBoundary>
     </GrowthBookProvider>
   );

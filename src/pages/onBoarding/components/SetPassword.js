@@ -7,7 +7,7 @@ import nhaLogo from "../../../assets/images/nha-logo.svg";
 import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
 import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
 import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
-import { detectOperatingSystem } from "../../../utils/utils";
+import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 
 const SetPassword = ({ onViewChange, mobileNumber }) => {

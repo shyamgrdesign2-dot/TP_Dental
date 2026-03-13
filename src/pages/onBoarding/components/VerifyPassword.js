@@ -10,7 +10,7 @@ import { loginWithPassword, verifyAccessToken } from "../../auth/authService";
 import { isMobile } from "react-device-detect";
 import { EyeInvisibleOutlined } from "@ant-design/icons";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
-import { detectOperatingSystem } from "../../../utils/utils";
+import { detectOperatingSystem } from "../../../utils/loginUtils";
 
 
 const VerifyPassword = ({ onViewChange, mobileNumber }) => {

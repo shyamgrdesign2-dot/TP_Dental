@@ -112,33 +112,35 @@
 }
 
 /* Explicit glyph mappings (IcoMoon selection.json) */
-.icon-Calendar:before { content: "\e900"; }
-.icon-Patients:before { content: "\e901"; }
-.icon-Analytics:before { content: "\e902"; }
-.icon-Billings:before { content: "\e903"; }
+.icon-Calendar:before,
+.icon-calendar:before { content: "\e900"; }
+.icon-Patients:before, .icon-patients:before { content: "\e901"; }
+.icon-Analytics:before, .icon-analytics:before { content: "\e902"; }
+.icon-Billings:before, .icon-billings:before { content: "\e903"; }
 .icon-Cancelled:before { content: "\e904"; }
-.icon-Settings:before { content: "\e905"; }
-.icon-Notification:before { content: "\e906"; }
+.icon-Settings:before, .icon-setting:before, .icon-settings:before { content: "\e905"; }
+.icon-Notification:before, .icon-notification:before { content: "\e906"; }
 .icon-Finished:before { content: "\e907"; }
-.icon-Queue:before { content: "\e908"; }
+.icon-Queue:before, .icon-queue:before { content: "\e908"; }
 .icon-List:before { content: "\e909"; }
-.icon-More:before { content: "\e90a"; }
+.icon-More:before, .icon-more:before { content: "\e90a"; }
 .icon-Add:before { content: "\e90b"; }
-.icon-Contract:before { content: "\e90c"; }
+.icon-Contract:before, .icon-contract:before { content: "\e90c"; }
 .icon-Expand:before { content: "\e90d"; }
-.icon-Print:before { content: "\e90e"; }
+.icon-Print:before, .icon-print:before { content: "\e90e"; }
 .icon-Visit-Summary-with-unfilled:before { content: "\e90f"; }
-.icon-Medical-Certificate:before { content: "\e910"; }
-.icon-Discharge-Summary:before { content: "\e911"; }
+.icon-Medical-Certificate:before, .icon-medical-certificate:before { content: "\e910"; }
+.icon-Discharge-Summary:before, .icon-discharge-summary:before { content: "\e911"; }
 .icon-Report:before { content: "\e912"; }
-.icon-Edit:before { content: "\e913"; }
+.icon-Edit:before, .icon-edit:before { content: "\e913"; }
 .icon-ArrowLeft:before,
 .icon-right:before,
 .icon-Right:before { content: "\e914"; } /* arrow---left glyph; rotate with helper classes */
 .icon-reload:before { content: "\e915"; }
-.icon-Search:before { content: "\e916"; }
-.icon-Preview:before { content: "\e917"; }
-.icon-Consult:before { content: "\e918"; }
+.icon-Search:before,
+.icon-search:before { content: "\e916"; }
+.icon-Preview:before, .icon-preview:before { content: "\e917"; }
+.icon-Consult:before, .icon-consult:before { content: "\e918"; }
 .icon-Cross:before { content: "\e919"; }
 .icon-Phone:before { content: "\e91a"; }
 .icon-Id:before { content: "\e91b"; }
@@ -148,18 +150,27 @@
 .icon-Template:before { content: "\e91d"; }
 .icon-camera:before { content: "\e91e"; }
 .icon-minus:before { content: "\e91f"; }
-.icon-Delete:before { content: "\e920"; }
-.icon-Download:before { content: "\e921"; }
-.icon-Exit:before { content: "\e922"; }
+.icon-Delete:before,
+.icon-delete:before { content: "\e920"; }
+.icon-Download:before,
+.icon-download:before { content: "\e921"; }
+.icon-Exit:before, .icon-exit:before { content: "\e922"; }
 .icon-language:before { content: "\e923"; }
 .icon-check:before { content: "\e924"; }
-.icon-Info:before { content: "\e925"; }
+.icon-Info:before,
+.icon-info:before { content: "\e925"; }
+.icon-appointment:before,
 .icon-appointment:before { content: "\e926"; }
+.icon-sorting:before,
 .icon-sorting:before { content: "\e927"; }
-.icon-Filter:before { content: "\e928"; }
-.icon-icon-Visit-Summary-Fill:before { content: "\e929"; }
-.icon-Switch:before { content: "\e92a"; }
-.icon-Upload:before { content: "\e92b"; }
+.icon-Filter:before,
+.icon-filter:before { content: "\e928"; }
+.icon-Visit-Summary-Fill:before,
+.icon-Visit-Summary-Fill:before { content: "\e929"; }
+.icon-Switch:before,
+.icon-switch:before { content: "\e92a"; }
+.icon-Upload:before,
+.icon-upload:before { content: "\e92b"; }
 .icon-Announcement:before { content: "\e92c"; }
 .icon-help:before { content: "\e92d"; }
 .icon-upgrade:before { content: "\e92e"; }

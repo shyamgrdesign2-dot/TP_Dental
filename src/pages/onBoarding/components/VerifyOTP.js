@@ -10,7 +10,7 @@ import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.sv
 import { verifyAccessToken } from "../../auth/authService";
 import { loginWithPassword } from "../../auth/authService";
 import { useNavigate } from "react-router-dom";
-import { detectOperatingSystem } from "../../../utils/utils";
+import { detectOperatingSystem } from "../../../utils/loginUtils";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 
 const VerifyOTP = ({

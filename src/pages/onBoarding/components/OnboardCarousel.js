@@ -11,7 +11,7 @@ import fastBackwardWebm from "../../../assets/images/onboard-page-icons/fast-bac
 import fastBackwardMp4 from "../../../assets/images/onboard-page-icons/fast-backward.mp4";
 import LoopingVideo from "../../../components/common/LoopingVideo";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
-import { detectOperatingSystem } from "../../../utils/utils";
+import { detectOperatingSystem } from "../../../utils/loginUtils";
 
 
 // Lightweight AVIF versions sit in /public to bypass bundler hashing and shrink LCP

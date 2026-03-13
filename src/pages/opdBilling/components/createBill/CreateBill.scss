@@ -93,8 +93,9 @@
   background: rgba(0, 0, 0, 0.04) !important;
 }
 
-.opd-billing{
+.opd-billing {
   .video-animat {
+    position: relative;
     img:nth-child(2),
     video:nth-child(2) {
       position: absolute;
@@ -102,7 +103,14 @@
       top: -7px;
       width: 62px;
       height: 62px;
-      z-index: 1;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    img:first-child {
+      position: relative;
+      z-index: 2;
+      display: block;
+    }
   }
-}
 }

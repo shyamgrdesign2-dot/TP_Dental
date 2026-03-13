@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../../common/Header";
 import SidebarDoctor from "../../common/SidebarDoctor";
+import "./AllPatients.scss";
 import { genderAge } from "../opdBilling/components/viewBillPdf/helper";
 import { fetchAllPatients } from "./service";
 import { env } from "../../EnvironmentConfig";
@@ -1039,7 +1040,7 @@ const AllPatients = () => {
                       onChange={(e) => onSearch(e.target.value)}
                     />
                   </div>
-                  <div className="massage-date-wrapper">
+                  <div className="all-patients-date-wrapper">
                     <div
                       className="fs-14 h-100 w-100 d-flex align-items-center justify-content-between"
                       onClick={handlePickerModal}
@@ -1077,8 +1078,8 @@ const AllPatients = () => {
                         format={showDateFormat}
                         autoAdjustOverflow={true}
                         onChange={onRangeChange}
-                        popupClassName="massage-date"
-                        className="massage-input"
+                        popupClassName="all-patients-date-popup"
+                        className="all-patients-date-input"
                         inputReadOnly
                         renderExtraFooter={() => (
                           <div className="d-flex align-items-center justify-content-between py-1">
