@@ -24,6 +24,7 @@ import {
 } from "../utils/constants";
 import ContactSupportModal from "./ContactSupportModal";
 import { setB2C_Profile } from "../redux/doctorsSlice";
+import { isMobile, isTablet } from "react-device-detect";
 
 const DemoExpirationBanner = () => {
   const navigate = useNavigate();
@@ -159,7 +160,7 @@ const DemoExpirationBanner = () => {
                     }`
               }. Upgrade your plan to continue hassle-free access!`}
             </p>
-            {tp_monetization_enable && (
+            {tp_monetization_enable && !(isMobile && !isTablet) && (
               <button className="buyPlanButton" onClick={handleClick}>
                 <img
                   loading="lazy"
