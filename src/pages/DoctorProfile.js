@@ -207,17 +207,21 @@ function DoctorProfile() {
         const file = document.originFileObj;
 
         // Call the uploadDocuments API
-        await uploadDocuments(file, null);
+        const response = await uploadDocuments(file, null);
+        if (response?.goverment_proof_url) {
+          // Only update document and status after successful API call
+          setIdProofDoc(document);
+          setIdProofStatus("PENDING");
 
-        // Only update document and status after successful API call
-        setIdProofDoc(document);
-        setIdProofStatus("PENDING");
+          message.success("ID proof uploaded successfully");
 
-        message.success("ID proof uploaded successfully");
-
-        // Refresh document status after upload
-        fetchDocumentStatus();
-      }
+          // Refresh document status after upload
+          fetchDocumentStatus();
+        }
+        else {
+          message.error("Failed to upload ID proof");
+        }
+      } 
       else {
         setIdProofDoc(null);
       }
@@ -234,17 +238,21 @@ function DoctorProfile() {
         const file = document.originFileObj;
 
         // Call the uploadDocuments API
-        await uploadDocuments(null, file);
+        const response = await uploadDocuments(null, file);
+        if (response?.mrc_certificate_url) {
+          // Only update document and status after successful API call
+          setMrcCertificate(document);
+          setMrcStatus("PENDING");
 
-        // Only update document and status after successful API call
-        setMrcCertificate(document);
-        setMrcStatus("PENDING");
+          message.success("MRC certificate uploaded successfully");
 
-        message.success("MRC certificate uploaded successfully");
-
-        // Refresh document status after upload
-        fetchDocumentStatus();
-      }
+          // Refresh document status after upload
+          fetchDocumentStatus();
+        }
+        else {
+          message.error("Failed to upload MRC certificate");
+        }
+      } 
       else {
         setMrcCertificate(null);
       }
