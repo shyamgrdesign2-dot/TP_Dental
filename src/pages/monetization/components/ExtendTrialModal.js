@@ -17,7 +17,7 @@ import { extendFreeTrial, interest } from "../../../redux/monetizationSlice";
 import { services } from "../../../redux/doctorsSlice";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../../../redux/subscriptionSlice";
-import { deviceType, osName } from "react-device-detect";
+import { deviceType, osName, isMobile, isTablet } from "react-device-detect";
 import "./ExtendTrialModal.scss";
 
 function ExtendTrialModal() {
@@ -200,7 +200,7 @@ function ExtendTrialModal() {
                                             Request a call back
                                         </Button>
                                     </Col>
-                                    {tp_monetization_enable && (
+                                    {tp_monetization_enable && !(isMobile && !isTablet) && (
                                         <Col lg={6}>
                                             <Button className="btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex" onClick={clickBuyNow}>
                                                 <img className="me-2" src={crown} alt="Crown" />
