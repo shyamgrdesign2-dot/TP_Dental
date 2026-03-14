@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Select, Button, Checkbox, Popover, Drawer, Dropdown, Spin } from "antd";
 import { useSelector, useDispatch } from "react-redux";
 import { jwtDecode } from "jwt-decode";
-import { isChrome, isSafari, isBrowser } from "react-device-detect";
+import { isChrome, isSafari, isBrowser, isMobile, isTablet } from "react-device-detect";
 import axios from 'axios';
 import jsQR from 'jsqr';
 import { useQrPrintDownloadHandlers } from './qrPrintDownloadHelper';
@@ -971,21 +971,23 @@ function Header({ locationPath }) {
             </a>,
           key: '7',
         },
-        {
-          type: "divider",
-        },
-        {
-          className: "freeTrialMenu text-center rounded-12px p-3 m-3",
-          label: (
-            <>
-              {remaingDays > 0 ? `You're on a trial plan!` : `${remaingDays < 0 ? `Your trial plan expired!` : `Your trial plan will expire today!`}`}
-              <div className="title-common text-white border p-2 rounded-12px w-100 mt-2 cursor-pointer" style={{ backgroundColor: '#FFFFFF1A' }} onClick={clickBuyNow}>
-                <img loading="lazy" src={crownIcon} className="text-white me-2" alt="" />Get Unlimited Access
-              </div>
-            </>
-          ),
-          key: "8",
-        }
+        ...(!(isMobile && !isTablet)
+          ? [
+              { type: "divider" },
+              {
+                className: "freeTrialMenu text-center rounded-12px p-3 m-3",
+                label: (
+                  <>
+                    {remaingDays > 0 ? `You're on a trial plan!` : `${remaingDays < 0 ? `Your trial plan expired!` : `Your trial plan will expire today!`}`}
+                    <div className="title-common text-white border p-2 rounded-12px w-100 mt-2 cursor-pointer" style={{ backgroundColor: '#FFFFFF1A' }} onClick={clickBuyNow}>
+                      <img loading="lazy" src={crownIcon} className="text-white me-2" alt="" />Get Unlimited Access
+                    </div>
+                  </>
+                ),
+                key: "8",
+              },
+            ]
+          : []),
       ]
       commonItems.push(...freeTrialMenu)
     }

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Button, Modal, Card } from "antd";
+import { isMobile, isTablet } from "react-device-detect";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
@@ -173,7 +174,7 @@ function ExpiredSubModal({ title, styles, isSubModalOpen, showHideSubModal }) {
                                 Request a call back
                             </Button>
                         </div>
-                        {![S_PHARMACY, S_IPD].includes(title) && tp_monetization_enable &&
+                        {![S_PHARMACY, S_IPD].includes(title) && tp_monetization_enable && !(isMobile && !isTablet) &&
                             <div>
                                 <Button className="mt-3 btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex" onClick={() => clickBuyNow(title)}>
                                     <img className="me-2" src={crown} alt="Crown" />
