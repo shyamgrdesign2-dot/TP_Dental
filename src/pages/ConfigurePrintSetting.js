@@ -29,7 +29,7 @@ import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { updateFooterImageHeight } from "../utils/utils";
-import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
+import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
@@ -50,8 +50,9 @@ function ConfigurePrintSetting() {
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page } = state || {};
+    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
     const isAfterDigitization = page === "digitise";
+    const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
     const [divWidth, setDivWidth] = useState(0);
     const [selectedTab, setSelectedTab] = useState(caseManagerData !== undefined ? TAB_PRESCRIPTION : TAB_HEADER_FOOTER);
@@ -158,19 +159,9 @@ function ConfigurePrintSetting() {
             }
             
             const rxIdToUse = rxId || caseManagerData?.smart_prescription_filename;
-            const isAmbientMode = isAmbientRx || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
             const isSnapRx = (smartRxFile && smartRxFile.length > 0) || (caseManagerData?.isRxDigitize && !rxIdToUse);
             const isVoiceAmbientFlow = rxIdToUse && !isSnapRx;
             const shouldFetchData = (isSnapRx && isAfterDigitization) || isVoiceAmbientFlow;
-
-            const hasMergedMedicine = caseManagerData?.medicine && 
-                                      Array.isArray(caseManagerData.medicine) && 
-                                      caseManagerData.medicine.length > 0;
-            const isVoiceAmbientRx = caseManagerData?.isVoiceAmbientRx;
-            
-            if (hasMergedMedicine && (isVoiceAmbientRx || isSnapRx) && (rxIdToUse || isSnapRx)) {
-                return;
-            }
 
             if (!shouldFetchData) {
                 setPrescriptionDataFromApi(null);
@@ -184,10 +175,8 @@ function ConfigurePrintSetting() {
                         voiceAmbientResponse = await getSnapRxDigitization(
                             caseManagerData?.patient_data?.patient_unique_id,
                             caseManagerData?.tcm_id,
-                            null
+                            snapRxSessionId
                         );
-                    } else if (isAmbientMode) {
-                        voiceAmbientResponse = await getAmbientRx(rxIdToUse);
                     } else {
                         voiceAmbientResponse = await getGenRx(rxIdToUse);
                     }
@@ -196,22 +185,7 @@ function ConfigurePrintSetting() {
                         let responseData = voiceAmbientResponse?.data?.data || voiceAmbientResponse?.data;
                         
                         if (isSnapRx) {
-                            // Try path for 1: responseData.digitization
-                            if (responseData?.digitization) {
-                                responseData = responseData.digitization;
-                            } 
-                            // Try path 2: voiceAmbientResponse.data.digitization
-                            else if (voiceAmbientResponse?.data?.digitization) {
-                                responseData = voiceAmbientResponse.data.digitization;
-                            } 
-                            // Try path 3: voiceAmbientResponse.digitization
-                            else if (voiceAmbientResponse?.digitization) {
-                                responseData = voiceAmbientResponse.digitization;
-                            }
-                            // Try path 4: responseData itself might be the digitization
-                            else if (responseData && typeof responseData === 'object' && (responseData.editedData || responseData.refinedData || responseData.digitize)) {
-                                // Keep responseData as is
-                            }
+                            responseData = responseData?.digitization ?? voiceAmbientResponse?.data?.digitization ?? voiceAmbientResponse?.digitization ?? responseData;
                         }
                         
                         // Check multiple possible data locations
@@ -246,15 +220,6 @@ function ConfigurePrintSetting() {
                         } else if (responseData && !isSnapRx) {
                             // For voice/ambient, responseData itself might be the prescription data
                             prescriptionData = responseData;
-                        }
-                        if (prescriptionData && !Array.isArray(prescriptionData.vaccinations)) {
-                            const vaccinationsFromResponse =
-                                responseData?.vaccinations
-                                || responseData?.editedData?.vaccinations
-                                || responseData?.refinedData?.vaccinations;
-                            if (Array.isArray(vaccinationsFromResponse) && vaccinationsFromResponse.length > 0) {
-                                prescriptionData = { ...prescriptionData, vaccinations: vaccinationsFromResponse };
-                            }
                         }
                         const transformVoiceAmbientData = (data) => {
                             const transformed = { ...data };
@@ -361,10 +326,10 @@ function ConfigurePrintSetting() {
                                             // Check if it's numeric format with 4 numbers (e.g., "1-0-1-0")
                                             const numericFreq4 = med.frequency.match(/(\d+)[-\s]+(\d+)[-\s]+(\d+)[-\s]+(\d+)/);
                                             if (numericFreq4) {
-                                                freqMorning = parseInt(numericFreq4[1]) || 0;
-                                                freqAfternoon = parseInt(numericFreq4[2]) || 0;
-                                                freqEvening = parseInt(numericFreq4[3]) || 0;
-                                                freqNight = parseInt(numericFreq4[4]) || 0;
+                                                freqMorning = parseInt(numericFreq4[1]) ;
+                                                freqAfternoon = parseInt(numericFreq4[2]) ;
+                                                freqEvening = parseInt(numericFreq4[3]) ;
+                                                freqNight = parseInt(numericFreq4[4]) ;
                                                 tmfBlock = 0; // Use individual frequency values
                                             } else {
                                                
@@ -766,24 +731,17 @@ function ConfigurePrintSetting() {
         };
     }, [caseManagerData?.tcm_id]);
 
-    // Decide preview data by source: voice/ambient/snap-digitised use API data; written Rx and normal consult use caseManagerData. caseManagerData is never mutated.
-    const isFromVoiceAmbient = !!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization);
-    const isFromSnapDigitised = (smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization;
-    const usePrescriptionDataFromApi = (isFromVoiceAmbient || isFromSnapDigitised) && prescriptionDataFromApi != null;
-    const dataSourceForPreview = usePrescriptionDataFromApi ? prescriptionDataFromApi : caseManagerData;
-    const baseCaseManager = dataSourceForPreview;
+    const usePrescriptionDataFromApi = (!!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization)) || ((smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization);
+    const dataSourceForPreview = usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData;
     const obstetricData = obstetricDetails?.data || obstetricDetails;
-    const currentPregnancy = obstetricData?.currentPregnancy;
-    const enrichedCaseManagerData = baseCaseManager
+    const enrichedCaseManagerData = dataSourceForPreview
         ? {
-            ...baseCaseManager,
+            ...dataSourceForPreview,
             ...(gynecHistoryData && isGynaecHistoryAccessable && { gynecHistoryData }),
-            ...(obstetricData && { obsHistoryData: baseCaseManager.obsHistoryData || obstetricData }),
+            ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
-        : baseCaseManager;
-    // Digitised print config: do not pass written Rx file so preview shows only digitised content. Written Rx file is only for written Rx print config.
-    const smartRxFileForPreview = isAfterDigitization ? undefined : smartRxFile;
-    const contextApi = { smartRxFile: smartRxFileForPreview, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
+        : dataSourceForPreview;
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -1027,7 +985,7 @@ function ConfigurePrintSetting() {
                 );
             }
             // Use digitised-style print config for: digitised snap/smart OR voice/ambient (same as digitised, not written Rx)
-            const useDigitisedStyleConfig = isAfterDigitization || !!baseCaseManager?.isVoiceAmbientRx;
+            const useDigitisedStyleConfig = isAfterDigitization || !!dataForPrescription?.isVoiceAmbientRx;
             // Remove SmartRx option for digitised and voice/ambient – only snap/smart written Rx should have it
             if (useDigitisedStyleConfig && copyPrintSettings?.prescription?.case_option) {
                 copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.filter(
@@ -1212,7 +1170,7 @@ function ConfigurePrintSetting() {
             }
 
             // Ensure Obstetric History (id 14) has obs_history_option when empty and obstetric data exists (all flows)
-            const obsOptData = obstetricDetails?.data || obstetricDetails || baseCaseManager?.obsHistoryData;
+            const obsOptData = obstetricDetails?.data || obstetricDetails || dataSourceForPreview?.obsHistoryData;
             const cpForObs = obsOptData?.currentPregnancy || obsOptData;
             const pHistoryForObs = obsOptData?.pregnancyHistory || [];
             const defaultObsHistoryOptionGlobal = [];
@@ -1238,8 +1196,8 @@ function ConfigurePrintSetting() {
                 if (!vaccinesOption) {
                     copyPrintSettings.prescription.case_option.push({
                         id: 10,
-                        title: "Vaccines",
-                        format: "inline",
+                        title: "Vaccination",
+                        format: "listview",
                         enable: "Y",
                         custom_status: "Y"
                     });

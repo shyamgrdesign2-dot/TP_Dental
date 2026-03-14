@@ -396,7 +396,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return Object.values(groupedData);
     };
 
-    const transformGivenVaccines = transformGivenVaccineData(todayVaccines?.given);
+    // In snap/smart/voice/ambient digitised flow, show only vaccinations from the flow's API response, not from vaccination API (patientTemplateForPrint)
+    const useOnlyPrescriptionVaccines = !!(isDigitisedPrintConfig || caseManagerData?.isVoiceAmbientRx || caseManagerData?.isRxDigitize);
+    const transformGivenVaccines = useOnlyPrescriptionVaccines ? [] : transformGivenVaccineData(todayVaccines?.given);
+    const todayVaccinesForDisplay = useOnlyPrescriptionVaccines ? { given: [], due: [] } : (todayVaccines || {});
     const prescriptionVaccines = Array.isArray(caseManagerData?.vaccinations) ? caseManagerData.vaccinations : [];
 
     const patientDataShow = (id) => {
@@ -856,7 +859,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasAnyData = (caseManagerData) => {
         return (
             // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccinesForDisplay, growthChartData) ||
             // Check smart sync data only when option 11 (Smart Rx) is enabled in print settings
             (isSmartRxOptionEnabled && isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
         );
@@ -1251,8 +1254,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     return caseManagerData.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                                 case 10: 
                                     return (
-                                        todayVaccines?.given?.length ||
-                                        todayVaccines?.due?.length ||
+                                        todayVaccinesForDisplay?.given?.length ||
+                                        todayVaccinesForDisplay?.due?.length ||
                                         prescriptionVaccines?.length
                                     );
                                 case 11: 
@@ -2855,7 +2858,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 ) : option?.id === 10 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         <>
-                                            {(transformGivenVaccines?.length > 0 || todayVaccines?.due?.length > 0 || prescriptionVaccines?.length > 0) && (
+                                            {(transformGivenVaccines?.length > 0 || todayVaccinesForDisplay?.due?.length > 0 || prescriptionVaccines?.length > 0) && (
                                                 option?.format === 'inline' ? (
                                                     <>
                                                         {transformGivenVaccines?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
@@ -2894,9 +2897,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </Text>}
-                                                        {todayVaccines?.due?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
+                                                        {todayVaccinesForDisplay?.due?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
-                                                            {todayVaccines?.due?.map((item, i) => {
+                                                            {todayVaccinesForDisplay?.due?.map((item, i) => {
                                                                 return (
                                                                     <Text key={i} style={{ marginTop: PX_TO_PT * 6, lineHeight: 1.4 }}>
                                                                         <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item?.tvac_name}&nbsp;</Text>
@@ -2913,7 +2916,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     {item?.tvd_remarks}
                                                                                 </Text>
                                                                             </Text>}
-                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{')'}{i !== todayVaccines?.due?.length - 1 ? ', ' : ''}</Text>
+                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{')'}{i !== todayVaccinesForDisplay?.due?.length - 1 ? ', ' : ''}</Text>
                                                                     </Text>
                                                                 )
                                                             })}
@@ -2971,9 +2974,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccinesForDisplay?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
-                                                            {todayVaccines?.due?.map((item, i) => {
+                                                            {todayVaccinesForDisplay?.due?.map((item, i) => {
                                                                 return (
                                                                     <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
                                                                         <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
@@ -3043,7 +3046,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ))}
                                                             </View>
                                                         </View>}
-                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccinesForDisplay?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -3051,7 +3054,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     <Text style={[styles.headerCell, { flex: 0.6, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>UPDATED DUE DATE</Text>
                                                                     <Text style={[styles.headerCell, { flex: 0.8, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                                 </View>
-                                                                {todayVaccines?.due?.map((item, i) => (
+                                                                {todayVaccinesForDisplay?.due?.map((item, i) => (
                                                                     <View style={styles.row} key={i} wrap={false}>
                                                                         <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
                                                                             {item?.tvac_name || '-'}
