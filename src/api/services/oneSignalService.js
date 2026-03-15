@@ -2,6 +2,10 @@ import OneSignal from "react-onesignal";
 import config from "../../config";
 
 const CUSTOM_EVENT_TELECONSULT = "teleconsult-notification";
+const IDENTITY_LOCK_KEY = "onesignal_identity_lock_v1";
+const IDENTITY_LOCK_TTL_MS = 8000;
+const IDENTITY_LOCK_WAIT_MS = 12000;
+const TAB_ID = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function getOneSignalAppId() {
   const appId = config?.onesignal_app_id;
@@ -72,6 +76,80 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function readIdentityLock() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(IDENTITY_LOCK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeIdentityLock(lockValue) {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return false;
+    window.localStorage.setItem(IDENTITY_LOCK_KEY, JSON.stringify(lockValue));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearIdentityLockIfOwner() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    const current = readIdentityLock();
+    if (current?.owner === TAB_ID) {
+      window.localStorage.removeItem(IDENTITY_LOCK_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function isActiveForeignLock(lockValue) {
+  if (!lockValue || typeof lockValue !== "object") return false;
+  const expiresAt = Number(lockValue.expiresAt || 0);
+  return lockValue.owner !== TAB_ID && Date.now() < expiresAt;
+}
+
+async function acquireIdentityLock(label) {
+  const start = Date.now();
+  while (Date.now() - start < IDENTITY_LOCK_WAIT_MS) {
+    const current = readIdentityLock();
+    if (isActiveForeignLock(current)) {
+      await delay(180);
+      continue;
+    }
+
+    const lock = {
+      owner: TAB_ID,
+      expiresAt: Date.now() + IDENTITY_LOCK_TTL_MS,
+      label,
+    };
+
+    if (!writeIdentityLock(lock)) {
+      // localStorage unavailable; continue without cross-tab lock
+      return () => {};
+    }
+
+    const afterWrite = readIdentityLock();
+    if (afterWrite?.owner === TAB_ID) {
+      return () => clearIdentityLockIfOwner();
+    }
+    await delay(120);
+  }
+
+  console.warn("[OneSignal] acquireIdentityLock timed out; proceeding without lock.", {
+    label,
+  });
+  return () => {};
+}
+
 export async function initOneSignal() {
   const appId = getOneSignalAppId();
   if (!appId) {
@@ -87,7 +165,7 @@ export async function initOneSignal() {
     await OneSignal.init({
       appId,
       allowLocalhostAsSecureOrigin: true,
-      serviceWorkerPath: "serviceworker.js",
+      serviceWorkerPath: "/serviceworker.js",
       serviceWorkerParam: { scope: "/" },
     });
     initialized = true;
@@ -158,24 +236,31 @@ export async function registerDoctorExternalId(doctorId) {
   return loginDoctorExternalId(doctorId);
 }
 
+async function performLogout(reason = "manual") {
+  const currentExternalId = OneSignal?.User?.externalId;
+  if (currentExternalId) {
+    console.log("[OneSignal] logoutOneSignalUser: logging out current externalId.", {
+      reason,
+      currentExternalId,
+    });
+  } else {
+    console.log("[OneSignal] logoutOneSignalUser: no externalId bound; calling logout anyway.", {
+      reason,
+    });
+  }
+  await OneSignal.logout();
+  console.log("[OneSignal] logoutOneSignalUser completed.");
+}
+
 export async function logoutOneSignalUser(reason = "manual") {
   if (!initialized) return;
+  const releaseLock = await acquireIdentityLock(`logout:${reason}`);
   try {
-    const currentExternalId = OneSignal?.User?.externalId;
-    if (currentExternalId) {
-      console.log("[OneSignal] logoutOneSignalUser: logging out current externalId.", {
-        reason,
-        currentExternalId,
-      });
-    } else {
-      console.log("[OneSignal] logoutOneSignalUser: no externalId bound; calling logout anyway.", {
-        reason,
-      });
-    }
-    await OneSignal.logout();
-    console.log("[OneSignal] logoutOneSignalUser completed.");
+    await performLogout(reason);
   } catch (e) {
     console.warn("[OneSignal] logoutOneSignalUser failed:", e);
+  } finally {
+    releaseLock();
   }
 }
 
@@ -193,6 +278,7 @@ export async function loginDoctorExternalId(doctorId) {
   }
 
   loginInFlightPromise = (async () => {
+    const releaseLock = await acquireIdentityLock(`login:${id}`);
     try {
       const currentExternalId = OneSignal?.User?.externalId;
       if (currentExternalId === id) {
@@ -207,7 +293,7 @@ export async function loginDoctorExternalId(doctorId) {
           from: currentExternalId,
           to: id,
         });
-        await logoutOneSignalUser("switch-external-id");
+        await performLogout("switch-external-id");
         await delay(200);
       }
 
@@ -225,7 +311,7 @@ export async function loginDoctorExternalId(doctorId) {
         );
 
         try {
-          await logoutOneSignalUser("alias-conflict-retry");
+          await performLogout("alias-conflict-retry");
           await delay(400);
           await OneSignal.login(id);
           console.log("[OneSignal] loginDoctorExternalId succeeded after alias-conflict retry.", {
@@ -247,6 +333,7 @@ export async function loginDoctorExternalId(doctorId) {
 
       console.error("[OneSignal] loginDoctorExternalId failed:", e);
     } finally {
+      releaseLock();
       loginInFlightPromise = null;
     }
   })();
