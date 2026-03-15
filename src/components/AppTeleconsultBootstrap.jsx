@@ -17,9 +17,6 @@ import TeleconsultNotificationHandler from "./TeleconsultNotificationHandler";
 import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
 import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 
-let oneSignalFlowStarted = false;
-let lastOneSignalDoctorId = null;
-
 export default function AppTeleconsultBootstrap() {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -41,7 +38,6 @@ export default function AppTeleconsultBootstrap() {
         isTeleConsultEnabledFromGB,
         isLoginPage,
         isReceptionist,
-        path: location.pathname,
       });
       return;
     }
@@ -50,30 +46,8 @@ export default function AppTeleconsultBootstrap() {
       console.log("[OneSignalBootstrap] No doctorId found; resetting OneSignal state.");
       logoutOneSignalUser("missing-doctor-id");
       resetOneSignalState();
-      oneSignalFlowStarted = false;
-      lastOneSignalDoctorId = null;
       return;
     }
-
-    if (oneSignalFlowStarted && lastOneSignalDoctorId === doctorId) {
-      console.log("[OneSignalBootstrap] OneSignal flow already started for doctor; skipping re-init.", {
-        doctorId,
-      });
-      return;
-    }
-
-    if (lastOneSignalDoctorId !== null && lastOneSignalDoctorId !== doctorId) {
-      console.log("[OneSignalBootstrap] Doctor changed; resetting OneSignal state.", {
-        previousDoctorId: lastOneSignalDoctorId,
-        nextDoctorId: doctorId,
-      });
-      logoutOneSignalUser("doctor-changed");
-      resetOneSignalState();
-      oneSignalFlowStarted = false;
-    }
-
-    lastOneSignalDoctorId = doctorId;
-    oneSignalFlowStarted = true;
 
     console.log("[OneSignalBootstrap] Starting OneSignal flow for doctor:", {
       doctorId,
@@ -83,12 +57,25 @@ export default function AppTeleconsultBootstrap() {
       try {
         if (!(await initOneSignal())) {
           console.warn("[OneSignalBootstrap] initOneSignal returned false; aborting flow.");
-          oneSignalFlowStarted = false;
           resetOneSignalState();
           return;
         }
         console.log("[OneSignalBootstrap] initOneSignal succeeded; attaching listeners and requesting permission.");
         listenForTeleconsultNotifications();
+
+        const expectedExternalId = String(doctorId);
+        const currentExternalId =
+          OneSignal?.User?.externalId != null ? String(OneSignal.User.externalId) : null;
+        const isAlreadyReady =
+          currentExternalId === expectedExternalId &&
+          Boolean(OneSignal?.User?.PushSubscription?.optedIn);
+        if (isAlreadyReady) {
+          console.log("[OneSignalBootstrap] OneSignal already ready for doctor; skipping permission/login.", {
+            doctorId: expectedExternalId,
+          });
+          return;
+        }
+
         const permissionResult = await OneSignal.Notifications.requestPermission();
         console.log("[OneSignalBootstrap] Notification permission result:", permissionResult);
         if (!OneSignal.User.PushSubscription.optedIn) {
@@ -102,11 +89,10 @@ export default function AppTeleconsultBootstrap() {
         });
       } catch (e) {
         console.error("[OneSignalBootstrap] Error during OneSignal flow:", e);
-        oneSignalFlowStarted = false;
         resetOneSignalState();
       }
     })();
-  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId, location.pathname]);
+  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId]);
 
   // If user navigates into any Voice Rx consult route while a teleconsult call is active,
   // automatically drop the video call so they can proceed with the Voice Rx flow.
