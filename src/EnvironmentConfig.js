@@ -367,7 +367,7 @@ const uat = {
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
   consultation_api_url: "https://pm-consultation-uat.tatvacare.in",
-  onesignal_app_id: "c3af9334-a4b0-4a97-a0d8-32bdb4890394",
+  onesignal_app_id: "10e8400e-cced-4276-a8d1-9051d764abc0",
 };
 
 const prod = {
