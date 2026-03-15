@@ -165,8 +165,7 @@ export async function initOneSignal() {
     await OneSignal.init({
       appId,
       allowLocalhostAsSecureOrigin: true,
-      path: "/",
-      serviceWorkerPath: "serviceworker.js",
+      serviceWorkerPath: "/serviceworker.js",
       serviceWorkerParam: { scope: "/" },
     });
     initialized = true;
