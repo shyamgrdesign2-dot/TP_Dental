@@ -83,6 +83,7 @@ const dev = {
   ipd_portal_url: "https://pm-doctor-portal-ipd-uat.tatvacare.in",
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
+  onesignal_app_id: "c3af9334-a4b0-4a97-a0d8-32bdb4890394",
 };
 
 const qa_tp = {
@@ -179,6 +180,7 @@ const qa_tp = {
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   cdss_disabled: [],
   consultation_api_url: "https://pm-consultation-qa.tatvacare.in",
+  onesignal_app_id: "c3af9334-a4b0-4a97-a0d8-32bdb4890394",
 };
 
 const qa = {
@@ -266,6 +268,7 @@ const qa = {
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   cdss_disabled: [],
+  onesignal_app_id: "c3af9334-a4b0-4a97-a0d8-32bdb4890394",
 };
 
 const uat = {
@@ -364,6 +367,7 @@ const uat = {
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
   consultation_api_url: "https://pm-consultation-uat.tatvacare.in",
+  onesignal_app_id: "10e8400e-cced-4276-a8d1-9051d764abc0",
 };
 
 const prod = {
@@ -483,6 +487,7 @@ const prod = {
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
   consultation_api_url: "https://pm-consultation-prod.tatvacare.in",
+  onesignal_app_id: "c3af9334-a4b0-4a97-a0d8-32bdb4890394",
 };
 
 const getEnv = () => {
