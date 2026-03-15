@@ -9,6 +9,7 @@ import {
   listenForTeleconsultNotifications,
   registerDoctorExternalId,
   resetOneSignalState,
+  logoutOneSignalUser,
 } from "../api/services/oneSignalService";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_TELE_CONSULT } from "../utils/constants";
@@ -47,6 +48,7 @@ export default function AppTeleconsultBootstrap() {
 
     if (!doctorId) {
       console.log("[OneSignalBootstrap] No doctorId found; resetting OneSignal state.");
+      logoutOneSignalUser("missing-doctor-id");
       resetOneSignalState();
       oneSignalFlowStarted = false;
       lastOneSignalDoctorId = null;
@@ -65,6 +67,7 @@ export default function AppTeleconsultBootstrap() {
         previousDoctorId: lastOneSignalDoctorId,
         nextDoctorId: doctorId,
       });
+      logoutOneSignalUser("doctor-changed");
       resetOneSignalState();
       oneSignalFlowStarted = false;
     }
@@ -103,7 +106,7 @@ export default function AppTeleconsultBootstrap() {
         resetOneSignalState();
       }
     })();
-  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId]);
+  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId, location.pathname]);
 
   // If user navigates into any Voice Rx consult route while a teleconsult call is active,
   // automatically drop the video call so they can proceed with the Voice Rx flow.
@@ -115,7 +118,7 @@ export default function AppTeleconsultBootstrap() {
       });
       dispatch(setJoinToken(null));
     }
-  }, [isVoiceRxRoute, joinToken, dispatch]);
+  }, [isVoiceRxRoute, joinToken, dispatch, location.pathname]);
 
   const handleCloseFloatingWindow = () => {
     dispatch(setJoinToken(null));

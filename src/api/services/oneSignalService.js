@@ -53,6 +53,24 @@ function emitTeleconsultNotification(payload) {
 
 let initialized = false;
 let listenerAttached = false;
+let loginInFlightPromise = null;
+
+function isAliasConflictError(error) {
+  if (!error) return false;
+  const message = String(error?.message || "");
+  const statusCode = Number(error?.statusCode ?? error?.status ?? 0);
+  const errors = Array.isArray(error?.errors) ? error.errors : [];
+  return (
+    statusCode === 409 ||
+    message.includes("409") ||
+    message.includes("Aliases claimed by another User") ||
+    errors.some((e) => String(e?.code || "").startsWith("user-2"))
+  );
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export async function initOneSignal() {
   const appId = getOneSignalAppId();
@@ -140,6 +158,27 @@ export async function registerDoctorExternalId(doctorId) {
   return loginDoctorExternalId(doctorId);
 }
 
+export async function logoutOneSignalUser(reason = "manual") {
+  if (!initialized) return;
+  try {
+    const currentExternalId = OneSignal?.User?.externalId;
+    if (currentExternalId) {
+      console.log("[OneSignal] logoutOneSignalUser: logging out current externalId.", {
+        reason,
+        currentExternalId,
+      });
+    } else {
+      console.log("[OneSignal] logoutOneSignalUser: no externalId bound; calling logout anyway.", {
+        reason,
+      });
+    }
+    await OneSignal.logout();
+    console.log("[OneSignal] logoutOneSignalUser completed.");
+  } catch (e) {
+    console.warn("[OneSignal] logoutOneSignalUser failed:", e);
+  }
+}
+
 /**
  * Call OneSignal.login(doctorId). Permission and optIn are done in bootstrap before this.
  */
@@ -147,13 +186,72 @@ export async function loginDoctorExternalId(doctorId) {
   if (!doctorId) return;
   const id = String(doctorId);
   if (!initialized) return;
-  try {
-    console.log("[OneSignal] loginDoctorExternalId calling OneSignal.login with id:", id);
-    await OneSignal.login(id);
-    console.log("[OneSignal] loginDoctorExternalId completed successfully for id:", id);
-  } catch (e) {
-    console.error("[OneSignal] loginDoctorExternalId failed:", e);
+
+  if (loginInFlightPromise) {
+    console.log("[OneSignal] loginDoctorExternalId waiting for existing login attempt.");
+    await loginInFlightPromise;
   }
+
+  loginInFlightPromise = (async () => {
+    try {
+      const currentExternalId = OneSignal?.User?.externalId;
+      if (currentExternalId === id) {
+        console.log("[OneSignal] loginDoctorExternalId: already logged in with matching externalId.", {
+          externalId: id,
+        });
+        return;
+      }
+
+      if (currentExternalId && currentExternalId !== id) {
+        console.log("[OneSignal] loginDoctorExternalId: switching externalId.", {
+          from: currentExternalId,
+          to: id,
+        });
+        await logoutOneSignalUser("switch-external-id");
+        await delay(200);
+      }
+
+      console.log("[OneSignal] loginDoctorExternalId calling OneSignal.login with id:", id);
+      await OneSignal.login(id);
+      console.log("[OneSignal] loginDoctorExternalId completed successfully for id:", id);
+    } catch (e) {
+      if (isAliasConflictError(e)) {
+        console.warn(
+          "[OneSignal] loginDoctorExternalId alias conflict (409). Retrying with forced logout.",
+          {
+            doctorId: id,
+            error: e,
+          }
+        );
+
+        try {
+          await logoutOneSignalUser("alias-conflict-retry");
+          await delay(400);
+          await OneSignal.login(id);
+          console.log("[OneSignal] loginDoctorExternalId succeeded after alias-conflict retry.", {
+            doctorId: id,
+          });
+          return;
+        } catch (retryError) {
+          console.error(
+            "[OneSignal] loginDoctorExternalId retry failed after alias conflict. " +
+              "Likely alias ownership is locked to another OneSignal user.",
+            {
+              doctorId: id,
+              retryError,
+            }
+          );
+          return;
+        }
+      }
+
+      console.error("[OneSignal] loginDoctorExternalId failed:", e);
+    } finally {
+      loginInFlightPromise = null;
+    }
+  })();
+
+  await loginInFlightPromise;
 }
 
 /**
@@ -199,4 +297,3 @@ export function resetOneSignalState() {
  * Custom event name for UI to subscribe to teleconsult notification payloads.
  */
 export const TELECONSULT_NOTIFICATION_EVENT = CUSTOM_EVENT_TELECONSULT;
-
