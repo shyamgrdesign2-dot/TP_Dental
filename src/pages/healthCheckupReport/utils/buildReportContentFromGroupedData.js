@@ -262,7 +262,27 @@ function formatConsultationAsPrintViewNotes(consultation) {
 
 function symptomsToHtmlList(symptoms) {
   if (!symptoms || symptoms.length === 0) return "<p>&nbsp;</p>";
+
+  const seenIds = new Set();
+  const seenFallback = new Set();
+
   const items = symptoms
+    .filter((item) => {
+      if (item.symptom_name) {
+        if (seenIds.has(item.symptom_name)) return false;
+        seenIds.add(item.symptom_name);
+        return true;
+      }
+      const name = item.symptom_name ?? item.name ?? item.value ?? "";
+      const duration = item.duration ?? item.since ?? "";
+      const severity = item.severity ?? item.status ?? "";
+      const notes = item.notes ?? item.remark ?? "";
+      
+      const fallbackKey = name + "|" + duration + "|" + severity + "|" + notes;
+      if (seenFallback.has(fallbackKey)) return false;
+      seenFallback.add(fallbackKey);
+      return true;
+    })
     .map((item) => {
       const name = escapeHtml(
         item.symptom_name ?? item.name ?? item.value ?? ""
@@ -281,8 +301,13 @@ function symptomsToHtmlList(symptoms) {
 function medicalHistoryToHtmlList(items) {
   if (!items || items.length === 0) return "<p>&nbsp;</p>";
 
+  const seenIds = new Set();
+  const seenFallback = new Set();
+
   const flatten = (item) => {
     if (typeof item === "string") {
+      if (seenFallback.has(item)) return "";
+      seenFallback.add(item);
       return `<li><p>${escapeHtml(item)}</p></li>`;
     }
     const title = item.title ?? item.name ?? item.conditionName ?? "";
@@ -305,6 +330,18 @@ function medicalHistoryToHtmlList(items) {
 
     if (Array.isArray(item.tags) && item.tags.length > 0) {
       return item.tags
+        .filter((tag) => {
+          if (tag.tmmhst_id) {
+            if (seenIds.has(tag.tmmhst_id)) return false;
+            seenIds.add(tag.tmmhst_id);
+            return true;
+          }
+          const tagName = tag.title ?? tag.conditionName ?? tag.name ?? "";
+          const fallbackKey = tagName + "|" + (tag.details ?? tag.value ?? "");
+          if (seenFallback.has(fallbackKey)) return false;
+          seenFallback.add(fallbackKey);
+          return true;
+        })
         .map((tag) => {
           const tagName = escapeHtml(
             tag.title ?? tag.conditionName ?? tag.name ?? ""
@@ -322,6 +359,15 @@ function medicalHistoryToHtmlList(items) {
           return `<li><p><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</p></li>`;
         })
         .join("");
+    }
+
+    if (item.tmmhst_id) {
+      if (seenIds.has(item.tmmhst_id)) return "";
+      seenIds.add(item.tmmhst_id);
+    } else {
+      const fallbackKey = title + "|" + details;
+      if (seenFallback.has(fallbackKey)) return "";
+      seenFallback.add(fallbackKey);
     }
     return `<li><p><strong>${escapeHtml(title)}</strong>${details ? ` (${details})` : ""}</p></li>`;
   };
@@ -431,7 +477,6 @@ export function buildReportContentFromGroupedData(
   const patientHistorySection = `
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTE</p></th></tr></thead>
   <tbody>
 ${historyRows}
   </tbody>
@@ -478,7 +523,7 @@ ${historyRows}
   const radiologySection = `
 <h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
