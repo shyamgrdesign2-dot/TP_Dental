@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Row, Col, Spin, message, Select } from "antd";
 import "./SnapRxPreview.scss";
@@ -303,6 +303,21 @@ function SnapRxPreview() {
     }
   }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, state?.currentSessionRx, viewCaseManagerData?.isRxDigitize]);
 
+  // Ensure Document always gets the correct URL for current mode so the first request is correct (no wrong rxDigitize)
+  const fileUrlForDocument = useMemo(() => {
+    if (currentSessionRx) return currentSessionRx;
+    if (!printUrl) return null;
+    if (showDigitalRx) return printUrl;
+    try {
+      const u = new URL(printUrl);
+      u.searchParams.delete("rxDigitize");
+      u.searchParams.delete("voiceRxDigitize");
+      return u.toString();
+    } catch (e) {
+      return printUrl.replace(/[?&]rxDigitize=[^&]*/g, "").replace(/[?&]voiceRxDigitize=[^&]*/g, "");
+    }
+  }, [currentSessionRx, printUrl, showDigitalRx]);
+
   const handleDownload = async () => {
     try {
       if (showDigitalRx) {
@@ -313,8 +328,10 @@ function SnapRxPreview() {
         });
       }
       if (currentSessionRx) {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         saveAs(blob, `${Date.now()}.pdf`);
       } else {
         const response = await axios({
@@ -342,8 +359,10 @@ function SnapRxPreview() {
     }
     if (currentSessionRx) {
       try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
           type: "application/pdf",
         });
@@ -394,8 +413,6 @@ function SnapRxPreview() {
 
   const onSelect = useCallback(
     (data) => {
-      const encodedData = btoa(data.toString());
-      setPrintUrl(`${currentSessionRx || (state?.print_rx_url || state?.print_url)}&pam_id=${pam_id}&lg=${encodedData}`);
       setSelectedLang(data);
       updatePatientDefaultLanguage({
         patientId: patient_data?.patient_unique_id,
@@ -403,7 +420,7 @@ function SnapRxPreview() {
       });
       setCurrentSessionRx(null);
     },
-    [currentSessionRx, state?.print_rx_url, state?.print_url, patient_data?.patient_unique_id, pam_id]
+    [patient_data?.patient_unique_id]
   );
 
   const handleSendToWhatsapp = async () => {
@@ -493,10 +510,11 @@ function SnapRxPreview() {
 
   const printInAppContent = async () => {
     if (currentSessionRx) {
-      // If currentSessionRx is a blob URL, fetch the blob and upload it
       try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
           type: "application/pdf",
         });
@@ -834,6 +852,7 @@ function SnapRxPreview() {
                 <div ref={divRef} className="printheight">
                   <div ref={printRef} className="position-relative h-100">
                     <Document
+                      key={showDigitalRx ? 'digital' : `written-${typeof fileUrlForDocument === 'string' ? (fileUrlForDocument || '').split('?')[0] : 'blob'}`}
                       loading={
                         <Spin
                           style={{
@@ -868,7 +887,7 @@ function SnapRxPreview() {
                           {"No PDF file specified."}
                         </div>
                       }
-                      file={currentSessionRx || printUrl}
+                      file={fileUrlForDocument}
                       onLoadError={() => {
                         setCurrentSessionRx(null);
                       }}
