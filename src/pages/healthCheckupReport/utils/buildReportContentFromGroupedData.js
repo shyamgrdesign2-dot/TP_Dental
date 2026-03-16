@@ -257,6 +257,44 @@ function formatConsultationAsPrintViewNotes(consultation) {
   ) {
     parts.push("Visit Advice:\n" + visitAdvice.trim());
   }
+
+  const moduleContents = consultation.moduleContents ?? [];
+  if (moduleContents.length > 0) {
+    moduleContents.forEach((mod) => {
+      const modName = mod.module_name || "Custom Module";
+      const contentArr = mod.content || [];
+      if (!Array.isArray(contentArr) || contentArr.length === 0) return;
+
+      const lines = contentArr.map(item => {
+        if (!item || typeof item !== "object") return String(item);
+        
+        if (mod.module_version === "v1") {
+          const title = item.title ? String(item.title).trim() : "";
+          const notes = item.notes ? String(item.notes).trim() : "";
+          return [title, notes].filter(Boolean).join(" - ");
+        } else {
+          // For v2 and others, extract all stringable key-value pairs
+          return Object.entries(item)
+            .map(([key, val]) => {
+              if (val === null || val === undefined || val === '') return null;
+              if (typeof val === 'object') return null;
+              // Formatting key: e.g. "blood_pressure" -> "Blood Pressure"
+              const formattedKey = key
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, l => l.toUpperCase());
+              return `${formattedKey}: ${val}`;
+            })
+            .filter(Boolean)
+            .join(", ");
+        }
+      }).filter(Boolean);
+
+      if (lines.length > 0) {
+        parts.push(`${modName}:\n` + lines.join("\n"));
+      }
+    });
+  }
+
   return parts.join("\n\n");
 }
 
@@ -529,30 +567,41 @@ ${radiologyRows}
   </tbody>
 </table>`;
 
-  const consultationRows = CONSULTATIONS_DEPARTMENT_ROW_NAMES.map(
-    (rowDeptName) => {
-      const matching = consultations.filter(
-        (c) => getDepartmentRowName(c) === rowDeptName
-      );
-      const latest =
-        matching.length > 0
-          ? matching.reduce((a, b) =>
-            (a?.tcm_id ?? 0) >= (b?.tcm_id ?? 0) ? a : b
-          )
-          : null;
-      let doctorName = "";
-      let notesCell = "<p>&#8203;</p>";
-      if (latest) {
-        const docData = latest.doctor_data || latest.doctorData || {};
-        const docName =
-          docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
-        if (docName) doctorName = docName;
-        const notes = formatConsultationAsPrintViewNotes(latest);
-        if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
-      }
-      return `<tr><td><p>${escapeHtml(rowDeptName) + " " + escapeHtml(doctorName)}</p></td><td>${notesCell}</td></tr>`;
+  const consultationsByDept = {};
+  consultations.forEach((c) => {
+    const docData = c.doctor_data || c.doctorData || {};
+    let dpName = (docData.dp_name ?? docData.department_name ?? docData.specialty ?? "").trim();
+    if (!dpName) dpName = "Consultation";
+    if (!consultationsByDept[dpName]) {
+      consultationsByDept[dpName] = [];
     }
-  ).join("\n");
+    consultationsByDept[dpName].push(c);
+  });
+
+  const consultationRows = Object.keys(consultationsByDept).length > 0
+    ? Object.keys(consultationsByDept).map(
+      (deptName) => {
+        const matching = consultationsByDept[deptName];
+        const latest =
+          matching.length > 0
+            ? matching.reduce((a, b) =>
+              (a?.tcm_id ?? 0) >= (b?.tcm_id ?? 0) ? a : b
+            )
+            : null;
+        let doctorName = "";
+        let notesCell = "<p>&#8203;</p>";
+        if (latest) {
+          const docData = latest.doctor_data || latest.doctorData || {};
+          const docName =
+            docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
+          if (docName) doctorName = docName;
+          const notes = formatConsultationAsPrintViewNotes(latest);
+          if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
+        }
+        return `<tr><td><p>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</p></td><td>${notesCell}</td></tr>`;
+      }
+    ).join("\n")
+    : `<tr><td><p>&#8203;</p></td><td><p>&#8203;</p></td></tr>`;
 
   const consultationsSection = `
 <h2 class="report-section-title">Consultations</h2>
