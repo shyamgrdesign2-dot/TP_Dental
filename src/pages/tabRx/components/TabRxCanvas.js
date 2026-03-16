@@ -472,12 +472,18 @@ const TabRxCanvas = forwardRef(({
         ...prev,
         [pageId]: [...pageStrokes, newStroke]
       };
-      // Notify parent of content change
-      if (onContentChange) {
-        onContentChange(true);
-      }
       return updated;
     });
+    
+    // ✅ CRITICAL: Call onContentChange OUTSIDE of setStrokesByPage
+    // This prevents React warning: "Cannot update component during render"
+    // Use setTimeout to defer to next tick, ensuring it's not during render phase
+    if (onContentChange) {
+      setTimeout(() => {
+        onContentChange(true);
+      }, 0);
+    }
+    
     // Update currentPageIndex based on pageId
     const pageIndex = pagesMetadata.findIndex(p => p.id === pageId);
     if (pageIndex !== -1) {
@@ -901,6 +907,7 @@ const TabRxCanvas = forwardRef(({
                         : (backgroundImage && pageIndex === 0 ? backgroundImage : getBackgroundForPage(pageMeta))
                     }
                     embeddedInScroll={true}
+                    onContentChange={onContentChange}
                   />
 
                   {/* Page Action Buttons */}
