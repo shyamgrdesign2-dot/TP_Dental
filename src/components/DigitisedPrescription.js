@@ -224,10 +224,10 @@ const DigitisedPrescription = ({
   );
   const dentalQuadrantSections = useMemo(
     () => [
-      { key: "UPPER_LEFT", label: "UPPER_LEFT" },
-      { key: "UPPER_RIGHT", label: "UPPER_RIGHT" },
-      { key: "LOWER_LEFT", label: "LOWER_LEFT" },
-      { key: "LOWER_RIGHT", label: "LOWER_RIGHT" },
+      { key: "UPPER_LEFT", label: "UPPER LEFT" },
+      { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+      { key: "LOWER_LEFT", label: "LOWER LEFT" },
+      { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
     ],
     []
   );
@@ -2517,7 +2517,6 @@ const DigitisedPrescription = ({
                     <th>DATE</th>
                     <th>WORK DONE</th>
                     <th>PTR</th>
-                    <th>TT REVIEW</th>
                     <th>PAYMENT</th>
                     <th>BALANCE</th>
                     <th>REMARKS</th>
@@ -2553,16 +2552,6 @@ const DigitisedPrescription = ({
                             value={row?.ptr ?? ""}
                             onChange={(e) =>
                               updateDentalWorkDoneItem(index, "ptr", e.target.value)
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="dental-table-input"
-                            value={row?.ttReview ?? ""}
-                            onChange={(e) =>
-                              updateDentalWorkDoneItem(index, "ttReview", e.target.value)
                             }
                           />
                         </td>
@@ -2609,7 +2598,7 @@ const DigitisedPrescription = ({
                   Add Row
                 </button>
               </div>
-              <table className="dental-table dental-workdone-notes-table">
+              {dentalWorkDone?.notes?.length > 0 ? (<table className="dental-table dental-workdone-notes-table">
                 <tbody>
                   <tr>
                     <td className="dental-label-cell">WORK DONE NOTES</td>
@@ -2622,7 +2611,7 @@ const DigitisedPrescription = ({
                     </td>
                   </tr>
                 </tbody>
-              </table>
+              </table>): null}
             </div>
           )}
           {hasValidContent("vitalsAndBodyComposition") && (
