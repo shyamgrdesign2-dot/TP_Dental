@@ -68,6 +68,9 @@ function SmartRxDigitise() {
   const [isDigitiseRxSubmit, setIsDigitiseRxSubmit] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
+  // Object URLs for native File/Blob so left panel can display them; revoke on cleanup
+  const [objectUrlsForFiles, setObjectUrlsForFiles] = useState([]);
+  const objectUrlsRef = useRef([]);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   // Grounding check (Zydus users)
   const tokenDataLocal = getTokenData();
@@ -80,6 +83,31 @@ function SmartRxDigitise() {
   const isManyaClinic = (clinicName || "") === "Manya Dental - Hongasandra";
   const isSmartRxDigitisePath = location?.pathname === "/smart-rx-digitise";
   const shouldUseCustomRxDigitize = isManyaClinic && isSmartRxDigitisePath;
+
+  // Create object URLs for native File/Blob items so left panel can display; revoke on unmount or when smartRxFile changes
+  useEffect(() => {
+    if (!smartRxFile?.length) {
+      setObjectUrlsForFiles([]);
+      return;
+    }
+    const urls = [];
+    smartRxFile.forEach((file, i) => {
+      if (file instanceof File || file instanceof Blob) {
+        urls[i] = URL.createObjectURL(file);
+      }
+    });
+    objectUrlsRef.current.forEach((u) => {
+      if (u) try { URL.revokeObjectURL(u); } catch (_) {}
+    });
+    objectUrlsRef.current = urls;
+    setObjectUrlsForFiles(urls);
+    return () => {
+      objectUrlsRef.current.forEach((u) => {
+        if (u) try { URL.revokeObjectURL(u); } catch (_) {}
+      });
+      objectUrlsRef.current = [];
+    };
+  }, [smartRxFile]);
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -247,6 +275,8 @@ function SmartRxDigitise() {
       uploadFiles();
     } else if (state.type === "edit" && digitisedData) {
       uploadFiles();
+    } else {
+      setIsLoading(false);
     }
   }, [token, smartRxFile, digitisedData]);
 
@@ -626,6 +656,7 @@ function SmartRxDigitise() {
             state: {
               patient_data,
               smartRxData: smartRxFilesData,
+              smartRxFile: smartRxFilesData,
               tcm_id,
               pam_id: pam_id || patient_data?.pam_id,
               print_url,
@@ -640,8 +671,36 @@ function SmartRxDigitise() {
     }
   };
 
+  // Navigate back to Smart Rx preview without saving: pass state WITHOUT page "digitise" so preview shows Written Rx + Digitise Now (not Digital Rx)
+  const handleBackToPreview = useCallback(() => {
+    navigate("/print-smart-rx", {
+      replace: true,
+      state: {
+        patient_data,
+        smartRxFilesData: smartRxFile ?? smartRxFilesData,
+        smartRxFile: smartRxFile ?? smartRxFilesData,
+        tcm_id,
+        pam_id: pam_id ?? patient_data?.pam_id,
+        print_url: printUrl ?? state?.print_url,
+        print_rx_url: state?.print_rx_url,
+        showProgressbar: false,
+        // Do NOT pass page: "digitise" — only save flow sets that; back-without-save should show Written Rx + Digitise Now
+      },
+    });
+  }, [navigate, patient_data, smartRxFile, smartRxFilesData, tcm_id, pam_id, printUrl, state?.print_url, state?.print_rx_url]);
+
+  // Resolve display URL: native File/Blob use object URL; API-shaped use smart_prescription_file or fallbacks
+  const getDisplayUrl = useCallback((file, index) => {
+    if (!file) return null;
+    if (file instanceof File || file instanceof Blob) {
+      return objectUrlsForFiles[index] || null;
+    }
+    return file.smart_prescription_file ?? file.fileUrl ?? file.url ?? file.smart_prescription_file_url ?? null;
+  }, [objectUrlsForFiles]);
+
   const fetchImageAsFile = async (url, fileName) => {
     try {
+      if (!url) return null;
       const response = await fetch(url);
       const blob = await response.blob();
       return new File([blob], fileName, { type: blob.type });
@@ -654,10 +713,10 @@ function SmartRxDigitise() {
   const uploadFiles = async () => {
     try {
       setIsLoading(true);
-      const cleanedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZXN1bHQiOnsiZG9jdG9yX3VuaXF1ZV9pZCI6InhMd0hVRTNzSld6YUZmVCIsIm1vYmlsZV9ubyI6Ijk2ODY5OTc1NDIiLCJjbGluaWNfaWQiOjQzMiwiaG9zcGl0YWxfYnVzaW5lc3NfaWQiOjM5Njc0MTcxOTkwNjcwMCwidXNlcl9pZCI6NTI0LCJhZG1pbiI6MSwic2VhcmNoV2l0aCI6IlQiLCJpbmRpdmlkdWFsUHJlc2VudGF0aW9uIjoiTiIsInRlbXBsYXRlTm90ZXNIaWRlIjoiTiJ9LCJpYXQiOjE3NDI4MDQ0OTIsImV4cCI6MTc3NDM2MjA5Mn0.AsNpnzKJFG-XbuPnUc06xMl4zD8XG6_XwtW8-EI5erE".replace(/['"]+/g, "");
       let response;
 
       if (!shouldUseCustomRxDigitize) {
+        const cleanedToken = token.replace(/['"]+/g, "");
         if (!tcm_id || !patient_data?.patient_unique_id) {
           setIsLoading(false);
           return;
@@ -675,297 +734,9 @@ function SmartRxDigitise() {
             },
           }
         );
-      //   response = {
-      //     "status": true,
-      //     "data": {
-      //         "results": {
-      //             "metadata": {
-      //                 "branch": "",
-      //                 "doctorName": "PALLAVI",
-      //                 "caseNo": "22-05-2024 (01)",
-      //                 "date": "22-05-2024",
-      //                 "patientName": "Ashwini K",
-      //                 "age": "36",
-      //                 "gender": "F",
-      //                 "dob": "03/02/1988",
-      //                 "occupation": "B.E",
-      //                 "address": "Suraksha Sunflower Apt",
-      //                 "contactNo": "9886129122",
-      //                 "consent": {
-      //                     "datetime": "22-05-2024",
-      //                     "sign": "Signed"
-      //                 },
-      //                 "surgicalConsent": {
-      //                     "consentText": "",
-      //                     "patientSign": "",
-      //                     "doctorSign": "",
-      //                     "datetime": ""
-      //                 }
-      //             },
-      //             "diagnosis": {
-      //                 "stains": {
-      //                     "lessThan1Percent": false,
-      //                     "lessThan5Percent": false,
-      //                     "lessThan10Percent": false,
-      //                     "fiveTo30Percent": false,
-      //                     "moreThan10Percent": false,
-      //                     "moreThan30Percent": false
-      //                 },
-      //                 "calculus": {
-      //                     "lessThan1Percent": false,
-      //                     "lessThan5Percent": false,
-      //                     "lessThan10Percent": false,
-      //                     "fiveTo30Percent": false,
-      //                     "moreThan10Percent": false,
-      //                     "moreThan30Percent": false
-      //                 },
-      //                 "oralHygieneStatus": [
-      //                     "Stn + Cal"
-      //                 ],
-      //                 "periodontalseverity": {
-      //                     "gingivitis": false,
-      //                     "severeGingivitis": false,
-      //                     "moderatePeriodontitis": false,
-      //                     "severePeriodontitis": false
-      //                 },
-      //                 "orthodonticFindings": {
-      //                     "overjet": false,
-      //                     "overbite": false,
-      //                     "crowding": false,
-      //                     "spacing": false,
-      //                     "tfo": false,
-      //                     "collapsedBite": false,
-      //                     "tmj": false,
-      //                     "extraOralFindings": false
-      //                 },
-      //                 "orthodonticInterventionRequired": {
-      //                     "yes": true,
-      //                     "no": false
-      //                 },
-      //                 "habitsPedo": {
-      //                     "lipSucking": false,
-      //                     "thumbSucking": false,
-      //                     "tongueThristing": false,
-      //                     "mouthBreathing": false
-      //                 },
-      //                 "toothDiagramNotes": [
-      //                     "Fluorosis present Grade II Moderate to Grade III",
-      //                     "Tooth 41: Mildly-Rotated",
-      //                     "Wisdom Teeth (18, 28, 38, 48): Clinically missing",
-      //                     "While biting, the metal mesial marginal ridge of tooth 16 is hitting on the distal aspect of tooth 15",
-      //                     "Patient is trying to adjust for occlusion on the left side"
-      //                 ],
-      //                 "teeth": [
-      //                     {
-      //                         "toothNum": 2,
-      //                         "toothSection": "UPPER_RIGHT",
-      //                         "diagnose": "Deep class II Caries"
-      //                     },
-      //                     {
-      //                         "toothNum": 3,
-      //                         "toothSection": "UPPER_RIGHT",
-      //                         "diagnose": "Metal Crown without RCT"
-      //                     },
-      //                     {
-      //                         "toothNum": 8,
-      //                         "toothSection": "UPPER_LEFT",
-      //                         "diagnose": "PFM Crown"
-      //                     },
-      //                     {
-      //                         "toothNum": 13,
-      //                         "toothSection": "UPPER_LEFT",
-      //                         "diagnose": "Pit caries (mesially)"
-      //                     },
-      //                     {
-      //                         "toothNum": 14,
-      //                         "toothSection": "UPPER_LEFT",
-      //                         "diagnose": "Pit caries (distally)"
-      //                     },
-      //                     {
-      //                         "toothNum": 19,
-      //                         "toothSection": "LOWER_LEFT",
-      //                         "diagnose": "Class I Amalgam restoration"
-      //                     },
-      //                     {
-      //                         "toothNum": 30,
-      //                         "toothSection": "LOWER_RIGHT",
-      //                         "diagnose": "Class I composite"
-      //                     },
-      //                     {
-      //                         "toothNum": 31,
-      //                         "toothSection": "LOWER_RIGHT",
-      //                         "diagnose": "Metal Crown RCT treated"
-      //                     },
-      //                     {
-      //                         "toothNum": 32,
-      //                         "toothSection": "LOWER_RIGHT",
-      //                         "diagnose": "Mild TOP, Pocket present distally"
-      //                     }
-      //                 ]
-      //             },
-      //             "complaints": {
-      //                 "chiefComplaint": "Pt complain of pain in rt. lower back Tooth",
-      //                 "symptom": "Cavity, tooth ache",
-      //                 "otherDiseases": "NIL",
-      //                 "medications": "NIL",
-      //                 "drugAllergy": "NIL",
-      //                 "pregnancy": "No",
-      //                 "covidStatus": null,
-      //                 "habits": "NIL",
-      //                 "dentalHistory": "n/o Crown",
-      //                 "pain": "NIL",
-      //                 "notes": "NIL"
-      //             },
-      //             "treatmentPlans": {
-      //                 "items": [
-      //                     {
-      //                         "srno": 1,
-      //                         "treatment": "Consultation",
-      //                         "toothNum": "",
-      //                         "rate": 400,
-      //                         "count": 1,
-      //                         "estimate": 400
-      //                     },
-      //                     {
-      //                         "srno": 2,
-      //                         "treatment": "IOPA",
-      //                         "toothNum": "6",
-      //                         "rate": 100,
-      //                         "count": 2,
-      //                         "estimate": 200
-      //                     },
-      //                     {
-      //                         "srno": 3,
-      //                         "treatment": "Oral prophylaxis",
-      //                         "toothNum": "",
-      //                         "rate": 1000,
-      //                         "count": 1,
-      //                         "estimate": 1000
-      //                     },
-      //                     {
-      //                         "srno": 4,
-      //                         "treatment": "Encaratin A Review",
-      //                         "toothNum": "4",
-      //                         "rate": 1800,
-      //                         "count": 1,
-      //                         "estimate": 1800
-      //                     },
-      //                     {
-      //                         "srno": 5,
-      //                         "treatment": "Restn - GIC",
-      //                         "toothNum": "17",
-      //                         "rate": 800,
-      //                         "count": 1,
-      //                         "estimate": 800
-      //                     },
-      //                     {
-      //                         "srno": 6,
-      //                         "treatment": "Ortho consultation",
-      //                         "toothNum": "",
-      //                         "rate": 0,
-      //                         "count": 1,
-      //                         "estimate": 0
-      //                     }
-      //                 ],
-      //                 "notes": "Perio-consultation by Dr. Naved. Scaling advised by Dr. Naved & Adi. Case reviewed by Dr. Yamini. Patient informed about overhanging metal crown with respect to tooth #6. Recommendations: Water floss advised."
-      //             },
-      //             "workDone": {
-      //                 "items": [
-      //                     {
-      //                         "date": "22/5/24",
-      //                         "workDone": "Consultation + X-ray, Oral prophylaxis, Class II resin restoration with GIC base",
-      //                         "ptr": "",
-      //                         "ttReview": "",
-      //                         "payment": 3400,
-      //                         "balance": null,
-      //                         "remarks": "Dr. Pallavi",
-      //                         "doctorAndAssistant": "",
-      //                         "nextAppointment": "27/5/24 at 11:30 am for follow-up",
-      //                         "clinicalNotes": "Mesial margin of metal crown adjusted with respect to tooth 6 as it was hitting the distal ridge of tooth 5.",
-      //                         "implantDetails": {
-      //                             "productName": "",
-      //                             "productCode": "",
-      //                             "dimensions": "",
-      //                             "torque": "",
-      //                             "graftDetails": "",
-      //                             "sutureDetails": ""
-      //                         }
-      //                     },
-      //                     {
-      //                         "date": "31/5/24",
-      //                         "workDone": "Composite restoration, High point reduction with respect to metal crown on tooth 6",
-      //                         "ptr": "",
-      //                         "ttReview": "",
-      //                         "payment": 800,
-      //                         "balance": null,
-      //                         "remarks": "Dr. Pallavi",
-      //                         "doctorAndAssistant": "",
-      //                         "nextAppointment": "14/6/24 at 7:30 pm for follow-up on tooth 6",
-      //                         "clinicalNotes": "Patient advised flossing. To be kept on follow-up.",
-      //                         "implantDetails": {
-      //                             "productName": "",
-      //                             "productCode": "",
-      //                             "dimensions": "",
-      //                             "torque": "",
-      //                             "graftDetails": "",
-      //                             "sutureDetails": ""
-      //                         }
-      //                     }
-      //                 ],
-      //                 "notes": "5% discount. Payment method: UPI."
-      //             },
-      //             "visitHistory": {
-      //                 "items": [
-      //                     {
-      //                         "date": "10/6/24",
-      //                         "items": [
-      //                             "Crown removal with tooth 6 done",
-      //                             "Crown structure decayed subgingivally",
-      //                             "Advice: Extraction of tooth 6, Implant for tooth 6, Graft for tooth 6, Crown for tooth 6",
-      //                             "Cost for crown removal: 1000 - 2000",
-      //                             "Cost for implant: 28000",
-      //                             "Cost for graft: 7000 + 2000",
-      //                             "Payment Status: 6500 / 10000 Balance"
-      //                         ]
-      //                     },
-      //                     {
-      //                         "date": "11/6/24",
-      //                         "items": [
-      //                             "Next Appointment: Scheduled for 11/6/24 @ 4pm for implant placement with tooth 6",
-      //                             "Advice: CBCT",
-      //                             "Treatment Plan for Tooth 5: RCT for tooth 5, Crown for tooth 5",
-      //                             "Cost for RCT on tooth 5: 5500",
-      //                             "Payment Status: 6500 / 10000 Balance",
-      //                             "RCT on tooth 5 done. Status: Temp placed",
-      //                             "Extraction of tooth 6 done",
-      //                             "Implant placed",
-      //                             "Grafting Details: Autologous bone + graft + PRP + membrane",
-      //                             "Implant Details: Brand: OSSTEM IMPLANT, Product: TSIII SA Fixture, Size: R Ø5.5xH10 R, LOT: FTN24C457",
-      //                             "4 BBS sutures placed (2+2)",
-      //                             "Total cost: 38475",
-      //                             "Next Appointment: 18/6/24 for suture removal with Dr Yamin"
-      //                         ]
-      //                     },
-      //                     {
-      //                         "date": "19/6/24",
-      //                         "items": [
-      //                             "Follow-up done",
-      //                             "Suture removal done",
-      //                             "Findings: Healing satisfactory",
-      //                             "Additional Note: in progress BBS suture pending for removal",
-      //                             "Future Elements: RCT appointment scheduled for 25/6/24 at 5pm with Dr Yamin"
-      //                         ]
-      //                     }
-      //                 ],
-      //                 "notes": "Partially visible words in the left margin: 'pinal', 'usion)'."
-      //             },
-      //         },
-      //         "ocrModel": "zyvelor",
-      //         "timeTakenInMs": 133522
-      //     }
-      // }
       } else {
         const formData = new FormData();
+        const cleanedToken = token.replace(/['"]+/g, "");
 
         // Build list of File objects: native File use as-is; Blob wrap as File; API-shaped fetch from URL
         const files = await Promise.all(
@@ -1070,9 +841,12 @@ function SmartRxDigitise() {
         if (canonical?.vitalsAndBodyComposition) {
           persistSmartRxVitals(canonical.vitalsAndBodyComposition, setData);
         }
+      } else {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Error uploading files:", error);
+      setIsLoading(false);
     }
   };
 
@@ -1082,6 +856,7 @@ function SmartRxDigitise() {
         onSave={handleSave}
         patient_data={patient_data}
         tcm_id={tcm_id}
+        onBackToPreview={handleBackToPreview}
       />
       <div
         ref={splitRef}
@@ -1109,18 +884,21 @@ function SmartRxDigitise() {
                   </div>
                 ) : (
                   smartRxFile?.length > 0 &&
-                  smartRxFile?.map(({ smart_prescription_file }) => (
-                    <div key={smart_prescription_file}>
-                      {smart_prescription_file && (
-                        <img
-                          src={smart_prescription_file}
-                          alt="Smart Rx"
-                          className="written-rx-image"
-                          width="100%"
-                        />
-                      )}
-                    </div>
-                  ))
+                  smartRxFile?.map((file, idx) => {
+                    const src = getDisplayUrl(file, idx);
+                    return (
+                      <div key={src || idx}>
+                        {src && (
+                          <img
+                            src={src}
+                            alt="Smart Rx"
+                            className="written-rx-image"
+                            width="100%"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

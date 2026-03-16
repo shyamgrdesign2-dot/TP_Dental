@@ -224,10 +224,11 @@ function TabPrescription() {
     
     return combined;
   }, [customModules, hospitalSearchResults, userId]);
-  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx } = state || {};
+  const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx, fromRepeatRx} = state || {};
   const chartType = state?.chartType;
-  const tcmId = caseManagerData !== undefined ? caseManagerData.tcm_id : 0;
-  const pamId = caseManagerData !== undefined ? caseManagerData.pam_id : 0;
+
+  const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.tcm_id;
+  const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
   const consultationDate =
     caseManagerData !== undefined
       ? caseManagerData.consultation_date

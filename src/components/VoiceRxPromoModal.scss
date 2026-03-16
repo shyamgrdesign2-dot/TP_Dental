@@ -14,13 +14,15 @@
 
 .monetization-popup-container {
   position: relative;
-  width: 931px;
-  height: 539px;
+  width: 100%;
+  max-width: 931px;
+  height: auto;
+  min-height: 539px;
   background: linear-gradient(237.221deg, #ec6d62 7.3355%, #b00706 76.585%);
   border-radius: 29.775px;
   overflow: hidden;
   display: flex;
-  
+
   // Star background - top
   &::before {
     content: '';
@@ -38,7 +40,7 @@
     pointer-events: none;
     z-index: 1;
   }
-  
+
   // Star background - bottom
   &::after {
     content: '';
@@ -115,7 +117,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 460px;
+  width: 100%;
+  max-width: 460px;
 }
 
 .monetization-popup-title {
@@ -145,8 +148,11 @@
 
 .monetization-popup-offer-box {
   margin-top: 16px;
-  width: 456px;
-  height: 196px;
+  width: 100%;
+  max-width: 456px;
+  height: auto;
+  min-height: 196px;
+  padding: 16px 0;
   background-image: url('../assets/images/coupon.svg');
   background-size: cover;
   background-position: center;
@@ -163,7 +169,9 @@
   flex-direction: column;
   gap: 16px;
   align-items: center;
-  width: 384.48px;
+  width: 100%;
+  max-width: 384.48px;
+  padding: 0 16px;
 }
 
 .monetization-popup-offer-header {
@@ -188,7 +196,7 @@
     font-style: normal;
     font-weight: 400;
     line-height: normal;
-    
+
     strong {
       font-weight: 700;
     }
@@ -225,7 +233,7 @@
   font-weight: 600;
   font-size: 18px;
   line-height: 14.972px;
-  color: #ffffff !important; 
+  color: #ffffff !important;
   transition: all 0.2s ease;
   display: flex !important;
   align-items: center;
@@ -242,14 +250,12 @@
     left: 0;
     width: 50%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 40%,
-      rgba(255, 255, 255, 0.6) 50%,
-      rgba(255, 255, 255, 0.1) 60%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 40%,
+        rgba(255, 255, 255, 0.6) 50%,
+        rgba(255, 255, 255, 0.1) 60%,
+        transparent 100%);
     transform: translateX(-100%) skewX(-25deg);
     animation: monetization-shimmer 3s infinite;
     z-index: 1;
@@ -259,7 +265,7 @@
 
   // Ensure text appears above shimmer
   &,
-  > * {
+  >* {
     position: relative;
     z-index: 2;
   }
@@ -286,6 +292,7 @@
   0% {
     transform: translateX(-100%) skewX(-25deg);
   }
+
   100% {
     transform: translateX(400%) skewX(-25deg);
   }
@@ -300,7 +307,8 @@
   gap: 18px;
   border-radius: 23.765px;
   margin: 50.11px 54.5px 29.83px 18.5px;
-  width: 315px;
+  width: 100%;
+  max-width: 315px;
 }
 
 .monetization-popup-features-section {
@@ -498,29 +506,42 @@
   }
 }
 
-// // Responsive adjustments
-// @media (max-width: 1024px) {
-//   .monetization-popup-container {
-//     width: 90vw;
-//     max-width: 931px;
-//     height: auto;
-//     min-height: 539px;
-//     flex-direction: column;
-//   }
+// Responsive adjustments
+@media (max-width: 950px) {
+  .monetization-popup-container {
+    flex-direction: column;
+    align-items: center;
+  }
 
-//   .monetization-popup-left {
-//     padding: 60px 40px;
-//   }
+  .monetization-popup-left {
+    padding: 40px 20px 20px 20px;
+    align-items: center;
+    text-align: center;
+  }
 
-//   .monetization-popup-content-wrapper {
-//     width: 100%;
-//   }
+  .monetization-popup-right {
+    margin: 20px;
+    max-width: unset;
+    padding: 24px;
+    align-items: center;
+    text-align: center;
+  }
 
-//   .monetization-popup-offer-box {
-//     width: 100%;
-//     max-width: 456px;
-//   }
-// }
+  .monetization-popup-features-section {
+    align-items: center;
+  }
+
+  .monetization-popup-content-wrapper {
+    align-items: center;
+  }
+}
+
+@media (max-width: 500px) {
+  .monetization-popup-title {
+    font-size: 36px;
+    line-height: normal;
+  }
+}
 
 .monetization-popup-loading-icon {
   font-size: 18px;

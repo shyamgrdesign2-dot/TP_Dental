@@ -201,7 +201,7 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile } = contextValue || {};
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
@@ -254,14 +254,21 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
     if (printSettings.prescription.case_option[i]?.type === "page_break") {
       return;
     }
-    flag === "radio"
-      ? (printSettings.prescription.case_option[i].format = record.target.value)
-      : (printSettings.prescription.case_option[i].enable =
-        record.enable === "Y" ? "N" : "Y");
-
     setPrintSettings((prev) => {
+      const caseOption = prev?.prescription?.case_option || [];
+      const option = caseOption[i];
+      if (!option) return prev;
+      const updatedOption = flag === "radio"
+        ? { ...option, format: record.target.value }
+        : { ...option, enable: record.enable === "Y" ? "N" : "Y" };
+      const newCaseOption = [...caseOption];
+      newCaseOption[i] = updatedOption;
       return {
         ...prev,
+        prescription: {
+          ...prev.prescription,
+          case_option: newCaseOption,
+        },
       };
     });
   };
@@ -1268,6 +1275,12 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   if (option.type === "page_break") {
                     return tokenData?.hospital_business_id == env.zydus_business_id;
                   }
+                  // Show vaccination (id 10) when module vaccines OR prescription vaccines exist – same condition as symptoms
+                  if (option.id === 10) {
+                    const hasModuleVaccines = isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length);
+                    const hasPrescriptionVaccines = caseManagerData?.vaccinations?.length > 0;
+                    return hasModuleVaccines || hasPrescriptionVaccines;
+                  }
                   return (caseManagerData.symptoms.length > 0 && option.id === 1) ||
                     (caseManagerData.examination.length > 0 && option.id === 2) ||
                     (caseManagerData.diagnosis.length > 0 && option.id === 3) ||
@@ -1278,12 +1291,11 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (caseManagerData.medical_history.length > 0 && option.id === 8) ||
                     (caseManagerData.follow_up_date && option.id === 9) ||
                     (caseManagerData.visit_advice && option.id === 91) ||
-                    (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length) && option.id === 10) ||
-                    (caseManagerData?.smart_prescription_filename?.length && option.id === 11) ||
+                    ((caseManagerData?.smart_prescription_filename?.length || (smartRxFile && smartRxFile.length > 0)) && option.id === 11) ||
                     (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
                     (caseManagerData.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
                     (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
-                    (caseManagerData.labParamsData?.length > 0 && option.id === 15) ||
+                    ((caseManagerData?.labParamsData?.length > 0 || (labParamsData && labParamsData.length > 0)) && option.id === 15) ||
                     (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
                     (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
                     (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
@@ -1382,30 +1394,33 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
           </p>
           <div style={{ maxHeight: '254px', padding: '0 16px', backgroundColor:'#F1F1F5', borderRadius: '14px', overflowY: 'auto' }}>
             {(() => {
-              const filteredItems = printSettings?.prescription?.case_option?.filter(option => 
-                option.type === "page_break" || 
-                (caseManagerData?.symptoms?.length > 0 && option.id === 1) ||
-                (caseManagerData?.examination?.length > 0 && option.id === 2) ||
-                (caseManagerData?.diagnosis?.length > 0 && option.id === 3) ||
-                (caseManagerData?.medicine?.length > 0 && option.id === 4) ||
-                (caseManagerData?.advice?.length > 0 && option.id === 5) ||
-                (caseManagerData?.investigation?.length > 0 && option.id === 6) ||
-                ((caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight) && option.id === 7) ||
-                (caseManagerData?.medical_history?.length > 0 && option.id === 8) ||
-                (caseManagerData?.follow_up_date && option.id === 9) ||
-                (caseManagerData?.visit_advice && option.id === 91) ||
-                (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length) && option.id === 10) ||
-                (caseManagerData?.smart_prescription_filename?.length && option.id === 11) ||
-                (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
-                (caseManagerData?.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
-                (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
-                (caseManagerData?.labParamsData?.length > 0 && option.id === 15) ||
-                (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
-                (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
-                (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
-                (patientBills?.length > 0 && option.id === 17) ||
-                (option.id === 20 && (ophthalModuleData && Object.keys(ophthalModuleData).length > 0 || true)) // Always show for testing
-              ) || [];
+              const hasVaccinationData = (isVaccinationAccessable && (todayVaccines?.given?.length || todayVaccines?.due?.length)) || (caseManagerData?.vaccinations?.length > 0);
+              const filteredItems = printSettings?.prescription?.case_option?.filter(option => {
+                if (option.id === 91) return false;
+                return (
+                  option.type === "page_break" ||
+                  (caseManagerData?.symptoms?.length > 0 && option.id === 1) ||
+                  (caseManagerData?.examination?.length > 0 && option.id === 2) ||
+                  (caseManagerData?.diagnosis?.length > 0 && option.id === 3) ||
+                  (caseManagerData?.medicine?.length > 0 && option.id === 4) ||
+                  (caseManagerData?.advice?.length > 0 && option.id === 5) ||
+                  (caseManagerData?.investigation?.length > 0 && option.id === 6) ||
+                  ((caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight) && option.id === 7) ||
+                  (caseManagerData?.medical_history?.length > 0 && option.id === 8) ||
+                  (caseManagerData?.follow_up_date && option.id === 9) ||
+                  (hasVaccinationData && option.id === 10) ||
+                  ((caseManagerData?.smart_prescription_filename?.length || (smartRxFile && smartRxFile.length > 0)) && option.id === 11) ||
+                  (isGrowthChartAccessable && option.id === 12 && growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0) ||
+                  (caseManagerData?.gynecHistoryData && isGynaecHistoryAccessable && option.id === 13) ||
+                  (option.id === 14 && isGynaecHistoryAccessable && obstetricDetails?.id) ||
+                  ((caseManagerData?.labParamsData?.length > 0 || (labParamsData && labParamsData.length > 0)) && option.id === 15) ||
+                  (caseManagerData?.surgeries?.length > 0 && option.id === 16) ||
+                  (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
+                  (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
+                  (patientBills?.length > 0 && option.id === 17) ||
+                  (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true))
+                );
+              }) || [];
 
               return (
                 <DndContext modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEndCaseOption}>
