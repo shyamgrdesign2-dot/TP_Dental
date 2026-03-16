@@ -207,8 +207,9 @@ const styles = StyleSheet.create({
         marginTop: PX_TO_PT * 12,
     },
     dentalTable: {
-        // marginTop: PX_TO_PT * 6,
         borderTop: '1px solid #171725',
+        borderRadius: PX_TO_PT * 4,
+        overflow: 'hidden',
     },
     dentalRow: {
         flexDirection: 'row',
@@ -219,7 +220,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottom: '1px solid #171725',
         borderLeft: '1px solid #171725',
-        borderTop: '1px solid #171725',
     },
     dentalCellLabel: {
         width: '35%',
@@ -239,6 +239,8 @@ const styles = StyleSheet.create({
     dentalQuadrantGrid: {
         marginTop: PX_TO_PT * 6,
         border: '1px solid #171725',
+        borderRadius: PX_TO_PT * 4,
+        overflow: 'hidden',
     },
     dentalQuadrantRow: {
         flexDirection: 'row',
@@ -251,6 +253,7 @@ const styles = StyleSheet.create({
     },
     dentalQuadrantTitle: {
         marginBottom: 4,
+        textAlign: 'center'
     },
     dentalListItem: {
         marginBottom: 2,
@@ -482,10 +485,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         dentalWorkDoneRowsFiltered.length > 0 ||
         hasWorkDoneNotes;
     const dentalQuadrantSections = [
-        { key: "UPPER_LEFT", label: "UPPER_LEFT" },
-        { key: "UPPER_RIGHT", label: "UPPER_RIGHT" },
-        { key: "LOWER_LEFT", label: "LOWER_LEFT" },
-        { key: "LOWER_RIGHT", label: "LOWER_RIGHT" },
+        { key: "UPPER_LEFT", label: "UPPER LEFT" },
+        { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+        { key: "LOWER_LEFT", label: "LOWER LEFT" },
+        { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
     ];
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
 
@@ -1583,7 +1586,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         )}
 
                                         {dentalDiagnosisRows.length > 0 && (
-                                            <View style={styles.dentalTable}>
+                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
                                                 <View style={styles.dentalHeaderRow}>
                                                     <View style={styles.dentalHeaderCell}>
                                                         <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Diagnosis Field</Text>
@@ -1610,7 +1613,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         )}
 
                                         {hasToothDiagramNotes && (
-                                            <View style={styles.dentalTable}>
+                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
                                                 <View style={styles.dentalRow}>
                                                     <View style={styles.dentalCellLabel}>
                                                         <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
@@ -1631,7 +1634,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 <Text style={{ marginTop: PX_TO_PT * 6, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
                                                     TREATMENT PLAN(S)
                                                 </Text>
-                                                <View style={styles.dentalTable}>
+                                                <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
                                                     <View style={styles.dentalHeaderRow}>
                                                         {["S NO", "TREATMENT", "TOOTH NUMBER", "RATE", "COUNT", "ESTIMATE"].map((label) => (
                                                             <View key={label} style={styles.dentalHeaderCell}>
@@ -1660,13 +1663,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     WORK DONE
                                                 </Text>
                                                 {dentalWorkDoneRowsFiltered.length > 0 && (
-                                                    <View style={styles.dentalTable}>
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
                                                         <View style={styles.dentalHeaderRow}>
                                                             {[
                                                                 "DATE",
                                                                 "WORK DONE",
                                                                 "PTR",
-                                                                "TT REVIEW",
                                                                 "PAYMENT",
                                                                 "BALANCE",
                                                                 "REMARKS",
@@ -1688,7 +1690,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     item?.date,
                                                                     buildWorkDoneText(item),
                                                                     item?.ptr,
-                                                                    item?.ttReview,
                                                                     item?.payment,
                                                                     item?.balance,
                                                                     item?.remarks,
@@ -1710,7 +1711,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     </View>
                                                 )}
                                                 {hasWorkDoneNotes && (
-                                                    <View style={styles.dentalTable}>
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
                                                         <View style={styles.dentalRow}>
                                                             <View style={styles.dentalCellLabel}>
                                                                 <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>

@@ -395,6 +395,9 @@ const styles = StyleSheet.create({
   },
   dentalTable: {
     marginTop: PX_TO_PT * 6,
+    borderTop: "1px solid #171725",
+    borderRadius: PX_TO_PT * 4,
+    overflow: "hidden",
   },
   dentalRow: {
     flexDirection: "row",
@@ -425,6 +428,8 @@ const styles = StyleSheet.create({
   dentalQuadrantGrid: {
     marginTop: PX_TO_PT * 6,
     border: "1px solid #171725",
+    borderRadius: PX_TO_PT * 4,
+    overflow: "hidden",
   },
   dentalQuadrantRow: {
     flexDirection: "row",
