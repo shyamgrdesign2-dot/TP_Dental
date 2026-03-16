@@ -10,6 +10,7 @@ import {
   registerDoctorExternalId,
   resetOneSignalState,
   logoutOneSignalUser,
+  getOneSignalRuntimeState,
 } from "../api/services/oneSignalService";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_TELE_CONSULT } from "../utils/constants";
@@ -17,8 +18,16 @@ import TeleconsultNotificationHandler from "./TeleconsultNotificationHandler";
 import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
 import { setJoinToken } from "../redux/teleconsultNotificationSlice";
 
-let oneSignalFlowStarted = false;
-let lastOneSignalDoctorId = null;
+let loggedNoSubscriptionSuppression = false;
+
+function isBenignOneSignalNoSubscriptionError(errLike) {
+  const message = String(errLike?.message || errLike || "");
+  const stack = String(errLike?.stack || "");
+  return (
+    /No subscription/i.test(message) &&
+    (/SessionManager\.ts/i.test(stack) || /onesignal/i.test(stack))
+  );
+}
 
 export default function AppTeleconsultBootstrap() {
   const dispatch = useDispatch();
@@ -36,12 +45,44 @@ export default function AppTeleconsultBootstrap() {
   const doctorName = profile?.um_name || profile?.doctor_name || "Doctor";
 
   useEffect(() => {
+    const onUnhandledRejection = (event) => {
+      if (!isBenignOneSignalNoSubscriptionError(event?.reason)) return;
+      event.preventDefault();
+      if (!loggedNoSubscriptionSuppression) {
+        loggedNoSubscriptionSuppression = true;
+        console.warn(
+          "[OneSignalBootstrap] Suppressed benign OneSignal SessionManager 'No subscription' rejection."
+        );
+      }
+    };
+
+    const onWindowError = (event) => {
+      const candidate = event?.error || event?.message;
+      if (!isBenignOneSignalNoSubscriptionError(candidate)) return;
+      event.preventDefault();
+      if (!loggedNoSubscriptionSuppression) {
+        loggedNoSubscriptionSuppression = true;
+        console.warn(
+          "[OneSignalBootstrap] Suppressed benign OneSignal SessionManager 'No subscription' error."
+        );
+      }
+    };
+
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    window.addEventListener("error", onWindowError);
+
+    return () => {
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+      window.removeEventListener("error", onWindowError);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isTeleConsultEnabledFromGB || isLoginPage || isReceptionist) {
       console.log("[OneSignalBootstrap] Skipping OneSignal flow:", {
         isTeleConsultEnabledFromGB,
         isLoginPage,
         isReceptionist,
-        path: location.pathname,
       });
       return;
     }
@@ -50,63 +91,84 @@ export default function AppTeleconsultBootstrap() {
       console.log("[OneSignalBootstrap] No doctorId found; resetting OneSignal state.");
       logoutOneSignalUser("missing-doctor-id");
       resetOneSignalState();
-      oneSignalFlowStarted = false;
-      lastOneSignalDoctorId = null;
       return;
     }
 
-    if (oneSignalFlowStarted && lastOneSignalDoctorId === doctorId) {
-      console.log("[OneSignalBootstrap] OneSignal flow already started for doctor; skipping re-init.", {
-        doctorId,
-      });
-      return;
-    }
-
-    if (lastOneSignalDoctorId !== null && lastOneSignalDoctorId !== doctorId) {
-      console.log("[OneSignalBootstrap] Doctor changed; resetting OneSignal state.", {
-        previousDoctorId: lastOneSignalDoctorId,
-        nextDoctorId: doctorId,
-      });
-      logoutOneSignalUser("doctor-changed");
-      resetOneSignalState();
-      oneSignalFlowStarted = false;
-    }
-
-    lastOneSignalDoctorId = doctorId;
-    oneSignalFlowStarted = true;
-
-    console.log("[OneSignalBootstrap] Starting OneSignal flow for doctor:", {
-      doctorId,
-    });
+    let cancelled = false;
 
     (async () => {
       try {
         if (!(await initOneSignal())) {
           console.warn("[OneSignalBootstrap] initOneSignal returned false; aborting flow.");
-          oneSignalFlowStarted = false;
           resetOneSignalState();
           return;
         }
-        console.log("[OneSignalBootstrap] initOneSignal succeeded; attaching listeners and requesting permission.");
+
+        if (cancelled) return;
+
         listenForTeleconsultNotifications();
-        const permissionResult = await OneSignal.Notifications.requestPermission();
-        console.log("[OneSignalBootstrap] Notification permission result:", permissionResult);
+
+        const beforeState = getOneSignalRuntimeState();
+        console.log("[OneSignalBootstrap] Runtime state before permission/login:", beforeState);
+
+        // Permission/subscription are device+browser scoped, not doctor scoped.
         if (!OneSignal.User.PushSubscription.optedIn) {
-          console.log("[OneSignalBootstrap] PushSubscription not opted in; calling optIn().");
-          await OneSignal.User.PushSubscription.optIn();
+          const permissionResult = await OneSignal.Notifications.requestPermission();
+          console.log("[OneSignalBootstrap] Notification permission result:", permissionResult);
+
+          if (!OneSignal.User.PushSubscription.optedIn) {
+            console.log("[OneSignalBootstrap] PushSubscription not opted in; calling optIn().");
+            await OneSignal.User.PushSubscription.optIn();
+          }
         }
+
+        const canBindDoctorIdentity =
+          Boolean(OneSignal?.User?.PushSubscription?.optedIn) &&
+          Boolean(OneSignal?.User?.PushSubscription?.id);
+        if (!canBindDoctorIdentity) {
+          const runtimeWithoutSubscription = getOneSignalRuntimeState();
+          console.warn(
+            "[OneSignalBootstrap] Skipping doctor registration because this browser has no push subscription.",
+            {
+              doctorId,
+              ...runtimeWithoutSubscription,
+            }
+          );
+
+          // If identity was previously bound, clear it to avoid SDK visibility/session errors.
+          if (OneSignal?.User?.externalId) {
+            await logoutOneSignalUser("no-subscription");
+          }
+          return;
+        }
+
+        // Always re-run doctor registration so SDK/backend identity drift gets corrected.
         await registerDoctorExternalId(String(doctorId));
-        console.log("[OneSignalBootstrap] Completed OneSignal bootstrap for doctor:", {
+
+        const afterState = getOneSignalRuntimeState();
+        console.log("[OneSignalBootstrap] Completed OneSignal bootstrap:", {
           doctorId,
-          optedIn: OneSignal.User.PushSubscription.optedIn,
+          ...afterState,
         });
+
+        if (!afterState.subscribed) {
+          console.warn(
+            "[OneSignalBootstrap] Device is not opted in for push. " +
+              "Doctor is logged in, but notifications cannot be received on this browser until permission is granted."
+          );
+        }
       } catch (e) {
-        console.error("[OneSignalBootstrap] Error during OneSignal flow:", e);
-        oneSignalFlowStarted = false;
-        resetOneSignalState();
+        if (!cancelled) {
+          console.error("[OneSignalBootstrap] Error during OneSignal flow:", e);
+          resetOneSignalState();
+        }
       }
     })();
-  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId, location.pathname]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isTeleConsultEnabledFromGB, isLoginPage, isReceptionist, doctorId]);
 
   // If user navigates into any Voice Rx consult route while a teleconsult call is active,
   // automatically drop the video call so they can proceed with the Voice Rx flow.

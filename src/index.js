@@ -68,15 +68,33 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       // Check if service worker is already registered
       navigator.serviceWorker.getRegistration()
         .then((existingRegistration) => {
-          if (existingRegistration) {
-            // Service worker already registered, just log
+          const expectedWorkerPath = '/serviceworker.js';
+          const currentScriptUrl =
+            existingRegistration?.active?.scriptURL ||
+            existingRegistration?.waiting?.scriptURL ||
+            existingRegistration?.installing?.scriptURL ||
+            '';
+          const currentScriptPath = currentScriptUrl
+            ? new URL(currentScriptUrl).pathname
+            : '';
+
+          if (existingRegistration && currentScriptPath === expectedWorkerPath) {
+            // Expected worker already registered
             if (process.env.NODE_ENV !== 'production') {
               console.log('Service Worker already registered:', existingRegistration.scope);
             }
             return existingRegistration;
           }
+
+          if (existingRegistration && process.env.NODE_ENV !== 'production') {
+            console.log(
+              'Replacing existing Service Worker script:',
+              currentScriptPath || '(unknown)'
+            );
+          }
+
           // Register new service worker
-          return navigator.serviceWorker.register('/serviceworker.js', {
+          return navigator.serviceWorker.register(expectedWorkerPath, {
             scope: '/'
           });
         })
