@@ -2426,7 +2426,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
@@ -2486,7 +2493,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </button>
                 </>
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
