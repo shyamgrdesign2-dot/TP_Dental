@@ -1543,7 +1543,7 @@ function Cardiology(props) {
     type: type,
     device_details: navigator.userAgent
   });
-    navigate("/smart-rx-digitise", {
+    navigate(isTabRx ? "/tabrx-digitization" : "/smart-rx-digitise", {
       state: {
         patient_data: patient_data,
         smartRxFilesData: smartRxFile,
