@@ -1706,6 +1706,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   navigate("/smart-prescription", { state: { patient_data: record, videoConsultData: videoConsultData } });
   };
 
+  const onTabRxClick = async (record) => {
+    navigate("/tab-rx", { state: { patient_data: record } });
+  };
+
   const onAppointmentAgentClick = async () => {
     // window.Moengage.track_event("patient_search_consult", {
     //     "doctor_id": profile?.doctor_unique_id,
@@ -2429,6 +2433,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSmartRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSmartRxClick : onSmartRxClick}
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
+                    onTabRxClick={onTabRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"
@@ -2488,6 +2493,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSmartRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSmartRxClick : onSmartRxClick}
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
+                    onTabRxClick={onTabRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"

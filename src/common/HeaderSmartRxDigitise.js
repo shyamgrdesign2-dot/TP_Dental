@@ -63,7 +63,7 @@ import healthIcon from "../assets/images/health-care.svg";
 import tagNew from "../assets/images/new-gif.gif";
 import VideoConsultButton from "../components/VideoConsultButton";
 
-function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading }) {
+function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading, isSaveLoading = false }) {
   const { profile } = useSelector(
       (state) => state.doctors
     );
@@ -417,7 +417,7 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                   type="button"
                   className="btn align-items-center d-flex btn-41 btn-primary3 me-20"
                   onClick={handleSaveDigitiseRx}
-                  loading={loading}
+                  loading={loading || isSaveLoading}
                   disabled={isDigitiseRxLoading}
                 >
                   Save Digitised Rx

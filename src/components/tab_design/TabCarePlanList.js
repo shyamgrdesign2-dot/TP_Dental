@@ -12,13 +12,14 @@ function TabCarePlanList(props) {
         setSelectedCarePlan,
         userId,
         clinicId,
-        carePlanPlaceholder 
+        carePlanPlaceholder,
+        isTabRx
     } = props;
 
     return (
         <>
             {/* Purple banner header */}
-            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
                 Care Plans
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>

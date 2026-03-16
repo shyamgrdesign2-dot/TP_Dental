@@ -528,6 +528,7 @@ function Cardiology(props) {
   const [smartRxFile, setSmartRxFile] = useState([]);
   const [isSmartRxFile, setIsSmartRxFile] = useState(false);
   const [isSnapRx, setIsSnapRx] = useState(false);
+  const [isTabRx, setIsTabRx] = useState(false);
   const [snapRxFile, setSnapRxFile] = useState([]);
   const [isSnapRxdigitised, setIsSnapRxdigitised] = useState(null);
   const [showDigitalSnapRx, setShowDigitalSnapRx] = useState(null);
@@ -581,6 +582,9 @@ function Cardiology(props) {
       if (isVideoConsultAccessibleFromGB) {
         checkVideoConsultStatus(viewCaseManagerData.tcm_id);
       }
+    }
+    if (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx")) {
+      setIsTabRx(true);
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -1382,6 +1386,18 @@ function Cardiology(props) {
         patient_data !== undefined ? patient_data.patient_unique_id : 0,
       rx_date: viewCaseManagerData?.consultation_date,
     });
+
+    if (isTabRx) {
+      return navigate("/tab-rx", {
+        state: {
+          patient_data: patient_data,
+          tcm_id: viewCaseManagerData?.tcm_id,
+          pam_id: viewCaseManagerData?.pam_id,
+          fromEditRx: true,
+          smartRxFilesData: smartRxFile,
+        },
+      });
+    }
 
     if (isSnapRx && isSnapRxAccessableFromGB) {
       return navigate("/snap-rx", {
@@ -2294,6 +2310,12 @@ function Cardiology(props) {
       patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
     });
     navigate("/snap-rx", {
+      state: { patient_data: patient_data },
+    });
+  };
+
+  const handleStartTabRx = () => {
+    navigate("/tab-rx", {
       state: { patient_data: patient_data },
     });
   };
@@ -3976,6 +3998,7 @@ function Cardiology(props) {
                       onSmartRxClick={() => handleStartSmartRx()}
                       onSnapRxClick={() => handleStartSnapRx()}
                       onVoiceRxClick={() => handleStartVoiceRx()}
+                      onTabRxClick={() => handleStartTabRx()}
                       onConsultClick={() => handleStartConsult()}
                       patient={patient_data}
                       buttonStyle="walkin"

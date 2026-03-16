@@ -153,6 +153,9 @@ function Welcome1(props) {
     const onConsultClick = async (patient) => {
         navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
     };
+    const onTabRxClick = async (patient) => {
+        navigate("/tab-rx", { state: { patient_data: patient } });
+    };
 
     const onVoiceRxClick = async (patient) => {
         const clinic = getClinic(profile?.hospital_data);
@@ -195,7 +198,7 @@ function Welcome1(props) {
             }
 
             window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
-            const copiedRxId = copyResponse?.success
+            const copiedRxId = copyResponse?.success 
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 
@@ -464,6 +467,7 @@ function Welcome1(props) {
                                             onSmartRxClick={onSmartRxClick}
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
+                                            onTabRxClick={onTabRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={patient_data}
                                             buttonStyle="walkin"
