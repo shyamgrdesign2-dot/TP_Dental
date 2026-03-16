@@ -20,7 +20,7 @@ import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/ca
 import { addUpdateVitals, getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from '../../redux/vitalsSlice';
 import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
 import { checkCredits, updateCredits } from '../../redux/monetizationSlice';
-import { services } from '../../redux/doctorsSlice';
+import { services, getProfile } from '../../redux/doctorsSlice';
 import { ADD } from '../../utils/constants';
 import ApiVitals from '../../api/services/ApiVitals';
 import { enrichVitalsWithCalculations } from '../../utils/vitalsCalculations';
@@ -64,7 +64,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, servicesList } = useSelector((state) => state.doctors);
+  const { profile, servicesList, loading: profileLoading } = useSelector((state) => state.doctors);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext) || {};
 
@@ -92,6 +92,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(false);
+  const [digitizeError, setDigitizeError] = useState(null); // Error from voice/text digitize (shown in drawer when blank)
   const [showEndVisitScreen, setShowEndVisitScreen] = useState(false);
   const [showInfoBottomSheet, setShowInfoBottomSheet] = useState(false);
   const [endVisitCaseManagerData, setEndVisitCaseManagerData] = useState(null); // Store saved caseManagerData with print_url
@@ -228,6 +229,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     setPrescriptionData(getEmptyPrescriptionTemplate());
   }, [visible, patient_data, prescriptionData, existingData?.prescriptionData, inputTextFromLocation, audioBlobFromLocation]);
 
+  // Ensure profile is loaded when RxPad opens (fix: new users on mobile often have profile null)
+  useEffect(() => {
+    if (visible && !profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [visible, profile, profileLoading, dispatch]);
+
   // Load patient's last medical history when starting new consultation (matches web TabPrescription behavior)
   useEffect(() => {
     if (!visible || !patient_data?.patient_unique_id) return;
@@ -322,6 +330,11 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   // Reset vitals ref when pad closes so next open refetches getVitals (fresh data)
   useEffect(() => {
     if (!visible) listVitalsPatientIdRef.current = null;
+  }, [visible]);
+
+  // Clear digitize error when drawer closes so next open doesn't show stale error
+  useEffect(() => {
+    if (!visible) setDigitizeError(null);
   }, [visible]);
 
   // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API).
@@ -565,6 +578,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     const run = async () => {
       try {
         await new Promise((r) => setTimeout(r, 80));
+        setDigitizeError(null);
         setIsProcessing(true);
 
         // Prioritize text input over audio blob (text input is explicit user action)
@@ -575,6 +589,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           await handleVoiceDigitize(audioBlobFromLocation, '');
         }
       } catch (e) {
+        const errMsg = e?.message || 'Voice prescription failed. Please try again.';
+        console.error('[MobileRxPad] Auto-submit failed:', e);
+        if (e?.response) {
+          console.error('[MobileRxPad] Response status:', e.response?.status, 'data:', e.response?.data);
+        }
+        message.error(errMsg);
+        setDigitizeError(errMsg);
         setIsProcessing(false);
         hasAutoSubmittedRef.current = false;
         // Reset processed input on error to allow retry
@@ -731,7 +752,27 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   };
 
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
+    setDigitizeError(null);
     try {
+      // Guard: new users on mobile may have profile not loaded yet; digitize and credit check need profile/doctorId
+      if (!doctorId) {
+        const msg = 'Session loading. Please wait a moment and try again.';
+        console.warn('[MobileRxPad] handleVoiceDigitize: no doctorId, skipping digitize');
+        message.warning(msg);
+        setDigitizeError(msg);
+        setIsProcessing(false);
+        return;
+      }
+      if (!isFreeVoiceRxUser && !profile?.b2c) {
+        const msg = 'Loading your profile. Please wait a moment and try again.';
+        console.warn('[MobileRxPad] handleVoiceDigitize: profile.b2c not loaded, skipping digitize');
+        message.warning(msg);
+        setDigitizeError(msg);
+        dispatch(getProfile());
+        setIsProcessing(false);
+        return;
+      }
+
       // Real-time credit check before voice processing (matches desktop ConsultationDrawer)
       if (!isFreeVoiceRxUser && (
         VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0
@@ -1229,6 +1270,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           };
 
           setIsProcessing(false);
+          setDigitizeError(null);
 
           // Single short delay then show content (avoids double-load: was 700ms + 2s skeleton)
           const transitionMs = 220;
@@ -1367,16 +1409,28 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               }
           }, transitionMs);
         } else {
+          const msg = 'No prescription data received';
+          console.error('[MobileRxPad] handleVoiceDigitize: no prescription data in API response');
           setIsProcessing(false);
-          message.error('No prescription data received');
+          message.error(msg);
+          setDigitizeError(msg);
         }
       } else {
+        const msg = 'Failed to process. Please try again.';
+        console.error('[MobileRxPad] handleVoiceDigitize: API success but invalid/empty response');
         setIsProcessing(false);
-        message.error('Failed to process. Please try again.');
+        message.error(msg);
+        setDigitizeError(msg);
       }
     } catch (error) {
+      const msg = error?.message || 'Failed to process. Please try again.';
+      console.error('[MobileRxPad] handleVoiceDigitize error:', error);
+      if (error?.response) {
+        console.error('[MobileRxPad] Response status:', error.response?.status, 'data:', error.response?.data);
+      }
       setIsProcessing(false);
-      message.error(error?.message || 'Failed to process. Please try again.');
+      message.error(msg);
+      setDigitizeError(msg);
     }
   };
 
@@ -1984,6 +2038,17 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             <MobileRxPadProcessing isProcessing={isProcessing} />
           ) : showSkeleton ? (
             <MobileRxPadSkeleton />
+          ) : digitizeError ? (
+            <div className="mobile-rx-pad-error">
+              <p>{digitizeError}</p>
+              <button
+                type="button"
+                className="mobile-rx-pad-error-close"
+                onClick={() => { setDigitizeError(null); onClose?.(); }}
+              >
+                Close
+              </button>
+            </div>
           ) : prescriptionData ? (
             <MobileRxPadContent 
               prescriptionData={prescriptionData}

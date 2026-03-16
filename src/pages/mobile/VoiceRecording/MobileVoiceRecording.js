@@ -17,7 +17,7 @@ import ambientActiveIcon from '../../../assets/images/ambient-mode-active.svg';
 import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '../../../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION } from '../../../utils/constants';
 import { checkCredits } from '../../../redux/monetizationSlice';
-import { services } from '../../../redux/doctorsSlice';
+import { services, getProfile } from '../../../redux/doctorsSlice';
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRecording.scss';
 
@@ -25,7 +25,7 @@ function MobileVoiceRecording() {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, userId, servicesList } = useSelector((state) => state.doctors);
+  const { profile, userId, servicesList, loading: profileLoading } = useSelector((state) => state.doctors);
 
   const VOICE_RX_planDetails = servicesList?.find(
     (e) => e.service_name === S_VOICE_RX
@@ -83,6 +83,13 @@ function MobileVoiceRecording() {
     setIsPaused(false);
     setRecordingTime(0);
   }, []);
+
+  // Ensure profile is loaded before submit (fix: new users on mobile often have profile null when submitting)
+  useEffect(() => {
+    if (!profile && !profileLoading) {
+      dispatch(getProfile());
+    }
+  }, [dispatch, profile, profileLoading]);
 
   useEffect(() => {
     if (mode) {
@@ -283,6 +290,12 @@ function MobileVoiceRecording() {
   };
 
   const handleSend = async () => {
+    // Guard: credit check requires profile.b2c; new users on mobile often have profile not loaded yet
+    if (!profile?.b2c) {
+      message.warning('Loading your profile. Please wait a moment and try again.');
+      if (!profileLoading) dispatch(getProfile());
+      return;
+    }
     if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0) {
       showHideSubModal();
       return;
@@ -293,7 +306,7 @@ function MobileVoiceRecording() {
     }
 
     let sendData = {
-      b2c_id: profile?.b2c,
+      b2c_id: profile.b2c,
       service_name: S_VOICE_RX,
     };
     const action = await dispatch(checkCredits(sendData));
