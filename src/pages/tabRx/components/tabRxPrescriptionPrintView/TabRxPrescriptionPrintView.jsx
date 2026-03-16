@@ -86,6 +86,31 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker;
 //     import.meta.url
 // ).toString();
 
+const HoverIconButton = ({ defaultIcon, hoverIcon, text, onClick, disabled }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <Button
+      type="text"
+      className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
+      icon={
+        <img
+          src={isHovered ? hoverIcon : defaultIcon}
+          alt={text}
+          width={22}
+          height={22}
+        />
+      }
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <span className="fw-semibold">{text}</span>
+      <i className="icon-right iconrotate180 ms-auto"></i>
+    </Button>
+  );
+};
+
 const containerStyle = {
   width: "100%",
   height: "25px",
@@ -187,8 +212,6 @@ function TabRxPrescriptionPrintView() {
   const [advanceReceipts, setAdvanceReceipts] = useState([]);
   const [patientWalletBalance, setPatientWalletBalance] = useState(0);
   const [billsUpdateKey, setBillsUpdateKey] = useState(0);
-  const [isCreateBillHover, setIsCreateBillHover] = useState(false);
-  const [isEditPrescriptionHover, setIsEditPrescriptionHover] = useState(false);
   const [isEditRxModalOpen, setIsEditRxModalOpen] = useState(false);
   const { isGynaecHistoryAccessable } = useAccess();
   const { planDetails } = useSelector((state) => state.subscription);
@@ -995,52 +1018,23 @@ function TabRxPrescriptionPrintView() {
                   <span className="fw-semibold">{showDigitalRx ? "Download Digital Rx" : "Download Written Rx"}</span>
                   <i className="icon-right iconrotate180 ms-auto"></i>
                 </Button>
-                <Button
-                  type="text"
-                  className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
-                  icon={
-                    <img
-                      src={isEditPrescriptionHover ? EditIcon : EditIconPrimary}
-                      alt="Edit Prescription"
-                      width={22}
-                      height={22}
-                    />
-                  }
-                  onMouseEnter={() => setIsEditPrescriptionHover(true)}
-                  onMouseLeave={() => setIsEditPrescriptionHover(false)}
+                <HoverIconButton
+                  defaultIcon={EditIconPrimary}
+                  hoverIcon={EditIcon}
+                  text={showDigitalRx ? "Edit Digital Rx" : "Edit Written Rx"}
                   onClick={onEditPrescriptionClick}
-                  loading={loading}
-                >
-                  <span className="fw-semibold">{showDigitalRx ? "Edit Digital Rx" : "Edit Written Rx"}</span>
-                  <i className="icon-right iconrotate180 ms-auto"></i>
-                </Button>
+                />
                 {isOpdBillingAccessable && (
-                  <Button
-                    type="text"
-                    className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
-                    icon={
-                      <img
-                        src={
-                          isCreateBillHover ? ReceiptText : ReceiptTextPrimary
-                        }
-                        alt="Receipt Text"
-                      />
-                    }
-                    onMouseEnter={() => setIsCreateBillHover(true)}
-                    onMouseLeave={() => setIsCreateBillHover(false)}
+                  <HoverIconButton
+                    defaultIcon={ReceiptTextPrimary}
+                    hoverIcon={ReceiptText}
+                    text={patientBills?.length > 0 ? "Create/ View Bill" : "Create Bill"}
                     onClick={
                       patientBills?.length === 0
                         ? handleCreateBillDrawer
                         : handleRecentBillDrawer
                     }
-                  >
-                    <span className="fw-semibold">
-                      {patientBills?.length > 0
-                        ? "Create/ View Bill"
-                        : "Create Bill"}
-                    </span>
-                    <i className="icon-right iconrotate180 ms-auto"></i>
-                  </Button>
+                  />
                 )}
                 {(() => {
                   const decodedToken = getDecodedToken();
