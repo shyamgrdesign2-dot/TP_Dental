@@ -58,6 +58,7 @@ import {
   INVESTIGATION_TITLE,
   GB_TAB_RX,
   GB_TAB_RX_CVT,
+  GB_TELE_CONSULT,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -568,7 +569,9 @@ function Cardiology(props) {
   );
   const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
   const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
-  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
+  const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -710,7 +713,7 @@ function Cardiology(props) {
     setIsLoadingVideoStatus(true);
     try {
       const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-      if (response?.data?.pam_status_type_appointment === 1) {
+      if (response?.data?.pam_status_type_appointment === 1 || response?.data?.pam_status_type_appointment === 2) {
         setHasVideoConsult(true);
       } else {
         setHasVideoConsult(false);
