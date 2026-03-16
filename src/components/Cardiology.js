@@ -82,6 +82,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
+import PrimaryActionButton from "./PrimaryActionButton";
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -587,7 +588,9 @@ function Cardiology(props) {
     if (
       isSmartSyncAccessableFromGB &&
       viewCaseManagerData?.smart_prescription_filename !== null &&
-      viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg")
+      viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg") &&
+      !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+      !isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
       // viewCaseManagerData.medicine?.length === 0 &&
       // viewCaseManagerData.symptoms?.length === 0 &&
       // viewCaseManagerData.examination?.length === 0 &&
@@ -2055,6 +2058,32 @@ function Cardiology(props) {
     });
   };
 
+  const handleStartSmartRx = () => {
+    window.Moengage?.track_event("start_new_SmartRx_click", {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+    });
+    navigate("/smart-prescription", {
+      state: { patient_data: patient_data },
+    });
+  };
+
+  const handleStartSnapRx = () => {
+    window.Moengage?.track_event("start_new_SnapRx_click", {
+      doctor_id: profile?.doctor_unique_id,
+      patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
+    });
+    navigate("/snap-rx", {
+      state: { patient_data: patient_data },
+    });
+  };
+
+  const handleStartTabRx = () => {
+    navigate("/tab-rx", {
+      state: { patient_data: patient_data },
+    });
+  };
+
   const DraftRxAlert = () => {
     return (
       <div className="draft-rx-alert">
@@ -2239,7 +2268,7 @@ function Cardiology(props) {
                   </button>
                 </div>
               ) : (
-                rxDigitisedData?.ocrData && (
+                !rxDigitisedData?.editedData && (
                   <div className="digitise-info-cardiology">
                     <img
                       src={successIcon}
@@ -3582,16 +3611,21 @@ function Cardiology(props) {
                 <p className="mt-4 fontroboto">
                   No visit found for this patient yet
                 </p>
-                <div className="d-flex flex-column align-items-center justify-content-center g-4">
+                <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", "marginLeft": "25%" }}>
                   {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
-                    <SmartDropdownButtons
-                      profile={profile}
-                      patient_data={patient_data}
-                      navigate={navigate}
-                      userId={userId}
+                    <PrimaryActionButton
+                      isSmartRxAccessible={isSmartSyncAccessableFromGB}
+                      isSnapRxAccessible={isSnapRxAccessableFromGB}
+                      isVoiceRxAccessible={isFreeVoiceRxUser || tp_monetization_enable}
                       isVoiceRxPaid={isVoiceRxPaid}
-                      handleStartConsult={handleStartConsult}
-                      handleStartVoiceRx={handleStartVoiceRx}
+                      onSmartRxClick={() => handleStartSmartRx()}
+                      onSnapRxClick={() => handleStartSnapRx()}
+                      onVoiceRxClick={() => handleStartVoiceRx()}
+                      onTabRxClick={() => handleStartTabRx()}
+                      onConsultClick={() => handleStartConsult()}
+                      patient={patient_data}
+                      buttonStyle="walkin"
+                      fullWidth={true}
                     />
                   ) : (
                   <Button
@@ -3641,164 +3675,4 @@ function Cardiology(props) {
   );
 }
 
-function SmartDropdownButtons({
-  profile,
-  patient_data,
-  navigate,
-  userId,
-  isVoiceRxPaid,
-  handleStartConsult,
-  handleStartVoiceRx,
-}) {
-  
-  const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
-  const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
-  const isFreeVoiceRxUser = isVoiceRxFree();
-  const tp_monetization_enable = !shouldMonetizationDisabled();
-  const [open, setOpen] = React.useState(false);
-  const arrowRef = React.useRef(null);
-  const containerRef = React.useRef(null);
-
-  React.useEffect(() => {
-    function handleClickOutside(event) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target)
-      ) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
-    >
-      <div>
-        <Button
-          className="btn btn-primary3 btn-text-white px-5 m-2 btn-41"
-          onClick={() => {
-            if (isVoiceRxPaid) {
-              handleStartVoiceRx();
-            } else {
-              handleStartConsult();
-            }
-          }}
-        >
-          <span className="px-4" style={{ flex: 1, textAlign: "center" }}>
-            {isVoiceRxPaid ? "Start Voice Rx" : "Start New Consult"}
-          </span>
-          <span
-            ref={arrowRef}
-            style={{
-              position: "absolute",
-              right: 24,
-              top: "50%",
-              transform: "translateY(-50%)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen((o) => !o);
-            }}
-          >
-            <i
-              class="icon-right"
-              style={{
-                display: "block",
-                transform: open ? "rotate(270deg)" : "rotate(180deg)",
-                color: "white",
-              }}
-            ></i>
-          </span>
-        </Button>
-      </div>
-      {open && 
-        <div className="smart-rx-buttons-group">
-          {isSmartSyncAccessableFromGB && 
-            <div>
-              <button
-                className={`smart-rx-buttons bottom-border ${isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB ?  "top-br" : "border-radius-all"}`}
-                onClick={() => {
-                  setOpen(false);
-                  window.Moengage.track_event("start_new_SmartRx_click", {
-                    doctor_id: profile?.doctor_unique_id,
-                    patient_id:
-                      patient_data !== undefined
-                        ? patient_data.patient_unique_id
-                        : 0,
-                  });
-                  navigate("/smart-prescription", {
-                    state: { patient_data: patient_data },
-                  });
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New SmartRx</span>
-              </button>
-            </div>
-          }
-          {isSnapRxAccessableFromGB &&
-            <div>
-              <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  window.Moengage.track_event("start_new_SnapRx_click", {
-                    doctor_id: profile?.doctor_unique_id,
-                    patient_id:
-                      patient_data !== undefined
-                        ? patient_data.patient_unique_id
-                        : 0,
-                  });
-                  navigate("/snap-rx", {
-                    state: { patient_data: patient_data },
-                  });
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New SnapRx</span>
-              </button>
-            </div>
-          }
-          {(isFreeVoiceRxUser || tp_monetization_enable) && !isVoiceRxPaid &&
-            <div>
-              <button
-                className={`smart-rx-buttons ${(isSnapRxAccessableFromGB && isSmartSyncAccessableFromGB) ? "bottom-border" : ""} ${!isSmartSyncAccessableFromGB && !isSnapRxAccessableFromGB && !(isFreeVoiceRxUser || tp_monetization_enable) ? "border-radius-all" : ""} ${isSmartSyncAccessableFromGB && isSnapRxAccessableFromGB && (isFreeVoiceRxUser || tp_monetization_enable) ? "bottom-br" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  handleStartVoiceRx();
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start Voice Rx</span>
-              </button>
-            </div>
-          }
-          {isVoiceRxPaid && (
-            <div>
-              <button
-                className="smart-rx-buttons bottom-border"
-                onClick={() => {
-                  setOpen(false);
-                  handleStartConsult();
-                }}
-              >
-                <span style={{ padding: "0 3.4rem" }}>Start New Consult</span>
-              </button>
-            </div>
-          )}
-        </div>
-      }
-    </div>
-  );
-}
 export default React.memo(Cardiology);

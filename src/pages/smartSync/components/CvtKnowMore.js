@@ -180,7 +180,7 @@ const CvtKnowMore = ({ handleCollapsed }) => {
           </div>
         </div>
 
-        <div className="section">
+        <div className="section" style={{ minHeight: "auto" }}>
           <span id="aiDataEngine" className="section-side-header">
             AI Data Engine
           </span>
