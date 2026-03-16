@@ -604,7 +604,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       }
     };
     run();
-  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isProcessing, location.key, isReviewMode, prescriptionData]);
+  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isProcessing, location.key, isReviewMode, prescriptionData, profile]);
 
   // Remove Smart Capture items (matches web version)
   const removeScItems = (data) => {
@@ -754,22 +754,28 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
     setDigitizeError(null);
     try {
+      // Always read doctorId fresh from token to avoid stale-closure issues in auto-submit
+      const freshToken = getDecodedToken();
+      const currentDoctorId = freshToken?.result?.user_id || freshToken?.result?.doctor_unique_id || doctorId;
+
       // Guard: new users on mobile may have profile not loaded yet; digitize and credit check need profile/doctorId
-      if (!doctorId) {
+      if (!currentDoctorId) {
         const msg = 'Session loading. Please wait a moment and try again.';
-        console.warn('[MobileRxPad] handleVoiceDigitize: no doctorId, skipping digitize');
+        console.warn('[MobileRxPad] handleVoiceDigitize: no doctorId, retrying after profile load');
         message.warning(msg);
-        setDigitizeError(msg);
+        // Do not show error in drawer — this is transient; reset so auto-submit can retry once profile loads
         setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
+        dispatch(getProfile());
         return;
       }
       if (!isFreeVoiceRxUser && !profile?.b2c) {
         const msg = 'Loading your profile. Please wait a moment and try again.';
-        console.warn('[MobileRxPad] handleVoiceDigitize: profile.b2c not loaded, skipping digitize');
+        console.warn('[MobileRxPad] handleVoiceDigitize: profile.b2c not loaded, retrying after profile load');
         message.warning(msg);
-        setDigitizeError(msg);
         dispatch(getProfile());
         setIsProcessing(false);
+        hasAutoSubmittedRef.current = false;
         return;
       }
 
@@ -861,7 +867,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           formData.append('voice_prescription_text', transcribedText);
         }
 
-        formData.append('doctorId', doctorId);
+        formData.append('doctorId', currentDoctorId);
         formData.append('patientId', patientId);
         formData.append('schemaKey', 'default');
         formData.append('getConversation', 'true');
@@ -894,7 +900,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             
             // Ensure all required fields are in FormData
             if (!newFormData.has("doctorId")) {
-              newFormData.append("doctorId", doctorId);
+              newFormData.append("doctorId", currentDoctorId);
             }
             if (!newFormData.has("patientId")) {
               newFormData.append("patientId", patientId);
@@ -922,7 +928,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             
             // Ensure all required fields are in FormData
             if (!formData.has("doctorId")) {
-              formData.append("doctorId", doctorId);
+              formData.append("doctorId", currentDoctorId);
             }
             if (!formData.has("patientId")) {
               formData.append("patientId", patientId);
@@ -948,7 +954,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           // NEW Rx - Use generateAmbientRx
           // Ensure all required fields are in FormData
           if (!formData.has("doctorId")) {
-            formData.append("doctorId", doctorId);
+            formData.append("doctorId", currentDoctorId);
           }
           if (!formData.has("patientId")) {
             formData.append("patientId", patientId);
@@ -981,7 +987,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           formData.append('voice_prescription_text', transcribedText);
         }
 
-        formData.append('doctorId', doctorId);
+        formData.append('doctorId', currentDoctorId);
         formData.append('patientId', patientId);
 
         // UPDATE existing Rx for dictate mode
