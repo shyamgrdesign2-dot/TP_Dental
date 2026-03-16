@@ -64,6 +64,8 @@ import {
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
+    getCarePlanAssignments,
+    hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
 
@@ -1776,9 +1778,54 @@ function TabRxHeaderV2({
                 ? dispatch(addCaseManager(sendData))
                 : dispatch(editCaseManager(sendData));
             let action = await caseManagerPromise;
-console.log({action});
 
             if (action.meta.requestStatus === "fulfilled") {
+
+                try {
+                    // Ensure care plan is linked to the definitive consultation id
+                    const decodedToken = getDecodedToken();
+                    const tokenData = decodedToken?.result;
+                    const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+
+                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
+                        patient_data?.patient_unique_id,
+                        generatedTcmId,
+                        'submit',
+                    );
+
+                    if (generatedTcmId > 0 && selectedCarePlan) {
+                        if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
+                            await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
+                        } else if (
+                            !hasExistingCarePlan &&
+                            selectedCarePlan?.plan_id &&
+                            patient_data?.patient_unique_id &&
+                            tokenData?.user_id &&
+                            tokenData?.clinic_id
+                        ) {
+                            await assignCarePlan({
+                                plan_id: selectedCarePlan.plan_id,
+                                um_id: tokenData.user_id,
+                                patient_unique_id: patient_data.patient_unique_id,
+                                hm_id: tokenData.clinic_id,
+                                tcm_id: parseInt(generatedTcmId),
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Care plan sync after submit failed:', error);
+                }
+
+                // Fetch care plan assignments to include in print state
+                let carePlanAssignments = [];
+                try {
+                    if (patient_data?.patient_unique_id) {
+                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
+                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
+                    }
+                } catch (cpFetchErr) {
+                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
+                }
 
                 message.open({
                     key: MESSAGE_KEY,

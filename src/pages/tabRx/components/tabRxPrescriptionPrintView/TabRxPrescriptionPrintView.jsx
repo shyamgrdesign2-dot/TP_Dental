@@ -678,6 +678,7 @@ function TabRxPrescriptionPrintView() {
         pam_id: pam_id,
         fromEditRx: true,
         smartRxFilesData: smartRxFile,
+        caseManagerData: viewCaseManagerData
       },
     });
   };
