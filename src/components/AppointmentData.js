@@ -272,6 +272,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isVoiceRxPaid = VOICE_RX_planDetails?.plan_tier === PAID;
 
   const isAppointmentAgentEnable = planDetails?.currentPlanStatus === "PAID" && !shouldAppointmentAgentDisabled();
+  const isAdmin = decodedToken?.result?.admin;
   
   // Check if current userId is in appointmentAgentsData.doctors
   const isUserInAgentsData = appointmentAgentsData?.doctors?.some(
@@ -3114,7 +3115,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && isUserInAgentsData && (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
