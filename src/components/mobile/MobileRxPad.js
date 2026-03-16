@@ -756,12 +756,42 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     try {
       // Always read doctorId fresh from token to avoid stale-closure issues in auto-submit
       const freshToken = getDecodedToken();
-      const currentDoctorId = freshToken?.result?.user_id || freshToken?.result?.doctor_unique_id || doctorId;
+      // Prioritize user_id (numeric) for API compatibility; fallback to doctor_unique_id or original doctorId
+      let currentDoctorId = freshToken?.result?.user_id || doctorId;
+      
+      // Debug logging for new user issues
+      const doctorIdFromToken = freshToken?.result?.user_id;
+      const doctorIdFromProfile = profile?.doctor_unique_id;
+      const profileLoaded = !!profile;
+      const hasB2c = !!profile?.b2c;
+      const isNewUserRiskPath = !profileLoaded || !hasB2c || !currentDoctorId;
+      console.log('[MobileRxPad] handleVoiceDigitize - token analysis:', {
+        freshToken_user_id: freshToken?.result?.user_id,
+        freshToken_user_id_type: typeof freshToken?.result?.user_id,
+        freshToken_doctor_unique_id: freshToken?.result?.doctor_unique_id,
+        freshToken_doctor_unique_id_type: typeof freshToken?.result?.doctor_unique_id,
+        originalDoctorId: doctorId,
+        originalDoctorId_type: typeof doctorId,
+        selectedCurrentDoctorId: currentDoctorId,
+        selectedCurrentDoctorId_type: typeof currentDoctorId,
+        profile_doctor_unique_id: profile?.doctor_unique_id,
+        profile_doctor_unique_id_type: typeof profile?.doctor_unique_id
+      });
+      if (isNewUserRiskPath) {
+        console.log('[MobileRxPad] handleVoiceDigitize - new-user path:', {
+          profileLoaded,
+          hasB2c,
+          currentDoctorId: currentDoctorId ?? '(missing)',
+          doctorIdFromToken: doctorIdFromToken ?? '(missing)',
+          doctorIdFromProfile: doctorIdFromProfile ?? '(missing)',
+          willProceedToDigitize: !!(currentDoctorId && (isFreeVoiceRxUser || hasB2c))
+        });
+      }
 
       // Guard: new users on mobile may have profile not loaded yet; digitize and credit check need profile/doctorId
       if (!currentDoctorId) {
         const msg = 'Session loading. Please wait a moment and try again.';
-        console.warn('[MobileRxPad] handleVoiceDigitize: no doctorId, retrying after profile load');
+        console.warn('[MobileRxPad] BLOCKED: no doctorId — prescription will not be generated. user_id_type=', typeof freshToken?.result?.user_id, ', doctorId_type=', typeof doctorId);
         message.warning(msg);
         // Do not show error in drawer — this is transient; reset so auto-submit can retry once profile loads
         setIsProcessing(false);
@@ -771,7 +801,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       }
       if (!isFreeVoiceRxUser && !profile?.b2c) {
         const msg = 'Loading your profile. Please wait a moment and try again.';
-        console.warn('[MobileRxPad] handleVoiceDigitize: profile.b2c not loaded, retrying after profile load');
+        console.warn('[MobileRxPad] BLOCKED: profile.b2c missing — prescription will not be generated. profileLoaded=', !!profile);
         message.warning(msg);
         dispatch(getProfile());
         setIsProcessing(false);
@@ -783,11 +813,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       if (!isFreeVoiceRxUser && (
         VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0
       )) {
+        console.warn('[MobileRxPad] BLOCKED: credits exhausted (plan_tier=FREE, balance<=0) — prescription will not be generated');
         setIsProcessing(false);
         showHideSubModal();
         return;
       }
       if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
+        console.warn('[MobileRxPad] BLOCKED: FAILED_VERIFICATION — prescription will not be generated');
         setIsProcessing(false);
         showHideSubModal();
         return;
@@ -806,6 +838,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               action?.payload?.plan_tier === FREE &&
               action?.payload?.credit_balance <= 0
             ) {
+              console.warn('[MobileRxPad] BLOCKED: credit check API — no credits (plan_tier=FREE, balance<=0) — prescription will not be generated');
               await dispatch(services(sendData?.b2c_id));
               setIsProcessing(false);
               showHideSubModal();
@@ -813,6 +846,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             } else if (
               action?.payload?.plan_tier === FAILED_VERIFICATION
             ) {
+              console.warn('[MobileRxPad] BLOCKED: credit check API — FAILED_VERIFICATION — prescription will not be generated');
               setIsProcessing(false);
               showHideSubModal();
               return;
@@ -824,7 +858,17 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       let response;
       const patientId = patient_data?.patient_unique_id || '';
       const admissionId = caseManagerData?.admission_id || null;
-      
+
+      // Debug: string vs number — backend may expect number for doctorId
+      console.log('[MobileRxPad] digitize API params (types for new-user debug):', {
+        doctorId: currentDoctorId,
+        doctorId_type: typeof currentDoctorId,
+        patientId,
+        patientId_type: typeof patientId,
+        admissionId,
+        admissionId_type: typeof admissionId
+      });
+
       // Calculate duration for audio input (store for query duration)
       // Check response first, then calculate from blob (matches web version)
       let currentRecordingDuration = null;
@@ -1004,6 +1048,20 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       // Process response (matches web version)
       const responseData = response?.data || response;
       const actualData = responseData?.data || responseData;
+      
+      // Debug logging for new user issues (incl. string vs number)
+      console.log('[MobileRxPad] handleVoiceDigitize - API response processing:', {
+        doctorId_sent: currentDoctorId,
+        doctorId_type: typeof currentDoctorId,
+        patientId_sent: patientId,
+        patientId_type: typeof patientId,
+        responseSuccess: response?.data?.success ?? response?.success,
+        responseData: responseData,
+        actualData: actualData,
+        hasDigitize: !!(actualData?.digitize || responseData?.digitize),
+        hasRx: !!(actualData?.rx || responseData?.rx),
+        hasConversation: !!(actualData?.conversation || responseData?.conversation)
+      });
 
       // Improved success check - matches web version (comprehensive)
       const isSuccess = (response?.success !== false || responseData?.success !== false || actualData?.success !== false) && (actualData || responseData) && (
@@ -1024,6 +1082,10 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         (actualData?.rxDigitizationHistory && Array.isArray(actualData.rxDigitizationHistory) && actualData.rxDigitizationHistory.length > 0) ||
         (responseData?.rxDigitizationHistory && Array.isArray(responseData.rxDigitizationHistory) && responseData.rxDigitizationHistory.length > 0)
       );
+
+      if (!isSuccess) {
+        console.warn('[MobileRxPad] PRESCRIPTION_NOT_GENERATED: API returned but success check failed. doctorId_type=', typeof currentDoctorId, ', response.success=', response?.data?.success ?? response?.success, ', hasDigitize=', !!(actualData?.digitize || responseData?.digitize), ', hasRx=', !!(actualData?.rx || responseData?.rx));
+      }
 
       if (isSuccess) {
         const finalResponseData = actualData || responseData;
@@ -1424,13 +1486,29 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       } else {
         const msg = 'Failed to process. Please try again.';
         console.error('[MobileRxPad] handleVoiceDigitize: API success but invalid/empty response');
+        console.error('[MobileRxPad] isSuccess check failed:', {
+          response_success: response?.success,
+          responseData_success: responseData?.success,
+          actualData_success: actualData?.success,
+          hasDigitize: !!(actualData?.digitize || responseData?.digitize),
+          hasRx: !!(actualData?.rx || responseData?.rx),
+          hasConversation: !!(actualData?.conversation || responseData?.conversation),
+          currentDoctorId: currentDoctorId
+        });
         setIsProcessing(false);
         message.error(msg);
         setDigitizeError(msg);
       }
     } catch (error) {
       const msg = error?.message || 'Failed to process. Please try again.';
+      console.error('[MobileRxPad] PRESCRIPTION_NOT_GENERATED: API threw — check for string/number or auth. Error:', error?.message, 'status:', error?.response?.status, 'data:', error?.response?.data);
       console.error('[MobileRxPad] handleVoiceDigitize error:', error);
+      console.error('[MobileRxPad] Error details:', {
+        errorMessage: error?.message,
+        errorStack: error?.stack,
+        audioBlobSize: audioBlobParam?.size,
+        transcribedTextLength: transcribedText?.length
+      });
       if (error?.response) {
         console.error('[MobileRxPad] Response status:', error.response?.status, 'data:', error.response?.data);
       }
