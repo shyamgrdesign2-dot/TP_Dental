@@ -745,15 +745,9 @@ function SnapRxDigitise({isTabRx = false}) {
                   smartRxFile?.map(
                     ({ fileUrl, smart_prescription_file }) => (
                       <div key={fileUrl || smart_prescription_file}>
-                        {(isCustomSSRX
-                          ? smart_prescription_file
-                          : fileUrl) && (
+                        {(smart_prescription_file || fileUrl) && (
                           <img
-                            src={
-                              isCustomSSRX
-                                ? smart_prescription_file
-                                : fileUrl
-                            }
+                            src={smart_prescription_file || fileUrl}
                             alt="Smart Rx"
                             className="written-rx-image"
                             width="100%"
