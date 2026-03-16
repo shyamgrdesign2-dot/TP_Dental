@@ -230,7 +230,7 @@ function TabPrescription() {
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx, fromRepeatRx} = state || {};
   const chartType = state?.chartType;
 
-  const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : Number(rawTcmId);
+  const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.tcm_id;
   const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
   const consultationDate =
     caseManagerData !== undefined

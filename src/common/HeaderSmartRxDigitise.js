@@ -65,7 +65,7 @@ import tagNewMp4 from "../assets/images/new-gif.mp4";
 import LoopingVideo from "../components/common/LoopingVideo";
 import VideoConsultButton from "../components/VideoConsultButton";
 
-function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading }) {
+function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading, onBackToPreview }) {
   const { profile } = useSelector(
       (state) => state.doctors
     );
@@ -218,7 +218,14 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                         <div className="mt-4">
                           <div className="d-flex align-items-center mt-2 justify-content-end">
                             <div
-                              onClick={() => navigate(-1)}
+                              onClick={() => {
+                                if (typeof onBackToPreview === "function") {
+                                  onBackToPreview();
+                                } else {
+                                  navigate(-1);
+                                }
+                                showHideBackModal();
+                              }}
                               className="me-4 text-decoration-underline btn p-0 text-main"
                             >
                               Yes Leave
