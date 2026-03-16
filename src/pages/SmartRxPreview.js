@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 // import { Container, Navbar, Nav, Dropdown } from "react-bootstrap";
 import { AutoComplete, Input, Button, Form, Row, Col, Select, Popover, Tabs, Spin, Tooltip, message, Checkbox, Drawer} from "antd";
@@ -7,7 +7,8 @@ import axios from 'axios';
 import { saveAs } from 'file-saver';
 import { jwtDecode } from "jwt-decode";
 
-import { errorMessage } from "../utils/utils";
+import { errorMessage, sendMessageToParent } from "../utils/utils";
+import { EVENTS } from "../utils/events";
 import api from "../api/services/axiosService";
 
 import visitEnd from '../assets/images/end-visit.svg';
@@ -266,8 +267,9 @@ function SmartRxPreview() {
                 });
             }
             if (currentSessionRx) {
-                const response = await fetch(currentSessionRx);
-                const blob = await response.blob();
+                const blob = currentSessionRx instanceof Blob
+                    ? currentSessionRx
+                    : await (await fetch(currentSessionRx)).blob();
                 saveAs(blob, `${Date.now()}.pdf`);
             } else {
                 const response = await axios({
@@ -303,6 +305,72 @@ function SmartRxPreview() {
         const blob = new Blob([data], { type: 'application/pdf' })
         setPrintBlob(blob)
     }
+
+    const printContent = async () => {
+        try {
+            let pdfBlob = printBlob;
+            if (!pdfBlob && currentSessionRx) {
+                if (currentSessionRx instanceof Blob) {
+                    pdfBlob = currentSessionRx;
+                } else {
+                    const response = await fetch(currentSessionRx);
+                    pdfBlob = await response.blob();
+                }
+            }
+            if (!pdfBlob) {
+                message.error("PDF is not ready yet.");
+                return;
+            }
+            const blobURL = URL.createObjectURL(pdfBlob);
+            document.querySelectorAll("iframe").forEach((iframe) => iframe.remove());
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = blobURL;
+            iframe.onerror = () => {
+                URL.revokeObjectURL(blobURL);
+                message.error("Failed to load print content");
+            };
+            iframe.onload = () => {
+                try {
+                    requestAnimationFrame(() => {
+                        iframe.focus();
+                        iframe.contentWindow.print();
+                        URL.revokeObjectURL(blobURL);
+                    });
+                } catch (error) {
+                    console.error("Error during print:", error);
+                    URL.revokeObjectURL(blobURL);
+                    errorMessage("Failed to print prescription");
+                }
+            };
+            document.body.appendChild(iframe);
+        } catch (error) {
+            console.error("Error in printContent:", error);
+            errorMessage("Failed to print prescription");
+        }
+    };
+
+    const printInAppContent = async () => {
+        try {
+            if (currentSessionRx) {
+                const blob = currentSessionRx instanceof Blob
+                    ? currentSessionRx
+                    : await (await fetch(currentSessionRx)).blob();
+                const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, { type: "application/pdf" });
+                const formData = new FormData();
+                formData.append(file?.name, file);
+                const { uploadDocsToAzure } = await import("./medicalRecords/service");
+                const res = await uploadDocsToAzure(formData);
+                const url = res?.[0]?.url;
+                sendMessageToParent(EVENTS.PRINT, { url: url || printUrl });
+            } else {
+                sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+            }
+        } catch (error) {
+            console.error("Error uploading PDF for print:", error);
+            sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        }
+    };
 
     const handleDrawerCvtKnowMore = useCallback(() => {
         setCvtDrawer(!cvtDrawer);
@@ -493,11 +561,28 @@ function SmartRxPreview() {
 
     const handleLanguageSelect = useCallback((data) => {
         const newUrl = buildUrlWithLanguage(basePrintUrl, data);
-        setPrintUrl(newUrl);
-        setPreviewUrl(newUrl);
+        const urlWithDigitize = updateRxDigitizeInUrl(newUrl, showDigitalRx);
+        setPrintUrl(urlWithDigitize);
+        setPreviewUrl(urlWithDigitize);
         setSelectedLang(data);
         setCurrentSessionRx(null);
-    }, [basePrintUrl]);
+    }, [basePrintUrl, showDigitalRx]);
+
+    // Ensure Document gets the correct URL on first load so we don't hit wrong rxDigitize (fail once then succeed)
+    const fileUrlForDocument = useMemo(() => {
+        if (currentSessionRx) return currentSessionRx;
+        const url = showDigitalRx ? previewUrl : printUrl;
+        if (!url) return null;
+        if (showDigitalRx) return url;
+        try {
+            const u = new URL(url);
+            u.searchParams.delete('rxDigitize');
+            u.searchParams.delete('voiceRxDigitize');
+            return u.toString();
+        } catch (e) {
+            return url.replace(/[?&]rxDigitize=[^&]*/g, '').replace(/[?&]voiceRxDigitize=[^&]*/g, '');
+        }
+    }, [currentSessionRx, printUrl, previewUrl, showDigitalRx]);
 
     const configurePrintUrl = async () => {
         var sendData = {
@@ -640,6 +725,15 @@ function SmartRxPreview() {
                                 <Button
                                     type="text"
                                     className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
+                                    icon={<i className="icon-Print"></i>}
+                                    onClick={() => (!isChrome && !isSafari) ? printInAppContent() : printContent()}
+                                >
+                                    <span className="fw-semibold">{showDigitalRx ? "Print Digital Prescription" : "Print Written Prescription"}</span>
+                                    <i className="icon-right iconrotate180 ms-auto"></i>
+                                </Button>
+                                <Button
+                                    type="text"
+                                    className="btn btn-input btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                     icon={<i className="icon-download"></i>}
                                     onClick={() => !isChrome && !isSafari ? handleInAppDownload() : handleDownload()}
                                 >
@@ -767,7 +861,7 @@ function SmartRxPreview() {
                                     { showDigitalWrittenToggle && isSmartSyncCVTAccessableFromGB && state?.page !== "prescription" &&
                                         <div>
                                             <button className={`digital-btn ${!showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(true)}>Digital Rx</button>
-                                            <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => setShowDigitalRx(false)}>Written Rx</button>
+                                            <button className={`written-btn ${showDigitalRx ? "digitise-toggle-btn" : "active-digitise-toggle-btn"}`} onClick={() => { setCurrentSessionRx(null); setShowDigitalRx(false); }}>Written Rx</button>
                                         </div>
                                     }
                                     {!(!rxDigitiseApiResponse && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise") && (
@@ -786,10 +880,11 @@ function SmartRxPreview() {
                                 <div ref={divRef} className="printheight">
                                     <div ref={printRef} className="position-relative h-100">
                                         <Document
+                                        key={showDigitalRx ? 'digital' : `written-${typeof fileUrlForDocument === 'string' ? (fileUrlForDocument || '').split('?')[0] : 'blob'}`}
                                         loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
                                         error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
                                         noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                        file={currentSessionRx || (!showDigitalRx ? printUrl : previewUrl) }
+                                        file={fileUrlForDocument}
                                         onLoadSuccess={onDocumentLoadSuccess}>
                                         {Array.apply(null, Array(numPages))
                                             .map((x, i) => i + 1)

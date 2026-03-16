@@ -762,6 +762,7 @@ function SmartRxDigitise() {
         patient_data={patient_data}
         tcm_id={tcm_id}
         onBackToPreview={handleBackToPreview}
+        isSmartRx={true}
       />
       <div
         ref={splitRef}
