@@ -215,6 +215,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 selectedLang={printSettings?.default_language === "English" ? 1 : printSettings?.default_language}
                 ophthalModuleData={ophthalModuleData}
                 abhaDetails={props.abhaDetails}
+                dentalData={props.dentalData}
             />).toBlob();
             setPdfUrl(URL.createObjectURL(blob))
             dispatch(setCurrentSessionRx(URL.createObjectURL(blob)));
@@ -249,7 +250,8 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
         props.patientBills,
         props.advanceReceipts,
         props.patientWalletBalance,
-        props.abhaDetails
+        props.abhaDetails,
+        props.dentalData
     ]);
 
     const onDocumentLoadSuccess = ({ numPages }) => {

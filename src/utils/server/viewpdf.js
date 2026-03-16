@@ -390,6 +390,62 @@ const styles = StyleSheet.create({
   table: {
     marginTop: PX_TO_PT * 4,
   },
+  dentalSection: {
+    marginTop: PX_TO_PT * 12,
+  },
+  dentalTable: {
+    marginTop: PX_TO_PT * 6,
+    borderTop: "1px solid #171725",
+    borderRadius: PX_TO_PT * 4,
+    overflow: "hidden",
+  },
+  dentalRow: {
+    flexDirection: "row",
+    borderBottom: "1px solid #171725",
+    borderLeft: "1px solid #171725",
+  },
+  dentalHeaderRow: {
+    flexDirection: "row",
+    borderBottom: "1px solid #171725",
+    borderLeft: "1px solid #171725",
+    borderTop: "1px solid #171725",
+  },
+  dentalCellLabel: {
+    width: "35%",
+    padding: 6,
+    borderRight: "1px solid #171725",
+  },
+  dentalCellValue: {
+    flex: 1,
+    padding: 6,
+    borderRight: "1px solid #171725",
+  },
+  dentalHeaderCell: {
+    flex: 1,
+    padding: 6,
+    borderRight: "1px solid #171725",
+  },
+  dentalQuadrantGrid: {
+    marginTop: PX_TO_PT * 6,
+    border: "1px solid #171725",
+    borderRadius: PX_TO_PT * 4,
+    overflow: "hidden",
+  },
+  dentalQuadrantRow: {
+    flexDirection: "row",
+  },
+  dentalQuadrantCell: {
+    flex: 1,
+    borderRight: "1px solid #171725",
+    borderBottom: "1px solid #171725",
+    padding: 6,
+  },
+  dentalQuadrantTitle: {
+    marginBottom: 4,
+  },
+  dentalListItem: {
+    marginBottom: 2,
+  },
   row: {
     flexDirection: "row",
     borderBottom: "1px solid #171725",
@@ -926,6 +982,224 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     : isAmbientVoiceRxDigitizeBool
       ? smartRxData?.ambientVoiceRxDigitizeEditedData
       : smartRxData?.rxDigitizeEditedData;
+  const baseFontFamily = printSettings?.page_format?.font_family || "Roboto";
+  const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
+  const dummyDentalData = {
+    complaints: {
+      chiefComplaint: "Pt complain of pain in rt. lower back Tooth",
+      symptom: "Cavity, tooth ache",
+      otherDiseases: "NIL",
+      medications: "NIL",
+      drugAllergy: "NIL",
+      pregnancy: "No",
+      habits: "NIL",
+      dentalHistory: "n/o Crown",
+      pain: "NIL",
+      notes: "NIL",
+    },
+    diagnosis: {
+      stains: {
+        lessThan1Percent: false,
+        lessThan5Percent: false,
+        lessThan10Percent: false,
+        fiveTo30Percent: false,
+        moreThan10Percent: false,
+        moreThan30Percent: false,
+      },
+      calculus: {
+        lessThan1Percent: false,
+        lessThan5Percent: false,
+        lessThan10Percent: false,
+        fiveTo30Percent: false,
+        moreThan10Percent: false,
+        moreThan30Percent: false,
+      },
+      oralHygieneStatus: ["Stn + Cal"],
+      periodontalseverity: {
+        gingivitis: false,
+        severeGingivitis: false,
+        moderatePeriodontitis: false,
+        severePeriodontitis: false,
+      },
+      orthodonticFindings: {
+        overjet: false,
+        overbite: false,
+        crowding: false,
+        spacing: false,
+        tfo: false,
+        collapsedBite: false,
+        tmj: false,
+        extraOralFindings: false,
+      },
+      orthodonticInterventionRequired: {
+        yes: true,
+        no: false,
+      },
+      habitsPedo: {
+        lipSucking: true,
+        thumbSucking: false,
+        tongueThristing: true,
+        mouthBreathing: false,
+      },
+      teeth: [
+        { toothNum: 2, toothSection: "UPPER_RIGHT", diagnose: "Deep class II Caries" },
+        { toothNum: 3, toothSection: "UPPER_RIGHT", diagnose: "Metal Crown without RCT" },
+        { toothNum: 8, toothSection: "UPPER_LEFT", diagnose: "PFM Crown" },
+        { toothNum: 13, toothSection: "UPPER_LEFT", diagnose: "Pit caries (mesially)" },
+        { toothNum: 14, toothSection: "UPPER_LEFT", diagnose: "Pit caries (distally)" },
+        { toothNum: 19, toothSection: "LOWER_LEFT", diagnose: "Class I Amalgam restoration" },
+        { toothNum: 30, toothSection: "LOWER_RIGHT", diagnose: "Class I composite" },
+        { toothNum: 31, toothSection: "LOWER_RIGHT", diagnose: "Metal Crown RCT treated" },
+        { toothNum: 32, toothSection: "LOWER_RIGHT", diagnose: "Mild TOP, Pocket present distally" },
+      ],
+    },
+    treatmentPlans: {
+      items: [
+        { srno: 1, treatment: "Consultation", toothNum: "", rate: 400, count: 1, estimate: 400 },
+        { srno: 2, treatment: "IOPA", toothNum: "6", rate: 100, count: 2, estimate: 200 },
+      ],
+    },
+  };
+  const dentalPdfData =
+    digitizedData?.dentalData ??
+    (digitizedData?.complaints || digitizedData?.diagnosis || digitizedData?.treatmentPlans
+      ? digitizedData
+      : null) ??
+    dummyDentalData;
+  const dentalComplaints = dentalPdfData?.complaints || {};
+  const dentalDiagnosis = dentalPdfData?.diagnosis || {};
+  const dentalTreatmentItems = dentalPdfData?.treatmentPlans?.items || [];
+  const dentalWorkDone = dentalPdfData?.workDone || { items: [], notes: "" };
+  const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
+  const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
+  const buildWorkDoneText = (item) => {
+    const workDone = item?.workDone ?? "";
+    const nextAppointment = item?.nextAppointment ?? "";
+    const workDoneText = String(workDone ?? "");
+    const nextText = String(nextAppointment ?? "").trim();
+    if (!nextText) return workDoneText;
+    const normalized = workDoneText.toLowerCase();
+    if (normalized.includes("next appointment")) return workDoneText;
+    const suffix = `Next Appointment: ${nextText}`;
+    if (!workDoneText.trim()) return suffix;
+    return `${workDoneText}\n${suffix}`;
+  };
+  const dentalTeethBySection = dentalTeeth.reduce(
+    (acc, tooth) => {
+      const section = tooth?.toothSection;
+      if (section && acc[section]) acc[section].push(tooth);
+      return acc;
+    },
+    {
+      UPPER_LEFT: [],
+      UPPER_RIGHT: [],
+      LOWER_LEFT: [],
+      LOWER_RIGHT: [],
+    },
+  );
+  const diagnosisFieldOrder = [
+    "stains",
+    "calculus",
+    "oralHygieneStatus",
+    "periodontalseverity",
+    "orthodonticFindings",
+    "orthodonticInterventionRequired",
+    "habitsPedo",
+  ];
+  const formatDiagnosisValue = (val) => {
+    if (Array.isArray(val)) {
+      return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, v]) => !!v)
+        .map(([k]) => k)
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  };
+  const dentalDiagnosisRows = diagnosisFieldOrder
+    .filter((key) => key in dentalDiagnosis)
+    .map((key) => ({ key, value: formatDiagnosisValue(dentalDiagnosis?.[key]) }))
+    .filter((row) => String(row.value || "").trim() !== "");
+  const dentalToothDiagramNotes = (() => {
+    const notes = dentalDiagnosis?.toothDiagramNotes;
+    if (Array.isArray(notes)) {
+      return notes
+        .filter((note) => note != null && String(note).trim() !== "")
+        .map((note) => String(note))
+        .join("\n");
+    }
+    if (notes == null) return "";
+    return String(notes);
+  })();
+  const hasToothDiagramNotes = String(dentalToothDiagramNotes || "").trim() !== "";
+  const isNonEmptyDentalValue = (val) => {
+    if (val === 0 || val === "0") return true;
+    if (val === true) return true;
+    if (Array.isArray(val)) {
+      return val.some((item) => isNonEmptyDentalValue(item));
+    }
+    if (val && typeof val === "object") {
+      return Object.values(val).some((item) => isNonEmptyDentalValue(item));
+    }
+    return val != null && String(val).trim() !== "";
+  };
+  const dentalComplaintRows = [
+    { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
+    { key: "symptom", label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER" },
+    { key: "otherDiseases", label: "OTHER DISEASES" },
+    { key: "medications", label: "MEDICATION" },
+    { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
+    { key: "pregnancy", label: "PREGNANCY" },
+    { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
+    { key: "dentalHistory", label: "DENTAL HISTORY" },
+    { key: "pain", label: "HEAD/JAW/NECK PAIN" },
+    { key: "notes", label: "NOTES" },
+  ];
+  const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) => {
+    const value = dentalComplaints?.[row.key];
+    return isNonEmptyDentalValue(value);
+  });
+  const hasTeethData = Object.values(dentalTeethBySection || {}).some(
+    (arr) => Array.isArray(arr) && arr.length > 0,
+  );
+  const dentalTreatmentRowsFiltered = Array.isArray(dentalTreatmentItems)
+    ? dentalTreatmentItems.filter((item) =>
+        [item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].some(
+          (val) => isNonEmptyDentalValue(val),
+        ),
+      )
+    : [];
+  const dentalWorkDoneRowsFiltered = Array.isArray(dentalWorkDoneItems)
+    ? dentalWorkDoneItems.filter((item) =>
+        [
+          item?.date,
+          buildWorkDoneText(item),
+          item?.ptr,
+          item?.ttReview,
+          item?.payment,
+          item?.balance,
+          item?.remarks,
+        ].some((val) => isNonEmptyDentalValue(val)),
+      )
+    : [];
+  const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+  const hasDentalSectionData =
+    dentalComplaintRowsFiltered.length > 0 ||
+    hasTeethData ||
+    dentalDiagnosisRows.length > 0 ||
+    dentalTreatmentRowsFiltered.length > 0 ||
+    hasToothDiagramNotes ||
+    dentalWorkDoneRowsFiltered.length > 0 ||
+    hasWorkDoneNotes;
+  const dentalQuadrantSections = [
+    { key: "UPPER_LEFT", label: "UPPER_LEFT" },
+    { key: "UPPER_RIGHT", label: "UPPER_RIGHT" },
+    { key: "LOWER_LEFT", label: "LOWER_LEFT" },
+    { key: "LOWER_RIGHT", label: "LOWER_RIGHT" },
+  ];
   const digitizeVersionRaw =
     (isVoiceRxDigitizeBool ||
       isAmbientVoiceRxDigitizeBool ||
@@ -8420,6 +8694,326 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       <>
                         {isSmartSyncPrescription && isRxDigitizeBool ? (
                           <>
+                            {hasDentalSectionData && (
+                            <View style={styles.dentalSection}>
+                              {dentalComplaintRowsFiltered.length > 0 && (
+                                <View style={styles.dentalTable}>
+                                  {dentalComplaintRowsFiltered.map((row) => (
+                                    <View key={row.key} style={styles.dentalRow}>
+                                      <View style={styles.dentalCellLabel}>
+                                        <Text
+                                          style={{
+                                            fontFamily: baseFontFamily,
+                                            fontSize: baseFontSize,
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          {row.label}
+                                        </Text>
+                                      </View>
+                                      <View style={styles.dentalCellValue}>
+                                        <Text
+                                          style={{
+                                            fontFamily: baseFontFamily,
+                                            fontSize: baseFontSize,
+                                            fontWeight: 400,
+                                          }}
+                                        >
+                                          {dentalComplaints?.[row.key] || ""}
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+
+                              {hasTeethData && (
+                                <View style={styles.dentalQuadrantGrid}>
+                                  {[0, 1].map((rowIndex) => (
+                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow}>
+                                      {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
+                                        const isLastCol = idx === 1;
+                                        const isLastRow = rowIndex === 1;
+                                        return (
+                                          <View
+                                            key={section.key}
+                                            style={{
+                                              ...styles.dentalQuadrantCell,
+                                              borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
+                                              borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                ...styles.dentalQuadrantTitle,
+                                                fontFamily: baseFontFamily,
+                                                fontSize: baseFontSize,
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {section.label}
+                                            </Text>
+                                            {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                                              <Text
+                                                key={`${section.key}-${i}`}
+                                                style={{
+                                                  ...styles.dentalListItem,
+                                                  fontFamily: baseFontFamily,
+                                                  fontSize: baseFontSize,
+                                                }}
+                                              >
+                                                {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
+                                              </Text>
+                                            ))}
+                                          </View>
+                                        );
+                                      })}
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+
+                              {dentalDiagnosisRows.length > 0 && (
+                                <View style={styles.dentalTable}>
+                                  <View style={styles.dentalHeaderRow}>
+                                    <View style={styles.dentalHeaderCell}>
+                                      <Text
+                                        style={{
+                                          fontFamily: baseFontFamily,
+                                          fontSize: baseFontSize,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Diagnosis Field
+                                      </Text>
+                                    </View>
+                                    <View style={styles.dentalHeaderCell}>
+                                      <Text
+                                        style={{
+                                          fontFamily: baseFontFamily,
+                                          fontSize: baseFontSize,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Selected Values
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  {dentalDiagnosisRows.map((row) => (
+                                    <View key={`dx-${row.key}`} style={styles.dentalRow}>
+                                      <View style={styles.dentalCellLabel}>
+                                        <Text
+                                          style={{
+                                            fontFamily: baseFontFamily,
+                                            fontSize: baseFontSize,
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          {row.key}
+                                        </Text>
+                                      </View>
+                                      <View style={styles.dentalCellValue}>
+                                        <Text
+                                          style={{
+                                            fontFamily: baseFontFamily,
+                                            fontSize: baseFontSize,
+                                            fontWeight: 400,
+                                          }}
+                                        >
+                                          {row.value}
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+
+                              {hasToothDiagramNotes && (
+                                <View style={styles.dentalTable}>
+                                  <View style={styles.dentalRow}>
+                                    <View style={styles.dentalCellLabel}>
+                                      <Text
+                                        style={{
+                                          fontFamily: baseFontFamily,
+                                          fontSize: baseFontSize,
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        TOOTH DIAGRAM NOTES
+                                      </Text>
+                                    </View>
+                                    <View style={styles.dentalCellValue}>
+                                      <Text
+                                        style={{
+                                          fontFamily: baseFontFamily,
+                                          fontSize: baseFontSize,
+                                          fontWeight: 400,
+                                        }}
+                                      >
+                                        {dentalToothDiagramNotes}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                </View>
+                              )}
+
+                              {dentalTreatmentRowsFiltered.length > 0 && (
+                                <>
+                                  <Text
+                                    style={{
+                                      marginTop: PX_TO_PT * 6,
+                                      fontFamily: baseFontFamily,
+                                      fontSize: baseFontSize,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    TREATMENT PLAN(S)
+                                  </Text>
+                                  <View style={styles.dentalTable}>
+                                    <View style={styles.dentalHeaderRow}>
+                                      {["S NO", "TREATMENT", "TOOTH NUMBER", "RATE", "COUNT", "ESTIMATE"].map((label) => (
+                                        <View key={label} style={styles.dentalHeaderCell}>
+                                          <Text
+                                            style={{
+                                              fontFamily: baseFontFamily,
+                                              fontSize: baseFontSize,
+                                              fontWeight: 600,
+                                            }}
+                                          >
+                                            {label}
+                                          </Text>
+                                        </View>
+                                      ))}
+                                    </View>
+                                    {dentalTreatmentRowsFiltered.map((item, i) => (
+                                      <View key={`tp-${i}`} style={styles.dentalRow}>
+                                        {[item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].map((val, idx) => (
+                                          <View key={`${i}-${idx}`} style={styles.dentalCellValue}>
+                                            <Text
+                                              style={{
+                                                fontFamily: baseFontFamily,
+                                                fontSize: baseFontSize,
+                                                fontWeight: 400,
+                                              }}
+                                            >
+                                              {val ?? ""}
+                                            </Text>
+                                          </View>
+                                        ))}
+                                      </View>
+                                    ))}
+                                  </View>
+                                </>
+                              )}
+
+                              {(dentalWorkDoneRowsFiltered.length > 0 || hasWorkDoneNotes) && (
+                                <>
+                                  <Text
+                                    style={{
+                                      marginTop: PX_TO_PT * 6,
+                                      fontFamily: baseFontFamily,
+                                      fontSize: baseFontSize,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    WORK DONE
+                                  </Text>
+                                  {dentalWorkDoneRowsFiltered.length > 0 && (
+                                    <View style={styles.dentalTable}>
+                                      <View style={styles.dentalHeaderRow}>
+                                        {[
+                                          "DATE",
+                                          "WORK DONE",
+                                          "PTR",
+                                          "TT REVIEW",
+                                          "PAYMENT",
+                                          "BALANCE",
+                                          "REMARKS",
+                                        ].map((label, idx) => (
+                                          <View
+                                            key={label}
+                                            style={{
+                                              ...styles.dentalHeaderCell,
+                                              flex: idx === 1 ? 4 : 1,
+                                            }}
+                                          >
+                                            <Text
+                                              style={{
+                                                fontFamily: baseFontFamily,
+                                                fontSize: baseFontSize,
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {label}
+                                            </Text>
+                                          </View>
+                                        ))}
+                                      </View>
+                                        {dentalWorkDoneRowsFiltered.map((item, i) => (
+                                          <View key={`wd-${i}`} style={styles.dentalRow}>
+                                            {[
+                                              item?.date,
+                                              buildWorkDoneText(item),
+                                              item?.ptr,
+                                              item?.ttReview,
+                                              item?.payment,
+                                              item?.balance,
+                                              item?.remarks,
+                                            ].map((val, idx) => (
+                                              <View
+                                                key={`${i}-${idx}`}
+                                                style={{
+                                                  ...styles.dentalCellValue,
+                                                  flex: idx === 1 ? 4 : 1,
+                                                }}
+                                              >
+                                              <Text
+                                                style={{
+                                                  fontFamily: baseFontFamily,
+                                                  fontSize: baseFontSize,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {val ?? ""}
+                                              </Text>
+                                            </View>
+                                          ))}
+                                        </View>
+                                      ))}
+                                    </View>
+                                  )}
+                                  {hasWorkDoneNotes && (
+                                    <View style={styles.dentalTable}>
+                                      <View style={styles.dentalRow}>
+                                        <View style={styles.dentalCellLabel}>
+                                          <Text
+                                            style={{
+                                              fontFamily: baseFontFamily,
+                                              fontSize: baseFontSize,
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            WORK DONE NOTES
+                                          </Text>
+                                        </View>
+                                        <View style={styles.dentalCellValue}>
+                                          <Text
+                                            style={{
+                                              fontFamily: baseFontFamily,
+                                              fontSize: baseFontSize,
+                                              fontWeight: 400,
+                                            }}
+                                          >
+                                            {dentalWorkDone?.notes ?? ""}
+                                          </Text>
+                                        </View>
+                                      </View>
+                                    </View>
+                                  )}
+                                </>
+                              )}
+                            </View>
+                            )}
                             {digitizedData?.symptoms?.some(
                               (item) => item?.name || item?.lineItem,
                             ) && (
