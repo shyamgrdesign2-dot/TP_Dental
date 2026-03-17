@@ -911,7 +911,12 @@ const TabRxCanvas = forwardRef(({
                   />
 
                   {/* Page Action Buttons */}
-                  <div className="page-action-buttons">
+                  <div
+                    className="page-action-buttons"
+                    style={{
+                      pointerEvents: 'auto',
+                    }}
+                  >
                     <button
                       className="page-action-btn delete-btn"
                       onClick={(e) => {

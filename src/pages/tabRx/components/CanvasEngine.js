@@ -616,16 +616,32 @@ const CanvasEngine = React.forwardRef(({
     const handleTouchStart = (e) => {
       // Only process single touch (pen input)
       if (e.touches.length !== 1) return;
-      
+
       const touch = e.touches[0];
       const canvasRect = canvas.getBoundingClientRect();
       const x = touch.clientX;
       const y = touch.clientY;
-      const isWithinCanvas = x >= canvasRect.left - 10 && x <= canvasRect.right + 10 && 
-                             y >= canvasRect.top - 10 && y <= canvasRect.bottom + 10;
-      
+      const isWithinCanvas =
+        x >= canvasRect.left - 10 &&
+        x <= canvasRect.right + 10 &&
+        y >= canvasRect.top - 10 &&
+        y <= canvasRect.bottom + 10;
+
       if (!isWithinCanvas) return;
-      
+
+      // ✅ NEW: Ignore touches that start from page action buttons or dropdown menus
+      // This prevents delete/add page taps and dropdown option taps
+      // from being treated as drawing input
+      const target = e.target;
+      const inPageActionsOrMenus =
+        target &&
+        typeof target.closest === 'function' &&
+        !!target.closest('.page-action-buttons, .page-add-dropdown');
+      if (inPageActionsOrMenus) {
+        // Let the button/Dropdown/menu handle the tap normally
+        return;
+      }
+
       // Create a synthetic pointerdown-like event
       const syntheticEvent = {
         ...e,
@@ -637,11 +653,13 @@ const CanvasEngine = React.forwardRef(({
         preventDefault: () => e.preventDefault(),
         stopPropagation: () => e.stopPropagation(),
         target: e.target,
-        nativeEvent: e
+        nativeEvent: e,
       };
-      
-      console.log(`📱 [CanvasEngine] touchstart converted to pointerdown: id=${touch.identifier}, x=${x}, y=${y}`);
-      
+
+      console.log(
+        `📱 [CanvasEngine] touchstart converted to pointerdown: id=${touch.identifier}, x=${x}, y=${y}`,
+      );
+
       if (handlePointerDownRef.current) {
         handlePointerDownRef.current(syntheticEvent);
       }
@@ -667,6 +685,18 @@ const CanvasEngine = React.forwardRef(({
       const target = e.target;
       const isCanvas = target === canvas;
       const isContainer = container && (target === container || container.contains(target));
+
+      // ✅ NEW: Ignore pointer events that originate from page action buttons or dropdown menus
+      // This prevents clicks on delete/add page buttons and their dropdown options
+      // from being treated as drawing input
+      const inPageActionsOrMenus =
+        target &&
+        typeof target.closest === 'function' &&
+        !!target.closest('.page-action-buttons, .page-add-dropdown');
+      if (inPageActionsOrMenus) {
+        // Let the button/Dropdown/menu handle the click normally
+        return;
+      }
       
       // Process if within bounds OR target is canvas/container
       if (!isWithinCanvas && !isCanvas && !isContainer) {
