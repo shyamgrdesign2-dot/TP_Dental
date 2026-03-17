@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
 import smartPad from "../assets/images/smartPad.svg";
-import { isMobile } from "react-device-detect";
+import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 
 /**
@@ -90,6 +90,8 @@ const PrimaryActionButton = ({
   // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
   const allAvailableOptions = [];
   const dropdownOptionsList = [];
+  // TabRx should be shown only on tablet devices (not on laptops or mobiles)
+  const isTabRxVisible = isTabRxAccessible && isTablet;
   
   if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown
@@ -102,7 +104,7 @@ const PrimaryActionButton = ({
     if (isSnapRxAccessible) {
       dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
     }
-    if (isTabRxAccessible) {
+    if (isTabRxVisible) {
       dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
     // Consult is always primary for Zydus
@@ -123,7 +125,7 @@ const PrimaryActionButton = ({
     }
     
     // TabRx comes before Consult
-    if (isTabRxAccessible) {
+    if (isTabRxVisible) {
       allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
     
