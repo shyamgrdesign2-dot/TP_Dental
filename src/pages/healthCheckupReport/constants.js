@@ -26,7 +26,6 @@ export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-heade
 
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTE</p></th></tr></thead>
   <tbody>
     <tr><td><p>Medical Condition</p></td><td><p></p></td></tr>
     <tr><td><p>Allergies</p></td><td><p></p></td></tr>
@@ -61,7 +60,7 @@ export const HEALTH_CHECKUP_REPORT_TEMPLATE_HTML = `<div class="report-doc-heade
 
 <h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
   <tbody>
     <tr><td><p>X ray Chest</p></td><td><p></p></td></tr>
     <tr><td><p>USG Whole Abdomen</p></td><td><p></p></td></tr>
