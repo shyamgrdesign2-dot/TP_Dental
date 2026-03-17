@@ -799,7 +799,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
               <div className="d-flex align-items-center">
                 <img className='me-3' src={alertIcon} alt="Warning" />
                 <span>
-                  Are you sure you want to Clear Selected <b>Lab Investigation</b>?
+                  Are you sure you want to Clear Selected <b>Investigation</b>?
                 </span>
               </div>
             </div>
@@ -826,7 +826,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
-            <div className="title-common">Lab Investigation</div>
+            <div className="title-common">Investigation</div>
           </div>
           <div className="d-flex align-items-center">
             <Popover
@@ -903,7 +903,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
             popupClassName={!searchParentQuery && "boxpopup"}
           >
             <Input
-              placeholder="Search Lab Investigation"
+              placeholder="Search Investigation"
               prefix={<i className="icon-search"></i>}
             />
           </AutoComplete>

@@ -2263,7 +2263,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {caseManagerData.investigation.length > 0 && (
                                             option?.format === 'inline' ? (
                                                 <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Investigation:&nbsp;</Text>
                                                     {caseManagerData.investigation.map((item, i) => {
                                                         return (
                                                             <Text key={i}>
@@ -2279,7 +2279,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </Text>
                                             ) : option?.format === 'listview' ? (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Investigation:&nbsp;</Text>
                                                     {caseManagerData.investigation.map((item, i) => {
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 2 }}>
@@ -2294,7 +2294,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 </View>
                                             ) : (
                                                 <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Lab Investigation:&nbsp;</Text>
+                                                    <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Investigation:&nbsp;</Text>
                                                     <View style={styles.table}>
                                                         <View style={styles.headerRow} fixed>
                                                             <Text style={[styles.headerCell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
