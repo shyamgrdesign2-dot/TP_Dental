@@ -13,7 +13,18 @@ export function clearLocalStorage() {
 }
 
 export const getDecodedToken = () => {
-  let token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-  token = token ? JSON.parse(token) : null;
-  return token ? jwtDecode(token) : null;
-}
+  try {
+    let raw = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+    if (!raw) return null;
+    let token = null;
+    try {
+      token = JSON.parse(raw);
+    } catch {
+      token = raw;
+    }
+    if (typeof token !== "string") return null;
+    return jwtDecode(token);
+  } catch (e) {
+    return null;
+  }
+};
