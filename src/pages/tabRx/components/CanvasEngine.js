@@ -619,10 +619,15 @@ const CanvasEngine = React.forwardRef(({
 
       const touch = e.touches[0];
 
-      // ✅ CRITICAL: Only treat stylus touches as drawing input
-      // On iPad Safari, Touch.touchType is 'stylus' for Apple Pencil and 'direct' for finger
-      // If touchType exists and is NOT stylus, ignore this touch for drawing
-      if (touch.touchType && touch.touchType !== 'stylus') {
+      // ✅ CRITICAL: We only use touch→pointer conversion on iOS (for Apple Pencil fast taps)
+      // On Android and other platforms, rely on native pointer events instead.
+      if (!isIOS) {
+        return;
+      }
+
+      // On iOS Safari, Touch.touchType === 'stylus' for Apple Pencil and 'direct' for finger.
+      // If touchType is missing or not 'stylus', treat it as non-pen input and ignore for drawing.
+      if (!touch.touchType || touch.touchType !== 'stylus') {
         return;
       }
       const canvasRect = canvas.getBoundingClientRect();
