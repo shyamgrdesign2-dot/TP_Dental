@@ -78,7 +78,7 @@ const InvestigationRichTextEditor = ({
         <RichTextEditor
           initialValue={initialSlateValue}
           onChange={handleChange}
-          placeholder="Add lab investigations..."
+          placeholder="Add investigations..."
           spellCheck={true}
           autoFocus={false}
           showToolbar={false}
