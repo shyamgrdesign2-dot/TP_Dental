@@ -224,10 +224,10 @@ const DigitisedPrescription = ({
   );
   const dentalQuadrantSections = useMemo(
     () => [
-      { key: "UPPER_LEFT", label: "UPPER LEFT" },
       { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
-      { key: "LOWER_LEFT", label: "LOWER LEFT" },
+      { key: "UPPER_LEFT", label: "UPPER LEFT" },
       { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
+      { key: "LOWER_LEFT", label: "LOWER LEFT" },
     ],
     []
   );
