@@ -777,10 +777,11 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       };
       const tokenUserId = asValidId(freshToken?.result?.user_id);
       const tokenDoctorUniqueId = asValidId(freshToken?.result?.doctor_unique_id);
+      const profileUmId = asValidId(profile?.um_id);
       const profileDoctorUniqueId = asValidId(profile?.doctor_unique_id);
       const originalDoctorId = asValidId(doctorId);
-      // Prioritize user_id (numeric) for API; then profile; then token.doctor_unique_id
-      let currentDoctorId = tokenUserId || originalDoctorId || profileDoctorUniqueId || tokenDoctorUniqueId;
+      // Prefer numeric id (user_id / um_id) for voice-digitize API; then string doctor_unique_id
+      let currentDoctorId = tokenUserId || originalDoctorId || profileUmId || profileDoctorUniqueId || tokenDoctorUniqueId;
 
       // Determine which source provided the doctorId (for debugging)
       const doctorIdSource =
@@ -788,11 +789,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           ? 'token.result.user_id'
           : currentDoctorId === originalDoctorId
             ? 'component_doctorId_(decodedToken.result.user_id)'
-            : currentDoctorId === profileDoctorUniqueId
-              ? 'profile.doctor_unique_id'
-              : currentDoctorId === tokenDoctorUniqueId
-                ? 'token.result.doctor_unique_id'
-                : 'none';
+            : currentDoctorId === profileUmId
+              ? 'profile.um_id'
+              : currentDoctorId === profileDoctorUniqueId
+                ? 'profile.doctor_unique_id'
+                : currentDoctorId === tokenDoctorUniqueId
+                  ? 'token.result.doctor_unique_id'
+                  : 'none';
 
       // Debug: where we get required doctorId — use JSON.stringify so mobile console shows values
       const sourceLog = {
@@ -800,12 +803,14 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         sources_raw: {
           'token.result.user_id': freshToken?.result?.user_id,
           'token.result.doctor_unique_id': freshToken?.result?.doctor_unique_id,
+          'profile.um_id': profile?.um_id,
           'profile.doctor_unique_id': profile?.doctor_unique_id,
           component_doctorId: doctorId,
         },
         after_asValidId: {
           tokenUserId,
           tokenDoctorUniqueId,
+          profileUmId,
           profileDoctorUniqueId,
           originalDoctorId,
         },
@@ -1152,6 +1157,13 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       );
 
       if (!isSuccess) {
+        const safeResponseSlice = {
+          message: actualData?.message ?? responseData?.message ?? response?.data?.message ?? response?.message,
+          error: actualData?.error ?? responseData?.error ?? response?.data?.error ?? response?.error,
+          success: actualData?.success ?? responseData?.success ?? response?.data?.success ?? response?.success,
+          responseDataKeys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : [],
+          actualDataKeys: actualData && typeof actualData === 'object' ? Object.keys(actualData) : [],
+        };
         console.warn(logPrefix + ' step=PRESCRIPTION_NOT_GENERATED reason=success_check_failed ' + JSON.stringify({
           prescription_will_not_be_generated: true,
           doctorId_sent: currentDoctorId,
@@ -1160,6 +1172,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           hasDigitize: !!(actualData?.digitize || responseData?.digitize),
           hasRx: !!(actualData?.rx || responseData?.rx),
           doctorIdSource,
+          backendResponse: safeResponseSlice,
         }));
       }
 
@@ -1570,7 +1583,15 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           setDigitizeError(msg);
         }
       } else {
-        const msg = 'Failed to process. Please try again.';
+        const backendMsg =
+          (typeof actualData?.message === 'string' && actualData.message) ||
+          (typeof responseData?.message === 'string' && responseData.message) ||
+          (typeof response?.data?.message === 'string' && response?.data?.message) ||
+          (typeof response?.message === 'string' && response?.message) ||
+          (typeof actualData?.error === 'string' && actualData.error) ||
+          (typeof responseData?.error === 'string' && responseData.error) ||
+          (response?.data?.error && typeof response.data.error === 'string' && response.data.error);
+        const msg = backendMsg ? `${backendMsg.trim()}` : 'Failed to process. Please try again.';
         console.error('[MobileRxPad] step=PRESCRIPTION_NOT_GENERATED reason=invalid_or_empty_response ' + JSON.stringify({
           prescription_will_not_be_generated: true,
           response_success: response?.success,
@@ -1581,6 +1602,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           hasConversation: !!(actualData?.conversation || responseData?.conversation),
           currentDoctorId,
           doctorIdSource,
+          backendMessage: backendMsg || null,
+          responseDataKeys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : [],
+          actualDataKeys: actualData && typeof actualData === 'object' ? Object.keys(actualData) : [],
         }));
         setIsProcessing(false);
         message.error(msg);

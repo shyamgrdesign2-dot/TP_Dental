@@ -30,7 +30,16 @@ export const generateRx = async function (payload) {
   try {
     res = await api.post(`/api/v1/voice-digitize`, payload, baseUrl);
   } catch (e) {
-    console.error("Error while generating rx: ", e);
+    console.error("[ApiGenRxMobile] Error while generating rx: " + JSON.stringify({
+      message: e?.message,
+      status: e?.response?.status,
+      data: e?.response?.data,
+    }));
+    res = {
+      success: false,
+      data: e?.response?.data,
+      message: e?.response?.data?.message || e?.response?.data?.error || e?.message,
+    };
   }
   return res;
 };
@@ -40,7 +49,16 @@ export const updateGenRx = async function (payload, id) {
   try {
     res = await api.put(`/api/v1/voice-digitize/${id}`, payload, baseUrl);
   } catch (e) {
-    console.error("Error while updating gen rx: ", e);
+    console.error("[ApiGenRxMobile] Error while updating gen rx: " + JSON.stringify({
+      message: e?.message,
+      status: e?.response?.status,
+      data: e?.response?.data,
+    }));
+    res = {
+      success: false,
+      data: e?.response?.data,
+      message: e?.response?.data?.message || e?.response?.data?.error || e?.message,
+    };
   }
   return res;
 };
