@@ -444,8 +444,10 @@ function Welcome1(props) {
                                             } catch (error) {
                                                 console.error("Error fetching smart Rx files:", error);
                                             }
+
+                                            const route = viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") ? "/tab-rx" : "/smart-prescription";
                                             
-                                            navigate("/smart-prescription", {
+                                            navigate(route, {
                                                 state: {
                                                     patient_data: patient_data,
                                                     caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null },
