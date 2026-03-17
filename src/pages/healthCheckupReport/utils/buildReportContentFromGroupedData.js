@@ -407,7 +407,7 @@ function medicalHistoryToHtmlList(items) {
       if (seenFallback.has(fallbackKey)) return "";
       seenFallback.add(fallbackKey);
     }
-    return `<li><p><strong>${escapeHtml(title)}</strong>${details ? ` (${details})` : ""}</p></li>`;
+    return `<p>&nbsp;</p>`;
   };
 
   const lis = items.map(flatten).flat().join("");
