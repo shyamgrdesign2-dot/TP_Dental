@@ -1857,6 +1857,13 @@ body {
     text-transform: uppercase;
     color: #4b4b57;
   }
+
+  td:not(.dental-label-cell) {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.4;
+    color: #4b4b57;
+  }
 }
 
 .dental-table.dental-complaints-table,
