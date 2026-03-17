@@ -62,10 +62,20 @@ function GenRxPrescriptionPrintView() {
   const { state } = location;
   const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
-  const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language || 1);
-  const encodedData = btoa(selectedLang.toString());
+  const initialLanguage =
+    defaultPrintSettings?.default_language &&
+    defaultPrintSettings?.default_language !== "English"
+      ? defaultPrintSettings.default_language
+      : 1;
 
-  const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
+  const [selectedLang, setSelectedLang] = useState(initialLanguage);
+  const initialEncodedLang = btoa(initialLanguage.toString());
+
+  const [printUrl, setPrintUrl] = useState(
+    state !== undefined
+      ? `${state.print_url}&pam_id=${pam_id}&lg=${initialEncodedLang}`
+      : null
+  );
   const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
@@ -110,12 +120,21 @@ function GenRxPrescriptionPrintView() {
     setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
   }, [selectedLang, state?.print_url, pam_id]);
 
+  // When returning from Configure Print Setting with "Apply only on this Rx", state has hydrated Blob
+  useEffect(() => {
+    if (state?.currentSessionRx !== undefined) {
+      setCurrentSessionRx(state.currentSessionRx);
+    }
+  }, [state?.currentSessionRx]);
+
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
       if (currentSessionRx) {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         saveAs(blob, `${Date.now()}.pdf`);
       } else {
         const response = await axios({
@@ -144,8 +163,10 @@ function GenRxPrescriptionPrintView() {
     // navigate(0, { replace: true });
     if (currentSessionRx) {
       try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
           type: "application/pdf",
         });
@@ -174,7 +195,8 @@ function GenRxPrescriptionPrintView() {
   const onSelect = useCallback(
     (data) => {
       const encodedData = btoa(data.toString());
-      setPrintUrl(`${currentSessionRx || state?.print_url || ''}&pam_id=${pam_id}&lg=${encodedData}`);
+      const urlBase = typeof currentSessionRx === "string" ? currentSessionRx : state?.print_url || "";
+      setPrintUrl(`${urlBase}&pam_id=${pam_id}&lg=${encodedData}`);
       setSelectedLang(data);
       updatePatientDefaultLanguage({
         patientId: patient_data?.patient_unique_id,
@@ -348,8 +370,10 @@ function GenRxPrescriptionPrintView() {
     // navigate(0, { replace: true });
     if (currentSessionRx) {
       try {
-        const response = await fetch(currentSessionRx);
-        const blob = await response.blob();
+        const blob =
+          currentSessionRx instanceof Blob
+            ? currentSessionRx
+            : await (await fetch(currentSessionRx)).blob();
         const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
           type: "application/pdf",
         });

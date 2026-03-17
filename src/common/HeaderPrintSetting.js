@@ -329,6 +329,20 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                 }
             }
         } else if (flag === 3) {
+            // Hydrate blob URL to Blob so preview pages get a valid PDF (no revoked blob URL)
+            let sessionRxToPass = currentSessionRx;
+            if (
+                typeof currentSessionRx === "string" &&
+                currentSessionRx.startsWith("blob:")
+            ) {
+                try {
+                    const res = await fetch(currentSessionRx);
+                    const blob = await res.blob();
+                    sessionRxToPass = blob;
+                } catch (err) {
+                    console.error("Failed to hydrate session Rx blob before navigation", err);
+                }
+            }
             if (previousPage === "/gen-rx-print") {
                 const updatedSelectedLang = printSettings?.default_language || selectedLang;
                 navigate("/gen-rx-print", { 
@@ -339,7 +353,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         print_url: print_url,
                         isAmbientRx: isAmbientRx,
                         rxId: rxId,
-                        currentSessionRx: currentSessionRx
+                        currentSessionRx: sessionRxToPass
                     } 
                 });
             } else if (previousPage === "/snap-rx/preview") {
@@ -349,7 +363,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: updatedSelectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: sessionRxToPass,
                         from: "/configure_print_setting",
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files,
@@ -363,27 +377,13 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: updatedSelectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: sessionRxToPass,
                         from: "/configure_print_setting",
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
             } else {
-                let sessionRxToPass = currentSessionRx;
-                if (
-                    previousPage === "/prescription_print_view" &&
-                    typeof currentSessionRx === "string" &&
-                    currentSessionRx.startsWith("blob:")
-                ) {
-                    try {
-                        const res = await fetch(currentSessionRx);
-                        const blob = await res.blob();
-                        sessionRxToPass = blob;
-                    } catch (err) {
-                        console.error("Failed to hydrate session Rx blob before navigation", err);
-                    }
-                }
                 if (previousPage) {
                     navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: sessionRxToPass, fromConfigurePrintSetting: true } });
                 } else {
