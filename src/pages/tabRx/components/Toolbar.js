@@ -91,9 +91,17 @@ const Toolbar = ({
      const isBottom = position.y > window.innerHeight / 2;
      
      if (orientation === 'vertical') {
-         return isRight ? 'right' : 'left';
+         // Toolbar is docked on left or right side of the screen.
+         // Open the settings panel towards the INSIDE of the canvas:
+         // - If toolbar is on the RIGHT side → panel opens to the LEFT.
+         // - If toolbar is on the LEFT side  → panel opens to the RIGHT.
+         return isRight ? 'left' : 'right';
      } else {
-         return isBottom ? 'bottom' : 'top';
+         // Toolbar is docked on top or bottom of the screen.
+         // Open the settings panel towards the INSIDE of the canvas:
+         // - If toolbar is at the BOTTOM → panel opens ABOVE (top).
+         // - If toolbar is at the TOP    → panel opens BELOW (bottom).
+         return isBottom ? 'top' : 'bottom';
      }
   };
 

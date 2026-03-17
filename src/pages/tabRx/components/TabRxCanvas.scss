@@ -196,19 +196,20 @@
       }
 
       .page-action-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 8px;
-        border: 2px solid;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: all 0.2s;
-        font-size: 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
+        font-size: 20px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.45);
+        background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.26), rgba(15, 23, 42, 0.75));
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
         user-select: none;
         -webkit-user-select: none;
         -moz-user-select: none;
@@ -216,9 +217,13 @@
         -webkit-touch-callout: none;
         -webkit-tap-highlight-color: transparent;
 
+        svg {
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+        }
+
         &:hover:not(:disabled) {
           transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.55);
         }
 
         &:active:not(:disabled) {
@@ -231,26 +236,22 @@
         }
 
         &.add-btn {
-          border-color: #ffffffb5;
-          color: #4B4AD5 !important;
-          background: rgb(75 74 213 / 28%);;
+          border-color: rgb(179 174 255 / 100%);
+          color: #e5e7ff !important;
+          background: linear-gradient(rgb(179 174 255 / 100%), rgba(129, 140, 248, 1));
 
           &:hover:not(:disabled) {
-            background: rgba(75, 74, 213, 0.2);
-            // border-color: #3a39b3;
-            color: #3a39b3;
+            background: linear-gradient(rgb(179 174 255 / 100%), rgba(129, 140, 248, 1));
           }
         }
 
         &.delete-btn {
-          border-color: #ffffffb5;
-          color: #E11D48 !important;
-          background: rgb(220 38 38 / 32%);
+          border-color: rgb(255 166 166 / 100%);
+          color: #fee2e2 !important;
+          background:linear-gradient(rgb(255 166 166), rgb(255 158 158));;
 
           &:hover:not(:disabled) {
-            background: rgba(220, 38, 38, 0.2);
-            border-color: transparent;
-            color: #E11D48;
+            background:linear-gradient(rgb(255 166 166), rgb(255 158 158));;
           }
         }
       }

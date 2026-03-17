@@ -724,7 +724,7 @@ const TabRxCanvas = forwardRef(({
 
   // Handle canvas upload - refresh templates and auto-select new template
   const handleCanvasUploaded = useCallback(async (templateData) => {
-    message.success(`Template "${templateData.title}" uploaded successfully!`);
+    // message.success(`Template "${templateData.title}" uploaded successfully!`);
 
     // Close the upload drawer first
     setUploadCanvasDrawer(false);

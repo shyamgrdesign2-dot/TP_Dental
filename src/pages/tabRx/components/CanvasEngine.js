@@ -641,16 +641,16 @@ const CanvasEngine = React.forwardRef(({
 
       if (!isWithinCanvas) return;
 
-      // ✅ NEW: Ignore touches that start from page action buttons or dropdown menus
-      // This prevents delete/add page taps and dropdown option taps
+      // ✅ NEW: Ignore touches that start from page action buttons, dropdown menus, or toolbar
+      // This prevents delete/add page taps, dropdown option taps, and toolbar interactions
       // from being treated as drawing input
       const target = e.target;
-      const inPageActionsOrMenus =
+      const inUiControls =
         target &&
         typeof target.closest === 'function' &&
-        !!target.closest('.page-action-buttons, .page-add-dropdown');
-      if (inPageActionsOrMenus) {
-        // Let the button/Dropdown/menu handle the tap normally
+        !!target.closest('.page-action-buttons, .page-add-dropdown, .tab-rx-toolbar, .settings-panel');
+      if (inUiControls) {
+        // Let the button/Dropdown/menu/toolbar handle the tap normally
         return;
       }
 
@@ -698,15 +698,15 @@ const CanvasEngine = React.forwardRef(({
       const isCanvas = target === canvas;
       const isContainer = container && (target === container || container.contains(target));
 
-      // ✅ NEW: Ignore pointer events that originate from page action buttons or dropdown menus
-      // This prevents clicks on delete/add page buttons and their dropdown options
+      // ✅ NEW: Ignore pointer events that originate from page action buttons, dropdown menus, or toolbar
+      // This prevents clicks on delete/add page buttons, dropdown options, and toolbar interactions
       // from being treated as drawing input
-      const inPageActionsOrMenus =
+      const inUiControls =
         target &&
         typeof target.closest === 'function' &&
-        !!target.closest('.page-action-buttons, .page-add-dropdown');
-      if (inPageActionsOrMenus) {
-        // Let the button/Dropdown/menu handle the click normally
+        !!target.closest('.page-action-buttons, .page-add-dropdown, .tab-rx-toolbar, .settings-panel');
+      if (inUiControls) {
+        // Let the button/Dropdown/menu/toolbar handle the click normally
         return;
       }
       
