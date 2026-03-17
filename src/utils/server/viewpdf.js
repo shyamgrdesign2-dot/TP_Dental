@@ -341,20 +341,20 @@ Font.register({
 
 const widthOfA4PageInPts = 595;
 export const getMedicineFreqDosageFormat = (freqDosage, is_dosage_decimal) => {
-    if (!!is_dosage_decimal) {
-        return freqDosage;
-    }
-    var value = ''
-    if (freqDosage == '0.5') {
-        value = `1/2`
-    } else if (freqDosage == '0.25') {
-        value = `1/4`
-    } else if (freqDosage == '0.75') {
-        value = `3/4`
-    } else {
-        value = freqDosage
-    }
-    return value
+  if (!!is_dosage_decimal) {
+    return freqDosage;
+  }
+  var value = ''
+  if (freqDosage == '0.5') {
+    value = `1/2`
+  } else if (freqDosage == '0.25') {
+    value = `1/4`
+  } else if (freqDosage == '0.75') {
+    value = `3/4`
+  } else {
+    value = freqDosage
+  }
+  return value
 }
 const styles = StyleSheet.create({
   mainTitle: {
@@ -676,13 +676,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   // Filter care plans to show only those for current TCM
   const activeCarePlans = Array.isArray(carePlanAssignments)
     ? carePlanAssignments.filter((cp) => {
-        const cpId = cp?.tcm_id !== undefined ? parseInt(cp?.tcm_id) : NaN;
-        const curId =
-          caseManagerData?.tcm_id !== undefined
-            ? parseInt(caseManagerData?.tcm_id)
-            : NaN;
-        return !isNaN(cpId) && !isNaN(curId) && cpId === curId;
-      })
+      const cpId = cp?.tcm_id !== undefined ? parseInt(cp?.tcm_id) : NaN;
+      const curId =
+        caseManagerData?.tcm_id !== undefined
+          ? parseInt(caseManagerData?.tcm_id)
+          : NaN;
+      return !isNaN(cpId) && !isNaN(curId) && cpId === curId;
+    })
     : [];
 
   const removeRemarks = (data) => {
@@ -971,10 +971,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     : isVoiceRxDigitizeBool
       ? !!(history && history.length)
       : !!(
-          uploaded_files &&
-          uploaded_files.length &&
-          uploaded_files[0]?.fileUrl
-        );
+        uploaded_files &&
+        uploaded_files.length &&
+        uploaded_files[0]?.fileUrl
+      );
   const shouldWrapSmartSyncPrescription =
     isSmartSyncPrescription && !isRxDigitizeBool && !isVoiceRxDigitizeBool;
   const digitizedData = isVoiceRxDigitizeBool
@@ -1205,7 +1205,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       isAmbientVoiceRxDigitizeBool ||
       isSnapRx ||
       isSmartSyncPrescription) &&
-    smartRxData?.version !== undefined
+      smartRxData?.version !== undefined
       ? `${smartRxData.version}`.trim().toLowerCase()
       : null;
   const isVoiceOrAmbientV2 = digitizeVersionRaw === "v2";
@@ -1354,8 +1354,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ? customModule?.printConfig?.nameOverride
         : customModule?.name
       : caseManagerData?.moduleContents?.find(
-          (module) => module?.module_id === id,
-        )?.module_name;
+        (module) => module?.module_id === id,
+      )?.module_name;
   };
 
   const getMarginByFormat = (
@@ -1408,17 +1408,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             ? fileFooter?.imageShow
               ? fileFooter?.renderedFooterImageHeight + PX_TO_PT * 30
               : getMarginByFormat(
-                  letterhead_format,
-                  header_footer,
-                  "bottom",
-                  0.5,
-                ) + 5
-            : getMarginByFormat(
                 letterhead_format,
                 header_footer,
                 "bottom",
                 0.5,
-              ) + 5,
+              ) + 5
+            : getMarginByFormat(
+              letterhead_format,
+              header_footer,
+              "bottom",
+              0.5,
+            ) + 5,
         paddingLeft: PX_TO_PT * 30,
         paddingRight: PX_TO_PT * 30,
       };
@@ -1443,20 +1443,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ? isOwnLetterheadFirstPageOnly
           ? userBottomMargin
           : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
-            5
+          5
         : letterhead_format === 1
           ? fileFooter?.imageShow
             ? (fileFooter?.footerHeight / fileFooter?.footerWidth) *
-                (widthOfA4PageInPts - (paddingLeft + paddingRight)) +
-              paddingTop
+            (widthOfA4PageInPts - (paddingLeft + paddingRight)) +
+            paddingTop
             : getMarginByFormat(
-                letterhead_format,
-                header_footer,
-                "bottom",
-                0.5,
-              ) + 5
+              letterhead_format,
+              header_footer,
+              "bottom",
+              0.5,
+            ) + 5
           : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
-            5;
+          5;
 
     return {
       paddingTop,
@@ -1510,34 +1510,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       <Document>
         {uploaded_files.length > 0
           ? uploaded_files?.map((item, i) => (
-              <Page
-                size="A4"
-                style={[
-                  {
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                  },
-                ]}
-                wrap={false}
-              >
-                <View style={{ flex: 1 }}>
-                  <View key={i}>
-                    <View style={{ width: "100%" }}>
-                      <Image
-                        style={{
-                          width: "100%",
-                          objectFit: "contain",
-                          aspectRatio: 1,
-                        }}
-                        source={{ uri: item.fileUrl }}
-                        resizeMode="contain"
-                      />
-                    </View>
+            <Page
+              size="A4"
+              style={[
+                {
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                },
+              ]}
+              wrap={false}
+            >
+              <View style={{ flex: 1 }}>
+                <View key={i}>
+                  <View style={{ width: "100%" }}>
+                    <Image
+                      style={{
+                        width: "100%",
+                        objectFit: "contain",
+                        aspectRatio: 1,
+                      }}
+                      source={{ uri: item.fileUrl }}
+                      resizeMode="contain"
+                    />
                   </View>
                 </View>
-              </Page>
-            ))
+              </View>
+            </Page>
+          ))
           : null}
       </Document>
     );
@@ -1827,7 +1827,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 <View>
                   {printSettings?.header_footer?.header?.doctor_info?.enable ===
                     "Y" &&
-                  printSettings?.header_footer?.header?.clinic_info?.enable ===
+                    printSettings?.header_footer?.header?.clinic_info?.enable ===
                     "Y" ? (
                     <View style={styles.directionCasemanager}>
                       <View style={{ flex: 1 }}>
@@ -1835,9 +1835,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "L"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.header
+                              ?.header
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.header}
+                              ?.header}
                         </Text>
                         <Text
                           style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
@@ -1845,9 +1845,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "L"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
+                              ?.subheader
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
+                              ?.subheader}
                         </Text>
                       </View>
                       {printSettings?.logo_enable === "Y" && (
@@ -1876,9 +1876,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "R"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.header
+                              ?.header
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.header}
+                              ?.header}
                         </Text>
                         <Text
                           style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
@@ -1886,9 +1886,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "R"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
+                              ?.subheader
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
+                              ?.subheader}
                         </Text>
                       </View>
                     </View>
@@ -1934,9 +1934,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {printSettings?.header_footer?.header?.doctor_info
                               ?.enable === "Y"
                               ? printSettings?.header_footer?.header
-                                  ?.doctor_info?.header
+                                ?.doctor_info?.header
                               : printSettings?.header_footer?.header
-                                  ?.clinic_info?.header}
+                                ?.clinic_info?.header}
                           </Text>
                           <Text
                             style={[
@@ -1947,9 +1947,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {printSettings?.header_footer?.header?.doctor_info
                               ?.enable === "Y"
                               ? printSettings?.header_footer?.header
-                                  ?.doctor_info?.subheader
+                                ?.doctor_info?.subheader
                               : printSettings?.header_footer?.header
-                                  ?.clinic_info?.subheader}
+                                ?.clinic_info?.subheader}
                           </Text>
                         </View>
                       ) : (
@@ -1970,9 +1970,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               {printSettings?.header_footer?.header?.doctor_info
                                 ?.enable === "Y"
                                 ? printSettings?.header_footer?.header
-                                    ?.doctor_info?.header
+                                  ?.doctor_info?.header
                                 : printSettings?.header_footer?.header
-                                    ?.clinic_info?.header}
+                                  ?.clinic_info?.header}
                             </Text>
                             <Text
                               style={[
@@ -1983,9 +1983,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               {printSettings?.header_footer?.header?.doctor_info
                                 ?.enable === "Y"
                                 ? printSettings?.header_footer?.header
-                                    ?.doctor_info?.subheader
+                                  ?.doctor_info?.subheader
                                 : printSettings?.header_footer?.header
-                                    ?.clinic_info?.subheader}
+                                  ?.clinic_info?.subheader}
                             </Text>
                           </View>
                         )
@@ -2009,7 +2009,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 <View>
                   {printSettings?.header_footer?.header?.doctor_info?.enable ===
                     "Y" &&
-                  printSettings?.header_footer?.header?.clinic_info?.enable ===
+                    printSettings?.header_footer?.header?.clinic_info?.enable ===
                     "Y" ? (
                     <View style={styles.directionCasemanager}>
                       <View style={{ flex: 1 }}>
@@ -2017,9 +2017,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "L"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.header
+                              ?.header
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.header}
+                              ?.header}
                         </Text>
                         <Text
                           style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
@@ -2027,9 +2027,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "L"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
+                              ?.subheader
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
+                              ?.subheader}
                         </Text>
                       </View>
                       {printSettings?.logo_enable === "Y" && (
@@ -2058,9 +2058,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "R"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.header
+                              ?.header
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.header}
+                              ?.header}
                         </Text>
                         <Text
                           style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
@@ -2068,9 +2068,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "R"
                             ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
+                              ?.subheader
                             : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
+                              ?.subheader}
                         </Text>
                       </View>
                     </View>
@@ -2116,9 +2116,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {printSettings?.header_footer?.header?.doctor_info
                               ?.enable === "Y"
                               ? printSettings?.header_footer?.header
-                                  ?.doctor_info?.header
+                                ?.doctor_info?.header
                               : printSettings?.header_footer?.header
-                                  ?.clinic_info?.header}
+                                ?.clinic_info?.header}
                           </Text>
                           <Text
                             style={[
@@ -2129,9 +2129,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {printSettings?.header_footer?.header?.doctor_info
                               ?.enable === "Y"
                               ? printSettings?.header_footer?.header
-                                  ?.doctor_info?.subheader
+                                ?.doctor_info?.subheader
                               : printSettings?.header_footer?.header
-                                  ?.clinic_info?.subheader}
+                                ?.clinic_info?.subheader}
                           </Text>
                         </View>
                       ) : (
@@ -2157,9 +2157,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               {printSettings?.header_footer?.header?.doctor_info
                                 ?.enable === "Y"
                                 ? printSettings?.header_footer?.header
-                                    ?.doctor_info?.header
+                                  ?.doctor_info?.header
                                 : printSettings?.header_footer?.header
-                                    ?.clinic_info?.header}
+                                  ?.clinic_info?.header}
                             </Text>
                             <Text
                               style={[
@@ -2170,9 +2170,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               {printSettings?.header_footer?.header?.doctor_info
                                 ?.enable === "Y"
                                 ? printSettings?.header_footer?.header
-                                    ?.doctor_info?.subheader
+                                  ?.doctor_info?.subheader
                                 : printSettings?.header_footer?.header
-                                    ?.clinic_info?.subheader}
+                                  ?.clinic_info?.subheader}
                             </Text>
                           </View>
                         )
@@ -2516,8 +2516,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     // Find module definition to check version
                     const moduleDefinition = Array.isArray(customModules)
                       ? customModules.find(
-                          (m) => m.module_id === customModule.module_id,
-                        )
+                        (m) => m.module_id === customModule.module_id,
+                      )
                       : null;
                     const isV2 =
                       moduleDefinition?.version === "v2" &&
@@ -2798,7 +2798,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       marginTop:
                         index === 0
                           ? printSettings?.header_footer?.show_patient_info ===
-                              "first" ||
+                            "first" ||
                             !printSettings?.header_footer?.show_patient_info
                             ? PX_TO_PT * 15
                             : 0
@@ -2806,14 +2806,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     }}
                     break={
                       option?.id == module_id &&
-                      caseManagerData?.doctor_data?.um_id == um_id
+                        caseManagerData?.doctor_data?.um_id == um_id
                         ? true
                         : false
                     }
                   >
                     {option?.id === 1 &&
-                    option?.enable === "Y" &&
-                    option?.custom_status === "Y" ? (
+                      option?.enable === "Y" &&
+                      option?.custom_status === "Y" ? (
                       <>
                         {!rx &&
                           caseManagerData?.symptoms?.length > 0 &&
@@ -2859,8 +2859,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       {item?.symptom_name}&nbsp;
                                     </Text>
                                     {item?.since ||
-                                    item?.severity ||
-                                    item?.note ? (
+                                      item?.severity ||
+                                      item?.note ? (
                                       <View>
                                         {/* For since and severity (English content) */}
                                         {(item?.since || item?.severity) && (
@@ -2927,7 +2927,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         >
                                           {caseManagerData?.symptoms?.length -
                                             1 !=
-                                          i
+                                            i
                                             ? ","
                                             : ""}
                                           &nbsp;
@@ -2949,7 +2949,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         {caseManagerData?.symptoms?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -3016,57 +3016,57 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     {(item?.since ||
                                       item?.severity ||
                                       item?.note) && (
-                                      <View>
-                                        {/* For since and severity (English content) */}
-                                        {(item?.since || item?.severity) && (
-                                          <Text
-                                            style={{
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            }}
-                                          >
-                                            {`(${[
-                                              item?.since
-                                                ? `since: ${item?.since}`
-                                                : null,
-                                              item?.severity
-                                                ? `severity: ${item?.severity}`
-                                                : null,
-                                            ]
-                                              .filter(Boolean)
-                                              .join(
-                                                ", ",
-                                              )}${(item?.since || item?.severity) && item?.note ? ", " : ""}${!item?.note ? ")\n" : ""}`}
-                                          </Text>
-                                        )}
+                                        <View>
+                                          {/* For since and severity (English content) */}
+                                          {(item?.since || item?.severity) && (
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              }}
+                                            >
+                                              {`(${[
+                                                item?.since
+                                                  ? `since: ${item?.since}`
+                                                  : null,
+                                                item?.severity
+                                                  ? `severity: ${item?.severity}`
+                                                  : null,
+                                              ]
+                                                .filter(Boolean)
+                                                .join(
+                                                  ", ",
+                                                )}${(item?.since || item?.severity) && item?.note ? ", " : ""}${!item?.note ? ")\n" : ""}`}
+                                            </Text>
+                                          )}
 
-                                        {/* For note (potentially in Indian language) */}
-                                        {item?.note && (
-                                          <Text
-                                            style={{
-                                              color: "#171725",
-                                              fontFamily: getIndianLanguageFont(
-                                                item?.note,
-                                              ),
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            }}
-                                          >
-                                            {`${!(item?.since || item?.severity) ? "(" : ""}${item?.note})\n`}
-                                          </Text>
-                                        )}
-                                      </View>
-                                    )}
+                                          {/* For note (potentially in Indian language) */}
+                                          {item?.note && (
+                                            <Text
+                                              style={{
+                                                color: "#171725",
+                                                fontFamily: getIndianLanguageFont(
+                                                  item?.note,
+                                                ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              }}
+                                            >
+                                              {`${!(item?.since || item?.severity) ? "(" : ""}${item?.note})\n`}
+                                            </Text>
+                                          )}
+                                        </View>
+                                      )}
                                   </Text>
                                 );
                               })}
@@ -3313,7 +3313,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {`(${Object.values(Object.fromEntries(Object.entries((({ note }) => ({ note }))(caseManagerData?.examination?.[i])).filter(([_, v]) => v))).join(", ")})`}
                                         {caseManagerData?.examination?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -3334,7 +3334,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         {caseManagerData?.examination?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -3402,22 +3402,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     {(item?.since ||
                                       item?.severity ||
                                       item?.note) && (
-                                      <Text
-                                        style={{
-                                          color: "#171725",
-                                          fontFamily: getIndianLanguageFont(
-                                            item?.note,
-                                            printSettings?.page_format
-                                              ?.font_family,
-                                          ),
-                                          fontSize:
-                                            PX_TO_PT *
-                                            printSettings?.page_format
-                                              ?.font_size,
-                                          fontWeight: 400,
-                                        }}
-                                      >{`(${Object.values(Object.fromEntries(Object.entries((({ note }) => ({ note }))(caseManagerData?.examination?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
-                                    )}
+                                        <Text
+                                          style={{
+                                            color: "#171725",
+                                            fontFamily: getIndianLanguageFont(
+                                              item?.note,
+                                              printSettings?.page_format
+                                                ?.font_family,
+                                            ),
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 400,
+                                          }}
+                                        >{`(${Object.values(Object.fromEntries(Object.entries((({ note }) => ({ note }))(caseManagerData?.examination?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
+                                      )}
                                   </Text>
                                 );
                               })}
@@ -3578,8 +3578,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       &nbsp;
                                     </Text>
                                     {item?.since ||
-                                    item?.status ||
-                                    item?.note ? (
+                                      item?.status ||
+                                      item?.note ? (
                                       <Text
                                         style={{
                                           color: "#171725",
@@ -3598,7 +3598,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {`(${Object.values(Object.fromEntries(Object.entries((({ since, status, note }) => ({ since, status, note }))(caseManagerData?.diagnosis?.[i])).filter(([_, v]) => v))).join(", ")})`}
                                         {caseManagerData?.diagnosis?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -3619,7 +3619,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         {caseManagerData?.diagnosis?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -3688,22 +3688,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     {(item?.since ||
                                       item?.severity ||
                                       item?.note) && (
-                                      <Text
-                                        style={{
-                                          color: "#171725",
-                                          fontFamily: getIndianLanguageFont(
-                                            item?.note,
-                                            printSettings?.page_format
-                                              ?.font_family,
-                                          ),
-                                          fontSize:
-                                            PX_TO_PT *
-                                            printSettings?.page_format
-                                              ?.font_size,
-                                          fontWeight: 400,
-                                        }}
-                                      >{`(${Object.values(Object.fromEntries(Object.entries((({ since, status, note }) => ({ since, status, note }))(caseManagerData?.diagnosis?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
-                                    )}
+                                        <Text
+                                          style={{
+                                            color: "#171725",
+                                            fontFamily: getIndianLanguageFont(
+                                              item?.note,
+                                              printSettings?.page_format
+                                                ?.font_family,
+                                            ),
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 400,
+                                          }}
+                                        >{`(${Object.values(Object.fromEntries(Object.entries((({ since, status, note }) => ({ since, status, note }))(caseManagerData?.diagnosis?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
+                                      )}
                                   </Text>
                                 );
                               })}
@@ -3986,7 +3986,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     }) => ({
                                                       modiGeneric:
                                                         option?.medicine_with_generic &&
-                                                        ii === 0
+                                                          ii === 0
                                                           ? tmm_generic
                                                           : "",
 
@@ -4016,16 +4016,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             x?.tmt_id ===
                                                             tmm_time,
                                                         ) !== undefined &&
-                                                        timingList?.find(
-                                                          (x) =>
-                                                            x?.tmt_id ===
-                                                            tmm_time,
-                                                        )?.tmt_title !== "None"
+                                                          timingList?.find(
+                                                            (x) =>
+                                                              x?.tmt_id ===
+                                                              tmm_time,
+                                                          )?.tmt_title !== "None"
                                                           ? timingList?.find(
-                                                              (x) =>
-                                                                x?.tmt_id ===
-                                                                tmm_time,
-                                                            )?.[timeingLang()]
+                                                            (x) =>
+                                                              x?.tmt_id ===
+                                                              tmm_time,
+                                                          )?.[timeingLang()]
                                                           : "",
 
                                                       modiDuration:
@@ -4033,19 +4033,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           "duration",
                                                         )
                                                           ? EXTRA_OPTIONS.some(
-                                                              (x) =>
-                                                                x?.value ==
-                                                                tmm_duration_type,
-                                                            )
+                                                            (x) =>
+                                                              x?.value ==
+                                                              tmm_duration_type,
+                                                          )
                                                             ? durationLang(
-                                                                capitalize(
-                                                                  tmm_duration_type,
-                                                                  true,
-                                                                ),
-                                                              )
+                                                              capitalize(
+                                                                tmm_duration_type,
+                                                                true,
+                                                              ),
+                                                            )
                                                             : isNumeric(
-                                                                  tmm_days,
-                                                                )
+                                                              tmm_days,
+                                                            )
                                                               ? `${tmm_days} ${durationLang(tmm_duration_type)}`
                                                               : "-"
                                                           : "",
@@ -4074,7 +4074,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 ?.length -
                                                 1 ===
                                                 ii &&
-                                              medicationData?.length - 1 != i
+                                                medicationData?.length - 1 != i
                                                 ? ","
                                                 : ""}
                                               &nbsp;
@@ -4195,7 +4195,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     }) => ({
                                                       modiGeneric:
                                                         option?.medicine_with_generic &&
-                                                        ii === 0
+                                                          ii === 0
                                                           ? tmm_generic
                                                           : "",
 
@@ -4225,16 +4225,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             x?.tmt_id ===
                                                             tmm_time,
                                                         ) !== undefined &&
-                                                        timingList?.find(
-                                                          (x) =>
-                                                            x?.tmt_id ===
-                                                            tmm_time,
-                                                        )?.tmt_title !== "None"
+                                                          timingList?.find(
+                                                            (x) =>
+                                                              x?.tmt_id ===
+                                                              tmm_time,
+                                                          )?.tmt_title !== "None"
                                                           ? timingList?.find(
-                                                              (x) =>
-                                                                x?.tmt_id ===
-                                                                tmm_time,
-                                                            )?.[timeingLang()]
+                                                            (x) =>
+                                                              x?.tmt_id ===
+                                                              tmm_time,
+                                                          )?.[timeingLang()]
                                                           : "",
 
                                                       modiDuration:
@@ -4242,19 +4242,19 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           "duration",
                                                         )
                                                           ? EXTRA_OPTIONS.some(
-                                                              (x) =>
-                                                                x?.value ==
-                                                                tmm_duration_type,
-                                                            )
+                                                            (x) =>
+                                                              x?.value ==
+                                                              tmm_duration_type,
+                                                          )
                                                             ? durationLang(
-                                                                capitalize(
-                                                                  tmm_duration_type,
-                                                                  true,
-                                                                ),
-                                                              )
+                                                              capitalize(
+                                                                tmm_duration_type,
+                                                                true,
+                                                              ),
+                                                            )
                                                             : isNumeric(
-                                                                  tmm_days,
-                                                                )
+                                                              tmm_days,
+                                                            )
                                                               ? `${tmm_days} ${durationLang(tmm_duration_type)}`
                                                               : "-"
                                                           : "",
@@ -4345,13 +4345,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         option?.medicine_option?.length === 0
                                           ? 0.25
                                           : option?.medicine_option?.length ===
-                                              1
+                                            1
                                             ? 0.8
                                             : option?.medicine_option
-                                                  ?.length === 2
+                                              ?.length === 2
                                               ? 1.2
                                               : option?.medicine_option
-                                                    ?.length === 3
+                                                ?.length === 3
                                                 ? 1.4
                                                 : 2.4,
                                     }}
@@ -4365,108 +4365,108 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       {option?.medicine_option?.includes(
                                         "dose",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.headerCell,
-                                            {
-                                              flex: 0.45,
-                                              fontFamily: getFont(),
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 500,
-                                              color: "#000",
-                                            },
-                                          ]}
-                                        >
-                                          {medicineHeaderLang("DOSE")}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.headerCell,
+                                              {
+                                                flex: 0.45,
+                                                fontFamily: getFont(),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
+                                              },
+                                            ]}
+                                          >
+                                            {medicineHeaderLang("DOSE")}
+                                          </Text>
+                                        )}
                                       {option?.medicine_option?.includes(
                                         "frequency",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.headerCell,
-                                            {
-                                              flex: 0.6,
-                                              fontFamily: getFont(),
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 500,
-                                              color: "#000",
-                                            },
-                                          ]}
-                                        >
-                                          {medicineHeaderLang("FREQUENCY")}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.headerCell,
+                                              {
+                                                flex: 0.6,
+                                                fontFamily: getFont(),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
+                                              },
+                                            ]}
+                                          >
+                                            {medicineHeaderLang("FREQUENCY")}
+                                          </Text>
+                                        )}
                                       {option?.medicine_option?.includes(
                                         "duration",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.headerCell,
-                                            {
-                                              flex: 0.53,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 500,
-                                              color: "#000",
-                                              fontFamily: getFont(),
-                                            },
-                                          ]}
-                                        >
-                                          {medicineHeaderLang("DURATION")}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.headerCell,
+                                              {
+                                                flex: 0.53,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
+                                                fontFamily: getFont(),
+                                              },
+                                            ]}
+                                          >
+                                            {medicineHeaderLang("DURATION")}
+                                          </Text>
+                                        )}
                                       {option?.medicine_option?.includes(
                                         "quantity",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.headerCell,
-                                            {
-                                              flex: 0.18,
-                                              fontFamily: getFont(),
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 500,
-                                              color: "#000",
-                                            },
-                                          ]}
-                                        >
-                                          {medicineHeaderLang("QTY")}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.headerCell,
+                                              {
+                                                flex: 0.18,
+                                                fontFamily: getFont(),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
+                                              },
+                                            ]}
+                                          >
+                                            {medicineHeaderLang("QTY")}
+                                          </Text>
+                                        )}
                                       {option?.medicine_option?.includes(
                                         "note",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.headerCell,
-                                            {
-                                              flex: 0.7,
-                                              fontFamily: getFont(),
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 500,
-                                              color: "#000",
-                                            },
-                                          ]}
-                                        >
-                                          {medicineHeaderLang("NOTES")}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.headerCell,
+                                              {
+                                                flex: 0.7,
+                                                fontFamily: getFont(),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
+                                              },
+                                            ]}
+                                          >
+                                            {medicineHeaderLang("NOTES")}
+                                          </Text>
+                                        )}
                                     </View>
                                   </View>
                                 </View>
@@ -4519,8 +4519,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   ?.font_family,
                                               fontSize:
                                                 PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size -
+                                                printSettings?.page_format
+                                                  ?.font_size -
                                                 2,
                                               fontWeight: 400,
                                             },
@@ -4536,13 +4536,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           option?.medicine_option?.length === 0
                                             ? 0.25
                                             : option?.medicine_option
-                                                  ?.length === 1
+                                              ?.length === 1
                                               ? 0.8
                                               : option?.medicine_option
-                                                    ?.length === 2
+                                                ?.length === 2
                                                 ? 1.2
                                                 : option?.medicine_option
-                                                      ?.length === 3
+                                                  ?.length === 3
                                                   ? 1.4
                                                   : 2.4,
                                       }}
@@ -4556,7 +4556,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             ii ===
                                             innerMedication(pItem.index)
                                               ?.length -
-                                              1;
+                                            1;
                                           return (
                                             <View
                                               style={{
@@ -4564,8 +4564,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 flexDirection: "row",
                                                 borderBottom:
                                                   ii !=
-                                                  innerMedication(pItem?.index)
-                                                    ?.length -
+                                                    innerMedication(pItem?.index)
+                                                      ?.length -
                                                     1
                                                     ? "1px solid #171725"
                                                     : "0px",
@@ -4597,142 +4597,142 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                       },
                                                     ]}
                                                   >{`${item?.tmm_dosage && item?.tmm_unit ? `${formatUnitPerDose(item?.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.tmm_unit)?.tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit) !== undefined ? item?.medicineUnit?.find((x) => x?.tmu_id == item?.default_tmm_unit)?.tmu_title : ""}`}`}</Text>
-                                              )}
+                                                )}
                                               {option?.medicine_option?.includes(
                                                 "frequency",
                                               ) && (
-                                                <Text
-                                                  style={[
-                                                    styles.cell,
-                                                    {
-                                                      flex: 0.6,
-                                                      color: "#171725",
-                                                      fontFamily: getFont(),
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 400,
-                                                    },
-                                                  ]}
-                                                >
-                                                  {item?.tmf_block === 0 ||
-                                                  item?.tmf_block === ""
-                                                    ? `${item?.tcm_tmm_freq_morning || item?.tcm_tmm_freq_afternoon || item?.tcm_tmm_freq_evening || item?.tcm_tmm_freq_night ? (option?.numeric_frequency ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item?.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item?.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item?.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item?.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}` : formatFrequency(item?.tcm_tmm_freq_morning, item?.tcm_tmm_freq_afternoon, item?.tcm_tmm_freq_evening, item?.tcm_tmm_freq_night, option?.is_dosage_decimal)) : `-`}`
-                                                    : `(${frequencyList?.find((x) => x?.tmf_id === item?.tmm_freq_type) !== undefined ? frequencyList?.find((x) => x?.tmf_id === item?.tmm_freq_type)?.[frequencyLang()] : ""})`}
-                                                  {"\n"}
-                                                  {timingList?.find(
-                                                    (x) =>
-                                                      x?.tmt_id ===
-                                                      item?.tmm_time,
-                                                  ) !== undefined &&
-                                                  timingList?.find(
-                                                    (x) =>
-                                                      x?.tmt_id ===
-                                                      item?.tmm_time,
-                                                  )?.tmt_title !== "None"
-                                                    ? timingList?.find(
+                                                  <Text
+                                                    style={[
+                                                      styles.cell,
+                                                      {
+                                                        flex: 0.6,
+                                                        color: "#171725",
+                                                        fontFamily: getFont(),
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_size,
+                                                        fontWeight: 400,
+                                                      },
+                                                    ]}
+                                                  >
+                                                    {item?.tmf_block === 0 ||
+                                                      item?.tmf_block === ""
+                                                      ? `${item?.tcm_tmm_freq_morning || item?.tcm_tmm_freq_afternoon || item?.tcm_tmm_freq_evening || item?.tcm_tmm_freq_night ? (option?.numeric_frequency ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item?.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item?.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item?.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item?.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}` : formatFrequency(item?.tcm_tmm_freq_morning, item?.tcm_tmm_freq_afternoon, item?.tcm_tmm_freq_evening, item?.tcm_tmm_freq_night, option?.is_dosage_decimal)) : `-`}`
+                                                      : `(${frequencyList?.find((x) => x?.tmf_id === item?.tmm_freq_type) !== undefined ? frequencyList?.find((x) => x?.tmf_id === item?.tmm_freq_type)?.[frequencyLang()] : ""})`}
+                                                    {"\n"}
+                                                    {timingList?.find(
+                                                      (x) =>
+                                                        x?.tmt_id ===
+                                                        item?.tmm_time,
+                                                    ) !== undefined &&
+                                                      timingList?.find(
+                                                        (x) =>
+                                                          x?.tmt_id ===
+                                                          item?.tmm_time,
+                                                      )?.tmt_title !== "None"
+                                                      ? timingList?.find(
                                                         (x) =>
                                                           x?.tmt_id ===
                                                           item?.tmm_time,
                                                       )?.[timeingLang()]
-                                                    : ""}
-                                                </Text>
-                                              )}
+                                                      : ""}
+                                                  </Text>
+                                                )}
                                               {option?.medicine_option?.includes(
                                                 "duration",
                                               ) && (
-                                                <Text
-                                                  style={[
-                                                    styles.cell,
-                                                    {
-                                                      flex: 0.53,
-                                                      color: "#171725",
-                                                      fontFamily: getFont(),
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 400,
-                                                    },
-                                                  ]}
-                                                >
-                                                  {EXTRA_OPTIONS.some(
-                                                    (x) =>
-                                                      x?.value ==
-                                                      item?.tmm_duration_type,
-                                                  )
-                                                    ? durationLang(
+                                                  <Text
+                                                    style={[
+                                                      styles.cell,
+                                                      {
+                                                        flex: 0.53,
+                                                        color: "#171725",
+                                                        fontFamily: getFont(),
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_size,
+                                                        fontWeight: 400,
+                                                      },
+                                                    ]}
+                                                  >
+                                                    {EXTRA_OPTIONS.some(
+                                                      (x) =>
+                                                        x?.value ==
+                                                        item?.tmm_duration_type,
+                                                    )
+                                                      ? durationLang(
                                                         capitalize(
                                                           item?.tmm_duration_type,
                                                           true,
                                                         ),
                                                       )
-                                                    : isNumeric(item?.tmm_days)
-                                                      ? `${item?.tmm_days} ${durationLang(item?.tmm_duration_type)}`
-                                                      : "-"}
-                                                </Text>
-                                              )}
+                                                      : isNumeric(item?.tmm_days)
+                                                        ? `${item?.tmm_days} ${durationLang(item?.tmm_duration_type)}`
+                                                        : "-"}
+                                                  </Text>
+                                                )}
                                               {option?.medicine_option?.includes(
                                                 "quantity",
                                               ) && (
-                                                <Text
-                                                  style={[
-                                                    styles.cell,
-                                                    {
-                                                      flex: 0.18,
-                                                      color: "#171725",
-                                                      fontFamily:
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_family,
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 400,
-                                                    },
-                                                  ]}
-                                                >
-                                                  {item?.display_qty
-                                                    ? item?.display_qty
-                                                    : "-"}
-                                                </Text>
-                                              )}
-                                              {option?.medicine_option?.includes(
-                                                "note",
-                                              ) && (
-                                                <Text
-                                                  style={[
-                                                    styles.cell,
-                                                    {
-                                                      flex: 0.7,
-                                                      color: "#171725",
-                                                      fontFamily:
-                                                        getIndianLanguageFont(
-                                                          item?.tmm_remarks,
+                                                  <Text
+                                                    style={[
+                                                      styles.cell,
+                                                      {
+                                                        flex: 0.18,
+                                                        color: "#171725",
+                                                        fontFamily:
                                                           printSettings
                                                             ?.page_format
                                                             ?.font_family,
-                                                        ),
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 400,
-                                                    },
-                                                  ]}
-                                                >
-                                                  {item?.tmm_remarks
-                                                    ? item?.tmm_remarks
-                                                    : "-"}
-                                                  &nbsp;
-                                                </Text>
-                                              )}
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_size,
+                                                        fontWeight: 400,
+                                                      },
+                                                    ]}
+                                                  >
+                                                    {item?.display_qty
+                                                      ? item?.display_qty
+                                                      : "-"}
+                                                  </Text>
+                                                )}
+                                              {option?.medicine_option?.includes(
+                                                "note",
+                                              ) && (
+                                                  <Text
+                                                    style={[
+                                                      styles.cell,
+                                                      {
+                                                        flex: 0.7,
+                                                        color: "#171725",
+                                                        fontFamily:
+                                                          getIndianLanguageFont(
+                                                            item?.tmm_remarks,
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_family,
+                                                          ),
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_size,
+                                                        fontWeight: 400,
+                                                      },
+                                                    ]}
+                                                  >
+                                                    {item?.tmm_remarks
+                                                      ? item?.tmm_remarks
+                                                      : "-"}
+                                                    &nbsp;
+                                                  </Text>
+                                                )}
                                             </View>
                                           );
                                         },
@@ -4963,7 +4963,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                Investigation:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5006,7 +5006,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           {caseManagerData?.investigation
                                             ?.length -
                                             1 !=
-                                          i
+                                            i
                                             ? ","
                                             : ""}
                                           &nbsp;
@@ -5028,7 +5028,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           {caseManagerData?.investigation
                                             ?.length -
                                             1 !=
-                                          i
+                                            i
                                             ? ","
                                             : ""}
                                           &nbsp;
@@ -5053,7 +5053,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                Investigation:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5100,22 +5100,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       {(item?.since ||
                                         item?.severity ||
                                         item?.note) && (
-                                        <Text
-                                          style={{
-                                            color: "#171725",
-                                            fontFamily: getIndianLanguageFont(
-                                              item?.note,
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            ),
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 400,
-                                          }}
-                                        >{`(${Object.values(Object.fromEntries(Object.entries((({ note }) => ({ note }))(caseManagerData?.investigation?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
-                                      )}
+                                          <Text
+                                            style={{
+                                              color: "#171725",
+                                              fontFamily: getIndianLanguageFont(
+                                                item?.note,
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              ),
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 400,
+                                            }}
+                                          >{`(${Object.values(Object.fromEntries(Object.entries((({ note }) => ({ note }))(caseManagerData?.investigation?.[i])).filter(([_, v]) => v))).join(", ")})\n`}</Text>
+                                        )}
                                     </Text>
                                   );
                                 },
@@ -5136,7 +5136,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   marginBottom: PX_TO_PT * 6,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                Investigation:&nbsp;
                               </Text>
                               <View style={styles.table}>
                                 <View style={styles.headerRow} fixed>
@@ -5371,24 +5371,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     [
                                       "bmi",
                                       item.bmi &&
-                                      (option?.vitals_option === undefined ||
-                                        option?.vitals_option?.includes("bmi"))
+                                        (option?.vitals_option === undefined ||
+                                          option?.vitals_option?.includes("bmi"))
                                         ? `BMI: ${parseFloat(item.bmi).toFixed(2)}kg/m²`
                                         : "",
                                     ],
                                     [
                                       "bmr",
                                       item.bmr &&
-                                      (option?.vitals_option === undefined ||
-                                        option?.vitals_option?.includes("bmr"))
+                                        (option?.vitals_option === undefined ||
+                                          option?.vitals_option?.includes("bmr"))
                                         ? `BMR: ${parseFloat(item.bmr).toFixed(2)}kcals`
                                         : "",
                                     ],
                                     [
                                       "bsa",
                                       item.bsa &&
-                                      (option?.vitals_option === undefined ||
-                                        option?.vitals_option?.includes("bsa"))
+                                        (option?.vitals_option === undefined ||
+                                          option?.vitals_option?.includes("bsa"))
                                         ? `BSA: ${parseFloat(item.bsa).toFixed(2)}m²`
                                         : "",
                                     ],
@@ -5400,18 +5400,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   ];
                                   const orderedVitals = isPediatricAccessable
                                     ? [
-                                        ...priorityOrder
-                                          .map((key) =>
-                                            vitalsArray.find(
-                                              ([k]) => k === key,
-                                            ),
-                                          )
-                                          .filter(Boolean),
-                                        ...vitalsArray.filter(
-                                          ([key]) =>
-                                            !priorityOrder.includes(key),
-                                        ),
-                                      ]
+                                      ...priorityOrder
+                                        .map((key) =>
+                                          vitalsArray.find(
+                                            ([k]) => k === key,
+                                          ),
+                                        )
+                                        .filter(Boolean),
+                                      ...vitalsArray.filter(
+                                        ([key]) =>
+                                          !priorityOrder.includes(key),
+                                      ),
+                                    ]
                                     : vitalsArray;
                                   const vitalsText = orderedVitals
                                     .map(([, value]) => value)
@@ -5553,26 +5553,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         : "",
                                       bmi:
                                         bmi &&
-                                        (option?.vitals_option === undefined ||
-                                          option?.vitals_option?.includes(
-                                            "bmi",
-                                          ))
+                                          (option?.vitals_option === undefined ||
+                                            option?.vitals_option?.includes(
+                                              "bmi",
+                                            ))
                                           ? `BMI: ${parseFloat(bmi).toFixed(2)}kg/m²`
                                           : "",
                                       bmr:
                                         bmr &&
-                                        (option?.vitals_option === undefined ||
-                                          option?.vitals_option?.includes(
-                                            "bmr",
-                                          ))
+                                          (option?.vitals_option === undefined ||
+                                            option?.vitals_option?.includes(
+                                              "bmr",
+                                            ))
                                           ? `BMR: ${parseFloat(bmr).toFixed(2)}kcals`
                                           : "",
                                       bsa:
                                         bsa &&
-                                        (option?.vitals_option === undefined ||
-                                          option?.vitals_option?.includes(
-                                            "bsa",
-                                          ))
+                                          (option?.vitals_option === undefined ||
+                                            option?.vitals_option?.includes(
+                                              "bsa",
+                                            ))
                                           ? `BSA: ${parseFloat(bsa).toFixed(2)}m²`
                                           : "",
                                     }))(item),
@@ -5585,18 +5585,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   ];
                                   const orderedEntries = isPediatricAccessable
                                     ? [
-                                        ...priorityKeys
-                                          .map((key) =>
-                                            vitalsEntries.find(
-                                              ([k]) => k === key,
-                                            ),
-                                          )
-                                          .filter(Boolean),
-                                        ...vitalsEntries.filter(
-                                          ([key]) =>
-                                            !priorityKeys.includes(key),
-                                        ),
-                                      ]
+                                      ...priorityKeys
+                                        .map((key) =>
+                                          vitalsEntries.find(
+                                            ([k]) => k === key,
+                                          ),
+                                        )
+                                        .filter(Boolean),
+                                      ...vitalsEntries.filter(
+                                        ([key]) =>
+                                          !priorityKeys.includes(key),
+                                      ),
+                                    ]
                                     : vitalsEntries;
 
                                   const vitalsText = orderedEntries
@@ -5802,7 +5802,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             nameToVitalsKey[item?.name];
                                           if (
                                             option?.vitals_option !==
-                                              undefined &&
+                                            undefined &&
                                             (!vitalsKey ||
                                               !option?.vitals_option?.includes(
                                                 vitalsKey,
@@ -6134,55 +6134,55 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               })()}
                               {caseManagerData?.medical_history?.[0]
                                 ?.medical_history_remarks && (
-                                <Text
-                                  style={{
-                                    color: "#454551",
-                                    fontFamily:
-                                      printSettings?.page_format?.font_family,
-                                    fontSize:
-                                      PX_TO_PT *
-                                      printSettings?.page_format?.font_size,
-                                    fontWeight: 500,
-                                    marginTop: PX_TO_PT * 8,
-                                  }}
-                                >
                                   <Text
                                     style={{
-                                      color: "#171725",
+                                      color: "#454551",
                                       fontFamily:
                                         printSettings?.page_format?.font_family,
                                       fontSize:
                                         PX_TO_PT *
                                         printSettings?.page_format?.font_size,
                                       fontWeight: 500,
-                                      lineHeight: 2,
+                                      marginTop: PX_TO_PT * 8,
                                     }}
                                   >
-                                    {"\n"}Additional History:{" "}
-                                  </Text>
-                                  <Text
-                                    style={{
-                                      color: "#454551",
-                                      fontFamily: getIndianLanguageFont(
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                        lineHeight: 2,
+                                      }}
+                                    >
+                                      {"\n"}Additional History:{" "}
+                                    </Text>
+                                    <Text
+                                      style={{
+                                        color: "#454551",
+                                        fontFamily: getIndianLanguageFont(
+                                          caseManagerData?.medical_history?.[0]
+                                            ?.medical_history_remarks,
+                                          printSettings?.page_format?.font_family,
+                                        ),
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 400,
+                                      }}
+                                    >
+                                      (
+                                      {
                                         caseManagerData?.medical_history?.[0]
-                                          ?.medical_history_remarks,
-                                        printSettings?.page_format?.font_family,
-                                      ),
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 400,
-                                    }}
-                                  >
-                                    (
-                                    {
-                                      caseManagerData?.medical_history?.[0]
-                                        ?.medical_history_remarks
-                                    }
-                                    )
+                                          ?.medical_history_remarks
+                                      }
+                                      )
+                                    </Text>
                                   </Text>
-                                </Text>
-                              )}
+                                )}
                             </View>
                           ) : option?.format === "listview" ? (
                             <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -6279,77 +6279,77 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         </Text>
                                                         {((item1.since &&
                                                           item.tmmhs_id !==
-                                                            5) ||
+                                                          5) ||
                                                           (item1.date &&
                                                             item.tmmhs_id ===
-                                                              5) ||
+                                                            5) ||
                                                           item1.status ||
                                                           item1.medication ||
                                                           item1.relationship ||
                                                           item1.note) && (
-                                                          <Text
-                                                            key={i1}
-                                                            style={{
-                                                              lineHeight: 1.4,
-                                                              color: "#171725",
-                                                              fontFamily:
-                                                                printSettings
-                                                                  ?.page_format
-                                                                  ?.font_family,
-                                                              fontSize:
-                                                                PX_TO_PT *
-                                                                printSettings
-                                                                  ?.page_format
-                                                                  ?.font_size,
-                                                              fontWeight: 400,
-                                                            }}
-                                                          >
-                                                            {`(${Object.values(
-                                                              Object.fromEntries(
-                                                                Object.entries(
-                                                                  (({
-                                                                    since,
-                                                                    date,
-                                                                    status,
-                                                                    medication,
-                                                                    relationship,
-                                                                    note,
-                                                                  }) => ({
-                                                                    since:
-                                                                      item.tmmhs_id ===
+                                                            <Text
+                                                              key={i1}
+                                                              style={{
+                                                                lineHeight: 1.4,
+                                                                color: "#171725",
+                                                                fontFamily:
+                                                                  printSettings
+                                                                    ?.page_format
+                                                                    ?.font_family,
+                                                                fontSize:
+                                                                  PX_TO_PT *
+                                                                  printSettings
+                                                                    ?.page_format
+                                                                    ?.font_size,
+                                                                fontWeight: 400,
+                                                              }}
+                                                            >
+                                                              {`(${Object.values(
+                                                                Object.fromEntries(
+                                                                  Object.entries(
+                                                                    (({
+                                                                      since,
+                                                                      date,
+                                                                      status,
+                                                                      medication,
+                                                                      relationship,
+                                                                      note,
+                                                                    }) => ({
+                                                                      since:
+                                                                        item.tmmhs_id ===
+                                                                          5 &&
+                                                                          date
+                                                                          ? `${date}`
+                                                                          : since
+                                                                            ? `Since : ${since}`
+                                                                            : null,
+                                                                      status:
+                                                                        status &&
+                                                                        item.tmmhs_id !==
                                                                         5 &&
-                                                                      date
-                                                                        ? `${date}`
-                                                                        : since
-                                                                          ? `Since : ${since}`
-                                                                          : null,
-                                                                    status:
-                                                                      status &&
-                                                                      item.tmmhs_id !==
+                                                                        `Status : ${status}`,
+                                                                      medication:
+                                                                        medication &&
+                                                                        item.tmmhs_id !==
                                                                         5 &&
-                                                                      `Status : ${status}`,
-                                                                    medication:
-                                                                      medication &&
-                                                                      item.tmmhs_id !==
-                                                                        5 &&
-                                                                      `Medication : ${medication}`,
-                                                                    relationship:
-                                                                      relationship &&
-                                                                      `Relative : ${relationship}`,
-                                                                    note:
-                                                                      note &&
-                                                                      (item.tmmhs_id ===
-                                                                      5
-                                                                        ? `Remarks : ${note}`
-                                                                        : `${note}`),
-                                                                  }))(item1),
-                                                                ).filter(
-                                                                  ([_, v]) => v,
+                                                                        `Medication : ${medication}`,
+                                                                      relationship:
+                                                                        relationship &&
+                                                                        `Relative : ${relationship}`,
+                                                                      note:
+                                                                        note &&
+                                                                        (item.tmmhs_id ===
+                                                                          5
+                                                                          ? `Remarks : ${note}`
+                                                                          : `${note}`),
+                                                                    }))(item1),
+                                                                  ).filter(
+                                                                    ([_, v]) => v,
+                                                                  ),
                                                                 ),
-                                                              ),
-                                                            ).join(" | ")})`}
-                                                          </Text>
-                                                        )}
+                                                              ).join(" | ")})`}
+                                                            </Text>
+                                                          )}
                                                       </>
                                                     ) : (
                                                       <Text
@@ -6427,59 +6427,59 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               )}
                               {caseManagerData?.medical_history?.[0]
                                 ?.medical_history_remarks && (
-                                <>
-                                  <Text
-                                    style={{
-                                      color: "#454551",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
+                                  <>
                                     <Text
                                       style={{
-                                        color: "#171725",
+                                        color: "#454551",
                                         fontFamily:
-                                          printSettings?.page_format
-                                            ?.font_family,
+                                          printSettings?.page_format?.font_family,
                                         fontSize:
                                           PX_TO_PT *
                                           printSettings?.page_format?.font_size,
                                         fontWeight: 500,
-                                        lineHeight: 2,
                                       }}
                                     >
-                                      {"\n"}&nbsp;{medicalHistoryIndex++}.{" "}
-                                      {`Additional History`}&nbsp;:
+                                      <Text
+                                        style={{
+                                          color: "#171725",
+                                          fontFamily:
+                                            printSettings?.page_format
+                                              ?.font_family,
+                                          fontSize:
+                                            PX_TO_PT *
+                                            printSettings?.page_format?.font_size,
+                                          fontWeight: 500,
+                                          lineHeight: 2,
+                                        }}
+                                      >
+                                        {"\n"}&nbsp;{medicalHistoryIndex++}.{" "}
+                                        {`Additional History`}&nbsp;:
+                                      </Text>
+                                      {"\n"}
                                     </Text>
-                                    {"\n"}
-                                  </Text>
-                                  <Text
-                                    style={{
-                                      color: "#454551",
-                                      fontFamily: getIndianLanguageFont(
+                                    <Text
+                                      style={{
+                                        color: "#454551",
+                                        fontFamily: getIndianLanguageFont(
+                                          caseManagerData?.medical_history?.[0]
+                                            ?.medical_history_remarks,
+                                          printSettings?.page_format?.font_family,
+                                        ),
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                        marginLeft: PX_TO_PT * 15,
+                                        marginTop: PX_TO_PT * 2,
+                                      }}
+                                    >
+                                      {
                                         caseManagerData?.medical_history?.[0]
-                                          ?.medical_history_remarks,
-                                        printSettings?.page_format?.font_family,
-                                      ),
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                      marginLeft: PX_TO_PT * 15,
-                                      marginTop: PX_TO_PT * 2,
-                                    }}
-                                  >
-                                    {
-                                      caseManagerData?.medical_history?.[0]
-                                        ?.medical_history_remarks
-                                    }
-                                  </Text>
-                                </>
-                              )}
+                                          ?.medical_history_remarks
+                                      }
+                                    </Text>
+                                  </>
+                                )}
                             </View>
                           ) : (
                             <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -6789,32 +6789,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           </Text>
                                                           {item?.tmmhs_id ==
                                                             2 && (
-                                                            <Text
-                                                              style={[
-                                                                styles.cell,
-                                                                {
-                                                                  flex: 0.25,
-                                                                  color:
-                                                                    "#171725",
-                                                                  fontFamily:
-                                                                    printSettings
-                                                                      ?.page_format
-                                                                      ?.font_family,
-                                                                  fontSize:
-                                                                    PX_TO_PT *
-                                                                    printSettings
-                                                                      ?.page_format
-                                                                      ?.font_size,
-                                                                  fontWeight: 400,
-                                                                  lineHeight: 2,
-                                                                },
-                                                              ]}
-                                                            >
-                                                              {item1?.medication
-                                                                ? item1?.medication
-                                                                : "-"}
-                                                            </Text>
-                                                          )}
+                                                              <Text
+                                                                style={[
+                                                                  styles.cell,
+                                                                  {
+                                                                    flex: 0.25,
+                                                                    color:
+                                                                      "#171725",
+                                                                    fontFamily:
+                                                                      printSettings
+                                                                        ?.page_format
+                                                                        ?.font_family,
+                                                                    fontSize:
+                                                                      PX_TO_PT *
+                                                                      printSettings
+                                                                        ?.page_format
+                                                                        ?.font_size,
+                                                                    fontWeight: 400,
+                                                                    lineHeight: 2,
+                                                                  },
+                                                                ]}
+                                                              >
+                                                                {item1?.medication
+                                                                  ? item1?.medication
+                                                                  : "-"}
+                                                              </Text>
+                                                            )}
                                                         </>
                                                       )}
                                                     {item?.tmmhs_id === 5 && (
@@ -6956,61 +6956,61 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               )}
                               {caseManagerData?.medical_history?.[0]
                                 ?.medical_history_remarks && (
-                                <View style={styles.table}>
-                                  <View style={styles.headerRow} fixed>
-                                    <Text
-                                      style={[
-                                        styles.headerCell,
-                                        {
-                                          fontFamily:
-                                            printSettings?.page_format
-                                              ?.font_family,
-                                          fontSize:
-                                            PX_TO_PT *
-                                            printSettings?.page_format
-                                              ?.font_size,
-                                          fontWeight: 500,
-                                          color: "#000",
-                                          backgroundColor: "#E2E2EA",
-                                          lineHeight: 2,
-                                        },
-                                      ]}
-                                    >
-                                      Additional History :
-                                    </Text>
-                                  </View>
+                                  <View style={styles.table}>
+                                    <View style={styles.headerRow} fixed>
+                                      <Text
+                                        style={[
+                                          styles.headerCell,
+                                          {
+                                            fontFamily:
+                                              printSettings?.page_format
+                                                ?.font_family,
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 500,
+                                            color: "#000",
+                                            backgroundColor: "#E2E2EA",
+                                            lineHeight: 2,
+                                          },
+                                        ]}
+                                      >
+                                        Additional History :
+                                      </Text>
+                                    </View>
 
-                                  <View style={styles.row} wrap={false}>
-                                    <Text
-                                      style={[
-                                        styles.cell,
+                                    <View style={styles.row} wrap={false}>
+                                      <Text
+                                        style={[
+                                          styles.cell,
+                                          {
+                                            color: "#171725",
+                                            fontFamily: getIndianLanguageFont(
+                                              caseManagerData
+                                                ?.medical_history?.[0]
+                                                ?.medical_history_remarks,
+                                              printSettings?.page_format
+                                                ?.font_family,
+                                            ),
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 500,
+                                            lineHeight: 2,
+                                          },
+                                        ]}
+                                      >
                                         {
-                                          color: "#171725",
-                                          fontFamily: getIndianLanguageFont(
-                                            caseManagerData
-                                              ?.medical_history?.[0]
-                                              ?.medical_history_remarks,
-                                            printSettings?.page_format
-                                              ?.font_family,
-                                          ),
-                                          fontSize:
-                                            PX_TO_PT *
-                                            printSettings?.page_format
-                                              ?.font_size,
-                                          fontWeight: 500,
-                                          lineHeight: 2,
-                                        },
-                                      ]}
-                                    >
-                                      {
-                                        caseManagerData?.medical_history?.[0]
-                                          ?.medical_history_remarks
-                                      }
-                                      &nbsp;
-                                    </Text>
+                                          caseManagerData?.medical_history?.[0]
+                                            ?.medical_history_remarks
+                                        }
+                                        &nbsp;
+                                      </Text>
+                                    </View>
                                   </View>
-                                </View>
-                              )}
+                                )}
                             </View>
                           ))}
                       </>
@@ -7052,17 +7052,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               >
                                 {option?.followup_dateformat
                                   ? moment(
-                                      caseManagerData?.follow_up_date,
-                                    ).format("DD/MM/YYYY")
+                                    caseManagerData?.follow_up_date,
+                                  ).format("DD/MM/YYYY")
                                   : onCalFollowUp(
-                                      moment(
-                                        caseManagerData?.follow_up_date,
-                                      ).format("YYYY-MM-DD"),
-                                      moment(
-                                        caseManagerData?.patient_data
-                                          ?.patient_consultaion_date,
-                                      ).format("YYYY-MM-DD"),
-                                    )}
+                                    moment(
+                                      caseManagerData?.follow_up_date,
+                                    ).format("YYYY-MM-DD"),
+                                    moment(
+                                      caseManagerData?.patient_data
+                                        ?.patient_consultaion_date,
+                                    ).format("YYYY-MM-DD"),
+                                  )}
                               </Text>
                             </Text>
                           ) : option?.format === "listview" ? (
@@ -7098,17 +7098,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               >
                                 {option?.followup_dateformat
                                   ? moment(
-                                      caseManagerData?.follow_up_date,
-                                    ).format("DD/MM/YYYY")
+                                    caseManagerData?.follow_up_date,
+                                  ).format("DD/MM/YYYY")
                                   : onCalFollowUp(
-                                      moment(
-                                        caseManagerData?.follow_up_date,
-                                      ).format("YYYY-MM-DD"),
-                                      moment(
-                                        caseManagerData?.patient_data
-                                          ?.patient_consultaion_date,
-                                      ).format("YYYY-MM-DD"),
-                                    )}
+                                    moment(
+                                      caseManagerData?.follow_up_date,
+                                    ).format("YYYY-MM-DD"),
+                                    moment(
+                                      caseManagerData?.patient_data
+                                        ?.patient_consultaion_date,
+                                    ).format("YYYY-MM-DD"),
+                                  )}
                               </Text>
                             </View>
                           ) : (
@@ -7146,17 +7146,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 >
                                   {option?.followup_dateformat
                                     ? moment(
-                                        caseManagerData?.follow_up_date,
-                                      ).format("DD/MM/YYYY")
+                                      caseManagerData?.follow_up_date,
+                                    ).format("DD/MM/YYYY")
                                     : onCalFollowUp(
-                                        moment(
-                                          caseManagerData?.follow_up_date,
-                                        ).format("YYYY-MM-DD"),
-                                        moment(
-                                          caseManagerData?.patient_data
-                                            ?.patient_consultaion_date,
-                                        ).format("YYYY-MM-DD"),
-                                      )}
+                                      moment(
+                                        caseManagerData?.follow_up_date,
+                                      ).format("YYYY-MM-DD"),
+                                      moment(
+                                        caseManagerData?.patient_data
+                                          ?.patient_consultaion_date,
+                                      ).format("YYYY-MM-DD"),
+                                    )}
                                 </Text>
                               </View>
                             </View>
@@ -7355,8 +7355,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             >
                                               {item?.tvp_given_date
                                                 ? moment(
-                                                    item?.tvp_given_date,
-                                                  ).format("DD MMM YYYY")
+                                                  item?.tvp_given_date,
+                                                ).format("DD MMM YYYY")
                                                 : "-"}
                                             </Text>
                                           </Text>
@@ -7475,8 +7475,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           >
                                             {")"}
                                             {i !==
-                                            transformGivenVaccines?.template
-                                              ?.length -
+                                              transformGivenVaccines?.template
+                                                ?.length -
                                               1
                                               ? ", "
                                               : ""}
@@ -7560,8 +7560,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           >
                                             {item?.tvd_due_date
                                               ? moment(
-                                                  item?.tvd_due_date,
-                                                ).format("DD MMM YYYY")
+                                                item?.tvd_due_date,
+                                              ).format("DD MMM YYYY")
                                               : "-"}
                                           </Text>
                                         </Text>
@@ -7712,8 +7712,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             >
                                               {item?.tvp_given_date
                                                 ? moment(
-                                                    item?.tvp_given_date,
-                                                  ).format("DD MMM YYYY")
+                                                  item?.tvp_given_date,
+                                                ).format("DD MMM YYYY")
                                                 : "-"}
                                             </Text>
                                           </Text>
@@ -7921,8 +7921,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           >
                                             {item?.tvd_due_date
                                               ? moment(
-                                                  item?.tvd_due_date,
-                                                ).format("DD MMM YYYY")
+                                                item?.tvd_due_date,
+                                              ).format("DD MMM YYYY")
                                               : "-"}
                                           </Text>
                                         </Text>
@@ -8144,8 +8144,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           >
                                             {item?.tvp_given_date
                                               ? moment(
-                                                  item?.tvp_given_date,
-                                                ).format("DD MMM YYYY")
+                                                item?.tvp_given_date,
+                                              ).format("DD MMM YYYY")
                                               : "-"}
                                           </Text>
                                           <Text
@@ -8334,8 +8334,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         >
                                           {item?.tvd_due_date
                                             ? moment(item?.tvd_due_date).format(
-                                                "DD MMM YYYY",
-                                              )
+                                              "DD MMM YYYY",
+                                            )
                                             : "-"}
                                         </Text>
                                         <Text
@@ -9017,434 +9017,785 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {digitizedData?.symptoms?.some(
                               (item) => item?.name || item?.lineItem,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Symptoms:
-                                  </Text>
-                                  {digitizedData?.symptoms?.map((item, i) => {
-                                    return (
-                                      <View key={i}>
-                                        {(("name" in item &&
-                                          item?.name != "") ||
-                                          ("lineItem" in item &&
-                                            item?.lineItem != "")) && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Symptoms:
+                                    </Text>
+                                    {digitizedData?.symptoms?.map((item, i) => {
+                                      return (
+                                        <View key={i}>
+                                          {(("name" in item &&
+                                            item?.name != "") ||
+                                            ("lineItem" in item &&
+                                              item?.lineItem != "")) && (
+                                              <>
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  }}
+                                                >
+                                                  &nbsp;{"\n"}
+                                                  &nbsp;&nbsp;&nbsp;&nbsp;
+                                                  {"\u2022"}&nbsp;
+                                                </Text>
 
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {item?.name && item?.lineItem
-                                                ? item.lineItem.includes(
-                                                    item.name,
-                                                  )
-                                                  ? item.lineItem
-                                                  : `${item.name} (${item.lineItem})`
-                                                : item?.lineItem || item?.name}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 400,
+                                                  }}
+                                                >
+                                                  {item?.name && item?.lineItem
+                                                    ? item.lineItem.includes(
+                                                      item.name,
+                                                    )
+                                                      ? item.lineItem
+                                                      : `${item.name} (${item.lineItem})`
+                                                    : item?.lineItem || item?.name}
+                                                </Text>
+                                              </>
+                                            )}
+                                        </View>
+                                      );
+                                    })}
+                                  </Text>
+                                </View>
+                              )}
 
                             {(
                               digitizedData?.examination ||
                               digitizedData?.examinations
                             )?.some((item) => item?.name || item?.lineItem) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Examinations:
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Examinations:
+                                    </Text>
+                                    {(
+                                      digitizedData?.examination ||
+                                      digitizedData?.examinations
+                                    )?.map((item, i) => {
+                                      const hasLineItem =
+                                        item?.lineItem != null &&
+                                        item?.lineItem !== "";
+                                      const hasName =
+                                        item?.name != null && item?.name !== "";
+                                      const hasExamination =
+                                        hasLineItem || hasName;
+                                      let examinationText = null;
+                                      if (hasName && hasLineItem) {
+                                        examinationText = item.lineItem.includes(
+                                          item.name,
+                                        )
+                                          ? item.lineItem
+                                          : `${item.name} (${item.lineItem})`;
+                                      } else if (hasName) {
+                                        examinationText =
+                                          item?.notes != null &&
+                                            item?.notes !== ""
+                                            ? `${item.name} (${item.notes})`
+                                            : item.name;
+                                      } else if (hasLineItem) {
+                                        examinationText = item.lineItem;
+                                      }
+                                      return (
+                                        <View key={i}>
+                                          {hasExamination && examinationText && (
+                                            <>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 500,
+                                                }}
+                                              >
+                                                &nbsp;{"\n"}
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                                {"\u2022"}&nbsp;
+                                              </Text>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {examinationText}
+                                              </Text>
+                                            </>
+                                          )}
+                                        </View>
+                                      );
+                                    })}
                                   </Text>
-                                  {(
-                                    digitizedData?.examination ||
-                                    digitizedData?.examinations
-                                  )?.map((item, i) => {
-                                    const hasLineItem =
-                                      item?.lineItem != null &&
-                                      item?.lineItem !== "";
-                                    const hasName =
-                                      item?.name != null && item?.name !== "";
-                                    const hasExamination =
-                                      hasLineItem || hasName;
-                                    let examinationText = null;
-                                    if (hasName && hasLineItem) {
-                                      examinationText = item.lineItem.includes(
-                                        item.name,
-                                      )
-                                        ? item.lineItem
-                                        : `${item.name} (${item.lineItem})`;
-                                    } else if (hasName) {
-                                      examinationText =
-                                        item?.notes != null &&
-                                        item?.notes !== ""
-                                          ? `${item.name} (${item.notes})`
-                                          : item.name;
-                                    } else if (hasLineItem) {
-                                      examinationText = item.lineItem;
-                                    }
-                                    return (
-                                      <View key={i}>
-                                        {hasExamination && examinationText && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {examinationText}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                </View>
+                              )}
 
                             {digitizedData?.diagnosis?.some(
                               (item) => item?.name || item?.lineItem,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Diagnosis:
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Diagnosis:
+                                    </Text>
+                                    {digitizedData?.diagnosis?.map((item, i) => {
+                                      const hasLineItem =
+                                        item?.lineItem != null &&
+                                        item?.lineItem !== "";
+                                      const hasName =
+                                        item?.name != null && item?.name !== "";
+                                      const hasDiagnosis = hasLineItem || hasName;
+                                      const diagnosisExtra = [
+                                        item?.since,
+                                        item?.status,
+                                        item?.notes,
+                                      ]
+                                        .filter((v) => v != null && v !== "")
+                                        .join(", ");
+                                      let diagnosisText = null;
+                                      if (hasName && hasLineItem) {
+                                        diagnosisText = item.lineItem.includes(
+                                          item.name,
+                                        )
+                                          ? item.lineItem
+                                          : `${item.name} (${item.lineItem})`;
+                                      } else if (hasName) {
+                                        diagnosisText = diagnosisExtra
+                                          ? `${item.name} (${diagnosisExtra})`
+                                          : item.name;
+                                      } else if (hasLineItem) {
+                                        diagnosisText = item.lineItem;
+                                      }
+                                      return (
+                                        <View key={i}>
+                                          {hasDiagnosis && diagnosisText && (
+                                            <>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 500,
+                                                }}
+                                              >
+                                                &nbsp;{"\n"}
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                                {"\u2022"}&nbsp;
+                                              </Text>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {diagnosisText}
+                                              </Text>
+                                            </>
+                                          )}
+                                        </View>
+                                      );
+                                    })}
                                   </Text>
-                                  {digitizedData?.diagnosis?.map((item, i) => {
-                                    const hasLineItem =
-                                      item?.lineItem != null &&
-                                      item?.lineItem !== "";
-                                    const hasName =
-                                      item?.name != null && item?.name !== "";
-                                    const hasDiagnosis = hasLineItem || hasName;
-                                    const diagnosisExtra = [
-                                      item?.since,
-                                      item?.status,
-                                      item?.notes,
-                                    ]
-                                      .filter((v) => v != null && v !== "")
-                                      .join(", ");
-                                    let diagnosisText = null;
-                                    if (hasName && hasLineItem) {
-                                      diagnosisText = item.lineItem.includes(
-                                        item.name,
-                                      )
-                                        ? item.lineItem
-                                        : `${item.name} (${item.lineItem})`;
-                                    } else if (hasName) {
-                                      diagnosisText = diagnosisExtra
-                                        ? `${item.name} (${diagnosisExtra})`
-                                        : item.name;
-                                    } else if (hasLineItem) {
-                                      diagnosisText = item.lineItem;
-                                    }
-                                    return (
-                                      <View key={i}>
-                                        {hasDiagnosis && diagnosisText && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {diagnosisText}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                </View>
+                              )}
 
                             {digitizedData?.medications?.some(
                               (item) => item?.refinedName || item?.name,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Medication:
-                                  </Text>
-                                </Text>
-                                {isVoiceOrAmbientV2 ? (
-                                  <View
-                                    style={[styles.table, { marginTop: 0 }]}
-                                  >
-                                    {/* Table Header */}
-                                    <View
-                                      style={[
-                                        styles.tableRow,
-                                        { borderTop: "1px solid #171725" },
-                                      ]}
-                                      fixed
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
                                     >
+                                      Medication:
+                                    </Text>
+                                  </Text>
+                                  {isVoiceOrAmbientV2 ? (
+                                    <View
+                                      style={[styles.table, { marginTop: 0 }]}
+                                    >
+                                      {/* Table Header */}
                                       <View
                                         style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "5%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
+                                          styles.tableRow,
+                                          { borderTop: "1px solid #171725" },
                                         ]}
+                                        fixed
                                       >
-                                        <Text style={[styles.cellText]}>
-                                          S.NO
-                                        </Text>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "5%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            S.NO
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "26%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            MEDICINE NAME
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "13%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            UNIT PER DOSE
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "13%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            FREQUENCY
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "11%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            DURATION
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "10%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            QTY
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "22%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                              borderRight: "none",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            NOTE
+                                          </Text>
+                                        </View>
                                       </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "26%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          MEDICINE NAME
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "13%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          UNIT PER DOSE
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "13%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          FREQUENCY
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "11%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          DURATION
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "10%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          QTY
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "22%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                            borderRight: "none",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          NOTE
-                                        </Text>
-                                      </View>
-                                    </View>
 
-                                    {/* Table Rows */}
-                                    {digitizedData?.medications?.map(
-                                      (item, i) => {
-                                        const unitPerDose = (
-                                          item?.unitPerDose ||
-                                          item?.dosage ||
-                                          item?.unit_per_dose ||
-                                          ""
-                                        )
-                                          .toString()
-                                          .trim();
-                                        const when = (
-                                          item?.when ||
-                                          item?.schedule ||
-                                          item?.timing ||
-                                          ""
-                                        )
-                                          .toString()
-                                          .trim();
-                                        const note = (
+                                      {/* Table Rows */}
+                                      {digitizedData?.medications?.map(
+                                        (item, i) => {
+                                          const unitPerDose = (
+                                            item?.unitPerDose ||
+                                            item?.dosage ||
+                                            item?.unit_per_dose ||
+                                            ""
+                                          )
+                                            .toString()
+                                            .trim();
+                                          const when = (
+                                            item?.when ||
+                                            item?.schedule ||
+                                            item?.timing ||
+                                            ""
+                                          )
+                                            .toString()
+                                            .trim();
+                                          const note = (
+                                            item?.note ||
+                                            item?.notes ||
+                                            ""
+                                          )
+                                            .toString()
+                                            .trim();
+                                          const rawQuantity =
+                                            item?.quantity ??
+                                            item?.qty ??
+                                            item?.quantityValue ??
+                                            item?.quantity_value ??
+                                            item?.quantityText ??
+                                            item?.quantity_text ??
+                                            item?.dispense_quantity ??
+                                            item?.dispenseQuantity ??
+                                            item?.quantityDispensed ??
+                                            item?.quantity_dispensed ??
+                                            null;
+                                          const quantity =
+                                            rawQuantity === null ||
+                                              rawQuantity === undefined
+                                              ? ""
+                                              : `${rawQuantity}`.trim();
+
+                                          return (
+                                            <View
+                                              key={i}
+                                              style={[
+                                                styles.tableRow,
+                                                {
+                                                  flexDirection: "row",
+                                                  minHeight: PX_TO_PT * 30,
+                                                },
+                                              ]}
+                                            >
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "5%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    { fontWeight: 500 },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {i + 1}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "26%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {item?.name ||
+                                                    item?.refinedName ||
+                                                    "N/A"}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "13%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {unitPerDose || "-"}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "13%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {(item?.frequency || "")
+                                                    .toString()
+                                                    .trim() || "-"}
+                                                  {when ? `\n${when}` : ""}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "11%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {(item?.duration || "")
+                                                    .toString()
+                                                    .trim() || "-"}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "10%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {Number(quantity)
+                                                    ? quantity
+                                                    : "-"}
+                                                </Text>
+                                              </View>
+                                              <View
+                                                style={[
+                                                  styles.tableCell,
+                                                  {
+                                                    width: "22%",
+                                                    padding: PX_TO_PT * 3,
+                                                    justifyContent: "center",
+                                                    borderRight: "none",
+                                                  },
+                                                ]}
+                                              >
+                                                <Text
+                                                  style={[
+                                                    styles.cellText,
+                                                    {
+                                                      fontWeight: 500,
+                                                      lineHeight: 1.2,
+                                                    },
+                                                  ]}
+                                                  wrap={true}
+                                                >
+                                                  {note || "-"}
+                                                </Text>
+                                              </View>
+                                            </View>
+                                          );
+                                        },
+                                      )}
+                                    </View>
+                                  ) : (
+                                    <Text>
+                                      {digitizedData?.medications?.map(
+                                        (item, i) => {
+                                          const medName =
+                                            item?.refinedName || item?.name;
+                                          return (
+                                            <Text key={i}>
+                                              {medName != null &&
+                                                medName != "" && (
+                                                  <>
+                                                    <Text
+                                                      style={{
+                                                        color: "#171725",
+                                                        fontFamily:
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_family,
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                          printSettings
+                                                            ?.page_format
+                                                            ?.font_size,
+                                                        fontWeight: 500,
+                                                      }}
+                                                    >
+                                                      {i === 0 ? "" : "\n"}
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;
+                                                      {"\u2022"}&nbsp;
+                                                    </Text>
+
+                                                    {medName != null &&
+                                                      medName != "" && (
+                                                        <Text
+                                                          style={{
+                                                            color: "#171725",
+                                                            fontFamily:
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_family,
+                                                            fontSize:
+                                                              PX_TO_PT *
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_size,
+                                                            fontWeight: 400,
+                                                          }}
+                                                        >
+                                                          {medName}
+                                                        </Text>
+                                                      )}
+
+                                                    {"lineItem" in item &&
+                                                      item?.lineItem != "" && (
+                                                        <Text
+                                                          style={{
+                                                            color: "#171725",
+                                                            fontFamily:
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_family,
+                                                            fontSize:
+                                                              PX_TO_PT *
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_size,
+                                                            fontWeight: 400,
+                                                          }}
+                                                        >
+                                                          &nbsp;({item?.lineItem})
+                                                        </Text>
+                                                      )}
+                                                  </>
+                                                )}
+                                            </Text>
+                                          );
+                                        },
+                                      )}
+                                    </Text>
+                                  )}
+                                </View>
+                              )}
+
+                            {(
+                              digitizedData?.tests ||
+                              digitizedData?.labInvestigation
+                            )?.some(
+                              (item) => item?.refinedName || item?.name,
+                            ) && (
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Investigation:
+                                    </Text>
+                                  </Text>
+                                  {isVoiceOrAmbientV2 ? (
+                                    <View
+                                      style={[styles.table, { marginTop: 0 }]}
+                                    >
+                                      {/* Table Header */}
+                                      <View
+                                        style={[
+                                          styles.tableRow,
+                                          { borderTop: "1px solid #171725" },
+                                        ]}
+                                        fixed
+                                      >
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "50%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            NAME
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "50%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                              borderRight: "none",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            NOTE
+                                          </Text>
+                                        </View>
+                                      </View>
+
+                                      {/* Table Rows */}
+                                      {(
+                                        digitizedData?.tests ||
+                                        digitizedData?.labInvestigation
+                                      )?.map((item, i) => {
+                                        const name =
+                                          (item?.name || item?.refinedName || "")
+                                            .toString()
+                                            .trim() || "-";
+                                        const noteValue = (
                                           item?.note ||
                                           item?.notes ||
+                                          item?.instruction ||
                                           ""
                                         )
                                           .toString()
                                           .trim();
-                                        const rawQuantity =
-                                          item?.quantity ??
-                                          item?.qty ??
-                                          item?.quantityValue ??
-                                          item?.quantity_value ??
-                                          item?.quantityText ??
-                                          item?.quantity_text ??
-                                          item?.dispense_quantity ??
-                                          item?.dispenseQuantity ??
-                                          item?.quantityDispensed ??
-                                          item?.quantity_dispensed ??
-                                          null;
-                                        const quantity =
-                                          rawQuantity === null ||
-                                          rawQuantity === undefined
-                                            ? ""
-                                            : `${rawQuantity}`.trim();
+                                        const displayNote = noteValue || "-";
 
                                         return (
                                           <View
@@ -9452,8 +9803,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             style={[
                                               styles.tableRow,
                                               {
+                                                height: PX_TO_PT * 30,
                                                 flexDirection: "row",
-                                                minHeight: PX_TO_PT * 30,
                                               },
                                             ]}
                                           >
@@ -9461,27 +9812,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               style={[
                                                 styles.tableCell,
                                                 {
-                                                  width: "5%",
-                                                  padding: PX_TO_PT * 3,
-                                                  justifyContent: "center",
-                                                },
-                                              ]}
-                                            >
-                                              <Text
-                                                style={[
-                                                  styles.cellText,
-                                                  { fontWeight: 500 },
-                                                ]}
-                                                wrap={true}
-                                              >
-                                                {i + 1}
-                                              </Text>
-                                            </View>
-                                            <View
-                                              style={[
-                                                styles.tableCell,
-                                                {
-                                                  width: "26%",
+                                                  width: "50%",
                                                   padding: PX_TO_PT * 3,
                                                   justifyContent: "center",
                                                 },
@@ -9497,115 +9828,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 ]}
                                                 wrap={true}
                                               >
-                                                {item?.name ||
-                                                  item?.refinedName ||
-                                                  "N/A"}
+                                                {name}
                                               </Text>
                                             </View>
                                             <View
                                               style={[
                                                 styles.tableCell,
                                                 {
-                                                  width: "13%",
-                                                  padding: PX_TO_PT * 3,
-                                                  justifyContent: "center",
-                                                },
-                                              ]}
-                                            >
-                                              <Text
-                                                style={[
-                                                  styles.cellText,
-                                                  {
-                                                    fontWeight: 500,
-                                                    lineHeight: 1.2,
-                                                  },
-                                                ]}
-                                                wrap={true}
-                                              >
-                                                {unitPerDose || "-"}
-                                              </Text>
-                                            </View>
-                                            <View
-                                              style={[
-                                                styles.tableCell,
-                                                {
-                                                  width: "13%",
-                                                  padding: PX_TO_PT * 3,
-                                                  justifyContent: "center",
-                                                },
-                                              ]}
-                                            >
-                                              <Text
-                                                style={[
-                                                  styles.cellText,
-                                                  {
-                                                    fontWeight: 500,
-                                                    lineHeight: 1.2,
-                                                  },
-                                                ]}
-                                                wrap={true}
-                                              >
-                                                {(item?.frequency || "")
-                                                  .toString()
-                                                  .trim() || "-"}
-                                                {when ? `\n${when}` : ""}
-                                              </Text>
-                                            </View>
-                                            <View
-                                              style={[
-                                                styles.tableCell,
-                                                {
-                                                  width: "11%",
-                                                  padding: PX_TO_PT * 3,
-                                                  justifyContent: "center",
-                                                },
-                                              ]}
-                                            >
-                                              <Text
-                                                style={[
-                                                  styles.cellText,
-                                                  {
-                                                    fontWeight: 500,
-                                                    lineHeight: 1.2,
-                                                  },
-                                                ]}
-                                                wrap={true}
-                                              >
-                                                {(item?.duration || "")
-                                                  .toString()
-                                                  .trim() || "-"}
-                                              </Text>
-                                            </View>
-                                            <View
-                                              style={[
-                                                styles.tableCell,
-                                                {
-                                                  width: "10%",
-                                                  padding: PX_TO_PT * 3,
-                                                  justifyContent: "center",
-                                                },
-                                              ]}
-                                            >
-                                              <Text
-                                                style={[
-                                                  styles.cellText,
-                                                  {
-                                                    fontWeight: 500,
-                                                    lineHeight: 1.2,
-                                                  },
-                                                ]}
-                                                wrap={true}
-                                              >
-                                                {Number(quantity)
-                                                  ? quantity
-                                                  : "-"}
-                                              </Text>
-                                            </View>
-                                            <View
-                                              style={[
-                                                styles.tableCell,
-                                                {
-                                                  width: "22%",
+                                                  width: "50%",
                                                   padding: PX_TO_PT * 3,
                                                   justifyContent: "center",
                                                   borderRight: "none",
@@ -9622,36 +9852,35 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 ]}
                                                 wrap={true}
                                               >
-                                                {note || "-"}
+                                                {displayNote}
                                               </Text>
                                             </View>
                                           </View>
                                         );
-                                      },
-                                    )}
-                                  </View>
-                                ) : (
-                                  <Text>
-                                    {digitizedData?.medications?.map(
-                                      (item, i) => {
-                                        const medName =
+                                      })}
+                                    </View>
+                                  ) : (
+                                    <Text>
+                                      {(
+                                        digitizedData?.tests ||
+                                        digitizedData?.labInvestigation
+                                      )?.map((item, i) => {
+                                        const testName =
                                           item?.refinedName || item?.name;
                                         return (
-                                          <Text key={i}>
-                                            {medName != null &&
-                                              medName != "" && (
+                                          <View key={i}>
+                                            {testName != null &&
+                                              testName != "" && (
                                                 <>
                                                   <Text
                                                     style={{
                                                       color: "#171725",
                                                       fontFamily:
-                                                        printSettings
-                                                          ?.page_format
+                                                        printSettings?.page_format
                                                           ?.font_family,
                                                       fontSize:
                                                         PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
+                                                        printSettings?.page_format
                                                           ?.font_size,
                                                       fontWeight: 500,
                                                     }}
@@ -9661,8 +9890,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     {"\u2022"}&nbsp;
                                                   </Text>
 
-                                                  {medName != null &&
-                                                    medName != "" && (
+                                                  {testName != null &&
+                                                    testName != "" && (
                                                       <Text
                                                         style={{
                                                           color: "#171725",
@@ -9678,7 +9907,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           fontWeight: 400,
                                                         }}
                                                       >
-                                                        {medName}
+                                                        {testName}
                                                       </Text>
                                                     )}
 
@@ -9704,242 +9933,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     )}
                                                 </>
                                               )}
-                                          </Text>
+                                          </View>
                                         );
-                                      },
-                                    )}
-                                  </Text>
-                                )}
-                              </View>
-                            )}
-
-                            {(
-                              digitizedData?.tests ||
-                              digitizedData?.labInvestigation
-                            )?.some(
-                              (item) => item?.refinedName || item?.name,
-                            ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Lab Investigation:
-                                  </Text>
-                                </Text>
-                                {isVoiceOrAmbientV2 ? (
-                                  <View
-                                    style={[styles.table, { marginTop: 0 }]}
-                                  >
-                                    {/* Table Header */}
-                                    <View
-                                      style={[
-                                        styles.tableRow,
-                                        { borderTop: "1px solid #171725" },
-                                      ]}
-                                      fixed
-                                    >
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "50%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          NAME
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "50%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                            borderRight: "none",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          NOTE
-                                        </Text>
-                                      </View>
-                                    </View>
-
-                                    {/* Table Rows */}
-                                    {(
-                                      digitizedData?.tests ||
-                                      digitizedData?.labInvestigation
-                                    )?.map((item, i) => {
-                                      const name =
-                                        (item?.name || item?.refinedName || "")
-                                          .toString()
-                                          .trim() || "-";
-                                      const noteValue = (
-                                        item?.note ||
-                                        item?.notes ||
-                                        item?.instruction ||
-                                        ""
-                                      )
-                                        .toString()
-                                        .trim();
-                                      const displayNote = noteValue || "-";
-
-                                      return (
-                                        <View
-                                          key={i}
-                                          style={[
-                                            styles.tableRow,
-                                            {
-                                              height: PX_TO_PT * 30,
-                                              flexDirection: "row",
-                                            },
-                                          ]}
-                                        >
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "50%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontWeight: 500,
-                                                  lineHeight: 1.2,
-                                                },
-                                              ]}
-                                              wrap={true}
-                                            >
-                                              {name}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "50%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                                borderRight: "none",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontWeight: 500,
-                                                  lineHeight: 1.2,
-                                                },
-                                              ]}
-                                              wrap={true}
-                                            >
-                                              {displayNote}
-                                            </Text>
-                                          </View>
-                                        </View>
-                                      );
-                                    })}
-                                  </View>
-                                ) : (
-                                  <Text>
-                                    {(
-                                      digitizedData?.tests ||
-                                      digitizedData?.labInvestigation
-                                    )?.map((item, i) => {
-                                      const testName =
-                                        item?.refinedName || item?.name;
-                                      return (
-                                        <View key={i}>
-                                          {testName != null &&
-                                            testName != "" && (
-                                              <>
-                                                <Text
-                                                  style={{
-                                                    color: "#171725",
-                                                    fontFamily:
-                                                      printSettings?.page_format
-                                                        ?.font_family,
-                                                    fontSize:
-                                                      PX_TO_PT *
-                                                      printSettings?.page_format
-                                                        ?.font_size,
-                                                    fontWeight: 500,
-                                                  }}
-                                                >
-                                                  {i === 0 ? "" : "\n"}
-                                                  &nbsp;&nbsp;&nbsp;&nbsp;
-                                                  {"\u2022"}&nbsp;
-                                                </Text>
-
-                                                {testName != null &&
-                                                  testName != "" && (
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      {testName}
-                                                    </Text>
-                                                  )}
-
-                                                {"lineItem" in item &&
-                                                  item?.lineItem != "" && (
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      &nbsp;({item?.lineItem})
-                                                    </Text>
-                                                  )}
-                                              </>
-                                            )}
-                                        </View>
-                                      );
-                                    })}
-                                  </Text>
-                                )}
-                              </View>
-                            )}
+                                      })}
+                                    </Text>
+                                  )}
+                                </View>
+                              )}
 
                             {digitizedData?.advice?.length > 0 && (
                               <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -10010,96 +10010,96 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             {digitizedData?.vaccinations?.some(
                               (item) => item?.name,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Vaccinations:
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Vaccinations:
+                                    </Text>
+                                    {digitizedData?.vaccinations?.map(
+                                      (item, i) => {
+                                        return (
+                                          <View key={i}>
+                                            {"name" in item &&
+                                              item?.name != "" && (
+                                                <>
+                                                  <Text
+                                                    style={{
+                                                      color: "#171725",
+                                                      fontFamily:
+                                                        printSettings?.page_format
+                                                          ?.font_family,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 500,
+                                                    }}
+                                                  >
+                                                    &nbsp;{"\n"}
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;
+                                                    {"\u2022"}&nbsp;
+                                                  </Text>
+
+                                                  {"name" in item &&
+                                                    item?.name != "" && (
+                                                      <Text
+                                                        style={{
+                                                          color: "#171725",
+                                                          fontFamily:
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_family,
+                                                          fontSize:
+                                                            PX_TO_PT *
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_size,
+                                                          fontWeight: 400,
+                                                        }}
+                                                      >
+                                                        {item?.name}
+                                                      </Text>
+                                                    )}
+
+                                                  {"lineItem" in item &&
+                                                    item?.lineItem != "" && (
+                                                      <Text
+                                                        style={{
+                                                          color: "#171725",
+                                                          fontFamily:
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_family,
+                                                          fontSize:
+                                                            PX_TO_PT *
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_size,
+                                                          fontWeight: 400,
+                                                        }}
+                                                      >
+                                                        &nbsp;({item?.lineItem})
+                                                      </Text>
+                                                    )}
+                                                </>
+                                              )}
+                                          </View>
+                                        );
+                                      },
+                                    )}
                                   </Text>
-                                  {digitizedData?.vaccinations?.map(
-                                    (item, i) => {
-                                      return (
-                                        <View key={i}>
-                                          {"name" in item &&
-                                            item?.name != "" && (
-                                              <>
-                                                <Text
-                                                  style={{
-                                                    color: "#171725",
-                                                    fontFamily:
-                                                      printSettings?.page_format
-                                                        ?.font_family,
-                                                    fontSize:
-                                                      PX_TO_PT *
-                                                      printSettings?.page_format
-                                                        ?.font_size,
-                                                    fontWeight: 500,
-                                                  }}
-                                                >
-                                                  &nbsp;{"\n"}
-                                                  &nbsp;&nbsp;&nbsp;&nbsp;
-                                                  {"\u2022"}&nbsp;
-                                                </Text>
-
-                                                {"name" in item &&
-                                                  item?.name != "" && (
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      {item?.name}
-                                                    </Text>
-                                                  )}
-
-                                                {"lineItem" in item &&
-                                                  item?.lineItem != "" && (
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      &nbsp;({item?.lineItem})
-                                                    </Text>
-                                                  )}
-                                              </>
-                                            )}
-                                        </View>
-                                      );
-                                    },
-                                  )}
-                                </Text>
-                              </View>
-                            )}
+                                </View>
+                              )}
 
                             {(() => {
                               const df = digitizedData?.dynamicFields;
@@ -10122,9 +10122,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               const hasData = isArray
                                 ? toShow?.length > 0
                                 : df &&
-                                  Object.entries(df).some(
-                                    ([k, v]) => v?.length > 0,
-                                  );
+                                Object.entries(df).some(
+                                  ([k, v]) => v?.length > 0,
+                                );
                               return (
                                 hasData && (
                                   <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -10149,128 +10149,34 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       </Text>
                                       {isArray
                                         ? (toShow || []).map((item, i) => {
-                                            const modName =
-                                              item?.title || item?.name;
-                                            const fieldsWithData = (
-                                              item?.fields || []
-                                            ).filter(
-                                              (f) =>
-                                                typeof f === "object" &&
-                                                Object.entries(f).some(
-                                                  ([k, v]) =>
-                                                    k !== "order" &&
-                                                    k !== "orader" &&
-                                                    v != null &&
-                                                    String(v).trim() !== "",
-                                                ),
-                                            );
-                                            if (fieldsWithData.length === 0)
-                                              return null;
-                                            const sortedFields = [
-                                              ...fieldsWithData,
-                                            ].sort(
-                                              (a, b) =>
-                                                (a?.order ?? a?.orader ?? 0) -
-                                                (b?.order ?? b?.orader ?? 0),
-                                            );
-                                            return (
-                                              <View key={i}>
-                                                {
-                                                  <>
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 500,
-                                                      }}
-                                                    >
-                                                      &nbsp;{"\n"}
-                                                      &nbsp;&nbsp;&nbsp;&nbsp;
-                                                      {"\u2022"}&nbsp;
-                                                    </Text>
-                                                    <Text
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      {modName || "Custom"}
-                                                      {"notes" in item &&
-                                                      item?.notes != ""
-                                                        ? ` (${item?.notes})`
-                                                        : ""}
-                                                    </Text>
-                                                    {sortedFields.map(
-                                                      (f, fi) => {
-                                                        const values =
-                                                          Object.entries(f)
-                                                            .filter(
-                                                              ([k, v]) =>
-                                                                k !== "order" &&
-                                                                k !==
-                                                                  "orader" &&
-                                                                v != null &&
-                                                                String(
-                                                                  v,
-                                                                ).trim() !== "",
-                                                            )
-                                                            .map(([k, v]) => v);
-                                                        const order =
-                                                          f?.order ??
-                                                          f?.orader ??
-                                                          fi;
-                                                        const num = order + 1;
-                                                        return values.length ? (
-                                                          <Text
-                                                            key={fi}
-                                                            style={{
-                                                              color: "#171725",
-                                                              fontFamily:
-                                                                printSettings
-                                                                  ?.page_format
-                                                                  ?.font_family,
-                                                              fontSize:
-                                                                PX_TO_PT *
-                                                                printSettings
-                                                                  ?.page_format
-                                                                  ?.font_size,
-                                                              fontWeight: 400,
-                                                            }}
-                                                          >
-                                                            &nbsp;{"\n"}
-                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                                            {num})&nbsp;
-                                                            {values.join(", ")}
-                                                          </Text>
-                                                        ) : null;
-                                                      },
-                                                    )}
-                                                  </>
-                                                }
-                                              </View>
-                                            );
-                                          })
-                                        : Object.entries(df || {}).map(
-                                            ([key, values], index) =>
-                                              values?.length > 0 ? (
-                                                <View key={index}>
+                                          const modName =
+                                            item?.title || item?.name;
+                                          const fieldsWithData = (
+                                            item?.fields || []
+                                          ).filter(
+                                            (f) =>
+                                              typeof f === "object" &&
+                                              Object.entries(f).some(
+                                                ([k, v]) =>
+                                                  k !== "order" &&
+                                                  k !== "orader" &&
+                                                  v != null &&
+                                                  String(v).trim() !== "",
+                                              ),
+                                          );
+                                          if (fieldsWithData.length === 0)
+                                            return null;
+                                          const sortedFields = [
+                                            ...fieldsWithData,
+                                          ].sort(
+                                            (a, b) =>
+                                              (a?.order ?? a?.orader ?? 0) -
+                                              (b?.order ?? b?.orader ?? 0),
+                                          );
+                                          return (
+                                            <View key={i}>
+                                              {
+                                                <>
                                                   <Text
                                                     style={{
                                                       color: "#171725",
@@ -10289,42 +10195,136 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     &nbsp;{"\n"}
                                                     &nbsp;&nbsp;&nbsp;&nbsp;
                                                     {"\u2022"}&nbsp;
-                                                    {key
-                                                      .replace(
-                                                        /([A-Z])/g,
-                                                        " $1",
-                                                      )
-                                                      .replace(/^./, (str) =>
-                                                        str.toUpperCase(),
-                                                      )}
                                                   </Text>
-                                                  {values?.map((item, i) => (
-                                                    <Text
-                                                      key={i}
-                                                      style={{
-                                                        color: "#171725",
-                                                        fontFamily:
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_family,
-                                                        fontSize:
-                                                          PX_TO_PT *
-                                                          printSettings
-                                                            ?.page_format
-                                                            ?.font_size,
-                                                        fontWeight: 400,
-                                                      }}
-                                                    >
-                                                      &nbsp;{"\n"}
-                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                                      {typeof item === "object"
-                                                        ? item?.lineItem
-                                                        : item}
-                                                    </Text>
-                                                  ))}
-                                                </View>
-                                              ) : null,
-                                          )}
+                                                  <Text
+                                                    style={{
+                                                      color: "#171725",
+                                                      fontFamily:
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_family,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 400,
+                                                    }}
+                                                  >
+                                                    {modName || "Custom"}
+                                                    {"notes" in item &&
+                                                      item?.notes != ""
+                                                      ? ` (${item?.notes})`
+                                                      : ""}
+                                                  </Text>
+                                                  {sortedFields.map(
+                                                    (f, fi) => {
+                                                      const values =
+                                                        Object.entries(f)
+                                                          .filter(
+                                                            ([k, v]) =>
+                                                              k !== "order" &&
+                                                              k !==
+                                                              "orader" &&
+                                                              v != null &&
+                                                              String(
+                                                                v,
+                                                              ).trim() !== "",
+                                                          )
+                                                          .map(([k, v]) => v);
+                                                      const order =
+                                                        f?.order ??
+                                                        f?.orader ??
+                                                        fi;
+                                                      const num = order + 1;
+                                                      return values.length ? (
+                                                        <Text
+                                                          key={fi}
+                                                          style={{
+                                                            color: "#171725",
+                                                            fontFamily:
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_family,
+                                                            fontSize:
+                                                              PX_TO_PT *
+                                                              printSettings
+                                                                ?.page_format
+                                                                ?.font_size,
+                                                            fontWeight: 400,
+                                                          }}
+                                                        >
+                                                          &nbsp;{"\n"}
+                                                          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                          {num})&nbsp;
+                                                          {values.join(", ")}
+                                                        </Text>
+                                                      ) : null;
+                                                    },
+                                                  )}
+                                                </>
+                                              }
+                                            </View>
+                                          );
+                                        })
+                                        : Object.entries(df || {}).map(
+                                          ([key, values], index) =>
+                                            values?.length > 0 ? (
+                                              <View key={index}>
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings
+                                                        ?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings
+                                                        ?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  }}
+                                                >
+                                                  &nbsp;{"\n"}
+                                                  &nbsp;&nbsp;&nbsp;&nbsp;
+                                                  {"\u2022"}&nbsp;
+                                                  {key
+                                                    .replace(
+                                                      /([A-Z])/g,
+                                                      " $1",
+                                                    )
+                                                    .replace(/^./, (str) =>
+                                                      str.toUpperCase(),
+                                                    )}
+                                                </Text>
+                                                {values?.map((item, i) => (
+                                                  <Text
+                                                    key={i}
+                                                    style={{
+                                                      color: "#171725",
+                                                      fontFamily:
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_family,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 400,
+                                                    }}
+                                                  >
+                                                    &nbsp;{"\n"}
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                    {typeof item === "object"
+                                                      ? item?.lineItem
+                                                      : item}
+                                                  </Text>
+                                                ))}
+                                              </View>
+                                            ) : null,
+                                        )}
                                     </Text>
                                   </View>
                                 )
@@ -10428,264 +10428,264 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             )}
                           </>
                         ) : (isSmartSyncPrescription &&
-                            isVoiceRxDigitizeBool) ||
+                          isVoiceRxDigitizeBool) ||
                           isAmbientVoiceRxDigitizeBool ? (
                           <>
                             {digitizedData?.symptoms?.some(
                               (item) => item?.name || item?.lineItem,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Symptoms:
-                                  </Text>
-                                  {digitizedData?.symptoms?.map((item, i) => {
-                                    return (
-                                      <View key={i}>
-                                        {(("name" in item &&
-                                          item?.name != "") ||
-                                          ("lineItem" in item &&
-                                            item?.lineItem != "")) && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Symptoms:
+                                    </Text>
+                                    {digitizedData?.symptoms?.map((item, i) => {
+                                      return (
+                                        <View key={i}>
+                                          {(("name" in item &&
+                                            item?.name != "") ||
+                                            ("lineItem" in item &&
+                                              item?.lineItem != "")) && (
+                                              <>
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  }}
+                                                >
+                                                  &nbsp;{"\n"}
+                                                  &nbsp;&nbsp;&nbsp;&nbsp;
+                                                  {"\u2022"}&nbsp;
+                                                </Text>
 
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {item?.name && item?.lineItem
-                                                ? item.lineItem.includes(
-                                                    item.name,
-                                                  )
-                                                  ? item.lineItem
-                                                  : `${item.name} (${item.lineItem})`
-                                                : item?.lineItem || item?.name}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 400,
+                                                  }}
+                                                >
+                                                  {item?.name && item?.lineItem
+                                                    ? item.lineItem.includes(
+                                                      item.name,
+                                                    )
+                                                      ? item.lineItem
+                                                      : `${item.name} (${item.lineItem})`
+                                                    : item?.lineItem || item?.name}
+                                                </Text>
+                                              </>
+                                            )}
+                                        </View>
+                                      );
+                                    })}
+                                  </Text>
+                                </View>
+                              )}
 
                             {(
                               digitizedData?.examinations ||
                               digitizedData?.examination
                             )?.some((item) => item?.name || item?.lineItem) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Examinations:
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Examinations:
+                                    </Text>
+                                    {(
+                                      digitizedData?.examinations ||
+                                      digitizedData?.examination
+                                    )?.map((item, i) => {
+                                      const hasLineItem =
+                                        item?.lineItem != null &&
+                                        item?.lineItem !== "";
+                                      const hasName =
+                                        item?.name != null && item?.name !== "";
+                                      const hasExamination =
+                                        hasLineItem || hasName;
+                                      let examinationText = null;
+                                      if (hasName && hasLineItem) {
+                                        examinationText = item.lineItem.includes(
+                                          item.name,
+                                        )
+                                          ? item.lineItem
+                                          : `${item.name} (${item.lineItem})`;
+                                      } else if (hasName) {
+                                        examinationText =
+                                          item?.notes != null &&
+                                            item?.notes !== ""
+                                            ? `${item.name} (${item.notes})`
+                                            : item.name;
+                                      } else if (hasLineItem) {
+                                        examinationText = item.lineItem;
+                                      }
+                                      return (
+                                        <View key={i}>
+                                          {hasExamination && examinationText && (
+                                            <>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 500,
+                                                }}
+                                              >
+                                                &nbsp;{"\n"}
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                                {"\u2022"}&nbsp;
+                                              </Text>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {examinationText}
+                                              </Text>
+                                            </>
+                                          )}
+                                        </View>
+                                      );
+                                    })}
                                   </Text>
-                                  {(
-                                    digitizedData?.examinations ||
-                                    digitizedData?.examination
-                                  )?.map((item, i) => {
-                                    const hasLineItem =
-                                      item?.lineItem != null &&
-                                      item?.lineItem !== "";
-                                    const hasName =
-                                      item?.name != null && item?.name !== "";
-                                    const hasExamination =
-                                      hasLineItem || hasName;
-                                    let examinationText = null;
-                                    if (hasName && hasLineItem) {
-                                      examinationText = item.lineItem.includes(
-                                        item.name,
-                                      )
-                                        ? item.lineItem
-                                        : `${item.name} (${item.lineItem})`;
-                                    } else if (hasName) {
-                                      examinationText =
-                                        item?.notes != null &&
-                                        item?.notes !== ""
-                                          ? `${item.name} (${item.notes})`
-                                          : item.name;
-                                    } else if (hasLineItem) {
-                                      examinationText = item.lineItem;
-                                    }
-                                    return (
-                                      <View key={i}>
-                                        {hasExamination && examinationText && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {examinationText}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                </View>
+                              )}
 
                             {digitizedData?.diagnosis?.some(
                               (item) => item?.name || item?.lineItem,
                             ) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Diagnosis:
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Diagnosis:
+                                    </Text>
+                                    {digitizedData?.diagnosis?.map((item, i) => {
+                                      const hasLineItem =
+                                        item?.lineItem != null &&
+                                        item?.lineItem !== "";
+                                      const hasName =
+                                        item?.name != null && item?.name !== "";
+                                      const hasDiagnosis = hasLineItem || hasName;
+                                      const diagnosisExtra = [
+                                        item?.since,
+                                        item?.status,
+                                        item?.notes,
+                                      ]
+                                        .filter((v) => v != null && v !== "")
+                                        .join(", ");
+                                      let diagnosisText = null;
+                                      if (hasName && hasLineItem) {
+                                        diagnosisText = item.lineItem.includes(
+                                          item.name,
+                                        )
+                                          ? item.lineItem
+                                          : `${item.name} (${item.lineItem})`;
+                                      } else if (hasName) {
+                                        diagnosisText = diagnosisExtra
+                                          ? `${item.name} (${diagnosisExtra})`
+                                          : item.name;
+                                      } else if (hasLineItem) {
+                                        diagnosisText = item.lineItem;
+                                      }
+                                      return (
+                                        <View key={i}>
+                                          {hasDiagnosis && diagnosisText && (
+                                            <>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 500,
+                                                }}
+                                              >
+                                                &nbsp;{"\n"}
+                                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                                {"\u2022"}&nbsp;
+                                              </Text>
+                                              <Text
+                                                style={{
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    printSettings?.page_format
+                                                      ?.font_family,
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                    printSettings?.page_format
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {diagnosisText}
+                                              </Text>
+                                            </>
+                                          )}
+                                        </View>
+                                      );
+                                    })}
                                   </Text>
-                                  {digitizedData?.diagnosis?.map((item, i) => {
-                                    const hasLineItem =
-                                      item?.lineItem != null &&
-                                      item?.lineItem !== "";
-                                    const hasName =
-                                      item?.name != null && item?.name !== "";
-                                    const hasDiagnosis = hasLineItem || hasName;
-                                    const diagnosisExtra = [
-                                      item?.since,
-                                      item?.status,
-                                      item?.notes,
-                                    ]
-                                      .filter((v) => v != null && v !== "")
-                                      .join(", ");
-                                    let diagnosisText = null;
-                                    if (hasName && hasLineItem) {
-                                      diagnosisText = item.lineItem.includes(
-                                        item.name,
-                                      )
-                                        ? item.lineItem
-                                        : `${item.name} (${item.lineItem})`;
-                                    } else if (hasName) {
-                                      diagnosisText = diagnosisExtra
-                                        ? `${item.name} (${diagnosisExtra})`
-                                        : item.name;
-                                    } else if (hasLineItem) {
-                                      diagnosisText = item.lineItem;
-                                    }
-                                    return (
-                                      <View key={i}>
-                                        {hasDiagnosis && diagnosisText && (
-                                          <>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              }}
-                                            >
-                                              &nbsp;{"\n"}
-                                              &nbsp;&nbsp;&nbsp;&nbsp;
-                                              {"\u2022"}&nbsp;
-                                            </Text>
-                                            <Text
-                                              style={{
-                                                color: "#171725",
-                                                fontFamily:
-                                                  printSettings?.page_format
-                                                    ?.font_family,
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              }}
-                                            >
-                                              {diagnosisText}
-                                            </Text>
-                                          </>
-                                        )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                </View>
+                              )}
 
                             {digitizedData?.medications?.length > 0 && (
                               <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -10856,21 +10856,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           null;
                                         const quantity =
                                           rawQuantity === null ||
-                                          rawQuantity === undefined
+                                            rawQuantity === undefined
                                             ? ""
                                             : `${rawQuantity}`.trim();
                                         // For ambient voice rx: prioritize fuzzyCorrectedName, then groundingMedicineName, then name
                                         const medicationName =
                                           isAmbientVoiceRxDigitizeBool
                                             ? item?.metadata
-                                                ?.fuzzyCorrectedName &&
+                                              ?.fuzzyCorrectedName &&
                                               item?.metadata?.fuzzyCorrectedName.trim() !==
-                                                ""
+                                              ""
                                               ? item?.metadata
-                                                  ?.fuzzyCorrectedName
+                                                ?.fuzzyCorrectedName
                                               : item?.groundingMedicineName &&
-                                                  item?.groundingMedicineName.trim() !==
-                                                    ""
+                                                item?.groundingMedicineName.trim() !==
+                                                ""
                                                 ? item?.groundingMedicineName
                                                 : item?.name
                                             : item?.name;
@@ -10941,9 +10941,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           fontWeight: 400,
                                                           fontSize:
                                                             PX_TO_PT *
-                                                              printSettings
-                                                                ?.page_format
-                                                                ?.font_size -
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_size -
                                                             2,
                                                           lineHeight: 1.2,
                                                         },
@@ -11099,13 +11099,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           const medicationName =
                                             item?.metadata
                                               ?.fuzzyCorrectedName &&
-                                            item?.metadata?.fuzzyCorrectedName.trim() !==
+                                              item?.metadata?.fuzzyCorrectedName.trim() !==
                                               ""
                                               ? item?.metadata
-                                                  ?.fuzzyCorrectedName
+                                                ?.fuzzyCorrectedName
                                               : item?.groundingMedicineName &&
-                                                  item?.groundingMedicineName.trim() !==
-                                                    ""
+                                                item?.groundingMedicineName.trim() !==
+                                                ""
                                                 ? item?.groundingMedicineName
                                                 : item?.name || "";
                                           // Replace the first part of lineItem (medicine name) with the correct name
@@ -11185,186 +11185,170 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   digitizedData?.labInvestigation ||
                                   digitizedData?.tests
                                 )?.length > 0)) && (
-                              <View
-                                style={{ marginTop: PX_TO_PT * 15 }}
-                                wrap={false}
-                              >
-                                <Text
-                                  style={{
-                                    color: "#171725",
-                                    fontFamily:
-                                      printSettings?.page_format?.font_family,
-                                    fontSize:
-                                      PX_TO_PT *
-                                      printSettings?.page_format?.font_size,
-                                    fontWeight: 500,
-                                  }}
+                                <View
+                                  style={{ marginTop: PX_TO_PT * 15 }}
+                                  wrap={false}
                                 >
-                                  Lab Investigation:
-                                </Text>
-
-                                {isVoiceOrAmbientV2 ? (
-                                  <View
-                                    style={[styles.table, { marginTop: 0 }]}
+                                  <Text
+                                    style={{
+                                      color: "#171725",
+                                      fontFamily:
+                                        printSettings?.page_format?.font_family,
+                                      fontSize:
+                                        PX_TO_PT *
+                                        printSettings?.page_format?.font_size,
+                                      fontWeight: 500,
+                                    }}
                                   >
-                                    {/* Table Header */}
+                                    Investigation:
+                                  </Text>
+
+                                  {isVoiceOrAmbientV2 ? (
                                     <View
-                                      style={[
-                                        styles.tableRow,
-                                        { borderTop: "1px solid #171725" },
-                                      ]}
+                                      style={[styles.table, { marginTop: 0 }]}
                                     >
+                                      {/* Table Header */}
                                       <View
                                         style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "50%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                          },
+                                          styles.tableRow,
+                                          { borderTop: "1px solid #171725" },
                                         ]}
                                       >
-                                        <Text style={[styles.cellText]}>
-                                          NAME
-                                        </Text>
-                                      </View>
-                                      <View
-                                        style={[
-                                          styles.tableCell,
-                                          {
-                                            width: "50%",
-                                            padding: PX_TO_PT * 3,
-                                            justifyContent: "center",
-                                            borderRight: "none",
-                                          },
-                                        ]}
-                                      >
-                                        <Text style={[styles.cellText]}>
-                                          NOTE
-                                        </Text>
-                                      </View>
-                                    </View>
-
-                                    {/* Table Rows */}
-                                    {(
-                                      digitizedData?.labInvestigation ||
-                                      digitizedData?.tests
-                                    )?.map((item, i) => {
-                                      const name =
-                                        (item?.name || item?.refinedName || "")
-                                          .toString()
-                                          .trim() || "-";
-                                      const noteValue = (
-                                        item?.note ||
-                                        item?.notes ||
-                                        item?.instruction ||
-                                        ""
-                                      )
-                                        .toString()
-                                        .trim();
-                                      const displayNote = noteValue || "-";
-
-                                      return (
                                         <View
-                                          key={i}
                                           style={[
-                                            styles.tableRow,
+                                            styles.tableCell,
                                             {
-                                              height: PX_TO_PT * 30,
-                                              flexDirection: "row",
+                                              width: "50%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
                                             },
                                           ]}
                                         >
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "50%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontWeight: 500,
-                                                  lineHeight: 1.2,
-                                                },
-                                              ]}
-                                              wrap={true}
-                                            >
-                                              {name}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "50%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                                borderRight: "none",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontWeight: 500,
-                                                  lineHeight: 1.2,
-                                                },
-                                              ]}
-                                              wrap={true}
-                                            >
-                                              {displayNote}
-                                            </Text>
-                                          </View>
-                                        </View>
-                                      );
-                                    })}
-                                  </View>
-                                ) : (
-                                  <View>
-                                    {(
-                                      digitizedData?.labInvestigation ||
-                                      digitizedData?.tests
-                                    )?.map((item, i) => {
-                                      const name =
-                                        (item?.name || "").trim() ||
-                                        "Lab Investigation";
-                                      const details = (
-                                        item?.note ||
-                                        item?.notes ||
-                                        item?.lineItem ||
-                                        ""
-                                      )
-                                        .toString()
-                                        .trim();
-
-                                      return (
-                                        <Text
-                                          key={i}
-                                          style={{ lineHeight: 1.4 }}
-                                        >
-                                          <Text
-                                            style={{
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            }}
-                                          >
-                                            {"\u2022"}&nbsp;{name}
+                                          <Text style={[styles.cellText]}>
+                                            NAME
                                           </Text>
-                                          {details ? (
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.tableCell,
+                                            {
+                                              width: "50%",
+                                              padding: PX_TO_PT * 3,
+                                              justifyContent: "center",
+                                              borderRight: "none",
+                                            },
+                                          ]}
+                                        >
+                                          <Text style={[styles.cellText]}>
+                                            NOTE
+                                          </Text>
+                                        </View>
+                                      </View>
+
+                                      {/* Table Rows */}
+                                      {(
+                                        digitizedData?.labInvestigation ||
+                                        digitizedData?.tests
+                                      )?.map((item, i) => {
+                                        const name =
+                                          (item?.name || item?.refinedName || "")
+                                            .toString()
+                                            .trim() || "-";
+                                        const noteValue = (
+                                          item?.note ||
+                                          item?.notes ||
+                                          item?.instruction ||
+                                          ""
+                                        )
+                                          .toString()
+                                          .trim();
+                                        const displayNote = noteValue || "-";
+
+                                        return (
+                                          <View
+                                            key={i}
+                                            style={[
+                                              styles.tableRow,
+                                              {
+                                                height: PX_TO_PT * 30,
+                                                flexDirection: "row",
+                                              },
+                                            ]}
+                                          >
+                                            <View
+                                              style={[
+                                                styles.tableCell,
+                                                {
+                                                  width: "50%",
+                                                  padding: PX_TO_PT * 3,
+                                                  justifyContent: "center",
+                                                },
+                                              ]}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.cellText,
+                                                  {
+                                                    fontWeight: 500,
+                                                    lineHeight: 1.2,
+                                                  },
+                                                ]}
+                                                wrap={true}
+                                              >
+                                                {name}
+                                              </Text>
+                                            </View>
+                                            <View
+                                              style={[
+                                                styles.tableCell,
+                                                {
+                                                  width: "50%",
+                                                  padding: PX_TO_PT * 3,
+                                                  justifyContent: "center",
+                                                  borderRight: "none",
+                                                },
+                                              ]}
+                                            >
+                                              <Text
+                                                style={[
+                                                  styles.cellText,
+                                                  {
+                                                    fontWeight: 500,
+                                                    lineHeight: 1.2,
+                                                  },
+                                                ]}
+                                                wrap={true}
+                                              >
+                                                {displayNote}
+                                              </Text>
+                                            </View>
+                                          </View>
+                                        );
+                                      })}
+                                    </View>
+                                  ) : (
+                                    <View>
+                                      {(
+                                        digitizedData?.labInvestigation ||
+                                        digitizedData?.tests
+                                      )?.map((item, i) => {
+                                        const name =
+                                          (item?.name || "").trim() ||
+                                          "Investigation";
+                                        const details = (
+                                          item?.note ||
+                                          item?.notes ||
+                                          item?.lineItem ||
+                                          ""
+                                        )
+                                          .toString()
+                                          .trim();
+
+                                        return (
+                                          <Text
+                                            key={i}
+                                            style={{ lineHeight: 1.4 }}
+                                          >
                                             <Text
                                               style={{
                                                 color: "#171725",
@@ -11378,61 +11362,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 fontWeight: 400,
                                               }}
                                             >
-                                              &nbsp;( {details} )
+                                              {"\u2022"}&nbsp;{name}
                                             </Text>
-                                          ) : null}
-                                        </Text>
-                                      );
-                                    })}
-                                  </View>
-                                )}
-                              </View>
-                            )}
-
-                            {((isVoiceRxDigitizeBool &&
-                              digitizedData?.advice?.length > 0) ||
-                              (isAmbientVoiceRxDigitizeBool &&
-                                digitizedData?.advice?.length > 0)) && (
-                              <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ lineHeight: 1.4 }} wrap={false}>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 500,
-                                    }}
-                                  >
-                                    Advice:
-                                  </Text>
-                                  {digitizedData?.advice?.map((item, i) => {
-                                    const adviceText =
-                                      item?.advice_name ?? item;
-                                    return (
-                                      <View key={i}>
-                                        {adviceText != null &&
-                                          adviceText !== "" && (
-                                            <>
-                                              <Text
-                                                style={{
-                                                  color: "#171725",
-                                                  fontFamily:
-                                                    printSettings?.page_format
-                                                      ?.font_family,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                  fontWeight: 500,
-                                                }}
-                                              >
-                                                &nbsp;{"\n"}
-                                                &nbsp;&nbsp;&nbsp;&nbsp;
-                                                {"\u2022"}&nbsp;
-                                              </Text>
+                                            {details ? (
                                               <Text
                                                 style={{
                                                   color: "#171725",
@@ -11446,16 +11378,84 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   fontWeight: 400,
                                                 }}
                                               >
-                                                {adviceText}
+                                                &nbsp;( {details} )
                                               </Text>
-                                            </>
-                                          )}
-                                      </View>
-                                    );
-                                  })}
-                                </Text>
-                              </View>
-                            )}
+                                            ) : null}
+                                          </Text>
+                                        );
+                                      })}
+                                    </View>
+                                  )}
+                                </View>
+                              )}
+
+                            {((isVoiceRxDigitizeBool &&
+                              digitizedData?.advice?.length > 0) ||
+                              (isAmbientVoiceRxDigitizeBool &&
+                                digitizedData?.advice?.length > 0)) && (
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text style={{ lineHeight: 1.4 }} wrap={false}>
+                                    <Text
+                                      style={{
+                                        color: "#171725",
+                                        fontFamily:
+                                          printSettings?.page_format?.font_family,
+                                        fontSize:
+                                          PX_TO_PT *
+                                          printSettings?.page_format?.font_size,
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      Advice:
+                                    </Text>
+                                    {digitizedData?.advice?.map((item, i) => {
+                                      const adviceText =
+                                        item?.advice_name ?? item;
+                                      return (
+                                        <View key={i}>
+                                          {adviceText != null &&
+                                            adviceText !== "" && (
+                                              <>
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
+                                                  }}
+                                                >
+                                                  &nbsp;{"\n"}
+                                                  &nbsp;&nbsp;&nbsp;&nbsp;
+                                                  {"\u2022"}&nbsp;
+                                                </Text>
+                                                <Text
+                                                  style={{
+                                                    color: "#171725",
+                                                    fontFamily:
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 400,
+                                                  }}
+                                                >
+                                                  {adviceText}
+                                                </Text>
+                                              </>
+                                            )}
+                                        </View>
+                                      );
+                                    })}
+                                  </Text>
+                                </View>
+                              )}
 
                             {digitizedData?.vaccinations?.length > 0 && (
                               <View style={{ marginTop: PX_TO_PT * 15 }}>
@@ -11493,17 +11493,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       if (hasIndividualFields) {
                                         const detailsArray = [
                                           item?.brand &&
-                                          item?.brand !== "" &&
-                                          item?.brand !== vaccineName
+                                            item?.brand !== "" &&
+                                            item?.brand !== vaccineName
                                             ? item?.brand
                                             : null,
                                           item?.schedule &&
-                                          item?.schedule !== ""
+                                            item?.schedule !== ""
                                             ? item?.schedule
                                             : null,
                                           item?.notes &&
-                                          item?.notes !== "" &&
-                                          item?.notes !== vaccineName
+                                            item?.notes !== "" &&
+                                            item?.notes !== vaccineName
                                             ? item?.notes
                                             : null,
                                         ].filter(Boolean);
@@ -11907,141 +11907,141 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     {option?.growth_chart_option?.includes(
                                       "height",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.6,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        Height
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.6,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          Height
+                                        </Text>
+                                      )}
                                     {option?.growth_chart_option?.includes(
                                       "weight",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.6,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        Weight
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.6,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          Weight
+                                        </Text>
+                                      )}
                                     {option?.growth_chart_option?.includes(
                                       "fib4",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.6,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        FIB4
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.6,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          FIB4
+                                        </Text>
+                                      )}
                                     {option?.growth_chart_option?.includes(
                                       "waist_circumference",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.6,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        Waist Circumference
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.6,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          Waist Circumference
+                                        </Text>
+                                      )}
                                     {option?.growth_chart_option?.includes(
                                       "bmi",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.8,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        BMI
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.8,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          BMI
+                                        </Text>
+                                      )}
                                     {option?.growth_chart_option?.includes(
                                       "ofc",
                                     ) && (
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            flex: 0.8,
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        OFC
-                                      </Text>
-                                    )}
+                                        <Text
+                                          style={[
+                                            styles.headerCell,
+                                            {
+                                              flex: 0.8,
+                                              fontFamily:
+                                                printSettings?.page_format
+                                                  ?.font_family,
+                                              fontSize:
+                                                PX_TO_PT *
+                                                printSettings?.page_format
+                                                  ?.font_size,
+                                              fontWeight: 500,
+                                              color: "#000",
+                                            },
+                                          ]}
+                                        >
+                                          OFC
+                                        </Text>
+                                      )}
                                   </View>
                                   {growthChartData?.map((item, i) => (
                                     <View
@@ -12068,156 +12068,156 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         {item?.tcbc_created_date
                                           ? moment(
-                                              item?.tcbc_created_date,
-                                            ).format("DD MMM YYYY")
+                                            item?.tcbc_created_date,
+                                          ).format("DD MMM YYYY")
                                           : ""}
                                       </Text>
                                       {option?.growth_chart_option?.includes(
                                         "height",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.6,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.height
-                                            ? `${item?.height} cms`
-                                            : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.6,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.height
+                                              ? `${item?.height} cms`
+                                              : ""}
+                                          </Text>
+                                        )}
                                       {option?.growth_chart_option?.includes(
                                         "weight",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.6,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.weight
-                                            ? `${item?.weight} kgs`
-                                            : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.6,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.weight
+                                              ? `${item?.weight} kgs`
+                                              : ""}
+                                          </Text>
+                                        )}
                                       {option?.growth_chart_option?.includes(
                                         "fib4",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.6,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.fib4 ? `${item?.fib4}` : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.6,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.fib4 ? `${item?.fib4}` : ""}
+                                          </Text>
+                                        )}
                                       {option?.growth_chart_option?.includes(
                                         "waist_circumference",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.6,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.waist_circumference
-                                            ? `${item?.waist_circumference} cms`
-                                            : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.6,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.waist_circumference
+                                              ? `${item?.waist_circumference} cms`
+                                              : ""}
+                                          </Text>
+                                        )}
                                       {option?.growth_chart_option?.includes(
                                         "bmi",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.8,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.bmi
-                                            ? `${item?.bmi} kg/m2`
-                                            : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.8,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.bmi
+                                              ? `${item?.bmi} kg/m2`
+                                              : ""}
+                                          </Text>
+                                        )}
                                       {option?.growth_chart_option?.includes(
                                         "ofc",
                                       ) && (
-                                        <Text
-                                          style={[
-                                            styles.cell,
-                                            {
-                                              flex: 0.8,
-                                              color: "#171725",
-                                              fontFamily:
-                                                printSettings?.page_format
-                                                  ?.font_family,
-                                              fontSize:
-                                                PX_TO_PT *
-                                                printSettings?.page_format
-                                                  ?.font_size,
-                                              fontWeight: 400,
-                                            },
-                                          ]}
-                                        >
-                                          {item?.ofc ? `${item?.ofc} cms` : ""}
-                                        </Text>
-                                      )}
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                flex: 0.8,
+                                                color: "#171725",
+                                                fontFamily:
+                                                  printSettings?.page_format
+                                                    ?.font_family,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.ofc ? `${item?.ofc} cms` : ""}
+                                          </Text>
+                                        )}
                                     </View>
                                   ))}
                                 </View>
@@ -12761,7 +12761,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   );
                                                 const unitsPart =
                                                   testResult?.testName !==
-                                                  "Remarks"
+                                                    "Remarks"
                                                     ? (testResult?.units ?? "")
                                                     : "";
                                                 return (
@@ -12790,9 +12790,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   >
                                                     {testResult
                                                       ? testResult?.value +
-                                                        (unitsPart
-                                                          ? " " + unitsPart
-                                                          : "")
+                                                      (unitsPart
+                                                        ? " " + unitsPart
+                                                        : "")
                                                       : "-"}
                                                     &nbsp;
                                                   </Text>
@@ -12874,7 +12874,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {`(${Object.values(Object.fromEntries(Object.entries((({ notes }) => ({ notes }))(caseManagerData?.surgeries?.[i])).filter(([_, v]) => v))).join(", ")})`}
                                         {caseManagerData?.surgeries?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -12895,7 +12895,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         {caseManagerData?.surgeries?.length -
                                           1 !=
-                                        i
+                                          i
                                           ? ","
                                           : ""}
                                         &nbsp;
@@ -13640,59 +13640,59 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         {customModule?.content?.some(
                                           (item) => item.title,
                                         ) && (
-                                          <Text
-                                            style={[
-                                              styles.dynamicModuleCell,
-                                              {
-                                                flex: 0.3,
-                                                color: "#171725",
-                                                fontFamily:
-                                                  getIndianLanguageFont(
-                                                    item?.title,
+                                            <Text
+                                              style={[
+                                                styles.dynamicModuleCell,
+                                                {
+                                                  flex: 0.3,
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    getIndianLanguageFont(
+                                                      item?.title,
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    ),
+                                                  fontSize:
+                                                    PX_TO_PT *
                                                     printSettings?.page_format
-                                                      ?.font_family,
-                                                  ),
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 500,
-                                              },
-                                            ]}
-                                          >
-                                            {item.title || "-"}&nbsp;
-                                          </Text>
-                                        )}
+                                                      ?.font_size,
+                                                  fontWeight: 500,
+                                                },
+                                              ]}
+                                            >
+                                              {item.title || "-"}&nbsp;
+                                            </Text>
+                                          )}
                                         {customModule?.content?.some(
                                           (item) => item.notes,
                                         ) && (
-                                          <Text
-                                            style={[
-                                              styles.dynamicModuleCell,
-                                              {
-                                                flex: 0.7,
-                                                color: "#171725",
-                                                fontFamily:
-                                                  getIndianLanguageFont(
-                                                    item?.notes,
+                                            <Text
+                                              style={[
+                                                styles.dynamicModuleCell,
+                                                {
+                                                  flex: 0.7,
+                                                  color: "#171725",
+                                                  fontFamily:
+                                                    getIndianLanguageFont(
+                                                      item?.notes,
+                                                      printSettings?.page_format
+                                                        ?.font_family,
+                                                    ),
+                                                  fontSize:
+                                                    PX_TO_PT *
                                                     printSettings?.page_format
-                                                      ?.font_family,
-                                                  ),
-                                                fontSize:
-                                                  PX_TO_PT *
-                                                  printSettings?.page_format
-                                                    ?.font_size,
-                                                fontWeight: 400,
-                                              },
-                                            ]}
-                                          >
-                                            {item.notes?.replace(
-                                              / /g,
-                                              "\u00A0",
-                                            ) || "-"}
-                                            &nbsp;
-                                          </Text>
-                                        )}
+                                                      ?.font_size,
+                                                  fontWeight: 400,
+                                                },
+                                              ]}
+                                            >
+                                              {item.notes?.replace(
+                                                / /g,
+                                                "\u00A0",
+                                              ) || "-"}
+                                              &nbsp;
+                                            </Text>
+                                          )}
                                       </View>
                                     );
                                   }
@@ -13732,8 +13732,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             const formattedPaymentModes =
                               paymentModes?.length > 1
                                 ? paymentModes?.slice(0, -1).join(", ") +
-                                  " & " +
-                                  paymentModes[paymentModes?.length - 1]
+                                " & " +
+                                paymentModes[paymentModes?.length - 1]
                                 : paymentModes?.join("");
                             if (patientBill?.paymentStatus !== "Refunded") {
                               return (
@@ -13770,8 +13770,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             const formattedPaymentModes =
                               paymentModes?.length > 1
                                 ? paymentModes?.slice(0, -1)?.join(", ") +
-                                  " & " +
-                                  paymentModes?.[paymentModes?.length - 1]
+                                " & " +
+                                paymentModes?.[paymentModes?.length - 1]
                                 : paymentModes?.join("");
                             if (advanceReceipt?.transactionType !== "Refund") {
                               return (
@@ -14329,7 +14329,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       wrap
                                     >
                                       {(hasParameters && isFirstRow) ||
-                                      !hasParameters
+                                        !hasParameters
                                         ? serviceGroup?.serviceName
                                         : ""}
                                     </Text>
@@ -14443,9 +14443,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
               )}
 
             {printSettings?.qrcode_enable === "Y" &&
-            printSettings?.signature_enable === "Y" ? (
+              printSettings?.signature_enable === "Y" ? (
               printSettings?.header_footer?.other_settings?.signature_place ===
-              "R" ? (
+                "R" ? (
                 <View style={styles.directionCasemanager}>
                   <View style={[styles.directionCasemanager, { flex: 1 }]}>
                     {printSettings?.qrcode && (
@@ -14474,42 +14474,42 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   <View style={{ flex: 1, textAlign: "right" }}>
                     {printSettings?.header_footer?.other_settings
                       ?.name_of_doctor_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 700, color: "#000" },
-                        ]}
-                      >
-                        {caseManagerData?.doctor_data?.doctor_name}
-                      </Text>
-                    )}
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 700, color: "#000" },
+                          ]}
+                        >
+                          {caseManagerData?.doctor_data?.doctor_name}
+                        </Text>
+                      )}
                     {printSettings?.header_footer?.other_settings
                       ?.registration_no_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 400, color: "#000" },
-                        ]}
-                      >
-                        Medical Registration No.:{" "}
-                        {caseManagerData?.doctor_data?.gmc_no}
-                      </Text>
-                    )}
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 400, color: "#000" },
+                          ]}
+                        >
+                          Medical Registration No.:{" "}
+                          {caseManagerData?.doctor_data?.gmc_no}
+                        </Text>
+                      )}
                     {printSettings?.header_footer?.other_settings
                       ?.qualification_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 400, color: "#000" },
-                        ]}
-                      >
-                        {printSettings?.header_footer?.other_settings
-                          ?.qualification
-                          ? printSettings?.header_footer?.other_settings
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 400, color: "#000" },
+                          ]}
+                        >
+                          {printSettings?.header_footer?.other_settings
+                            ?.qualification
+                            ? printSettings?.header_footer?.other_settings
                               ?.qualification
-                          : caseManagerData?.doctor_data?.um_qualifications}
-                      </Text>
-                    )}
+                            : caseManagerData?.doctor_data?.um_qualifications}
+                        </Text>
+                      )}
                   </View>
                 </View>
               ) : (
@@ -14517,42 +14517,42 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   <View style={{ flex: 1 }}>
                     {printSettings?.header_footer?.other_settings
                       ?.name_of_doctor_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 700, color: "#000" },
-                        ]}
-                      >
-                        {caseManagerData?.doctor_data?.doctor_name}
-                      </Text>
-                    )}
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 700, color: "#000" },
+                          ]}
+                        >
+                          {caseManagerData?.doctor_data?.doctor_name}
+                        </Text>
+                      )}
                     {printSettings?.header_footer?.other_settings
                       ?.registration_no_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 400, color: "#000" },
-                        ]}
-                      >
-                        Medical Registration No.:{" "}
-                        {caseManagerData?.doctor_data?.gmc_no}
-                      </Text>
-                    )}
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 400, color: "#000" },
+                          ]}
+                        >
+                          Medical Registration No.:{" "}
+                          {caseManagerData?.doctor_data?.gmc_no}
+                        </Text>
+                      )}
                     {printSettings?.header_footer?.other_settings
                       ?.qualification_enable === "Y" && (
-                      <Text
-                        style={[
-                          styles.extraText,
-                          { fontWeight: 400, color: "#000" },
-                        ]}
-                      >
-                        {printSettings?.header_footer?.other_settings
-                          ?.qualification
-                          ? printSettings?.header_footer?.other_settings
+                        <Text
+                          style={[
+                            styles.extraText,
+                            { fontWeight: 400, color: "#000" },
+                          ]}
+                        >
+                          {printSettings?.header_footer?.other_settings
+                            ?.qualification
+                            ? printSettings?.header_footer?.other_settings
                               ?.qualification
-                          : caseManagerData?.doctor_data?.um_qualifications}
-                      </Text>
-                    )}
+                            : caseManagerData?.doctor_data?.um_qualifications}
+                        </Text>
+                      )}
                   </View>
                   <View
                     style={[
@@ -14626,42 +14626,42 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     >
                       {printSettings?.header_footer?.other_settings
                         ?.name_of_doctor_enable === "Y" && (
-                        <Text
-                          style={[
-                            styles.extraText,
-                            { fontWeight: 700, color: "#000" },
-                          ]}
-                        >
-                          {caseManagerData?.doctor_data?.doctor_name}
-                        </Text>
-                      )}
+                          <Text
+                            style={[
+                              styles.extraText,
+                              { fontWeight: 700, color: "#000" },
+                            ]}
+                          >
+                            {caseManagerData?.doctor_data?.doctor_name}
+                          </Text>
+                        )}
                       {printSettings?.header_footer?.other_settings
                         ?.registration_no_enable === "Y" && (
-                        <Text
-                          style={[
-                            styles.extraText,
-                            { fontWeight: 400, color: "#000" },
-                          ]}
-                        >
-                          Medical Registration No.:{" "}
-                          {caseManagerData?.doctor_data?.gmc_no}
-                        </Text>
-                      )}
+                          <Text
+                            style={[
+                              styles.extraText,
+                              { fontWeight: 400, color: "#000" },
+                            ]}
+                          >
+                            Medical Registration No.:{" "}
+                            {caseManagerData?.doctor_data?.gmc_no}
+                          </Text>
+                        )}
                       {printSettings?.header_footer?.other_settings
                         ?.qualification_enable === "Y" && (
-                        <Text
-                          style={[
-                            styles.extraText,
-                            { fontWeight: 400, color: "#000" },
-                          ]}
-                        >
-                          {printSettings?.header_footer?.other_settings
-                            ?.qualification
-                            ? printSettings?.header_footer?.other_settings
+                          <Text
+                            style={[
+                              styles.extraText,
+                              { fontWeight: 400, color: "#000" },
+                            ]}
+                          >
+                            {printSettings?.header_footer?.other_settings
+                              ?.qualification
+                              ? printSettings?.header_footer?.other_settings
                                 ?.qualification
-                            : caseManagerData?.doctor_data?.um_qualifications}
-                        </Text>
-                      )}
+                              : caseManagerData?.doctor_data?.um_qualifications}
+                          </Text>
+                        )}
                       {isTeleconsultType2 && (
                         <Text
                           style={[
@@ -14721,20 +14721,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   mode !== NORMAL
                     ? PX_TO_PT * 30
                     : getMarginByFormat(
-                        printSettings?.letterhead_format,
-                        printSettings?.header_footer,
-                        "left",
-                        0.5,
-                      ),
+                      printSettings?.letterhead_format,
+                      printSettings?.header_footer,
+                      "left",
+                      0.5,
+                    ),
                 right:
                   mode !== NORMAL
                     ? PX_TO_PT * 30
                     : getMarginByFormat(
-                        printSettings?.letterhead_format,
-                        printSettings?.header_footer,
-                        "right",
-                        0.5,
-                      ),
+                      printSettings?.letterhead_format,
+                      printSettings?.header_footer,
+                      "right",
+                      0.5,
+                    ),
               }}
               fixed
               render={({ pageNumber }) => {

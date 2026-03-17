@@ -585,7 +585,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                             <div className="d-flex align-items-center">
                                 <img className='me-3' src={alertIcon} alt="Warning" />
                                 <span>
-                                    Are you sure you want to Clear Selected <b>Lab Investigation</b>?
+                                    Are you sure you want to Clear Selected <b>Investigation</b>?
                                 </span>
                             </div>
                         </div>
@@ -612,7 +612,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                 <div className="d-flex align-items-center justify-content-between p-14-pb0">
                     <div className="d-flex align-items-center">
                         <img className='me-2' src={Investigationicon} alt="Investigation" />
-                        <div className="title-common">Lab Investigation</div>
+                        <div className="title-common">Investigation</div>
                     </div>
 
                     <div className="d-flex align-items-center">
@@ -641,7 +641,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                 <div className="p-14 py-0">
                     <div className="inputheight38 border rounded-10px d-flex align-items-center" onClick={handleDrawerParent}>
                         <i className='icon-search mx-2'></i>
-                        <span className="fontroboto backbar fw-normal">Search Lab Investigation</span>
+                        <span className="fontroboto backbar fw-normal">Search Investigation</span>
                     </div>
                     { filteredDdxInvestigationOptionsList?.length > 0 && <DifferentialDiagnosis handleDDxDrawer={handleDDxDrawer} ddxOptionsList={filteredDdxInvestigationOptionsList} onSelectParent={onSelectParent} />}
                 </div>

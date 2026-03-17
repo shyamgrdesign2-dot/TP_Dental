@@ -683,7 +683,7 @@ const LabInvestigationTable = ({
           <div className={styles['investigation-icon']}>
             <img src={investigationIcon} alt="Investigation" />
           </div>
-          <span className={styles['investigation-title']}>Lab Investigation</span>
+          <span className={styles['investigation-title']}>Investigation</span>
         </div>
         <div className={styles['investigation-editor-container']}>
           <div className={styles['investigation-shimmer-container']}>
@@ -700,7 +700,7 @@ const LabInvestigationTable = ({
         <div className={styles['investigation-icon']}>
           <img src={investigationIcon} alt="Investigation" />
         </div>
-        <span className={styles['investigation-title']}>Lab Investigation</span>
+        <span className={styles['investigation-title']}>Investigation</span>
       </div>
       
             <DragDropContext onDragEnd={onDragEnd}>

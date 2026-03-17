@@ -485,7 +485,7 @@ function PrintHtmlPage() {
       key: "7",
       name: `General RBS (mg/dl)`,
     },
-     {
+    {
       key: "8",
       name: `FIB4`,
     },
@@ -563,7 +563,7 @@ function PrintHtmlPage() {
       initialRows[12][index] = item.bmi ? parseFloat(item.bmi).toFixed(2) : "-";
       initialRows[13][index] = item.bmr ? parseFloat(item.bmr).toFixed(2) : "-";
       initialRows[14][index] = item.bsa ? parseFloat(item.bsa).toFixed(2) : "-";
-     
+
     });
 
   const patientDataShow = (id) => {
@@ -609,7 +609,7 @@ function PrintHtmlPage() {
     } else if (id == 11) {
       value = `${caseManagerData?.patient_data?.patinet_reference_id}`;
     }
-    
+
     return value;
   };
 
@@ -1311,92 +1311,117 @@ function PrintHtmlPage() {
                             >
                               Symptoms:&nbsp;
                             </label>
-                            <table
-                              className="w-100 mb-15 print_table"
-                              cellPadding={5}
-                              cellSpacing={5}
-                            >
-                              <tr>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
+                            {(() => {
+                              const allStringFormat = caseManagerData.symptoms.every(item => {
+                                if (item.isStringFormat) return true;
+                                const hasStructuredData = (item.since && item.since !== '') || (item.severity && item.severity !== '') || (item.note && item.note !== '');
+                                return !hasStructuredData;
+                              });
+                              return (
+                                <table
+                                  className="w-100 mb-15 print_table"
+                                  cellPadding={5}
+                                  cellSpacing={5}
+                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                                 >
-                                  NAME
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  SINCE
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  SEVERITY
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  NOTE
-                                </th>
-                              </tr>
-                              {caseManagerData.symptoms.map((item, i) => {
-                                return (
-                                  <tr key={i}>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.symptom_name}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.since ? item.since : "-"}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.severity ? item.severity : "-"}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.note ? item.note : "-"}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </table>
+                                  {!allStringFormat && (
+                                    <tr>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NAME
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        SINCE
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        SEVERITY
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NOTE
+                                      </th>
+                                    </tr>
+                                  )}
+                                  {caseManagerData.symptoms.map((item, i) => (
+                                    <tr key={i}>
+                                      {allStringFormat ? (
+                                        <td
+                                          className={`${printSettings.page_format.font_family}`}
+                                          style={{
+                                            fontSize:
+                                              printSettings.page_format.font_size,
+                                          }}
+                                          colSpan="4"
+                                        >
+                                          {item.symptom_name}
+                                        </td>
+                                      ) : (
+                                        <>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.symptom_name}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.since ? item.since : "-"}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.severity ? item.severity : "-"}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.note ? item.note : "-"}
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </table>
+                              );
+                            })()}
                           </div>
                         ))}
 
@@ -1534,56 +1559,80 @@ function PrintHtmlPage() {
                             >
                               Examinations:&nbsp;
                             </label>
-                            <table
-                              className="w-100 mb-15 print_table"
-                              cellPadding={5}
-                              cellSpacing={5}
-                            >
-                              <tr>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
+                            {(() => {
+                              const allStringFormat = caseManagerData.examination.every(item => {
+                                const hasStructuredData = (item.note && item.note !== '');
+                                return !hasStructuredData;
+                              });
+                              return (
+                                <table
+                                  className="w-100 mb-15 print_table"
+                                  cellPadding={5}
+                                  cellSpacing={5}
+                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                                 >
-                                  NAME
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  NOTE
-                                </th>
-                              </tr>
-                              {caseManagerData.examination.map((item, i) => {
-                                return (
-                                  <tr key={i}>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.examination_name}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.note ? item.note : "-"}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </table>
+                                  {!allStringFormat && (
+                                    <tr>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NAME
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NOTE
+                                      </th>
+                                    </tr>
+                                  )}
+                                  {caseManagerData.examination.map((item, i) => (
+                                    <tr key={i}>
+                                      {allStringFormat ? (
+                                        <td
+                                          className={`${printSettings.page_format.font_family}`}
+                                          style={{
+                                            fontSize:
+                                              printSettings.page_format.font_size,
+                                          }}
+                                          colSpan="2"
+                                        >
+                                          {item.examination_name}
+                                        </td>
+                                      ) : (
+                                        <>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.examination_name}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.note ? item.note : "-"}
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </table>
+                              );
+                            })()}
                           </div>
                         ))}
 
@@ -1907,92 +1956,117 @@ function PrintHtmlPage() {
                             >
                               Diagnosis:&nbsp;
                             </label>
-                            <table
-                              className="w-100 mb-15 print_table"
-                              cellPadding={5}
-                              cellSpacing={5}
-                            >
-                              <tr>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
+                            {(() => {
+                              const allStringFormat = caseManagerData.diagnosis.every(item => {
+                                if (item.isStringFormat) return true;
+                                const hasStructuredData = (item.since && item.since !== '') || (item.status && item.status !== '') || (item.note && item.note !== '');
+                                return !hasStructuredData;
+                              });
+                              return (
+                                <table
+                                  className="w-100 mb-15 print_table"
+                                  cellPadding={5}
+                                  cellSpacing={5}
+                                  style={{ border: '1px solid #171725', borderCollapse: 'collapse' }}
                                 >
-                                  NAME
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  SINCE
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  STATUS
-                                </th>
-                                <th
-                                  className={`${printSettings.page_format.font_family}`}
-                                  style={{
-                                    fontSize:
-                                      printSettings.page_format.font_size,
-                                  }}
-                                >
-                                  NOTE
-                                </th>
-                              </tr>
-                              {caseManagerData.diagnosis.map((item, i) => {
-                                return (
-                                  <tr key={i}>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.tds_name}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.since ? item.since : "-"}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.status ? item.status : "-"}
-                                    </td>
-                                    <td
-                                      className={`${printSettings.page_format.font_family}`}
-                                      style={{
-                                        fontSize:
-                                          printSettings.page_format.font_size,
-                                      }}
-                                    >
-                                      {item.note ? item.note : "-"}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </table>
+                                  {!allStringFormat && (
+                                    <tr>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NAME
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        SINCE
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        STATUS
+                                      </th>
+                                      <th
+                                        className={`${printSettings.page_format.font_family}`}
+                                        style={{
+                                          fontSize:
+                                            printSettings.page_format.font_size,
+                                        }}
+                                      >
+                                        NOTE
+                                      </th>
+                                    </tr>
+                                  )}
+                                  {caseManagerData.diagnosis.map((item, i) => (
+                                    <tr key={i}>
+                                      {allStringFormat ? (
+                                        <td
+                                          className={`${printSettings.page_format.font_family}`}
+                                          style={{
+                                            fontSize:
+                                              printSettings.page_format.font_size,
+                                          }}
+                                          colSpan="4"
+                                        >
+                                          {item.tds_name}
+                                        </td>
+                                      ) : (
+                                        <>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.tds_name}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.since ? item.since : "-"}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.status ? item.status : "-"}
+                                          </td>
+                                          <td
+                                            className={`${printSettings.page_format.font_family}`}
+                                            style={{
+                                              fontSize:
+                                                printSettings.page_format.font_size,
+                                            }}
+                                          >
+                                            {item.note ? item.note : "-"}
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </table>
+                              );
+                            })()}
                           </div>
                         ))}
 
@@ -2550,7 +2624,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Lab Investigation:&nbsp;
+                              Investigation:&nbsp;
                             </label>
                             {caseManagerData.investigation.map((item, i) => {
                               return (
@@ -2611,7 +2685,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Lab Investigation:&nbsp;
+                              Investigation:&nbsp;
                             </label>{" "}
                             <br />
                             <label
@@ -2667,7 +2741,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Lab Investigation:&nbsp;
+                              Investigation:&nbsp;
                             </label>
                             <table
                               className="w-100 mb-15 print_table"

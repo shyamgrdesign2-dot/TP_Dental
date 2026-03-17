@@ -3226,7 +3226,7 @@ function Cardiology(props) {
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3522,7 +3522,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3823,7 +3823,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -4110,7 +4110,7 @@ function Cardiology(props) {
                           alt="Advice"
                         />
                         <div>
-                          <div className="title">Lab Investigation</div>
+                          <div className="title">Investigation</div>
                           {viewCaseManagerData.investigation.map((item, i) => {
                             return (
                               <span key={i}>

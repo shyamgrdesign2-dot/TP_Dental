@@ -31,7 +31,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const { viewCaseManagerData } = useSelector((state) => state.caseManager);
   const { frequencyList, timingList, profile, userId } = useSelector((state) => state.doctors);
   const { symptomCollector } = useSelector((state) => state.ddx);
-  
+
   const [showDetailedSummary, setShowDetailedSummary] = useState(false);
   const [apiVitals, setApiVitals] = useState([]);
   const [labResults, setLabResults] = useState([]);
@@ -41,7 +41,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [labParamsData, setLabParamsData] = useState([]);
   const [showSymptomsBanner, setShowSymptomsBanner] = useState(true);
-  
+
   const patient_data = patientData || location.state?.patient_data;
 
   const fetchVitals = useCallback(async () => {
@@ -72,16 +72,16 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       try {
         const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
         if (!token) return;
-        
+
         const cleanedToken = token.replace(/['"]+/g, '');
         const baseUrl = env.lab_params_api_url;
-        
+
         const response = await axios.get(`${baseUrl}/api/v1/lab-parameters/results/${patient_data.patient_unique_id}`, {
           headers: {
             'Authorization': `Bearer ${cleanedToken}`,
           },
         });
-        
+
         if (response?.data?.data?.results) {
           setLabResults(response.data.data.results);
           setLabParamsData(response.data.data.results);
@@ -131,7 +131,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         tcmId,
         null
       );
-      
+
       if (response?.digitization) {
         // Same check as Cardiology: isDigitize && isVerified
         if (response?.digitization?.isDigitize && response?.digitization?.isVerified) {
@@ -207,13 +207,13 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
 
     // Extract medications
     const medications = (snapRxData.medications || []).map(item => ({
-              name: item.name || "",
+      name: item.name || "",
       dosage: item.dosage || item.unitPerDose || "",
-              frequency: item.frequency || "",
-              schedule: item.schedule || item.when || "",
-              duration: item.duration || "",
-              quantity: item.quantity || item.qty || "",
-              notes: item.notes || item.note || ""
+      frequency: item.frequency || "",
+      schedule: item.schedule || item.when || "",
+      duration: item.duration || "",
+      quantity: item.quantity || item.qty || "",
+      notes: item.notes || item.note || ""
     })).filter(item => item.name);
 
     // Extract lab investigation: support old (tests) and new (labInvestigation), name/lineItem
@@ -223,23 +223,23 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
     })).filter(item => item.name && item.name.trim() !== "");
 
     // Extract advice
-          let advice = [];
-          if (Array.isArray(snapRxData.advice)) {
-            advice = snapRxData.advice.map(item => {
+    let advice = [];
+    if (Array.isArray(snapRxData.advice)) {
+      advice = snapRxData.advice.map(item => {
         if (typeof item === 'string') return item;
         if (typeof item === 'object' && item !== null) {
-                return item.advice_name || item.name || item.lineItem || "";
-              }
-              return String(item || "");
-            }).filter(item => item && item.trim() !== "");
-          } else if (snapRxData.advice) {
-            if (typeof snapRxData.advice === 'object' && snapRxData.advice !== null) {
-              const adviceStr = snapRxData.advice.advice_name || snapRxData.advice.name || snapRxData.advice.lineItem || "";
-              if (adviceStr) advice = [adviceStr];
-            } else {
-              advice = [String(snapRxData.advice)];
-            }
-          }
+          return item.advice_name || item.name || item.lineItem || "";
+        }
+        return String(item || "");
+      }).filter(item => item && item.trim() !== "");
+    } else if (snapRxData.advice) {
+      if (typeof snapRxData.advice === 'object' && snapRxData.advice !== null) {
+        const adviceStr = snapRxData.advice.advice_name || snapRxData.advice.name || snapRxData.advice.lineItem || "";
+        if (adviceStr) advice = [adviceStr];
+      } else {
+        advice = [String(snapRxData.advice)];
+      }
+    }
 
     // Extract follow-up
     const followUp = snapRxData.followUp || snapRxData.follow_up_date || "";
@@ -321,12 +321,12 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
     // Extract follow-up
     const followUp = smartRxData.followUp || smartRxData.follow_up_date || "";
 
-          return {
-            symptoms,
-            diagnosis,
-            examination,
+    return {
+      symptoms,
+      diagnosis,
+      examination,
       medications,
-            labInvestigation,
+      labInvestigation,
       advice,
       followUp
     };
@@ -340,22 +340,22 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           tcm_id: 0
         };
         const latestResponse = await ApiCaseManager.viewCaseManager(latestData);
-        
+
         if (latestResponse?.status && latestResponse?.data) {
           const latestPrescription = latestResponse.data;
-          
+
           // Check prescription type - same logic as Cardiology
           const smartRxFilename = latestPrescription.smart_prescription_filename;
-      const filenameToUse = Array.isArray(smartRxFilename) && smartRxFilename.length > 0 
-        ? smartRxFilename[0] 
-        : smartRxFilename;
-          
+          const filenameToUse = Array.isArray(smartRxFilename) && smartRxFilename.length > 0
+            ? smartRxFilename[0]
+            : smartRxFilename;
+
           const isSnapRx = filenameToUse && filenameToUse.includes("snap_rx");
           const isSmartRx = filenameToUse && filenameToUse.includes(".jpeg");
-          const isPointAndClickRx = latestPrescription.medicine && 
-                                    Array.isArray(latestPrescription.medicine) && 
-                                    latestPrescription.medicine.length > 0 &&
-                                    latestPrescription.medicine.some(med => med.tmm_medicine_name);
+          const isPointAndClickRx = latestPrescription.medicine &&
+            Array.isArray(latestPrescription.medicine) &&
+            latestPrescription.medicine.length > 0 &&
+            latestPrescription.medicine.some(med => med.tmm_medicine_name);
           const isVoiceAmbientRx = filenameToUse && isValidMongoId(filenameToUse);
 
           // Fetch digitization data based on prescription type - same as Cardiology
@@ -384,21 +384,21 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               if (initialResponse?.success) {
                 // Check if conversation exists and has data in the history
                 const conversation = initialResponse.data?.history?.[0]?.conversation;
-      const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
-      
+                const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+
                 let response = initialResponse;
-      
+
                 // If conversation has doctor and patient conversation, call ambient API
                 if (hasConversation) {
-        const ambientResponse = await getAmbientRx(filenameToUse);
-        if (ambientResponse?.success) {
+                  const ambientResponse = await getAmbientRx(filenameToUse);
+                  if (ambientResponse?.success) {
                     response = ambientResponse;
                   }
                 }
 
                 if (response?.success) {
                   let prescriptionData = null;
-                  
+
                   // Extract data exactly like Cardiology.js
                   if (response.data.editedData) {
                     prescriptionData = response.data.editedData;
@@ -407,25 +407,25 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                   } else if (hasConversation) {
                     // Ambient mode - extract from history
                     const latestHistory = response.data?.history?.[response.data.history.length - 1];
-          const digitizeObj = latestHistory?.digitize;
-                    
-          if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
-            const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
-            if (numericKeys.length > 0) {
+                    const digitizeObj = latestHistory?.digitize;
+
+                    if (digitizeObj && typeof digitizeObj === 'object' && !Array.isArray(digitizeObj)) {
+                      const numericKeys = Object.keys(digitizeObj).filter(key => /^\d+$/.test(key));
+                      if (numericKeys.length > 0) {
                         prescriptionData = digitizeObj[numericKeys[0]];
-            } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
+                      } else if (digitizeObj.symptoms || digitizeObj.medications || digitizeObj.vitalsAndBodyComposition) {
                         prescriptionData = digitizeObj;
-            } else {
+                      } else {
                         prescriptionData = digitizeObj;
-            }
-          } else {
+                      }
+                    } else {
                       prescriptionData = digitizeObj || null;
-        }
-      } else {
-        // Dictate mode - fallback
+                    }
+                  } else {
+                    // Dictate mode - fallback
                     prescriptionData = response.data?.editedData || response.data?.digitizeData || response.data?.refinedData;
-      }
-      
+                  }
+
                   if (prescriptionData) {
                     // Merge with latestPrescription data; include version for Repeat Rx gating
                     const mergedData = {
@@ -446,8 +446,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                     isDigitized = true;
                   }
                 }
-      }
-    } catch (error) {
+              }
+            } catch (error) {
               console.error('PatientSummary: fetchLastPrescription - Error fetching Voice/Ambient Rx:', error);
             }
           } else if (isPointAndClickRx) {
@@ -458,10 +458,10 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
             // Consult prescription (no smart_prescription_filename) - data is in viewCaseManager
             // Check if it has data - if yes, treat it as digitized (like Cardiology.js does)
             const hasConsultData = (latestPrescription.medicine && latestPrescription.medicine.length > 0) ||
-                                   (latestPrescription.symptoms && latestPrescription.symptoms.length > 0) ||
-                                   (latestPrescription.diagnosis && latestPrescription.diagnosis.length > 0) ||
-                                   (latestPrescription.examination && latestPrescription.examination.length > 0);
-            
+              (latestPrescription.symptoms && latestPrescription.symptoms.length > 0) ||
+              (latestPrescription.diagnosis && latestPrescription.diagnosis.length > 0) ||
+              (latestPrescription.examination && latestPrescription.examination.length > 0);
+
             if (hasConsultData) {
               // For consult prescriptions, use the data directly from viewCaseManager
               digitizedData = latestPrescription;
@@ -478,10 +478,10 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               const extractedData = extractSnapRxData(digitizedData);
               if (extractedData) {
                 // Merge advice from both sources (digitized data takes priority, but fallback to original)
-                let mergedAdvice = extractedData.advice && extractedData.advice.length > 0 
-                  ? extractedData.advice 
+                let mergedAdvice = extractedData.advice && extractedData.advice.length > 0
+                  ? extractedData.advice
                   : (latestPrescription.advice || latestPrescription.visit_advice || []);
-                
+
                 // If mergedAdvice is a string, convert to array
                 if (typeof mergedAdvice === 'string' && mergedAdvice.trim()) {
                   mergedAdvice = [mergedAdvice];
@@ -508,10 +508,10 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               const extractedData = extractSmartRxData(digitizedData);
               if (extractedData) {
                 // Merge advice from both sources (digitized data takes priority, but fallback to original)
-                let mergedAdvice = extractedData.advice && extractedData.advice.length > 0 
-                  ? extractedData.advice 
+                let mergedAdvice = extractedData.advice && extractedData.advice.length > 0
+                  ? extractedData.advice
                   : (latestPrescription.advice || latestPrescription.visit_advice || []);
-                
+
                 // If mergedAdvice is a string, convert to array
                 if (typeof mergedAdvice === 'string' && mergedAdvice.trim()) {
                   mergedAdvice = [mergedAdvice];
@@ -546,9 +546,9 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
 
           // Check if merged data has actual content
           const hasData = (mergedData.medicine && mergedData.medicine.length > 0) ||
-                          (mergedData.symptoms && mergedData.symptoms.length > 0) ||
-                          (mergedData.diagnosis && mergedData.diagnosis.length > 0) ||
-                          (mergedData.examination && mergedData.examination.length > 0);
+            (mergedData.symptoms && mergedData.symptoms.length > 0) ||
+            (mergedData.diagnosis && mergedData.diagnosis.length > 0) ||
+            (mergedData.examination && mergedData.examination.length > 0);
 
           // Only set lastPrescriptionData if prescription is digitized AND has data
           if (isDigitized && hasData) {
@@ -585,19 +585,19 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
     const uniqueVitalsByDate = allVitals.reduce((acc, vital) => {
       const date = vital.date || vital.createdAt || vital.created_at;
       const existing = acc[date];
-      
+
       if (!existing) {
         acc[date] = vital;
       } else {
         const existingDate = new Date(existing.createdAt || existing.date);
         const vitalDate = new Date(vital.createdAt || vital.date);
-        
+
         if (vitalDate > existingDate) {
           acc[date] = vital;
         } else if (vitalDate.getTime() === existingDate.getTime()) {
           const existingTcvId = parseInt(existing.tcv_id) || 0;
           const vitalTcvId = parseInt(vital.tcv_id) || 0;
-          
+
           if (vitalTcvId > existingTcvId) {
             acc[date] = vital;
           }
@@ -605,7 +605,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       }
       return acc;
     }, {});
-    
+
     return Object.values(uniqueVitalsByDate)
       .sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0))
       .slice(0, 2);
@@ -615,7 +615,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
     return mergedVitals.map((vital) => {
       const date = moment(vital.date || vital.createdAt || vital.created_at).format("DD MMM'YY");
       const vitalParts = [];
-      
+
       if (vital.pulse || vital.pres) vitalParts.push(`Pulse: ${vital.pulse || vital.pres}/min`);
       if (vital.blood_press) {
         vitalParts.push(`BP: ${vital.blood_press}`);
@@ -634,7 +634,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       if (vital.bmi) vitalParts.push(`BMI: ${vital.bmi}kg/m²`);
       if (vital.bmr) vitalParts.push(`BMR: ${vital.bmr}kcals`);
       if (vital.bsa) vitalParts.push(`BSA: ${vital.bsa}m²`);
-      
+
       return {
         date,
         formatted: vitalParts.join(' | ')
@@ -644,15 +644,15 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
 
   const formattedLabResults = useMemo(() => {
     if (!labResults || labResults.length === 0) return [];
-    
+
     const sortedResults = [...labResults]
       .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
       .slice(0, 2);
-    
+
     return sortedResults.map((result) => {
       const date = moment(result.date || result.createdAt).format("DD MMM'YY");
       const inputs = result.inputs || [];
-      
+
       const testDetails = [];
       inputs.forEach((input) => {
         if (input.testName && input.testName !== 'Remarks' && input.value && input.value !== '-') {
@@ -663,7 +663,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           testDetails.push(`${testName}: ${formattedValue}`);
         }
       });
-      
+
       return {
         date,
         tests: testDetails
@@ -678,20 +678,20 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   // Extract chronic conditions (Medical Conditions) from medical history
   const chronicConditions = useMemo(() => {
     if (!medicalHistoryData || medicalHistoryData.length === 0) return [];
-    
+
     return medicalHistoryData
       .filter(item => {
         // Filter for Medical Condition type (tmmhs_id: 2 or type: "Medical Condition")
         const type = item.type || "";
         const tmmhsId = item.tmmhs_id;
-        return (tmmhsId === 2 || 
-                type.toLowerCase().includes("medical condition") || 
-                type.toLowerCase() === "medical_condition") &&
-               item.tags && 
-               Array.isArray(item.tags) && 
-               item.tags.length > 0;
+        return (tmmhsId === 2 ||
+          type.toLowerCase().includes("medical condition") ||
+          type.toLowerCase() === "medical_condition") &&
+          item.tags &&
+          Array.isArray(item.tags) &&
+          item.tags.length > 0;
       })
-      .flatMap(item => 
+      .flatMap(item =>
         item.tags
           .filter(tag => tag.enable === 'Y' && tag.title && tag.title.trim())
           .map(tag => {
@@ -699,8 +699,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
             let duration = "";
             if (tag.since) {
               // If since already contains "yr" or "year", use as is, otherwise add "yrs"
-              duration = tag.since.includes("yr") || tag.since.includes("year") 
-                ? tag.since 
+              duration = tag.since.includes("yr") || tag.since.includes("year")
+                ? tag.since
                 : `${tag.since} yrs`;
             }
             return {
@@ -748,10 +748,10 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   // Helper function to check if value is high or low based on refRange
   const checkValueAbnormal = (value, refRange) => {
     if (!value || !refRange) return null;
-    
+
     const numericValue = parseFloat(value);
     if (isNaN(numericValue)) return null;
-    
+
     // Handle refRange as string (e.g., "10-20")
     if (typeof refRange === 'string') {
       const rangeMatch = refRange.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
@@ -762,7 +762,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         if (numericValue < min) return '↓';
       }
     }
-    
+
     // Handle refRange as object with ranges array
     if (refRange && typeof refRange === 'object' && refRange.ranges && Array.isArray(refRange.ranges)) {
       const range = refRange.ranges[0];
@@ -775,7 +775,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         }
       }
     }
-    
+
     return null;
   };
 
@@ -794,7 +794,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         if (input.testName && input.testName !== 'Remarks' && input.value && input.value !== '-') {
           // Check if value is marked as high or low
           let indicator = null;
-          
+
           // Check arrowDirection first
           if (input.arrowDirection === 'up' || input.arrowDirection === '↑') {
             indicator = '↑';
@@ -811,7 +811,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           else if (input.refRange) {
             indicator = checkValueAbnormal(input.value, input.refRange);
           }
-          
+
           if (indicator) {
             const testName = input.testName;
             const value = input.value;
@@ -826,27 +826,27 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         }
       });
     });
-    
+
     return concerningTests;
   }, [labResults]);
 
   const lastVisitSummaryData = useMemo(() => {
     let prescriptionData = null;
-    
+
     if (lastPrescriptionData) {
       const isUndigitizedSnapRx = lastPrescriptionData.isUndigitizedSnapRx === true;
       const isUndigitizedSmartRx = lastPrescriptionData.isUndigitizedSmartRx === true;
-      
+
       const hasData = (lastPrescriptionData.medicine && lastPrescriptionData.medicine.length > 0) ||
-                      (lastPrescriptionData.symptoms && lastPrescriptionData.symptoms.length > 0) ||
-                      (lastPrescriptionData.diagnosis && lastPrescriptionData.diagnosis.length > 0) ||
-                      (lastPrescriptionData.examination && lastPrescriptionData.examination.length > 0);
-      
+        (lastPrescriptionData.symptoms && lastPrescriptionData.symptoms.length > 0) ||
+        (lastPrescriptionData.diagnosis && lastPrescriptionData.diagnosis.length > 0) ||
+        (lastPrescriptionData.examination && lastPrescriptionData.examination.length > 0);
+
       if (hasData && !isUndigitizedSnapRx && !isUndigitizedSmartRx) {
         prescriptionData = lastPrescriptionData;
       }
     }
-    
+
     if (!prescriptionData) {
       return {
         date: "",
@@ -858,7 +858,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       };
     }
 
-    const consultationDate = prescriptionData.consultation_date 
+    const consultationDate = prescriptionData.consultation_date
       ? moment(prescriptionData.consultation_date).format("DD MMM YYYY")
       : "";
 
@@ -867,23 +867,23 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
     if (prescriptionData.symptoms) {
       if (Array.isArray(prescriptionData.symptoms)) {
         symptoms = prescriptionData.symptoms.map((item, idx) => {
-          
+
           // Handle string format
           if (typeof item === 'string') {
             const lineItem = item.trim();
             const match = lineItem.match(/^([^(]+)(?:\((.+)\))?/);
             const name = match ? match[1].trim() : lineItem;
             const details = match && match[2] ? match[2].trim() : "";
-            
+
             let severity = "";
             let duration = "";
-            
+
             if (details) {
               const parts = details.split(',').map(p => p.trim());
               if (parts.length >= 1) severity = parts[0];
               if (parts.length >= 2) duration = parts[1];
             }
-            
+
             const result = {
               name: name,
               severity: severity,
@@ -892,18 +892,18 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
             };
             return result;
           }
-          
+
           // Handle Snap Rx lineItem format: "Headache (mild, 3 days)" or "cold (high , 5days)"
           if (item.lineItem && typeof item.lineItem === 'string') {
             const lineItem = item.lineItem.trim();
             const match = lineItem.match(/^([^(]+)(?:\((.+)\))?/);
             const name = match ? match[1].trim() : lineItem;
             const details = match && match[2] ? match[2].trim() : "";
-            
+
             // Try to parse severity and duration from details
             let severity = item.severity || "";
             let duration = item.duration || "";
-            
+
             if (details) {
               // Split by comma and try to identify severity and duration
               const parts = details.split(',').map(p => p.trim());
@@ -911,7 +911,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               if (parts.length >= 1 && !severity) severity = parts[0];
               if (parts.length >= 2 && !duration) duration = parts[1];
             }
-            
+
             const result = {
               name: name,
               severity: severity,
@@ -920,11 +920,11 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
             };
             return result;
           }
-          
+
           // Handle regular format - prioritize symptom_name for viewCaseManager data
           // For Voice/Ambient Rx, use name directly (don't parse lineItem if name exists)
           let symptomName = item.symptom_name || item.name || "";
-          
+
           // Only use lineItem if name is not available
           if (!symptomName && item.lineItem) {
             if (typeof item.lineItem === 'string') {
@@ -936,12 +936,12 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
               symptomName = item.lineItem;
             }
           }
-          
+
           // If still no name, fallback to string conversion
           if (!symptomName && typeof item === 'string') {
             symptomName = item;
           }
-          
+
           const result = {
             name: symptomName,
             duration: item.since || item.duration || "",
@@ -956,16 +956,16 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         const match = lineItem.match(/^([^(]+)(?:\((.+)\))?/);
         const name = match ? match[1].trim() : lineItem;
         const details = match && match[2] ? match[2].trim() : "";
-        
+
         let severity = "";
         let duration = "";
-        
+
         if (details) {
           const parts = details.split(',').map(p => p.trim());
           if (parts.length >= 1) severity = parts[0];
           if (parts.length >= 2) duration = parts[1];
         }
-        
+
         symptoms = [{
           name: name,
           severity: severity,
@@ -974,7 +974,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         }];
       }
     }
-    
+
 
     // Extract diagnosis
     const diagnosis = (prescriptionData.diagnosis || []).map(item => ({
@@ -1008,18 +1008,18 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           notes: item.notes || item.note || ""
         };
       }
-      
+
       // Handle Consult prescription format (from viewCaseManager) - point and click prescriptions
       if (item && typeof item === 'object' && item.tmm_medicine_name) {
         const medicineName = item.tmm_medicine_name || "";
         const generic = item.tmm_generic || "";
         const fullName = generic ? `${medicineName} (${generic})` : medicineName;
-        
+
         // Extract dosage
         const unitObj = item?.medicineUnit?.find((x) => x.tmu_id === item.tmm_unit);
         const unitName = unitObj?.tmu_title || "";
         const dosage = item.tmm_dosage ? `${item.tmm_dosage} ${unitName}`.trim() : "";
-        
+
         // Extract frequency
         let frequency = "";
         if (item.tmf_block === 0) {
@@ -1037,22 +1037,22 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           const frequencyObj = frequencyList?.find((x) => x.tmf_id === item.tmm_freq_type);
           frequency = frequencyObj?.tmf_title || "";
         }
-        
+
         // Extract timing/schedule
         const timingObj = timingList?.find((x) => x.tmt_id === item.tmm_time);
         const schedule = timingObj?.tmt_title || "";
-        
+
         // Extract duration
-        const duration = item.tmm_days && item.tmm_duration_type 
+        const duration = item.tmm_days && item.tmm_duration_type
           ? `${item.tmm_days} ${item.tmm_duration_type}`
           : (item.tmm_duration_type || "");
-        
+
         // Extract quantity
         const quantity = item.display_qty || item.tmm_qty || "";
-        
+
         // Extract notes
         const notes = item.tmm_remarks || item.notes || item.note || "";
-        
+
         return {
           name: fullName,
           dosage: dosage,
@@ -1063,7 +1063,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           notes: notes
         };
       }
-      
+
       // If item is a string (legacy format), convert to object with just name
       if (typeof item === 'string') {
         return {
@@ -1076,7 +1076,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           notes: ""
         };
       }
-      
+
       // Otherwise, it's an object from regular prescription (Voice/Ambient Rx format)
       const medicineName = item.medicine_name || item.name || item.groundedMedicineName || item.lineItem || "";
       const dosage = item.strength && item.unit ? `${item.strength} ${item.unit}`.trim() : (item.dosage || "");
@@ -1115,13 +1115,13 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       const schedule = item.schedule || "";
       const notes = item.notes || "";
       const date = item.date ? moment(item.date).format("DD MMM YYYY") : "";
-      
+
       const parts = [];
       if (vaccineName) parts.push(vaccineName);
       if (schedule) parts.push(schedule);
       if (notes) parts.push(notes);
       if (date) parts.push(`(${date})`);
-      
+
       return parts.length > 0 ? parts.join(", ") : "";
     }).filter(v => v); // Remove empty strings
 
@@ -1137,7 +1137,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
         }
         return String(item || "");
       }).filter(item => item && item.trim() !== "");
-      
+
       // If advice array is empty, check visit_advice as fallback
       if (advice.length === 0 && prescriptionData.visit_advice) {
         if (typeof prescriptionData.visit_advice === 'string' && prescriptionData.visit_advice.trim()) {
@@ -1190,7 +1190,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       labInvestigation,
       dynamicFields
     };
-    
+
     return result;
   }, [lastPrescriptionData, frequencyList, timingList]);
 
@@ -1217,17 +1217,17 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       (Array.isArray(lastVisitSummaryData.advice) && lastVisitSummaryData.advice.length > 0) ||
       (lastVisitSummaryData.labInvestigation && lastVisitSummaryData.labInvestigation.length > 0)
     );
-    
+
     const hasChronicConditions = chronicConditions && chronicConditions.length > 0;
     const hasCurrentVitals = currentVitals && currentVitals.length > 0;
     const hasConcerningLabs = concerningLabResults && concerningLabResults.length > 0;
     const hasVitals = formattedVitals && formattedVitals.length > 0;
     const hasLabResults = formattedLabResults && formattedLabResults.length > 0;
-    const hasMedicalHistory = Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0 && 
+    const hasMedicalHistory = Array.isArray(medicalHistoryData) && medicalHistoryData.length > 0 &&
       medicalHistoryData.some(e => (e.no_know_history || e.tags?.length > 0));
-    
+
     const result = hasLastVisit || hasChronicConditions || hasCurrentVitals || hasConcerningLabs || hasVitals || hasLabResults || hasMedicalHistory;
-    
+
     return result;
   }, [lastVisitSummaryData, chronicConditions, currentVitals, concerningLabResults, formattedVitals, formattedLabResults, medicalHistoryData]);
 
@@ -1311,15 +1311,15 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 if (!lastPrescriptionData || !lastPrescriptionData.consultation_date) {
                   return null;
                 }
-                
+
                 const smartRxFilename = lastPrescriptionData.smart_prescription_filename;
-                const filenameToUse = Array.isArray(smartRxFilename) && smartRxFilename.length > 0 
-                  ? smartRxFilename[0] 
+                const filenameToUse = Array.isArray(smartRxFilename) && smartRxFilename.length > 0
+                  ? smartRxFilename[0]
                   : smartRxFilename;
-                
+
                 const isSnapRx = filenameToUse && filenameToUse.includes("snap_rx");
                 const isSmartRx = filenameToUse && filenameToUse.includes(".jpeg");
-                
+
                 // Only show if NOT Snap Rx and NOT Smart Rx
                 if (isSnapRx || isSmartRx) {
                   return null;
@@ -1328,46 +1328,46 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 if (lastPrescriptionData?.version?.trim?.()?.toLowerCase() !== "v2") {
                   return null;
                 }
-                
+
                 return (
-                <span 
-                  className={styles.repeatRxLink} 
-                  onClick={async () => {
-                    window.Moengage?.track_event("repeat_rx_click", {
-                      "doctor_id": viewCaseManagerData?.doctor_data?.um_id,
-                      "patient_id": patient_data?.patient_unique_id || 0,
-                      "rx_date": lastPrescriptionData.consultation_date
-                    });
-                    const rxId = filenameToUse;
-                    const newAppointmentId = viewCaseManagerData?.tcm_id ?? 0;
-                    if (!rxId || !patient_data) return;
-                    try {
-                      const copyResponse = await copyAmbientRx(rxId, newAppointmentId);
-                      if (!copyResponse?.success) {
-                        console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
-                        return;
-                      }
-                      const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
-                      navigate("/prescription", {
-                        state: {
-                          patient_data: patient_data,
-                          send_path: "voice_rx_consult",
-                          caseManagerData: {
-                            ...lastPrescriptionData,
-                            smart_prescription_filename: copiedRxId,
-                            tcm_id: 0,
-                            consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
-                          }
-                        }
+                  <span
+                    className={styles.repeatRxLink}
+                    onClick={async () => {
+                      window.Moengage?.track_event("repeat_rx_click", {
+                        "doctor_id": viewCaseManagerData?.doctor_data?.um_id,
+                        "patient_id": patient_data?.patient_unique_id || 0,
+                        "rx_date": lastPrescriptionData.consultation_date
                       });
-                    } catch (error) {
-                      console.error("[PatientSummary Repeat Rx] Error", error);
-                    }
-                  }}
-                >
-                  <i className="icon-reload"></i>
-                  Repeat Rx ({moment(lastPrescriptionData.consultation_date).format("DD MMM'YY")})
-                </span>
+                      const rxId = filenameToUse;
+                      const newAppointmentId = viewCaseManagerData?.tcm_id ?? 0;
+                      if (!rxId || !patient_data) return;
+                      try {
+                        const copyResponse = await copyAmbientRx(rxId, newAppointmentId);
+                        if (!copyResponse?.success) {
+                          console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
+                          return;
+                        }
+                        const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
+                        navigate("/prescription", {
+                          state: {
+                            patient_data: patient_data,
+                            send_path: "voice_rx_consult",
+                            caseManagerData: {
+                              ...lastPrescriptionData,
+                              smart_prescription_filename: copiedRxId,
+                              tcm_id: 0,
+                              consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+                            }
+                          }
+                        });
+                      } catch (error) {
+                        console.error("[PatientSummary Repeat Rx] Error", error);
+                      }
+                    }}
+                  >
+                    <i className="icon-reload"></i>
+                    Repeat Rx ({moment(lastPrescriptionData.consultation_date).format("DD MMM'YY")})
+                  </span>
                 );
               })()}
             </div>
@@ -1377,111 +1377,111 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           <div className={styles.cardContent}>
             {/* Check if there's last visit summary data */}
             {(() => {
-              const hasLastVisitSummary = summaryData.lastVisitSummary && summaryData.lastVisitSummary.date && 
-             ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
-              (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
-              (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
-                 (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0));
-              
+              const hasLastVisitSummary = summaryData.lastVisitSummary && summaryData.lastVisitSummary.date &&
+                ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
+                  (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
+                  (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
+                  (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0));
+
               // If there's last visit summary, show it
               if (hasLastVisitSummary) {
                 return (
                   <>
                     {/* Last Visit Summary */}
-              <div className={styles.summarySection}>
-                <div className={styles.sectionContentInline}>
-                  <span className={styles.sectionTitleInline}>Last Visit ({summaryData.lastVisitSummary.date}):</span>
-                  {summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0 && (
-                    <>
-                      <span className={styles.inlineItem}>
-                        <strong>Symptoms:</strong> {summaryData.lastVisitSummary.symptoms.map((s, idx) => {
-                          const parts = [];
-                          if (s.duration) parts.push(`Duration: ${s.duration}`);
-                          if (s.severity) parts.push(`Severity: ${s.severity}`);
-                          return s.name + (parts.length > 0 ? ` (${parts.join(' | ')})` : '');
-                        }).join(', ')}
-                      </span>
-                      {(summaryData.lastVisitSummary.diagnosis?.length > 0 || summaryData.lastVisitSummary.medications?.length > 0 || summaryData.lastVisitSummary.labInvestigation?.length > 0) && 
-                       <span className={styles.separator}> | </span>}
-                    </>
-                  )}
-                  {summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0 && (
-                    <>
-                      <span className={styles.inlineItem}>
-                        <strong>Diagnosis:</strong> {summaryData.lastVisitSummary.diagnosis.map(d => d.name).join(', ')}
-                      </span>
-                      {(summaryData.lastVisitSummary.medications?.length > 0 || summaryData.lastVisitSummary.labInvestigation?.length > 0) && 
-                       <span className={styles.separator}> | </span>}
-                    </>
-                  )}
-                  {summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0 && (
-                    <>
-                      <span className={styles.inlineItem}>
-                        <strong>Medications:</strong> {summaryData.lastVisitSummary.medications.map(m => typeof m === 'string' ? m : m.name).join(', ')}
-                      </span>
-                      {summaryData.lastVisitSummary.labInvestigation?.length > 0 && 
-                       <span className={styles.separator}> | </span>}
-                    </>
-                  )}
-                  {summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0 && (
-                    <span className={styles.inlineItem}>
-                      <strong>Lab Tests:</strong> {summaryData.lastVisitSummary.labInvestigation.map(l => l.name).join(', ')}
-                    </span>
-                  )}
-                </div>
-              </div>
+                    <div className={styles.summarySection}>
+                      <div className={styles.sectionContentInline}>
+                        <span className={styles.sectionTitleInline}>Last Visit ({summaryData.lastVisitSummary.date}):</span>
+                        {summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0 && (
+                          <>
+                            <span className={styles.inlineItem}>
+                              <strong>Symptoms:</strong> {summaryData.lastVisitSummary.symptoms.map((s, idx) => {
+                                const parts = [];
+                                if (s.duration) parts.push(`Duration: ${s.duration}`);
+                                if (s.severity) parts.push(`Severity: ${s.severity}`);
+                                return s.name + (parts.length > 0 ? ` (${parts.join(' | ')})` : '');
+                              }).join(', ')}
+                            </span>
+                            {(summaryData.lastVisitSummary.diagnosis?.length > 0 || summaryData.lastVisitSummary.medications?.length > 0 || summaryData.lastVisitSummary.labInvestigation?.length > 0) &&
+                              <span className={styles.separator}> | </span>}
+                          </>
+                        )}
+                        {summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0 && (
+                          <>
+                            <span className={styles.inlineItem}>
+                              <strong>Diagnosis:</strong> {summaryData.lastVisitSummary.diagnosis.map(d => d.name).join(', ')}
+                            </span>
+                            {(summaryData.lastVisitSummary.medications?.length > 0 || summaryData.lastVisitSummary.labInvestigation?.length > 0) &&
+                              <span className={styles.separator}> | </span>}
+                          </>
+                        )}
+                        {summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0 && (
+                          <>
+                            <span className={styles.inlineItem}>
+                              <strong>Medications:</strong> {summaryData.lastVisitSummary.medications.map(m => typeof m === 'string' ? m : m.name).join(', ')}
+                            </span>
+                            {summaryData.lastVisitSummary.labInvestigation?.length > 0 &&
+                              <span className={styles.separator}> | </span>}
+                          </>
+                        )}
+                        {summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0 && (
+                          <span className={styles.inlineItem}>
+                            <strong>Lab Tests:</strong> {summaryData.lastVisitSummary.labInvestigation.map(l => l.name).join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-            {/* Chronic Conditions */}
-            {summaryData.chronicConditions && summaryData.chronicConditions.length > 0 && (
-              <div className={styles.summarySection}>
-                <div className={styles.sectionContentInline}>
-                  <span className={styles.sectionTitleInline}>Chronic Conditions:</span>
-                  {summaryData.chronicConditions.map((condition, idx) => (
-                    <span key={idx}>
-                      {idx > 0 && <span className={styles.separator}> | </span>}
-                      <span className={styles.inlineItem}>
-                        {condition.name}
-                        {condition.duration && condition.status && ` (${condition.duration}, ${condition.status})`}
-                        {condition.duration && !condition.status && ` (${condition.duration})`}
-                        {!condition.duration && condition.status && ` (${condition.status})`}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                    {/* Chronic Conditions */}
+                    {summaryData.chronicConditions && summaryData.chronicConditions.length > 0 && (
+                      <div className={styles.summarySection}>
+                        <div className={styles.sectionContentInline}>
+                          <span className={styles.sectionTitleInline}>Chronic Conditions:</span>
+                          {summaryData.chronicConditions.map((condition, idx) => (
+                            <span key={idx}>
+                              {idx > 0 && <span className={styles.separator}> | </span>}
+                              <span className={styles.inlineItem}>
+                                {condition.name}
+                                {condition.duration && condition.status && ` (${condition.duration}, ${condition.status})`}
+                                {condition.duration && !condition.status && ` (${condition.duration})`}
+                                {!condition.duration && condition.status && ` (${condition.status})`}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-            {/* Current Vitals */}
-            {summaryData.currentVitals && summaryData.currentVitals.length > 0 && (
-              <div className={styles.summarySection}>
-                <div className={styles.sectionContentInline}>
-                  <span className={styles.sectionTitleInline}>Current Vitals:</span>
-                  {summaryData.currentVitals.map((vital, idx) => (
-                    <span key={idx}>
-                      {idx > 0 && <span className={styles.separator}> | </span>}
-                      <span className={styles.inlineItem}>{vital}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                    {/* Current Vitals */}
+                    {summaryData.currentVitals && summaryData.currentVitals.length > 0 && (
+                      <div className={styles.summarySection}>
+                        <div className={styles.sectionContentInline}>
+                          <span className={styles.sectionTitleInline}>Current Vitals:</span>
+                          {summaryData.currentVitals.map((vital, idx) => (
+                            <span key={idx}>
+                              {idx > 0 && <span className={styles.separator}> | </span>}
+                              <span className={styles.inlineItem}>{vital}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-            {/* Concerning Lab Results */}
-            {summaryData.concerningLabResults && summaryData.concerningLabResults.length > 0 && (
-              <div className={styles.summarySection}>
-                <div className={styles.sectionContentInline}>
-                  <span className={styles.sectionTitleInline}>Concerning Lab Results ({moment().format("DD MMM'YY")}):</span>
-                  {summaryData.concerningLabResults.map((result, idx) => (
-                    <span key={idx}>
-                      {idx > 0 && <span className={styles.separator}> | </span>}
-                      <span className={styles.inlineItem}>
-                        <strong>{result.name}:</strong> {result.value} {result.indicator}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                    {/* Concerning Lab Results */}
+                    {summaryData.concerningLabResults && summaryData.concerningLabResults.length > 0 && (
+                      <div className={styles.summarySection}>
+                        <div className={styles.sectionContentInline}>
+                          <span className={styles.sectionTitleInline}>Concerning Lab Results ({moment().format("DD MMM'YY")}):</span>
+                          {summaryData.concerningLabResults.map((result, idx) => (
+                            <span key={idx}>
+                              {idx > 0 && <span className={styles.separator}> | </span>}
+                              <span className={styles.inlineItem}>
+                                <strong>{result.name}:</strong> {result.value} {result.indicator}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 );
               } else {
@@ -1527,35 +1527,35 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                     )}
 
                     {/* Medical History - Show directly when no last visit summary */}
-                    {Array.isArray(summaryData.medicalHistory) && summaryData.medicalHistory.length > 0 && 
-                     summaryData.medicalHistory.some(e => (e.no_know_history || e.tags?.length > 0)) && (
-                      <div className={styles.summarySection}>
-                        <div className={styles.sectionContentInline}>
-                          <span className={styles.sectionTitleInline}>Medical History:</span>
-                          {summaryData.medicalHistory.map((e, i) => {
-                            if (!(e.no_know_history || e.tags?.length > 0)) {
-                              return null;
-                            }
-                            
-                            const historyItems = [];
-                            if (!e.no_know_history && e.tags) {
-                              e.tags.filter(x => x.enable === 'Y').forEach((e1) => {
-                                historyItems.push(e1.title);
-                              });
-                            }
-                            
-                            return (
-                              <span key={i}>
-                                {i > 0 && <span className={styles.separator}> | </span>}
-                                <span className={styles.inlineItem}>
-                                  {e.title}: {e.no_know_history ? 'No known history' : historyItems.join(', ')}
+                    {Array.isArray(summaryData.medicalHistory) && summaryData.medicalHistory.length > 0 &&
+                      summaryData.medicalHistory.some(e => (e.no_know_history || e.tags?.length > 0)) && (
+                        <div className={styles.summarySection}>
+                          <div className={styles.sectionContentInline}>
+                            <span className={styles.sectionTitleInline}>Medical History:</span>
+                            {summaryData.medicalHistory.map((e, i) => {
+                              if (!(e.no_know_history || e.tags?.length > 0)) {
+                                return null;
+                              }
+
+                              const historyItems = [];
+                              if (!e.no_know_history && e.tags) {
+                                e.tags.filter(x => x.enable === 'Y').forEach((e1) => {
+                                  historyItems.push(e1.title);
+                                });
+                              }
+
+                              return (
+                                <span key={i}>
+                                  {i > 0 && <span className={styles.separator}> | </span>}
+                                  <span className={styles.inlineItem}>
+                                    {e.title}: {e.no_know_history ? 'No known history' : historyItems.join(', ')}
+                                  </span>
                                 </span>
-                              </span>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
                     {/* Chronic Conditions - Show even when no last visit summary */}
                     {summaryData.chronicConditions && summaryData.chronicConditions.length > 0 && (
@@ -1615,353 +1615,353 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
           </div>
         </div>
 
-        {!showDetailedSummary && summaryData.lastVisitSummary && summaryData.lastVisitSummary.date && 
-         ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
-          (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
-          (summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0) ||
-          (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
-          (summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "") ||
-          (summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0) ||
-          (Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0) ||
-          (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0)) && (
-          <div className={styles.viewDetailedButton} onClick={toggleDetailedSummary}>
-            <span>View Detailed Summary</span>
-            <img 
-              src={arrowDownIcon} 
-              alt="Arrow Down" 
-              className={styles.arrowIcon}
-            />
-          </div>
-        )}
+        {!showDetailedSummary && summaryData.lastVisitSummary && summaryData.lastVisitSummary.date &&
+          ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
+            (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
+            (summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0) ||
+            (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
+            (summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "") ||
+            (summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0) ||
+            (Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0) ||
+            (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0)) && (
+            <div className={styles.viewDetailedButton} onClick={toggleDetailedSummary}>
+              <span>View Detailed Summary</span>
+              <img
+                src={arrowDownIcon}
+                alt="Arrow Down"
+                className={styles.arrowIcon}
+              />
+            </div>
+          )}
 
-        {showDetailedSummary && summaryData.lastVisitSummary && summaryData.lastVisitSummary.date && 
-         ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
-          (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
-          (summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0) ||
-          (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
-          (summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "") ||
-          (summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0) ||
-          (Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0) ||
-          (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0)) && (
-          <div className={styles.detailedSummaryContainer}>
-            <div className={styles.detailedCard}>
-              <div className={styles.cardHeader}>
-                <img src={noteIcon} alt="Last Visit Summary" className={styles.headerIcon} />
-                <h3 className={styles.cardTitle}>Last Visit Summary {summaryData.lastVisitSummary && summaryData.lastVisitSummary.date && `(${summaryData.lastVisitSummary.date})`}</h3>
-              </div>
-              <div className={styles.headerSeparator}></div>
-              <div className={styles.detailedCardContent}>
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Key Symptoms:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.symptoms.map((symptom, idx) => {
-                        const parts = [];
-                        if (symptom.duration) parts.push(`Duration: ${symptom.duration}`);
-                        if (symptom.severity) parts.push(`Severity: ${symptom.severity}`);
-                        if (symptom.notes) parts.push(`Notes: ${symptom.notes}`);
-                        return (
-                          <li key={idx} className={styles.lastVisitListItem}>
-                            {symptom.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Diagnosis:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.diagnosis.map((diag, idx) => {
-                        const parts = [];
-                        if (diag.since) parts.push(`Since: ${diag.since}`);
-                        if (diag.status) parts.push(`Status: ${diag.status}`);
-                        if (diag.notes) parts.push(`Notes: ${diag.notes}`);
-                        return (
-                          <li key={idx} className={styles.lastVisitListItem}>
-                            {diag.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Examination:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.examination.map((exam, idx) => (
-                        <li key={idx} className={styles.lastVisitListItem}>
-                          {exam.name}{exam.notes && ` (Notes: ${exam.notes})`}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Medications:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.medications.map((medication, idx) => {
-                        // Handle both string and object formats
-                        if (typeof medication === 'string') {
+        {showDetailedSummary && summaryData.lastVisitSummary && summaryData.lastVisitSummary.date &&
+          ((summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0) ||
+            (summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0) ||
+            (summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0) ||
+            (summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0) ||
+            (summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "") ||
+            (summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0) ||
+            (Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0) ||
+            (summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0)) && (
+            <div className={styles.detailedSummaryContainer}>
+              <div className={styles.detailedCard}>
+                <div className={styles.cardHeader}>
+                  <img src={noteIcon} alt="Last Visit Summary" className={styles.headerIcon} />
+                  <h3 className={styles.cardTitle}>Last Visit Summary {summaryData.lastVisitSummary && summaryData.lastVisitSummary.date && `(${summaryData.lastVisitSummary.date})`}</h3>
+                </div>
+                <div className={styles.headerSeparator}></div>
+                <div className={styles.detailedCardContent}>
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.symptoms && summaryData.lastVisitSummary.symptoms.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Key Symptoms:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.symptoms.map((symptom, idx) => {
+                          const parts = [];
+                          if (symptom.duration) parts.push(`Duration: ${symptom.duration}`);
+                          if (symptom.severity) parts.push(`Severity: ${symptom.severity}`);
+                          if (symptom.notes) parts.push(`Notes: ${symptom.notes}`);
                           return (
                             <li key={idx} className={styles.lastVisitListItem}>
-                              {medication}
+                              {symptom.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
                             </li>
                           );
-                        }
-                        // Object format - display with all details in brackets
-                        const parts = [];
-                        if (medication.dosage) parts.push(`Dosage: ${medication.dosage}`);
-                        if (medication.frequency) parts.push(`Frequency: ${medication.frequency}`);
-                        if (medication.schedule) parts.push(`When: ${medication.schedule}`);
-                        if (medication.duration) parts.push(`Duration: ${medication.duration}`);
-                        if (medication.quantity) parts.push(`Quantity: ${medication.quantity}`);
-                        if (medication.notes) parts.push(`Notes: ${medication.notes}`);
-                        return (
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.diagnosis && summaryData.lastVisitSummary.diagnosis.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Diagnosis:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.diagnosis.map((diag, idx) => {
+                          const parts = [];
+                          if (diag.since) parts.push(`Since: ${diag.since}`);
+                          if (diag.status) parts.push(`Status: ${diag.status}`);
+                          if (diag.notes) parts.push(`Notes: ${diag.notes}`);
+                          return (
+                            <li key={idx} className={styles.lastVisitListItem}>
+                              {diag.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.examination && summaryData.lastVisitSummary.examination.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Examination:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.examination.map((exam, idx) => (
                           <li key={idx} className={styles.lastVisitListItem}>
-                            {medication.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
+                            {exam.name}{exam.notes && ` (Notes: ${exam.notes})`}
                           </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "" && (
-                  <div className={styles.detailedSection}>
-                    <strong>Follow-up:</strong>
-                    <ul className={styles.lastVisitList}>
-                      <li className={styles.lastVisitListItem}>
-                        {summaryData.lastVisitSummary.followUp}
-                      </li>
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Vaccination:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.vaccinations.map((vaccine, idx) => {
-                        const vaccineText = typeof vaccine === 'string' 
-                          ? vaccine 
-                          : [vaccine.name, vaccine.schedule, vaccine.notes].filter(Boolean).join(", ");
-                        return (
-                          <li key={idx} className={styles.lastVisitListItem}>
-                            {vaccineText}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Advice:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.advice.map((adviceItem, idx) => {
-                        // Handle both string and object formats
-                        const adviceText = typeof adviceItem === 'string' 
-                          ? adviceItem 
-                          : (typeof adviceItem === 'object' && adviceItem !== null
-                            ? (adviceItem.advice_name || adviceItem.name || adviceItem.lineItem || "")
-                            : String(adviceItem || ""));
-                        return (
-                          <li key={idx} className={styles.lastVisitListItem}>
-                            {adviceText}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    <strong>Lab Investigation:</strong>
-                    <ul className={styles.lastVisitList}>
-                      {summaryData.lastVisitSummary.labInvestigation.map((lab, idx) => (
-                        <li key={idx} className={styles.lastVisitListItem}>
-                          {lab.name}{(lab.instruction || lab.lineItem) && ` (${lab.instruction || lab.lineItem})`}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {summaryData.lastVisitSummary && summaryData.lastVisitSummary.dynamicFields && summaryData.lastVisitSummary.dynamicFields.length > 0 && (
-                  <div className={styles.detailedSection}>
-                    {summaryData.lastVisitSummary.dynamicFields.map((field, idx) => (
-                      <div key={idx} className={styles.detailedSection}>
-                        <strong>{field.title}:</strong>
-                        <ul className={styles.lastVisitList}>
-                          <li className={styles.lastVisitListItem}>
-                            {field.notes}
-                          </li>
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {summaryData.vitals.length > 0 && (
-              <div className={styles.detailedCard}>
-                <div className={styles.cardHeader}>
-                  <img src={vitalsIcon} alt="Vitals" className={styles.headerIcon} />
-                  <h3 className={styles.cardTitle}>Vitals</h3>
-                </div>
-                <div className={styles.headerSeparator}></div>
-                <div className={styles.detailedCardContent}>
-                  <ul className={styles.vitalsList}>
-                    {summaryData.vitals.map((vital, idx) => (
-                      <li key={idx} className={styles.vitalRow}>
-                        <strong>{vital.date}:</strong> {vital.formatted}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {summaryData.labResults.length > 0 && (
-              <div className={styles.detailedCard}>
-                <div className={styles.cardHeader}>
-                  <img src={labIcon} alt="Lab Results" className={styles.headerIcon} />
-                  <div className={styles.cardHeaderWithAction}>
-                    <h3 className={styles.cardTitle}>Lab Results</h3>
-                    <span className={styles.viewAllLink} onClick={handleViewLabParamsDrawer}>View All &gt;</span>
-                  </div>
-                </div>
-                <div className={styles.headerSeparator}></div>
-                <div className={styles.detailedCardContent}>
-                  <ul className={styles.labResultsList}>
-                    {summaryData.labResults.map((lab, idx) => (
-                      <li key={idx} className={styles.labRow}>
-                        <strong>{lab.date}:</strong> {lab.tests && lab.tests.length > 0 ? (
-                          <span>({lab.tests.join(' | ')})</span>
-                        ) : (
-                          <span>No test results</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {viewlabparamsDrawer && (
-              <Drawer
-                closeIcon={false}
-                width="auto"
-                className="modalWidth-700"
-                placement="right"
-                open={viewlabparamsDrawer}
-                onClose={handleViewLabParamsDrawer}
-              >
-                <ViewLabParam 
-                  handleViewLabParamsDrawer={handleViewLabParamsDrawer} 
-                  labParamsData={labParamsData} 
-                  handleSwitchToAddLabParams={handleSwitchToAddLabParams}
-                />
-              </Drawer>
-            )}
-
-            {addlabparamsDrawer && (
-              <Drawer
-                closeIcon={false}
-                width={880}
-                placement="right"
-                open={addlabparamsDrawer}
-                onClose={showHideBackModal}
-              >
-                <LabParams 
-                  handleAddLabParamsDrawer={handleAddLabParamsDrawer} 
-                  patient_unique_id={patient_data?.patient_unique_id} 
-                  onSave={handleLabParamsUpdate} 
-                  isBackModalOpen={isBackModalOpen} 
-                  showHideBackModal={showHideBackModal}
-                />
-              </Drawer>
-            )}
-
-            {Array.isArray(summaryData.medicalHistory) && summaryData.medicalHistory.length > 0 && summaryData.medicalHistory.some(e => (e.no_know_history || e.tags?.length > 0)) && (
-              <div className={styles.detailedCard}>
-                <div className={styles.cardHeader}>
-                  <img src={ddxIcon} alt="Medical History" className={styles.headerIcon} />
-                  <h3 className={styles.cardTitle}>Medical History</h3>
-                </div>
-                <div className={styles.headerSeparator}></div>
-                <div className={styles.detailedCardContent}>
-                  {summaryData.medicalHistory.map((e, i) => {
-                    if (!(e.no_know_history || e.tags?.length > 0)) {
-                      return null;
-                    }
-                    
-                    return (
-                      <div key={i} className={styles.medicalHistorySection}>
-                        <div className={styles.medicalHistoryTitle}><strong>{e.title}:</strong></div>
-                        {!e.no_know_history ? (
-                          <ul className={styles.medicalHistoryList}>
-                            {e.tags?.filter(x => x.enable === 'Y').map((e1, i1) => {
-                              const details = [];
-                              
-                              if (e1.since && e?.tmmhs_id !== 5) {
-                                details.push(`Since: ${e1.since}`);
-                              }
-                              if (e1.date && e?.tmmhs_id === 5) {
-                                details.push(`Date of Surgery: ${e1.date}`);
-                              }
-                              if (e.tmmhs_id !== 3 && e?.tmmhs_id !== 5) {
-                                if (e1.status) {
-                                  details.push(`Status: ${e1.status}`);
-                                }
-                                if (e1.medication) {
-                                  details.push(`Medication: ${e1.medication}`);
-                                }
-                              }
-                              if (e.tmmhs_id === 3 && e1.relationship) {
-                                details.push(`Relation: ${e1.relationship}`);
-                              }
-                              if (e1.note) {
-                                details.push(`Notes: ${e1.note}`);
-                              }
-                              
-                              return (
-                                <li key={i1} className={styles.medicalHistoryListItem}>
-                                  <strong>{e1.title}:</strong>
-                                  {details.length > 0 && ` (${details.join(' | ')})`}
-                                </li>
-                              );
-                            })}
-                            {e.tags?.filter(x => x.enable === 'N').map((e1, i1) => (
-                              <li key={`no-${i1}`} className={styles.medicalHistoryListItem}>
-                                <strong>No {e1.title}</strong>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.medications && summaryData.lastVisitSummary.medications.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Medications:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.medications.map((medication, idx) => {
+                          // Handle both string and object formats
+                          if (typeof medication === 'string') {
+                            return (
+                              <li key={idx} className={styles.lastVisitListItem}>
+                                {medication}
                               </li>
-                            ))}
+                            );
+                          }
+                          // Object format - display with all details in brackets
+                          const parts = [];
+                          if (medication.dosage) parts.push(`Dosage: ${medication.dosage}`);
+                          if (medication.frequency) parts.push(`Frequency: ${medication.frequency}`);
+                          if (medication.schedule) parts.push(`When: ${medication.schedule}`);
+                          if (medication.duration) parts.push(`Duration: ${medication.duration}`);
+                          if (medication.quantity) parts.push(`Quantity: ${medication.quantity}`);
+                          if (medication.notes) parts.push(`Notes: ${medication.notes}`);
+                          return (
+                            <li key={idx} className={styles.lastVisitListItem}>
+                              {medication.name}{parts.length > 0 && ` (${parts.join(' | ')})`}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.followUp && summaryData.lastVisitSummary.followUp.trim() !== "" && (
+                    <div className={styles.detailedSection}>
+                      <strong>Follow-up:</strong>
+                      <ul className={styles.lastVisitList}>
+                        <li className={styles.lastVisitListItem}>
+                          {summaryData.lastVisitSummary.followUp}
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.vaccinations && summaryData.lastVisitSummary.vaccinations.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Vaccination:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.vaccinations.map((vaccine, idx) => {
+                          const vaccineText = typeof vaccine === 'string'
+                            ? vaccine
+                            : [vaccine.name, vaccine.schedule, vaccine.notes].filter(Boolean).join(", ");
+                          return (
+                            <li key={idx} className={styles.lastVisitListItem}>
+                              {vaccineText}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && Array.isArray(summaryData.lastVisitSummary.advice) && summaryData.lastVisitSummary.advice.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Advice:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.advice.map((adviceItem, idx) => {
+                          // Handle both string and object formats
+                          const adviceText = typeof adviceItem === 'string'
+                            ? adviceItem
+                            : (typeof adviceItem === 'object' && adviceItem !== null
+                              ? (adviceItem.advice_name || adviceItem.name || adviceItem.lineItem || "")
+                              : String(adviceItem || ""));
+                          return (
+                            <li key={idx} className={styles.lastVisitListItem}>
+                              {adviceText}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.labInvestigation && summaryData.lastVisitSummary.labInvestigation.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      <strong>Investigation:</strong>
+                      <ul className={styles.lastVisitList}>
+                        {summaryData.lastVisitSummary.labInvestigation.map((lab, idx) => (
+                          <li key={idx} className={styles.lastVisitListItem}>
+                            {lab.name}{(lab.instruction || lab.lineItem) && ` (${lab.instruction || lab.lineItem})`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {summaryData.lastVisitSummary && summaryData.lastVisitSummary.dynamicFields && summaryData.lastVisitSummary.dynamicFields.length > 0 && (
+                    <div className={styles.detailedSection}>
+                      {summaryData.lastVisitSummary.dynamicFields.map((field, idx) => (
+                        <div key={idx} className={styles.detailedSection}>
+                          <strong>{field.title}:</strong>
+                          <ul className={styles.lastVisitList}>
+                            <li className={styles.lastVisitListItem}>
+                              {field.notes}
+                            </li>
                           </ul>
-                        ) : (
-                          <div className={styles.noKnownHistory}>No known history</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {summaryData.medicalHistory?.[0]?.medical_history_remarks && (
-                    <div className={styles.medicalHistorySection}>
-                      <div className={styles.medicalHistoryTitle}><strong>Additional History:</strong></div>
-                      <div className={styles.medicalHistoryRemarks}>
-                        {summaryData.medicalHistory[0].medical_history_remarks}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
-            )}
-            <div className={styles.viewLessButton} onClick={toggleDetailedSummary}>
-              <span>View Less ^</span>
+
+              {summaryData.vitals.length > 0 && (
+                <div className={styles.detailedCard}>
+                  <div className={styles.cardHeader}>
+                    <img src={vitalsIcon} alt="Vitals" className={styles.headerIcon} />
+                    <h3 className={styles.cardTitle}>Vitals</h3>
+                  </div>
+                  <div className={styles.headerSeparator}></div>
+                  <div className={styles.detailedCardContent}>
+                    <ul className={styles.vitalsList}>
+                      {summaryData.vitals.map((vital, idx) => (
+                        <li key={idx} className={styles.vitalRow}>
+                          <strong>{vital.date}:</strong> {vital.formatted}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {summaryData.labResults.length > 0 && (
+                <div className={styles.detailedCard}>
+                  <div className={styles.cardHeader}>
+                    <img src={labIcon} alt="Lab Results" className={styles.headerIcon} />
+                    <div className={styles.cardHeaderWithAction}>
+                      <h3 className={styles.cardTitle}>Lab Results</h3>
+                      <span className={styles.viewAllLink} onClick={handleViewLabParamsDrawer}>View All &gt;</span>
+                    </div>
+                  </div>
+                  <div className={styles.headerSeparator}></div>
+                  <div className={styles.detailedCardContent}>
+                    <ul className={styles.labResultsList}>
+                      {summaryData.labResults.map((lab, idx) => (
+                        <li key={idx} className={styles.labRow}>
+                          <strong>{lab.date}:</strong> {lab.tests && lab.tests.length > 0 ? (
+                            <span>({lab.tests.join(' | ')})</span>
+                          ) : (
+                            <span>No test results</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {viewlabparamsDrawer && (
+                <Drawer
+                  closeIcon={false}
+                  width="auto"
+                  className="modalWidth-700"
+                  placement="right"
+                  open={viewlabparamsDrawer}
+                  onClose={handleViewLabParamsDrawer}
+                >
+                  <ViewLabParam
+                    handleViewLabParamsDrawer={handleViewLabParamsDrawer}
+                    labParamsData={labParamsData}
+                    handleSwitchToAddLabParams={handleSwitchToAddLabParams}
+                  />
+                </Drawer>
+              )}
+
+              {addlabparamsDrawer && (
+                <Drawer
+                  closeIcon={false}
+                  width={880}
+                  placement="right"
+                  open={addlabparamsDrawer}
+                  onClose={showHideBackModal}
+                >
+                  <LabParams
+                    handleAddLabParamsDrawer={handleAddLabParamsDrawer}
+                    patient_unique_id={patient_data?.patient_unique_id}
+                    onSave={handleLabParamsUpdate}
+                    isBackModalOpen={isBackModalOpen}
+                    showHideBackModal={showHideBackModal}
+                  />
+                </Drawer>
+              )}
+
+              {Array.isArray(summaryData.medicalHistory) && summaryData.medicalHistory.length > 0 && summaryData.medicalHistory.some(e => (e.no_know_history || e.tags?.length > 0)) && (
+                <div className={styles.detailedCard}>
+                  <div className={styles.cardHeader}>
+                    <img src={ddxIcon} alt="Medical History" className={styles.headerIcon} />
+                    <h3 className={styles.cardTitle}>Medical History</h3>
+                  </div>
+                  <div className={styles.headerSeparator}></div>
+                  <div className={styles.detailedCardContent}>
+                    {summaryData.medicalHistory.map((e, i) => {
+                      if (!(e.no_know_history || e.tags?.length > 0)) {
+                        return null;
+                      }
+
+                      return (
+                        <div key={i} className={styles.medicalHistorySection}>
+                          <div className={styles.medicalHistoryTitle}><strong>{e.title}:</strong></div>
+                          {!e.no_know_history ? (
+                            <ul className={styles.medicalHistoryList}>
+                              {e.tags?.filter(x => x.enable === 'Y').map((e1, i1) => {
+                                const details = [];
+
+                                if (e1.since && e?.tmmhs_id !== 5) {
+                                  details.push(`Since: ${e1.since}`);
+                                }
+                                if (e1.date && e?.tmmhs_id === 5) {
+                                  details.push(`Date of Surgery: ${e1.date}`);
+                                }
+                                if (e.tmmhs_id !== 3 && e?.tmmhs_id !== 5) {
+                                  if (e1.status) {
+                                    details.push(`Status: ${e1.status}`);
+                                  }
+                                  if (e1.medication) {
+                                    details.push(`Medication: ${e1.medication}`);
+                                  }
+                                }
+                                if (e.tmmhs_id === 3 && e1.relationship) {
+                                  details.push(`Relation: ${e1.relationship}`);
+                                }
+                                if (e1.note) {
+                                  details.push(`Notes: ${e1.note}`);
+                                }
+
+                                return (
+                                  <li key={i1} className={styles.medicalHistoryListItem}>
+                                    <strong>{e1.title}:</strong>
+                                    {details.length > 0 && ` (${details.join(' | ')})`}
+                                  </li>
+                                );
+                              })}
+                              {e.tags?.filter(x => x.enable === 'N').map((e1, i1) => (
+                                <li key={`no-${i1}`} className={styles.medicalHistoryListItem}>
+                                  <strong>No {e1.title}</strong>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className={styles.noKnownHistory}>No known history</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {summaryData.medicalHistory?.[0]?.medical_history_remarks && (
+                      <div className={styles.medicalHistorySection}>
+                        <div className={styles.medicalHistoryTitle}><strong>Additional History:</strong></div>
+                        <div className={styles.medicalHistoryRemarks}>
+                          {summaryData.medicalHistory[0].medical_history_remarks}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className={styles.viewLessButton} onClick={toggleDetailedSummary}>
+                <span>View Less ^</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
     </div>
