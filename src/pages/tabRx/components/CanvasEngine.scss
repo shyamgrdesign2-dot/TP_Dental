@@ -5,6 +5,10 @@
   position: relative;
   touch-action: none;
   cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 
   /* When embedded in scroll: allow vertical scroll with touch */
   &.embedded-in-scroll {
@@ -21,16 +25,30 @@
     position: relative;
     transition: transform 0.075s ease-out;
 
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      touch-action: none;
-      z-index: 0;
-    }
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    z-index: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    // CRITICAL: Prevent browser context menu and text selection
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+    // Ensure canvas always receives pointer events
+    pointer-events: auto !important;
+  }
 
     .text-layer {
       position: absolute;

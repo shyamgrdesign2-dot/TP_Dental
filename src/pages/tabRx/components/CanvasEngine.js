@@ -1,14 +1,11 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { getMidPoint, generateId, splitStroke } from '../utils/geometry';
-import { FaGripVertical, FaGripHorizontal, FaTimes, FaCheck, FaTrash } from 'react-icons/fa';
 import './CanvasEngine.scss';
 
 const CanvasEngine = React.forwardRef(({
   strokes,
   setStrokes,
-  textElements,
-  setTextElements,
   onStrokeComplete,
   onEraseStart,
   toolSettings,
@@ -20,119 +17,108 @@ const CanvasEngine = React.forwardRef(({
   onInteractionStart,
   onPageFocus,
   backgroundImage,
-  embeddedInScroll = false
+  embeddedInScroll = false,
+  onContentChange = null // ✅ Optional callback for content changes
 }, ref) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  
+
   // Expose canvas ref to parent
   React.useImperativeHandle(ref, () => ({
     getCanvas: () => canvasRef.current
   }), []);
-  
-  // Local state
-  const [currentStroke, setCurrentStroke] = useState(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [isErasing, setIsErasing] = useState(false);
-  const [isPanning, setIsPanning] = useState(false);
-  const [lastPanPoint, setLastPanPoint] = useState(null);
-  const [bgImageObj, setBgImageObj] = useState(null);
-  
-  // Touch Zoom State
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ALL MUTABLE STATE LIVES IN REFS so renderCanvas never has a stale closure.
+  // This is how Excalidraw works: render reads from refs, not from React state.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Mirror of `strokes` prop — always up-to-date
+  const strokesRef = useRef(strokes);
+
+  // Mirror of `bgImageObj` — always up-to-date
+  const bgImageObjRef = useRef(null);
+
+  // Current stroke being drawn (live, updated on every pointermove)
+  const currentStrokeRef = useRef(null);
+
+  // Drawing mode flags
+  const isDrawingRef = useRef(false);
+  const isPanningRef = useRef(false);
+  const isErasingRef = useRef(false);
+
+  // Interaction tracking
+  const isInteractingRef = useRef(false);
+  const activePointerId = useRef(null);
+
+  // Panning
+  const lastPanPointRef = useRef(null);
+
+  // Pinch-zoom state
   const initialPinchDist = useRef(null);
   const initialZoom = useRef(1);
-  // Store the actual point on the paper (canvas coordinate) where the pinch started
   const pinchStartCanvasPoint = useRef(null);
+
+  // Mirror of zoomLevel / panOffset so renderCanvas doesn't capture stale values
+  const zoomLevelRef = useRef(zoomLevel);
+  const panOffsetRef = useRef(panOffset);
+
+  // ✅ EXCALIDRAW PATTERN: Store handler functions in refs so native listeners always have latest version
+  const handlePointerDownRef = useRef(null);
+  const handlePointerMoveRef = useRef(null);
+  const handlePointerUpRef = useRef(null);
+  const handlePointerCancelRef = useRef(null);
+
+  // ✅ EXCALIDRAW PATTERN: Queue for completed strokes to defer parent updates
+  const completedStrokesQueueRef = useRef([]);
+  const onStrokeCompleteRef = useRef(onStrokeComplete);
+  const onContentChangeRef = useRef(onContentChange);
+
+  // Keep all mirrors in sync
+  useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
+  useEffect(() => { panOffsetRef.current = panOffset; }, [panOffset]);
   
-  // Text State
-  const [selectedTextId, setSelectedTextId] = useState(null);
-  const [textDragState, setTextDragState] = useState(null);
+  // Keep callback refs in sync
+  useEffect(() => { onStrokeCompleteRef.current = onStrokeComplete; }, [onStrokeComplete]);
+  useEffect(() => { onContentChangeRef.current = onContentChange; }, [onContentChange]);
 
-  // Load background image with CORS support to avoid tainted canvas
-  useEffect(() => {
-    if (backgroundImage) {
-      const img = new Image();
-      // Set crossOrigin to avoid tainted canvas errors when exporting
-      img.crossOrigin = "anonymous";
-      img.src = backgroundImage;
-      img.onload = () => {
-        setBgImageObj(img);
-      };
-      img.onerror = (error) => {
-        console.warn('⚠️ [CanvasEngine] Failed to load background image (CORS or other error):', error);
-        // If image fails to load due to CORS, set to null to use blank background
-        setBgImageObj(null);
-      };
-    } else {
-      setBgImageObj(null);
-    }
-  }, [backgroundImage]);
+  // Helper to detect iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  // Helper to convert screen coordinates to canvas coordinates
-  const getCanvasCoordinates = (e) => {
-    if (!canvasRef.current) return { x: 0, y: 0, pressure: 0.5 };
-    const rect = canvasRef.current.getBoundingClientRect();
-    const pressure = e.pressure; 
-    
-    return {
-      x: (e.clientX - rect.left) / zoomLevel,
-      y: (e.clientY - rect.top) / zoomLevel,
-      pressure: pressure !== undefined ? pressure : 0.5
-    };
-  };
-
-  // Helper to center the view on a specific point (no-op when embedded in scroll)
-  const centerViewOnPoint = (targetX, targetY) => {
-     if (embeddedInScroll || !containerRef.current) return;
-     const containerW = containerRef.current.clientWidth;
-     const containerH = containerRef.current.clientHeight;
-
-     const newPanX = (containerW / 2) - (targetX * zoomLevel);
-     const newPanY = (containerH / 2) - (targetY * zoomLevel);
-
-     setPanOffset({ x: newPanX, y: newPanY });
-  };
-
-
-  // --- Eraser Logic ---
-  const performErase = (eraserPoint) => {
-    const eraserRadius = (toolSettings.thickness * 4) / zoomLevel; 
-    
-    let hasChanges = false;
-    let nextStrokes = [];
-    
-    for (const stroke of strokes) {
-        const fragments = splitStroke(stroke, eraserPoint, eraserRadius);
-        if (fragments.length === 1 && fragments[0].points.length === stroke.points.length) {
-            nextStrokes.push(stroke); 
-        } else {
-            hasChanges = true;
-            nextStrokes.push(...fragments);
-        }
-    }
-
-    if (hasChanges) {
-       setStrokes(nextStrokes);
-    }
-  };
-
-  // --- Rendering Loop ---
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER — reads ONLY from refs, so it is NEVER stale no matter when called.
+  // ─────────────────────────────────────────────────────────────────────────────
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.warn('⚠️ [CanvasEngine] renderCanvas: canvas is null');
+      return;
+    }
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('⚠️ [CanvasEngine] renderCanvas: ctx is null');
+      return;
+    }
+
+    const strokesCount = strokesRef.current.length;
+    const hasCurrentStroke = currentStrokeRef.current !== null;
+    const currentStrokePoints = currentStrokeRef.current?.points.length || 0;
+
+    // ✅ DEBUG: Log render info (enable with window.__CANVAS_DEBUG__ = true in console)
+    if (window.__CANVAS_DEBUG__) {
+      console.log(`🎨 [CanvasEngine] renderCanvas: Rendering ${strokesCount} strokes${hasCurrentStroke ? ` + current stroke (${currentStrokePoints} points)` : ''}`);
+    }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (bgImageObj) {
-      ctx.drawImage(bgImageObj, 0, 0, canvas.width, canvas.height);
+    if (bgImageObjRef.current) {
+      ctx.drawImage(bgImageObjRef.current, 0, 0, canvas.width, canvas.height);
     } else {
-      // Default Grid
       ctx.strokeStyle = '#F3F4F6';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -142,410 +128,954 @@ const CanvasEngine = React.forwardRef(({
     }
 
     const drawStroke = (stroke) => {
-      if (stroke.points.length < 2) return;
-
+      if (!stroke || stroke.points.length < 2) return;
       ctx.beginPath();
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = stroke.thickness;
-      
       if (stroke.tool === 'highlighter') {
         ctx.globalAlpha = 0.3;
         ctx.globalCompositeOperation = 'multiply';
-        ctx.lineWidth = stroke.thickness * 2; 
+        ctx.lineWidth = stroke.thickness * 2;
       } else {
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';
       }
-
       const p0 = stroke.points[0];
       ctx.moveTo(p0.x, p0.y);
-
       for (let i = 1; i < stroke.points.length - 1; i++) {
         const p1 = stroke.points[i];
         const p2 = stroke.points[i + 1];
         const mid = getMidPoint(p1, p2);
         ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
       }
-      
       const last = stroke.points[stroke.points.length - 1];
       ctx.lineTo(last.x, last.y);
       ctx.stroke();
-
       ctx.globalAlpha = 1.0;
       ctx.globalCompositeOperation = 'source-over';
     };
 
-    strokes.forEach(drawStroke);
+    // Draw all committed strokes (from ref — always latest)
+    strokesRef.current.forEach(drawStroke);
 
-    if (currentStroke) {
-      drawStroke(currentStroke);
+    // Draw the stroke currently being drawn (from ref — always latest)
+    if (currentStrokeRef.current) {
+      drawStroke(currentStrokeRef.current);
     }
+  }, []); // ← EMPTY DEPS on purpose: reads everything from refs, never stale
 
-  }, [strokes, currentStroke, bgImageObj]);
-
+  // Sync strokesRef with strokes prop AFTER renderCanvas is defined
+  // ✅ Only sync when NOT actively drawing to avoid mid-stroke races
+  // ✅ CRITICAL: Don't include renderCanvas in deps - it causes unnecessary re-renders
+  // ✅ CRITICAL: Never overwrite strokesRef with stale data that has fewer strokes
+  // This prevents data loss when parent re-renders during tool/zoom changes
   useEffect(() => {
-    requestAnimationFrame(renderCanvas);
-  }, [renderCanvas]);
-
-
-  // --- Event Handlers ---
-
-  const handlePointerDown = (e) => {
-    if (!e.isPrimary) return;
-
-    // --- PALM REJECTION / NATIVE IPAD BEHAVIOR ---
-    const isTouch = e.pointerType === 'touch';
-    
-    // 1. Text Interaction Priority
-    const target = e.target;
-    const isInteractingWithText = target.closest('[data-text-element]');
-    if (isInteractingWithText) return; 
-    
-    // 2. Text Creation Logic
-    if (toolSettings.activeTool === 'text') {
-        e.preventDefault();
-        
-        if (selectedTextId) return;
-
-        const nonEmptyElements = textElements.filter(t => t.content.trim().length > 0);
-        const pt = getCanvasCoordinates(e);
-        const newText = {
-           id: generateId(),
-           x: pt.x,
-           y: pt.y,
-           content: '',
-           color: toolSettings.color,
-           fontSize: 14 // Start small as requested (14px)
-       };
-       setTextElements([...nonEmptyElements, newText]);
-       setSelectedTextId(newText.id);
-       
-       centerViewOnPoint(pt.x, pt.y - 50); 
-       return;
+    if (!isDrawingRef.current) {
+      const currentStrokes = strokesRef.current;
+      
+      // ✅ CRITICAL: Protect against data loss - NEVER overwrite with fewer strokes
+      // This happens when parent re-renders during zoom/tool changes and passes stale prop
+      // The ref has the latest strokes (from drawing), but parent state hasn't updated yet
+      if (strokes.length < currentStrokes.length) {
+        console.log(`⚠️ [CanvasEngine] Ignoring stale strokes prop: ${strokes.length} < ${currentStrokes.length} (ref has more strokes) - likely parent re-render before state update`);
+        // ✅ CRITICAL: Instead, update parent with our latest strokes to keep them in sync
+        if (setStrokes && currentStrokes.length > 0) {
+          console.log(`🔄 [CanvasEngine] Updating parent with latest strokes: ${currentStrokes.length}`);
+          setStrokes(currentStrokes);
+        }
+        return; // Don't overwrite with stale data
+      }
+      
+      // ✅ CRITICAL: Also protect against empty prop when we have strokes
+      if (strokes.length === 0 && currentStrokes.length > 0) {
+        console.log(`⚠️ [CanvasEngine] Ignoring empty strokes prop (have ${currentStrokes.length} strokes in ref) - likely parent re-render`);
+        return; // Don't clear existing strokes
+      }
+      
+      // ✅ CRITICAL: Deep comparison to avoid unnecessary updates
+      // Only update if the strokes array actually changed (length or content)
+      const strokesChanged = 
+        currentStrokes.length !== strokes.length ||
+        strokes.some((stroke, idx) => {
+          const currentStroke = currentStrokes[idx];
+          return !currentStroke || 
+                 currentStroke.id !== stroke.id || 
+                 currentStroke.points.length !== stroke.points.length;
+        });
+      
+      if (strokesChanged) {
+        // ✅ Only sync if prop has equal or more strokes (intentional update like undo/redo)
+        // Or if both are empty (intentional clear)
+        if (strokes.length >= currentStrokes.length || (strokes.length === 0 && currentStrokes.length === 0)) {
+          console.log(`🔄 [CanvasEngine] Syncing strokes: ${currentStrokes.length} -> ${strokes.length}`);
+          strokesRef.current = strokes;
+          renderCanvas(); // Re-render with synced strokes
+        } else {
+          console.log(`⚠️ [CanvasEngine] Skipping sync: prop has ${strokes.length} strokes, ref has ${currentStrokes.length} (would lose data)`);
+        }
+      }
     }
+  }, [strokes, setStrokes]); // ✅ Added setStrokes to deps for the update call
 
-    // 3. Deselect Text
-    if (selectedTextId) {
-       const currentText = textElements.find(t => t.id === selectedTextId);
-       if (currentText && currentText.content.trim() === '') {
-           setTextElements(prev => prev.filter(t => t.id !== selectedTextId));
-       }
-       setSelectedTextId(null);
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BACKGROUND IMAGE (must come AFTER renderCanvas is defined)
+  // ─────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (backgroundImage) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = backgroundImage;
+      img.onload = () => {
+        bgImageObjRef.current = img;
+        renderCanvas(); // re-render once image loads
+      };
+      img.onerror = () => {
+        bgImageObjRef.current = null;
+        renderCanvas();
+      };
+    } else {
+      bgImageObjRef.current = null;
+      renderCanvas();
     }
+  }, [backgroundImage, renderCanvas]);
 
-    e.preventDefault();
-    e.target.setPointerCapture(e.pointerId);
-    if (onInteractionStart) onInteractionStart();
-    if (onPageFocus) onPageFocus();
+  // Re-render whenever committed strokes change (undo/redo/erase)
+  // ✅ This is handled by the sync useEffect above which is smarter about updates
 
-    // 4. PANNING
-    if (toolSettings.activeTool === 'move' || isTouch) {
-      setIsPanning(true);
-      setLastPanPoint({ x: e.clientX, y: e.clientY });
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ERASER
+  // ─────────────────────────────────────────────────────────────────────────────
+  const getCanvasCoordinates = useCallback((e) => {
+    if (!canvasRef.current) return { x: 0, y: 0, pressure: 0.5 };
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / zoomLevelRef.current,
+      y: (e.clientY - rect.top) / zoomLevelRef.current,
+      pressure: e.pressure !== undefined ? e.pressure : 0.5
+    };
+  }, []);
+
+  const performErase = useCallback((eraserPoint) => {
+    const eraserRadius = (toolSettings.thickness * 4) / zoomLevelRef.current;
+    let hasChanges = false;
+    let nextStrokes = [];
+    for (const stroke of strokesRef.current) {
+      const fragments = splitStroke(stroke, eraserPoint, eraserRadius);
+      if (fragments.length === 1 && fragments[0].points.length === stroke.points.length) {
+        nextStrokes.push(stroke);
+      } else {
+        hasChanges = true;
+        nextStrokes.push(...fragments);
+      }
+    }
+    if (hasChanges) {
+      strokesRef.current = nextStrokes;
+      setStrokes(nextStrokes);
+      renderCanvas();
+    }
+  }, [toolSettings.thickness, setStrokes, renderCanvas]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // POINTER EVENT HANDLERS (Internal implementation - stored in refs)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // ✅ EXCALIDRAW PATTERN: Internal handler that doesn't depend on React callbacks
+  // This function is stored in a ref and called by native listeners
+  // ✅ CRITICAL: Also accepts touchstart events converted to pointerdown-like events
+  const internalPointerDown = useCallback((e) => {
+    // ✅ CRITICAL: Handle both pointerdown and touchstart (converted) events
+    // For touchstart events, isPrimary might not exist, so check pointerId instead
+    if (e.isPrimary === false) {
+      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-primary pointer, id=${e.pointerId}`);
+      return;
+    }
+    
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.warn(`⚠️ [CanvasEngine] internalPointerDown: Canvas is null`);
       return;
     }
 
-    // 5. DRAWING
-    if (toolSettings.activeTool === 'eraser') {
-       setIsErasing(true);
-       onEraseStart(); 
-       const point = getCanvasCoordinates(e);
-       performErase(point);
-       return;
+    const isTouch = e.pointerType === 'touch';
+    const isPen = e.pointerType === 'pen';
+
+    // ✅ CRITICAL: Only process pen/touch, ignore mouse
+    if (!isPen && !isTouch) {
+      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring mouse event`);
+      return;
     }
 
-    setIsDrawing(true);
+    // ✅ CRITICAL: Check if activePointerId is still set from previous stroke
+    // If so, this means pointerUp didn't fire properly - reset it now
+    if (activePointerId.current !== null && activePointerId.current !== e.pointerId) {
+      console.log(`⚠️ [CanvasEngine] internalPointerDown: Previous pointer ${activePointerId.current} didn't complete properly, resetting`);
+      activePointerId.current = null;
+      isDrawingRef.current = false;
+      currentStrokeRef.current = null;
+    }
+
+    // ✅ CRITICAL: Prevent default for pen/touch to avoid browser gestures
+    if (isPen || (isTouch && isIOS)) {
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation(); // Prevent bubbling to parent elements
+    }
+
+    // ✅ CRITICAL: Add debug log to confirm pointerDown is being called
+    const eventSource = e.nativeEvent ? 'touchstart' : 'pointerdown';
+    console.log(`🖊️ [CanvasEngine] internalPointerDown: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, previousActivePointerId=${activePointerId.current}, source=${eventSource}`);
+
+    isInteractingRef.current = true;
+    activePointerId.current = e.pointerId;
+
+    // ✅ CRITICAL: Don't disable pointer events on container - this blocks subsequent events!
+    // Instead, use CSS pointer-events: none only on non-canvas elements
+    if (containerRef.current) {
+      containerRef.current.setAttribute('data-pen-active', 'true');
+    }
+    canvas.setAttribute('data-pen-active', 'true');
+
+    // Release any existing capture first
+    if (canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    // Set capture for pen
+    if (isPen && canvas.setPointerCapture) {
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {
+        console.warn('setPointerCapture failed:', err);
+      }
+    }
+
+    // ✅ EXCALIDRAW PATTERN: Call callbacks but don't block on them
+    if (onInteractionStart) onInteractionStart();
+    if (onPageFocus) onPageFocus();
+
+    // ── If there was an orphaned stroke from a missed pointerup, complete it ──
+    // ✅ CRITICAL: Add to strokesRef FIRST, then queue parent notification
+    // This ensures the stroke is rendered immediately even if parent update is delayed
+    if (currentStrokeRef.current) {
+      const orphanedStroke = currentStrokeRef.current;
+      console.log(`⚠️ [CanvasEngine] pointerDown: Found orphaned stroke ${orphanedStroke.id} with ${orphanedStroke.points.length} points - completing it`);
+      // Add to strokesRef immediately so it's rendered
+      strokesRef.current = [...strokesRef.current, orphanedStroke];
+      console.log(`📊 [CanvasEngine] pointerDown: Added orphaned stroke, strokesRef now has ${strokesRef.current.length} strokes`);
+      
+      // ✅ CRITICAL: Immediately update parent state to prevent sync issues
+      if (setStrokes) {
+        setStrokes(strokesRef.current);
+        console.log(`🔄 [CanvasEngine] pointerDown: Updated parent state with ${strokesRef.current.length} strokes (orphaned)`);
+      }
+      
+      // Render immediately
+      renderCanvas();
+      // ✅ EXCALIDRAW PATTERN: Queue parent notification instead of calling directly
+      completedStrokesQueueRef.current.push(orphanedStroke);
+      // Clear ref
+      currentStrokeRef.current = null;
+      console.log(`✅ [CanvasEngine] pointerDown: Completed orphaned stroke, cleared currentStrokeRef`);
+    }
+
+    // ── PANNING ───────────────────────────────────────────────────────────────
+    if (toolSettings.activeTool === 'move' || isTouch) {
+      isDrawingRef.current = false;
+      isPanningRef.current = true;
+      isErasingRef.current = false;
+      lastPanPointRef.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    // ── ERASING ───────────────────────────────────────────────────────────────
+    if (toolSettings.activeTool === 'eraser') {
+      isDrawingRef.current = false;
+      isPanningRef.current = false;
+      isErasingRef.current = true;
+      onEraseStart();
+      performErase(getCanvasCoordinates(e));
+      return;
+    }
+
+    // ── DRAWING ───────────────────────────────────────────────────────────────
+    // Reset all mode flags and start a fresh stroke
+    isDrawingRef.current = false;
+    isPanningRef.current = false;
+    isErasingRef.current = false;
+
+    // Always start a new drawing session on pointerDown
+    isDrawingRef.current = true;
+    console.log(`🖊️ [CanvasEngine] pointerDown: Starting drawing, isDrawingRef = true`);
+
     const point = getCanvasCoordinates(e);
-    
-    setCurrentStroke({
+    const newStroke = {
       id: generateId(),
       tool: toolSettings.activeTool,
       color: toolSettings.color,
       thickness: toolSettings.thickness,
       opacity: 1,
       points: [point],
-    });
-  };
+    };
 
-  const handlePointerMove = (e) => {
-    if (!e.isPrimary) return;
-    e.preventDefault();
+    // ✅ DEBUG: Log new stroke start
+    console.log(`🖊️ [CanvasEngine] pointerDown: Starting new stroke ${newStroke.id} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+    console.log(`📊 [CanvasEngine] pointerDown: strokesRef has ${strokesRef.current.length} strokes, isDrawingRef = ${isDrawingRef.current}`);
 
-    if (isPanning && lastPanPoint) {
-      const dx = e.clientX - lastPanPoint.x;
-      const dy = e.clientY - lastPanPoint.y;
-      setPanOffset({ x: panOffset.x + dx, y: panOffset.y + dy });
-      setLastPanPoint({ x: e.clientX, y: e.clientY });
+    // Set ref immediately — renderCanvas reads from this, no stale closure
+    currentStrokeRef.current = newStroke;
+
+    // Render immediately — reads currentStrokeRef.current which is already set
+    renderCanvas();
+    console.log(`✅ [CanvasEngine] pointerDown: Rendered canvas with new stroke start`);
+  }, [toolSettings, onInteractionStart, onPageFocus, onEraseStart, performErase, getCanvasCoordinates, isIOS, renderCanvas]);
+
+  // ✅ EXCALIDRAW PATTERN: Internal handler stored in ref
+  // ✅ CRITICAL: Also accepts touchmove events converted to pointermove-like events
+  const internalPointerMove = useCallback((e) => {
+    // ✅ CRITICAL: Handle both pointermove and touchmove (converted) events
+    // For touchmove events, isPrimary might not exist, so check activePointerId instead
+    if (e.isPrimary === false) return;
+    if (activePointerId.current != null && e.pointerId !== activePointerId.current) return;
+
+    const isPen = e.pointerType === 'pen';
+    const isTouch = e.pointerType === 'touch';
+
+    if (isPen || (isTouch && isIOS)) {
+      if (e.preventDefault) e.preventDefault();
+    }
+
+    // ── PANNING ───────────────────────────────────────────────────────────────
+    if (isPanningRef.current && lastPanPointRef.current) {
+      const dx = e.clientX - lastPanPointRef.current.x;
+      const dy = e.clientY - lastPanPointRef.current.y;
+      lastPanPointRef.current = { x: e.clientX, y: e.clientY };
+      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       return;
     }
 
-    if (isErasing) {
-       const point = getCanvasCoordinates(e);
-       performErase(point);
-       return;
+    // ── ERASING ───────────────────────────────────────────────────────────────
+    if (isErasingRef.current) {
+      performErase(getCanvasCoordinates(e));
+      return;
     }
 
-    if (isDrawing && currentStroke) {
+    // ── DRAWING ───────────────────────────────────────────────────────────────
+    if (isDrawingRef.current && currentStrokeRef.current) {
       const point = getCanvasCoordinates(e);
       if (point.x < -100 || point.y < -100 || point.x > A4_BASE_WIDTH + 100 || point.y > A4_BASE_HEIGHT + 100) return;
-      
-      const events = (e.nativeEvent && typeof e.nativeEvent.getCoalescedEvents === 'function') 
-        ? e.nativeEvent.getCoalescedEvents() 
+
+      // Use coalesced events for smoother drawing
+      // ✅ Native events have getCoalescedEvents directly (not via nativeEvent)
+      const events = (typeof e.getCoalescedEvents === 'function')
+        ? e.getCoalescedEvents()
         : [e];
+      const newPoints = events.map(ev => getCanvasCoordinates(ev));
+
+      // Update ref synchronously — renderCanvas will see this immediately
+      const oldPointsCount = currentStrokeRef.current.points.length;
+      currentStrokeRef.current = {
+        ...currentStrokeRef.current,
+        points: [...currentStrokeRef.current.points, ...newPoints]
+      };
+      const newPointsCount = currentStrokeRef.current.points.length;
+
+      // ✅ DEBUG: Log every 10th point to avoid spam
+      if (newPointsCount % 10 === 0) {
+        console.log(`🖊️ [CanvasEngine] pointerMove: Stroke ${currentStrokeRef.current.id} now has ${newPointsCount} points (added ${newPointsCount - oldPointsCount})`);
+      }
+
+      // Render immediately — reads from currentStrokeRef, no stale closure
+      renderCanvas();
+    } else {
+      // ✅ DEBUG: Log when drawing should happen but doesn't
+      if (!isDrawingRef.current) {
+        console.warn(`⚠️ [CanvasEngine] pointerMove: isDrawingRef is FALSE, cannot draw`);
+      }
+      if (!currentStrokeRef.current) {
+        console.warn(`⚠️ [CanvasEngine] pointerMove: currentStrokeRef is NULL, cannot draw`);
+      }
+    }
+  }, [isIOS, setPanOffset, performErase, getCanvasCoordinates, renderCanvas]);
+
+  // ✅ EXCALIDRAW PATTERN: Internal handler stored in ref
+  // ✅ CRITICAL: Also accepts touchend events converted to pointerup-like events
+  const internalPointerUp = useCallback((e) => {
+    const isPen = e.pointerType === 'pen';
+    const isTouch = e.pointerType === 'touch';
+    const canvas = canvasRef.current;
+
+    if (isPen || (isTouch && isIOS)) {
+      if (e.preventDefault) e.preventDefault();
+    }
+
+    // ── Complete the stroke ───────────────────────────────────────────────────
+    if (currentStrokeRef.current && isDrawingRef.current) {
+      const completedStroke = currentStrokeRef.current;
+      const strokeId = completedStroke.id;
+      const pointsCount = completedStroke.points.length;
+
+      // ✅ DEBUG: Log stroke completion
+      console.log(`🖊️ [CanvasEngine] pointerUp: Completing stroke ${strokeId} with ${pointsCount} points`);
+
+      // Add to strokesRef IMMEDIATELY (before clearing currentStrokeRef)
+      // This ensures renderCanvas sees it right away
+      strokesRef.current = [...strokesRef.current, completedStroke];
+      console.log(`📊 [CanvasEngine] pointerUp: strokesRef now has ${strokesRef.current.length} strokes`);
+
+      // ✅ CRITICAL: Immediately update parent state to prevent sync issues
+      // This ensures parent has latest strokes before any re-renders (tool/zoom changes)
+      // This prevents the sync logic from overwriting with stale data
+      if (setStrokes) {
+        setStrokes(strokesRef.current);
+        console.log(`🔄 [CanvasEngine] pointerUp: Updated parent state with ${strokesRef.current.length} strokes`);
+      }
+
+      // Clear current stroke ref so renderCanvas won't double-draw it
+      currentStrokeRef.current = null;
+
+      // ✅ EXCALIDRAW PATTERN: Queue parent notification instead of calling directly
+      // This prevents React re-renders during pointer events
+      completedStrokesQueueRef.current.push(completedStroke);
+
+      // ✅ CRITICAL: Render immediately with completed stroke in strokesRef
+      renderCanvas();
+      console.log(`✅ [CanvasEngine] pointerUp: Rendered canvas with completed stroke`);
+    }
+
+    // Release pointer capture
+    if (canvas && canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    // ✅ Reset ALL flags including isDrawingRef so next stroke starts cleanly
+    // ✅ CRITICAL: Reset activePointerId FIRST to allow next pointerdown immediately
+    activePointerId.current = null;
+    isDrawingRef.current = false;
+    isPanningRef.current = false;
+    isErasingRef.current = false;
+    lastPanPointRef.current = null;
+    isInteractingRef.current = false;
+
+    console.log(`✅ [CanvasEngine] internalPointerUp: Reset all flags, activePointerId=null, ready for next stroke`);
+
+    // ✅ CRITICAL: Don't re-enable pointer events here - let them stay enabled
+    // Removing the data-pen-active attribute is enough
+    if (containerRef.current) {
+      containerRef.current.removeAttribute('data-pen-active');
+    }
+    if (canvas) {
+      canvas.removeAttribute('data-pen-active');
+    }
+  }, [isIOS, renderCanvas]);
+
+  // ✅ EXCALIDRAW PATTERN: Internal handler stored in ref
+  const internalPointerCancel = useCallback((e) => {
+    internalPointerUp(e);
+  }, [internalPointerUp]);
+
+  // Prevent browser context menu during drawing
+  const handleContextMenu = useCallback((e) => {
+    if (isInteractingRef.current || e.pointerType === 'pen') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.nativeEvent && typeof e.nativeEvent.stopImmediatePropagation === 'function') {
+        e.nativeEvent.stopImmediatePropagation();
+      }
+      return false;
+    }
+  }, []);
+
+  // Native contextmenu listener (capture phase, to stop it before browser acts)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e) => {
+      if (isInteractingRef.current) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    canvas.addEventListener('contextmenu', handler, { passive: false, capture: true });
+    return () => canvas.removeEventListener('contextmenu', handler, { capture: true });
+  }, []);
+
+  // ✅ EXCALIDRAW PATTERN: Store handlers in refs so native listeners always have latest version
+  useEffect(() => {
+    handlePointerDownRef.current = internalPointerDown;
+    handlePointerMoveRef.current = internalPointerMove;
+    handlePointerUpRef.current = internalPointerUp;
+    handlePointerCancelRef.current = internalPointerCancel;
+  }, [internalPointerDown, internalPointerMove, internalPointerUp, internalPointerCancel]);
+
+  // ✅ EXCALIDRAW PATTERN: Native event listeners attached once, never detached
+  // This ensures events are NEVER lost, even during React re-renders
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // ✅ CRITICAL: Convert touchstart to pointerdown-like event for pen input
+    // iPad/Safari suppresses rapid pointerdown events, but touchstart fires reliably
+    const handleTouchStart = (e) => {
+      // Only process single touch (pen input)
+      if (e.touches.length !== 1) return;
       
-      setCurrentStroke(prev => {
-        if (!prev) return null;
-        const newPoints = events.map(ev => getCanvasCoordinates(ev));
-        return {
-           ...prev,
-           points: [...prev.points, ...newPoints]
-        };
-      });
-    }
-  };
+      const touch = e.touches[0];
+      const canvasRect = canvas.getBoundingClientRect();
+      const x = touch.clientX;
+      const y = touch.clientY;
+      const isWithinCanvas = x >= canvasRect.left - 10 && x <= canvasRect.right + 10 && 
+                             y >= canvasRect.top - 10 && y <= canvasRect.bottom + 10;
+      
+      if (!isWithinCanvas) return;
+      
+      // Create a synthetic pointerdown-like event
+      const syntheticEvent = {
+        ...e,
+        pointerType: 'pen', // Assume pen for touch events on canvas
+        pointerId: touch.identifier,
+        isPrimary: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        nativeEvent: e
+      };
+      
+      console.log(`📱 [CanvasEngine] touchstart converted to pointerdown: id=${touch.identifier}, x=${x}, y=${y}`);
+      
+      if (handlePointerDownRef.current) {
+        handlePointerDownRef.current(syntheticEvent);
+      }
+    };
 
-  const handlePointerUp = (e) => {
-    e.preventDefault();
+    // Wrapper functions that call the latest handler from ref
+    const handleDown = (e) => {
+      // ✅ CRITICAL: Only process pen/touch events, ignore mouse
+      // This prevents conflicts with UI interactions
+      if (e.pointerType === 'mouse') {
+        return; // Silent ignore for mouse
+      }
+      
+      // ✅ CRITICAL: Check if coordinates are within canvas bounds
+      // This works even when event comes from window listener (target might be different)
+      const canvasRect = canvas.getBoundingClientRect();
+      const x = e.clientX;
+      const y = e.clientY;
+      const isWithinCanvas = x >= canvasRect.left - 10 && x <= canvasRect.right + 10 && 
+                             y >= canvasRect.top - 10 && y <= canvasRect.bottom + 10;
+      
+      // ✅ CRITICAL: Also check if target is canvas/container (for events that originate there)
+      const target = e.target;
+      const isCanvas = target === canvas;
+      const isContainer = container && (target === container || container.contains(target));
+      
+      // Process if within bounds OR target is canvas/container
+      if (!isWithinCanvas && !isCanvas && !isContainer) {
+        // Silent ignore - don't log to avoid spam
+        return;
+      }
+      
+      console.log(`🎯 [CanvasEngine] handleDown wrapper: type=${e.pointerType}, id=${e.pointerId}, target=${target?.tagName}, withinCanvas=${isWithinCanvas}, isCanvas=${isCanvas}`);
+      
+      if (handlePointerDownRef.current) {
+        handlePointerDownRef.current(e);
+      } else {
+        console.warn(`⚠️ [CanvasEngine] handleDown: handlePointerDownRef.current is null!`);
+      }
+    };
+
+    const handleMove = (e) => {
+      if (handlePointerMoveRef.current) {
+        handlePointerMoveRef.current(e);
+      }
+    };
+
+    const handleUp = (e) => {
+      if (handlePointerUpRef.current) {
+        handlePointerUpRef.current(e);
+      }
+    };
+
+    const handleCancel = (e) => {
+      if (handlePointerCancelRef.current) {
+        handlePointerCancelRef.current(e);
+      }
+    };
+
+    // ✅ CRITICAL: Attach pointerdown to canvas, container, AND window
+    // Window listener ensures we NEVER miss a pointerdown, even during re-renders
+    canvas.addEventListener('pointerdown', handleDown, { passive: false, capture: true });
     
-    if (isPanning) {
-      setIsPanning(false);
-      setLastPanPoint(null);
+    // Also attach to container to catch events that might be blocked by CSS
+    // ✅ CRITICAL: Store container reference for cleanup
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('pointerdown', handleDown, { passive: false, capture: true });
     }
-
-    if (isErasing) {
-      setIsErasing(false);
-    }
-
-    if (isDrawing && currentStroke) {
-      setIsDrawing(false);
-      onStrokeComplete(currentStroke);
-      setCurrentStroke(null);
-    }
-  };
-
-  // --- Pointer-Based Zoom Logic (Pinch) ---
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 2) {
+    
+    // ✅ CRITICAL: Window-level listener for pointerdown (most reliable)
+    // This ensures we catch ALL pointerdown events, even if canvas/container listeners miss them
+    window.addEventListener('pointerdown', handleDown, { passive: false, capture: true });
+    
+    // ✅ CRITICAL: iPad/Safari workaround - also listen to touchstart/touchmove/touchend
+    // Safari suppresses rapid pointerdown events, but touchstart fires reliably
+    // This is the KEY fix for rapid pen taps
+    const handleTouchMove = (e) => {
+      // Only process if we have an active touch (from touchstart)
+      if (activePointerId.current == null) return;
+      
+      // Find the touch that matches our active pointer ID
+      const touch = Array.from(e.touches).find(t => t.identifier === activePointerId.current);
+      if (!touch) return;
+      
+      // Prevent default to avoid scrolling
       e.preventDefault();
       
+      // Create a synthetic pointermove-like event
+      const syntheticEvent = {
+        ...e,
+        pointerType: 'pen',
+        pointerId: touch.identifier,
+        isPrimary: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        nativeEvent: e,
+        getCoalescedEvents: () => [] // Touch events don't have coalesced events
+      };
+      
+      if (handlePointerMoveRef.current) {
+        handlePointerMoveRef.current(syntheticEvent);
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      // Find the touch that matches our active pointer ID
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === activePointerId.current);
+      if (!touch && activePointerId.current != null) {
+        // Touch ended but we still have an active pointer - use the first changed touch
+        const firstTouch = e.changedTouches[0];
+        if (firstTouch) {
+          activePointerId.current = firstTouch.identifier;
+        }
+      }
+      
+      if (activePointerId.current == null) return;
+      
+      // Prevent default
+      e.preventDefault();
+      
+      // Create a synthetic pointerup-like event
+      const syntheticEvent = {
+        ...e,
+        pointerType: 'pen',
+        pointerId: activePointerId.current,
+        isPrimary: true,
+        clientX: touch ? touch.clientX : e.changedTouches[0]?.clientX || 0,
+        clientY: touch ? touch.clientY : e.changedTouches[0]?.clientY || 0,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        nativeEvent: e
+      };
+      
+      console.log(`📱 [CanvasEngine] touchend converted to pointerup: id=${activePointerId.current}`);
+      
+      if (handlePointerUpRef.current) {
+        handlePointerUpRef.current(syntheticEvent);
+      }
+    };
+
+    const handleTouchCancel = (e) => {
+      // Find the touch that matches our active pointer ID
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === activePointerId.current);
+      if (!touch && activePointerId.current != null) {
+        const firstTouch = e.changedTouches[0];
+        if (firstTouch) {
+          activePointerId.current = firstTouch.identifier;
+        }
+      }
+      
+      if (activePointerId.current == null) return;
+      
+      // Prevent default
+      e.preventDefault();
+      
+      // Create a synthetic pointercancel-like event
+      const syntheticEvent = {
+        ...e,
+        pointerType: 'pen',
+        pointerId: activePointerId.current,
+        isPrimary: true,
+        clientX: touch ? touch.clientX : e.changedTouches[0]?.clientX || 0,
+        clientY: touch ? touch.clientY : e.changedTouches[0]?.clientY || 0,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        nativeEvent: e
+      };
+      
+      console.log(`📱 [CanvasEngine] touchcancel converted to pointercancel: id=${activePointerId.current}`);
+      
+      if (handlePointerCancelRef.current) {
+        handlePointerCancelRef.current(syntheticEvent);
+      }
+    };
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    if (container) {
+      container.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    }
+    window.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    
+    // Add touchmove and touchend listeners
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    if (container) {
+      container.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    }
+    window.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    if (container) {
+      container.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    }
+    window.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    
+    canvas.addEventListener('touchcancel', handleTouchCancel, { passive: false, capture: true });
+    if (container) {
+      container.addEventListener('touchcancel', handleTouchCancel, { passive: false, capture: true });
+    }
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: false, capture: true });
+    
+    // Window-level listeners for move/up/cancel (always catch these)
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleUp, { passive: false });
+    window.addEventListener('pointercancel', handleCancel, { passive: false });
+    
+    // ✅ DEBUG: Global listener to verify ANY pointerdown is firing (for debugging)
+    const globalDebugHandler = (e) => {
+      if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+        console.log(`🌍 [GLOBAL DEBUG] pointerdown fired: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
+      }
+    };
+    window.addEventListener('pointerdown', globalDebugHandler, { passive: true, capture: true });
+    
+    // ✅ DEBUG: Global listener for touchstart to verify events are firing
+    // ✅ CRITICAL: Define handler before using it to ensure it's in scope for cleanup
+    const globalTouchDebugHandler = (e) => {
+      if (e.touches && e.touches.length === 1) {
+        const touch = e.touches[0];
+        console.log(`🌍 [GLOBAL DEBUG] touchstart fired: id=${touch.identifier}, x=${touch.clientX}, y=${touch.clientY}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
+      }
+    };
+    window.addEventListener('touchstart', globalTouchDebugHandler, { passive: true, capture: true });
+
+    // Safety-net: window pointerup in case canvas misses it (already handled above, but keep for redundancy)
+    const windowUpHandler = (e) => {
+      if (activePointerId.current == null || e.pointerId !== activePointerId.current) return;
+      if (currentStrokeRef.current && isDrawingRef.current) {
+        const completedStroke = currentStrokeRef.current;
+        currentStrokeRef.current = null;
+        strokesRef.current = [...strokesRef.current, completedStroke];
+        
+        // ✅ CRITICAL: Immediately update parent state to prevent sync issues
+        if (setStrokes) {
+          setStrokes(strokesRef.current);
+        }
+        
+        renderCanvas();
+        completedStrokesQueueRef.current.push(completedStroke);
+      }
+      isDrawingRef.current = false;
+      isPanningRef.current = false;
+      isErasingRef.current = false;
+      isInteractingRef.current = false;
+      activePointerId.current = null;
+      lastPanPointRef.current = null;
+      if (containerRef.current) {
+        containerRef.current.removeAttribute('data-pen-active');
+      }
+      if (canvas) canvas.removeAttribute('data-pen-active');
+    };
+
+    window.addEventListener('pointerup', windowUpHandler);
+    window.addEventListener('pointercancel', windowUpHandler);
+
+    return () => {
+      try {
+        canvas.removeEventListener('pointerdown', handleDown, { capture: true });
+        if (container) {
+          container.removeEventListener('pointerdown', handleDown, { capture: true });
+        }
+        window.removeEventListener('pointerdown', handleDown, { capture: true });
+        
+        // Remove touch event listeners
+        canvas.removeEventListener('touchstart', handleTouchStart, { capture: true });
+        if (container) {
+          container.removeEventListener('touchstart', handleTouchStart, { capture: true });
+        }
+        window.removeEventListener('touchstart', handleTouchStart, { capture: true });
+        
+        canvas.removeEventListener('touchmove', handleTouchMove, { capture: true });
+        if (container) {
+          container.removeEventListener('touchmove', handleTouchMove, { capture: true });
+        }
+        window.removeEventListener('touchmove', handleTouchMove, { capture: true });
+        
+        canvas.removeEventListener('touchend', handleTouchEnd, { capture: true });
+        if (container) {
+          container.removeEventListener('touchend', handleTouchEnd, { capture: true });
+        }
+        window.removeEventListener('touchend', handleTouchEnd, { capture: true });
+        
+        canvas.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
+        if (container) {
+          container.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
+        }
+        window.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
+        
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', handleUp);
+        window.removeEventListener('pointercancel', handleCancel);
+        window.removeEventListener('pointerup', windowUpHandler);
+        window.removeEventListener('pointercancel', windowUpHandler);
+        window.removeEventListener('pointerdown', globalDebugHandler, { capture: true });
+        window.removeEventListener('touchstart', globalTouchDebugHandler, { capture: true });
+      } catch (error) {
+        console.warn('⚠️ [CanvasEngine] Error during cleanup:', error);
+      }
+    };
+  }, []); // ✅ EMPTY DEPS - listeners attached once, handlers updated via refs
+
+  // ✅ EXCALIDRAW PATTERN: Defer parent state updates to avoid React re-renders during pointer events
+  useEffect(() => {
+    if (completedStrokesQueueRef.current.length === 0) return;
+
+    // Process all queued strokes
+    const queue = [...completedStrokesQueueRef.current];
+    completedStrokesQueueRef.current = [];
+
+    // Notify parent for each completed stroke
+    queue.forEach((stroke) => {
+      if (onStrokeCompleteRef.current) {
+        onStrokeCompleteRef.current(stroke);
+      }
+    });
+
+    // Notify parent of content change (only once per batch)
+    if (queue.length > 0 && onContentChangeRef.current) {
+      onContentChangeRef.current(true);
+    }
+  }); // ✅ No deps - runs after every render to drain queue
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // PINCH ZOOM & TOUCH
+  // ─────────────────────────────────────────────────────────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
       const p1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       const p2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
-
-      const screenCenterX = (p1.x + p2.x) / 2;
-      const screenCenterY = (p1.y + p2.y) / 2;
-
       initialPinchDist.current = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-      initialZoom.current = zoomLevel;
-
+      initialZoom.current = zoomLevelRef.current;
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        const containerX = screenCenterX - rect.left;
-        const containerY = screenCenterY - rect.top;
-
-        const canvasX = (containerX - panOffset.x) / zoomLevel;
-        const canvasY = (containerY - panOffset.y) / zoomLevel;
-
-        pinchStartCanvasPoint.current = { x: canvasX, y: canvasY };
+        const cx = (p1.x + p2.x) / 2 - rect.left;
+        const cy = (p1.y + p2.y) / 2 - rect.top;
+        pinchStartCanvasPoint.current = {
+          x: (cx - panOffsetRef.current.x) / zoomLevelRef.current,
+          y: (cy - panOffsetRef.current.y) / zoomLevelRef.current
+        };
       }
-
-      if (isDrawing) {
-         setIsDrawing(false);
-         setCurrentStroke(null);
+      // Abort any active drawing
+      if (currentStrokeRef.current) {
+        const abortedStroke = currentStrokeRef.current;
+        strokesRef.current = [...strokesRef.current, abortedStroke];
+        
+        // ✅ CRITICAL: Immediately update parent state to prevent sync issues
+        if (setStrokes) {
+          setStrokes(strokesRef.current);
+        }
+        
+        renderCanvas();
+        completedStrokesQueueRef.current.push(abortedStroke);
+        currentStrokeRef.current = null;
+        isDrawingRef.current = false;
       }
-      if (isErasing) setIsErasing(false);
-      if (isPanning) setIsPanning(false);
     }
-  };
+  }, [renderCanvas]);
 
-  const handleTouchMove = (e) => {
-     if (e.touches.length === 2 && initialPinchDist.current && pinchStartCanvasPoint.current && containerRef.current) {
-        e.preventDefault();
-        
-        const p1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        const p2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
-        
-        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-        const screenCenterX = (p1.x + p2.x) / 2;
-        const screenCenterY = (p1.y + p2.y) / 2;
-        
-        const scale = dist / initialPinchDist.current;
-        const newZoom = Math.min(Math.max(initialZoom.current * scale, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
-        
-        const rect = containerRef.current.getBoundingClientRect();
-        const containerX = screenCenterX - rect.left;
-        const containerY = screenCenterY - rect.top;
+  const handleTouchMove = useCallback((e) => {
+    if (e.touches.length === 2 && initialPinchDist.current && pinchStartCanvasPoint.current && containerRef.current) {
+      e.preventDefault();
+      const p1 = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      const p2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      const scale = dist / initialPinchDist.current;
+      const newZoom = Math.min(Math.max(initialZoom.current * scale, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
+      const rect = containerRef.current.getBoundingClientRect();
+      const cx = (p1.x + p2.x) / 2 - rect.left;
+      const cy = (p1.y + p2.y) / 2 - rect.top;
+      const newPanX = cx - pinchStartCanvasPoint.current.x * newZoom;
+      const newPanY = cy - pinchStartCanvasPoint.current.y * newZoom;
+      setZoomLevel(newZoom);
+      setPanOffset({ x: newPanX, y: newPanY });
+    }
+  }, [setZoomLevel, setPanOffset]);
 
-        const newPanX = containerX - (pinchStartCanvasPoint.current.x * newZoom);
-        const newPanY = containerY - (pinchStartCanvasPoint.current.y * newZoom);
-
-        setZoomLevel(newZoom);
-        setPanOffset({ x: newPanX, y: newPanY });
-     }
-  };
-
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     initialPinchDist.current = null;
     pinchStartCanvasPoint.current = null;
-  };
+  }, []);
 
-  // --- Pointer-Based Zoom Logic (Wheel) ---
+  // ─────────────────────────────────────────────────────────────────────────────
+  // WHEEL ZOOM
+  // ─────────────────────────────────────────────────────────────────────────────
   const handleWheel = useCallback((e) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      
       const zoomSensitivity = 0.002;
       const delta = -e.deltaY * zoomSensitivity;
-      const newZoom = Math.min(Math.max(zoomLevel + delta, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
-      
+      const newZoom = Math.min(Math.max(zoomLevelRef.current + delta, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
       if (embeddedInScroll) {
-        // In scroll mode: only zoom, no pan (scroll handles navigation)
         setZoomLevel(newZoom);
       } else if (containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          const mouseX = e.clientX - rect.left;
-          const mouseY = e.clientY - rect.top;
-
-          const canvasX = (mouseX - panOffset.x) / zoomLevel;
-          const canvasY = (mouseY - panOffset.y) / zoomLevel;
-
-          const newPanX = mouseX - (canvasX * newZoom);
-          const newPanY = mouseY - (canvasY * newZoom);
-
-          setPanOffset({ x: newPanX, y: newPanY });
-          setZoomLevel(newZoom);
+        const rect = containerRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const canvasX = (mouseX - panOffsetRef.current.x) / zoomLevelRef.current;
+        const canvasY = (mouseY - panOffsetRef.current.y) / zoomLevelRef.current;
+        setPanOffset({ x: mouseX - canvasX * newZoom, y: mouseY - canvasY * newZoom });
+        setZoomLevel(newZoom);
       } else {
-          setZoomLevel(newZoom);
+        setZoomLevel(newZoom);
       }
-
     } else if (!embeddedInScroll) {
-      // Only pan when not in scroll mode (let scroll container handle vertical scroll)
-       setPanOffset({ x: panOffset.x - e.deltaX, y: panOffset.y - e.deltaY });
+      setPanOffset(prev => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
     }
-  }, [zoomLevel, panOffset, embeddedInScroll, setZoomLevel, setPanOffset]);
+  }, [embeddedInScroll, setZoomLevel, setPanOffset]);
 
-  // Add wheel event listener with non-passive option to allow preventDefault
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
     container.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-    };
+    return () => container.removeEventListener('wheel', handleWheel);
   }, [handleWheel]);
 
-  // --- Text Interaction Logic ---
-
-  const handleTextInteractionStart = (e, id, type, handle) => {
-     e.stopPropagation();
-     if (onPageFocus) onPageFocus();
-     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-     if (toolSettings.activeTool === 'eraser') return; 
-
-     setSelectedTextId(id);
-     const el = textElements.find(t => t.id === id);
-     if (el) {
-         setTextDragState({
-             id,
-             type,
-             handle,
-             startX: clientX,
-             startY: clientY,
-             initialX: el.x,
-             initialY: el.y,
-             initialFontSize: el.fontSize
-         });
-     }
-  };
-  
-  const handleDone = (e, id) => {
-      e.stopPropagation();
-      e.preventDefault();
-      
-      setSelectedTextId(null);
-      
-      setTextElements(prev => prev.filter(t => {
-          // If content is empty after trimming, remove it
-          if (t.id === id && !t.content.trim()) return false;
-          return true;
-      }));
-  };
-
-  const handleDelete = (e, id) => {
-      e.stopPropagation();
-      e.preventDefault();
-      setTextElements(prev => prev.filter(t => t.id !== id));
-      setSelectedTextId(null);
-  };
-
-  useEffect(() => {
-     const handleGlobalMove = (e) => {
-        if (!textDragState) return;
-
-        const deltaX = (e.clientX - textDragState.startX) / zoomLevel;
-        const deltaY = (e.clientY - textDragState.startY) / zoomLevel;
-
-        setTextElements(prev => prev.map(t => {
-             if (t.id !== textDragState.id) return t;
-
-             if (textDragState.type === 'move') {
-                 return { ...t, x: textDragState.initialX + deltaX, y: textDragState.initialY + deltaY };
-             } else if (textDragState.type === 'resize') {
-                 let scaleDelta = 0;
-                 const sensitivity = 0.5; // Sensitivity for resizing
-
-                 if (textDragState.handle === 'br') {
-                    scaleDelta = deltaY + deltaX; 
-                 } else if (textDragState.handle === 'bl') {
-                    scaleDelta = deltaY - deltaX; 
-                 } else if (textDragState.handle === 'tr') {
-                    scaleDelta = -deltaY + deltaX; 
-                 } else if (textDragState.handle === 'tl') {
-                    scaleDelta = -deltaY - deltaX; 
-                 }
-                 
-                 const newSize = Math.max(8, Math.min(160, textDragState.initialFontSize + (scaleDelta * sensitivity)));
-                 
-                 return { ...t, fontSize: newSize };
-             }
-             return t;
-        }));
-     };
-
-     const handleGlobalUp = () => {
-         setTextDragState(null);
-     };
-
-     if (textDragState) {
-         window.addEventListener('pointermove', handleGlobalMove);
-         window.addEventListener('pointerup', handleGlobalUp);
-     }
-     return () => {
-         window.removeEventListener('pointermove', handleGlobalMove);
-         window.removeEventListener('pointerup', handleGlobalUp);
-     };
-  }, [textDragState, zoomLevel, setTextElements]);
-
-  const updateTextContent = (id, newContent) => {
-      setTextElements(prev => prev.map(t => t.id === id ? { ...t, content: newContent } : t));
-  };
-  
-  const uiScale = 1 / zoomLevel;
-
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div 
+    <div
       ref={containerRef}
       className={`tab-rx-canvas-container ${embeddedInScroll ? 'embedded-in-scroll' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onContextMenu={handleContextMenu}
     >
-      <div 
+      <div
         className="canvas-wrapper"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
@@ -555,112 +1085,17 @@ const CanvasEngine = React.forwardRef(({
           ref={canvasRef}
           width={A4_BASE_WIDTH}
           height={A4_BASE_HEIGHT}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          // ✅ EXCALIDRAW PATTERN: Remove React synthetic handlers - use native listeners instead
+          // Native listeners are attached in useEffect and never get detached during re-renders
+          onContextMenu={handleContextMenu}
+          style={{
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+            WebkitTapHighlightColor: 'transparent'
+          }}
         />
-        
-        {/* Text Layer Overlay */}
-        <div className="text-layer">
-            {textElements.map(el => {
-                const isSelected = selectedTextId === el.id;
-                return (
-                <div
-                    key={el.id}
-                    data-text-element
-                    className={`text-element ${isSelected ? 'selected' : ''}`}
-                    style={{
-                        left: el.x,
-                        top: el.y,
-                        color: el.color,
-                        fontSize: `${el.fontSize}px`,
-                        minWidth: `${el.fontSize * 3}px`
-                    }}
-                    onMouseDown={(e) => {
-                         if (!isSelected) {
-                            if (onPageFocus) onPageFocus();
-                            setSelectedTextId(el.id);
-                         }
-                    }}
-                >
-                    {/* Selection Frame (Visible only when selected) */}
-                    {isSelected && (
-                        <div className="text-selection-frame" style={{ transform: `scale(${uiScale})` }}>
-                            
-                            {/* CORNER RESIZE HANDLES (Dots) */}
-                            {[
-                              { handle: 'tl', cursor: 'nwse-resize' },
-                              { handle: 'tr', cursor: 'nesw-resize' },
-                              { handle: 'bl', cursor: 'nesw-resize' },
-                              { handle: 'br', cursor: 'nwse-resize' }
-                            ].map((h, i) => (
-                               <div 
-                                  key={i}
-                                  className={`resize-handle ${h.handle}`}
-                                  style={{ cursor: h.cursor }}
-                                  onMouseDown={(e) => handleTextInteractionStart(e, el.id, 'resize', h.handle)}
-                                  onTouchStart={(e) => handleTextInteractionStart(e, el.id, 'resize', h.handle)}
-                               >
-                                  <div className="handle-dot" />
-                                </div>
-                            ))}
-                            
-                            {/* Toolbar: Drag on Left */}
-                            <div className="text-toolbar left-toolbar" style={{ transform: `translateY(-100%) scale(${uiScale})` }}>
-                                <button 
-                                    className="toolbar-button drag-button"
-                                    onMouseDown={(e) => handleTextInteractionStart(e, el.id, 'move')}
-                                    onTouchStart={(e) => handleTextInteractionStart(e, el.id, 'move')}
-                                    title="Drag"
-                                >
-                                    <FaGripVertical size={18} />
-                                </button>
-                            </div>
-
-                            {/* Toolbar: Actions on Right */}
-                            <div className="text-toolbar right-toolbar" style={{ transform: `translateY(-100%) scale(${uiScale})` }}>
-                                <button 
-                                    className="toolbar-button delete-button"
-                                    onMouseDown={(e) => handleDelete(e, el.id)}
-                                    onTouchStart={(e) => handleDelete(e, el.id)}
-                                    title="Delete"
-                                >
-                                    <FaTrash size={18} />
-                                </button>
-                                
-                                <button 
-                                    className="toolbar-button done-button"
-                                    onMouseDown={(e) => handleDone(e, el.id)}
-                                    onTouchStart={(e) => handleDone(e, el.id)}
-                                    title="Done"
-                                >
-                                    <FaCheck size={20} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    <div 
-                        contentEditable
-                        suppressContentEditableWarning
-                        ref={(r) => { 
-                            if (r && isSelected) {
-                                if (!r.innerText && el.content) r.innerText = el.content;
-                                if (document.activeElement !== r) r.focus();
-                            }
-                        }}
-                        onInput={(e) => updateTextContent(el.id, e.currentTarget.innerText)}
-                        className={`text-content ${isSelected ? 'selected' : ''}`}
-                        style={{ 
-                            maxWidth: '400px'
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()} 
-                        dangerouslySetInnerHTML={!isSelected ? { __html: el.content } : undefined}
-                    />
-                </div>
-            )})}
-        </div>
       </div>
     </div>
   );
