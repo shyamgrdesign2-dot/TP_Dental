@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import "./TabRxDigitiseCard.scss";
 // import { Container, Navbar, Nav, Dropdown } from "react-bootstrap";
 import { Col, Row, Select, Button, message, Spin, Drawer } from "antd";
 import { isMobile, browserName, isTablet } from "react-device-detect";
@@ -78,6 +79,8 @@ import { services } from "../../../../redux/doctorsSlice";
 import { checkCredits } from "../../../../redux/monetizationSlice";
 import { getTabRxFiles } from "../../services/tabRxService";
 import TabRxEditRxModal from "../tabRxEditRxModal/TabRxEditRxModal";
+import arrowRight from "../../../../assets/images/website-images/right-arrow-slider.svg";
+import CvtKnowMore from "../../../smartSync/components/CvtKnowMore";
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
@@ -1085,46 +1088,50 @@ function TabRxPrescriptionPrintView() {
                     </>
                   ) : null;
                 })()}
-                {showProgressbar && !isRxDigitiseComplete && (
-                  <div className="digitise-container d-flex p-3 rounded-10px">
-                    <div style={containerStyle}>
-                      <div ref={progressRef} style={progressStyle}></div>
-                    </div>
-                    <p className="digitise-header" style={{ padding: "16px 0" }}>
-                      {`${patient_data?.pm_fullname}'s Rx is getting Digitised!`}
-                    </p>
-                    <p className="digitise-info">
-                      Our AI engine is converting handwritten Rx into digital Rx. This may take up to 30 sec
-                    </p>
-                  </div>
-                )}
-                {!isRxDigitiseComplete && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
-                  <div className="digitise-container p-3 rounded-10px">
-                    <div className="digitise-box-top">
-                      <img src={successIcon} alt="success" width="40px" height="40px" />
-                      <div>
-                        <p className="digitise-header">
-                          {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
-                        </p>
-                        <p className="digitise-info">
-                          Digitise Rx to enhance patient care, streamline workflow, and unlock new revenue.
-                          <button className="know-more-btn" onClick={handleDrawerCvtKnowMore}>
-                            <span className="know-more-text" style={{
-                              color: "rgba(255, 255, 255, 0.80) !important",
-                              fontSize: "14px",
-                              textDecoration: "underline",
-                              textDecorationColor: "rgba(255, 255, 255, 0.80)"
-                            }}>Know More</span>
-                          </button>
-                        </p>
-                      </div>
-                    </div>
-                    <button onClick={handleDigitiseRx} className="digitise-btn">
-                      Digitise Rx Now <span>&#8594;</span>
-                    </button>
-                  </div>
-                )}
               </div>
+
+              {showProgressbar && !isRxDigitiseComplete && (
+                <div className="tabrx-digitise-card-wrapper">
+                  <div className="tabrx-digitise-card">
+                    <div className="tabrx-digitise-card-inner" style={{ alignItems: "center", textAlign: "center", gap: "10px" }}>
+                      <div style={containerStyle}>
+                        <div ref={progressRef} style={progressStyle}></div>
+                      </div>
+                      <p className="tabrx-digitise-card-title" style={{ marginTop: "8px", width: "100%" }}>
+                        {`${patient_data?.pm_fullname || 'Patient'}'s Rx is getting Digitised!`}
+                      </p>
+                      <p className="tabrx-digitise-card-desc">
+                        Our AI engine is converting handwritten Rx into digital Rx. This may take up to 30 sec
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!isRxDigitiseComplete && !showProgressbar && smartRxFile?.length > 0 && state?.page !== "digitise" && (
+                <div className="tabrx-digitise-card-wrapper">
+                  <div className="tabrx-digitise-card">
+                    <div className="tabrx-digitise-card-inner" style={{ alignItems: "flex-start" }}>
+                      <div className="tabrx-digitise-card-content">
+                        <img src={successIcon} alt="success" className="tabrx-digitise-card-icon" />
+                        <div className="tabrx-digitise-card-text">
+                          <p className="tabrx-digitise-card-title">
+                            {`${patient_data?.pm_fullname || 'Patient'}'s Digital Rx is ready!`}
+                          </p>
+                          <p className="tabrx-digitise-card-desc">
+                            Digitise Rx to enhance patient care, streamline workflow, and unlock new revenue.
+                            <button className="tabrx-digitise-card-know-more" onClick={handleDrawerCvtKnowMore}>
+                              Know More
+                            </button>
+                          </p>
+                        </div>
+                      </div>
+                      <button onClick={handleDigitiseRx} className="tabrx-digitise-card-btn">
+                        Digitise Rx Now <img src={arrowRight} alt="arrow-right" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Col>
           <Col
@@ -1293,6 +1300,18 @@ function TabRxPrescriptionPrintView() {
             onConfirm={handleEditWrittenRxConfirm}
           />
         )}
+        <Drawer
+          closeIcon={false}
+          onClose={handleDrawerCvtKnowMore}
+          open={cvtDrawer}
+          className=".modalWidth-800"
+          width={800}
+        >
+          <CvtKnowMore
+            handleDrawerCvtKnowMore={handleDrawerCvtKnowMore}
+            handleCollapsed={handleDrawerCvtKnowMore}
+          />
+        </Drawer>
       </div>
     </>
   );
