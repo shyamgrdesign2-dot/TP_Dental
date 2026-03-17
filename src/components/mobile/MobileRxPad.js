@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useContext, useCallback } from 'rea
 import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getDecodedToken } from '../../utils/localStorage';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION } from '../../utils/constants';
+import { getDecodedToken, getDecodedMedecoToken } from '../../utils/localStorage';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_MEDECO_TOKEN } from '../../utils/constants';
 import {
   generateAmbientRx,
   updateAmbientRx,
@@ -135,7 +135,11 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   // Numeric tcm_id from addCaseManager/editCaseManager response; used for viewCaseManager and getTcmId so we never use viewCaseManager's string tcm_id
   const endVisitTcmIdRef = useRef(null);
   const decodedToken = getDecodedToken();
-  const doctorId = decodedToken?.result?.user_id;
+  const decodedMedeco = getDecodedMedecoToken();
+  // When user_id is not in auth token (e.g. Medeco flow), use medeco-token tpUserId as doctorId
+  const doctorId =
+    decodedToken?.result?.user_id ??
+    decodedMedeco?.user?.tpUserId;
 
   // Credit and trial logic (matches desktop ConsultationDrawer)
   const isFreeVoiceRxUser = isVoiceRxFree();
@@ -766,6 +770,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
       // Always read doctorId fresh from token to avoid stale-closure issues in auto-submit
       const freshToken = getDecodedToken();
+      const freshMedeco = getDecodedMedecoToken();
       if (!freshToken) {
         console.warn(logPrefix + ' step=token_decode token is null or decode failed (getDecodedToken returned null)');
       }
@@ -776,43 +781,29 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         return s === '' || s === 'undefined' || s === 'null' ? null : v;
       };
       const tokenUserId = asValidId(freshToken?.result?.user_id);
-      const tokenDoctorUniqueId = asValidId(freshToken?.result?.doctor_unique_id);
-      const profileUmId = asValidId(profile?.um_id);
-      const profileDoctorUniqueId = asValidId(profile?.doctor_unique_id);
-      const originalDoctorId = asValidId(doctorId);
-      // Prefer numeric id (user_id / um_id) for voice-digitize API; then string doctor_unique_id
-      let currentDoctorId = tokenUserId || originalDoctorId || profileUmId || profileDoctorUniqueId || tokenDoctorUniqueId;
+      // When user_id is not in auth token, use medeco-token tpUserId as doctorId. Only these two sources.
+      const tokenMedecoTpUserId = asValidId(freshMedeco?.user?.tpUserId);
+      let currentDoctorId = tokenUserId || tokenMedecoTpUserId;
 
-      // Determine which source provided the doctorId (for debugging)
+      // Debug for native app: token and user_id, medeco token and tpUserId (search logs for [VoiceRx doctorId])
+      const rawAuth = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+      const rawMedeco = localStorage.getItem(PERSISTANT_STORAGE_KEY_MEDECO_TOKEN);
+      console.log('[VoiceRx doctorId] authToken raw present:', !!rawAuth, 'length:', rawAuth?.length ?? 0);
+      console.log('[VoiceRx doctorId] authToken decoded:', JSON.stringify(freshToken));
+      console.log('[VoiceRx doctorId] authToken user_id:', freshToken?.result?.user_id, '(type:', typeof freshToken?.result?.user_id + ')');
+      console.log('[VoiceRx doctorId] medecoToken raw present:', !!rawMedeco, 'length:', rawMedeco?.length ?? 0);
+      console.log('[VoiceRx doctorId] medecoToken decoded:', JSON.stringify(freshMedeco));
+      console.log('[VoiceRx doctorId] medecoToken tpUserId:', freshMedeco?.user?.tpUserId, '(type:', typeof freshMedeco?.user?.tpUserId + ')');
+      console.log('[VoiceRx doctorId] doctorId used:', currentDoctorId ?? '(none)', 'source:', currentDoctorId === tokenUserId ? 'auth user_id' : currentDoctorId === tokenMedecoTpUserId ? 'medeco tpUserId' : 'none');
+
       const doctorIdSource =
-        currentDoctorId === tokenUserId
-          ? 'token.result.user_id'
-          : currentDoctorId === originalDoctorId
-            ? 'component_doctorId_(decodedToken.result.user_id)'
-            : currentDoctorId === profileUmId
-              ? 'profile.um_id'
-              : currentDoctorId === profileDoctorUniqueId
-                ? 'profile.doctor_unique_id'
-                : currentDoctorId === tokenDoctorUniqueId
-                  ? 'token.result.doctor_unique_id'
-                  : 'none';
+        currentDoctorId === tokenUserId ? 'token.result.user_id' : currentDoctorId === tokenMedecoTpUserId ? 'medeco.user.tpUserId' : 'none';
 
-      // Debug: where we get required doctorId — use JSON.stringify so mobile console shows values
       const sourceLog = {
         step: 'doctorId_source_check',
         sources_raw: {
           'token.result.user_id': freshToken?.result?.user_id,
-          'token.result.doctor_unique_id': freshToken?.result?.doctor_unique_id,
-          'profile.um_id': profile?.um_id,
-          'profile.doctor_unique_id': profile?.doctor_unique_id,
-          component_doctorId: doctorId,
-        },
-        after_asValidId: {
-          tokenUserId,
-          tokenDoctorUniqueId,
-          profileUmId,
-          profileDoctorUniqueId,
-          originalDoctorId,
+          'medeco.user.tpUserId': freshMedeco?.user?.tpUserId,
         },
         currentDoctorId,
         doctorIdSource,
@@ -822,12 +813,12 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       const hasB2c = !!profile?.b2c;
       const isNewUserRiskPath = !profileLoaded || !hasB2c || !currentDoctorId;
       if (isNewUserRiskPath) {
+        const doctorIdFromToken = tokenUserId ?? tokenMedecoTpUserId;
         console.log(logPrefix + ' step=new_user_risk_path ' + JSON.stringify({
           profileLoaded,
           hasB2c,
           currentDoctorId: currentDoctorId ?? '(missing)',
-          doctorIdFromToken: tokenUserId ?? '(missing)',
-          doctorIdFromProfile: profileDoctorUniqueId ?? '(missing)',
+          doctorIdFromToken: doctorIdFromToken ?? '(missing)',
           willProceedToDigitize: !!(currentDoctorId && (isFreeVoiceRxUser || hasB2c)),
         }));
       }
@@ -837,8 +828,8 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         const msg = 'Session loading. Please wait a moment and try again.';
         console.warn(logPrefix + ' step=BLOCKED blocked_reason=no_doctorId ' + JSON.stringify({
           prescription_will_not_be_generated: true,
-          token_user_id: freshToken?.result?.user_id,
-          component_doctorId: doctorId,
+          token_result_user_id: freshToken?.result?.user_id,
+          medeco_user_tpUserId: freshMedeco?.user?.tpUserId,
           doctorIdSource,
         }));
         message.warning(msg);
