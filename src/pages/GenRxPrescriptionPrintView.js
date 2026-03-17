@@ -62,10 +62,20 @@ function GenRxPrescriptionPrintView() {
   const { state } = location;
   const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
-  const [selectedLang, setSelectedLang] = useState(defaultPrintSettings?.default_language || 1);
-  const encodedData = btoa(selectedLang.toString());
+  const initialLanguage =
+    defaultPrintSettings?.default_language &&
+    defaultPrintSettings?.default_language !== "English"
+      ? defaultPrintSettings.default_language
+      : 1;
 
-  const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}` : null);
+  const [selectedLang, setSelectedLang] = useState(initialLanguage);
+  const initialEncodedLang = btoa(initialLanguage.toString());
+
+  const [printUrl, setPrintUrl] = useState(
+    state !== undefined
+      ? `${state.print_url}&pam_id=${pam_id}&lg=${initialEncodedLang}`
+      : null
+  );
   const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
