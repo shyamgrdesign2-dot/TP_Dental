@@ -614,10 +614,17 @@ const CanvasEngine = React.forwardRef(({
     // ✅ CRITICAL: Convert touchstart to pointerdown-like event for pen input
     // iPad/Safari suppresses rapid pointerdown events, but touchstart fires reliably
     const handleTouchStart = (e) => {
-      // Only process single touch (pen input)
+      // Only process single touch
       if (e.touches.length !== 1) return;
 
       const touch = e.touches[0];
+
+      // ✅ CRITICAL: Only treat stylus touches as drawing input
+      // On iPad Safari, Touch.touchType is 'stylus' for Apple Pencil and 'direct' for finger
+      // If touchType exists and is NOT stylus, ignore this touch for drawing
+      if (touch.touchType && touch.touchType !== 'stylus') {
+        return;
+      }
       const canvasRect = canvas.getBoundingClientRect();
       const x = touch.clientX;
       const y = touch.clientY;
