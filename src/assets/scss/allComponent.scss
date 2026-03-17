@@ -1859,6 +1859,32 @@ body {
   }
 }
 
+.dental-table.dental-complaints-table,
+.dental-table.dental-diagnosis-table,
+.dental-table.dental-tooth-diagram-table,
+.dental-table.dental-treatment-table,
+.dental-table.dental-workdone-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+
+  th,
+  td {
+    border: 0;
+    border-right: 1px solid #cfcfd6;
+    border-bottom: 1px solid #cfcfd6;
+  }
+
+  tr > *:last-child {
+    border-right: 0;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
 .dental-workdone-table {
   table-layout: fixed;
 
@@ -1930,6 +1956,7 @@ body {
   grid-template-columns: 1fr 1fr;
   border: 1px solid #cfcfd6;
   margin-top: 16px;
+  border-radius: 12px;
 }
 
 .dental-quadrant-cell {
@@ -2011,20 +2038,17 @@ body {
   box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
 }
 
-.dental-add-tooth {
-  align-self: flex-start;
-  background: #fff;
-  border: 1px dashed #b7b7c2;
-  color: #4b4b57;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.dental-add-tooth:hover {
-  border-color: #4b4ad5;
-  color: #4b4ad5;
+.dental-quadrant-list {
+  .btn {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #4b4ad5;
+    color: #4b4ad5;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
 }
 
 .dental-table-actions {
