@@ -1360,7 +1360,7 @@ function TabRxHeaderV2({
                 handleDrawerCustomize={handleDrawerCustomize}
                 isVaccinationEnabled={isVaccinationEnabled}
                 isGrowthChartEnabled={isGrowthChartEnabled}
-                page="normal-rx-page"
+                isTabRx
             />
         );
     }, [customizeDrawer]);
@@ -2282,7 +2282,6 @@ function TabRxHeaderV2({
                         closeIcon={false}
                         onClose={handleDrawerCustomize}
                         open={customizeDrawer}
-                        className="modalWidth-900"
                         width="auto"
                     >
                         {CUSTOMIZE_CONTENT_TAB}
