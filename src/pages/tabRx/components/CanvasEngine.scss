@@ -50,6 +50,13 @@
     pointer-events: auto !important;
   }
 
+  /* When embedded in a vertical scroll view, allow finger scroll on the canvas area */
+  &.embedded-in-scroll {
+    canvas {
+      touch-action: pan-y;
+    }
+  }
+
     .text-layer {
       position: absolute;
       top: 0;

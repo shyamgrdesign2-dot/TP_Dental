@@ -297,7 +297,7 @@ const TabRxCanvas = forwardRef(({
   // Helper to fit canvas to available space
   const fitCanvasToScreen = useCallback(() => {
     const drawerWidth = showTemplateDrawer ? 320 : 0;
-    const availableWidth = window.innerWidth - drawerWidth - 40;
+    const availableWidth = window.innerWidth - (drawerWidth + 90);
 
     let optimalZoom = availableWidth / A4_BASE_WIDTH;
     optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), 1.2);
