@@ -26,6 +26,7 @@ import {
   PAEDIATRICS_DP_ID,
   WHATSAPP,
   WEIGHT_HEIGHT_TITLE,
+  INVESTIGATION_TITLE,
 } from "../constants";
 import moment from "moment";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
@@ -4689,7 +4690,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -4779,7 +4780,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -4862,7 +4863,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   marginBottom: PX_TO_PT * 6,
                                 }}
                               >
-                                Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               <View style={styles.table}>
                                 <View style={styles.headerRow} fixed>
@@ -9138,7 +9139,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         fontWeight: 500,
                                       }}
                                     >
-                                      Investigation:
+                                      {INVESTIGATION_TITLE}:
                                     </Text>
                                   </Text>
                                   {isVoiceOrAmbientV2 ? (
@@ -10606,7 +10607,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 500,
                                     }}
                                   >
-                                    Investigation:
+                                    {INVESTIGATION_TITLE}:
                                   </Text>
 
                                   {isVoiceOrAmbientV2 ? (
@@ -13511,7 +13512,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }}
                             wrap
                           >
-                            Investigation
+                            {INVESTIGATION_TITLE}
                           </Text>
                         </View>
 

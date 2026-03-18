@@ -23,6 +23,7 @@ import TabInvestigationSearch from "../../components/tab_design/TabInvestigation
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
+import { INVESTIGATION_TITLE } from "../../utils/constants";
 
 function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
 
@@ -612,7 +613,7 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                 <div className="d-flex align-items-center justify-content-between p-14-pb0">
                     <div className="d-flex align-items-center">
                         <img className='me-2' src={Investigationicon} alt="Investigation" />
-                        <div className="title-common">Investigation</div>
+                        <div className="title-common">{INVESTIGATION_TITLE}</div>
                     </div>
 
                     <div className="d-flex align-items-center">
