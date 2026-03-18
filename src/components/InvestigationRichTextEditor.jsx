@@ -3,6 +3,7 @@ import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './InvestigationRichTextEditor.scss';
 import investigationIcon from '../assets/images/Lab.svg';
+import { INVESTIGATION_TITLE } from '../utils/constants';
 
 /**
  * InvestigationRichTextEditor - Rich text editor specifically for Investigation section
@@ -55,7 +56,7 @@ const InvestigationRichTextEditor = ({
           <div className="investigation-icon">
             <img src={investigationIcon} alt="Investigation" />
           </div>
-          <span className="investigation-title">Investigation</span>
+          <span className="investigation-title">{INVESTIGATION_TITLE}</span>
         </div>
         <div className="editor-container">
           <div className="shimmer-container">
@@ -72,7 +73,7 @@ const InvestigationRichTextEditor = ({
         <div className="investigation-icon">
           <img src={investigationIcon} alt="Investigation" />
         </div>
-        <span className="investigation-title">Investigation</span>
+        <span className="investigation-title">{INVESTIGATION_TITLE}</span>
       </div>
       <div className="editor-container">
         <RichTextEditor

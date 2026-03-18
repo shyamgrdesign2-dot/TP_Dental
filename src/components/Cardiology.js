@@ -54,6 +54,7 @@ import {
   PAID,
   GB_SAVE_AS_DRAFT_RX,
   GB_TELE_CONSULT,
+  INVESTIGATION_TITLE,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -3226,7 +3227,7 @@ function Cardiology(props) {
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
-                              Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3522,7 +3523,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3823,7 +3824,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -4110,7 +4111,7 @@ function Cardiology(props) {
                           alt="Advice"
                         />
                         <div>
-                          <div className="title">Investigation</div>
+                          <div className="title">{INVESTIGATION_TITLE}</div>
                           {viewCaseManagerData.investigation.map((item, i) => {
                             return (
                               <span key={i}>

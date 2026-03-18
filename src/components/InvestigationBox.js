@@ -34,7 +34,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 
 const { TextArea } = Input;
@@ -617,7 +617,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
       <>
         <div className="pop-header" key="investigation-template">
           <div className="align-items-center d-flex justify-content-between">
-            <div className="title-common">Investigation Templates</div>
+            <div className="title-common">{INVESTIGATION_TITLE} Templates</div>
             <Button
               className="btn btn-delete-prescription p-0"
               onClick={showHideTemplatesListPopover}
@@ -826,7 +826,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
-            <div className="title-common">Investigation</div>
+            <div className="title-common">{INVESTIGATION_TITLE}</div>
           </div>
           <div className="d-flex align-items-center">
             <Popover
