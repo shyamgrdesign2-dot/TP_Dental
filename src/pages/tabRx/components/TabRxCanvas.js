@@ -71,8 +71,12 @@ const TabRxCanvas = forwardRef(({
   const strokes = currentPageId ? (strokesByPage[currentPageId] || []) : [];
   const textElements = currentPageId ? (textElementsByPage[currentPageId] || []) : [];
 
+  // Global stroke-level undo/redo across ALL pages (last added stroke wins)
+  // Each entry: { pageId, stroke }
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  // Per-page token to force CanvasEngine to accept intentional "shrinking strokes" updates (undo)
+  const [forceStrokesSyncByPage, setForceStrokesSyncByPage] = useState({});
 
   // Viewport State
   const [zoomLevel, setZoomLevel] = useState(1.0);
@@ -468,15 +472,15 @@ const TabRxCanvas = forwardRef(({
   }, []);
 
   const handleStrokeComplete = useCallback((pageId, newStroke) => {
-    const pageStrokes = strokesByPage[pageId] || [];
-    setUndoStack(prev => [...prev, pageStrokes]);
+    // Push to global undo stack (stroke-level)
+    setUndoStack((prev) => [...prev, { pageId, stroke: newStroke }]);
+    // Clear redo on any new draw
     setRedoStack([]);
-    setStrokesByPage(prev => {
-      const updated = {
-        ...prev,
-        [pageId]: [...pageStrokes, newStroke]
-      };
-      return updated;
+
+    // Commit to state (functional update to avoid stale closure)
+    setStrokesByPage((prev) => {
+      const current = prev[pageId] || [];
+      return { ...prev, [pageId]: [...current, newStroke] };
     });
     
     // ✅ CRITICAL: Call onContentChange OUTSIDE of setStrokesByPage
@@ -495,37 +499,82 @@ const TabRxCanvas = forwardRef(({
     }
     setIsSaving(true);
     setTimeout(() => setIsSaving(false), 800);
-  }, [strokesByPage, pagesMetadata, onContentChange]);
+  }, [pagesMetadata, onContentChange]);
 
-  const handleEraseStart = useCallback((pageId) => {
-    const pageStrokes = strokesByPage[pageId] || [];
-    setUndoStack(prev => [...prev, pageStrokes]);
+  const handleEraseStart = useCallback(() => {
+    // Requirement: undo/redo should remove/add the last ADDED stroke globally.
+    // We intentionally do not track eraser diffs here.
     setRedoStack([]);
-  }, [strokesByPage]);
+  }, []);
 
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0 || !currentPageId) return;
-    const previousStrokes = undoStack[undoStack.length - 1];
-    const newUndoStack = undoStack.slice(0, -1);
-    setRedoStack(prev => [...prev, strokes]);
-    setStrokesByPage(prev => ({
-      ...prev,
-      [currentPageId]: previousStrokes
-    }));
-    setUndoStack(newUndoStack);
-  }, [undoStack, strokes, currentPageId]);
+    // IMPORTANT: Use functional update so repeated clicks always see the latest stack (no stale closures)
+    setUndoStack((prevUndo) => {
+      if (prevUndo.length === 0) return prevUndo;
+
+      const last = prevUndo[prevUndo.length - 1];
+      if (!last?.pageId || !last?.stroke) {
+        return prevUndo.slice(0, -1);
+      }
+
+      const { pageId, stroke } = last;
+
+      // Move focus to that page so user sees the undo happen
+      setCurrentPageIndex((prevIdx) => {
+        const idx = pagesMetadata.findIndex((p) => p.id === pageId);
+        return idx !== -1 ? idx : prevIdx;
+      });
+
+      // Remove the stroke by id
+      setStrokesByPage((prev) => {
+        const current = prev[pageId] || [];
+        return { ...prev, [pageId]: current.filter((s) => s.id !== stroke.id) };
+      });
+
+      // Force CanvasEngine to apply this shrinking update (undo) for that page
+      setForceStrokesSyncByPage((prev) => ({ ...prev, [pageId]: (prev[pageId] || 0) + 1 }));
+
+      // Push into redo stack
+      setRedoStack((prevRedo) => [...prevRedo, last]);
+
+      // Pop from undo stack
+      return prevUndo.slice(0, -1);
+    });
+  }, [pagesMetadata]);
 
   const handleRedo = useCallback(() => {
-    if (redoStack.length === 0 || !currentPageId) return;
-    const nextStrokes = redoStack[redoStack.length - 1];
-    const newRedoStack = redoStack.slice(0, -1);
-    setUndoStack(prev => [...prev, strokes]);
-    setStrokesByPage(prev => ({
-      ...prev,
-      [currentPageId]: nextStrokes
-    }));
-    setRedoStack(newRedoStack);
-  }, [redoStack, strokes, currentPageId]);
+    // IMPORTANT: Use functional update so repeated clicks always see the latest stack (no stale closures)
+    setRedoStack((prevRedo) => {
+      if (prevRedo.length === 0) return prevRedo;
+
+      const last = prevRedo[prevRedo.length - 1];
+      if (!last?.pageId || !last?.stroke) {
+        return prevRedo.slice(0, -1);
+      }
+
+      const { pageId, stroke } = last;
+
+      setCurrentPageIndex((prevIdx) => {
+        const idx = pagesMetadata.findIndex((p) => p.id === pageId);
+        return idx !== -1 ? idx : prevIdx;
+      });
+
+      setStrokesByPage((prev) => {
+        const current = prev[pageId] || [];
+        // avoid duplicates
+        if (current.some((s) => s.id === stroke.id)) return prev;
+        return { ...prev, [pageId]: [...current, stroke] };
+      });
+
+      setForceStrokesSyncByPage((prev) => ({ ...prev, [pageId]: (prev[pageId] || 0) + 1 }));
+
+      // Push into undo stack
+      setUndoStack((prevUndo) => [...prevUndo, last]);
+
+      // Pop from redo stack
+      return prevRedo.slice(0, -1);
+    });
+  }, [pagesMetadata]);
 
   const handleSave = useCallback(() => {
     if (onSave) {
@@ -882,6 +931,7 @@ const TabRxCanvas = forwardRef(({
                       }
                     }}
                     strokes={pageStrokes}
+                    forceStrokesSyncToken={forceStrokesSyncByPage[pageId] || 0}
                     setStrokes={(newStrokes) => {
                       setStrokesByPage(prev => {
                         const prevStrokes = prev[pageId] || [];

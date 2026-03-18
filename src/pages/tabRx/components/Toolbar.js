@@ -37,33 +37,47 @@ const Toolbar = ({
   };
 
   const handlePointerMove = (e) => {
-    if (isDragging) {
-      const newX = e.clientX - dragStart.current.x;
-      const newY = e.clientY - dragStart.current.y;
-      
-      const maxX = window.innerWidth - (orientation === 'vertical' ? 80 : 350);
-      const maxY = window.innerHeight - (orientation === 'vertical' ? 350 : 80);
-      
-      const clampedX = Math.max(10, Math.min(maxX, newX));
-      const clampedY = Math.max(10, Math.min(maxY, newY));
-      
-      setPosition({ x: clampedX, y: clampedY });
-      
-      const distToVerticalEdge = Math.min(newX, window.innerWidth - newX);
-      const distToHorizontalEdge = Math.min(newY, window.innerHeight - newY);
+    if (!isDragging) return;
 
-      if (distToHorizontalEdge < distToVerticalEdge * 0.8) { 
-        setOrientation('horizontal');
-      } else {
-        setOrientation('vertical');
-      }
-      e.stopPropagation();
+    const newX = e.clientX - dragStart.current.x;
+    const newY = e.clientY - dragStart.current.y;
+    
+    const maxX = window.innerWidth - (orientation === 'vertical' ? 80 : 350);
+    const maxY = window.innerHeight - (orientation === 'vertical' ? 350 : 80);
+    
+    const clampedX = Math.max(10, Math.min(maxX, newX));
+    const clampedY = Math.max(10, Math.min(maxY, newY));
+    
+    setPosition({ x: clampedX, y: clampedY });
+    
+    const distToVerticalEdge = Math.min(newX, window.innerWidth - newX);
+    const distToHorizontalEdge = Math.min(newY, window.innerHeight - newY);
+
+    if (distToHorizontalEdge < distToVerticalEdge * 0.8) { 
+      setOrientation('horizontal');
+    } else {
+      setOrientation('vertical');
     }
+
+    // Only stop propagation while dragging, so clicks on buttons still work reliably
+    e.stopPropagation();
   };
 
   const handlePointerUp = (e) => {
+    if (!isDragging) return;
+
     setIsDragging(false);
-    e.currentTarget.releasePointerCapture(e.pointerId);
+
+    // Guard: release pointer capture only if we actually captured it
+    try {
+      if (e.currentTarget?.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // Only stop propagation while dragging, so button taps don't require double click
     e.stopPropagation();
   };
 
@@ -127,7 +141,18 @@ const Toolbar = ({
 
   const ToolButton = ({ tool, icon: Icon }) => (
     <button
-      onClick={() => handleToolSelect(tool)}
+      type="button"
+      onPointerDown={(e) => {
+        // Fire on pointer down so tablet taps work on first tap (no click synthesis delay)
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDragging) handleToolSelect(tool);
+      }}
+      onClick={(e) => {
+        // Desktop fallback
+        e.stopPropagation();
+        if (!isDragging) handleToolSelect(tool);
+      }}
       className={`tool-button ${toolSettings.activeTool === tool ? 'active' : ''}`}
     >
       <Icon size={22} />
@@ -167,7 +192,16 @@ const Toolbar = ({
         <div className={`divider ${orientation}`} />
 
         <button
-          onClick={onUndo}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) onUndo?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) onUndo?.();
+          }}
           disabled={!canUndo}
           className="action-button"
         >
@@ -175,7 +209,16 @@ const Toolbar = ({
         </button>
 
         <button
-          onClick={onRedo}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) onRedo?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) onRedo?.();
+          }}
           disabled={!canRedo}
           className="action-button"
         >
@@ -185,7 +228,16 @@ const Toolbar = ({
         <div className={`divider ${orientation}`} />
 
         <button
-          onClick={onZoomIn}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) onZoomIn?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) onZoomIn?.();
+          }}
           className="action-button"
           title="Zoom In"
         >
@@ -193,7 +245,16 @@ const Toolbar = ({
         </button>
 
         <button
-          onClick={onZoomOut}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) onZoomOut?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) onZoomOut?.();
+          }}
           className="action-button"
           title="Zoom Out"
         >
@@ -201,7 +262,16 @@ const Toolbar = ({
         </button>
 
         <button
-          onClick={onFit}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) onFit?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) onFit?.();
+          }}
           className="action-button"
           title="Fit to Screen"
         >
@@ -211,7 +281,16 @@ const Toolbar = ({
         <div className={`divider ${orientation}`} />
 
          <button
-          onClick={() => setIsMinimized(true)}
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDragging) setIsMinimized(true);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDragging) setIsMinimized(true);
+          }}
           className="close-button"
         >
           <FaTimes size={20} />

@@ -18,7 +18,8 @@ const CanvasEngine = React.forwardRef(({
   onPageFocus,
   backgroundImage,
   embeddedInScroll = false,
-  onContentChange = null // ✅ Optional callback for content changes
+  onContentChange = null, // ✅ Optional callback for content changes
+  forceStrokesSyncToken = 0, // ✅ bump to force applying strokes prop even if it has fewer strokes (undo/redo)
 }, ref) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -35,6 +36,7 @@ const CanvasEngine = React.forwardRef(({
 
   // Mirror of `strokes` prop — always up-to-date
   const strokesRef = useRef(strokes);
+  const lastForceStrokesSyncTokenRef = useRef(forceStrokesSyncToken);
 
   // Mirror of `bgImageObj` — always up-to-date
   const bgImageObjRef = useRef(null);
@@ -174,6 +176,15 @@ const CanvasEngine = React.forwardRef(({
   useEffect(() => {
     if (!isDrawingRef.current) {
       const currentStrokes = strokesRef.current;
+
+      // ✅ If parent explicitly requests a sync (undo/redo), allow syncing even if strokes shrank
+      const forceSync = forceStrokesSyncToken !== lastForceStrokesSyncTokenRef.current;
+      if (forceSync) {
+        lastForceStrokesSyncTokenRef.current = forceStrokesSyncToken;
+        strokesRef.current = strokes;
+        renderCanvas();
+        return;
+      }
       
       // ✅ CRITICAL: Protect against data loss - NEVER overwrite with fewer strokes
       // This happens when parent re-renders during zoom/tool changes and passes stale prop
@@ -217,7 +228,7 @@ const CanvasEngine = React.forwardRef(({
         }
       }
     }
-  }, [strokes, setStrokes]); // ✅ Added setStrokes to deps for the update call
+  }, [strokes, setStrokes, forceStrokesSyncToken]); // include token so forced sync works
 
   // ─────────────────────────────────────────────────────────────────────────────
   // BACKGROUND IMAGE (must come AFTER renderCanvas is defined)
