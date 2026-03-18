@@ -81,7 +81,7 @@ function HeaderPrintView({
       if (pam_id || tcm_id) {
         updateVisitStatus({
           status: 3,
-          isSnapRx,
+          isSnapRx: true,
           appointment_id: pam_id,
           prescriptionUrl: printUrl,
           tcm_id: tcm_id,

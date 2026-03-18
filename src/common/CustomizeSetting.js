@@ -80,7 +80,7 @@ const CustomRow = ({ children, ...props }) => {
   );
 };
 
-function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowthChartEnabled, page }) {
+function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowthChartEnabled, page, isTabRx }) {
 
   const { setSymptomsData, setExaminationData, setDiagnosisData, setAdviceData, setInvestigationData, setMedicationData, setVitalsData, setMedicalHistoryData, setPrivateNotesData, setFollowUpDate, setAdditionalNote } = useContext(CashManagerContext);
   const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile, userId, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -175,7 +175,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       title: 'ENABLE/DISABLE',
       dataIndex: 'tmdpm_status',
       key: 'tmdpm_status',
-      render: (text, record) => <Switch defaultChecked onChange={(checked) => onChangeLeft(checked, record)} checked={text ? false : true} />,
+      render: (text, record) => <div className={`${page !== "normal-rx-page" ? "text-left" : ""}`}><Switch defaultChecked onChange={(checked) => onChangeLeft(checked, record)} checked={text ? false : true} /></div>,
     },
   ];
 
@@ -756,6 +756,12 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           </div>
           <div className='d-flex align-items-center justify-content-end w-100'>
 
+            {isTabRx && (
+              <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
+                <span>Default Settings</span>
+              </button>
+            )}
+
             <Popover
               open={popOverVideo}
               onOpenChange={showHideVideoListPopover}
@@ -764,15 +770,19 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
               overlayClassName="pop-430 pp-0 videoTutorial"
               placement="bottom"
             >
-              <button className='btn d-flex align-items-center btn-text me-10 tutorial'>
-                {/* onClick={showHideVideoListPopover} */}
-                <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+              <button className={`btn d-flex align-items-center btn-text tutorial ${isTabRx ? "me-14" : "me-10"}`}>
+                <span className={`text-decoration-none rounded-5 bg-white shadow2 ${isTabRx ? "" : "pe-3"}`}>
+                  <img height={42} src={tutorial} alt="" />
+                  {!isTabRx && "Tutorial"}
+                </span>
               </button>
             </Popover>
 
-            <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
-              <span>Default Settings</span>
-            </button>
+            {!isTabRx && (
+              <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
+                <span>Default Settings</span>
+              </button>
+            )}
             <Button type='button' className="btn-41 btn px-4 btn-primary3 me-4" onClick={onCustomizePadClick} loading={loading}>
               Save
             </Button>
@@ -781,7 +791,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       </Card>
 
       <Row className='p-4'>
-        <Col lg={12} sm={12} className='pe-3'>
+        <Col lg={page === "normal-rx-page" ? 12 : 24} sm={page === "normal-rx-page" ? 12 : 24} className='pe-3'>
           <DndContext modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEndLeft}>
             <SortableContext
               // rowKey array
