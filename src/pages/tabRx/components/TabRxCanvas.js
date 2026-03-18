@@ -149,6 +149,10 @@ const TabRxCanvas = forwardRef(({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
 
+  // Template switch confirmation modal state
+  const [isTemplateSwitchModalOpen, setIsTemplateSwitchModalOpen] = useState(false);
+  const [pendingTemplateId, setPendingTemplateId] = useState(null);
+
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
 
@@ -547,7 +551,15 @@ const TabRxCanvas = forwardRef(({
     }
   }, [pagesMetadata, strokesByPage, textElementsByPage, currentPageIndex, zoomLevel, panOffset, patient, selectedTemplateId, onSave]);
 
-  const handleTemplateSelect = (templateId) => {
+  const hasAnyCanvasContent = useCallback(() => {
+    const hasStrokes = Object.values(strokesByPage || {}).some((arr) => (arr || []).length > 0);
+    const hasText = Object.values(textElementsByPage || {}).some((arr) =>
+      (arr || []).some((el) => el?.content && el.content.trim().length > 0),
+    );
+    return hasStrokes || hasText;
+  }, [strokesByPage, textElementsByPage]);
+
+  const executeTemplateSelect = useCallback((templateId) => {
     setSelectedTemplateId(templateId);
     // Reset to first page when template changes
     setCurrentPageIndex(0);
@@ -588,7 +600,32 @@ const TabRxCanvas = forwardRef(({
       }
     }
     // Keep drawer open - don't close after selection
-  };
+  }, [templates]);
+
+  const handleTemplateSelect = useCallback((templateId) => {
+    // No-op if selecting same template
+    if (templateId === selectedTemplateId) return;
+
+    // If there is any existing content, confirm before switching (data will be cleared)
+    if (hasAnyCanvasContent()) {
+      setPendingTemplateId(templateId);
+      setIsTemplateSwitchModalOpen(true);
+      return;
+    }
+
+    executeTemplateSelect(templateId);
+  }, [selectedTemplateId, hasAnyCanvasContent, executeTemplateSelect]);
+
+  const hideTemplateSwitchModal = useCallback(() => {
+    setIsTemplateSwitchModalOpen(false);
+    setPendingTemplateId(null);
+  }, []);
+
+  const confirmTemplateSwitch = useCallback(() => {
+    if (!pendingTemplateId) return;
+    executeTemplateSelect(pendingTemplateId);
+    hideTemplateSwitchModal();
+  }, [pendingTemplateId, executeTemplateSelect, hideTemplateSwitchModal]);
 
   // Add new page after a specific index
   const handleAddPage = useCallback((afterIndex, pageType) => {
@@ -1002,6 +1039,44 @@ const TabRxCanvas = forwardRef(({
                 </div>
                 <Button
                   onClick={hideDeleteModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+
+      {/* Template Switch Confirmation Modal */}
+      <CommonModal
+        isModalOpen={isTemplateSwitchModalOpen}
+        onCancel={hideTemplateSwitchModal}
+        modalWidth={500}
+        title="You may lose your data"
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Switching the letterhead/template will clear the current canvas pages and content. <br />
+                  Do you want to continue?
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={confirmTemplateSwitch}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  style={{ cursor: 'pointer' }}
+                >
+                  Yes, switch
+                </div>
+                <Button
+                  onClick={hideTemplateSwitchModal}
                   className="lh-lg btn btn-primary3 btn-41 px-4"
                 >
                   <span>No</span>

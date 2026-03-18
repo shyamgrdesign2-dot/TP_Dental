@@ -1,6 +1,7 @@
 .tab-rx-toolbar {
   position: fixed;
-  z-index: 50;
+  // Must stay above the TemplateSidebar drawer (.tab-rx-template-drawer is z-index: 1000)
+  z-index: 1200;
   touch-action: none;
   transition: all 0.3s ease-out;
 
@@ -417,7 +418,8 @@
 
   .minimized-button {
     position: fixed;
-    z-index: 50;
+    // Keep minimized button above the drawer too
+    z-index: 1200;
     width: 56px;
     height: 56px;
     border-radius: 50%;
