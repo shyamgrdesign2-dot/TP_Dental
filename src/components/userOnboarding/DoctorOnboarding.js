@@ -21,6 +21,8 @@ import { updateHasLocation } from "../../redux/doctorsSlice";
 import { useDispatch } from "react-redux";
 import { detectOperatingSystem } from "../../utils/utils";
 import { useLocalStorage } from "../../utils/localStorage";
+import { getMedecoToken as getMedecoTokenFromAPI } from "../../api/services/ApiMedecoToken";
+import { jwtDecode } from "jwt-decode";
 
 /** Strip leading 91 so onboarding APIs receive mobile without country code. */
 const phoneWithoutCountryCode = (phone) => {
@@ -485,6 +487,53 @@ const DoctorOnboarding = ({
     }
   };
 
+  const refreshMedecoToken = async () => {
+    try {
+      console.log("[TP Medeco] Refreshing Medeco token after finalize...");
+      const tpTokenRaw = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+      if (!tpTokenRaw) {
+        console.warn("[TP Medeco] No TP token found in localStorage");
+        return false;
+      }
+      let tpToken;
+      try {
+        tpToken = JSON.parse(tpTokenRaw);
+        if (typeof tpToken !== "string") {
+          console.warn("[TP Medeco] TP token is not a string");
+          return false;
+        }
+      } catch (e) {
+        tpToken = tpTokenRaw;
+      }
+      
+      let decoded;
+      try {
+        decoded = jwtDecode(tpToken);
+      } catch (e) {
+        console.warn("[TP Medeco] Failed to decode TP token:", e);
+        return false;
+      }
+      
+      const mobileNumber = decoded?.result?.mobile_no;
+      
+      if (!mobileNumber) {
+        console.warn("[TP Medeco] No mobile number found in TP token");
+        return false;
+      }
+      const response = await getMedecoTokenFromAPI(mobileNumber);
+      if (response?.data?.token) {
+        localStorage.setItem(PERSISTANT_STORAGE_KEY_MEDECO_TOKEN, JSON.stringify(response.data.token));
+        return true;
+      } else {
+        console.warn("[TP Medeco] No token in API response:", response);
+        return false;
+      }
+    } catch (error) {
+      console.error("[TP Medeco] Error refreshing Medeco token:", error);
+      return false;
+    }
+  };
+
   const handleUpdateLocation = async () => {
     setIsSubmitting(true);
     try {
@@ -573,6 +622,13 @@ const DoctorOnboarding = ({
       const success = clinicDetails
         ? await handleUpdateLocation()
         : await handleFinalizeOnboarding();
+      
+      // If finalize was successful and we're coming from Medeco, refresh the Medeco token
+      if (success && !clinicDetails && fromMedeco === "true") {
+        console.log("[TP Medeco] Finalize successful, refreshing Medeco token...");
+        await refreshMedecoToken();
+      }
+      
       // moengage event for clinic details step
       if (success) {
         window.Moengage.track_event("TP_NewLoginFlow_Clinical_info_Next", {
@@ -600,6 +656,12 @@ const DoctorOnboarding = ({
       // Upload documents and redirect to home on success
       const success = await handleUploadDocuments();
       if (success) {
+        // Refresh Medeco token before redirecting (for document upload completion)
+        if (fromMedeco === "true") {
+          console.log("[TP Medeco] Document upload complete - refreshing Medeco token...");
+          await refreshMedecoToken();
+        }
+        
         // Close the drawer
         completeClinicSetupForMedeco()
         onClose();
@@ -824,7 +886,7 @@ const DoctorOnboarding = ({
             <>
               <Button
                 block
-                onClick={() => {
+                onClick={async () => {
                   // moengage event for skip and upload later
                   window.Moengage.track_event(
                     "TP_NewLoginFlow_Skip_And_Submit_later",
@@ -848,6 +910,13 @@ const DoctorOnboarding = ({
                       ),
                     }
                   );
+                  
+                  // Refresh Medeco token before redirecting (for "Skip & upload later" flow)
+                  if (fromMedeco === "true") {
+                    console.log("[TP Medeco] Skip & upload later - refreshing Medeco token...");
+                    await refreshMedecoToken();
+                  }
+                  
                   completeClinicSetupForMedeco()
                   onClose();
                   navigate("/?from=finalSetup");
