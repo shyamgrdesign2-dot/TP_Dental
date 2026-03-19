@@ -14,6 +14,9 @@ ENV REACT_APP_ENV $REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 
+# ✅ Set memory limit BEFORE any npm commands
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -25,8 +28,6 @@ RUN npm install --legacy-peer-deps
 
 # Copy the entire application code to the container
 COPY . .
-
-ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build the React app for production
 RUN npm run build
