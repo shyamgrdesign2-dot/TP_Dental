@@ -69,7 +69,7 @@ function ConfigurePrintSetting() {
     const medicalHistoryCheckboxOptions = caseManagerData?.medical_history?.map(e => {
         return { label: e?.title, value: e?.tmmhs_id }
     })
-    const [labParamsData, setLabParamsData] = useState(caseManagerData?.labParamsData || []);
+    const [labParamsData, setLabParamsData] = useState([]);
     const [prescriptionDataFromApi, setPrescriptionDataFromApi] = useState(null);
     const [patientBills, setPatientBills] = useState([]);
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
@@ -86,6 +86,13 @@ function ConfigurePrintSetting() {
 
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
     const { isGynaecHistoryAccessable } = useAccess(caseManagerData?.patient_data?.patient_age);
+
+    const getTodayLabParams = (labResults = []) => {
+        const todayStr = moment().format("YYYY-MM-DD");
+        return (Array.isArray(labResults) ? labResults : []).filter(
+            (labResult) => (labResult?.date || labResult?.createdAt) && moment(labResult.date || labResult.createdAt).format("YYYY-MM-DD") === todayStr
+        );
+    };
 
 
     useEffect(() => {
@@ -119,9 +126,8 @@ function ConfigurePrintSetting() {
         const fetchVoiceAmbientData = async () => {
             if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
                 const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
-                const hasLabResults = caseManagerData?.labParamsData && Array.isArray(caseManagerData.labParamsData) && caseManagerData.labParamsData.length > 0;
                 const hasMedicalHistory = caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0;
-                if (!hasVitals || !hasLabResults || !hasMedicalHistory) {
+                if (!hasVitals || !hasMedicalHistory) {
                     try {
                         const sendData = {
                             patient_unique_id: caseManagerData.patient_data.patient_unique_id,
@@ -141,7 +147,7 @@ function ConfigurePrintSetting() {
                                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                                     );
                                     const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
-                                    const labArray = Array.isArray(labResults) ? labResults : [];
+                                    const labArray = getTodayLabParams(labResults);
                                     setLabParamsData(labArray);
                                 } catch (error) {
                                     console.error('[ConfigurePrintSetting] lab-parameters/results API error (path 1)', error?.message, error?.response?.status);
@@ -668,7 +674,7 @@ function ConfigurePrintSetting() {
                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                     );
                     const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
-                    const labArray = Array.isArray(labResults) ? labResults : [];
+                    const labArray = getTodayLabParams(labResults);
                     setLabParamsData(labArray);
                 } catch (error) {
                     // Lab API optional; leave labParamsData unchanged on error
@@ -831,12 +837,7 @@ function ConfigurePrintSetting() {
                 const vitalsForConsultation = allVitals.filter(
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === consultationDate
                 );
-                // Lab results come only from Lab Results API (state labParamsData), not from case manager
-                const rawLabParams = (labParamsData && labParamsData.length > 0) ? labParamsData : (caseManagerData?.labParamsData || []);
-                const labParamsToday = rawLabParams.filter(
-                    (l) => (l?.date || l?.createdAt) && moment(l.date || l.createdAt).format("YYYY-MM-DD") === todayStr
-                );
-                const hasLabData = labParamsToday.length > 0;
+                const hasLabData = labParamsData.length > 0;
                 const defaultOptions = defaultPrintSettings?.prescription?.case_option || [];
                 const medicalHistoryLen = caseManagerData?.medical_history?.length ?? 0;
                 const hasMedicalHistory = medicalHistoryLen > 0;
