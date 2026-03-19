@@ -171,8 +171,10 @@ ApiAbha.linkPatientUniqueidWithAbha = function (data) {
  * @returns {Promise} API response
  */
 ApiAbha.fetchAbhaDetails = function (patientUniqueId) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
   return api.get(
-    `/patients/fetch-abha-details?patientUniqueId=${patientUniqueId}`,
+    `/${isReceptionist ? "kia" : "patients"}/fetch-abha-details?patientUniqueId=${patientUniqueId}`,
     ipdBaseUrl
   );
 };
