@@ -64,7 +64,7 @@ const DoctorOnboarding = ({
   const [doctorData, setDoctorData] = useState({});
   const navigate = useNavigate();
   const { state } = useLocation();
-  const [getMedecoToken] = useLocalStorage(
+  const [getMedecoToken, setMedecoToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_MEDECO_TOKEN
   );
   const clinicDetails = state?.clinicDetails;
