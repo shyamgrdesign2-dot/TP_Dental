@@ -1844,7 +1844,29 @@ function Cardiology(props) {
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
-    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx));
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx ));
+    const getKey = (m) =>
+      String(m?.groundedMedicineName || m?.groundingMedicineName || m?.name || '').trim().toLowerCase();
+    const isContinuation = medications.map((m, idx) => {
+      if (idx === 0) return false;
+      const k = getKey(m);
+      return k !== '' && k === getKey(medications[idx - 1]);
+    });
+    const rowSpanAt = new Map();
+    for (let i = 0; i < medications.length; i++) {
+      if (isContinuation[i]) continue;
+      const k = getKey(medications[i]);
+      if (!k) {
+        rowSpanAt.set(i, 1);
+        continue;
+      }
+      let span = 1;
+      for (let j = i + 1; j < medications.length; j++) {
+        if (getKey(medications[j]) !== k) break;
+        span++;
+      }
+      rowSpanAt.set(i, span);
+    }
     
     const getColumnStyle = (column) => {
       const baseStyle = { 
@@ -1898,27 +1920,56 @@ function Cardiology(props) {
           <tbody>
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
-                <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {capitalize(
-                    (() => {
-                      if (item?.metadata?.selectedValue) {
-                        return item.metadata.selectedValue;
-                      }
-                      const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
-                      if (isGroundingAccessable) {
-                        const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
-                        if (isFuzzySearchEmpty) {
-                          return grounded || item?.name || "";
+                {!isContinuation[index] && (
+                  <td
+                    rowSpan={rowSpanAt.get(index) || 1}
+                    style={{ ...getColumnStyle('name'), fontWeight: 500, verticalAlign: 'top' }}
+                  >
+                    {capitalize(
+                      (() => {
+                        if (item?.metadata?.selectedValue) {
+                          return item.metadata.selectedValue;
                         }
-                        return item?.name || grounded || "";
-                      }
-                      return grounded || item?.name || item?.refinedName || item?.lineItem || "";
-                    })().trim() || '-', 
-                    true
-                  )}
-                </td>
+                        const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
+                        if (isGroundingAccessable) {
+                          const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                          if (isFuzzySearchEmpty) {
+                            return grounded || item?.name || "";
+                          }
+                          return item?.name || grounded || "";
+                        }
+                        return grounded || item?.name || item?.refinedName || item?.lineItem || "";
+                      })().trim() || '-',
+                      true
+                    )}
+                  </td>
+                )}
                 <td style={getColumnStyle('unit')}>
-                  {item?.unitPerDose || item?.dosage || '-'}
+                  {isContinuation[index] ? (
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '0%',
+                          top: -14,
+                          transform: 'translateX(-50%)',
+                          padding: '2px 8px',
+                          fontSize: 12,
+                          borderRadius: 10,
+                          border: '1px solid #E5E7EB',
+                          background: '#F3F4F6',
+                          color: '#6B7280',
+                          lineHeight: 1.5,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Then
+                      </span>
+                      <div style={{ paddingTop: 10 }}>{item?.unitPerDose || item?.dosage || '-'}</div>
+                    </div>
+                  ) : (
+                    item?.unitPerDose || item?.dosage || '-'
+                  )}
                 </td>
                 <td style={getColumnStyle('frequency')}>
                   {item?.frequency || '-'}
@@ -1930,7 +1981,7 @@ function Cardiology(props) {
                   {item?.duration || '-'}
                 </td>
                 <td style={getColumnStyle('quantity')}>
-                  {item?.quantity || item?.qty || '-'}
+                  {isContinuation[index] ? '-' : (item?.quantity || item?.qty || '-')}
                 </td>
                 <td style={getColumnStyle('note')}>
                   {item?.notes || item?.note || '-'}

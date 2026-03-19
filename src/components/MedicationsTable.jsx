@@ -365,6 +365,90 @@ const MedicationsTable = ({
     if (medications.length > 0) hasHadMedicationsRef.current = true;
   }, [medications.length]);
 
+  const handleTaperingDoseAdd = useCallback((item) => {
+    const getGroupKey = (m) =>
+      String(m?.groundedMedicineName || m?.name || '').trim().toLowerCase();
+
+    const targetKey = getGroupKey(item);
+    const startIdx = medications.findIndex((m) => m.id === item.id);
+    if (startIdx < 0) return;
+
+    // Insert after the last consecutive row of same groundedMedicineName
+    let insertAt = startIdx;
+    for (let i = startIdx; i < medications.length; i++) {
+      if (getGroupKey(medications[i]) !== targetKey) break;
+      insertAt = i;
+    }
+
+    const newMedication = {
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      name: item.name,
+      corrected_name: item.corrected_name,
+      dosage: '',
+      frequency: '',
+      schedule: '',
+      duration: '',
+      // For taper rows created from UI, qty should start empty (do not copy main row qty)
+      quantity: '',
+      notes: '',
+      lineItem: item.name,
+      edited: false,
+      metadata: item.metadata,
+      groundedMedicineName: item?.groundedMedicineName || item?.name || '',
+    };
+    const newList = [...medications];
+    newList.splice(insertAt + 1, 0, newMedication);
+    onUpdate(newList);
+  }, [medications, onUpdate]);
+
+  const handleAutofillDurationAll = useCallback(
+    (durationValue) => {
+      const val = String(durationValue ?? '').trim();
+      if (!val) return;
+
+      const updatedMedications = medications.map((m) => {
+        const updated = { ...m, duration: val };
+        updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        return updated;
+      });
+
+      onUpdate(updatedMedications);
+    },
+    [medications, onUpdate]
+  );
+
+  // Tapering dose grouping: consecutive same groundedMedicineName => one medicine cell spanning rows.
+  const taperMeta = useMemo(() => {
+    const getKey = (m) =>
+      String(m?.groundedMedicineName || m?.name || '').trim().toLowerCase();
+
+    const isContinuation = medications.map((m, idx) => {
+      if (idx === 0) return false;
+      const prev = medications[idx - 1];
+      const k = getKey(m);
+      return k !== '' && k === getKey(prev);
+    });
+
+    const rowSpanAt = new Map(); // index -> span for group start
+    for (let i = 0; i < medications.length; i++) {
+      if (isContinuation[i]) continue;
+      const k = getKey(medications[i]);
+      if (!k) {
+        rowSpanAt.set(i, 1);
+        continue;
+      }
+      let span = 1;
+      for (let j = i + 1; j < medications.length; j++) {
+        if (getKey(medications[j]) !== k) break;
+        span++;
+      }
+      rowSpanAt.set(i, span);
+    }
+
+    return { isContinuation, rowSpanAt };
+  }, [medications]);
+
   const onSearchParent = useCallback(
     (query) => {
       setSearchQuery(removeBeforeWhiteSpace(query));
@@ -1030,7 +1114,7 @@ const MedicationsTable = ({
           <div className={styles['medications-icon']}>
             <img src={medicationsIcon} alt="Medications" />
           </div>
-          <span className={styles['medications-title']}>Medication (Rx)</span>
+          <span className={styles['medications-title']}>Medications (Rx)</span>
         </div>
         <div className={styles['medications-editor-container']}>
           <div className={styles['medications-shimmer-container']}>
@@ -1046,11 +1130,13 @@ const MedicationsTable = ({
 
   return (
     <div className={`${styles['medications-content-box']} ${isInitialEmpty ? styles['compact-default'] : ''}`}>
-      <div className={styles['medications-header']}>
-        <div className={styles['medications-icon']}>
-          <img src={medicationsIcon} alt="Medications" />
+      <div className={styles['medications-header']} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className={styles['medications-icon']}>
+            <img src={medicationsIcon} alt="Medications" />
+          </div>
+          <span className={styles['medications-title']}>Medications (Rx)</span>
         </div>
-        <span className={styles['medications-title']}>Medication (Rx)</span>
       </div>
       
             <DragDropContext onDragEnd={onDragEnd}>
@@ -1073,30 +1159,48 @@ const MedicationsTable = ({
               {(provided) => (
                 <tbody {...provided.droppableProps} ref={provided.innerRef}>
             {medications.map((item, index) => (
-                    <Draggable key={item.id || `med-${index}`} draggableId={`med-${item.id || index}`} index={index}>
-                      {(provided, snapshot) => (
+                    <Draggable
+                      key={item.id || `med-${index}`}
+                      draggableId={`med-${item.id || index}`}
+                      index={index}
+                      isDragDisabled={taperMeta.isContinuation[index]}
+                    >
+                      {(provided, snapshot) => {
+                        const isContinuation = taperMeta.isContinuation[index];
+                        const rowSpan = taperMeta.rowSpanAt.get(index) || 1;
+                        const showThenPill = isContinuation;
+                        return (
                         <tr 
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          key={item.id || index} 
-                          className={styles['medications-row']}
+                          className={`${styles['medications-row']} taper-dose ${isContinuation ? styles['taper-row'] : ''}`}
                           style={{
                             ...provided.draggableProps.style,
                             backgroundColor: snapshot.isDragging ? '#f0f0f0' : 'transparent'
                           }}
                         >
-                          <td className={styles['drag-cell']} {...provided.dragHandleProps}>
-                            <MenuOutlined 
-                              className={styles['drag-icon']}
-                              style={{ cursor: 'grab', fontSize: '16px', color: '#92929D' }}
-                            />
-                </td>
+                          {!isContinuation ? (
+                            <td
+                              className={styles['drag-cell']}
+                              rowSpan={rowSpan}
+                              style={{ verticalAlign: 'middle' }}
+                              {...provided.dragHandleProps}
+                            >
+                              <MenuOutlined
+                                className={styles['drag-icon']}
+                                style={{ cursor: 'grab', fontSize: '16px', color: '#92929D' }}
+                              />
+                            </td>
+                          ) : null}
+                {!isContinuation && (
                 <td 
-                  className={styles['medicine-cell']}
+                  rowSpan={rowSpan}
+                  className={`${styles['medicine-cell']} ${styles['medicine-cell-with-badge']} ${rowSpan > 1 ? styles['medicine-cell-rowspan-2'] : ''}`}
                   onClick={!isTablet ? () => handleCellClick(item.id, 'name', item.name) : undefined}
-                  style={{ cursor: !isTablet ? 'pointer' : 'default' }}
+                  style={{ cursor: !isTablet ? 'pointer' : 'default', position: 'relative', verticalAlign: 'top' }}
                 >
-                                    {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') || (isTablet && editingRow === item.id) ? (
+                  <div style={{ minHeight: '32px' }}>
+                                    {((!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'name') || (isTablet && editingRow === item.id)) ? (
                     <AutoComplete
                       value={isTablet && editingRow === item.id ? rowEditValues.name : editValue}
                       onSearch={onSearchParent}
@@ -1206,11 +1310,19 @@ const MedicationsTable = ({
                       )}
                     </div>
                   )}
+                  </div>
+                  <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 0 }} onClick={(e) => { e.stopPropagation(); handleTaperingDoseAdd(item); }}>
+                    <i className="icon-Add me-1"></i> Tapering Dose
+                  </div>
                 </td>
+                )}
                 <td 
-                  className={styles['unit-dose-cell']}
-                  style={{ cursor: 'default' }}
+                  className={`${styles['unit-dose-cell']} ${styles['unit-dose-cell-with-badge']} ${showThenPill ? styles['unit-dose-cell-with-then'] : ''}`}
+                  style={{ cursor: 'default', position: 'relative' }}
                 >
+                  {showThenPill && (
+                    <span className={styles['medications-then-pill-inline']}>Then</span>
+                  )}
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'dosage') || (isTablet && editingRow === item.id) ? (
                     <AutoComplete
                       value={isTablet && editingRow === item.id ? (rowEditValues.dosage || '') : (editValue || '')}
@@ -1386,8 +1498,8 @@ const MedicationsTable = ({
                   )}
                 </td>
                 <td 
-                  className={styles['duration-cell']}
-                  style={{ cursor: 'default' }}
+                  className={`${styles['duration-cell']} autofill`}
+                  style={{ cursor: 'default', position: 'relative' }}
                 >
                   {(!isTablet && editingCell?.itemId === item.id && editingCell?.field === 'duration') || (isTablet && editingRow === item.id) ? (
                     <AutoComplete
@@ -1437,6 +1549,19 @@ const MedicationsTable = ({
                       {item.duration || '-'}
                     </span>
                   )}
+                  {!!String(item.duration || '').trim() && (
+                    <div
+                      className="badge-autofill"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAutofillDurationAll(item.duration);
+                      }}
+                      style={{ left: 0 }}
+                    >
+                      <i className="icon-copyIcon fs-12-1" />
+                      Autofill to all meds
+                    </div>
+                  )}
                 </td>
                 <td 
                   className={styles['quantity-cell']}
@@ -1463,7 +1588,7 @@ const MedicationsTable = ({
                     />
                   ) : (
                     <span className={styles['quantity-text']}>
-                      {item.quantity || '-'}
+                      {isContinuation ? '-' : (item.quantity || '-')}
                     </span>
                   )}
                 </td>
@@ -1520,7 +1645,8 @@ const MedicationsTable = ({
                   )}
                 </td>
               </tr>
-                      )}
+                        );
+                      }}
                     </Draggable>
             ))}
                   {provided.placeholder}
