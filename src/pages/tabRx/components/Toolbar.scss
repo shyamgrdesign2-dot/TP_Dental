@@ -1,6 +1,7 @@
 .tab-rx-toolbar {
   position: fixed;
-  z-index: 50;
+  // Must stay above the TemplateSidebar drawer (.tab-rx-template-drawer is z-index: 1000)
+  z-index: 1200;
   touch-action: none;
   transition: all 0.3s ease-out;
 
@@ -31,7 +32,7 @@
 
     &.vertical {
       flex-direction: column;
-      width: 80px;
+      width: 72px;
     }
 
     &.horizontal {
@@ -91,12 +92,12 @@
   }
 
   .tool-button {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 38px;
     padding: 0;
     border: none;
     background: transparent;
-    border-radius: 16px;
+    border-radius: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -151,12 +152,12 @@
   }
 
   .action-button {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: none;
     background: transparent;
-    border-radius: 16px;
+    border-radius: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -186,12 +187,12 @@
   }
 
   .close-button {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: none;
     background: transparent;
-    border-radius: 16px;
+    border-radius: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -415,23 +416,27 @@
     }
   }
 
-  .minimized-button {
+  &.minimized-button {
     position: fixed;
+    // Keep minimized button above the drawer too
     z-index: 50;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    border-radius: 9999px;
+    background-color: rgb(255 255 255 / 0.6);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgb(255 255 255 / 0.4);
+    outline: 1px solid rgb(255 255 255 / 0.5);
+    outline-offset: 0;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
-    color: #4B4AD5;
+    padding: 1rem;
+    touch-action: none;
+    transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--brand-purple);
 
     svg {
       width: 24px;

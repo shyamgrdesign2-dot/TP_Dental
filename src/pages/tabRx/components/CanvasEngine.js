@@ -18,7 +18,8 @@ const CanvasEngine = React.forwardRef(({
   onPageFocus,
   backgroundImage,
   embeddedInScroll = false,
-  onContentChange = null // ✅ Optional callback for content changes
+  onContentChange = null, // ✅ Optional callback for content changes
+  forceStrokesSyncToken = 0, // ✅ bump to force applying strokes prop even if it has fewer strokes (undo/redo)
 }, ref) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -35,6 +36,7 @@ const CanvasEngine = React.forwardRef(({
 
   // Mirror of `strokes` prop — always up-to-date
   const strokesRef = useRef(strokes);
+  const lastForceStrokesSyncTokenRef = useRef(forceStrokesSyncToken);
 
   // Mirror of `bgImageObj` — always up-to-date
   const bgImageObjRef = useRef(null);
@@ -174,6 +176,15 @@ const CanvasEngine = React.forwardRef(({
   useEffect(() => {
     if (!isDrawingRef.current) {
       const currentStrokes = strokesRef.current;
+
+      // ✅ If parent explicitly requests a sync (undo/redo), allow syncing even if strokes shrank
+      const forceSync = forceStrokesSyncToken !== lastForceStrokesSyncTokenRef.current;
+      if (forceSync) {
+        lastForceStrokesSyncTokenRef.current = forceStrokesSyncToken;
+        strokesRef.current = strokes;
+        renderCanvas();
+        return;
+      }
       
       // ✅ CRITICAL: Protect against data loss - NEVER overwrite with fewer strokes
       // This happens when parent re-renders during zoom/tool changes and passes stale prop
@@ -217,7 +228,7 @@ const CanvasEngine = React.forwardRef(({
         }
       }
     }
-  }, [strokes, setStrokes]); // ✅ Added setStrokes to deps for the update call
+  }, [strokes, setStrokes, forceStrokesSyncToken]); // include token so forced sync works
 
   // ─────────────────────────────────────────────────────────────────────────────
   // BACKGROUND IMAGE (must come AFTER renderCanvas is defined)
@@ -298,12 +309,19 @@ const CanvasEngine = React.forwardRef(({
       return;
     }
 
-    const isTouch = e.pointerType === 'touch';
     const isPen = e.pointerType === 'pen';
 
-    // ✅ CRITICAL: Only process pen/touch, ignore mouse
-    if (!isPen && !isTouch) {
-      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring mouse event`);
+    // ✅ Tablet UX requirement:
+    // - Finger/touch should scroll the page (no drawing, no panning, no preventDefault)
+    // - Stylus/pen should draw
+    // NOTE: iOS Apple Pencil fast-tap workaround is handled via touchstart->pen conversion (touchType === 'stylus')
+    if (e.pointerType === 'touch') {
+      return;
+    }
+
+    // ✅ CRITICAL: Only process pen, ignore mouse
+    if (!isPen) {
+      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-pen event type=${e.pointerType}`);
       return;
     }
 
@@ -316,8 +334,8 @@ const CanvasEngine = React.forwardRef(({
       currentStrokeRef.current = null;
     }
 
-    // ✅ CRITICAL: Prevent default for pen/touch to avoid browser gestures
-    if (isPen || (isTouch && isIOS)) {
+    // ✅ CRITICAL: Prevent default for pen to avoid browser gestures
+    if (isPen) {
       if (e.preventDefault) e.preventDefault();
       if (e.stopPropagation) e.stopPropagation(); // Prevent bubbling to parent elements
     }
@@ -377,7 +395,7 @@ const CanvasEngine = React.forwardRef(({
     }
 
     // ── PANNING ───────────────────────────────────────────────────────────────
-    if (toolSettings.activeTool === 'move' || isTouch) {
+    if (toolSettings.activeTool === 'move') {
       isDrawingRef.current = false;
       isPanningRef.current = true;
       isErasingRef.current = false;
@@ -436,9 +454,10 @@ const CanvasEngine = React.forwardRef(({
     if (activePointerId.current != null && e.pointerId !== activePointerId.current) return;
 
     const isPen = e.pointerType === 'pen';
-    const isTouch = e.pointerType === 'touch';
+    // Finger/touch should scroll; ignore.
+    if (e.pointerType === 'touch') return;
 
-    if (isPen || (isTouch && isIOS)) {
+    if (isPen) {
       if (e.preventDefault) e.preventDefault();
     }
 
@@ -499,10 +518,12 @@ const CanvasEngine = React.forwardRef(({
   // ✅ CRITICAL: Also accepts touchend events converted to pointerup-like events
   const internalPointerUp = useCallback((e) => {
     const isPen = e.pointerType === 'pen';
-    const isTouch = e.pointerType === 'touch';
     const canvas = canvasRef.current;
 
-    if (isPen || (isTouch && isIOS)) {
+    // Finger/touch should scroll; ignore.
+    if (e.pointerType === 'touch') return;
+
+    if (isPen) {
       if (e.preventDefault) e.preventDefault();
     }
 
@@ -683,6 +704,11 @@ const CanvasEngine = React.forwardRef(({
       // This prevents conflicts with UI interactions
       if (e.pointerType === 'mouse') {
         return; // Silent ignore for mouse
+      }
+
+      // ✅ Requirement: finger/touch should scroll only (no drawing / no interception)
+      if (e.pointerType === 'touch') {
+        return;
       }
       
       // ✅ CRITICAL: Check if coordinates are within canvas bounds

@@ -71,8 +71,12 @@ const TabRxCanvas = forwardRef(({
   const strokes = currentPageId ? (strokesByPage[currentPageId] || []) : [];
   const textElements = currentPageId ? (textElementsByPage[currentPageId] || []) : [];
 
+  // Global stroke-level undo/redo across ALL pages (last added stroke wins)
+  // Each entry: { pageId, stroke }
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  // Per-page token to force CanvasEngine to accept intentional "shrinking strokes" updates (undo)
+  const [forceStrokesSyncByPage, setForceStrokesSyncByPage] = useState({});
 
   // Viewport State
   const [zoomLevel, setZoomLevel] = useState(1.0);
@@ -148,6 +152,10 @@ const TabRxCanvas = forwardRef(({
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [pageToDeleteIndex, setPageToDeleteIndex] = useState(null);
+
+  // Template switch confirmation modal state
+  const [isTemplateSwitchModalOpen, setIsTemplateSwitchModalOpen] = useState(false);
+  const [pendingTemplateId, setPendingTemplateId] = useState(null);
 
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
@@ -289,7 +297,7 @@ const TabRxCanvas = forwardRef(({
   // Helper to fit canvas to available space
   const fitCanvasToScreen = useCallback(() => {
     const drawerWidth = showTemplateDrawer ? 320 : 0;
-    const availableWidth = window.innerWidth - drawerWidth - 40;
+    const availableWidth = window.innerWidth - (drawerWidth + 90);
 
     let optimalZoom = availableWidth / A4_BASE_WIDTH;
     optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), 1.2);
@@ -464,15 +472,15 @@ const TabRxCanvas = forwardRef(({
   }, []);
 
   const handleStrokeComplete = useCallback((pageId, newStroke) => {
-    const pageStrokes = strokesByPage[pageId] || [];
-    setUndoStack(prev => [...prev, pageStrokes]);
+    // Push to global undo stack (stroke-level)
+    setUndoStack((prev) => [...prev, { pageId, stroke: newStroke }]);
+    // Clear redo on any new draw
     setRedoStack([]);
-    setStrokesByPage(prev => {
-      const updated = {
-        ...prev,
-        [pageId]: [...pageStrokes, newStroke]
-      };
-      return updated;
+
+    // Commit to state (functional update to avoid stale closure)
+    setStrokesByPage((prev) => {
+      const current = prev[pageId] || [];
+      return { ...prev, [pageId]: [...current, newStroke] };
     });
     
     // ✅ CRITICAL: Call onContentChange OUTSIDE of setStrokesByPage
@@ -491,37 +499,82 @@ const TabRxCanvas = forwardRef(({
     }
     setIsSaving(true);
     setTimeout(() => setIsSaving(false), 800);
-  }, [strokesByPage, pagesMetadata, onContentChange]);
+  }, [pagesMetadata, onContentChange]);
 
-  const handleEraseStart = useCallback((pageId) => {
-    const pageStrokes = strokesByPage[pageId] || [];
-    setUndoStack(prev => [...prev, pageStrokes]);
+  const handleEraseStart = useCallback(() => {
+    // Requirement: undo/redo should remove/add the last ADDED stroke globally.
+    // We intentionally do not track eraser diffs here.
     setRedoStack([]);
-  }, [strokesByPage]);
+  }, []);
 
   const handleUndo = useCallback(() => {
-    if (undoStack.length === 0 || !currentPageId) return;
-    const previousStrokes = undoStack[undoStack.length - 1];
-    const newUndoStack = undoStack.slice(0, -1);
-    setRedoStack(prev => [...prev, strokes]);
-    setStrokesByPage(prev => ({
-      ...prev,
-      [currentPageId]: previousStrokes
-    }));
-    setUndoStack(newUndoStack);
-  }, [undoStack, strokes, currentPageId]);
+    // IMPORTANT: Use functional update so repeated clicks always see the latest stack (no stale closures)
+    setUndoStack((prevUndo) => {
+      if (prevUndo.length === 0) return prevUndo;
+
+      const last = prevUndo[prevUndo.length - 1];
+      if (!last?.pageId || !last?.stroke) {
+        return prevUndo.slice(0, -1);
+      }
+
+      const { pageId, stroke } = last;
+
+      // Move focus to that page so user sees the undo happen
+      setCurrentPageIndex((prevIdx) => {
+        const idx = pagesMetadata.findIndex((p) => p.id === pageId);
+        return idx !== -1 ? idx : prevIdx;
+      });
+
+      // Remove the stroke by id
+      setStrokesByPage((prev) => {
+        const current = prev[pageId] || [];
+        return { ...prev, [pageId]: current.filter((s) => s.id !== stroke.id) };
+      });
+
+      // Force CanvasEngine to apply this shrinking update (undo) for that page
+      setForceStrokesSyncByPage((prev) => ({ ...prev, [pageId]: (prev[pageId] || 0) + 1 }));
+
+      // Push into redo stack
+      setRedoStack((prevRedo) => [...prevRedo, last]);
+
+      // Pop from undo stack
+      return prevUndo.slice(0, -1);
+    });
+  }, [pagesMetadata]);
 
   const handleRedo = useCallback(() => {
-    if (redoStack.length === 0 || !currentPageId) return;
-    const nextStrokes = redoStack[redoStack.length - 1];
-    const newRedoStack = redoStack.slice(0, -1);
-    setUndoStack(prev => [...prev, strokes]);
-    setStrokesByPage(prev => ({
-      ...prev,
-      [currentPageId]: nextStrokes
-    }));
-    setRedoStack(newRedoStack);
-  }, [redoStack, strokes, currentPageId]);
+    // IMPORTANT: Use functional update so repeated clicks always see the latest stack (no stale closures)
+    setRedoStack((prevRedo) => {
+      if (prevRedo.length === 0) return prevRedo;
+
+      const last = prevRedo[prevRedo.length - 1];
+      if (!last?.pageId || !last?.stroke) {
+        return prevRedo.slice(0, -1);
+      }
+
+      const { pageId, stroke } = last;
+
+      setCurrentPageIndex((prevIdx) => {
+        const idx = pagesMetadata.findIndex((p) => p.id === pageId);
+        return idx !== -1 ? idx : prevIdx;
+      });
+
+      setStrokesByPage((prev) => {
+        const current = prev[pageId] || [];
+        // avoid duplicates
+        if (current.some((s) => s.id === stroke.id)) return prev;
+        return { ...prev, [pageId]: [...current, stroke] };
+      });
+
+      setForceStrokesSyncByPage((prev) => ({ ...prev, [pageId]: (prev[pageId] || 0) + 1 }));
+
+      // Push into undo stack
+      setUndoStack((prevUndo) => [...prevUndo, last]);
+
+      // Pop from redo stack
+      return prevRedo.slice(0, -1);
+    });
+  }, [pagesMetadata]);
 
   const handleSave = useCallback(() => {
     if (onSave) {
@@ -547,7 +600,15 @@ const TabRxCanvas = forwardRef(({
     }
   }, [pagesMetadata, strokesByPage, textElementsByPage, currentPageIndex, zoomLevel, panOffset, patient, selectedTemplateId, onSave]);
 
-  const handleTemplateSelect = (templateId) => {
+  const hasAnyCanvasContent = useCallback(() => {
+    const hasStrokes = Object.values(strokesByPage || {}).some((arr) => (arr || []).length > 0);
+    const hasText = Object.values(textElementsByPage || {}).some((arr) =>
+      (arr || []).some((el) => el?.content && el.content.trim().length > 0),
+    );
+    return hasStrokes || hasText;
+  }, [strokesByPage, textElementsByPage]);
+
+  const executeTemplateSelect = useCallback((templateId) => {
     setSelectedTemplateId(templateId);
     // Reset to first page when template changes
     setCurrentPageIndex(0);
@@ -588,7 +649,32 @@ const TabRxCanvas = forwardRef(({
       }
     }
     // Keep drawer open - don't close after selection
-  };
+  }, [templates]);
+
+  const handleTemplateSelect = useCallback((templateId) => {
+    // No-op if selecting same template
+    if (templateId === selectedTemplateId) return;
+
+    // If there is any existing content, confirm before switching (data will be cleared)
+    if (hasAnyCanvasContent()) {
+      setPendingTemplateId(templateId);
+      setIsTemplateSwitchModalOpen(true);
+      return;
+    }
+
+    executeTemplateSelect(templateId);
+  }, [selectedTemplateId, hasAnyCanvasContent, executeTemplateSelect]);
+
+  const hideTemplateSwitchModal = useCallback(() => {
+    setIsTemplateSwitchModalOpen(false);
+    setPendingTemplateId(null);
+  }, []);
+
+  const confirmTemplateSwitch = useCallback(() => {
+    if (!pendingTemplateId) return;
+    executeTemplateSelect(pendingTemplateId);
+    hideTemplateSwitchModal();
+  }, [pendingTemplateId, executeTemplateSelect, hideTemplateSwitchModal]);
 
   // Add new page after a specific index
   const handleAddPage = useCallback((afterIndex, pageType) => {
@@ -845,6 +931,7 @@ const TabRxCanvas = forwardRef(({
                       }
                     }}
                     strokes={pageStrokes}
+                    forceStrokesSyncToken={forceStrokesSyncByPage[pageId] || 0}
                     setStrokes={(newStrokes) => {
                       setStrokesByPage(prev => {
                         const prevStrokes = prev[pageId] || [];
@@ -1002,6 +1089,44 @@ const TabRxCanvas = forwardRef(({
                 </div>
                 <Button
                   onClick={hideDeleteModal}
+                  className="lh-lg btn btn-primary3 btn-41 px-4"
+                >
+                  <span>No</span>
+                </Button>
+              </div>
+            </div>
+          </>
+        }
+      />
+
+      {/* Template Switch Confirmation Modal */}
+      <CommonModal
+        isModalOpen={isTemplateSwitchModalOpen}
+        onCancel={hideTemplateSwitchModal}
+        modalWidth={500}
+        title="You may lose your data"
+        modalBody={
+          <>
+            <div className="alert-warning rounded-10px p-2 patient-details">
+              <div className="d-flex align-items-center">
+                <img className="me-3" src={alertIcon} alt="Warning" />
+                <span>
+                  Switching the letterhead/template will clear the current canvas pages and content. <br />
+                  Do you want to continue?
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="d-flex align-items-center mt-2 justify-content-end">
+                <div
+                  onClick={confirmTemplateSwitch}
+                  className="me-4 text-decoration-underline btn p-0 text-main"
+                  style={{ cursor: 'pointer' }}
+                >
+                  Yes, switch
+                </div>
+                <Button
+                  onClick={hideTemplateSwitchModal}
                   className="lh-lg btn btn-primary3 btn-41 px-4"
                 >
                   <span>No</span>
