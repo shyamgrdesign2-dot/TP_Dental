@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { FaPen, FaHighlighter, FaEraser, FaUndo, FaRedo, FaGripVertical, FaGripHorizontal, FaTimes, FaFont, FaPlus, FaMinus, FaExpand } from 'react-icons/fa';
+import { AiOutlineExpand } from 'react-icons/ai';
+import { CgClose } from 'react-icons/cg';
+import { LuPen, LuHighlighter, LuEraser, LuUndo2, LuRedo2, LuPlus, LuMinus } from 'react-icons/lu';
 import { CLINICAL_COLORS, HIGHLIGHTER_COLORS } from '../utils/constants';
 import './Toolbar.scss';
 
@@ -134,7 +136,7 @@ const Toolbar = ({
         onPointerUp={handlePointerUp}
         onClick={() => !isDragging && setIsMinimized(false)}
       >
-        <FaPen size={24} />
+        <LuPen size={24} />
       </button>
     );
   }
@@ -183,9 +185,9 @@ const Toolbar = ({
           </div>
         </div>
 
-        <ToolButton tool="pen" icon={FaPen} />
-        <ToolButton tool="highlighter" icon={FaHighlighter} />
-        <ToolButton tool="eraser" icon={FaEraser} />
+        <ToolButton tool="pen" icon={LuPen} />
+        <ToolButton tool="highlighter" icon={LuHighlighter} />
+        <ToolButton tool="eraser" icon={LuEraser} />
         {/* Not Required as of now (got removed - keeping this for future cases)*/}
         {/* <ToolButton tool="text" icon={FaFont} /> */}
 
@@ -205,7 +207,7 @@ const Toolbar = ({
           disabled={!canUndo}
           className="action-button"
         >
-          <FaUndo size={20} />
+          <LuUndo2 size={20} />
         </button>
 
         <button
@@ -222,7 +224,7 @@ const Toolbar = ({
           disabled={!canRedo}
           className="action-button"
         >
-          <FaRedo size={20} />
+          <LuRedo2 size={20} />
         </button>
         
         <div className={`divider ${orientation}`} />
@@ -241,7 +243,7 @@ const Toolbar = ({
           className="action-button"
           title="Zoom In"
         >
-          <FaPlus size={18} />
+          <LuPlus size={18} />
         </button>
 
         <button
@@ -258,7 +260,7 @@ const Toolbar = ({
           className="action-button"
           title="Zoom Out"
         >
-          <FaMinus size={18} />
+          <LuMinus size={18} />
         </button>
 
         <button
@@ -275,7 +277,7 @@ const Toolbar = ({
           className="action-button"
           title="Fit to Screen"
         >
-          <FaExpand size={18} />
+          <AiOutlineExpand size={18} />
         </button>
 
         <div className={`divider ${orientation}`} />
@@ -293,7 +295,7 @@ const Toolbar = ({
           }}
           className="close-button"
         >
-          <FaTimes size={20} />
+          <CgClose size={20} />
         </button>
 
         {/* Dynamic Drawer Settings Panel */}
