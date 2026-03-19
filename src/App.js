@@ -271,6 +271,8 @@ function App() {
     setToken(authToken);
     localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
 
+    if (isReceptionist) return;
+
     // Only clear cached profile and fetch when the user actually changed
     // so we show the new user and avoid stale data; skip if same user to avoid loading flash
     let tokenDoctorId = null;
