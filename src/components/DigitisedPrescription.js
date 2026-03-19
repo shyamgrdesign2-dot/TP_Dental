@@ -16,6 +16,7 @@ import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
 import CommonModal from "../common/CommonModal";
 import VitalsRichTextEditor from "./VitalsRichTextEditor";
 import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import SurgeriesRichTextEditor from "./SurgeriesRichTextEditor";
 import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
 import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
 import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
@@ -45,6 +46,7 @@ import { setDentalData } from "../redux/dentalRxSlice";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
+  "surgeries",
   "medicalHistory",
   "examinations",
   "diagnosis",
@@ -106,7 +108,10 @@ export const normalizeNewItem = (type, text = "") => {
     return { testname: t, value: "", notes: "" };
   }
 
-  
+  if (type === "surgeries") {
+    return { name: t, notes: "" };
+  }
+
   return { name: t, lineItem: "" };
 };
 
@@ -119,6 +124,7 @@ const getPrimaryText = (type, item) => {
   if (type === "labResults") return item?.testname || "";
   if (type === "diagnosis") return String(item?.lineItem ?? item?.name ?? (item?.status ? `${item?.name ?? ""}, ${item.status}`.trim() : "") ?? item?.notes ?? "").trim();
   if (type === "examinations") return String(item?.lineItem ?? item?.name ?? item?.findings ?? item?.notes ?? "").trim();
+  if (type === "surgeries") return String(item?.name ?? "").trim() || "";
   return item?.name || "";
 };
 
@@ -623,6 +629,7 @@ const DigitisedPrescription = ({
       medications,
       labInvestigation,
       symptoms: data?.symptoms,
+      surgeries: data?.surgeries,
       medicalHistory: data?.medicalHistory,
       diagnosis,
       vaccinations: data?.vaccinations,
@@ -1795,6 +1802,7 @@ const DigitisedPrescription = ({
       const relevant = {
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
+        surgeries: ["name", "notes"],
         examinations: ["name", "findings", "notes", "lineItem"],
         diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
@@ -2809,6 +2817,14 @@ const DigitisedPrescription = ({
             <SymptomsRichTextEditor
               symptoms={data.symptoms}
               onUpdate={(arr) => setData((prev) => ({ ...prev, symptoms: arr || [] }))}
+              isProcessing={loading}
+            />
+          )}
+
+          {data?.surgeries && hasValidContent("surgeries") && (
+            <SurgeriesRichTextEditor
+              surgeries={data.surgeries}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, surgeries: arr || [] }))}
               isProcessing={loading}
             />
           )}

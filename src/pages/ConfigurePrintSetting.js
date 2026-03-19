@@ -520,6 +520,14 @@ function ConfigurePrintSetting() {
                                     };
                                 });
                             }
+                            // Surgeries/Procedures from voice/ambient/snap/smart – keep as { name, notes } for print
+                            if (Array.isArray(data.surgeries) && data.surgeries.length > 0) {
+                                transformed.surgeries = data.surgeries.map(s =>
+                                    typeof s === 'string'
+                                        ? { name: s, notes: '' }
+                                        : { name: (s.name || '').trim(), notes: (s.notes || s.note || '').trim() }
+                                );
+                            }
                             // Vaccination from snap/smart/voice/ambient – same format (name, brand, schedule, notes); include in merged for print only
                             if (Array.isArray(data.vaccinations) && data.vaccinations.length > 0) {
                                 transformed.vaccinations = data.vaccinations.map(v => (typeof v === 'string' ? { name: v, brand: '', schedule: '', notes: '', lineItem: '' } : { name: v.name || v.lineItem || '', brand: v.brand || '', schedule: v.schedule || '', notes: v.notes || v.note || '', lineItem: v.lineItem || v.schedule || '' }));
@@ -1014,6 +1022,7 @@ function ConfigurePrintSetting() {
                 const hasObsFromCaseManager = dataForPrescription?.obsHistoryData && Object.keys(dataForPrescription.obsHistoryData || {}).length > 0;
                 const hasVaccinations = (dataForPrescription?.vaccinations?.length ?? 0) > 0;
                 const hasOthersData = (dataForPrescription?.visit_advice && typeof dataForPrescription.visit_advice === "string" && dataForPrescription.visit_advice.trim()) || (Array.isArray(dataForPrescription?.others) && dataForPrescription.others.length > 0);
+                const hasSurgeries = (dataForPrescription?.surgeries?.length ?? 0) > 0;
                 const defaultOptions = defaultPrintSettings?.prescription?.case_option || [];
                 const existingIds = new Set((copyPrintSettings.prescription.case_option || []).map(o => o.id));
 

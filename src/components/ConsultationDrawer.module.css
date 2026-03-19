@@ -952,6 +952,7 @@
 
 /* Rich Text Editor Styles - All Parameters */
 .symptoms-rich-text-editor,
+.surgeries-rich-text-editor,
 .examination-rich-text-editor,
 .diagnosis-rich-text-editor,
 .medications-rich-text-editor,
@@ -966,6 +967,7 @@
 }
 
 .symptoms-content-box,
+.surgeries-content-box,
 .examination-content-box,
 .diagnosis-content-box,
 .medications-content-box,
@@ -1042,6 +1044,7 @@
 
 /* Header styles for all parameters */
 .symptoms-header,
+.surgeries-header,
 .examination-header,
 .diagnosis-header,
 .medications-header,
@@ -1100,6 +1103,7 @@
 }
 
 .symptoms-icon,
+.surgeries-icon,
 .examination-icon,
 .diagnosis-icon,
 .medications-icon,
@@ -1119,6 +1123,7 @@
 }
 
 .symptoms-icon img,
+.surgeries-icon img,
 .examination-icon img,
 .diagnosis-icon img,
 .medications-icon img,
@@ -1135,6 +1140,7 @@
 }
 
 .symptoms-title,
+.surgeries-title,
 .examination-title,
 .diagnosis-title,
 .medications-title,
@@ -1163,6 +1169,7 @@
 
 /* Editor container styles for all parameters */
 .symptoms-editor-container,
+.surgeries-editor-container,
 .examination-editor-container,
 .diagnosis-editor-container,
 .medications-editor-container,
@@ -1180,6 +1187,7 @@
 }
 
 .symptoms-shimmer-container,
+.surgeries-shimmer-container,
 .examination-shimmer-container,
 .diagnosis-shimmer-container,
 .medications-shimmer-container,
@@ -1198,6 +1206,7 @@
 }
 
 .symptoms-shimmer,
+.surgeries-shimmer,
 .examination-shimmer,
 .diagnosis-shimmer,
 .medications-shimmer,
@@ -1218,6 +1227,7 @@
 
 /* Rich Text Editor Toolbar Footer - All Parameters */
 .symptoms-rich-text-editor [data-test-id='menu'],
+.surgeries-rich-text-editor [data-test-id='menu'],
 .examination-rich-text-editor [data-test-id='menu'],
 .diagnosis-rich-text-editor [data-test-id='menu'],
 .medications-rich-text-editor [data-test-id='menu'],

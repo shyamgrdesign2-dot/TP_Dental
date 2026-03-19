@@ -877,6 +877,9 @@ const ConsultationDrawer = ({
             if (prescriptionData.symptoms && Array.isArray(prescriptionData.symptoms) && prescriptionData.symptoms.length > 0) {
               initiallyPopulatedSectionsRef.current.add('symptoms');
             }
+            if (prescriptionData.surgeries && Array.isArray(prescriptionData.surgeries) && prescriptionData.surgeries.length > 0) {
+              initiallyPopulatedSectionsRef.current.add('surgeries');
+            }
             if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
               initiallyPopulatedSectionsRef.current.add('vaccinations');
             }
@@ -1472,7 +1475,7 @@ const ConsultationDrawer = ({
     if (!data || typeof data !== "object") return false;
     const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
     const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
-    if (hasArray(data.symptoms) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
     if (hasVitals(data.vitalsAndBodyComposition)) return true;
     if (data.followUp && String(data.followUp).trim()) return true;
     if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
@@ -1734,6 +1737,9 @@ const ConsultationDrawer = ({
               // Track which sections were initially populated from API BEFORE setting state
               if (validatedPrescriptionData.symptoms && Array.isArray(validatedPrescriptionData.symptoms) && validatedPrescriptionData.symptoms.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('symptoms');
+              }
+              if (validatedPrescriptionData.surgeries && Array.isArray(validatedPrescriptionData.surgeries) && validatedPrescriptionData.surgeries.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('surgeries');
               }
               if (validatedPrescriptionData.vaccinations && Array.isArray(validatedPrescriptionData.vaccinations) && validatedPrescriptionData.vaccinations.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('vaccinations');
@@ -2024,6 +2030,9 @@ const ConsultationDrawer = ({
               // Track which sections were initially populated from API BEFORE setting state
               if (prescriptionData.symptoms && Array.isArray(prescriptionData.symptoms) && prescriptionData.symptoms.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('symptoms');
+              }
+              if (prescriptionData.surgeries && Array.isArray(prescriptionData.surgeries) && prescriptionData.surgeries.length > 0) {
+                initiallyPopulatedSectionsRef.current.add('surgeries');
               }
               if (prescriptionData.vaccinations && Array.isArray(prescriptionData.vaccinations) && prescriptionData.vaccinations.length > 0) {
                 initiallyPopulatedSectionsRef.current.add('vaccinations');
