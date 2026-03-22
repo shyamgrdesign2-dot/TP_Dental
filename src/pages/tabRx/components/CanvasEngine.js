@@ -23,6 +23,10 @@ const CanvasEngine = React.forwardRef(({
 }, ref) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const backgroundLayerRef = useRef(null);
+  const strokesLayerRef = useRef(null);
+  const isBackgroundLayerDirtyRef = useRef(true);
+  const isStrokesLayerDirtyRef = useRef(true);
 
   // Expose canvas ref to parent
   React.useImperativeHandle(ref, () => ({
@@ -91,6 +95,97 @@ const CanvasEngine = React.forwardRef(({
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER — reads ONLY from refs, so it is NEVER stale no matter when called.
   // ─────────────────────────────────────────────────────────────────────────────
+  const drawStrokeOnContext = useCallback((ctx, stroke) => {
+    if (!ctx || !stroke || stroke.points.length < 2) return;
+    ctx.beginPath();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.thickness;
+    if (stroke.tool === 'highlighter') {
+      ctx.globalAlpha = 0.3;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.lineWidth = stroke.thickness * 2;
+    } else {
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    const p0 = stroke.points[0];
+    ctx.moveTo(p0.x, p0.y);
+    for (let i = 1; i < stroke.points.length - 1; i++) {
+      const p1 = stroke.points[i];
+      const p2 = stroke.points[i + 1];
+      const mid = getMidPoint(p1, p2);
+      ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
+    }
+    const last = stroke.points[stroke.points.length - 1];
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'source-over';
+  }, []);
+
+  const ensureLayerCanvases = useCallback(() => {
+    const mainCanvas = canvasRef.current;
+    if (!mainCanvas) return false;
+
+    if (!backgroundLayerRef.current) {
+      backgroundLayerRef.current = document.createElement('canvas');
+    }
+    if (!strokesLayerRef.current) {
+      strokesLayerRef.current = document.createElement('canvas');
+    }
+
+    const bg = backgroundLayerRef.current;
+    const st = strokesLayerRef.current;
+
+    if (bg.width !== mainCanvas.width || bg.height !== mainCanvas.height) {
+      bg.width = mainCanvas.width;
+      bg.height = mainCanvas.height;
+      isBackgroundLayerDirtyRef.current = true;
+    }
+    if (st.width !== mainCanvas.width || st.height !== mainCanvas.height) {
+      st.width = mainCanvas.width;
+      st.height = mainCanvas.height;
+      isStrokesLayerDirtyRef.current = true;
+    }
+
+    return true;
+  }, []);
+
+  const rebuildBackgroundLayer = useCallback(() => {
+    if (!ensureLayerCanvases()) return;
+    const bg = backgroundLayerRef.current;
+    const ctx = bg.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, bg.width, bg.height);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, bg.width, bg.height);
+
+    if (bgImageObjRef.current) {
+      ctx.drawImage(bgImageObjRef.current, 0, 0, bg.width, bg.height);
+    } else {
+      ctx.strokeStyle = '#F3F4F6';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x < bg.width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, bg.height); }
+      for (let y = 0; y < bg.height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(bg.width, y); }
+      ctx.stroke();
+    }
+    isBackgroundLayerDirtyRef.current = false;
+  }, [ensureLayerCanvases]);
+
+  const rebuildStrokesLayer = useCallback(() => {
+    if (!ensureLayerCanvases()) return;
+    const strokesCanvas = strokesLayerRef.current;
+    const ctx = strokesCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+    strokesRef.current.forEach((stroke) => drawStrokeOnContext(ctx, stroke));
+    isStrokesLayerDirtyRef.current = false;
+  }, [ensureLayerCanvases, drawStrokeOnContext]);
+
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -103,70 +198,25 @@ const CanvasEngine = React.forwardRef(({
       return;
     }
 
-    const strokesCount = strokesRef.current.length;
-    const hasCurrentStroke = currentStrokeRef.current !== null;
-    const currentStrokePoints = currentStrokeRef.current?.points.length || 0;
-
-    // ✅ DEBUG: Log render info (enable with window.__CANVAS_DEBUG__ = true in console)
-    if (window.__CANVAS_DEBUG__) {
-      console.log(`🎨 [CanvasEngine] renderCanvas: Rendering ${strokesCount} strokes${hasCurrentStroke ? ` + current stroke (${currentStrokePoints} points)` : ''}`);
+    if (isBackgroundLayerDirtyRef.current) {
+      rebuildBackgroundLayer();
+    }
+    if (isStrokesLayerDirtyRef.current) {
+      rebuildStrokesLayer();
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Background
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (bgImageObjRef.current) {
-      ctx.drawImage(bgImageObjRef.current, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.strokeStyle = '#F3F4F6';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = 0; x < canvas.width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
-      for (let y = 0; y < canvas.height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
-      ctx.stroke();
+    if (backgroundLayerRef.current) {
+      ctx.drawImage(backgroundLayerRef.current, 0, 0);
+    }
+    if (strokesLayerRef.current) {
+      ctx.drawImage(strokesLayerRef.current, 0, 0);
     }
 
-    const drawStroke = (stroke) => {
-      if (!stroke || stroke.points.length < 2) return;
-      ctx.beginPath();
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.thickness;
-      if (stroke.tool === 'highlighter') {
-        ctx.globalAlpha = 0.3;
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.lineWidth = stroke.thickness * 2;
-      } else {
-        ctx.globalAlpha = 1.0;
-        ctx.globalCompositeOperation = 'source-over';
-      }
-      const p0 = stroke.points[0];
-      ctx.moveTo(p0.x, p0.y);
-      for (let i = 1; i < stroke.points.length - 1; i++) {
-        const p1 = stroke.points[i];
-        const p2 = stroke.points[i + 1];
-        const mid = getMidPoint(p1, p2);
-        ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
-      }
-      const last = stroke.points[stroke.points.length - 1];
-      ctx.lineTo(last.x, last.y);
-      ctx.stroke();
-      ctx.globalAlpha = 1.0;
-      ctx.globalCompositeOperation = 'source-over';
-    };
-
-    // Draw all committed strokes (from ref — always latest)
-    strokesRef.current.forEach(drawStroke);
-
-    // Draw the stroke currently being drawn (from ref — always latest)
     if (currentStrokeRef.current) {
-      drawStroke(currentStrokeRef.current);
+      drawStrokeOnContext(ctx, currentStrokeRef.current);
     }
-  }, []); // ← EMPTY DEPS on purpose: reads everything from refs, never stale
+  }, [rebuildBackgroundLayer, rebuildStrokesLayer, drawStrokeOnContext]);
 
   // Sync strokesRef with strokes prop AFTER renderCanvas is defined
   // ✅ Only sync when NOT actively drawing to avoid mid-stroke races
@@ -182,6 +232,7 @@ const CanvasEngine = React.forwardRef(({
       if (forceSync) {
         lastForceStrokesSyncTokenRef.current = forceStrokesSyncToken;
         strokesRef.current = strokes;
+        isStrokesLayerDirtyRef.current = true;
         renderCanvas();
         return;
       }
@@ -190,10 +241,10 @@ const CanvasEngine = React.forwardRef(({
       // This happens when parent re-renders during zoom/tool changes and passes stale prop
       // The ref has the latest strokes (from drawing), but parent state hasn't updated yet
       if (strokes.length < currentStrokes.length) {
-        console.log(`⚠️ [CanvasEngine] Ignoring stale strokes prop: ${strokes.length} < ${currentStrokes.length} (ref has more strokes) - likely parent re-render before state update`);
+        // console.log(`⚠️ [CanvasEngine] Ignoring stale strokes prop: ${strokes.length} < ${currentStrokes.length} (ref has more strokes) - likely parent re-render before state update`);
         // ✅ CRITICAL: Instead, update parent with our latest strokes to keep them in sync
         if (setStrokes && currentStrokes.length > 0) {
-          console.log(`🔄 [CanvasEngine] Updating parent with latest strokes: ${currentStrokes.length}`);
+          // console.log(`🔄 [CanvasEngine] Updating parent with latest strokes: ${currentStrokes.length}`);
           setStrokes(currentStrokes);
         }
         return; // Don't overwrite with stale data
@@ -201,7 +252,7 @@ const CanvasEngine = React.forwardRef(({
       
       // ✅ CRITICAL: Also protect against empty prop when we have strokes
       if (strokes.length === 0 && currentStrokes.length > 0) {
-        console.log(`⚠️ [CanvasEngine] Ignoring empty strokes prop (have ${currentStrokes.length} strokes in ref) - likely parent re-render`);
+        // console.log(`⚠️ [CanvasEngine] Ignoring empty strokes prop (have ${currentStrokes.length} strokes in ref) - likely parent re-render`);
         return; // Don't clear existing strokes
       }
       
@@ -220,11 +271,12 @@ const CanvasEngine = React.forwardRef(({
         // ✅ Only sync if prop has equal or more strokes (intentional update like undo/redo)
         // Or if both are empty (intentional clear)
         if (strokes.length >= currentStrokes.length || (strokes.length === 0 && currentStrokes.length === 0)) {
-          console.log(`🔄 [CanvasEngine] Syncing strokes: ${currentStrokes.length} -> ${strokes.length}`);
+          // console.log(`🔄 [CanvasEngine] Syncing strokes: ${currentStrokes.length} -> ${strokes.length}`);
           strokesRef.current = strokes;
+          isStrokesLayerDirtyRef.current = true;
           renderCanvas(); // Re-render with synced strokes
         } else {
-          console.log(`⚠️ [CanvasEngine] Skipping sync: prop has ${strokes.length} strokes, ref has ${currentStrokes.length} (would lose data)`);
+          // console.log(`⚠️ [CanvasEngine] Skipping sync: prop has ${strokes.length} strokes, ref has ${currentStrokes.length} (would lose data)`);
         }
       }
     }
@@ -240,14 +292,17 @@ const CanvasEngine = React.forwardRef(({
       img.src = backgroundImage;
       img.onload = () => {
         bgImageObjRef.current = img;
+        isBackgroundLayerDirtyRef.current = true;
         renderCanvas(); // re-render once image loads
       };
       img.onerror = () => {
         bgImageObjRef.current = null;
+        isBackgroundLayerDirtyRef.current = true;
         renderCanvas();
       };
     } else {
       bgImageObjRef.current = null;
+      isBackgroundLayerDirtyRef.current = true;
       renderCanvas();
     }
   }, [backgroundImage, renderCanvas]);
@@ -284,6 +339,7 @@ const CanvasEngine = React.forwardRef(({
     if (hasChanges) {
       strokesRef.current = nextStrokes;
       setStrokes(nextStrokes);
+      isStrokesLayerDirtyRef.current = true;
       renderCanvas();
     }
   }, [toolSettings.thickness, setStrokes, renderCanvas]);
@@ -299,7 +355,7 @@ const CanvasEngine = React.forwardRef(({
     // ✅ CRITICAL: Handle both pointerdown and touchstart (converted) events
     // For touchstart events, isPrimary might not exist, so check pointerId instead
     if (e.isPrimary === false) {
-      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-primary pointer, id=${e.pointerId}`);
+      // console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-primary pointer, id=${e.pointerId}`);
       return;
     }
     
@@ -321,14 +377,14 @@ const CanvasEngine = React.forwardRef(({
 
     // ✅ CRITICAL: Only process pen, ignore mouse
     if (!isPen) {
-      console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-pen event type=${e.pointerType}`);
+      // console.log(`⚠️ [CanvasEngine] internalPointerDown: Ignoring non-pen event type=${e.pointerType}`);
       return;
     }
 
     // ✅ CRITICAL: Check if activePointerId is still set from previous stroke
     // If so, this means pointerUp didn't fire properly - reset it now
     if (activePointerId.current !== null && activePointerId.current !== e.pointerId) {
-      console.log(`⚠️ [CanvasEngine] internalPointerDown: Previous pointer ${activePointerId.current} didn't complete properly, resetting`);
+      // console.log(`⚠️ [CanvasEngine] internalPointerDown: Previous pointer ${activePointerId.current} didn't complete properly, resetting`);
       activePointerId.current = null;
       isDrawingRef.current = false;
       currentStrokeRef.current = null;
@@ -341,8 +397,8 @@ const CanvasEngine = React.forwardRef(({
     }
 
     // ✅ CRITICAL: Add debug log to confirm pointerDown is being called
-    const eventSource = e.nativeEvent ? 'touchstart' : 'pointerdown';
-    console.log(`🖊️ [CanvasEngine] internalPointerDown: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, previousActivePointerId=${activePointerId.current}, source=${eventSource}`);
+    // const eventSource = e.nativeEvent ? 'touchstart' : 'pointerdown';
+    // console.log(`🖊️ [CanvasEngine] internalPointerDown: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, previousActivePointerId=${activePointerId.current}, source=${eventSource}`);
 
     isInteractingRef.current = true;
     activePointerId.current = e.pointerId;
@@ -374,24 +430,25 @@ const CanvasEngine = React.forwardRef(({
     // This ensures the stroke is rendered immediately even if parent update is delayed
     if (currentStrokeRef.current) {
       const orphanedStroke = currentStrokeRef.current;
-      console.log(`⚠️ [CanvasEngine] pointerDown: Found orphaned stroke ${orphanedStroke.id} with ${orphanedStroke.points.length} points - completing it`);
+      // console.log(`⚠️ [CanvasEngine] pointerDown: Found orphaned stroke ${orphanedStroke.id} with ${orphanedStroke.points.length} points - completing it`);
       // Add to strokesRef immediately so it's rendered
       strokesRef.current = [...strokesRef.current, orphanedStroke];
-      console.log(`📊 [CanvasEngine] pointerDown: Added orphaned stroke, strokesRef now has ${strokesRef.current.length} strokes`);
+      // console.log(`📊 [CanvasEngine] pointerDown: Added orphaned stroke, strokesRef now has ${strokesRef.current.length} strokes`);
       
       // ✅ CRITICAL: Immediately update parent state to prevent sync issues
       if (setStrokes) {
         setStrokes(strokesRef.current);
-        console.log(`🔄 [CanvasEngine] pointerDown: Updated parent state with ${strokesRef.current.length} strokes (orphaned)`);
+        // console.log(`🔄 [CanvasEngine] pointerDown: Updated parent state with ${strokesRef.current.length} strokes (orphaned)`);
       }
       
       // Render immediately
+      isStrokesLayerDirtyRef.current = true;
       renderCanvas();
       // ✅ EXCALIDRAW PATTERN: Queue parent notification instead of calling directly
       completedStrokesQueueRef.current.push(orphanedStroke);
       // Clear ref
       currentStrokeRef.current = null;
-      console.log(`✅ [CanvasEngine] pointerDown: Completed orphaned stroke, cleared currentStrokeRef`);
+      // console.log(`✅ [CanvasEngine] pointerDown: Completed orphaned stroke, cleared currentStrokeRef`);
     }
 
     // ── PANNING ───────────────────────────────────────────────────────────────
@@ -421,7 +478,7 @@ const CanvasEngine = React.forwardRef(({
 
     // Always start a new drawing session on pointerDown
     isDrawingRef.current = true;
-    console.log(`🖊️ [CanvasEngine] pointerDown: Starting drawing, isDrawingRef = true`);
+    // console.log(`🖊️ [CanvasEngine] pointerDown: Starting drawing, isDrawingRef = true`);
 
     const point = getCanvasCoordinates(e);
     const newStroke = {
@@ -434,15 +491,15 @@ const CanvasEngine = React.forwardRef(({
     };
 
     // ✅ DEBUG: Log new stroke start
-    console.log(`🖊️ [CanvasEngine] pointerDown: Starting new stroke ${newStroke.id} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
-    console.log(`📊 [CanvasEngine] pointerDown: strokesRef has ${strokesRef.current.length} strokes, isDrawingRef = ${isDrawingRef.current}`);
+    // console.log(`🖊️ [CanvasEngine] pointerDown: Starting new stroke ${newStroke.id} at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+    // console.log(`📊 [CanvasEngine] pointerDown: strokesRef has ${strokesRef.current.length} strokes, isDrawingRef = ${isDrawingRef.current}`);
 
     // Set ref immediately — renderCanvas reads from this, no stale closure
     currentStrokeRef.current = newStroke;
 
     // Render immediately — reads currentStrokeRef.current which is already set
     renderCanvas();
-    console.log(`✅ [CanvasEngine] pointerDown: Rendered canvas with new stroke start`);
+    // console.log(`✅ [CanvasEngine] pointerDown: Rendered canvas with new stroke start`);
   }, [toolSettings, onInteractionStart, onPageFocus, onEraseStart, performErase, getCanvasCoordinates, isIOS, renderCanvas]);
 
   // ✅ EXCALIDRAW PATTERN: Internal handler stored in ref
@@ -496,21 +553,21 @@ const CanvasEngine = React.forwardRef(({
       };
       const newPointsCount = currentStrokeRef.current.points.length;
 
-      // ✅ DEBUG: Log every 10th point to avoid spam
-      if (newPointsCount % 10 === 0) {
-        console.log(`🖊️ [CanvasEngine] pointerMove: Stroke ${currentStrokeRef.current.id} now has ${newPointsCount} points (added ${newPointsCount - oldPointsCount})`);
-      }
+      // // ✅ DEBUG: Log every 10th point to avoid spam
+      // if (newPointsCount % 10 === 0) {
+      //   console.log(`🖊️ [CanvasEngine] pointerMove: Stroke ${currentStrokeRef.current.id} now has ${newPointsCount} points (added ${newPointsCount - oldPointsCount})`);
+      // }
 
       // Render immediately — reads from currentStrokeRef, no stale closure
       renderCanvas();
     } else {
-      // ✅ DEBUG: Log when drawing should happen but doesn't
-      if (!isDrawingRef.current) {
-        console.warn(`⚠️ [CanvasEngine] pointerMove: isDrawingRef is FALSE, cannot draw`);
-      }
-      if (!currentStrokeRef.current) {
-        console.warn(`⚠️ [CanvasEngine] pointerMove: currentStrokeRef is NULL, cannot draw`);
-      }
+      // // ✅ DEBUG: Log when drawing should happen but doesn't
+      // if (!isDrawingRef.current) {
+      //   console.warn(`⚠️ [CanvasEngine] pointerMove: isDrawingRef is FALSE, cannot draw`);
+      // }
+      // if (!currentStrokeRef.current) {
+      //   console.warn(`⚠️ [CanvasEngine] pointerMove: currentStrokeRef is NULL, cannot draw`);
+      // }
     }
   }, [isIOS, setPanOffset, performErase, getCanvasCoordinates, renderCanvas]);
 
@@ -534,19 +591,19 @@ const CanvasEngine = React.forwardRef(({
       const pointsCount = completedStroke.points.length;
 
       // ✅ DEBUG: Log stroke completion
-      console.log(`🖊️ [CanvasEngine] pointerUp: Completing stroke ${strokeId} with ${pointsCount} points`);
+      // console.log(`🖊️ [CanvasEngine] pointerUp: Completing stroke ${strokeId} with ${pointsCount} points`);
 
       // Add to strokesRef IMMEDIATELY (before clearing currentStrokeRef)
       // This ensures renderCanvas sees it right away
       strokesRef.current = [...strokesRef.current, completedStroke];
-      console.log(`📊 [CanvasEngine] pointerUp: strokesRef now has ${strokesRef.current.length} strokes`);
+      // console.log(`📊 [CanvasEngine] pointerUp: strokesRef now has ${strokesRef.current.length} strokes`);
 
       // ✅ CRITICAL: Immediately update parent state to prevent sync issues
       // This ensures parent has latest strokes before any re-renders (tool/zoom changes)
       // This prevents the sync logic from overwriting with stale data
       if (setStrokes) {
         setStrokes(strokesRef.current);
-        console.log(`🔄 [CanvasEngine] pointerUp: Updated parent state with ${strokesRef.current.length} strokes`);
+        // console.log(`🔄 [CanvasEngine] pointerUp: Updated parent state with ${strokesRef.current.length} strokes`);
       }
 
       // Clear current stroke ref so renderCanvas won't double-draw it
@@ -557,8 +614,9 @@ const CanvasEngine = React.forwardRef(({
       completedStrokesQueueRef.current.push(completedStroke);
 
       // ✅ CRITICAL: Render immediately with completed stroke in strokesRef
+      isStrokesLayerDirtyRef.current = true;
       renderCanvas();
-      console.log(`✅ [CanvasEngine] pointerUp: Rendered canvas with completed stroke`);
+      // console.log(`✅ [CanvasEngine] pointerUp: Rendered canvas with completed stroke`);
     }
 
     // Release pointer capture
@@ -575,7 +633,7 @@ const CanvasEngine = React.forwardRef(({
     lastPanPointRef.current = null;
     isInteractingRef.current = false;
 
-    console.log(`✅ [CanvasEngine] internalPointerUp: Reset all flags, activePointerId=null, ready for next stroke`);
+    // console.log(`✅ [CanvasEngine] internalPointerUp: Reset all flags, activePointerId=null, ready for next stroke`);
 
     // ✅ CRITICAL: Don't re-enable pointer events here - let them stay enabled
     // Removing the data-pen-active attribute is enough
@@ -689,9 +747,9 @@ const CanvasEngine = React.forwardRef(({
         nativeEvent: e,
       };
 
-      console.log(
-        `📱 [CanvasEngine] touchstart converted to pointerdown: id=${touch.identifier}, x=${x}, y=${y}`,
-      );
+      // console.log(
+      //   `📱 [CanvasEngine] touchstart converted to pointerdown: id=${touch.identifier}, x=${x}, y=${y}`,
+      // );
 
       if (handlePointerDownRef.current) {
         handlePointerDownRef.current(syntheticEvent);
@@ -742,7 +800,7 @@ const CanvasEngine = React.forwardRef(({
         return;
       }
       
-      console.log(`🎯 [CanvasEngine] handleDown wrapper: type=${e.pointerType}, id=${e.pointerId}, target=${target?.tagName}, withinCanvas=${isWithinCanvas}, isCanvas=${isCanvas}`);
+      // console.log(`🎯 [CanvasEngine] handleDown wrapper: type=${e.pointerType}, id=${e.pointerId}, target=${target?.tagName}, withinCanvas=${isWithinCanvas}, isCanvas=${isCanvas}`);
       
       if (handlePointerDownRef.current) {
         handlePointerDownRef.current(e);
@@ -848,7 +906,7 @@ const CanvasEngine = React.forwardRef(({
         nativeEvent: e
       };
       
-      console.log(`📱 [CanvasEngine] touchend converted to pointerup: id=${activePointerId.current}`);
+      // console.log(`📱 [CanvasEngine] touchend converted to pointerup: id=${activePointerId.current}`);
       
       if (handlePointerUpRef.current) {
         handlePointerUpRef.current(syntheticEvent);
@@ -884,7 +942,7 @@ const CanvasEngine = React.forwardRef(({
         nativeEvent: e
       };
       
-      console.log(`📱 [CanvasEngine] touchcancel converted to pointercancel: id=${activePointerId.current}`);
+      // console.log(`📱 [CanvasEngine] touchcancel converted to pointercancel: id=${activePointerId.current}`);
       
       if (handlePointerCancelRef.current) {
         handlePointerCancelRef.current(syntheticEvent);
@@ -921,23 +979,23 @@ const CanvasEngine = React.forwardRef(({
     window.addEventListener('pointerup', handleUp, { passive: false });
     window.addEventListener('pointercancel', handleCancel, { passive: false });
     
-    // ✅ DEBUG: Global listener to verify ANY pointerdown is firing (for debugging)
-    const globalDebugHandler = (e) => {
-      if (e.pointerType === 'pen' || e.pointerType === 'touch') {
-        console.log(`🌍 [GLOBAL DEBUG] pointerdown fired: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
-      }
-    };
-    window.addEventListener('pointerdown', globalDebugHandler, { passive: true, capture: true });
+    // // ✅ DEBUG: Global listener to verify ANY pointerdown is firing (for debugging)
+    // const globalDebugHandler = (e) => {
+    //   if (e.pointerType === 'pen' || e.pointerType === 'touch') {
+    //     // console.log(`🌍 [GLOBAL DEBUG] pointerdown fired: type=${e.pointerType}, id=${e.pointerId}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
+    //   }
+    // };
+    // window.addEventListener('pointerdown', globalDebugHandler, { passive: true, capture: true });
     
     // ✅ DEBUG: Global listener for touchstart to verify events are firing
     // ✅ CRITICAL: Define handler before using it to ensure it's in scope for cleanup
-    const globalTouchDebugHandler = (e) => {
-      if (e.touches && e.touches.length === 1) {
-        const touch = e.touches[0];
-        console.log(`🌍 [GLOBAL DEBUG] touchstart fired: id=${touch.identifier}, x=${touch.clientX}, y=${touch.clientY}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
-      }
-    };
-    window.addEventListener('touchstart', globalTouchDebugHandler, { passive: true, capture: true });
+    // const globalTouchDebugHandler = (e) => {
+    //   if (e.touches && e.touches.length === 1) {
+    //     const touch = e.touches[0];
+    //     console.log(`🌍 [GLOBAL DEBUG] touchstart fired: id=${touch.identifier}, x=${touch.clientX}, y=${touch.clientY}, target=${e.target?.tagName || 'unknown'}, time=${Date.now()}`);
+    //   }
+    // };
+    // window.addEventListener('touchstart', globalTouchDebugHandler, { passive: true, capture: true });
 
     // Safety-net: window pointerup in case canvas misses it (already handled above, but keep for redundancy)
     const windowUpHandler = (e) => {
@@ -952,6 +1010,7 @@ const CanvasEngine = React.forwardRef(({
           setStrokes(strokesRef.current);
         }
         
+        isStrokesLayerDirtyRef.current = true;
         renderCanvas();
         completedStrokesQueueRef.current.push(completedStroke);
       }
@@ -1008,8 +1067,8 @@ const CanvasEngine = React.forwardRef(({
         window.removeEventListener('pointercancel', handleCancel);
         window.removeEventListener('pointerup', windowUpHandler);
         window.removeEventListener('pointercancel', windowUpHandler);
-        window.removeEventListener('pointerdown', globalDebugHandler, { capture: true });
-        window.removeEventListener('touchstart', globalTouchDebugHandler, { capture: true });
+        // window.removeEventListener('pointerdown', globalDebugHandler, { capture: true });
+        // window.removeEventListener('touchstart', globalTouchDebugHandler, { capture: true });
       } catch (error) {
         console.warn('⚠️ [CanvasEngine] Error during cleanup:', error);
       }
@@ -1066,6 +1125,7 @@ const CanvasEngine = React.forwardRef(({
           setStrokes(strokesRef.current);
         }
         
+        isStrokesLayerDirtyRef.current = true;
         renderCanvas();
         completedStrokesQueueRef.current.push(abortedStroke);
         currentStrokeRef.current = null;
