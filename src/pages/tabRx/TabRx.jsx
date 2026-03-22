@@ -148,6 +148,7 @@ import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
 import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
 import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
+import { getTemplates } from "./services/templateService";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
@@ -290,6 +291,9 @@ function TabRx() {
     fromEditRx,
     smartRxFilesData,
   } = state || {};
+
+  console.log(smartRxFilesData,"smartRxFilesData")
+  console.log(caseManagerData,"caseManagerData")
   const chartType = state?.chartType;
   const tcmId =
     caseManagerData !== undefined
@@ -555,11 +559,14 @@ function TabRx() {
   const [smartRxFiles, setSmartRxFiles] = useState([]);
   const [isCustomSSRX, setIsCustomSSRX] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [canvasInitialTemplateId, setCanvasInitialTemplateId] = useState('blank');
   const [canvasLoader, setCanvasLoader] = useState(false);
   const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
   const [hasCanvasContent, setHasCanvasContent] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
+  const [customSSDataForCanvas, setCustomSSDataForCanvas] = useState(null);
+  const [isTemplateSelectionLocked, setIsTemplateSelectionLocked] = useState(false);
 
   // Welcome popup state
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
@@ -575,6 +582,70 @@ function TabRx() {
   const handleCanvasContentChange = useCallback((hasContent) => {
     setHasCanvasContent(hasContent);
   }, []);
+
+  const handleTemplateSelectionChange = useCallback((templateId) => {
+    setSelectedTemplateId(templateId || null);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Edit case: smartRxFilesData exists => hydrate canvas template/pages metadata from custom_ss_data.
+  // Also set selectedTemplateId for end-visit payload.
+  // ─────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const isEdit = Array.isArray(smartRxFilesData) && smartRxFilesData.length > 0;
+    if (!isEdit) return;
+    if (!caseManagerData) return;
+
+    const backendCustom =
+      caseManagerData?.custom_ss_data?.custom_ss_data ||
+      caseManagerData?.custom_ss_data ||
+      null;
+
+    const templateId = backendCustom?.template_id || null;
+    if (!templateId) return;
+
+    setIsCustomSSRX(true);
+    setSelectedTemplateId(templateId);
+    // Only used for initial hydration; user template switching happens inside TabRxCanvas
+    // and syncs back to selectedTemplateId via onTemplateChange.
+    setCanvasInitialTemplateId(templateId);
+    setCustomSSDataForCanvas(backendCustom);
+    setIsTemplateSelectionLocked(true);
+  }, [smartRxFilesData, caseManagerData]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // New consult (no smartRxFilesData): pick default template like SmartPrescription.js.
+  // ─────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const isNew = !Array.isArray(smartRxFilesData) || smartRxFilesData.length === 0;
+    if (!isNew) return;
+
+    let isCancelled = false;
+    const initDefaultTemplate = async () => {
+      try {
+        const result = await getTemplates();
+        if (isCancelled) return;
+        if (result?.success && Array.isArray(result?.data) && result.data.length > 0) {
+          const defaultTemplate = result.data.find((t) => t?.default === true);
+          const chosen = defaultTemplate || result.data[0];
+          if (chosen?.id) {
+            setIsCustomSSRX(false);
+            setSelectedTemplateId(chosen.id);
+            setCanvasInitialTemplateId(chosen.id);
+            setCustomSSDataForCanvas(null);
+            setIsTemplateSelectionLocked(false);
+          }
+        }
+      } catch (e) {
+        console.error("TabRx default template init failed:", e);
+      }
+    };
+
+    initDefaultTemplate();
+    return () => {
+      isCancelled = true;
+    };
+  }, [smartRxFilesData]);
 
   // Check welcome popup on mount
   useEffect(() => {
@@ -2150,10 +2221,14 @@ function TabRx() {
                 backgroundImages={smartRxFiles.map(f => f?.fileUrl || f?.smart_prescription_file).filter(Boolean)}
                 backgroundImage={backgroundImageUrl}
                 profile={profile}
-                initialTemplateId={userFormatPref === 2 ? 'standard' : 'blank'}
+                initialTemplateId={canvasInitialTemplateId}
+                customSSData={customSSDataForCanvas}
+                lockTemplateSelection={isTemplateSelectionLocked}
+                lockedTemplateId={customSSDataForCanvas?.template_id || null}
                 showTemplateDrawer={showTemplateDrawer}
                 onToggleTemplateDrawer={handleToggleTemplateDrawer}
                 onContentChange={handleCanvasContentChange}
+                onTemplateChange={handleTemplateSelectionChange}
               />
               {/* </Content> */}
             </Layout>

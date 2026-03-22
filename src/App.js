@@ -520,7 +520,6 @@ function App() {
                   element={<BillingDashboard />}
                 />
                 <Route path="tab-rx" element={<TabRx />} />
-                <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
                 <Route path="all_patients" element={<AllPatients />} />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />

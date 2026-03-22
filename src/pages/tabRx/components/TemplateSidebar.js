@@ -21,6 +21,8 @@ const TemplateSidebar = ({
   onClose,
   selectedTemplateId,
   onTemplateSelect,
+  lockSelection = false,
+  lockedTemplateId = null,
   onAddNew,
   templates = [],
   onTemplatesUpdate,
@@ -64,6 +66,9 @@ const TemplateSidebar = ({
   };
 
   const handleTemplateSelect = (templateId) => {
+    if (lockSelection && lockedTemplateId && templateId !== lockedTemplateId) {
+      return;
+    }
     if (onTemplateSelect) {
       onTemplateSelect(templateId);
     }
@@ -76,6 +81,7 @@ const TemplateSidebar = ({
   };
 
   const handleBlankCanvas = () => {
+    if (lockSelection && lockedTemplateId) return;
     handleTemplateSelect('blank');
   };
 
@@ -393,7 +399,12 @@ const TemplateSidebar = ({
 
         <div className="template-sidebar-content">
           {/* Add New Letterhead Button */}
-          <button className="add-new-letterhead-btn" onClick={handleAddNew}>
+          <button
+            className="add-new-letterhead-btn"
+            onClick={handleAddNew}
+            disabled={lockSelection}
+            style={lockSelection ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+          >
             <PlusOutlined className="add-icon" />
             <span className="add-text">Add New Letterhead</span>
           </button>
@@ -402,6 +413,7 @@ const TemplateSidebar = ({
           <div
             className={`template-option ${selectedTemplateId === 'blank' ? 'selected' : ''}`}
             onClick={handleBlankCanvas}
+            style={lockSelection && lockedTemplateId ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
           >
             <Radio checked={selectedTemplateId === 'blank'} />
             <div className="template-thumbnail blank-thumbnail">
@@ -419,6 +431,11 @@ const TemplateSidebar = ({
           <div
             className={`template-option ${selectedTemplateId === 'standard' ? 'selected' : ''}`}
             onClick={() => handleTemplateSelect('standard')}
+            style={
+              lockSelection && lockedTemplateId !== 'standard'
+                ? { opacity: 0.5, pointerEvents: 'none' }
+                : undefined
+            }
           >
             <Radio checked={selectedTemplateId === 'standard'} />
             <div className="template-thumbnail">
@@ -443,6 +460,11 @@ const TemplateSidebar = ({
                   key={template.id}
                   className={`template-option ${isSelected ? 'selected' : ''}`}
                   onClick={() => handleTemplateSelect(template.id)}
+                  style={
+                    lockSelection && lockedTemplateId !== template.id
+                      ? { opacity: 0.5, pointerEvents: 'none' }
+                      : undefined
+                  }
                 >
                   <Radio checked={isSelected} />
                   <div className="template-thumbnail">
@@ -460,18 +482,20 @@ const TemplateSidebar = ({
                       {template.uploaded_files?.length || 1} Page Letterhead
                     </div>
                   </div>
-                  <Dropdown
-                    menu={{ items: getTemplateMenuItems(template) }}
-                    trigger={['click']}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      className="template-menu-btn"
+                  {!lockSelection && (
+                    <Dropdown
+                      menu={{ items: getTemplateMenuItems(template) }}
+                      trigger={['click']}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreOutlined />
-                    </button>
-                  </Dropdown>
+                      <button
+                        className="template-menu-btn"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreOutlined />
+                      </button>
+                    </Dropdown>
+                  )}
                 </div>
               );
             })
