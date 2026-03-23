@@ -45,6 +45,7 @@ import {
   isVoiceRxFree,
   shouldMonetizationDisabled,
   handleAdmitToIpd,
+  getDraftMoengageDoctorAttributes,
 } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import {
@@ -1016,6 +1017,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onChange = useCallback(
     (key) => {
+      if (key === TAB_DRAFT_RX) {
+        window?.Moengage?.track_event(
+          EVENTS.SAVE_DRAFT.viewSection,
+          getDraftMoengageDoctorAttributes(profile, userId)
+        );
+      }
       setPageNo(0);
       setVisitTypeFilters("");
       setStatusFilters([]);
@@ -1038,7 +1045,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         });
       }
     },
-    [selectedTab]
+    [selectedTab, profile, userId]
   );
 
   const onSearch = useCallback(
@@ -2000,6 +2007,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onPrintRxUrlClick = async (record) => {
+    if (selectedTab === TAB_DRAFT_RX) {
+      window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.printDraft, {
+        ...getDraftMoengageDoctorAttributes(profile, userId),
+        tcm_id: record?.tcm_id || 0,
+      });
+    }
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
     const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
     if (record.print_rx_url) {
@@ -2119,6 +2132,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }
 
   const handleResumeDraftRx = async (record) => {
+    window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.resume, {
+      ...getDraftMoengageDoctorAttributes(profile, userId),
+      tcm_id: record?.tcm_id || 0,
+      source: 1,
+    });
     const sendData = {
       patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
       tcm_id: record?.tcm_id
