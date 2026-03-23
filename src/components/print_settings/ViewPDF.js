@@ -310,6 +310,46 @@ const styles = StyleSheet.create({
         color: '#454551',
     },
 });
+const AI_FLOW_MEDICINE_UNIT_MAP = { 2: "Tablet", 3: "mg", 4: "ml", 5: "gm", 6: "Capsule", 7: "Sachet", 8: "Injection", 9: "Drop", 14: "Drops" };
+
+function getAiFlowMedicationDisplayList(medicine) {
+    if (!Array.isArray(medicine) || medicine.length === 0) return [];
+    return medicine.map((item, index) => {
+        const tmm_unit = item.tmm_unit ?? item.unit_id ?? 2;
+        const unitTitle = AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] || "Unit";
+        const medicineUnit =
+            Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
+                ? item.medicineUnit
+                : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
+        return {
+            ...item,
+            index,
+            tmm_id: item.tmm_id ?? item.unique_id ?? `ai-${index}`,
+            tmm_medicine_name:
+                item.tmm_medicine_name || item.name || item.medicine_name || item.lineItem || "",
+            tmm_generic:
+                item.tmm_generic ??
+                item.corrected_name ??
+                item.metadata?.tmm_generic ??
+                item.generic ??
+                "",
+            tmm_unit,
+            medicineUnit,
+            tmm_dosage: item.tmm_dosage ?? item.dosage ?? "",
+            tcm_tmm_freq_morning: item.tcm_tmm_freq_morning ?? item.freqMorning,
+            tcm_tmm_freq_afternoon: item.tcm_tmm_freq_afternoon ?? item.freqAfternoon,
+            tcm_tmm_freq_evening: item.tcm_tmm_freq_evening ?? item.freqEvening,
+            tcm_tmm_freq_night: item.tcm_tmm_freq_night ?? item.freqNight,
+            tmf_block: item.tmf_block ?? 0,
+            tmm_freq_type: item.tmm_freq_type ?? item.freq_type,
+            tmm_time: item.tmm_time ?? item.time_id ?? 1,
+            tmm_days: item.tmm_days ?? item.days,
+            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? "day(s)",
+            display_qty: item.display_qty ?? item.quantity ?? item.qty ?? "",
+            tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? "",
+        };
+    });
+}
 
 const module_id = process.env.REACT_APP_ENV !== "prod" ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
 const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
@@ -321,11 +361,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const baseFontFamily = printSettings?.page_format?.font_family || 'Roboto';
     const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
     const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
-    const dentalPDFData = dentalData;
-    const dentalComplaints = dentalPDFData?.complaints || {};
-    const dentalDiagnosis = dentalPDFData?.diagnosis || {};
-    const dentalTreatmentItems = dentalPDFData?.treatmentPlans?.items || [];
-    const dentalWorkDone = dentalPDFData?.workDone || { items: [], notes: "" };
+    const dentalPdfData = dentalData;
+    const structuralTeethDiagramImgUrl =
+        typeof dentalData?.structuralTeethDiagramImgUrl === "string"
+            ? dentalData.structuralTeethDiagramImgUrl.trim()
+            : "";
+    const dentalComplaints = dentalPdfData?.complaints || {};
+    const dentalDiagnosis = dentalPdfData?.diagnosis || {};
+    const dentalTreatmentItems = dentalPdfData?.treatmentPlans?.items || [];
+    const dentalWorkDone = dentalPdfData?.workDone || { items: [], notes: "" };
+    const dentalMedicationOption = printSettings?.prescription?.case_option?.find((o) => o?.id === 4) || {};
+    const dentalMedicationItems = getAiFlowMedicationDisplayList(dentalPdfData?.medications);
     const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
     const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
     const buildWorkDoneText = (item) => {
@@ -362,6 +408,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         "orthodonticInterventionRequired",
         "habitsPedo",
     ];
+    const camelCaseToTitle = (str) => {
+        if (str === "periodontalseverity" || str === "Periodontalseverity") {
+            return "Periodontal Severity";
+        }
+        return String(str || "")
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (first) => first.toUpperCase())
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+            .trim();
+    };
     const formatDiagnosisValue = (val) => {
         if (Array.isArray(val)) {
             return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -377,7 +433,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
     const dentalDiagnosisRows = diagnosisFieldOrder
         .filter((key) => key in dentalDiagnosis)
-        .map((key) => ({ key, value: formatDiagnosisValue(dentalDiagnosis?.[key]) }))
+        .map((key) => ({
+            key,
+            label: camelCaseToTitle(key),
+            value: formatDiagnosisValue(dentalDiagnosis?.[key]),
+        }))
         .filter((row) => String(row.value || "").trim() !== "");
     const dentalToothDiagramNotes = (() => {
         const notes = dentalDiagnosis?.toothDiagramNotes;
@@ -414,6 +474,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
         return val != null && String(val).trim() !== "";
     };
+    const dentalMedicationRowsFiltered = Array.isArray(dentalMedicationItems)
+        ? dentalMedicationItems.filter((item) =>
+            [
+                item?.tmm_medicine_name,
+                item?.name,
+                item?.groundedMedicineName,
+                item?.tmm_dosage,
+                item?.frequency,
+                item?.schedule,
+                item?.tmm_remarks,
+                item?.display_qty,
+            ].some((val) => isNonEmptyDentalValue(val)),
+        )
+        : [];
     const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) => {
         const value = dentalComplaints?.[row.key];
         return isNonEmptyDentalValue(value);
@@ -444,12 +518,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
     const hasDentalSectionData =
         dentalComplaintRowsFiltered.length > 0 ||
+        dentalMedicationRowsFiltered.length > 0 ||
         hasTeethData ||
         dentalDiagnosisRows.length > 0 ||
         dentalTreatmentRowsFiltered.length > 0 ||
         hasToothDiagramNotes ||
         dentalWorkDoneRowsFiltered.length > 0 ||
         hasWorkDoneNotes;
+    const shouldHideMedicationModuleBecauseDentalMedicationShown =
+        isRxDigitizeBool && dentalMedicationRowsFiltered.length > 0;
     const dentalQuadrantSections = [
         { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
         { key: "UPPER_LEFT", label: "UPPER LEFT" },
@@ -1441,11 +1518,85 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 ))}
                                             </View>
                                         )}
+                                        {dentalMedicationRowsFiltered.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 6 }}>
+                                                <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Medication (Rx):&nbsp;</Text>
+                                                <View style={styles.table}>
+                                                    <View style={styles.headerRow} fixed>
+                                                        <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("S.NO")}</Text>
+                                                        <Text style={[styles.headerCell, { fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("MEDICINE")}</Text>
+                                                        <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4 }}>
+                                                            <View style={{ flexGrow: 1, flexDirection: 'row' }}>
+                                                                {dentalMedicationOption?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.45, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DOSE")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("FREQUENCY")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.53, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DURATION")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("QTY")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.7, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("NOTES")}</Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                    {dentalMedicationRowsFiltered.map((item, i) => (
+                                                        <View style={styles.row} key={item.tmm_id || item.unique_id || i} wrap={false}>
+                                                            <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
+                                                            <View style={styles.cell}>
+                                                                <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.tmm_medicine_name || item.name || ''}</Text>
+                                                                {dentalMedicationOption?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
+                                                                ) : null}
+                                                            </View>
+                                                            <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
+                                                                {dentalMedicationOption?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                        {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {item.tmf_block === 0 || item.tmf_block === ''
+                                                                            ? ((item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night)
+                                                                                ? (dentalMedicationOption?.numeric_frequency
+                                                                                    ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, dentalMedicationOption?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, dentalMedicationOption?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, dentalMedicationOption?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, dentalMedicationOption?.is_dosage_decimal) : 0}`
+                                                                                    : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, dentalMedicationOption?.is_dosage_decimal))
+                                                                                : '-')
+                                                                            : `(${frequencyList?.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`}
+                                                                        {'\n'}
+                                                                        {item?.schedule || ""}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.cell, { flex: 0.53, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type) ? durationLang(capitalize(item.tmm_duration_type, true)) : isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.display_qty ? item.display_qty : '-'}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.cell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {item.tmm_remarks ? item.tmm_remarks : '-'}
+                                                                    </Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        )}
 
                                         {hasTeethData && (
                                             <View style={styles.dentalQuadrantGrid}>
                                                 {[0, 1].map((rowIndex) => (
-                                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow}>
+                                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
                                                         {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
                                                             const isLastCol = idx === 1;
                                                             const isLastRow = rowIndex === 1;
@@ -1488,7 +1639,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <View key={`dx-${row.key}`} style={styles.dentalRow}>
                                                         <View style={styles.dentalCellLabel}>
                                                             <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
-                                                                {row.key}
+                                                                {row.label}
                                                             </Text>
                                                         </View>
                                                         <View style={styles.dentalCellValue}>
@@ -6846,6 +6997,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       {printSettings?.page_format?.pagination === true && <PageNumberFooter />}
                              
                       </Page>
+                      )}
+                      {structuralTeethDiagramImgUrl && (
+                        <Page
+                            size="A4"
+                            style={{
+                                paddingTop: 0,
+                                paddingBottom: 0,
+                                paddingLeft: 0,
+                                paddingRight: 0,
+                            }}
+                            wrap={false}
+                        >
+                            <View style={{ width: "100%", height: "100%" }}>
+                                <Image
+                                    style={{ width: "100%", height: "100%" }}
+                                    src={structuralTeethDiagramImgUrl}
+                                    objectFit="contain"
+                                />
+                            </View>
+                        </Page>
                       )}
                       </Document>
                           )
