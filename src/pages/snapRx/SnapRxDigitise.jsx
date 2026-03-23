@@ -714,10 +714,10 @@ function SnapRxDigitise() {
         ref={splitRef}
         className={`${
           isMobile ? "p-0" : ""
-        } w-100 bg-body prescription-wrapper prescription-wrapper-digitise srx-drx-container`}
+        } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise srx-drx-container`}
         style={{ position: "relative" }}
       >
-        <Row gutter={0} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false} align="stretch">
           <Col
             md={17}
             lg={17}
@@ -787,6 +787,7 @@ function SnapRxDigitise() {
                   showInstructionMessage={false}
                   patient_data={patient_data}
                   vitalsFlow="snap"
+                  digitiseSplitLayout
                 />
               </div>
             </div>

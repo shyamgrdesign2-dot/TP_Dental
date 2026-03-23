@@ -771,7 +771,7 @@ function SmartRxDigitise() {
         } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise`}
         style={{ position: "relative" }}
       >
-        <Row gutter={0} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false} align="stretch">
           <Col
             md={17}
             lg={17}
@@ -836,6 +836,7 @@ function SmartRxDigitise() {
                   showInstructionMessage={false}
                   patient_data={patient_data}
                   vitalsFlow="smart"
+                  digitiseSplitLayout
                 />
               </div>
             </div>

@@ -167,8 +167,15 @@ const DigitisedPrescription = ({
   patient_data,
   vitalsFlow,
   skipAutoLabResultsLogic = false,
+  digitiseSplitLayout = false,
 }) => {
   const showHeaderArea = showRxPadHeader || showHeader;
+  const rightSectionClass = [
+    styles.rightSection,
+    digitiseSplitLayout && styles.rightSectionSplit,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeType, setActiveType] = useState(null);
   const [editableText, setEditableText] = useState("");
@@ -1598,7 +1605,7 @@ const DigitisedPrescription = ({
       )}
       {loading ? (
         <div
-          className={`${styles.rightSection} ${styles.gradientBorder} ${styles.loaderFullBleed}`}
+          className={`${rightSectionClass} ${styles.gradientBorder} ${styles.loaderFullBleed}`}
           style={{ background: `url(${genRxBg})` }}
           ref={containerRef}
         >
@@ -1609,7 +1616,7 @@ const DigitisedPrescription = ({
           />
         </div>
       ) : (
-        <div className={styles.rightSection} ref={containerRef}>
+        <div className={rightSectionClass} ref={containerRef}>
           {showInstructionMessage && onCloseInstructionMessage && (
             <div className={styles.rxPadInstruction}>
               <div className={styles.instructionIcon}>
