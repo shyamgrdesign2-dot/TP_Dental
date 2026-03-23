@@ -122,6 +122,12 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
+const getDentalMedicationArray = (rootMedications, dentalMedications) => {
+  if (Array.isArray(rootMedications)) return rootMedications;
+  if (Array.isArray(dentalMedications)) return dentalMedications;
+  return [];
+};
+
 /** Normalize dynamicFields to always be an object { moduleName: row[] }. Backend may send array of modules. Skips empty modules and empty rows. */
 const getDynamicFieldsAsObject = (dynamicFields) => {
   if (!dynamicFields || typeof dynamicFields !== "object") return {};
@@ -212,7 +218,7 @@ const DigitisedPrescription = ({
         label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER",
       },
       { key: "otherDiseases", label: "OTHER DISEASES" },
-      { key: "medications", label: "MEDICATION" },
+      // { key: "medications", label: "MEDICATION" },
       { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
       { key: "pregnancy", label: "PREGNANCY" },
       { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
@@ -249,6 +255,26 @@ const DigitisedPrescription = ({
   const dentalWorkDone = useMemo(() => {
     return data?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
   }, [data, dentalDataSource]);
+  const dentalMedications = useMemo(() => {
+    return getDentalMedicationArray(data?.medications, dentalDataSource?.medications);
+  }, [data, dentalDataSource]);
+  const hasDentalMedications = useMemo(() => {
+    if (!Array.isArray(dentalMedications) || dentalMedications.length === 0) return false;
+    return dentalMedications.some((item) => {
+      if (item == null) return false;
+      if (typeof item === "string") return String(item).trim() !== "";
+      return [
+        "groundedMedicineName",
+        "name",
+        "refinedName",
+        "frequency",
+        "dosage",
+        "schedule",
+        "duration",
+        "notes",
+      ].some((field) => item?.[field] != null && String(item[field]).trim() !== "");
+    });
+  }, [dentalMedications]);
   const dentalWorkDoneItems = useMemo(() => {
     return Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
   }, [dentalWorkDone]);
@@ -279,7 +305,23 @@ const DigitisedPrescription = ({
       "orthodonticInterventionRequired",
       "habitsPedo",
     ];
-    return order.filter((key) => key in (dentalDiagnosis || {})).map((key) => ({ key, label: key }));
+    function camelCaseToTitle(str) {
+      if (str === "periodontalseverity" || str === "Periodontalseverity") {
+        return "Periodontal Severity";
+      }
+      return str
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (first) => first.toUpperCase())
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+        .trim();
+    }
+
+    return order
+      .filter((key) => key in (dentalDiagnosis || {}))
+      .map((key) => ({
+        key,
+        label: camelCaseToTitle(key),
+      }));
   }, [dentalDiagnosis]);
   const formatDentalDiagnosisValue = useCallback((val) => {
     if (Array.isArray(val)) {
@@ -320,17 +362,23 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           diagnosis,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -355,17 +403,23 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           diagnosis,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -402,6 +456,12 @@ const DigitisedPrescription = ({
     const hasWorkDone =
       (Array.isArray(dentalWorkDoneItems) && dentalWorkDoneItems.length > 0) ||
       (dentalWorkDone?.notes != null && String(dentalWorkDone?.notes).trim() !== "");
+    const hasDentalMedicationContext =
+      data?.dental === true ||
+      !!dentalDataSource ||
+      !!data?.complaints ||
+      !!data?.treatmentPlans ||
+      !!data?.workDone;
     return (
       data?.dental === true ||
       !!dentalDataSource ||
@@ -409,7 +469,8 @@ const DigitisedPrescription = ({
       hasPlans ||
       hasTeeth ||
       hasToothDiagramNotes ||
-      hasWorkDone
+      hasWorkDone ||
+      (hasDentalMedicationContext && hasDentalMedications)
     );
   }, [
     data,
@@ -420,6 +481,7 @@ const DigitisedPrescription = ({
     hasToothDiagramNotes,
     dentalWorkDoneItems,
     dentalWorkDone,
+    hasDentalMedications,
   ]);
 
   useEffect(() => {
@@ -433,13 +495,20 @@ const DigitisedPrescription = ({
     if (dentalDataFromStore && !data?.dentalData) {
       const complaints = dentalDataFromStore?.complaints ?? {};
       const treatmentPlans = dentalDataFromStore?.treatmentPlans ?? { items: [] };
-      setData((prev) => ({
-        ...prev,
-        dental: true,
-        dentalData: dentalDataFromStore,
-        complaints,
-        treatmentPlans,
-      }));
+      setData((prev) => {
+        const medications = getDentalMedicationArray(
+          prev?.medications,
+          dentalDataFromStore?.medications
+        );
+        return {
+          ...prev,
+          dental: true,
+          dentalData: dentalDataFromStore,
+          complaints,
+          treatmentPlans,
+          medications,
+        };
+      });
     }
   }, [dentalDataFromStore, data?.dentalData, setData]);
 
@@ -1763,6 +1832,44 @@ const DigitisedPrescription = ({
     }));
   }, []);
 
+  const handleDentalMedicationsUpdate = useCallback(
+    (medicationsArray) => {
+      let nextDentalData = null;
+      const nextMedications = Array.isArray(medicationsArray) ? medicationsArray : [];
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextWorkDone = prev?.workDone ?? prevDentalData?.workDone ?? { items: [], notes: "" };
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
   const handleInvestigationUpdate = useCallback((investigationArray) => {
     setData((prevData) => ({
       ...prevData,
@@ -1786,16 +1893,22 @@ const DigitisedPrescription = ({
         };
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -1834,16 +1947,22 @@ const DigitisedPrescription = ({
         items[rowIndex] = { ...currentItem, [field]: value };
         const nextTreatmentPlans = { ...currentTreatmentPlans, items };
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -1877,16 +1996,22 @@ const DigitisedPrescription = ({
       });
       const nextTreatmentPlans = { ...currentTreatmentPlans, items };
       const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+      const nextMedications = getDentalMedicationArray(
+        prev?.medications,
+        prevDentalData?.medications
+      );
       nextDentalData = {
         ...prevDentalData,
         complaints: nextComplaints,
         treatmentPlans: nextTreatmentPlans,
+        medications: nextMedications,
       };
       return {
         ...prev,
         dental: true,
         complaints: nextComplaints,
         treatmentPlans: nextTreatmentPlans,
+        medications: nextMedications,
         dentalData: nextDentalData,
       };
     });
@@ -1927,11 +2052,16 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
           workDone: nextWorkDone,
+          medications: nextMedications,
         };
         return {
           ...prev,
@@ -1939,6 +2069,7 @@ const DigitisedPrescription = ({
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
           workDone: nextWorkDone,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -1972,11 +2103,16 @@ const DigitisedPrescription = ({
       const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
       const nextTreatmentPlans =
         prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+      const nextMedications = getDentalMedicationArray(
+        prev?.medications,
+        prevDentalData?.medications
+      );
       nextDentalData = {
         ...prevDentalData,
         complaints: nextComplaints,
         treatmentPlans: nextTreatmentPlans,
         workDone: nextWorkDone,
+        medications: nextMedications,
       };
       return {
         ...prev,
@@ -1984,6 +2120,7 @@ const DigitisedPrescription = ({
         complaints: nextComplaints,
         treatmentPlans: nextTreatmentPlans,
         workDone: nextWorkDone,
+        medications: nextMedications,
         dentalData: nextDentalData,
       };
     });
@@ -2006,11 +2143,16 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
           workDone: nextWorkDone,
+          medications: nextMedications,
         };
         return {
           ...prev,
@@ -2018,6 +2160,7 @@ const DigitisedPrescription = ({
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
           workDone: nextWorkDone,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -2063,17 +2206,23 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           diagnosis,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -2117,17 +2266,23 @@ const DigitisedPrescription = ({
         const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
         const nextTreatmentPlans =
           prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
         nextDentalData = {
           ...prevDentalData,
           diagnosis,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
         };
         return {
           ...prev,
           dental: true,
           complaints: nextComplaints,
           treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
           dentalData: nextDentalData,
         };
       });
@@ -2273,6 +2428,14 @@ const DigitisedPrescription = ({
                   ))}
                 </tbody>
               </table>
+              {hasDentalMedications ? (
+                <MedicationsTable
+                  medications={dentalMedications}
+                  onUpdate={handleDentalMedicationsUpdate}
+                  isProcessing={false}
+                  isMedInvestigationFeatureOn={isMedInvestigationOn}
+                />
+              ): null}
 
 
               {dentalDiagnosisRows.length > 0 && (
@@ -2668,7 +2831,7 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {((sectionData.medications?.length > 0 && hasValidContent("medications")) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && (
+          {((sectionData.medications?.length > 0 && hasValidContent("medications")) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && !hasDentalMedications && (
               <MedicationsTable
                 medications={sectionData.medications || []}
                 onUpdate={handleMedicationsUpdate}
