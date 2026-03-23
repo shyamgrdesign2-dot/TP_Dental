@@ -9255,7 +9255,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               {hasTeethData && (
                                 <View style={styles.dentalQuadrantGrid}>
                                   {[0, 1].map((rowIndex) => (
-                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow}>
+                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
                                       {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
                                         const isLastCol = idx === 1;
                                         const isLastRow = rowIndex === 1;
