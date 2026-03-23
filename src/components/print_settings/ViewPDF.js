@@ -402,6 +402,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         "orthodonticInterventionRequired",
         "habitsPedo",
     ];
+    const camelCaseToTitle = (str) => {
+        if (str === "periodontalseverity" || str === "Periodontalseverity") {
+            return "Periodontal Severity";
+        }
+        return String(str || "")
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (first) => first.toUpperCase())
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+            .trim();
+    };
     const formatDiagnosisValue = (val) => {
         if (Array.isArray(val)) {
             return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -417,7 +427,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
     const dentalDiagnosisRows = diagnosisFieldOrder
         .filter((key) => key in dentalDiagnosis)
-        .map((key) => ({ key, value: formatDiagnosisValue(dentalDiagnosis?.[key]) }))
+        .map((key) => ({
+            key,
+            label: camelCaseToTitle(key),
+            value: formatDiagnosisValue(dentalDiagnosis?.[key]),
+        }))
         .filter((row) => String(row.value || "").trim() !== "");
     const dentalToothDiagramNotes = (() => {
         const notes = dentalDiagnosis?.toothDiagramNotes;
@@ -1696,7 +1710,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     <View key={`dx-${row.key}`} style={styles.dentalRow}>
                                                         <View style={styles.dentalCellLabel}>
                                                             <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
-                                                                {row.key}
+                                                                {row.label}
                                                             </Text>
                                                         </View>
                                                         <View style={styles.dentalCellValue}>

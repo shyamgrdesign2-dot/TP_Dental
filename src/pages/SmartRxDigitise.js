@@ -392,9 +392,6 @@ function SmartRxDigitise() {
         }
         editedDataForApi.dynamicFields[0].dentalData = editedDataForApi.dentalData;
       }
-      console.log('INTEL ==> editedDataForApi', editedDataForApi)
-      // return;
-      // return;
       if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
         const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
         const generalRBSVal = vitalsRest.general_rbs ?? vitalsRest["General RBS"] ?? vitalsRest.generalRBS ?? vitalsRest.genralRBS;
@@ -422,7 +419,6 @@ function SmartRxDigitise() {
         }
       );
 
-      console.log('INTEL ==> response 2', response);
       // Handle navigation based on the API response
       if (response.status === 204) {
         if (isGroundingAccessableForZydus && patient_data?.departmentId) {
