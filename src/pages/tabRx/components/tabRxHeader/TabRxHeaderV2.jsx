@@ -1728,7 +1728,6 @@ function TabRxHeaderV2({
                     }
 
                     const customSSData = {
-                        custom_ss_data: {
                             template_id: selectedTemplateId && selectedTemplateId !== 'blank' ? selectedTemplateId : null,
                             template_title: selectedTemplateId && selectedTemplateId !== 'blank' && templates?.length > 0 ? (templates.find(t => t.id === selectedTemplateId)?.title || null) : null,
                             pages: finalCanvasData.pagesMetadata.map((meta, index) => ({
@@ -1736,10 +1735,9 @@ function TabRxHeaderV2({
                                 page_type: meta.type || 'blank',
                                 template_page_index: meta.templateImageIndex !== null && meta.templateImageIndex !== undefined ? meta.templateImageIndex : null
                             }))
-                        }
                     };
 
-                    console.log('✅ [TabRxHeaderV2] Sending custom_ss_data:', customSSData);
+                    // console.log('✅ [TabRxHeaderV2] Sending custom_ss_data:', customSSData);
                     return customSSData;
                 })(),
             };

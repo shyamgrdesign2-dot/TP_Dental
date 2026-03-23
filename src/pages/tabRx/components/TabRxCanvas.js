@@ -33,7 +33,13 @@ const TabRxCanvas = forwardRef(({
   showTemplateDrawer = true,
   onToggleTemplateDrawer = null,
   onContentChange = null,
-  backgroundImages = []
+  onTemplateChange = null,
+  backgroundImages = [],
+  lockTemplateSelection = false,
+  lockedTemplateId = null,
+  // In edit mode, backend custom_ss_data is used to initialize page metadata (page_type/template_page_index)
+  // so submission payload stays consistent with what was originally rendered.
+  customSSData = null,
 }, ref) => {
   // Application State - Multi-page support
   // Pages metadata: Array of page objects with { id, type: 'blank' | 'template', templateId, templateImageIndex }
@@ -92,8 +98,18 @@ const TabRxCanvas = forwardRef(({
 
   // Template State
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialTemplateId);
+
+  // Keep parent page state in sync with template changes from sidebar/canvas.
+  useEffect(() => {
+    if (onTemplateChange) {
+      onTemplateChange(selectedTemplateId || null);
+    }
+  }, [selectedTemplateId, onTemplateChange]);
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
+
+  // Prevent re-hydrating from edit backend metadata after the user switches templates/pages.
+  const didHydrateFromEditRef = useRef(false);
 
   // Sync with prop when it arrives from parent component (e.g. from backend metadata fetch)
   useEffect(() => {
@@ -120,6 +136,61 @@ const TabRxCanvas = forwardRef(({
   const backgroundImagesStr = backgroundImages ? backgroundImages.join(',') : '';
   useEffect(() => {
     if (backgroundImages && backgroundImages.length > 0) {
+      // Edit mode hydration: use backend custom_ss_data to build template page metadata.
+      // Also attach smartRx background images (customImage) so existing content is preserved visually.
+      if (
+        customSSData?.template_id &&
+        Array.isArray(customSSData?.pages) &&
+        customSSData.pages.length > 0 &&
+        !didHydrateFromEditRef.current
+      ) {
+        const templateId = customSSData.template_id;
+        const backendPages = customSSData.pages;
+
+        const newPages = backendPages.map((p, i) => {
+          const pageType = p?.page_type;
+          const customImage = backgroundImages[i] || null;
+
+          if (pageType === 'blank') {
+            return {
+              id: generateId(),
+              type: 'blank',
+              templateId: null,
+              templateImageIndex: null,
+              customImage,
+            };
+          }
+
+          return {
+            id: generateId(),
+            type: 'template',
+            templateId,
+            templateImageIndex:
+              p?.template_page_index !== null && p?.template_page_index !== undefined
+                ? p.template_page_index
+                : null,
+            customImage,
+          };
+        });
+
+        setCurrentPageIndex(0);
+        setPagesMetadata(newPages);
+
+        const newStrokes = {};
+        const newTextElements = {};
+        newPages.forEach((page) => {
+          newStrokes[page.id] = [];
+          newTextElements[page.id] = [];
+        });
+
+        setStrokesByPage(newStrokes);
+        setTextElementsByPage(newTextElements);
+
+        setSelectedTemplateId(templateId);
+        didHydrateFromEditRef.current = true;
+        return;
+      }
+
       // Check if we already have the same number of 'custom' pages with the same image content
       // Ignore if we manually added more pages than what was initially passed
       const hasInitialImages = backgroundImages.every((img, i) =>
@@ -147,7 +218,7 @@ const TabRxCanvas = forwardRef(({
       setStrokesByPage(newStrokes);
       setTextElementsByPage(newTextElements);
     }
-  }, [backgroundImagesStr]);
+  }, [backgroundImagesStr, customSSData]);
 
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -651,7 +722,36 @@ const TabRxCanvas = forwardRef(({
     // Keep drawer open - don't close after selection
   }, [templates]);
 
+  // If we were initialized with a custom templateId but templates are loaded later,
+  // expand to the correct pageCount so multi-page templates render fully by default.
+  useEffect(() => {
+    if (didHydrateFromEditRef.current) return;
+    if (!initialTemplateId) return;
+    if (initialTemplateId === 'blank' || initialTemplateId === 'standard') return;
+
+    const template = templates.find((t) => t.id === initialTemplateId);
+    if (!template) return;
+
+    const pageCount = template.uploaded_files?.length || template.pages?.length || 1;
+    if (pageCount <= 1) return;
+
+    if (
+      pagesMetadata.length === 1 &&
+      pagesMetadata[0]?.type === 'template' &&
+      pagesMetadata[0]?.templateId === initialTemplateId &&
+      (pagesMetadata[0]?.templateImageIndex === null ||
+        pagesMetadata[0]?.templateImageIndex === undefined)
+    ) {
+      executeTemplateSelect(initialTemplateId);
+    }
+  }, [templates, initialTemplateId, pagesMetadata, executeTemplateSelect]);
+
   const handleTemplateSelect = useCallback((templateId) => {
+    // Edit mode: template switching is locked to backend template.
+    if (lockTemplateSelection && lockedTemplateId && templateId !== lockedTemplateId) {
+      return;
+    }
+
     // No-op if selecting same template
     if (templateId === selectedTemplateId) return;
 
@@ -663,7 +763,7 @@ const TabRxCanvas = forwardRef(({
     }
 
     executeTemplateSelect(templateId);
-  }, [selectedTemplateId, hasAnyCanvasContent, executeTemplateSelect]);
+  }, [selectedTemplateId, hasAnyCanvasContent, executeTemplateSelect, lockTemplateSelection, lockedTemplateId]);
 
   const hideTemplateSwitchModal = useCallback(() => {
     setIsTemplateSwitchModalOpen(false);
@@ -691,10 +791,18 @@ const TabRxCanvas = forwardRef(({
           id: newPageId,
           type: sourcePage.type,
           templateId: sourcePage.templateId,
-          templateImageIndex: sourcePage.templateImageIndex
+          templateImageIndex: sourcePage.templateImageIndex,
+          // In edit mode we duplicate smartRx-rendered page image to preserve existing content visually.
+          customImage: sourcePage.customImage || null,
         };
       } else {
-        newPageMeta = { id: newPageId, type: 'blank', templateId: null, templateImageIndex: null };
+        newPageMeta = {
+          id: newPageId,
+          type: 'blank',
+          templateId: null,
+          templateImageIndex: null,
+          customImage: null,
+        };
       }
     } else {
       return;
@@ -865,6 +973,8 @@ const TabRxCanvas = forwardRef(({
         onClose={onToggleTemplateDrawer || (() => { })}
         selectedTemplateId={selectedTemplateId}
         onTemplateSelect={handleTemplateSelect}
+        lockSelection={lockTemplateSelection}
+        lockedTemplateId={lockedTemplateId}
         onAddNew={handleAddNewTemplate}
         templates={templates}
         onTemplatesUpdate={setTemplates}
@@ -989,9 +1099,10 @@ const TabRxCanvas = forwardRef(({
                     onInteractionStart={handleInteractionStart}
                     onPageFocus={() => setCurrentPageIndex(pageIndex)}
                     backgroundImage={
-                      pageMeta.type === 'custom'
+                      pageMeta.customImage
                         ? pageMeta.customImage
-                        : (backgroundImage && pageIndex === 0 ? backgroundImage : getBackgroundForPage(pageMeta))
+                        : (getBackgroundForPage(pageMeta) ||
+                          (backgroundImage && pageIndex === 0 ? backgroundImage : null))
                     }
                     embeddedInScroll={true}
                     onContentChange={onContentChange}
