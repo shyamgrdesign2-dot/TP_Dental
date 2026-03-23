@@ -9,6 +9,30 @@ importScripts("https://cdn.moengage.com/release/dc_3/serviceworker_cdn.min.lates
 const CACHE_NAME = 'tatva-practice-mobile-v1';
 const RUNTIME_CACHE = 'tatva-practice-runtime-v1';
 
+// Must be attached during initial evaluation for browsers/SDKs that postMessage immediately.
+self.addEventListener('message', (event) => {
+  if (!event.data) {
+    return;
+  }
+
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+
+  if (event.data.type === 'CACHE_URLS' && Array.isArray(event.data.urls)) {
+    event.waitUntil(
+      caches.open(RUNTIME_CACHE)
+        .then((cache) => {
+          return cache.addAll(event.data.urls);
+        })
+        .catch((error) => {
+          // Silently fail cache operations
+          console.warn('[Service Worker] Cache URLs failed:', error);
+        })
+    );
+  }
+});
+
 // Assets to cache on install
 const PRECACHE_ASSETS = [
   '/',
@@ -178,30 +202,6 @@ self.addEventListener('fetch', (event) => {
         });
       })
   );
-});
-
-// Message event - Handle messages from the app
-self.addEventListener('message', (event) => {
-  if (!event.data) {
-    return;
-  }
-
-  if (event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data.type === 'CACHE_URLS' && Array.isArray(event.data.urls)) {
-    event.waitUntil(
-      caches.open(RUNTIME_CACHE)
-        .then((cache) => {
-          return cache.addAll(event.data.urls);
-        })
-        .catch((error) => {
-          // Silently fail cache operations
-          console.warn('[Service Worker] Cache URLs failed:', error);
-        })
-    );
-  }
 });
 
 console.log('[Service Worker] Loaded');
