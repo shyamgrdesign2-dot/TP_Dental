@@ -746,6 +746,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }, [appointmentsData, matchedAppointment, selectedTab]);
 
   const decodedToken = getDecodedToken();
+  const isAdmin = decodedToken?.result?.admin;
 
   const showHideBackModal = () => {
     setIsBackModalOpen(!isBackModalOpen);
@@ -3114,7 +3115,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && isUserInAgentsData && (
+            {isAppointmentAgentEnable && isUserInAgentsData || isAdmin && (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}

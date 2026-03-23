@@ -51,6 +51,8 @@ import {
   S_VOICE_RX,
   PAID,
   GB_SAVE_AS_DRAFT_RX,
+  GB_TAB_RX,
+  GB_TAB_RX_CVT,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -71,6 +73,7 @@ import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import draftIcon from "../assets/images/draft-document.svg";
+import { getTabRxFiles } from "../pages/tabRx/services/tabRxService";
 
 import {
   getSnapRxDigitization,
@@ -550,6 +553,8 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
+  const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
+  const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -564,13 +569,54 @@ function Cardiology(props) {
     setShowDigitalRx(false);
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
-      fetchData();
+      if(!viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx")){
+       fetchData();
+      }
       if (isVideoConsultAccessibleFromGB) {
         checkVideoConsultStatus(viewCaseManagerData.tcm_id);
       }
     }
     if (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx")) {
       setIsTabRx(true);
+
+      const fetchTabRxFile = async () => {
+        try {
+          const tcmId = viewCaseManagerData?.tcm_id;
+          const patientUniqueId = patient_data?.patient_unique_id;
+          if (!tcmId || !patientUniqueId) return;
+
+          const res = await getTabRxFiles(tcmId, patientUniqueId);
+          if (res?.success) {
+            const tabRxData = res?.data;
+            const tabRxFiles = tabRxData?.prescription_files;
+            const tabRxDigitisedData = tabRxData?.digitization;
+            const normalized = Array.isArray(tabRxFiles)
+              ? tabRxFiles.map((item) => {
+                  return {
+                    smart_prescription_file: item?.fileUrl,
+                    smart_prescription_filename: item?.filename,
+                  };
+                })
+              : [];
+            setSmartRxFile(normalized);
+            setRxDigitisedData(tabRxDigitisedData);
+            if (tabRxDigitisedData.isDigitize && tabRxDigitisedData.isVerified ) {
+              setIsRxdigitised(true);
+            } else {
+              setIsRxdigitised(false);
+            }
+          } else {
+            setSmartRxFile([]);
+          }
+        } catch (e) {
+          console.error("Failed to fetch tab-rx files:", e);
+          setSmartRxFile([]);
+        }
+      };
+
+      fetchTabRxFile();
+    }else{
+      setIsTabRx(false);
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -590,6 +636,7 @@ function Cardiology(props) {
       viewCaseManagerData?.smart_prescription_filename !== null &&
       viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg") &&
       !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+      !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") &&
       !isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
       // viewCaseManagerData.medicine?.length === 0 &&
       // viewCaseManagerData.symptoms?.length === 0 &&
@@ -2097,12 +2144,7 @@ function Cardiology(props) {
   };
 
 
-  // viewCaseManagerData?.doctor_data?.editCase &&
-  // (!(isSmartRxFile && (isMobile && viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx"))) || (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile))
 
-  console.log(viewCaseManagerData?.doctor_data?.editCase ,"viewCaseManagerData?.doctor_data?.editCase ")
-  console.log(isSmartRxFile && isMobile ,"isSmartRxFile && isMobile")
-  console.log(viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile ,"viewCaseManagerData tabRx")
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
@@ -2248,8 +2290,8 @@ function Cardiology(props) {
               </div>
             </Card.Header>
 
-            {isSmartSyncCVTAccessableFromGB &&
-              isSmartRxFile &&
+            {(isSmartSyncCVTAccessableFromGB || isTabRxAccessableFromGB) &&
+              (isSmartRxFile || isTabRx) &&
               viewCaseManagerData?.smart_prescription_filename?.length > 0 &&
               rxDigitisedData &&
               !isSnapRx &&
@@ -2439,7 +2481,7 @@ function Cardiology(props) {
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
-              !isSmartRxFile ? (
+              (!isSmartRxFile || !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
                   <div className="m-4">
@@ -2673,7 +2715,7 @@ function Cardiology(props) {
                   </div>
                 )}
               </div>
-            ) : isSmartRxFile && !isSnapRx ? (
+            ) : (isSmartRxFile || isTabRx) && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">

@@ -419,7 +419,8 @@ function Welcome1(props) {
                                             }
                                         </Button>
                                     }
-                                    { viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
+                                       (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)) &&
                                          <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
                                             window.Moengage.track_event("repeat_rx_click", {
                                                 "doctor_id": profile?.doctor_unique_id,
