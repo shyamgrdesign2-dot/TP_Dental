@@ -319,8 +319,8 @@ function MedicalHistoryBox(props) {
                         const sb = bMap[id];
                         if (!sa) return sb;
                         if (!sb) return sa;
-                        const existingIds = new Set((sa.tags || []).map((t) => t.tmmhst_id));
-                        const newTags = (sb.tags || []).filter((t) => !existingIds.has(t.tmmhst_id));
+                        const existingIds = new Set((sa.tags || []).map((t) => t.title));
+                        const newTags = (sb.tags || []).filter((t) => !existingIds.has(t.title));
                         return { ...sa, ...sb, tags: [...(sa.tags || []), ...newTags] };
                     });
                 };
@@ -342,10 +342,10 @@ function MedicalHistoryBox(props) {
                         tags: [
                             ...(e?.tags || [])?.map(tag => ({
                                 ...tag,
-                                ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                                ...(sectionFromSource?.tags?.find(x1 => x1?.title === tag?.title) || {})
                             })),
                             ...(sectionFromSource?.tags || [])?.filter(item2 =>
-                                !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                                !(e?.tags || [])?.find(item1 => item1?.title === item2?.title)
                             )
                         ],
                     };
@@ -360,10 +360,10 @@ function MedicalHistoryBox(props) {
                     tags: [
                         ...(e?.tags || [])?.map(tag => ({
                             ...tag,
-                            ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
+                            ...(sectionFromSource?.tags?.find(x1 => x1?.title === tag?.title) || {})
                         })),
                         ...(sectionFromSource?.tags || [])?.filter(item2 =>
-                            !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
+                            !(e?.tags || [])?.find(item1 => item1?.title === item2?.title)
                         )
                     ],
                 };

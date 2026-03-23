@@ -228,6 +228,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [pageNo, setPageNo] = useState(0);
   const [visitTypeFilters, setVisitTypeFilters] = useState("");
+  const [statusFilters, setStatusFilters] = useState([]);
   const [openRowIndex, setOpenRowIndex] = useState(null);
   const [pendingDigitisation, setPendingDigitisation] = useState(null);
   const consultButtonRef = useRef(null);
@@ -1016,6 +1017,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     (key) => {
       setPageNo(0);
       setVisitTypeFilters("");
+      setStatusFilters([]);
       setSelectedCalanderOptions(1);
       setSelectedTab(key);
 
@@ -1195,6 +1197,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             : e.toct_type,
       };
     });
+  };
+
+  const getZydusStatusFilters = () => {
+    const statuses = new Set(
+      appointmentsData
+        ?.map((item) => item.appointmentStatus)
+        .filter((status) => status && typeof status === "string")
+    );
+    return Array.from(statuses).map((status) => ({
+      text: status,
+      value: status,
+    }));
   };
 
   const tokenData = decodedToken?.result;
@@ -2221,9 +2235,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ? "toct_type"
           : "appointmentStatus",
       ellipsis: true,
-      filteredValue: visitTypeFilters.split(",") || "",
+      filteredValue:
+        selectedTab !== TAB_ZYDUS_APPOINTMENT
+          ? visitTypeFilters.split(",") || ""
+          : statusFilters || [],
       filters:
-        selectedTab !== TAB_ZYDUS_APPOINTMENT ? getVisitTypeFilters() : null,
+        selectedTab !== TAB_ZYDUS_APPOINTMENT
+          ? getVisitTypeFilters()
+          : getZydusStatusFilters(),
       render: (text, record) => (
         <div className="d-flex">
           <div>
@@ -2425,7 +2444,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
@@ -2485,7 +2511,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   </button>
                 </>
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
@@ -2610,6 +2643,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const handleChange = (pagination, filters, sorter, extra) => {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");
+    setStatusFilters(filters.appointmentStatus || []);
   };
 
   const emptyText = (
@@ -3115,7 +3149,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && isUserInAgentsData || isAdmin && (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
@@ -3275,7 +3309,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       selectedTab !== TAB_ZYDUS_ENCOUNTER &&
                       selectedTab !== TAB_ZYDUS_APPOINTMENT
                         ? appointmentsData
-                        : matchedAppointment
+                        : matchedAppointment.filter((item) => {
+                            if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
+                              if (statusFilters && statusFilters.length > 0) {
+                                return statusFilters.includes(item.appointmentStatus);
+                              }
+                              return !(
+                                item.appointmentStatus &&
+                                item.appointmentStatus.toLowerCase().includes("cancel")
+                              );
+                            }
+                            return true;
+                          })
                     }
                     onChange={handleChange}
                     pagination={false}

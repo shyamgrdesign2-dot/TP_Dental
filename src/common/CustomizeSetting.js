@@ -19,7 +19,7 @@ import fullicon from '../assets/images/full-icon.svg';
 import VideoModal from './VideoModal';
 import { useAccess } from '../pages/vaccination/useAccess';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_CARE_PLAN, GB_ISCRIBE } from '../utils/constants';
+import { GB_CARE_PLAN, GB_ISCRIBE, INVESTIGATION_MODULE_ID, INVESTIGATION_TITLE } from '../utils/constants';
 import customModuleIcon from '../assets/images/custom-module.svg';
 import editIcon from '../assets/images/edit-icon-blue.svg';
 import deleteIcon from '../assets/images/delete-icon-blue.svg';
@@ -457,7 +457,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       colSpan: 0,
       dataIndex: 'tmdpm_name',
       key: 'tmdpm_name',
-      render: (text, record) => <div className='align-items-center d-flex'><img src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{record.tmdpm_name}</div>
+      render: (text, record) => <div className='align-items-center d-flex'><img src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{record?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : record.tmdpm_name}</div>
     },
     {
       title: 'ENABLE/DISABLE',
@@ -642,7 +642,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
               <div className="d-flex align-items-center">
                 <img className="me-3" src={alertIcon} alt="Warning" />
                 <span>
-                  Deleting this "<b>{moduleToDelete?.tmdpm_name}</b>" module will permanently
+                  Deleting this "<b>{moduleToDelete?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : moduleToDelete?.tmdpm_name}</b>" module will permanently
                   remove all saved templates and data associated with it. This
                   action cannot be undone.
                 </span>

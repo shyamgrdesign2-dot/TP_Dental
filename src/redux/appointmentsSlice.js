@@ -418,6 +418,11 @@ export const listCategories = createAsyncThunk(
 const appointmentsSlice = createSlice({
   name: "records",
   initialState,
+  reducers: {
+    resetPatientsDetails: (state) => {
+      state.patients_details = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(getCaseTypes.pending, (state) => {
@@ -706,4 +711,5 @@ const appointmentsSlice = createSlice({
   },
 });
 
+export const { resetPatientsDetails } = appointmentsSlice.actions;
 export default appointmentsSlice.reducer;
