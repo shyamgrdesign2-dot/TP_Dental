@@ -21,7 +21,7 @@ import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../redux/vitalsSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import moment from "moment";
-import { getClinicName, getTokenData } from "../utils/utils";
+import { getTokenData } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
 import HeaderSmartRxDigitise from "../common/HeaderSmartRxDigitise";
@@ -77,7 +77,6 @@ function SmartRxDigitise() {
     isZydusUserAccessableFromGB;
 
   const baseUrlRxDigitise = env.rx_digitization;
-  const clinicName = getClinicName(profile?.hospital_data);
   const isSmartRxDigitisePath = location?.pathname === "/smart-rx-digitise";
   const shouldUseCustomRxDigitize = isManyaDentalAccessableFromGB && isSmartRxDigitisePath;
   const clearSmartRxDentalState = useCallback(() => {
