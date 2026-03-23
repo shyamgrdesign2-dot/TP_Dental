@@ -21,7 +21,7 @@ import ApiMedicalHistory from "../api/services/ApiMedicalHistory";
 import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../redux/vitalsSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import moment from "moment";
-import { getTokenData } from "../utils/utils";
+import { getClinicName, getTokenData } from "../utils/utils";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
 import HeaderSmartRxDigitise from "../common/HeaderSmartRxDigitise";
@@ -29,6 +29,7 @@ import DigitisedPrescription from "../components/DigitisedPrescription";
 import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
+import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
 
 function SmartRxDigitise() {
   const divRef = useRef(null);
@@ -38,12 +39,14 @@ function SmartRxDigitise() {
   const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
   const { profile, siteId, storeCode, userId } = useSelector((state) => state.doctors);
+  const dentalDataFromStore = useSelector((state) => state.dentalRx?.dentalData);
   const { loading } = useSelector((state) => state.caseManager);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { state: locationState } = useLocation();
+  const location = useLocation();
+  const { state: locationState } = location;
   const state = locationState || {};
   const {
     patient_data,
@@ -73,6 +76,10 @@ function SmartRxDigitise() {
     isZydusUserAccessableFromGB;
 
   const baseUrlRxDigitise = env.rx_digitization;
+  const clinicName = getClinicName(profile?.hospital_data);
+  const isManyaClinic = (clinicName || "") === "Manya Dental - Hongasandra";
+  const isSmartRxDigitisePath = location?.pathname === "/smart-rx-digitise";
+  const shouldUseCustomRxDigitize = isManyaClinic && isSmartRxDigitisePath;
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -246,6 +253,7 @@ function SmartRxDigitise() {
   useEffect(() => {
     return () => {
       dispatch(resetVitalsState());
+      dispatch(clearDentalData());
     };
   }, [dispatch]);
 
@@ -310,6 +318,43 @@ function SmartRxDigitise() {
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
+      const hasDentalPayload = !!(
+        editedDataForApi?.dental ||
+        editedDataForApi?.dentalData ||
+        editedDataForApi?.complaints ||
+        editedDataForApi?.treatmentPlans ||
+        dentalDataFromStore
+      );
+      if (hasDentalPayload) {
+        editedDataForApi.dental = true;
+        // Safely set dentalData in dynamicFields if not present and dentalDataFromStore exists
+        // Ensure dynamicFields exists and is an object before adding dentalData
+        if (dentalDataFromStore) {
+          // Ensure dynamicFields is an array
+          if (!Array.isArray(editedDataForApi.dynamicFields)) {
+            editedDataForApi.dynamicFields = [];
+          }
+          if (!editedDataForApi.dynamicFields[0]) {
+            editedDataForApi.dynamicFields[0] = {};
+          }
+          if (!editedDataForApi.dynamicFields[0].hasOwnProperty("dentalData")) {
+            editedDataForApi.dynamicFields[0].dentalData = dentalDataFromStore;
+          }
+        }
+      }
+      if (editedDataForApi.dentalData) {
+        // Ensure dynamicFields is an array
+        if (!Array.isArray(editedDataForApi.dynamicFields)) {
+          editedDataForApi.dynamicFields = [];
+        }
+        if (!editedDataForApi.dynamicFields[0]) {
+          editedDataForApi.dynamicFields[0] = {};
+        }
+        editedDataForApi.dynamicFields[0].dentalData = editedDataForApi.dentalData;
+      }
+      console.log('INTEL ==> editedDataForApi', editedDataForApi)
+      // return;
+      // return;
       if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
         const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
         const generalRBSVal = vitalsRest.general_rbs ?? vitalsRest["General RBS"] ?? vitalsRest.generalRBS ?? vitalsRest.genralRBS;
@@ -337,6 +382,7 @@ function SmartRxDigitise() {
         }
       );
 
+      console.log('INTEL ==> response 2', response);
       // Handle navigation based on the API response
       if (response.status === 204) {
         if (isGroundingAccessableForZydus && patient_data?.departmentId) {
@@ -608,49 +654,92 @@ function SmartRxDigitise() {
   const uploadFiles = async () => {
     try {
       setIsLoading(true);
-      const formData = new FormData();
-
-      // Convert images to File objects and append to FormData
-      const files = await Promise.all(
-        smartRxFile.map(async (file) => {
-          const fileUrl = file.smart_prescription_file;
-          const fileName = file.smart_prescription_filename;
-          return await fetchImageAsFile(fileUrl, fileName);
-        })
-      );
-
-      files.forEach((file) => {
-        if (file) {
-          formData.append("files", file);
-        }
-      });
-
-      // Append other required fields
-      formData.append("doctorId", tokenData.user_id);
-      formData.append("patientId", patient_data.patient_unique_id);
-      formData.append("appointmentId", pam_id || patient_data?.pam_id);
-      formData.append("caseId", tcm_id);
-
-      // Append ocrModelSelected only if isCustomSSRX is true
-      // if (isCustomSSRX) {
-      formData.append("ocrModelSelected", "zyvelor");
-      // }
-
       const cleanedToken = token.replace(/['"]+/g, "");
-      const response = await axios.post(
-        `${baseUrlRxDigitise}/api/v1/rxdigitize/rx`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${cleanedToken}`,
-          },
+      let response;
+
+      if (!shouldUseCustomRxDigitize) {
+        if (!tcm_id || !patient_data?.patient_unique_id) {
+          setIsLoading(false);
+          return;
         }
-      );
+        response = await axios.post(
+          `${env.snap_rx_api_url}/api/v1/digitization/custom-rx/digitize-rx`,
+          {
+            tcm_id,
+            patient_unique_id: patient_data.patient_unique_id,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cleanedToken}`,
+            },
+          }
+        );
+      } else {
+        const formData = new FormData();
+
+        // Build list of File objects: native File use as-is; Blob wrap as File; API-shaped fetch from URL
+        const files = await Promise.all(
+          smartRxFile.map(async (file, index) => {
+            if (file instanceof File) {
+              return file;
+            }
+            if (file instanceof Blob) {
+              return new File([file], file.name || `rx-${index}-${Date.now()}.jpg`, { type: file.type });
+            }
+            const fileUrl = file.smart_prescription_file ?? file.fileUrl ?? file.url ?? file.smart_prescription_file_url;
+            const fileName = file.smart_prescription_filename ?? file.name ?? `rx-${index}-${Date.now()}.jpg`;
+            return await fetchImageAsFile(fileUrl, fileName);
+          })
+        );
+
+        const validCount = files.filter(Boolean).length;
+        if (validCount === 0) {
+          setIsLoading(false);
+          return;
+        }
+
+        files.forEach((file) => {
+          if (file) {
+            formData.append("files", file);
+          }
+        });
+
+        // Append other required fields
+        formData.append("doctorId", tokenData.user_id);
+        formData.append("patientId", patient_data.patient_unique_id);
+        formData.append("appointmentId", pam_id || patient_data?.pam_id);
+        formData.append("caseId", tcm_id);
+
+        // Append ocrModelSelected only if isCustomSSRX is true
+        // if (isCustomSSRX) {
+        formData.append("ocrModelSelected", "zyvelor");
+        // }
+
+        response = await axios.post(
+          `${baseUrlRxDigitise}/api/v1/rxdigitize/rx`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${cleanedToken}`,
+            },
+          }
+        );
+      }
+      console.log("intel ==> response", response);
 
       // Update the digitized data (normalize to canonical shape for Rx Pad)
-      if (response?.data?.data) {
-        const canonical = canonicalFromApi(response.data.data.refinedData);
+      const responseData = response?.data?.data ?? response?.data;
+      const refinedData =
+        responseData?.refinedData ??
+        responseData?.editedData ??
+        responseData?.digitization?.refinedData ??
+        responseData?.digitization?.editedData ??
+        responseData?.digitization ??
+        responseData;
+      if (refinedData) {
+        const canonical = canonicalFromApi(refinedData);
         
         // Fetch lab results from GET API if not present in digitization response
         const hasLabResultsFromApi = canonical?.labResults && Array.isArray(canonical.labResults) && canonical.labResults.length > 0;
@@ -667,9 +756,26 @@ function SmartRxDigitise() {
           }
         }
 
+        const dentalResults = canonical?.data?.results ?? canonical?.results;
+        const hasDentalResults = !!(dentalResults && (dentalResults?.complaints || dentalResults?.treatmentPlans));
         setData((prev) => {
-          return { ...canonical, labResults: labResultsToUse };
+          const base = { ...canonical, labResults: labResultsToUse };
+          if (!hasDentalResults) return base;
+          return {
+            ...base,
+            dental: true,
+            dynamicFields: [
+              {
+                dentalData: dentalResults,
+              },
+            ],
+          };
         });
+        if (hasDentalResults) {
+          dispatch(setDentalData(dentalResults));
+        } else {
+          dispatch(clearDentalData());
+        }
         setIsLoading(false);
         // Persist vitals via listVitals + addVitals so tcv_id/tcbc_id/dev_unique_id are set for save payload
         if (canonical?.vitalsAndBodyComposition) {

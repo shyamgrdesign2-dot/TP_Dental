@@ -45,6 +45,7 @@ import { fetchPrintSetting } from "./opdBilling/service";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingSlice";
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
+import { resetPatientsDetails } from "../redux/appointmentsSlice";
 
 const { Sider, Content } = Layout;
 
@@ -337,7 +338,10 @@ function PatientDetails() {
             <Layout>
                 <Sider trigger={null} collapsible collapsed={collapsed} className={collapsed ? 'ant-layout-sider1' : 'ant-layout-sider'}>
                     <div className='d-flex align-items-center justify-content-between'>
-                        <button type='button' className={`${isMobile ? 'px-1' : ''} btn btn-action d-flex align-items-center`} onClick={() => navigate(-1)}>
+                        <button type='button' className={`${isMobile ? 'px-1' : ''} btn btn-action d-flex align-items-center`} onClick={() => { 
+                            dispatch(resetPatientsDetails());
+                            navigate(-1);
+                        }}>
                             {isMobile ? (
                                 <><i className="icon-right"></i> <div>{'\u00A0Back'}</div></>
                             ) : (

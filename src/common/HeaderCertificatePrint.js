@@ -6,14 +6,27 @@ import { useSelector } from "react-redux";
 import moment from 'moment';
 
 import { makeDefaultLogo } from "../utils/utils";
-import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
+import { NEO_NATOLOGISTS_DP_ID, PATIENT_DETAILS_SIDEBAR_KEYS } from '../utils/constants';
 
 function HeaderPrescriptionPrint({ state }) {
     const navigate = useNavigate();
 
     const { profile } = useSelector((state) => state.doctors);
 
-    const { patient_data, viewable } = state
+    const { patient_data, viewable, fromPath } = state || {};
+
+    const handleBack = () => {
+        if (fromPath) {
+            navigate(fromPath, { 
+                state: { 
+                    patient_data,
+                    sidebarKey: fromPath.includes('patient_details') ? PATIENT_DETAILS_SIDEBAR_KEYS.MEDICAL_CERTIFICATE : undefined
+                } 
+            });
+        } else {
+            navigate(-1);
+        }
+    };
 
     const genderAge = (patient_data) => {
         var value = `${patient_data?.pm_gender[0].toUpperCase()}, `
@@ -45,7 +58,7 @@ function HeaderPrescriptionPrint({ state }) {
                 <div className={'align-items-center d-flex h-100'}>
                     {viewable !== undefined ? (
                         <div className='border-end h-100 me-3 text-center'>
-                            <div onClick={() => navigate(-1)} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
+                            <div onClick={handleBack} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
                                 <i className='icon-right'></i>
                             </div>
                         </div>
@@ -62,7 +75,7 @@ function HeaderPrescriptionPrint({ state }) {
                 </div>
                 <Button
                     className='btn align-items-center d-flex btn-41 btn-primary3 me-3 px-4'
-                    onClick={() => navigate(-1)}>
+                    onClick={handleBack}>
                     {viewable !== undefined ? 'Close' : 'Done'}
                 </Button>
             </div>

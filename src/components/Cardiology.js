@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import axios from "axios";
+import { saveAs } from "file-saver";
 import Card from "react-bootstrap/Card";
 import { Table, Dropdown, Button, Spin, Drawer } from "antd";
 import { useNavigate } from "react-router-dom";
-import { isChrome, isMobile, isSafari } from "react-device-detect";
+import { isChrome, isMobile, isTablet, isSafari } from "react-device-detect";
 import { useSelector } from "react-redux";
 import api from "../api/services/axiosService";
+import PrescriptionSkeleton from "./mobile/PrescriptionSkeleton";
 
 import Symptomsicon from "../assets/images/Symptoms.svg";
 import Examinationsicon from "../assets/images/Examination.svg";
@@ -51,6 +53,8 @@ import {
   S_VOICE_RX,
   PAID,
   GB_SAVE_AS_DRAFT_RX,
+  GB_TELE_CONSULT,
+  INVESTIGATION_TITLE,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -61,6 +65,7 @@ import {
   isValidMongoId,
   medicine_freq_dosage_format,
   sendMessageToParent,
+  errorMessage,
 } from "../utils/utils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -80,9 +85,13 @@ import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageServ
 import AbhaSyncButton from "./AbhaSyncButton";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import { message } from "antd";
+import { Document, Page, pdfjs } from "react-pdf";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 import PrimaryActionButton from "./PrimaryActionButton";
+
+const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 function Cardiology(props) {
   const navigate = useNavigate();
@@ -105,6 +114,7 @@ function Cardiology(props) {
     viewCaseManagerData,
     nextPress,
     prevPress,
+    onPrintHandlersReady,
     currentPageDisplay,
     isFirstConsultation,
     isLastConsultation,
@@ -543,6 +553,8 @@ function Cardiology(props) {
   const [ambientTranscriptBlocks, setAmbientTranscriptBlocks] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
   const [selectedLang, setSelectedLang] = useState("");
+  const [isPdfLoading, setIsPdfLoading] = useState(true);
+  const [mobilePdfNumPages, setMobilePdfNumPages] = useState(0);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -550,7 +562,9 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
-  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
+  const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -562,6 +576,7 @@ function Cardiology(props) {
     setIsGenRxTableView(false);
     setSmartRxFile([]);
     setShowDigitalRx(false);
+    setShowDigitalGenRx(true);
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
       fetchData();
@@ -649,7 +664,7 @@ function Cardiology(props) {
     setIsLoadingVideoStatus(true);
     try {
       const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-      if (response?.data?.pam_status_type_appointment === 1) {
+      if (response?.data?.pam_status_type_appointment === 1 || response?.data?.pam_status_type_appointment === 2) {
         setHasVideoConsult(true);
       } else {
         setHasVideoConsult(false);
@@ -667,6 +682,98 @@ function Cardiology(props) {
       getPatientDefaultLanguage();
     }
   }, [defaultPrintSettings]);
+
+  // MOBILE OPTIMIZATION: Memoize PDF URL calculation to prevent expensive recalculations on every render
+  // This function is called in render and useEffect, so memoization prevents redundant work
+  // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
+  const getMobilePdfUrl = useCallback(() => {
+    // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
+      return showDigitalRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
+    if (isSnapRx && isSnapRxdigitised) {
+      return showDigitalSnapRx 
+        ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
+        : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
+    }
+    
+    // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
+    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      if (!viewCaseManagerData?.print_url) return null;
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        return `${urlObj.toString()}&lg=${selectedLang}`;
+      } catch (error) {
+        console.error("Invalid URL:", error);
+        return null;
+      }
+    }
+    
+    // Default: use print_rx_url for regular prescriptions
+    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
+  }, [isSmartRxFile, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
+
+  // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
+  // This prevents the effect from running unnecessarily when unrelated dependencies change
+  const mobilePdfUrl = useMemo(() => {
+    if (!(isMobile && !isTablet) || !viewCaseManagerData) return null;
+    return getMobilePdfUrl();
+  }, [isMobile, isTablet, viewCaseManagerData, getMobilePdfUrl]);
+
+  // MOBILE OPTIMIZATION: Memoize PDF pages array to prevent recreation on every render
+  // Only calculate when number of pages actually changes
+  const pdfPages = useMemo(() => 
+    mobilePdfNumPages > 0 
+      ? Array.from({ length: mobilePdfNumPages }, (_, index) => index + 1)
+      : [1], // Default to 1 page during initial load
+    [mobilePdfNumPages]
+  );
+
+  // MOBILE OPTIMIZATION: Cache window width to avoid accessing window object in render
+  // Only update on mount and when window actually resizes
+  const [pdfWidth, setPdfWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth || 340;
+    }
+    return 340;
+  });
+
+  // MOBILE OPTIMIZATION: Update PDF width on window resize (debounced for performance)
+  useEffect(() => {
+    if (!(isMobile && !isTablet)) return;
+
+    let resizeTimer;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        setPdfWidth(window.innerWidth || 340);
+      }, 150); // Debounce resize events
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isMobile, isTablet]);
+
+  // Reset PDF loading state when PDF URL changes (e.g., switching between Digital Rx and Written Rx)
+  // MOBILE OPTIMIZATION: Use memoized pdfUrl instead of calling function inside effect
+  useEffect(() => {
+    if ((isMobile && !isTablet) && mobilePdfUrl !== null) {
+      setIsPdfLoading(true);
+    }
+  }, [isMobile, isTablet, mobilePdfUrl]);
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
@@ -1142,6 +1249,136 @@ function Cardiology(props) {
     // });
     // navigate(0, { replace: true });
   };
+
+  const downloadContent = async () => {
+    try {
+      let downloadUrl;
+      if (showDigitalRx || showDigitalSnapRx) {
+        if (showDigitalRx) {
+          window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+            Doctor_Name: profile?.um_name,
+            Doctor_Number: profile?.um_contact,
+            Doctor_Unique_Id: profile?.doctor_unique_id,
+          });
+        }
+        if (!printUrl) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        downloadUrl = `${printUrl}&lg=${selectedLang}`;
+      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+        if (!viewCaseManagerData?.print_url) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        try {
+          const urlObj = new URL(viewCaseManagerData.print_url);
+          if (isAmbientRx) {
+            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+            urlObj.searchParams.set("rxDigitize", "false");
+          } else {
+            urlObj.searchParams.set("voiceRxDigitize", "true");
+          }
+          const updatedUrl = urlObj.toString();
+          downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
+        } catch (error) {
+          console.error("Invalid download URL:", error);
+          errorMessage('Failed to generate download URL.');
+          return;
+        }
+      } else {
+        if (!viewCaseManagerData?.print_rx_url) {
+          errorMessage('Download URL is missing.');
+          return;
+        }
+        downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+      }
+
+      if (!downloadUrl) return;
+
+      const response = await axios({
+        url: downloadUrl,
+        method: 'GET',
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/pdf' 
+      });
+      const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      errorMessage('Failed to download prescription');
+    }
+  };
+
+  const downloadInAppContent = async () => {
+    let voiceRxUrl;
+    if (showDigitalGenRx) {
+      window.Moengage.track_event("TP_Digitised_Prescription_Download", {
+        Doctor_Name: profile?.um_name,
+        Doctor_Number: profile?.um_contact,
+        Doctor_Unique_Id: profile?.doctor_unique_id,
+      });
+      if (!viewCaseManagerData?.print_url) {
+        errorMessage('Download URL is missing.');
+        return;
+      }
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        voiceRxUrl = urlObj.toString();
+      } catch (error) {
+        console.error("Invalid download URL:", error);
+        errorMessage('Failed to generate download URL.');
+        return;
+      }
+    }
+    const finalDownloadUrl =
+      showDigitalGenRx && voiceRxUrl
+        ? voiceRxUrl
+        : viewCaseManagerData?.print_rx_url || viewCaseManagerData?.print_url;
+    if (!finalDownloadUrl) {
+      errorMessage('Download URL is missing.');
+      return;
+    }
+    sendMessageToParent(EVENTS.DOWNLOAD, { url: `${finalDownloadUrl}&lg=${selectedLang}` });
+  };
+
+  useEffect(() => {
+    if (onPrintHandlersReady && typeof onPrintHandlersReady === 'function') {
+      onPrintHandlersReady({
+        printContent: () => {
+          if (!isChrome && !isSafari) {
+            printInAppContent();
+          } else {
+            printContent();
+          }
+        },
+        downloadContent: () => {
+          if (!isChrome && !isSafari) {
+            downloadInAppContent();
+          } else {
+            downloadContent();
+          }
+        },
+        printRxContent: () => {
+          if (!isChrome && !isSafari) {
+            printRxInAppContent();
+          } else {
+            printRxContent();
+          }
+        },
+        editRx: handleEditRxClick,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
 
   const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
@@ -2001,6 +2238,329 @@ function Cardiology(props) {
       );
     });
 
+  const rxEditedData = rxDigitisedData?.editedData || {};
+  const rawDentalData = rxEditedData?.dynamicFields?.[0]?.dentalData;
+  const isPlainObject = (value) =>
+    value && typeof value === "object" && !Array.isArray(value);
+  const dentalComplaintKeys = [
+    "chiefComplaint",
+    "symptom",
+    "otherDiseases",
+    "medications",
+    "drugAllergy",
+    "pregnancy",
+    "habits",
+    "dentalHistory",
+    "pain",
+    "notes",
+  ];
+  const diagnosisFieldOrder = [
+    "stains",
+    "calculus",
+    "oralHygieneStatus",
+    "periodontalseverity",
+    "orthodonticFindings",
+    "orthodonticInterventionRequired",
+    "habitsPedo",
+  ];
+  const isDentalComplaintsShape = (value) =>
+    isPlainObject(value) && dentalComplaintKeys.some((key) => key in value);
+  const isDentalDiagnosisShape = (value) =>
+    isPlainObject(value) &&
+    (Array.isArray(value?.teeth) ||
+      value?.toothDiagramNotes != null ||
+      diagnosisFieldOrder.some((key) => key in value));
+  const dentalDataSource =
+    rawDentalData && typeof rawDentalData === "object" && !Array.isArray(rawDentalData)
+      ? rawDentalData
+      : rxEditedData?.dentalData ??
+        rxEditedData?.results ??
+        rxEditedData?.data?.results ??
+        null;
+  const hasDentaldata = !!(rawDentalData || rxEditedData?.dentalData || dentalDataSource);
+  const dentalComplaints = isDentalComplaintsShape(rxEditedData?.complaints)
+    ? rxEditedData.complaints
+    : dentalDataSource?.complaints ?? {};
+  const dentalDiagnosis = isDentalDiagnosisShape(rxEditedData?.diagnosis)
+    ? rxEditedData.diagnosis
+    : dentalDataSource?.diagnosis ?? {};
+  const dentalTreatmentItems =
+    rxEditedData?.treatmentPlans?.items ?? dentalDataSource?.treatmentPlans?.items ?? [];
+  const dentalWorkDone =
+    rxEditedData?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
+  const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
+  const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
+  const dentalQuadrantSections = [
+    { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+    { key: "UPPER_LEFT", label: "UPPER LEFT" },
+    { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
+    { key: "LOWER_LEFT", label: "LOWER LEFT" },
+  ];
+  const dentalTeethBySection = dentalTeeth.reduce(
+    (acc, tooth) => {
+      const section = tooth?.toothSection;
+      if (section && acc[section]) acc[section].push(tooth);
+      return acc;
+    },
+    {
+      UPPER_LEFT: [],
+      UPPER_RIGHT: [],
+      LOWER_LEFT: [],
+      LOWER_RIGHT: [],
+    }
+  );
+  const dentalComplaintRows = [
+    { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
+    { key: "symptom", label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER" },
+    { key: "otherDiseases", label: "OTHER DISEASES" },
+    { key: "medications", label: "MEDICATION" },
+    { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
+    { key: "pregnancy", label: "PREGNANCY" },
+    { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
+    { key: "dentalHistory", label: "DENTAL HISTORY" },
+    { key: "pain", label: "HEAD/JAW/NECK PAIN" },
+    { key: "notes", label: "NOTES" },
+  ];
+  const formatDentalDiagnosisValue = (val) => {
+    if (Array.isArray(val)) {
+      return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, v]) => !!v)
+        .map(([k]) => k)
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  };
+  const isNonEmptyDentalValue = (val) => {
+    if (val === 0 || val === "0") return true;
+    if (val === true) return true;
+    if (Array.isArray(val)) {
+      return val.some((item) => isNonEmptyDentalValue(item));
+    }
+    if (val && typeof val === "object") {
+      return Object.values(val).some((item) => isNonEmptyDentalValue(item));
+    }
+    return val != null && String(val).trim() !== "";
+  };
+  const formatDentalValue = (val) => {
+    if (Array.isArray(val)) {
+      return val
+        .map((item) => (item == null ? "" : String(item).trim()))
+        .filter(Boolean)
+        .join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, value]) => isNonEmptyDentalValue(value))
+        .map(([key, value]) => (value === true ? key : `${key}: ${value}`))
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  };
+  const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) =>
+    isNonEmptyDentalValue(dentalComplaints?.[row.key])
+  );
+  const dentalDiagnosisRows = diagnosisFieldOrder
+    .filter((key) => key in dentalDiagnosis)
+    .map((key) => ({ key, value: formatDentalDiagnosisValue(dentalDiagnosis?.[key]) }))
+    .filter((row) => String(row.value || "").trim() !== "");
+  const dentalToothDiagramNotes = (() => {
+    const notes = dentalDiagnosis?.toothDiagramNotes;
+    if (Array.isArray(notes)) {
+      return notes
+        .filter((note) => note != null && String(note).trim() !== "")
+        .map((note) => String(note))
+        .join("\n");
+    }
+    if (notes == null) return "";
+    return String(notes);
+  })();
+  const hasToothDiagramNotes = String(dentalToothDiagramNotes || "").trim() !== "";
+  const hasTeethData = Object.values(dentalTeethBySection || {}).some(
+    (arr) => Array.isArray(arr) && arr.length > 0
+  );
+  const dentalTreatmentRowsFiltered = Array.isArray(dentalTreatmentItems)
+    ? dentalTreatmentItems.filter((item) =>
+        [item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].some(
+          (val) => isNonEmptyDentalValue(val)
+        )
+      )
+    : [];
+  const buildDentalWorkDoneText = (item) => {
+    const workDone = item?.workDone ?? "";
+    const nextAppointment = item?.nextAppointment ?? "";
+    const workDoneText = String(workDone ?? "");
+    const nextText = String(nextAppointment ?? "").trim();
+    if (!nextText) return workDoneText;
+    const normalized = workDoneText.toLowerCase();
+    if (normalized.includes("next appointment")) return workDoneText;
+    const suffix = `Next Appointment: ${nextText}`;
+    if (!workDoneText.trim()) return suffix;
+    return `${workDoneText}\n${suffix}`;
+  };
+  const dentalWorkDoneRowsFiltered = Array.isArray(dentalWorkDoneItems)
+    ? dentalWorkDoneItems.filter((item) =>
+        [
+          item?.date,
+          buildDentalWorkDoneText(item),
+          item?.ptr,
+          item?.ttReview,
+          item?.payment,
+          item?.balance,
+          item?.remarks,
+        ].some((val) => isNonEmptyDentalValue(val))
+      )
+    : [];
+  const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+  const hasDentalSectionData =
+    dentalComplaintRowsFiltered.length > 0 ||
+    hasTeethData ||
+    dentalDiagnosisRows.length > 0 ||
+    dentalTreatmentRowsFiltered.length > 0 ||
+    hasToothDiagramNotes ||
+    dentalWorkDoneRowsFiltered.length > 0 ||
+    hasWorkDoneNotes;
+
+  const renderDentalDigitisedSection = () => {
+    if (!hasDentaldata || !hasDentalSectionData) return null;
+
+    return (
+      <div className="digitised-section-rx dental-section mb-3">
+        {dentalComplaintRowsFiltered.length > 0 && (
+          <table className="dental-table dental-complaints-table" style={{ marginTop: 10 }}>
+            <tbody>
+              {dentalComplaintRowsFiltered.map((row) => (
+                <tr key={`dental-c-${row.key}`}>
+                  <td className="dental-label-cell">{row.label}</td>
+                  <td>{formatDentalValue(dentalComplaints?.[row.key])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {hasTeethData && (
+          <div className="dental-quadrant-grid">
+            {dentalQuadrantSections.map((section) => (
+              <div className="dental-quadrant-cell" key={`dental-q-${section.key}`}>
+                <div className="dental-quadrant-title">{section.label}</div>
+                <div className="dental-quadrant-list">
+                  {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                    <div className="dental-tooth-row" key={`${section.key}-${i}`}>
+                      <span className="dental-tooth-label">{`Tooth ${tooth?.toothNum ?? ""}`}</span>
+                      <span className="dental-tooth-sep">:</span>
+                      <span>{tooth?.diagnose ?? ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {dentalDiagnosisRows.length > 0 && (
+          <table className="dental-table dental-diagnosis-table">
+            <thead>
+              <tr>
+                <th>Diagnosis Field</th>
+                <th>Selected Values</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dentalDiagnosisRows.map((row) => (
+                <tr key={`dental-dx-${row.key}`}>
+                  <td className="dental-label-cell">{row.key}</td>
+                  <td>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {hasToothDiagramNotes && (
+          <table className="dental-table dental-tooth-diagram-table" style={{ marginTop: 16 }}>
+            <tbody>
+              <tr>
+                <td className="dental-label-cell">TOOTH DIAGRAM NOTES</td>
+                <td style={{ whiteSpace: "pre-line" }}>{dentalToothDiagramNotes}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+
+        {dentalTreatmentRowsFiltered.length > 0 && (
+          <>
+            <div className="dental-table-title">TREATMENT PLAN(S)</div>
+            <table className="dental-table dental-treatment-table">
+              <thead>
+                <tr>
+                  {["S NO", "TREATMENT", "TOOTH NUMBER", "RATE", "COUNT", "ESTIMATE"].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dentalTreatmentRowsFiltered.map((item, i) => (
+                  <tr key={`dental-tp-${i}`}>
+                    {[item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].map(
+                      (val, idx) => (
+                        <td key={`dental-tp-${i}-${idx}`}>{val ?? ""}</td>
+                      )
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {(dentalWorkDoneRowsFiltered.length > 0 || hasWorkDoneNotes) && (
+          <>
+            <div className="dental-table-title">WORK DONE</div>
+            {dentalWorkDoneRowsFiltered.length > 0 && (
+              <table className="dental-table dental-workdone-table">
+                <thead>
+                  <tr>
+                    {["DATE", "WORK DONE", "PTR", "PAYMENT", "BALANCE", "REMARKS"].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dentalWorkDoneRowsFiltered.map((item, i) => (
+                    <tr key={`dental-wd-${i}`}>
+                      {[item?.date, buildDentalWorkDoneText(item), item?.ptr, item?.payment, item?.balance, item?.remarks].map(
+                        (val, idx) => (
+                          <td key={`dental-wd-${i}-${idx}`} style={{ whiteSpace: idx === 1 ? "pre-line" : "normal" }}>
+                            {val ?? ""}
+                          </td>
+                        )
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {hasWorkDoneNotes && (
+              <table className="dental-table dental-workdone-notes-table" style={{ marginTop: 16 }}>
+                <tbody>
+                  <tr>
+                    <td className="dental-label-cell">WORK DONE NOTES</td>
+                    <td>{formatDentalValue(dentalWorkDone?.notes)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   // Add this helper function at the top of the component
   const hasValidContent = (data, type) => {
     if (!data?.[type] || !Array.isArray(data[type])) return false;
@@ -2090,7 +2650,11 @@ function Cardiology(props) {
         <img src={draftIcon} alt="Draft" className="me-1" />
         This Rx is in <span className="fw-bold">draft</span>!{" "}
         {canResumeDraftRx && (
-          <>Please <span className="fw-bold">resume</span> to proceed.</>
+          (isMobile && !isTablet) ? (
+            <>Please <span className="fw-bold">Resume from desktop/tab</span> to proceed.</>
+          ) : (
+            <>Please <span className="fw-bold">resume</span> or <span className="fw-bold">end the visit</span> to proceed.</>
+          )
         )}
       </div>
     );
@@ -2098,9 +2662,10 @@ function Cardiology(props) {
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
-      <Card className="">
+      <Card className="" style={(isMobile && !isTablet) ? { border: 'none', padding: '6px' } : {}}>
         {viewCaseManagerData ? (
           <>
+            {!(isMobile && !isTablet) && (
             <Card.Header className="bg-white py-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
@@ -2194,7 +2759,7 @@ function Cardiology(props) {
                     style={{
                       visibility:
                         viewCaseManagerData?.doctor_data?.editCase &&
-                        !(isSmartRxFile && isMobile)
+                        !(isSmartRxFile && (isMobile && !isTablet))
                           ? "visible"
                           : "hidden",
                     }}
@@ -2238,6 +2803,7 @@ function Cardiology(props) {
                 </div>
               </div>
             </Card.Header>
+            )}
 
             {isSmartSyncCVTAccessableFromGB &&
               isSmartRxFile &&
@@ -2245,13 +2811,14 @@ function Cardiology(props) {
               rxDigitisedData &&
               !isSnapRx &&
               (isRxdigitised ? (
-                <div className="p-2 mb-2">
+                <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0" : "p-2 mb-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalRx(true)}
                   >
                     Digital Rx
@@ -2262,13 +2829,14 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalRx(false)}
                   >
                     Written Rx
                   </button>
                 </div>
               ) : (
-                !rxDigitisedData?.editedData && (
+                !rxDigitisedData?.editedData && !(isMobile && !isTablet) && (
                   <div className="digitise-info-cardiology">
                     <img
                       src={successIcon}
@@ -2312,13 +2880,14 @@ function Cardiology(props) {
             {isSnapRxDigitizationAccessable &&
               isSnapRx &&
               (isSnapRxdigitised ? (
-                <div className="p-2 mb-2">
+                <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0" : "p-2 mb-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalSnapRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalSnapRx(true)}
                   >
                     Digital Rx
@@ -2329,48 +2898,51 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalSnapRx(false)}
                   >
                     Written Rx
                   </button>
                 </div>
               ) : (
-                <div className="digitise-info-cardiology">
-                  <img
-                    src={successIcon}
-                    alt="success"
-                    width="40px"
-                    height="40px"
-                  />
-                  <p>
-                    <span className="digitise-info-header-cardiology">
-                      {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
-                    </span>
-                    Digitise Rx to enhance patient care, workflow efficiency,
-                    and revenue.
-                    <button
-                      className="know-more-btn"
-                      onClick={handleDrawerCvtKnowMore}
-                    >
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          paddingLeft: "4px",
-                          textDecoration: "underline",
-                          textDecorationColor: "#454551",
-                        }}
-                      >
-                        Know More
+                !(isMobile && !isTablet) && (
+                  <div className="digitise-info-cardiology">
+                    <img
+                      src={successIcon}
+                      alt="success"
+                      width="40px"
+                      height="40px"
+                    />
+                    <p>
+                      <span className="digitise-info-header-cardiology">
+                        {`${patient_data?.pm_fullname}'s Digital Rx is ready!`}
                       </span>
+                      Digitise Rx to enhance patient care, workflow efficiency,
+                      and revenue.
+                      <button
+                        className="know-more-btn"
+                        onClick={handleDrawerCvtKnowMore}
+                      >
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            paddingLeft: "4px",
+                            textDecoration: "underline",
+                            textDecorationColor: "#454551",
+                          }}
+                        >
+                          Know More
+                        </span>
+                      </button>
+                    </p>
+                    <button
+                      className="digitise-info-btn-cardiology"
+                      onClick={handleDigitiseSnapRx}
+                    >
+                      Digitise Rx Now
                     </button>
-                  </p>
-                  <button
-                    className="digitise-info-btn-cardiology"
-                    onClick={handleDigitiseSnapRx}
-                  >
-                    Digitise Rx Now
-                  </button>
-                </div>
+                  </div>
+                )
               ))
             }
 
@@ -2380,13 +2952,14 @@ function Cardiology(props) {
               ) &&
               !isSmartRxFile &&
               !loading && (
-                <div className="p-2 m-2">
+                <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
                   <button
                     className={`digital-btn ${
                       !showDigitalGenRx
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalGenRx(true)}
                   >
                     Digital Rx
@@ -2397,6 +2970,7 @@ function Cardiology(props) {
                         ? "digitise-toggle-btn"
                         : "active-digitise-toggle-btn"
                     }`}
+                    style={(isMobile && !isTablet) ? { width: '50%' } : {}}
                     onClick={() => setShowDigitalGenRx(false)}
                   >
                     Transcript
@@ -2417,16 +2991,143 @@ function Cardiology(props) {
                 handleCollapsed={(flag) => handleCollapsed(flag)}
               />
             </Drawer>
-            {loading ? (
+            {/* Mobile view: Draft Rx alert (same as web) */}
+            {(isMobile && !isTablet) && !!is_draft && <DraftRxAlert />}
+            {/* Mobile view: Show shimmer skeleton when loading */}
+            {(isMobile && !isTablet) && loading && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                <PrescriptionSkeleton />
+              </Card.Body>
+            )}
+            {/* Mobile view: Show prescription PDF inline using react-pdf */}
+            {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !mobilePdfUrl && showDigitalGenRx && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                <PrescriptionSkeleton />
+              </Card.Body>
+            )}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePdfUrl && showDigitalGenRx && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
+                {isPdfLoading && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
+                    <PrescriptionSkeleton />
+                  </div>
+                )}
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflowY: 'auto',
+                    padding: '8px 0',
+                    opacity: isPdfLoading ? 0 : 1,
+                  }}
+                >
+                  <Document
+                    file={mobilePdfUrl}
+                    loading={null}
+                    onLoadSuccess={({ numPages }) => {
+                      setMobilePdfNumPages(numPages);
+                      setIsPdfLoading(false);
+                    }}
+                    onLoadError={(err) => {
+                      console.error("Error rendering mobile prescription PDF:", err);
+                      setIsPdfLoading(false);
+                    }}
+                  >
+                    {pdfPages.map((pageNumber) => (
+                      <Page
+                        key={pageNumber}
+                        pageNumber={pageNumber}
+                        width={pdfWidth}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    ))}
+                  </Document>
+                </div>
+              </Card.Body>
+            )}
+            {/* Mobile view: Show Transcript when toggle is set to Transcript */}
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !showDigitalGenRx && genRxData &&
+              isValidMongoId(viewCaseManagerData?.smart_prescription_filename) && (
+              <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', padding: '16px' }}>
+                <div>
+                  {ambientConversations && ambientConversations.length > 0 ? (
+                    ambientConversations.map((conv, index) => (
+                      <div key={index} style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: conv.speaker === "doctor" || conv.speaker === "Dr" ? "flex-end" : "flex-start",
+                        marginBottom: "16px"
+                      }}>
+                        <div style={{
+                          backgroundColor: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#f1f1f5" : "#EFF6FF",
+                          borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                          padding: "16px",
+                          maxWidth: "80%",
+                          marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                          marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                        }}>
+                          <div style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            color: "#5a6774",
+                            marginBottom: "4px",
+                            textTransform: "uppercase"
+                          }}>
+                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                          </div>
+                          <div style={{
+                            color: "#374151",
+                            wordWrap: "break-word",
+                            fontSize: "12px",
+                            fontWeight: 400,
+                            lineHeight: "18px",
+                            textAlign: "left"
+                          }}>
+                            {conv.text || conv.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    genRxQueries
+                      ?.filter((query) => {
+                        if (typeof query === "string") {
+                          return !isSymptomCollectorJSON(query);
+                        }
+                        return true;
+                      })
+                      ?.map((query, index) => (
+                        <div key={index} className="gen-rx-transcript">
+                          {query}
+                        </div>
+                      ))
+                  )}
+                  {(!genRxQueries || genRxQueries.length === 0) && (!ambientConversations || ambientConversations.length === 0) && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      color: '#9CA3AF',
+                      fontSize: '14px'
+                    }}>
+                      No transcript data available for this visit.
+                    </div>
+                  )}
+                </div>
+              </Card.Body>
+            )}
+            {/* Web/Tablet view: Show original content */}
+            {!(isMobile && !isTablet) && loading ? (
               <div
                 className="d-flex flex-column justify-content-center"
                 style={{ height: "calc(100vh - 218px)" }}
               >
                 <div className="align-items-center text-center">
-                  <Spin />
+                  <Spin size="small" />
                 </div>
               </div>
-            ) : genRxData &&
+            ) : !(isMobile && !isTablet) && genRxData &&
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
@@ -2526,7 +3227,7 @@ function Cardiology(props) {
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -2664,10 +3365,11 @@ function Cardiology(props) {
                   </div>
                 )}
               </div>
-            ) : isSmartRxFile && !isSnapRx ? (
+            ) : !(isMobile && !isTablet) && isSmartRxFile && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
+                    {renderDentalDigitisedSection()}
                     {((rxDigitisedData?.editedData?.vitals &&
                       Object.values(rxDigitisedData.editedData.vitals).some(
                         (value) => value != null && String(value).trim()
@@ -2821,7 +3523,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -2884,7 +3586,8 @@ function Cardiology(props) {
                         </>
                       )}
 
-                    {rxDigitisedData?.editedData?.dynamicFields &&
+                    {!hasDentaldata &&
+                      rxDigitisedData?.editedData?.dynamicFields &&
                       hasValidContent(rxDigitisedData.editedData, "dynamicFields") && (
                         <>
                           <div className="d-flex align-items-start">
@@ -2973,7 +3676,7 @@ function Cardiology(props) {
                   )}
                 </div>
               </div>
-            ) : isSnapRx && isSnapRxAccessableFromGB ? (
+            ) : !(isMobile && !isTablet) && isSnapRx && isSnapRxAccessableFromGB ? (
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
                   <div className="m-4">
@@ -3121,7 +3824,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              Lab Investigation
+                              {INVESTIGATION_TITLE}
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3249,7 +3952,7 @@ function Cardiology(props) {
                   </>
                 )}
               </div>
-            ) : (
+            ) : !(isMobile && !isTablet) && (
               <Card.Body className="p-0 cardbody-data">
                 {!!is_draft && <DraftRxAlert />}
                 <div>
@@ -3408,7 +4111,7 @@ function Cardiology(props) {
                           alt="Advice"
                         />
                         <div>
-                          <div className="title">Lab Investigation</div>
+                          <div className="title">{INVESTIGATION_TITLE}</div>
                           {viewCaseManagerData.investigation.map((item, i) => {
                             return (
                               <span key={i}>
@@ -3598,7 +4301,7 @@ function Cardiology(props) {
           >
             {loading ? (
               <div className="align-items-center text-center">
-                <Spin />
+                <Spin size="small" />
               </div>
             ) : (
               <div className="align-items-center text-center">
@@ -3611,7 +4314,7 @@ function Cardiology(props) {
                 <p className="mt-4 fontroboto">
                   No visit found for this patient yet
                 </p>
-                <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", "marginLeft": "25%" }}>
+                <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", margin: "0 auto" }}>
                   {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <PrimaryActionButton
                       isSmartRxAccessible={isSmartSyncAccessableFromGB}
@@ -3653,12 +4356,20 @@ function Cardiology(props) {
                               ? patient_data.patient_unique_id
                               : 0,
                         });
+                        if (isMobile && !isTablet) {
+                          navigate("/voice-rx-consult", {
+                            state: {
+                              patient_data: patient_data,
+                            },
+                          });
+                        } else {
                         navigate("/prescription", {
                           state: {
                             patient_data: patient_data,
                             send_path: "patient_details",
                           },
                         });
+                        }
                       }
                     }}
                   >

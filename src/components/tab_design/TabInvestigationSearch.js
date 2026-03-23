@@ -270,7 +270,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
         <>
             <Card bordered={false} className="search-modalCard h-100">
                 <TabSearchHeader
-                    placeholder="Search Lab Investigation"
+                    placeholder="Search Investigation"
                     searchQuery={searchChildQuery}
                     onSearchParent={onSearchParent}
                     disabled={investigationData.length > 0 ? false : true}
