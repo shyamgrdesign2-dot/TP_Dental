@@ -1756,8 +1756,10 @@ function Cardiology(props) {
   };
 
   // Render medications in tabular format
-  const renderMedicationsTable = () => {
-    const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
+  const renderMedicationsTable = (customMedications = null) => {
+    const medications = Array.isArray(customMedications)
+      ? customMedications
+      : genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
@@ -2288,6 +2290,8 @@ function Cardiology(props) {
     rxEditedData?.treatmentPlans?.items ?? dentalDataSource?.treatmentPlans?.items ?? [];
   const dentalWorkDone =
     rxEditedData?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
+  const dentalMedications =
+    rxEditedData?.medications ?? dentalDataSource?.medications ?? [];
   const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
   const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
   const dentalQuadrantSections = [
@@ -2361,6 +2365,23 @@ function Cardiology(props) {
     if (val == null) return "";
     return String(val);
   };
+  const dentalMedicationRowsFiltered = Array.isArray(dentalMedications)
+    ? dentalMedications.filter((item) =>
+        [
+          item?.groundedMedicineName,
+          item?.groundingMedicineName,
+          item?.name,
+          item?.refinedName,
+          item?.lineItem,
+          item?.dosage,
+          item?.frequency,
+          item?.schedule,
+          item?.duration,
+          item?.quantity,
+          item?.notes,
+        ].some((val) => isNonEmptyDentalValue(val))
+      )
+    : [];
   const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) =>
     isNonEmptyDentalValue(dentalComplaints?.[row.key])
   );
@@ -2418,6 +2439,7 @@ function Cardiology(props) {
   const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
   const hasDentalSectionData =
     dentalComplaintRowsFiltered.length > 0 ||
+    dentalMedicationRowsFiltered.length > 0 ||
     hasTeethData ||
     dentalDiagnosisRows.length > 0 ||
     dentalTreatmentRowsFiltered.length > 0 ||
@@ -2441,6 +2463,12 @@ function Cardiology(props) {
               ))}
             </tbody>
           </table>
+        )}
+        {dentalMedicationRowsFiltered.length > 0 && (
+          <>
+            <div className="dental-table-title">MEDICATION (RX)</div>
+            {renderMedicationsTable(dentalMedicationRowsFiltered)}
+          </>
         )}
 
         {hasTeethData && (
@@ -3208,7 +3236,7 @@ function Cardiology(props) {
                       )}
 
                     {genRxData?.medications &&
-                      genRxData?.medications.length > 0 && (
+                      genRxData?.medications.length > 0 && !dentalMedicationRowsFiltered?.length && (
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
@@ -3488,7 +3516,7 @@ function Cardiology(props) {
                         </>
                       )}
 
-                    {rxDigitisedData?.editedData?.medications &&
+                    {rxDigitisedData?.editedData?.medications && !dentalMedicationRowsFiltered?.length &&
                       hasValidContent(
                         rxDigitisedData.editedData,
                         "medications"
@@ -3793,7 +3821,7 @@ function Cardiology(props) {
                       )}
 
                     {snapRxDigitisedData?.medications &&
-                      hasValidContent(snapRxDigitisedData, "medications") && (
+                      hasValidContent(snapRxDigitisedData, "medications") && !dentalMedicationRowsFiltered?.length && (
                         <>
                           <div className="d-flex align-items-start">
                             <img

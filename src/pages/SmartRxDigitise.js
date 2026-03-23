@@ -6,7 +6,7 @@ import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
 import api from "../api/services/axiosService";
 import documentIcon from "../assets/images/document-normal.svg";
-import { FETCH_SMART_RX, S_RX_DIGITIZATION } from "../utils/constants";
+import { FETCH_SMART_RX, GB_MANYA_DENTAL, S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { env } from "../EnvironmentConfig";
@@ -69,6 +69,7 @@ function SmartRxDigitise() {
   const [isLoading, setIsLoading] = useState(true);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
   // Grounding check (Zydus users)
   const tokenDataLocal = getTokenData();
   const isGroundingAccessableForZydus =
@@ -77,9 +78,11 @@ function SmartRxDigitise() {
 
   const baseUrlRxDigitise = env.rx_digitization;
   const clinicName = getClinicName(profile?.hospital_data);
-  const isManyaClinic = (clinicName || "") === "Manya Dental - Hongasandra";
   const isSmartRxDigitisePath = location?.pathname === "/smart-rx-digitise";
-  const shouldUseCustomRxDigitize = isManyaClinic && isSmartRxDigitisePath;
+  const shouldUseCustomRxDigitize = isManyaDentalAccessableFromGB && isSmartRxDigitisePath;
+  const clearSmartRxDentalState = useCallback(() => {
+    dispatch(clearDentalData());
+  }, [dispatch]);
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -253,9 +256,9 @@ function SmartRxDigitise() {
   useEffect(() => {
     return () => {
       dispatch(resetVitalsState());
-      dispatch(clearDentalData());
+      clearSmartRxDentalState();
     };
-  }, [dispatch]);
+  }, [dispatch, clearSmartRxDentalState]);
 
   useEffect(() => {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -323,6 +326,14 @@ function SmartRxDigitise() {
         editedDataForApi?.dentalData ||
         editedDataForApi?.complaints ||
         editedDataForApi?.treatmentPlans ||
+        editedDataForApi?.workDone ||
+        (Array.isArray(editedDataForApi?.medications) &&
+          editedDataForApi.medications.length > 0) ||
+        dentalDataFromStore?.complaints ||
+        dentalDataFromStore?.treatmentPlans ||
+        dentalDataFromStore?.workDone ||
+        (Array.isArray(dentalDataFromStore?.medications) &&
+          dentalDataFromStore.medications.length > 0) ||
         dentalDataFromStore
       );
       if (hasDentalPayload) {
@@ -619,8 +630,10 @@ function SmartRxDigitise() {
           state?.page === "patient-summary" ||
           state?.page === "pending-digitization"
         ) {
+          clearSmartRxDentalState();
           navigate(-1); // Go back to the previous page
         } else {
+          clearSmartRxDentalState();
           navigate("/print-smart-rx", {
             replace: true,
             state: {
@@ -657,7 +670,8 @@ function SmartRxDigitise() {
       const cleanedToken = token.replace(/['"]+/g, "");
       let response;
 
-      if (!shouldUseCustomRxDigitize) {
+      if (shouldUseCustomRxDigitize) {
+        const cleanedToken = token.replace(/['"]+/g, "");
         if (!tcm_id || !patient_data?.patient_unique_id) {
           setIsLoading(false);
           return;
@@ -727,7 +741,6 @@ function SmartRxDigitise() {
           }
         );
       }
-      console.log("intel ==> response", response);
 
       // Update the digitized data (normalize to canonical shape for Rx Pad)
       const responseData = response?.data?.data ?? response?.data;
@@ -757,7 +770,16 @@ function SmartRxDigitise() {
         }
 
         const dentalResults = canonical?.data?.results ?? canonical?.results;
-        const hasDentalResults = !!(dentalResults && (dentalResults?.complaints || dentalResults?.treatmentPlans));
+        const hasDentalResults = !!(
+          dentalResults &&
+          (
+            dentalResults?.complaints ||
+            dentalResults?.treatmentPlans ||
+            dentalResults?.workDone ||
+            (Array.isArray(dentalResults?.medications) &&
+              dentalResults.medications.length > 0)
+          )
+        );
         setData((prev) => {
           const base = { ...canonical, labResults: labResultsToUse };
           if (!hasDentalResults) return base;
