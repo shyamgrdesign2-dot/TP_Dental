@@ -142,6 +142,20 @@ export default function AppTeleconsultBootstrap() {
           return;
         }
 
+        const expectedExternalId = String(doctorId);
+        const currentExternalId =
+          OneSignal?.User?.externalId != null ? String(OneSignal.User.externalId) : null;
+        const isAlreadyReady =
+          currentExternalId === expectedExternalId &&
+          Boolean(OneSignal?.User?.PushSubscription?.optedIn);
+        if (isAlreadyReady) {
+          console.log("[OneSignalBootstrap] OneSignal already ready for doctor; reasserting externalId.", {
+            doctorId: expectedExternalId,
+          });
+          await registerDoctorExternalId(expectedExternalId);
+          return;
+        }
+
         // Always re-run doctor registration so SDK/backend identity drift gets corrected.
         await registerDoctorExternalId(String(doctorId));
 
