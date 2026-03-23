@@ -4,7 +4,7 @@ import axios from "axios";
 import Card from "react-bootstrap/Card";
 import { Table, Dropdown, Button, Spin, Drawer } from "antd";
 import { useNavigate } from "react-router-dom";
-import { isChrome, isMobile, isSafari } from "react-device-detect";
+import { isChrome, isMobile, isSafari, isTablet } from "react-device-detect";
 import { useSelector } from "react-redux";
 import api from "../api/services/axiosService";
 
@@ -2096,6 +2096,14 @@ function Cardiology(props) {
     );
   };
 
+
+  // viewCaseManagerData?.doctor_data?.editCase &&
+  // (!(isSmartRxFile && (isMobile && viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx"))) || (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile))
+
+  console.log(viewCaseManagerData?.doctor_data?.editCase ,"viewCaseManagerData?.doctor_data?.editCase ")
+  console.log(isSmartRxFile && isMobile ,"isSmartRxFile && isMobile")
+  console.log(viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile ,"viewCaseManagerData tabRx")
+
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="">
@@ -2194,7 +2202,8 @@ function Cardiology(props) {
                     style={{
                       visibility:
                         viewCaseManagerData?.doctor_data?.editCase &&
-                        !(isSmartRxFile && isMobile)
+                        !(isSmartRxFile && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile) &&
+                        (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)
                           ? "visible"
                           : "hidden",
                     }}
