@@ -96,9 +96,6 @@
     "lint": "eslint --max-warnings=0 \"src/**/*.{js,jsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx}\"",
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",
-    "lint:errors:run": "sh -c 'echo \"--- lint (errors-only) start ---\"; npm run lint:errors; STATUS=$?; echo \"--- lint end (status: $STATUS) ---\"; exit $STATUS'",
-    "lint:watch": "sh -c \"npm run lint:errors:run || true; chokidar 'src/**/*.{js,jsx}' -c 'npm run lint:errors:run'\"",
-    "start:lint": "concurrently -k -n start,lint \"npm run start\" \"npm run lint:watch\"",
     "prepare": "husky",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -139,8 +136,6 @@
     ]
   },
   "devDependencies": {
-    "chokidar-cli": "^3.0.0",
-    "concurrently": "^8.2.2",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "husky": "^9.0.11"
