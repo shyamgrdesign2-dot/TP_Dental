@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Divider, Tabs } from "antd";
+import { isMobile, isTablet } from "react-device-detect";
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import VideoModal from "../../../../common/VideoModal";
 import { S_RECEPTIONIST_AGENT, S_TATVA_PRACTICE } from "../../../../utils/constants";
@@ -288,23 +289,25 @@ const ReceptionistKnowMore = ({ handleDDxKnowMore }) => {
           >
             Request a call back
           </Button>
-          <Button
-            className="btn btn-primary3 btn-41 px-4 me-20 w-100"
-            type="primary"
-            onClick={() => {
-              window.Moengage.track_event("TP_AG_GUA", {
-                doctor_name: profile?.um_name,
-                doctor_number: profile?.um_contact,
-                doctor_unique_id: profile?.doctor_unique_id,
-                doctor_specialty: profile?.dp_name,
-                um_id: decodedToken?.user_id,
-                clinic_name: clinic?.hm_name,
-              });
-              navigate('/get-unlimited-access', { state: { buyServiceName: S_RECEPTIONIST_AGENT } });
-            }}
-          >
-            Get Unlimited Access
-          </Button>
+          {!(isMobile && !isTablet) && (
+            <Button
+              className="btn btn-primary3 btn-41 px-4 me-20 w-100"
+              type="primary"
+              onClick={() => {
+                window.Moengage.track_event("TP_AG_GUA", {
+                  doctor_name: profile?.um_name,
+                  doctor_number: profile?.um_contact,
+                  doctor_unique_id: profile?.doctor_unique_id,
+                  doctor_specialty: profile?.dp_name,
+                  um_id: decodedToken?.user_id,
+                  clinic_name: clinic?.hm_name,
+                });
+                navigate('/get-unlimited-access', { state: { buyServiceName: S_RECEPTIONIST_AGENT } });
+              }}
+            >
+              Get Unlimited Access
+            </Button>
+          )}
         </div>
       </div>
       {shouldShowVideo && (
