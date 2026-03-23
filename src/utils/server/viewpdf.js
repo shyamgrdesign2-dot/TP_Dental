@@ -1025,88 +1025,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       : smartRxData?.rxDigitizeEditedData;
   const baseFontFamily = printSettings?.page_format?.font_family || "Roboto";
   const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
-  const dummyDentalData = {
-    complaints: {
-      chiefComplaint: "Pt complain of pain in rt. lower back Tooth",
-      symptom: "Cavity, tooth ache",
-      otherDiseases: "NIL",
-      medications: "NIL",
-      drugAllergy: "NIL",
-      pregnancy: "No",
-      habits: "NIL",
-      dentalHistory: "n/o Crown",
-      pain: "NIL",
-      notes: "NIL",
-    },
-    diagnosis: {
-      stains: {
-        lessThan1Percent: false,
-        lessThan5Percent: false,
-        lessThan10Percent: false,
-        fiveTo30Percent: false,
-        moreThan10Percent: false,
-        moreThan30Percent: false,
-      },
-      calculus: {
-        lessThan1Percent: false,
-        lessThan5Percent: false,
-        lessThan10Percent: false,
-        fiveTo30Percent: false,
-        moreThan10Percent: false,
-        moreThan30Percent: false,
-      },
-      oralHygieneStatus: ["Stn + Cal"],
-      periodontalseverity: {
-        gingivitis: false,
-        severeGingivitis: false,
-        moderatePeriodontitis: false,
-        severePeriodontitis: false,
-      },
-      orthodonticFindings: {
-        overjet: false,
-        overbite: false,
-        crowding: false,
-        spacing: false,
-        tfo: false,
-        collapsedBite: false,
-        tmj: false,
-        extraOralFindings: false,
-      },
-      orthodonticInterventionRequired: {
-        yes: true,
-        no: false,
-      },
-      habitsPedo: {
-        lipSucking: true,
-        thumbSucking: false,
-        tongueThristing: true,
-        mouthBreathing: false,
-      },
-      teeth: [
-        { toothNum: 2, toothSection: "UPPER_RIGHT", diagnose: "Deep class II Caries" },
-        { toothNum: 3, toothSection: "UPPER_RIGHT", diagnose: "Metal Crown without RCT" },
-        { toothNum: 8, toothSection: "UPPER_LEFT", diagnose: "PFM Crown" },
-        { toothNum: 13, toothSection: "UPPER_LEFT", diagnose: "Pit caries (mesially)" },
-        { toothNum: 14, toothSection: "UPPER_LEFT", diagnose: "Pit caries (distally)" },
-        { toothNum: 19, toothSection: "LOWER_LEFT", diagnose: "Class I Amalgam restoration" },
-        { toothNum: 30, toothSection: "LOWER_RIGHT", diagnose: "Class I composite" },
-        { toothNum: 31, toothSection: "LOWER_RIGHT", diagnose: "Metal Crown RCT treated" },
-        { toothNum: 32, toothSection: "LOWER_RIGHT", diagnose: "Mild TOP, Pocket present distally" },
-      ],
-    },
-    treatmentPlans: {
-      items: [
-        { srno: 1, treatment: "Consultation", toothNum: "", rate: 400, count: 1, estimate: 400 },
-        { srno: 2, treatment: "IOPA", toothNum: "6", rate: 100, count: 2, estimate: 200 },
-      ],
-    },
-  };
   const dentalPdfData =
     digitizedData?.dentalData ??
     (digitizedData?.complaints || digitizedData?.diagnosis || digitizedData?.treatmentPlans
       ? digitizedData
       : null) ??
-    dummyDentalData;
+    {};
   const dentalComplaints = dentalPdfData?.complaints || {};
   const dentalDiagnosis = dentalPdfData?.diagnosis || {};
   const dentalTreatmentItems = dentalPdfData?.treatmentPlans?.items || [];
@@ -1150,6 +1074,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     "orthodonticInterventionRequired",
     "habitsPedo",
   ];
+  const camelCaseToTitle = (str) => {
+    if (str === "periodontalseverity" || str === "Periodontalseverity") {
+      return "Periodontal Severity";
+    }
+    return String(str || "")
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (first) => first.toUpperCase())
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+  };
   const formatDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -1165,7 +1099,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
   const dentalDiagnosisRows = diagnosisFieldOrder
     .filter((key) => key in dentalDiagnosis)
-    .map((key) => ({ key, value: formatDiagnosisValue(dentalDiagnosis?.[key]) }))
+    .map((key) => ({
+      key,
+      label: camelCaseToTitle(key),
+      value: formatDiagnosisValue(dentalDiagnosis?.[key]),
+    }))
     .filter((row) => String(row.value || "").trim() !== "");
   const dentalToothDiagramNotes = (() => {
     const notes = dentalDiagnosis?.toothDiagramNotes;
@@ -9335,7 +9273,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             fontWeight: 500,
                                           }}
                                         >
-                                          {row.key}
+                                          {row.label}
                                         </Text>
                                       </View>
                                       <View style={styles.dentalCellValue}>

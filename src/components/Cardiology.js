@@ -2325,6 +2325,16 @@ function Cardiology(props) {
     { key: "pain", label: "HEAD/JAW/NECK PAIN" },
     { key: "notes", label: "NOTES" },
   ];
+  const camelCaseToTitle = (str) => {
+    if (str === "periodontalseverity" || str === "Periodontalseverity") {
+      return "Periodontal Severity";
+    }
+    return String(str || "")
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (first) => first.toUpperCase())
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+  };
   const formatDentalDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -2387,7 +2397,11 @@ function Cardiology(props) {
   );
   const dentalDiagnosisRows = diagnosisFieldOrder
     .filter((key) => key in dentalDiagnosis)
-    .map((key) => ({ key, value: formatDentalDiagnosisValue(dentalDiagnosis?.[key]) }))
+    .map((key) => ({
+      key,
+      label: camelCaseToTitle(key),
+      value: formatDentalDiagnosisValue(dentalDiagnosis?.[key]),
+    }))
     .filter((row) => String(row.value || "").trim() !== "");
   const dentalToothDiagramNotes = (() => {
     const notes = dentalDiagnosis?.toothDiagramNotes;
@@ -2501,7 +2515,7 @@ function Cardiology(props) {
             <tbody>
               {dentalDiagnosisRows.map((row) => (
                 <tr key={`dental-dx-${row.key}`}>
-                  <td className="dental-label-cell">{row.key}</td>
+                  <td className="dental-label-cell">{row.label}</td>
                   <td>{row.value}</td>
                 </tr>
               ))}
