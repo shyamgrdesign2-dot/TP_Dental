@@ -725,7 +725,7 @@ function SmartRxDigitise() {
       let response;
 
       if (shouldUseCustomRxDigitize) {
-        const cleanedToken = token.replace(/['"]+/g, "");
+        const cleanedToken = token?.replace(/['"]+/g, "");
         if (!tcm_id || !patient_data?.patient_unique_id) {
           setIsLoading(false);
           return;

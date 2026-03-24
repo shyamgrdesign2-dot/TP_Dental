@@ -256,8 +256,8 @@ const DigitisedPrescription = ({
     return data?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
   }, [data, dentalDataSource]);
   const dentalMedications = useMemo(() => {
-    return getDentalMedicationArray(data?.medications, dentalDataSource?.medications);
-  }, [data, dentalDataSource]);
+    return dentalDataSource?.medications;
+  }, [dentalDataSource]);
   const hasDentalMedications = useMemo(() => {
     if (!Array.isArray(dentalMedications) || dentalMedications.length === 0) return false;
     return dentalMedications.some((item) => {
