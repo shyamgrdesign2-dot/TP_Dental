@@ -11,8 +11,8 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX } from '../utils/constants';
-import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId } from '../utils/utils';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX } from '../utils/constants';
+import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
 import { EVENTS } from '../utils/events';
@@ -39,6 +39,7 @@ function Welcome1(props) {
     const isSnapRxAccessableFromGB = useFeatureIsOn(
         GB_SNAP_RX
     );
+    const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
     const isFreeVoiceRxUser = isVoiceRxFree();
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
@@ -388,7 +389,14 @@ function Welcome1(props) {
                                     {!!canResumeDraftRx && 
                                         <Button 
                                             variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" 
-                                            onClick={() => {navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })}}
+                                            onClick={() => {
+                                                window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.resume, {
+                                                    ...getDraftMoengageDoctorAttributes(profile, userId),
+                                                    tcm_id: viewCaseManagerData?.tcm_id || 0,
+                                                    source: 0,
+                                                });
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })
+                                            }}
                                         >
                                             <img src={draftIcon} width={20} height={20} alt="Draft" className='me-2' />
                                             Resume {isTablet ? "" : "Draft"}
@@ -400,6 +408,13 @@ function Welcome1(props) {
                                             if (isVoiceOrAmbientRx && isV2VoiceAmbientRx) {
                                                 handleRepeatVoiceAmbientRx();
                                             } else {
+                                                if (canRepeatDraftRx) {
+                                                    window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.repeatDraft, {
+                                                        ...getDraftMoengageDoctorAttributes(profile, userId),
+                                                        tcm_id: viewCaseManagerData?.tcm_id || 0,
+                                                        owner_doctor_um_id: viewCaseManagerData?.doctor_data?.um_id || "",
+                                                    });
+                                                }
                                                 window.Moengage.track_event("repeat_rx_click", {
                                                     "doctor_id": profile?.doctor_unique_id,
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -419,7 +434,8 @@ function Welcome1(props) {
                                             }
                                         </Button>
                                     }
-                                    { viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
+                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
+                                       (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)) &&
                                          <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
                                             window.Moengage.track_event("repeat_rx_click", {
                                                 "doctor_id": profile?.doctor_unique_id,
@@ -460,7 +476,7 @@ function Welcome1(props) {
                                             Repeat {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx   
                                         </Button>
                                     }
-                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && !isMobile ? (
+                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                                         <PrimaryActionButton
                                             isSmartRxAccessible={isSmartSyncAccessableFromGB}
                                             isSnapRxAccessible={isSnapRxAccessableFromGB}

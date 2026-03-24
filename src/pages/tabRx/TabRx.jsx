@@ -292,8 +292,7 @@ function TabRx() {
     smartRxFilesData,
   } = state || {};
 
-  console.log(smartRxFilesData,"smartRxFilesData")
-  console.log(caseManagerData,"caseManagerData")
+
   const chartType = state?.chartType;
   const tcmId =
     caseManagerData !== undefined
@@ -778,43 +777,43 @@ function TabRx() {
 
   // Handle canvas submission - convert canvas to files and upload
   const handleCanvasSubmit = useCallback(async () => {
-    console.log('🖼️ [TabRx] handleCanvasSubmit called');
+    // console.log('🖼️ [TabRx] handleCanvasSubmit called');
 
     if (!canvasRef.current) {
-      console.log('❌ [TabRx] No canvasRef.current, returning empty');
+      // console.log('❌ [TabRx] No canvasRef.current, returning empty');
       return { files: [], blobs: [] };
     }
 
     setCanvasLoader(true);
     try {
-      console.log('📤 [TabRx] Exporting canvas to images...');
+      // console.log('📤 [TabRx] Exporting canvas to images...');
       const { files, blobs } = await canvasRef.current.exportToImages();
-      console.log('✅ [TabRx] Export complete:', {
-        filesCount: files.length,
-        blobsCount: blobs.length,
-        fileNames: files.map(f => f.name),
-        fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
-      });
+      // console.log('✅ [TabRx] Export complete:', {
+      //   filesCount: files.length,
+      //   blobsCount: blobs.length,
+      //   fileNames: files.map(f => f.name),
+      //   fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
+      // });
 
       if (files.length > 0) {
-        console.log('📤 [TabRx] Starting file upload...', {
-          filesToUpload: files.length,
-          fileNames: files.map(f => f.name)
-        });
+        // console.log('📤 [TabRx] Starting file upload...', {
+        //   filesToUpload: files.length,
+        //   fileNames: files.map(f => f.name)
+        // });
 
         // Upload files using tab-rx service
         const uploadResult = await uploadTabRxFiles(files, (progress) => {
-          console.log('📊 [TabRx] Upload progress:', progress + '%');
+          // console.log('📊 [TabRx] Upload progress:', progress + '%');
         });
 
-        console.log('📤 [TabRx] Upload result:', uploadResult);
+        // console.log('📤 [TabRx] Upload result:', uploadResult);
 
         if (uploadResult.success) {
-          console.log('✅ [TabRx] Upload successful, updating state...');
+          // console.log('✅ [TabRx] Upload successful, updating state...');
 
           // Extract uploaded file names from API response
           const uploadedFileNames = uploadResult.uploadedFileNames || [];
-          console.log('📋 [TabRx] Uploaded file names from API:', uploadedFileNames);
+          // console.log('📋 [TabRx] Uploaded file names from API:', uploadedFileNames);
 
           // Update files with the names returned from API
           // Create new File objects with the API-returned names
@@ -829,47 +828,47 @@ function TabRx() {
             return file;
           });
 
-          console.log('📝 [TabRx] Updated files with API names:', {
-            originalNames: files.map(f => f.name),
-            apiNames: uploadedFileNames,
-            updatedNames: updatedFiles.map(f => f.name)
-          });
+          // console.log('📝 [TabRx] Updated files with API names:', {
+          //   originalNames: files.map(f => f.name),
+          //   apiNames: uploadedFileNames,
+          //   updatedNames: updatedFiles.map(f => f.name)
+          // });
 
           // Store the updated files with API-returned names
           setSmartRxFiles(updatedFiles);
 
           const canvasData = canvasRef.current.getCanvasData();
-          console.log('📋 [TabRx] Canvas data:', {
-            selectedTemplateId: canvasData.selectedTemplateId,
-            pagesCount: canvasData.pagesMetadata?.length,
-            pagesMetadata: canvasData.pagesMetadata
-          });
+          // console.log('📋 [TabRx] Canvas data:', {
+          //   selectedTemplateId: canvasData.selectedTemplateId,
+          //   pagesCount: canvasData.pagesMetadata?.length,
+          //   pagesMetadata: canvasData.pagesMetadata
+          // });
 
           if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
             setIsCustomSSRX(true);
             setSelectedTemplateId(canvasData.selectedTemplateId);
-            console.log('✅ [TabRx] Set isCustomSSRX=true, selectedTemplateId=', canvasData.selectedTemplateId);
+            // console.log('✅ [TabRx] Set isCustomSSRX=true, selectedTemplateId=', canvasData.selectedTemplateId);
           } else {
-            console.log('ℹ️ [TabRx] Blank canvas or no template selected');
+            // console.log('ℹ️ [TabRx] Blank canvas or no template selected');
           }
 
           // Return updated files with API names
           return { files: updatedFiles, blobs };
         } else {
-          console.error('❌ [TabRx] Upload failed:', uploadResult);
+          // console.error('❌ [TabRx] Upload failed:', uploadResult);
           errorMessage('Error uploading canvas files. Please try again.');
         }
       } else {
-        console.log('⚠️ [TabRx] No files to upload (all blank or empty)');
+        // console.log('⚠️ [TabRx] No files to upload (all blank or empty)');
       }
 
-      console.log('✅ [TabRx] handleCanvasSubmit returning:', {
-        filesCount: files.length,
-        fileNames: files.map(f => f.name)
-      });
+      // console.log('✅ [TabRx] handleCanvasSubmit returning:', {
+      //   filesCount: files.length,
+      //   fileNames: files.map(f => f.name)
+      // });
       return { files, blobs };
     } catch (error) {
-      console.error('❌ [TabRx] Error submitting canvas:', error);
+      // console.error('❌ [TabRx] Error submitting canvas:', error);
       errorMessage('Error uploading canvas files. Please try again.');
       return { files: [], blobs: [] };
     } finally {

@@ -787,13 +787,15 @@ const TabRxCanvas = forwardRef(({
       // Add same canvas page - copy the metadata from the page at afterIndex
       const sourcePage = pagesMetadata[afterIndex];
       if (sourcePage) {
+        const isTemplatePage = sourcePage.type === 'template' && sourcePage.templateId;
         newPageMeta = {
           id: newPageId,
           type: sourcePage.type,
           templateId: sourcePage.templateId,
           templateImageIndex: sourcePage.templateImageIndex,
-          // In edit mode we duplicate smartRx-rendered page image to preserve existing content visually.
-          customImage: sourcePage.customImage || null,
+          // IMPORTANT: for template pages, rely on templateId + templateImageIndex only.
+          // Do not copy customImage, otherwise SmartRx image snapshot gets reused.
+          customImage: isTemplatePage ? null : (sourcePage.customImage || null),
         };
       } else {
         newPageMeta = {

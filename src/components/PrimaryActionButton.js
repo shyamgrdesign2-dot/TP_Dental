@@ -3,6 +3,8 @@ import { Button, Dropdown } from "antd";
 import smartPad from "../assets/images/smartPad.svg";
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
+import { GB_TAB_RX } from "../utils/constants";
 
 /**
  * PrimaryActionButton Component
@@ -33,7 +35,7 @@ const PrimaryActionButton = ({
   isSnapRxAccessible = false,
   isVoiceRxAccessible = false,
   isVoiceRxPaid = false,
-  isTabRxAccessible = true,
+  // isTabRxAccessible = false,
   onSmartRxClick,
   onSnapRxClick,
   onVoiceRxClick,
@@ -90,8 +92,12 @@ const PrimaryActionButton = ({
   // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
   const allAvailableOptions = [];
   const dropdownOptionsList = [];
+
   // TabRx should be shown only on tablet devices (not on laptops or mobiles)
-  const isTabRxVisible = isTabRxAccessible && isTablet;
+
+  const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
+  // const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
+  const isTabRxVisible = isTabRxEnabledFromGB ;
   
   if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown
