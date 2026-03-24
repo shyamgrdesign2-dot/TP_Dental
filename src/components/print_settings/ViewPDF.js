@@ -777,14 +777,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
      const calculatePadding = () => {
         const widthOfA4PageInPts = 595;
         const { letterhead_format, header_footer, whatsapp_letterhead_format } = printSettings || {};
-        const footer = header_footer?.footer;
+        const renderedFooterImageHeight = Number.isFinite(fileFooter?.renderedFooterImageHeight)
+            ? fileFooter?.renderedFooterImageHeight
+            : 0;
+        const hasFooterDimensions =
+            Number.isFinite(fileFooter?.footerHeight) &&
+            Number.isFinite(fileFooter?.footerWidth) &&
+            fileFooter?.footerWidth > 0;
 
         if (mode !== NORMAL) {
             return {
                 paddingTop: PX_TO_PT * 30,
                 paddingBottom: whatsapp_letterhead_format === 1
                     ? fileFooter?.imageShow
-                        ? fileFooter?.renderedFooterImageHeight + (PX_TO_PT * 30)
+                        ? renderedFooterImageHeight + (PX_TO_PT * 30)
                         : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
                         : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5,
                 paddingLeft: PX_TO_PT * 30,
@@ -811,7 +817,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ? (isOwnLetterheadFirstPageOnly ? userBottomMargin : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
         : letterhead_format === 1
             ? fileFooter?.imageShow
-                ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (paddingLeft + paddingRight))) + paddingTop
+                ? (hasFooterDimensions
+                    ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (paddingLeft + paddingRight))) + paddingTop
+                    : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
                 : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
                 : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5;
 
