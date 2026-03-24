@@ -96,8 +96,8 @@ const PrimaryActionButton = ({
   // TabRx should be shown only on tablet devices (not on laptops or mobiles)
 
   const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
-  // const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
-  const isTabRxVisible = isTabRxEnabledFromGB ;
+  const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
+  // const isTabRxVisible = isTabRxEnabledFromGB ;
   
   if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown

@@ -119,7 +119,7 @@ const TabRxCanvas = forwardRef(({
 
       const newPageId = generateId();
       if (initialTemplateId === 'blank') {
-        setPagesMetadata([{ id: newPageId, type: 'blank', templateId: null, templateImageIndex: null }]);
+        setPagesMetadata([{ id: newPageId, type: 'blank', templateId: 'blank', templateImageIndex: null }]);
       } else if (initialTemplateId === 'standard') {
         setPagesMetadata([{ id: newPageId, type: 'template', templateId: 'standard', templateImageIndex: null }]);
       } else {
@@ -1003,12 +1003,17 @@ const TabRxCanvas = forwardRef(({
               const pageId = pageMeta.id;
               const pageStrokes = strokesByPage[pageId] || [];
               const pageTextElements = textElementsByPage[pageId] || [];
-
               // Get dropdown menu items for add page
+              const isBlankPage =
+                pageMeta?.type === 'blank' ||
+                pageMeta?.templateId === 'blank'||
+                pageMeta?.templateId === null;
+              console.log(isBlankPage,"isBlankPage")
               const getAddPageMenuItems = () => [
                 {
                   key: 'same',
                   label: 'Add Same Canvas Page',
+                  disabled: isBlankPage,
                   onClick: () => handleAddPage(pageIndex, 'same')
                 },
                 {

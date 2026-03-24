@@ -274,6 +274,20 @@
           background: #f0f0f0;
         }
       }
+
+      .ant-dropdown-menu-item-disabled,
+      .ant-dropdown-menu-item[aria-disabled='true'] {
+        color: #b8b8c0 !important;
+        cursor: not-allowed !important;
+        pointer-events: none;
+        opacity: 0.9;
+
+        &:hover,
+        &:active {
+          background: transparent !important;
+          transform: none !important;
+        }
+      }
     }
   }
 
@@ -332,6 +346,44 @@
       min-width: 100px;
       text-align: center;
       user-select: none;
+    }
+  }
+}
+
+// IMPORTANT: Antd dropdown overlay renders in document.body, outside .tab-rx-canvas-page.
+// Keep these styles at global scope so disabled item styling is applied reliably.
+.page-add-dropdown {
+  .ant-dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 4px;
+
+    .ant-dropdown-menu-item {
+      padding: 8px 16px;
+      border-radius: 6px;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #f0f0f0;
+      }
+    }
+
+    .ant-dropdown-menu-item-disabled,
+    .ant-dropdown-menu-item[aria-disabled='true'] {
+      color: #b8b8c0 !important;
+      cursor: not-allowed !important;
+      pointer-events: none;
+      opacity: 0.9;
+
+      .ant-dropdown-menu-title-content {
+        color: #b8b8c0 !important;
+      }
+
+      &:hover,
+      &:active {
+        background: transparent !important;
+        transform: none !important;
+      }
     }
   }
 }
