@@ -383,6 +383,7 @@ function TabRxPrescriptionPrintView() {
     const nextUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
     if (nextUrl !== printUrl) {
       setPrintUrl(nextUrl);
+      setPreviewUrl(nextUrl);
     }
   }, [selectedLang, state?.print_url, pam_id, printUrl]);
 
