@@ -1504,6 +1504,27 @@ function Cardiology(props) {
     }
   };
 
+  // Edit button visibility rules:
+  // 1) SmartRx (non-tab_rx): only on mobile (not tablet)
+  // 2) TabRx: show on tablet or mobile
+  // 3) Everything else (SnapRx, VoiceRx, SmartRx null): show
+  const shouldShowEditButton = useCallback(() => {
+    const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
+    if(isVoiceRx){
+      return isMobile & !isTablet;
+    }
+
+    if (isSmartRxFile && !isTabRx) {
+      return !isMobile && !isTablet;
+    }
+
+    if (isTabRx) {
+      return isTablet || isMobile;
+    }
+
+    return true;
+  }, [isSmartRxFile, isTabRx]);
+
   const fetchRxDigitisedData = async (caseId) => {
     try {
       const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -2851,8 +2872,7 @@ function Cardiology(props) {
                     style={{
                       visibility:
                         viewCaseManagerData?.doctor_data?.editCase &&
-                        !(isSmartRxFile && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && (isMobile && !isTablet)) &&
-                        (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)
+                        shouldShowEditButton()
                           ? "visible"
                           : "hidden",
                     }}
