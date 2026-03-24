@@ -1511,7 +1511,7 @@ function Cardiology(props) {
   const shouldShowEditButton = useCallback(() => {
     const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
     if(isVoiceRx){
-      return isMobile & !isTablet;
+      return true;
     }
 
     if (isSmartRxFile && !isTabRx) {
