@@ -191,7 +191,6 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
             if (!caseManagerData || !caseManagerData.patient_data) {
                 return;
             }
-            const smartRxDataForPdf = Array.isArray(smartRxFile) ? smartRxFile : (smartRxFile ? [smartRxFile] : []);
 
             const renderPdfWithSmartRx = (smartRxData) => pdf(<ViewPDF
                 mode={mode}
@@ -225,16 +224,17 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
             />).toBlob();
 
             try {
-                const blob = await renderPdfWithSmartRx(smartRxDataForPdf);
+                const blob = await renderPdfWithSmartRx(smartRxFile);
                 const url = URL.createObjectURL(blob);
                 setPdfUrl(url);
                 dispatch(setCurrentSessionRx(url));
             } catch (err) {
-                if (smartRxDataForPdf?.length > 0) {
+                if (smartRxFile) {
                     try {
                         const blobFallback = await renderPdfWithSmartRx([]);
-                        setPdfUrl(URL.createObjectURL(blobFallback));
-                        dispatch(setCurrentSessionRx(URL.createObjectURL(blobFallback)));
+                        const fallbackUrl = URL.createObjectURL(blobFallback);
+                        setPdfUrl(fallbackUrl);
+                        dispatch(setCurrentSessionRx(fallbackUrl));
                     } catch (fallbackErr) {
                     }
                 } else {
