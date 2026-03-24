@@ -1239,7 +1239,7 @@ function Cardiology(props) {
       voiceRxUrl = urlObj.toString();
     }
     const printUrl =
-      showDigitalGenRx && voiceRxUrl
+      showDigitalGenRx && voiceRxUrl && !showDigitalRx && !showDigitalSnapRx && !isTabRx
         ? voiceRxUrl
         : viewCaseManagerData?.print_url;
     sendMessageToParent(EVENTS.PRINT, { url: `${printUrl}&lg=${selectedLang}` });

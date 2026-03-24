@@ -203,7 +203,7 @@ function HeaderPrintView({
               </span>
             </button>
           )}
-          {/* <div className="d-flex align-items-center me-3">
+          <div className="d-flex align-items-center me-3">
             <Dropdown
               trigger={["click"]}
               menu={{
@@ -257,7 +257,7 @@ function HeaderPrintView({
                 <i className="fs-3 icon-right iconrotate270" />
               </div>
             </Dropdown>
-          </div> */}
+          </div>
           <Button
             onClick={onEndVisitClick}
             loading={loadingEndVisit}

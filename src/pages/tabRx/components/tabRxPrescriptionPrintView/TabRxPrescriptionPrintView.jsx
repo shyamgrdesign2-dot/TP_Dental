@@ -859,7 +859,6 @@ function TabRxPrescriptionPrintView() {
           pam_id: pam_id,
           smartRxFile,
           from: "/tab-rx-prescription",
-          smartRxFile
         },
       });
     } else {
@@ -954,7 +953,7 @@ function TabRxPrescriptionPrintView() {
         printUrl={printUrl}
         pam_id={pam_id}
         selectedLang={selectedLang}
-        onOpenPrintSettings={!isMobile ? configurePrintUrl : undefined}
+        onOpenPrintSettings={configurePrintUrl}
         onSelectLanguage={onSelect}
       />
       <div className={`${isMobile ? "p-0" : ""} w-100 bg-body`}>
