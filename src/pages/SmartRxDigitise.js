@@ -68,6 +68,9 @@ function SmartRxDigitise() {
   const [isDigitiseRxSubmit, setIsDigitiseRxSubmit] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
+  // Object URLs for native File/Blob so left panel can display them; revoke on cleanup
+  const [objectUrlsForFiles, setObjectUrlsForFiles] = useState([]);
+  const objectUrlsRef = useRef([]);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
   // Grounding check (Zydus users)
@@ -82,6 +85,31 @@ function SmartRxDigitise() {
   const clearSmartRxDentalState = useCallback(() => {
     dispatch(clearDentalData());
   }, [dispatch]);
+
+  // Create object URLs for native File/Blob items so left panel can display; revoke on unmount or when smartRxFile changes
+  useEffect(() => {
+    if (!smartRxFile?.length) {
+      setObjectUrlsForFiles([]);
+      return;
+    }
+    const urls = [];
+    smartRxFile.forEach((file, i) => {
+      if (file instanceof File || file instanceof Blob) {
+        urls[i] = URL.createObjectURL(file);
+      }
+    });
+    objectUrlsRef.current.forEach((u) => {
+      if (u) try { URL.revokeObjectURL(u); } catch (_) {}
+    });
+    objectUrlsRef.current = urls;
+    setObjectUrlsForFiles(urls);
+    return () => {
+      objectUrlsRef.current.forEach((u) => {
+        if (u) try { URL.revokeObjectURL(u); } catch (_) {}
+      });
+      objectUrlsRef.current = [];
+    };
+  }, [smartRxFile]);
 
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
@@ -249,6 +277,8 @@ function SmartRxDigitise() {
       uploadFiles();
     } else if (state.type === "edit" && digitisedData) {
       uploadFiles();
+    } else {
+      setIsLoading(false);
     }
   }, [token, smartRxFile, digitisedData]);
 
@@ -634,6 +664,7 @@ function SmartRxDigitise() {
             state: {
               patient_data,
               smartRxData: smartRxFilesData,
+              smartRxFile: smartRxFilesData,
               tcm_id,
               pam_id: pam_id || patient_data?.pam_id,
               print_url,
@@ -648,8 +679,36 @@ function SmartRxDigitise() {
     }
   };
 
+  // Navigate back to Smart Rx preview without saving: pass state WITHOUT page "digitise" so preview shows Written Rx + Digitise Now (not Digital Rx)
+  const handleBackToPreview = useCallback(() => {
+    navigate("/print-smart-rx", {
+      replace: true,
+      state: {
+        patient_data,
+        smartRxFilesData: smartRxFile ?? smartRxFilesData,
+        smartRxFile: smartRxFile ?? smartRxFilesData,
+        tcm_id,
+        pam_id: pam_id ?? patient_data?.pam_id,
+        print_url: printUrl ?? state?.print_url,
+        print_rx_url: state?.print_rx_url,
+        showProgressbar: false,
+        // Do NOT pass page: "digitise" — only save flow sets that; back-without-save should show Written Rx + Digitise Now
+      },
+    });
+  }, [navigate, patient_data, smartRxFile, smartRxFilesData, tcm_id, pam_id, printUrl, state?.print_url, state?.print_rx_url]);
+
+  // Resolve display URL: native File/Blob use object URL; API-shaped use smart_prescription_file or fallbacks
+  const getDisplayUrl = useCallback((file, index) => {
+    if (!file) return null;
+    if (file instanceof File || file instanceof Blob) {
+      return objectUrlsForFiles[index] || null;
+    }
+    return file.smart_prescription_file ?? file.fileUrl ?? file.url ?? file.smart_prescription_file_url ?? null;
+  }, [objectUrlsForFiles]);
+
   const fetchImageAsFile = async (url, fileName) => {
     try {
+      if (!url) return null;
       const response = await fetch(url);
       const blob = await response.blob();
       return new File([blob], fileName, { type: blob.type });
@@ -662,6 +721,46 @@ function SmartRxDigitise() {
   const uploadFiles = async () => {
     try {
       setIsLoading(true);
+      const formData = new FormData();
+
+      // Build list of File objects: native File use as-is; Blob wrap as File; API-shaped fetch from URL
+      const files = await Promise.all(
+        smartRxFile.map(async (file, index) => {
+          if (file instanceof File) {
+            return file;
+          }
+          if (file instanceof Blob) {
+            return new File([file], file.name || `rx-${index}-${Date.now()}.jpg`, { type: file.type });
+          }
+          const fileUrl = file.smart_prescription_file ?? file.fileUrl ?? file.url ?? file.smart_prescription_file_url;
+          const fileName = file.smart_prescription_filename ?? file.name ?? `rx-${index}-${Date.now()}.jpg`;
+          return await fetchImageAsFile(fileUrl, fileName);
+        })
+      );
+
+      const validCount = files.filter(Boolean).length;
+      if (validCount === 0) {
+        setIsLoading(false);
+        return;
+      }
+
+      files.forEach((file) => {
+        if (file) {
+          formData.append("files", file);
+        }
+      });
+
+      // Append other required fields
+      formData.append("doctorId", tokenData.user_id);
+      formData.append("patientId", patient_data.patient_unique_id);
+      formData.append("appointmentId", pam_id || patient_data?.pam_id);
+      formData.append("caseId", tcm_id);
+
+      // Append ocrModelSelected only if isCustomSSRX is true
+      // if (isCustomSSRX) {
+      formData.append("ocrModelSelected", "zyvelor");
+      // }
+
       const cleanedToken = token.replace(/['"]+/g, "");
       let response;
 
@@ -798,9 +897,12 @@ function SmartRxDigitise() {
         if (canonical?.vitalsAndBodyComposition) {
           persistSmartRxVitals(canonical.vitalsAndBodyComposition, setData);
         }
+      } else {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Error uploading files:", error);
+      setIsLoading(false);
     }
   };
 
@@ -810,6 +912,8 @@ function SmartRxDigitise() {
         onSave={handleSave}
         patient_data={patient_data}
         tcm_id={tcm_id}
+        onBackToPreview={handleBackToPreview}
+        isSmartRx={true}
       />
       <div
         ref={splitRef}
@@ -837,18 +941,21 @@ function SmartRxDigitise() {
                   </div>
                 ) : (
                   smartRxFile?.length > 0 &&
-                  smartRxFile?.map(({ smart_prescription_file }) => (
-                    <div key={smart_prescription_file}>
-                      {smart_prescription_file && (
-                        <img
-                          src={smart_prescription_file}
-                          alt="Smart Rx"
-                          className="written-rx-image"
-                          width="100%"
-                        />
-                      )}
-                    </div>
-                  ))
+                  smartRxFile?.map((file, idx) => {
+                    const src = getDisplayUrl(file, idx);
+                    return (
+                      <div key={src || idx}>
+                        {src && (
+                          <img
+                            src={src}
+                            alt="Smart Rx"
+                            className="written-rx-image"
+                            width="100%"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

@@ -1522,6 +1522,8 @@ function Cardiology(props) {
       return isTablet || isMobile;
     }
 
+    // !(isSmartRxFile && (isMobile && !isTablet))
+
     return true;
   }, [isSmartRxFile, isTabRx]);
 

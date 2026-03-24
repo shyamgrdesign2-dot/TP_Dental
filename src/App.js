@@ -589,8 +589,6 @@ function App() {
                   path="all_patients" 
                   element={(isMobile && !isTablet) ? <MobileAllPatients /> : <AllPatients />} 
                 />
-                <Route path="tab-rx" element={<TabRx />} />
-                <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
                 <Route path="billing-settings" element={<BillingSettings />} />
                 <Route path="add-appointment" element={<AddAppointment />} />
                 {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
@@ -625,6 +623,8 @@ function App() {
                   path="abha-records/health-records"
                   element={<HealthRecords />}
                 />
+                <Route path="tab-rx" element={<TabRx />} />
+                <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
                 <Route
                   path="tabrx-digitization"
                   element={<TabRxDigitization />}

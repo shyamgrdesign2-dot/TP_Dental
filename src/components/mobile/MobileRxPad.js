@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useContext, useCallback } from 'rea
 import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getDecodedToken, getDecodedMedecoToken } from '../../utils/localStorage';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_MEDECO_TOKEN } from '../../utils/constants';
+import { getDecodedToken } from '../../utils/localStorage';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION } from '../../utils/constants';
 import {
   generateAmbientRx,
   updateAmbientRx,
@@ -20,7 +20,7 @@ import { addCaseManager, editCaseManager, viewCaseManager } from '../../redux/ca
 import { addUpdateVitals, getVitals, setListVitalsToday, setVitalsIdsFromAddVitals, clearListVitalsToday } from '../../redux/vitalsSlice';
 import { getPatientLastHistory } from '../../redux/medicalhistorySlice';
 import { checkCredits, updateCredits } from '../../redux/monetizationSlice';
-import { services, getProfile } from '../../redux/doctorsSlice';
+import { services } from '../../redux/doctorsSlice';
 import { ADD } from '../../utils/constants';
 import ApiVitals from '../../api/services/ApiVitals';
 import { enrichVitalsWithCalculations } from '../../utils/vitalsCalculations';
@@ -64,7 +64,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { profile, servicesList, loading: profileLoading } = useSelector((state) => state.doctors);
+  const { profile, servicesList } = useSelector((state) => state.doctors);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
   const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext) || {};
 
@@ -92,7 +92,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(false);
-  const [digitizeError, setDigitizeError] = useState(null); // Error from voice/text digitize (shown in drawer when blank)
   const [showEndVisitScreen, setShowEndVisitScreen] = useState(false);
   const [showInfoBottomSheet, setShowInfoBottomSheet] = useState(false);
   const [endVisitCaseManagerData, setEndVisitCaseManagerData] = useState(null); // Store saved caseManagerData with print_url
@@ -135,11 +134,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   // Numeric tcm_id from addCaseManager/editCaseManager response; used for viewCaseManager and getTcmId so we never use viewCaseManager's string tcm_id
   const endVisitTcmIdRef = useRef(null);
   const decodedToken = getDecodedToken();
-  const decodedMedeco = getDecodedMedecoToken();
-  // When user_id is not in auth token (e.g. Medeco flow), use medeco-token tpUserId as doctorId
-  const doctorId =
-    decodedToken?.result?.user_id ??
-    decodedMedeco?.user?.tpUserId;
+  const doctorId = decodedToken?.result?.user_id;
 
   // Credit and trial logic (matches desktop ConsultationDrawer)
   const isFreeVoiceRxUser = isVoiceRxFree();
@@ -232,13 +227,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     if (inputTextFromLocation || audioBlobFromLocation) return;
     setPrescriptionData(getEmptyPrescriptionTemplate());
   }, [visible, patient_data, prescriptionData, existingData?.prescriptionData, inputTextFromLocation, audioBlobFromLocation]);
-
-  // Ensure profile is loaded when RxPad opens (fix: new users on mobile often have profile null)
-  useEffect(() => {
-    if (visible && !profile && !profileLoading) {
-      dispatch(getProfile());
-    }
-  }, [visible, profile, profileLoading, dispatch]);
 
   // Load patient's last medical history when starting new consultation (matches web TabPrescription behavior)
   useEffect(() => {
@@ -334,11 +322,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   // Reset vitals ref when pad closes so next open refetches getVitals (fresh data)
   useEffect(() => {
     if (!visible) listVitalsPatientIdRef.current = null;
-  }, [visible]);
-
-  // Clear digitize error when drawer closes so next open doesn't show stale error
-  useEffect(() => {
-    if (!visible) setDigitizeError(null);
   }, [visible]);
 
   // TODO: Re-enable when getTodayVitals and getTodayLabResults are implemented/imported (e.g. from ApiVitals / lab API).
@@ -582,7 +565,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
     const run = async () => {
       try {
         await new Promise((r) => setTimeout(r, 80));
-        setDigitizeError(null);
         setIsProcessing(true);
 
         // Prioritize text input over audio blob (text input is explicit user action)
@@ -593,13 +575,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           await handleVoiceDigitize(audioBlobFromLocation, '');
         }
       } catch (e) {
-        const errMsg = e?.message || 'Voice prescription failed. Please try again.';
-        console.error('[MobileRxPad] Auto-submit failed:', e);
-        if (e?.response) {
-          console.error('[MobileRxPad] Response status:', e.response?.status, 'data:', e.response?.data);
-        }
-        message.error(errMsg);
-        setDigitizeError(errMsg);
         setIsProcessing(false);
         hasAutoSubmittedRef.current = false;
         // Reset processed input on error to allow retry
@@ -608,7 +583,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       }
     };
     run();
-  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isProcessing, location.key, isReviewMode, prescriptionData, profile]);
+  }, [visible, fromVoiceRecording, audioBlobFromLocation, inputTextFromLocation, isProcessing, location.key, isReviewMode, prescriptionData]);
 
   // Remove Smart Capture items (matches web version)
   const removeScItems = (data) => {
@@ -756,120 +731,16 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   };
 
   const handleVoiceDigitize = async (audioBlobParam, transcribedText) => {
-    setDigitizeError(null);
-    const logPrefix = '[MobileRxPad]';
     try {
-      console.log(logPrefix + ' step=handleVoiceDigitize_start ' + JSON.stringify({
-        hasAudio: !!audioBlobParam,
-        audioSize: audioBlobParam?.size,
-        hasText: !!transcribedText,
-        textLength: transcribedText?.length,
-        profileLoaded: !!profile,
-        hasB2c: !!profile?.b2c,
-      }));
-
-      // Always read doctorId fresh from token to avoid stale-closure issues in auto-submit
-      const freshToken = getDecodedToken();
-      const freshMedeco = getDecodedMedecoToken();
-      if (!freshToken) {
-        console.warn(logPrefix + ' step=token_decode token is null or decode failed (getDecodedToken returned null)');
-      }
-      // Treat empty string / "undefined" / "null" as missing (backend may send "" for new users)
-      const asValidId = (v) => {
-        if (v == null) return null;
-        const s = String(v).trim();
-        return s === '' || s === 'undefined' || s === 'null' ? null : v;
-      };
-      const tokenUserId = asValidId(freshToken?.result?.user_id);
-      // When user_id is not in auth token, use medeco-token tpUserId as doctorId. Only these two sources.
-      const tokenMedecoTpUserId = asValidId(freshMedeco?.user?.tpUserId);
-      let currentDoctorId = tokenUserId || tokenMedecoTpUserId;
-
-      // Debug for native app: token and user_id, medeco token and tpUserId (search logs for [VoiceRx doctorId])
-      const rawAuth = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const rawMedeco = localStorage.getItem(PERSISTANT_STORAGE_KEY_MEDECO_TOKEN);
-      console.log('[VoiceRx doctorId] authToken raw present:', !!rawAuth, 'length:', rawAuth?.length ?? 0);
-      console.log('[VoiceRx doctorId] authToken decoded:', JSON.stringify(freshToken));
-      console.log('[VoiceRx doctorId] authToken user_id:', freshToken?.result?.user_id, '(type:', typeof freshToken?.result?.user_id + ')');
-      console.log('[VoiceRx doctorId] medecoToken raw present:', !!rawMedeco, 'length:', rawMedeco?.length ?? 0);
-      console.log('[VoiceRx doctorId] medecoToken decoded:', JSON.stringify(freshMedeco));
-      console.log('[VoiceRx doctorId] medecoToken tpUserId:', freshMedeco?.user?.tpUserId, '(type:', typeof freshMedeco?.user?.tpUserId + ')');
-      console.log('[VoiceRx doctorId] doctorId used:', currentDoctorId ?? '(none)', 'source:', currentDoctorId === tokenUserId ? 'auth user_id' : currentDoctorId === tokenMedecoTpUserId ? 'medeco tpUserId' : 'none');
-
-      const doctorIdSource =
-        currentDoctorId === tokenUserId ? 'token.result.user_id' : currentDoctorId === tokenMedecoTpUserId ? 'medeco.user.tpUserId' : 'none';
-
-      const sourceLog = {
-        step: 'doctorId_source_check',
-        sources_raw: {
-          'token.result.user_id': freshToken?.result?.user_id,
-          'medeco.user.tpUserId': freshMedeco?.user?.tpUserId,
-        },
-        currentDoctorId,
-        doctorIdSource,
-      };
-      console.log(logPrefix + ' ' + JSON.stringify(sourceLog));
-      const profileLoaded = !!profile;
-      const hasB2c = !!profile?.b2c;
-      const isNewUserRiskPath = !profileLoaded || !hasB2c || !currentDoctorId;
-      if (isNewUserRiskPath) {
-        const doctorIdFromToken = tokenUserId ?? tokenMedecoTpUserId;
-        console.log(logPrefix + ' step=new_user_risk_path ' + JSON.stringify({
-          profileLoaded,
-          hasB2c,
-          currentDoctorId: currentDoctorId ?? '(missing)',
-          doctorIdFromToken: doctorIdFromToken ?? '(missing)',
-          willProceedToDigitize: !!(currentDoctorId && (isFreeVoiceRxUser || hasB2c)),
-        }));
-      }
-
-      // Guard: new users on mobile may have profile not loaded yet; digitize and credit check need profile/doctorId
-      if (!currentDoctorId) {
-        const msg = 'Session loading. Please wait a moment and try again.';
-        console.warn(logPrefix + ' step=BLOCKED blocked_reason=no_doctorId ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          token_result_user_id: freshToken?.result?.user_id,
-          medeco_user_tpUserId: freshMedeco?.user?.tpUserId,
-          doctorIdSource,
-        }));
-        message.warning(msg);
-        // Do not show error in drawer — this is transient; reset so auto-submit can retry once profile loads
-        setIsProcessing(false);
-        hasAutoSubmittedRef.current = false;
-        dispatch(getProfile());
-        return;
-      }
-      if (!isFreeVoiceRxUser && !profile?.b2c) {
-        const msg = 'Loading your profile. Please wait a moment and try again.';
-        console.warn(logPrefix + ' step=BLOCKED blocked_reason=profile_b2c_missing ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          profileLoaded: !!profile,
-        }));
-        message.warning(msg);
-        dispatch(getProfile());
-        setIsProcessing(false);
-        hasAutoSubmittedRef.current = false;
-        return;
-      }
-
       // Real-time credit check before voice processing (matches desktop ConsultationDrawer)
       if (!isFreeVoiceRxUser && (
         VOICE_RX_planDetails?.plan_tier === FREE && VOICE_RX_planDetails?.credit_balance <= 0
       )) {
-        console.warn(logPrefix + ' step=BLOCKED blocked_reason=credits_exhausted ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          plan_tier: VOICE_RX_planDetails?.plan_tier,
-          credit_balance: VOICE_RX_planDetails?.credit_balance,
-        }));
         setIsProcessing(false);
         showHideSubModal();
         return;
       }
       if (!isFreeVoiceRxUser && VOICE_RX_planDetails?.plan_tier === FAILED_VERIFICATION) {
-        console.warn(logPrefix + ' step=BLOCKED blocked_reason=FAILED_VERIFICATION ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          plan_tier: VOICE_RX_planDetails?.plan_tier,
-        }));
         setIsProcessing(false);
         showHideSubModal();
         return;
@@ -888,11 +759,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               action?.payload?.plan_tier === FREE &&
               action?.payload?.credit_balance <= 0
             ) {
-              console.warn(logPrefix + ' step=BLOCKED blocked_reason=credit_check_api_no_credits ' + JSON.stringify({
-                prescription_will_not_be_generated: true,
-                plan_tier: action?.payload?.plan_tier,
-                credit_balance: action?.payload?.credit_balance,
-              }));
               await dispatch(services(sendData?.b2c_id));
               setIsProcessing(false);
               showHideSubModal();
@@ -900,10 +766,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             } else if (
               action?.payload?.plan_tier === FAILED_VERIFICATION
             ) {
-              console.warn(logPrefix + ' step=BLOCKED blocked_reason=credit_check_api_FAILED_VERIFICATION ' + JSON.stringify({
-                prescription_will_not_be_generated: true,
-                plan_tier: action?.payload?.plan_tier,
-              }));
               setIsProcessing(false);
               showHideSubModal();
               return;
@@ -915,18 +777,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       let response;
       const patientId = patient_data?.patient_unique_id || '';
       const admissionId = caseManagerData?.admission_id || null;
-
-      // Debug: string vs number — backend may expect number for doctorId
-      console.log(logPrefix + ' step=digitize_api_params ' + JSON.stringify({
-        doctorId: currentDoctorId,
-        doctorId_type: typeof currentDoctorId,
-        patientId,
-        patientId_type: typeof patientId,
-        admissionId,
-        admissionId_type: typeof admissionId,
-        doctorIdSource,
-      }));
-
+      
       // Calculate duration for audio input (store for query duration)
       // Check response first, then calculate from blob (matches web version)
       let currentRecordingDuration = null;
@@ -954,13 +805,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       // Improved mode detection - matches web version
       const isAmbient = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient' || existingGenRxDetails?.type === 'ambient';
 
-      console.log(logPrefix + ' step=digitize_api_call ' + JSON.stringify({
-        isAmbient,
-        isUpdatingRx,
-        existingRxId: existingRxId || null,
-        doctorIdSource,
-      }));
-
       if (isAmbient) {
         const formData = new FormData();
 
@@ -976,7 +820,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           formData.append('voice_prescription_text', transcribedText);
         }
 
-        formData.append('doctorId', currentDoctorId);
+        formData.append('doctorId', doctorId);
         formData.append('patientId', patientId);
         formData.append('schemaKey', 'default');
         formData.append('getConversation', 'true');
@@ -1009,7 +853,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             
             // Ensure all required fields are in FormData
             if (!newFormData.has("doctorId")) {
-              newFormData.append("doctorId", currentDoctorId);
+              newFormData.append("doctorId", doctorId);
             }
             if (!newFormData.has("patientId")) {
               newFormData.append("patientId", patientId);
@@ -1037,7 +881,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             
             // Ensure all required fields are in FormData
             if (!formData.has("doctorId")) {
-              formData.append("doctorId", currentDoctorId);
+              formData.append("doctorId", doctorId);
             }
             if (!formData.has("patientId")) {
               formData.append("patientId", patientId);
@@ -1063,7 +907,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           // NEW Rx - Use generateAmbientRx
           // Ensure all required fields are in FormData
           if (!formData.has("doctorId")) {
-            formData.append("doctorId", currentDoctorId);
+            formData.append("doctorId", doctorId);
           }
           if (!formData.has("patientId")) {
             formData.append("patientId", patientId);
@@ -1096,7 +940,7 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           formData.append('voice_prescription_text', transcribedText);
         }
 
-        formData.append('doctorId', currentDoctorId);
+        formData.append('doctorId', doctorId);
         formData.append('patientId', patientId);
 
         // UPDATE existing Rx for dictate mode
@@ -1113,19 +957,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
       // Process response (matches web version)
       const responseData = response?.data || response;
       const actualData = responseData?.data || responseData;
-      
-      // Debug logging for new user issues (incl. string vs number)
-      console.log(logPrefix + ' step=digitize_api_response ' + JSON.stringify({
-        doctorId_sent: currentDoctorId,
-        doctorId_type: typeof currentDoctorId,
-        patientId_sent: patientId,
-        responseSuccess: response?.data?.success ?? response?.success,
-        hasDigitize: !!(actualData?.digitize || responseData?.digitize),
-        hasRx: !!(actualData?.rx || responseData?.rx),
-        hasConversation: !!(actualData?.conversation || responseData?.conversation),
-        hasActualData: !!actualData,
-        hasResponseData: !!responseData,
-      }));
 
       // Improved success check - matches web version (comprehensive)
       const isSuccess = (response?.success !== false || responseData?.success !== false || actualData?.success !== false) && (actualData || responseData) && (
@@ -1147,35 +978,9 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
         (responseData?.rxDigitizationHistory && Array.isArray(responseData.rxDigitizationHistory) && responseData.rxDigitizationHistory.length > 0)
       );
 
-      if (!isSuccess) {
-        const safeResponseSlice = {
-          message: actualData?.message ?? responseData?.message ?? response?.data?.message ?? response?.message,
-          error: actualData?.error ?? responseData?.error ?? response?.data?.error ?? response?.error,
-          success: actualData?.success ?? responseData?.success ?? response?.data?.success ?? response?.success,
-          responseDataKeys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : [],
-          actualDataKeys: actualData && typeof actualData === 'object' ? Object.keys(actualData) : [],
-        };
-        console.warn(logPrefix + ' step=PRESCRIPTION_NOT_GENERATED reason=success_check_failed ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          doctorId_sent: currentDoctorId,
-          doctorId_type: typeof currentDoctorId,
-          responseSuccess: response?.data?.success ?? response?.success,
-          hasDigitize: !!(actualData?.digitize || responseData?.digitize),
-          hasRx: !!(actualData?.rx || responseData?.rx),
-          doctorIdSource,
-          backendResponse: safeResponseSlice,
-        }));
-      }
-
       if (isSuccess) {
-        console.log(logPrefix + ' step=digitize_success ' + JSON.stringify({
-          doctorId_sent: currentDoctorId,
-          doctorIdSource,
-          hasDigitize: !!(actualData?.digitize || responseData?.digitize),
-          hasRx: !!(actualData?.rx || responseData?.rx),
-        }));
         const finalResponseData = actualData || responseData;
-
+        
         if (!finalResponseData) {
           throw new Error('No data received from API');
         }
@@ -1424,7 +1229,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
           };
 
           setIsProcessing(false);
-          setDigitizeError(null);
 
           // Single short delay then show content (avoids double-load: was 700ms + 2s skeleton)
           const transitionMs = 220;
@@ -1563,58 +1367,16 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
               }
           }, transitionMs);
         } else {
-          const msg = 'No prescription data received';
-          console.error('[MobileRxPad] step=PRESCRIPTION_NOT_GENERATED reason=no_prescription_data ' + JSON.stringify({
-            prescription_will_not_be_generated: true,
-            doctorId_sent: currentDoctorId,
-            doctorIdSource,
-          }));
           setIsProcessing(false);
-          message.error(msg);
-          setDigitizeError(msg);
+          message.error('No prescription data received');
         }
       } else {
-        const backendMsg =
-          (typeof actualData?.message === 'string' && actualData.message) ||
-          (typeof responseData?.message === 'string' && responseData.message) ||
-          (typeof response?.data?.message === 'string' && response?.data?.message) ||
-          (typeof response?.message === 'string' && response?.message) ||
-          (typeof actualData?.error === 'string' && actualData.error) ||
-          (typeof responseData?.error === 'string' && responseData.error) ||
-          (response?.data?.error && typeof response.data.error === 'string' && response.data.error);
-        const msg = backendMsg ? `${backendMsg.trim()}` : 'Failed to process. Please try again.';
-        console.error('[MobileRxPad] step=PRESCRIPTION_NOT_GENERATED reason=invalid_or_empty_response ' + JSON.stringify({
-          prescription_will_not_be_generated: true,
-          response_success: response?.success,
-          responseData_success: responseData?.success,
-          actualData_success: actualData?.success,
-          hasDigitize: !!(actualData?.digitize || responseData?.digitize),
-          hasRx: !!(actualData?.rx || responseData?.rx),
-          hasConversation: !!(actualData?.conversation || responseData?.conversation),
-          currentDoctorId,
-          doctorIdSource,
-          backendMessage: backendMsg || null,
-          responseDataKeys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : [],
-          actualDataKeys: actualData && typeof actualData === 'object' ? Object.keys(actualData) : [],
-        }));
         setIsProcessing(false);
-        message.error(msg);
-        setDigitizeError(msg);
+        message.error('Failed to process. Please try again.');
       }
     } catch (error) {
-      const msg = error?.message || 'Failed to process. Please try again.';
-      console.error('[MobileRxPad] step=handleVoiceDigitize_error ' + JSON.stringify({
-        prescription_will_not_be_generated: true,
-        errorMessage: error?.message,
-        responseStatus: error?.response?.status,
-        responseData: error?.response?.data,
-        audioBlobSize: audioBlobParam?.size,
-        transcribedTextLength: transcribedText?.length,
-        hint: 'Check doctorId/auth, token shape, or backend error in responseData',
-      }));
       setIsProcessing(false);
-      message.error(msg);
-      setDigitizeError(msg);
+      message.error(error?.message || 'Failed to process. Please try again.');
     }
   };
 
@@ -2222,17 +1984,6 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
             <MobileRxPadProcessing isProcessing={isProcessing} />
           ) : showSkeleton ? (
             <MobileRxPadSkeleton />
-          ) : digitizeError ? (
-            <div className="mobile-rx-pad-error">
-              <p>{digitizeError}</p>
-              <button
-                type="button"
-                className="mobile-rx-pad-error-close"
-                onClick={() => { setDigitizeError(null); onClose?.(); }}
-              >
-                Close
-              </button>
-            </div>
           ) : prescriptionData ? (
             <MobileRxPadContent 
               prescriptionData={prescriptionData}
@@ -2318,5 +2069,4 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 }
 
 export default MobileRxPad;
-
 
