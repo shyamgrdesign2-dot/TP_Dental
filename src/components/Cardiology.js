@@ -1285,11 +1285,13 @@ function Cardiology(props) {
       }
       voiceRxUrl = urlObj.toString();
     }
-    const printUrl =
-      showDigitalGenRx && voiceRxUrl && !showDigitalRx && !showDigitalSnapRx && !isTabRx
-        ? voiceRxUrl
-        : viewCaseManagerData?.print_url;
-    sendMessageToParent(EVENTS.PRINT, { url: `${printUrl}&lg=${selectedLang}` });
+    const printUrlRx =
+      showDigitalRx || showDigitalSnapRx
+        ? printUrl
+        : showDigitalGenRx && voiceRxUrl && !isTabRx
+          ? voiceRxUrl
+          : viewCaseManagerData?.print_url;
+    sendMessageToParent(EVENTS.PRINT, { url: `${printUrlRx}&lg=${selectedLang}` });
     // navigate(`/patient_details/?url=${printUrl}&lg=${selectedLang}&key=print`, {
     //   replace: true,
     //   state: { patient_data: patient_data },
