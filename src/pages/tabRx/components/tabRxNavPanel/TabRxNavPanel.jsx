@@ -17,14 +17,14 @@ import medicalHistoryDark from "../../../../assets/images/history-primary.svg";
 import medicalHistoryWhite from "../../../../assets/images/history-secondary.svg";
 import vaccinationDark from "../../../../assets/images/vaccine-primary.svg";
 import vaccinationWhite from "../../../../assets/images/vaccine-secondary.svg";
-import privateNotesDark from "../../../../assets/images/private-notes-dark.svg";
-import privateNotesWhite from "../../../../assets/images/private-notes-white.svg";
-import growthChartDark from "../../../../assets/images/growth-chart-dark.svg";
-import growthChart from "../../../../assets/images/growth-chart.svg";
+import privateNotesDark from "../../../../assets/images/personal-notes-primary.svg";
+import privateNotesWhite from "../../../../assets/images/personal-notes-secondary.svg";
+import growthChartDark from "../../../../assets/images/scale-primary.svg";
+import growthChart from "../../../../assets/images/scale-secondary.svg";
 import obstetricDark from "../../../../assets/images/obstetric-primary.svg";
 import obstetricWhite from "../../../../assets/images/obstetric-secondary.svg";
-import medicalRecordsDark from "../../../../assets/images/upload-doc-dark.svg";
-import medicalRecordsWhite from "../../../../assets/images/upload-doc-white.svg";
+import medicalRecordsDark from "../../../../assets/images/records-primary.svg";
+import medicalRecordsWhite from "../../../../assets/images/records-secondary.svg";
 import labParamsDark from "../../../../assets/images/Lab-Parameters.svg";
 import labParamsWhite from "../../../../assets/images/lab-parameters-white.svg";
 import carePlanIconDark from "../../../../assets/images/Care plan_Active_solid.svg";
@@ -71,11 +71,6 @@ const TabRxNavPanel = ({
     return (
         <div
             className={`tabrx-nav-panel ${isApexAISelected ? "ai-mode" : ""}`}
-            style={{
-                background: isApexAISelected
-                    ? "radial-gradient(circle, #25232d 0%, #151319 100%)"
-                    : "radial-gradient(circle, #161558 0%, #4B4AD5 100%)",
-            }}
         >
             {isApexAISelected ? (
                 <>
@@ -410,12 +405,9 @@ const TabRxNavPanel = ({
                                 >
                                     <div className="item-content">
                                         <div className="icon-container">
-                                            <img
-                                                src={collapsedFlag === 8 ? labParamsDark : labParamsWhite}
-                                                alt="Lab"
-                                            />
-                                        </div>
-                                        <label className="item-label">Lab</label>
+                                            <span className={`lab-icon ${collapsedFlag === 8 ? "active" : ""}`} role="img" aria-label="Lab"></span>
+                                        </div>  
+                                        <label className="item-label">Lab Results</label>
                                     </div>
                                 </button>
                             );
