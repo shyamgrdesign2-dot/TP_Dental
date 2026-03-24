@@ -264,7 +264,11 @@ function SmartRxDigitise() {
   );
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state.type === "new") {
+    if (!token) {
+      return;
+    }
+
+    if (smartRxFile?.length > 0 && state.type === "new") {
       uploadFiles();
     } else if (state.type === "edit" && digitisedData) {
       uploadFiles();
