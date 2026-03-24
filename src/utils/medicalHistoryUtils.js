@@ -140,7 +140,9 @@ export async function resolveMedicalHistoryForCaseManager(medicalHistory, { getS
   const hasAnyMedicalHistoryData = sections.some((s) => {
     const hasTags = (s.tags || []).length > 0;
     const hasNoKnownHistory = s.no_know_history === true;
-    const hasRemarks = String(s.tmpmh_remarks || '').trim().length > 0;
+    const hasRemarks =
+      String(s.tmpmh_remarks || '').trim().length > 0 ||
+      String(s.medical_history_remarks || '').trim().length > 0;
     return hasTags || hasNoKnownHistory || hasRemarks;
   });
   if (!hasAnyMedicalHistoryData) {
