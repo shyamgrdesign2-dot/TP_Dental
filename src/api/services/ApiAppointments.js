@@ -172,4 +172,11 @@ ApiAppointments.getSnapRxUnDigitisedIds = function () {
   return api.get(`/api/v1/digitization/undigitizedAppointments`, baseSnapRxUrl);
 };
 
+ApiAppointments.getAllUnDigitisedAppointmentsList = function () {
+  return api.get(
+    `/api/v1/digitization/undigitizedAppointments/list`,
+    baseSnapRxUrl
+  );
+};
+
 export default ApiAppointments;
