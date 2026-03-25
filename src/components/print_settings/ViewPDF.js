@@ -627,10 +627,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return Object.values(groupedData);
     };
 
-    // In snap/smart/voice/ambient digitised flow, show only vaccinations from the flow's API response, not from vaccination API (patientTemplateForPrint)
-    const useOnlyPrescriptionVaccines = !!(isDigitisedPrintConfig || caseManagerData?.isVoiceAmbientRx || caseManagerData?.isRxDigitize);
-    const transformGivenVaccines = useOnlyPrescriptionVaccines ? [] : transformGivenVaccineData(todayVaccines?.given);
-    const todayVaccinesForDisplay = useOnlyPrescriptionVaccines ? { given: [], due: [] } : (todayVaccines || {});
+    const transformGivenVaccines = transformGivenVaccineData(todayVaccines?.given);
     const prescriptionVaccines = Array.isArray(caseManagerData?.vaccinations) ? caseManagerData.vaccinations : [];
 
     const patientDataShow = (id) => {
@@ -682,12 +679,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     }
 
 
-    const timeingLang = () => {
+    function timeingLang() {
         var value = getTimeingTitle(selectedLang);
         return value
     }
 
-    const frequencyLang = () => {
+    function frequencyLang() {
         var value = getFrequencyTitle(selectedLang);
         return value
     }
@@ -763,6 +760,49 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         const unitPerDoseFormat = medicine_freq_dosage_format(tmm_dosage, is_dosage_decimal);
         return unitPerDoseFormat;
     }
+    function getAiMedicationFrequencyDisplay(item, option) {
+        const hasSlotFrequency = !!(item?.tcm_tmm_freq_morning || item?.tcm_tmm_freq_afternoon || item?.tcm_tmm_freq_evening || item?.tcm_tmm_freq_night);
+        const mappedFrequency = frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[frequencyLang()] || '';
+        const rawFrequency = (item?.frequency || item?.freq || item?.frequencyText || item?.frequency_text || '').toString().trim();
+        const slotFrequency = hasSlotFrequency
+            ? (option?.numeric_frequency
+                ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ''} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
+                : formatFrequency(item?.tcm_tmm_freq_morning, item?.tcm_tmm_freq_afternoon, item?.tcm_tmm_freq_evening, item?.tcm_tmm_freq_night, option?.is_dosage_decimal))
+            : '';
+
+        let chosenFrequency = '-';
+        // Requirement: show exact API value first when present (e.g. "1-0-1")
+        if (rawFrequency) {
+            chosenFrequency = rawFrequency;
+        } else if (item?.tmf_block === 0 || item?.tmf_block === '') {
+            chosenFrequency = slotFrequency || '-';
+        } else if (mappedFrequency) {
+            chosenFrequency = `(${mappedFrequency})`;
+        } else {
+            chosenFrequency = slotFrequency || '-';
+        }
+
+        console.log('[ViewPDF][AIMedication][FrequencyTextDebug]', {
+            medicine: item?.tmm_medicine_name || item?.name || '',
+            numeric_frequency: option?.numeric_frequency,
+            tmf_block: item?.tmf_block,
+            tmm_freq_type: item?.tmm_freq_type,
+            rawFrequency,
+            mappedFrequency,
+            slotFrequency,
+            chosenFrequency,
+        });
+
+        return chosenFrequency;
+    }
+
+    function getAiMedicationTimingDisplay(item) {
+        const mappedTiming = timingList?.find((x) => x.tmt_id === item?.tmm_time);
+        if (mappedTiming && mappedTiming?.tmt_title !== 'None') {
+            return mappedTiming?.[timeingLang()] || '';
+        }
+        return (item?.schedule || item?.when || item?.timing || item?.instruction || '').toString().trim();
+    }
 
     const convertRelativeDateToDate = (relativeDateString, consultationDate) => {
         if (!relativeDateString || typeof relativeDateString !== 'string' || relativeDateString.trim() === '') {
@@ -834,13 +874,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;
-    const getWrittenRxImageUrl = (item) => {
-      if (item == null) return undefined;
-      if (typeof item === "string") return (item.startsWith("http") || item.startsWith("blob:") || item.startsWith("data:")) ? item : undefined;
-      if (typeof File !== 'undefined' && item instanceof File) return URL.createObjectURL(item);
-      return item?.smart_prescription_file || item?.fileUrl || item?.url || item?.preview || item?.showFile || item?.src || item?.imageUrl;
-    };
-    const isSmartSyncPrescription = smartRxData && smartRxData?.length > 0 && !!getWrittenRxImageUrl(smartRxData[0]);
+    const getWrittenRxImageUrl = (item) =>
+        item?.smart_prescription_file || item?.fileUrl || item?.url || item?.smart_prescription_file_url || null;
+    const hasWrittenRxImages = Array.isArray(smartRxData) && smartRxData.some((item) => !!getWrittenRxImageUrl(item));
+    const isSmartSyncPrescription = hasWrittenRxImages;
+    const isSnapRxWrittenPrescription =
+        typeof caseManagerData?.smart_prescription_filename === "string" &&
+        caseManagerData.smart_prescription_filename.toLowerCase().startsWith("snap_rx_");
+    const shouldRenderStandaloneWrittenFirstPage =
+        (isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1")) ||
+        (isSnapRxWrittenPrescription && !isDigitisedPrintConfig && hasWrittenRxImages);
 
     const groupByReportNameForAll = (data) => {
         return data.map((item) => {
@@ -1092,18 +1135,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         />
     );
 
-    const option11 = printSettings?.prescription?.case_option?.find(o => o.id === 11);
-    const isSmartRxOptionEnabled = option11?.enable === 'Y' && option11?.custom_status === 'Y';
-
-    const hasAnyData = (caseManagerData) => {
-        return (
-            // Check custom module options (1-16, 18, 91)
-            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccinesForDisplay, growthChartData) ||
-            // Check smart sync data only when option 11 (Smart Rx) is enabled in print settings
-            (isSmartRxOptionEnabled && isSmartSyncPrescription && ((caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && smartRxData?.length > 0))
-        );
-    };
-
     // Utility function to check if any custom module options are enabled and have data
     const hasAnyModuleOptions = (printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) => {
         if (!printSettings?.prescription?.case_option) return false;
@@ -1145,12 +1176,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 case 9: // Follow Up Date
                     return caseManagerData?.follow_up_date;
                 case 10: // Vaccines
-                    return (
-                        transformGivenVaccines?.length > 0 ||
-                        todayVaccines?.due?.length > 0 ||
-                        todayVaccines?.given?.length > 0 ||
-                        prescriptionVaccines?.length > 0
-                    );
+                    return (transformGivenVaccines?.template?.length > 0 || todayVaccines?.due?.length > 0 || todayVaccines?.given?.length > 0);
                 // case 11: // smartSync
                 //     return caseManagerData?.visit_advice;
                 case 12: // Growth Chart
@@ -1178,10 +1204,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             }
         });
     };
-    
+
+    const hasAnyData = (caseManagerData) => {
+        return (
+            // Check custom module options (1-16, 18, 91)
+            hasAnyModuleOptions(printSettings, caseManagerData, smartRxData, patientBills, advanceReceipts, gynecHistoryData, obsHistoryData, labParamsPatchData, transformGivenVaccines, todayVaccines, growthChartData) ||
+            // (zydusLabData?.data?.length > 0) ||
+            
+            // Check smart sync data
+            (isSmartSyncPrescription && (caseManagerData.isCustomSSRX === "0" && smartRxData?.length > 0) && !isSnapRxWrittenPrescription)
+            
+        );
+    };
+
     return (
         <Document>
-            {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") && isSmartRxOptionEnabled && (
+            {shouldRenderStandaloneWrittenFirstPage &&
                 <Page
                     size="A4"
                     style={[paddingStyles, {
@@ -1192,26 +1230,29 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     wrap={true}
                 >
                     <>
-                        {/* Smart/Snap RX Images for Custom SSRX - Show at the beginning */}
-                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "1") && (
+                        {/* Smart RX Images for Custom SSRX - Show at the beginning */}
+                        {shouldRenderStandaloneWrittenFirstPage && (
                             smartRxData?.map((item, i) => {
-                                const src = getWrittenRxImageUrl(item);
-                                return src ? (
+                                const writtenRxSrc = getWrittenRxImageUrl(item);
+                                if (!writtenRxSrc) {
+                                    return null;
+                                }
+                                return (
                                     <View key={i}>
                                         <View style={{ width: '100%', height: '100%' }}>
                                             <Image
                                                 style={{ width: '100%', height: '100%' }}
-                                                src={src}
+                                                src={writtenRxSrc}
                                                 objectFit="contain"
                                             />
                                         </View>
                                     </View>
-                                ) : null;
+                                );
                             })
                         )}
                     </>
                 </Page>
-            )}
+            }
             {hasAnyData(caseManagerData) && (
                 <Page
                     size="A4"
@@ -1492,17 +1533,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 case 91: 
                                     return caseManagerData.visit_advice || (Array.isArray(caseManagerData?.others) && caseManagerData.others.length > 0);
                                 case 10: 
-                                    return (
-                                        todayVaccinesForDisplay?.given?.length ||
-                                        todayVaccinesForDisplay?.due?.length ||
-                                        prescriptionVaccines?.length
-                                    );
+                                    return (todayVaccines?.given?.length || todayVaccines?.due?.length);
                                 case 11: 
-                                    return (
-                                        caseManagerData?.smart_prescription_filename?.length ||
-                                        (Array.isArray(smartRxData) &&
-                                            smartRxData.some((item) => !!getWrittenRxImageUrl(item)))
-                                    );
+                                    return caseManagerData?.smart_prescription_filename?.length;
                                 case 12: 
                                     return growthChartDetails?.growthChartImageData && Object.keys(growthChartDetails?.growthChartImageData)?.length > 0 && growthChartDetails?.todayGrowthChartData?.length > 0;
                                 case 13: 
@@ -1560,21 +1593,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             return false;
                         };
                         
-                        const hasEnabledItemsAfterPageBreak = (pageBreakIndex) => {
-                            for (let i = pageBreakIndex + 1; i < printSettings?.prescription?.case_option?.length; i++) {
-                                const nextOption = printSettings?.prescription?.case_option[i];
-                                if (nextOption?.type === "page_break") {
-                                    continue;
-                                }
-                                if (nextOption?.enable === "Y") {
-                                    const hasData = hasModuleData(nextOption, caseManagerData);
-                                    if (hasData) {
-                                        return true;
-                                    }
-                                }
-                            }
-                            return false;
-                        };
                         return (
                             <>
                             {isRxDigitizeBool && hasDentalSectionData && (
@@ -1856,13 +1874,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
                             if (option?.type === "page_break") {
                                 const isLastPageBreak = index === printSettings?.prescription?.case_option?.length - 1;
+                                const shouldRenderCurrentPageBreak = shouldRenderPageBreak(index);
+
                                 if (isLastPageBreak) {
                                     return null;
                                 }
                                 if (hasRenderedPageBreak) {
                                     return null;
                                 }
-                                if (!shouldRenderPageBreak(index)) {
+                                if (!shouldRenderCurrentPageBreak) {
                                     return null;
                                 }
                                 hasRenderedPageBreak = true;
@@ -1873,9 +1893,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     }}>
                                     </View>
                                 );
-                            }
-                            if (option?.type !== "page_break" && option?.enable !== "Y") {
-                                return null;
                             }
                             if (option?.type !== "page_break" && option?.enable === "Y") {
                                 hasRenderedPageBreak = false;
@@ -2249,7 +2266,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     </View>
                                                                 </View>
                                                             </View>
-                                                            {aiFlowMedicationList.map((item, i) => (
+                                                            {aiFlowMedicationList.map((item, i) => {
+                                                                const aiComputedFrequency = getAiMedicationFrequencyDisplay(item, option);
+                                                                const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+
+                                                                return (
                                                                 <View style={styles.row} key={item.tmm_id || item.unique_id || i} wrap={false}>
                                                                     <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
                                                                     <View style={styles.cell}>
@@ -2266,17 +2287,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         )}
                                                                         {option?.medicine_option?.includes('frequency') && (
                                                                             <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
-                                                                                {item.tmf_block === 0 || item.tmf_block === ''
-                                                                                    ? ((item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night)
-                                                                                        ? (option?.numeric_frequency
-                                                                                            ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
-                                                                                            : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, option?.is_dosage_decimal))
-                                                                                        : '-')
-                                                                                    : `(${frequencyList?.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`}
+                                                                                {aiComputedFrequency}
                                                                                 {'\n'}
-                                                                                {timingList?.find((x) => x.tmt_id === item.tmm_time) !== undefined && timingList?.find((x) => x.tmt_id === item.tmm_time)?.tmt_title !== 'None'
-                                                                                    ? timingList?.find((x) => x.tmt_id === item.tmm_time)?.[timeingLang()]
-                                                                                    : ''}
+                                                                                {aiTimingDisplay || ''}
                                                                             </Text>
                                                                         )}
                                                                         {option?.medicine_option?.includes('duration') && (
@@ -2294,7 +2307,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         )}
                                                                     </View>
                                                                 </View>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </View>
                                                     </View>
                                                 ) : (
@@ -2304,6 +2318,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <Text style={{ marginTop: PX_TO_PT * 15, marginBottom: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                                 <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
                                                                 {aiFlowMedicationList.map((item, i) => {
+                                                                    const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
+                                                                    const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+
                                                                     const detailsParts = Object.values(
                                                                         Object.fromEntries(
                                                                             Object.entries({
@@ -2316,17 +2333,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
                                                                                     : '',
                                                                                 frequency: option?.medicine_option?.includes('frequency')
-                                                                                    ? (item.tmf_block === 0 || item.tmf_block === ''
-                                                                                        ? (item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night
-                                                                                            ? (option?.numeric_frequency
-                                                                                                ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
-                                                                                                : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, option?.is_dosage_decimal))
-                                                                                            : '')
-                                                                                        : `(${frequencyList.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`)
+                                                                                    ? aiInlineFrequency
                                                                                     : '',
-                                                                                timing: timingList.find((x) => x.tmt_id === item.tmm_time) !== undefined && timingList.find((x) => x.tmt_id === item.tmm_time)?.tmt_title !== 'None'
-                                                                                    ? timingList.find((x) => x.tmt_id === item.tmm_time)?.[timeingLang()]
-                                                                                    : '',
+                                                                                timing: aiTimingDisplay,
                                                                                 duration: option?.medicine_option?.includes('duration')
                                                                                     ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
                                                                                         ? durationLang(capitalize(item.tmm_duration_type, true))
@@ -2369,6 +2378,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                                 <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
                                                                 {aiFlowMedicationList.map((item, i) => {
+                                                                    const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
+                                                                    const aiTimingDisplay = getAiMedicationTimingDisplay(item);
                                                                     const detailsParts = Object.values(
                                                                         Object.fromEntries(
                                                                             Object.entries({
@@ -2381,17 +2392,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                         : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
                                                                                     : '',
                                                                                 frequency: option?.medicine_option?.includes('frequency')
-                                                                                    ? (item.tmf_block === 0 || item.tmf_block === ''
-                                                                                        ? (item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night
-                                                                                            ? (option?.numeric_frequency
-                                                                                                ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
-                                                                                                : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, option?.is_dosage_decimal))
-                                                                                            : '')
-                                                                                        : `(${frequencyList.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`)
+                                                                                    ? aiInlineFrequency
                                                                                     : '',
-                                                                                timing: timingList.find((x) => x.tmt_id === item.tmm_time) !== undefined && timingList.find((x) => x.tmt_id === item.tmm_time)?.tmt_title !== 'None'
-                                                                                    ? timingList.find((x) => x.tmt_id === item.tmm_time)?.[timeingLang()]
-                                                                                    : '',
+                                                                                timing: aiTimingDisplay,
                                                                                 duration: option?.medicine_option?.includes('duration')
                                                                                     ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
                                                                                         ? durationLang(capitalize(item.tmm_duration_type, true))
@@ -2504,20 +2507,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     ].filter(Boolean).join(", ")} 
 
                                                                                     {/* Add tmm_remarks with a different font inside parentheses */}
-                                                                                    {option?.medicine_option?.includes("note") && item.tmm_remarks ? (
-                                                                                        <Text>
-                                                                                            <Text>, </Text>
-                                                                                            <Text
-                                                                                                style={{
-                                                                                                    fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family),
-                                                                                                    fontWeight: 400,
-                                                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                                                }}
-                                                                                            >
+                                                                                    {option?.medicine_option?.includes("note") && item.tmm_remarks ? (  
+                                                                                        <>
+                                                                                            {", "}
+                                                                                            <Text style={{
+                                                                                                fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family),
+                                                                                                fontWeight: 400,
+                                                                                                fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                            }}>
                                                                                                 {item.tmm_remarks}
                                                                                             </Text>
-                                                                                        </Text>
-                                                                                    ) : null}
+                                                                                        </>
+                                                                                    ) : null})
 
                                                                                     {innerMedication(pItem.index)?.length - 1 === ii && medicationData?.length - 1 !== i ? "," : ""}
                                                                                     &nbsp;
@@ -2598,20 +2599,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     ].filter(Boolean).join(", ")} 
 
                                                                                     {/* Add tmm_remarks with a different font inside parentheses */}
-                                                                                    {option?.medicine_option?.includes("note") && item.tmm_remarks ? (
-                                                                                        <Text>
-                                                                                            <Text>, </Text>
-                                                                                            <Text
-                                                                                                style={{
-                                                                                                    fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family),
-                                                                                                    fontWeight: 400,
-                                                                                                    fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                                                }}
-                                                                                            >
+                                                                                    {option?.medicine_option?.includes("note") && item.tmm_remarks ? (  
+                                                                                        <>
+                                                                                            {", "}
+                                                                                            <Text style={{
+                                                                                                fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family),
+                                                                                                fontWeight: 400,
+                                                                                                fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
+                                                                                            }}>
                                                                                                 {item.tmm_remarks}
                                                                                             </Text>
-                                                                                        </Text>
-                                                                                    ) : null}
+                                                                                        </>
+                                                                                    ) : null})
 
                                                                                     {innerMedication(pItem.index)?.length - 1 === ii && medicationData?.length - 1 !== i ? "," : ""}
                                                                                     &nbsp;
@@ -2685,11 +2684,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         const isLastItem = ii === innerMedication(pItem.index)?.length -1;
                                                                         return (
                                                                             <View style={{ flexGrow: 1, flexDirection: 'row', borderBottom: ii != innerMedication(pItem.index)?.length - 1 ? '1px solid #171725' : '0px' }} key={ii}>
-                                                                                {option?.medicine_option?.length && isTapered && !isLastItem && (
-                                                                                    <ThenConnector printSettings={printSettings} />
-                                                                                )}
                                                                                 {option?.medicine_option?.includes('dose') && (
+                                                                                  <>
                                                                                     <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{`${item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.tmm_unit).tmu_title : ""}` : `${item?.medicineUnit && item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit) !== undefined ? item?.medicineUnit.find((x) => x.tmu_id == item.default_tmm_unit).tmu_title : ""}`}`}</Text>
+                                                                                    {isTapered && !isLastItem && (
+                                                                                      <ThenConnector printSettings={printSettings} />
+                                                                                    )}
+                                                                                  </>
                                                                                 )}
                                                                                 {option?.medicine_option?.includes('frequency') && (
                                                                                 <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
@@ -3369,7 +3370,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 ) : option?.id === 10 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         <>
-                                            {(transformGivenVaccines?.length > 0 || todayVaccinesForDisplay?.due?.length > 0 || prescriptionVaccines?.length > 0) && (
+                                            {(transformGivenVaccines?.length > 0 || todayVaccines?.due?.length > 0 || prescriptionVaccines?.length > 0) && (
                                                 option?.format === 'inline' ? (
                                                     <>
                                                         {transformGivenVaccines?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
@@ -3408,9 +3409,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </Text>}
-                                                        {todayVaccinesForDisplay?.due?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
+                                                        {todayVaccines?.due?.length > 0 && <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
-                                                            {todayVaccinesForDisplay?.due?.map((item, i) => {
+                                                            {todayVaccines?.due?.map((item, i) => {
                                                                 return (
                                                                     <Text key={i} style={{ marginTop: PX_TO_PT * 6, lineHeight: 1.4 }}>
                                                                         <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item?.tvac_name}&nbsp;</Text>
@@ -3427,7 +3428,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     {item?.tvd_remarks}
                                                                                 </Text>
                                                                             </Text>}
-                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{')'}{i !== todayVaccinesForDisplay?.due?.length - 1 ? ', ' : ''}</Text>
+                                                                        <Text style={{ color: '#454551', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{')'}{i !== todayVaccines?.due?.length - 1 ? ', ' : ''}</Text>
                                                                     </Text>
                                                                 )
                                                             })}
@@ -3485,9 +3486,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 )
                                                             })}
                                                         </View>}
-                                                        {todayVaccinesForDisplay?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Due Vaccines :&nbsp;{'\n'}</Text>
-                                                            {todayVaccinesForDisplay?.due?.map((item, i) => {
+                                                            {todayVaccines?.due?.map((item, i) => {
                                                                 return (
                                                                     <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
                                                                         <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
@@ -3557,7 +3558,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 ))}
                                                             </View>
                                                         </View>}
-                                                        {todayVaccinesForDisplay?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                                        {todayVaccines?.due?.length && <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                             <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Due Vaccines :&nbsp;{'\n'}</Text>
                                                             <View style={styles.table}>
                                                                 <View style={styles.headerRow} fixed>
@@ -3565,7 +3566,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     <Text style={[styles.headerCell, { flex: 0.6, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>UPDATED DUE DATE</Text>
                                                                     <Text style={[styles.headerCell, { flex: 0.8, fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NOTE</Text>
                                                                 </View>
-                                                                {todayVaccinesForDisplay?.due?.map((item, i) => (
+                                                                {todayVaccines?.due?.map((item, i) => (
                                                                     <View style={styles.row} key={i} wrap={false}>
                                                                         <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
                                                                             {item?.tvac_name || '-'}
@@ -3614,20 +3615,23 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </>
                                 ) : option?.id === 11 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
-                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0" || caseManagerData?.isCustomSSRX == null) && (
+                                        {isSmartSyncPrescription && (caseManagerData?.isCustomSSRX === "0") && !isSnapRxWrittenPrescription && (
                                             smartRxData?.map((item, i) => {
-                                                const src = getWrittenRxImageUrl(item);
-                                                return src ? (
+                                                const writtenRxSrc = getWrittenRxImageUrl(item);
+                                                if (!writtenRxSrc) {
+                                                    return null;
+                                                }
+                                                return (
                                                     <View key={i}>
                                                         <View style={{ marginTop: PX_TO_PT * 15, width: '100%', height: '800' }}>
                                                             <Image
                                                                 style={{ width: '100%', height: '100%' }}
-                                                                src={src}
+                                                                src={writtenRxSrc}
                                                                 objectFit="contain"
                                                             />
                                                         </View>
                                                     </View>
-                                                ) : null;
+                                                );
                                             })
                                         )}
                                     </>

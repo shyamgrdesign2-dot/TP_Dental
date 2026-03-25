@@ -214,20 +214,20 @@ const GenRxTips = ({ isKnowMore }) => {
       desktop: {
         breakpoint: { max: 3000, min: 1024 },
         items: 1,
-        partialVisibilityGutter: isKnowMore ? 200 : 0,
+        partialVisibilityGutter: 0,
       },
       tablet: {
         breakpoint: { max: 1024, min: 464 },
         items: 1,
-        partialVisibilityGutter: isKnowMore ? 200 : 0,
+        partialVisibilityGutter: 0,
       },
       mobile: {
         breakpoint: { max: 464, min: 0 },
         items: 1,
-        partialVisibilityGutter: isKnowMore ? 200 : 0,
+        partialVisibilityGutter: 0,
       },
     }),
-    [isKnowMore]
+    []
   );
 
   const handleSlideChange = useCallback(
@@ -254,7 +254,7 @@ const GenRxTips = ({ isKnowMore }) => {
         showDots={false}
         removeArrowOnDeviceType={["tablet", "mobile"]}
         beforeChange={handleSlideChange}
-        partialVisible={isKnowMore}
+        partialVisible={false}
         arrows={isMobile ? false : !isKnowMore}
         customLeftArrow={
           <button
@@ -278,7 +278,9 @@ const GenRxTips = ({ isKnowMore }) => {
             key={index}
             style={{
               ...carouselItemStyle,
-              margin: isKnowMore ? "0" : "0 auto",
+              margin: "0 auto",
+              boxSizing: "border-box",
+              maxWidth: "100%",
             }}
           >
             <div style={columnStyle}>

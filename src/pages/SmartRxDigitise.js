@@ -273,7 +273,11 @@ function SmartRxDigitise() {
   );
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state.type === "new") {
+    if (!token) {
+      return;
+    }
+
+    if (smartRxFile?.length > 0 && state.type === "new") {
       uploadFiles();
     } else if (state.type === "edit" && digitisedData) {
       uploadFiles();
@@ -883,7 +887,7 @@ function SmartRxDigitise() {
         } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise`}
         style={{ position: "relative" }}
       >
-        <Row gutter={0} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false} align="stretch">
           <Col
             md={17}
             lg={17}
@@ -948,6 +952,7 @@ function SmartRxDigitise() {
                   showInstructionMessage={false}
                   patient_data={patient_data}
                   vitalsFlow="smart"
+                  digitiseSplitLayout
                 />
               </div>
             </div>
