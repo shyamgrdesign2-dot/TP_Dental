@@ -580,7 +580,7 @@ ${historyRows}
   ).join("\n");
 
   const radiologySection = `
-<h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
+<h2 class="report-section-title print-page-break">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
   <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
   <tbody>
@@ -625,7 +625,7 @@ ${radiologyRows}
     : `<tr><td><p>&#8203;</p></td><td><p>&#8203;</p></td></tr>`;
 
   const consultationsSection = `
-<h2 class="report-section-title">Consultations</h2>
+<h2 class="report-section-title print-page-break">Consultations</h2>
 <table class="report-data-table">
   <thead><tr><th><p>DEPARTMENT & DOCTOR NAME</p></th><th><p>NOTES</p></th></tr></thead>
   <tbody>
@@ -649,7 +649,7 @@ ${consultationRows}
 
   // General Recommendations (fixed text)
   const generalRecSection = `
-<h2 class="report-section-title">General Recommendations</h2>
+<h2 class="report-section-title print-page-break">General Recommendations</h2>
 <div class="report-section-box"><p>${escapeHtml(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
 
 
