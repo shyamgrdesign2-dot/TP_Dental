@@ -1949,7 +1949,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       const matchedItem = allUnDigitisedAppointments?.find(
         (item) => item?.appointmentId === record?.pam_id
       );
-      console.log("isUnreviewedRx comparison", { record, matchedItem });
       return (
         ["snap-rx", "tab-rx"].includes(matchedItem?.source) &&
         matchedItem?.isDigitize === true &&
@@ -2656,46 +2655,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");
   };
 
-  const renderedAppointments = useMemo(() => {
-    if (
-      selectedTab !== TAB_ZYDUS_ENCOUNTER &&
-      selectedTab !== TAB_ZYDUS_APPOINTMENT
-    ) {
-      return appointmentsData;
-    }
-
-    return matchedAppointment.filter((item) => {
-      if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
-        // In this branch we don't use appointment status filtering;
-        // keep only the basic "exclude cancelled" behavior.
-        return !(
-          item.appointmentStatus &&
-          item.appointmentStatus.toLowerCase().includes("cancel")
-        );
-      }
-      return true;
-    });
-  }, [appointmentsData, matchedAppointment, selectedTab]);
-
-  // useEffect(() => {
-  //   const renderedAppointmentDetails = (renderedAppointments || []).map(
-  //     (record) => ({
-  //       pam_id: record?.pam_id,
-  //       pm_fullname: record?.pm_fullname,
-  //       apDate: record?.apDate,
-  //       apTime: record?.apTime,
-  //       matchedItem: allUnDigitisedAppointments?.find(
-  //         (item) => item?.appointmentId === record?.pam_id
-  //       ),
-  //     })
-  //   );
-
-  //   console.log("UI rendered appointment details", {
-  //     selectedTab,
-  //     totalRendered: renderedAppointmentDetails.length,
-  //     renderedAppointmentDetails,
-  //   });
-  // }, [renderedAppointments, allUnDigitisedAppointments, selectedTab]);
 
   const emptyText = (
     <div
@@ -3356,7 +3315,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   <Table
                     className="px-xl-4 px-0"
                     columns={columns}
-                    dataSource={renderedAppointments}
+                    dataSource={
+                      selectedTab !== TAB_ZYDUS_ENCOUNTER &&
+                      selectedTab !== TAB_ZYDUS_APPOINTMENT
+                        ? appointmentsData
+                        : matchedAppointment
+                    }
                     onChange={handleChange}
                     pagination={false}
                     loading={loading && pageNo === 0}
