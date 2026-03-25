@@ -48,6 +48,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 function SmartRxPreview() {
 
     const divRef = useRef(null);
+    const [editedData, setEditedData] = useState(null);
     const printRef = useRef();
 
     const { servicesList, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -106,7 +107,7 @@ function SmartRxPreview() {
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
     const [showProgressbar, setShowProgressbar] = useState(false);
-    const [isEditedData, setIsEditedData] = useState(null);
+    // const [isEditedData, setIsEditedData] = useState(null);
     const [rxDigitisedData, setRxDigitisedData] = useState(null);
     // API may return isRxDigitize as "1"/"0"; only "1" or true means digitised (avoid "0" being truthy)
     const isRxDigitisedForTabs = viewCaseManagerData?.isRxDigitize === true || viewCaseManagerData?.isRxDigitize === "1";
@@ -425,6 +426,7 @@ function SmartRxPreview() {
 
         const digitisedData = await fetchRxDigitisedData();
         const appointmentId = digitisedData?.data?.appointmentId;
+        setEditedData(digitisedData?.data?.editedData);
 
         // Only proceed if digitisedData is null
         if (!digitisedData?.data) {
@@ -599,7 +601,7 @@ function SmartRxPreview() {
                     if (response?.data?.length) filesForPrint = response.data;
                 } catch (e) {}
             }
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile: filesForPrint, from: "/print-smart-rx", page: state?.page } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile: filesForPrint, from: "/print-smart-rx", page: state?.page, dentalData: editedData?.dynamicFields?.[0]?.dentalData } })
         } else {
             errorMessage(action.error)
         }

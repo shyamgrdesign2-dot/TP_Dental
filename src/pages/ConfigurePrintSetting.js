@@ -50,7 +50,7 @@ function ConfigurePrintSetting() {
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -740,7 +740,7 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -1300,7 +1300,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>
