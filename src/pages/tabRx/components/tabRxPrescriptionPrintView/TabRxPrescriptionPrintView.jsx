@@ -955,7 +955,7 @@ function TabRxPrescriptionPrintView() {
         <Row gutter={{ xl: 40, lg: 0 }}>
           <Col md={7} sm={7} xl={6}>
             <div
-              className={`${!isMobile ? "tabrx-actions-panel" : "border-top-0 border-start-0 border-bottom-0"} p-20 bg-white d-flex justify-content-between flex-column h-100`}
+              className={`${!isMobile ? "" : "border-top-0 border-start-0 border-bottom-0"} p-20 bg-white d-flex justify-content-between flex-column h-100`}
             >
               <div>
                 {viewCaseManagerData?.isRxDigitize &&
@@ -1175,73 +1175,78 @@ function TabRxPrescriptionPrintView() {
                 <div
                   ref={divRef}
                   className="printheight"
-                  style={{ height: "calc(100vh - 100px)" }}
+                  style={{
+                    height: "calc(100vh - 100px)",
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                  }}
                 >
-                  <div className={`bg-white ${!isMobile ? "mt-20" : ""}`}>
-                    <div ref={printRef} className="position-relative h-100">
-                      {hasPdfBlob ? (
-                        <Document
-                          key={`${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
-                          loading={
-                            <Spin
-                              style={{
-                                position: "absolute",
-                                zIndex: 0,
-                                left: "50%",
-                                top: "50%",
-                              }}
-                            />
-                          }
-                          error={
-                            <div
-                              style={{
-                                position: "absolute",
-                                zIndex: 0,
-                                left: "42%",
-                                top: "50%",
-                              }}
-                            >
-                              {"Failed to load PDF file."}
-                            </div>
-                          }
-                          file={previewUrl}
-                          onLoadError={(err) => {
-                            console.error("PDF load error:", err);
-                            setCurrentSessionRx(null);
-                          }}
-                          onLoadSuccess={onDocumentLoadSuccess}
-                        >
-                          {Array.apply(null, Array(numPages))
-                            .map((x, i) => i + 1)
-                            .map((page) => {
-                              return (
-                                <Page
-                                  key={Math.random()}
-                                  className={
-                                    printBlob
-                                      ? "react-pdf__Page_afterload"
-                                      : null
-                                  }
-                                  loading={null}
-                                  width={divWidth}
-                                  pageNumber={page}
-                                  renderTextLayer={false}
-                                  renderAnnotationLayer={false}
-                                />
-                              );
-                            })}
-                        </Document>
-                      ) : (
-                        <Spin
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "50%",
-                            top: "50%",
-                          }}
-                        />
-                      )}
-                    </div>
+                  <div
+                    ref={printRef}
+                    className={`position-relative bg-white ${!isMobile ? "mt-20" : ""}`}
+                  >
+                    {hasPdfBlob ? (
+                      <Document
+                        key={`${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
+                        loading={
+                          <Spin
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "50%",
+                              top: "50%",
+                            }}
+                          />
+                        }
+                        error={
+                          <div
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "42%",
+                              top: "50%",
+                            }}
+                          >
+                            {"Failed to load PDF file."}
+                          </div>
+                        }
+                        file={previewUrl}
+                        onLoadError={(err) => {
+                          console.error("PDF load error:", err);
+                          setCurrentSessionRx(null);
+                        }}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                      >
+                        {Array.apply(null, Array(numPages))
+                          .map((x, i) => i + 1)
+                          .map((page) => {
+                            return (
+                              <Page
+                                key={Math.random()}
+                                className={
+                                  printBlob
+                                    ? "react-pdf__Page_afterload"
+                                    : null
+                                }
+                                loading={null}
+                                width={divWidth}
+                                pageNumber={page}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                              />
+                            );
+                          })}
+                      </Document>
+                    ) : (
+                      <Spin
+                        style={{
+                          position: "absolute",
+                          zIndex: 0,
+                          left: "50%",
+                          top: "50%",
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
