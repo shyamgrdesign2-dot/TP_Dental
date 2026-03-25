@@ -31,7 +31,7 @@ import CustomizeSetting from "../../../../common/CustomizeSetting";
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
 import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial2 from "../../../../assets/images/tutorial2.png";
+import tutorial2 from "../../../../assets/images/tutorial.svg";
 // import videoimg1 from '../assets/images/tutorial-img1.png';
 // import videoimg2 from '../assets/images/tutorial-img2.png';
 import playIcons from "../../../../assets/images/tube-icon.svg";
@@ -2055,7 +2055,7 @@ function TabRxHeaderV2({
             <div className="tab-rx-header-v2">
                 {/* Left Section: Back & Profile */}
                 <div className="header-left">
-                    <div className="back-btn-wrapper" onClick={checkDataFillOrNot}>
+                    <div onClick={checkDataFillOrNot} className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer back-btn-wrapper'>
                         <i className="icon-right"></i>
                     </div>
 

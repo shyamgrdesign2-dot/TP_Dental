@@ -140,13 +140,13 @@ function HeaderPrintView({
   return (
     <Navbar className="justify-content-between headerprescription p-0">
       <div className="border-end text-center h-100 flex align-items-center">
-        <Button
+        {/* <Button
           type="text"
           className="close-drawer-btn h-100"
           onClick={onEndVisitClick}
         >
           <i className="icon-Cross" style={{ fontSize: "30px" }}></i>
-        </Button>
+        </Button> */}
       </div>
       <div className="align-items-center d-flex w-100 justify-content-between">
         <div>
@@ -263,7 +263,7 @@ function HeaderPrintView({
             loading={loadingEndVisit}
             className={`btn align-items-center d-flex btn-41 me-3 px-4 btn-primary3`}
           >
-            Close
+            Done
           </Button>
         </div>
       </div>

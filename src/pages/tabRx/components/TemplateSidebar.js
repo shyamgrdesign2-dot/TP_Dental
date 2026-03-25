@@ -13,6 +13,8 @@ import download from '../../../assets/images/document-download.svg';
 import edit from '../../../assets/images/document-edit.svg';
 import trash from '../../../assets/images/trash.svg';
 import alertIcon from '../../../assets/images/alertIcon.svg';
+import notesMultiple from '../../../assets/images/notes-multiple.svg';
+import closeIcon from "../../../assets/images/close.svg";
 import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
 import './TemplateSidebar.scss';
 
@@ -388,30 +390,40 @@ const TemplateSidebar = ({
     >
       <div className="tab-rx-template-sidebar">
         <div className="template-sidebar-header">
-          <div className="header-left">
-            <FileTextOutlined className="header-icon" />
-            <h3 className="header-title">Select Letterhead</h3>
+          <div className='d-flex flex-column justify-content-between align-items-center w-100'>
+            <div className="d-flex justify-content-between align-items-center w-100" style={{ borderBottom: "1px solid #e0e0e0", paddingBottom: "15px", padding: "16px 20px" }}>
+              <div className="header-left">
+                <img src={notesMultiple} alt="Notes" />
+                <h3 className="header-title">Select Letterhead</h3>
+              </div>
+              <button className="header-close" onClick={onClose}>
+                <img src={closeIcon} alt="Close" />
+              </button>
+            </div>
+
+            {/* Add New Letterhead Button */}
+            <div className='w-100' style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0" }}>
+              <button
+                className="add-new-letterhead-btn"
+                onClick={handleAddNew}
+                disabled={lockSelection}
+                style={
+                  lockSelection
+                    ? { opacity: 0.5, pointerEvents: "none", height: "42px" }
+                    : { height: "42px" }
+                }
+              >
+                <PlusOutlined className="add-icon" />
+                <span className="add-text">Add New Letterhead</span>
+              </button>
+            </div>
           </div>
-          <button className="header-close" onClick={onClose}>
-            <CloseOutlined />
-          </button>
         </div>
 
         <div className="template-sidebar-content">
-          {/* Add New Letterhead Button */}
-          <button
-            className="add-new-letterhead-btn"
-            onClick={handleAddNew}
-            disabled={lockSelection}
-            style={lockSelection ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
-          >
-            <PlusOutlined className="add-icon" />
-            <span className="add-text">Add New Letterhead</span>
-          </button>
-
           {/* Blank Canvas Option */}
           <div
-            className={`template-option ${selectedTemplateId === 'blank' ? 'selected' : ''}`}
+            className={`template-option ${selectedTemplateId === "blank" ? "selected" : ""}`}
             onClick={handleBlankCanvas}
             style={lockSelection && lockedTemplateId ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
           >

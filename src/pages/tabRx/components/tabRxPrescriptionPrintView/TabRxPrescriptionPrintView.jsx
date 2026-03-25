@@ -1169,74 +1169,78 @@ function TabRxPrescriptionPrintView() {
                 </div> */}
               </div>
               <div
-                className={`rounded-20px bg-white overflow-hidden ${!isMobile ? "mt-20" : ""}`}
+                className={`rounded-20px overflow-hidden`}
               >
                 <div
                   ref={divRef}
                   className="printheight"
                   style={{ height: "calc(100vh - 100px)" }}
                 >
-                  <div ref={printRef} className="position-relative h-100">
-                    {hasPdfBlob ? (
-                      <Document
-                        key={`${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
-                        loading={
-                          <Spin
-                            style={{
-                              position: "absolute",
-                              zIndex: 0,
-                              left: "50%",
-                              top: "50%",
-                            }}
-                          />
-                        }
-                        error={
-                          <div
-                            style={{
-                              position: "absolute",
-                              zIndex: 0,
-                              left: "42%",
-                              top: "50%",
-                            }}
-                          >
-                            {"Failed to load PDF file."}
-                          </div>
-                        }
-                        file={previewUrl}
-                        onLoadError={(err) => {
-                          console.error("PDF load error:", err);
-                          setCurrentSessionRx(null);
-                        }}
-                        onLoadSuccess={onDocumentLoadSuccess}
-                      >
-                        {Array.apply(null, Array(numPages))
-                          .map((x, i) => i + 1)
-                          .map((page) => {
-                            return (
-                              <Page
-                                key={Math.random()}
-                                className={
-                                  printBlob ? "react-pdf__Page_afterload" : null
-                                }
-                                loading={null}
-                                width={divWidth}
-                                pageNumber={page}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                              />
-                            );
-                          })}
-                      </Document>
-                    ) : (
-                      <Spin
-                        style={{
-                          position: "absolute",
-                          zIndex: 0,
-                          left: "50%",
-                          top: "50%",
-                        }}
-                      />
-                    )}
+                  <div className={`bg-white ${!isMobile ? "mt-20" : ""}`}>
+                    <div ref={printRef} className="position-relative h-100">
+                      {hasPdfBlob ? (
+                        <Document
+                          key={`${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
+                          loading={
+                            <Spin
+                              style={{
+                                position: "absolute",
+                                zIndex: 0,
+                                left: "50%",
+                                top: "50%",
+                              }}
+                            />
+                          }
+                          error={
+                            <div
+                              style={{
+                                position: "absolute",
+                                zIndex: 0,
+                                left: "42%",
+                                top: "50%",
+                              }}
+                            >
+                              {"Failed to load PDF file."}
+                            </div>
+                          }
+                          file={previewUrl}
+                          onLoadError={(err) => {
+                            console.error("PDF load error:", err);
+                            setCurrentSessionRx(null);
+                          }}
+                          onLoadSuccess={onDocumentLoadSuccess}
+                        >
+                          {Array.apply(null, Array(numPages))
+                            .map((x, i) => i + 1)
+                            .map((page) => {
+                              return (
+                                <Page
+                                  key={Math.random()}
+                                  className={
+                                    printBlob
+                                      ? "react-pdf__Page_afterload"
+                                      : null
+                                  }
+                                  loading={null}
+                                  width={divWidth}
+                                  pageNumber={page}
+                                  renderTextLayer={false}
+                                  renderAnnotationLayer={false}
+                                />
+                              );
+                            })}
+                        </Document>
+                      ) : (
+                        <Spin
+                          style={{
+                            position: "absolute",
+                            zIndex: 0,
+                            left: "50%",
+                            top: "50%",
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

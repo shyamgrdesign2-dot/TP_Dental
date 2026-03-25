@@ -12,6 +12,7 @@ import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/consta
 import { generateId } from '../utils/geometry';
 import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
 import alertIcon from '../../../assets/images/alertIcon.svg';
+import deleteIcon from '../../../assets/images/delete-gen-rx.svg';
 import './TabRxCanvas.scss';
 
 const INITIAL_TOOL_SETTINGS = {
@@ -1149,7 +1150,7 @@ const TabRxCanvas = forwardRef(({
                     }}
                   >
                     <button
-                      className="page-action-btn delete-btn"
+                      className="page-action-btn transparent-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         showDeleteModal(pageIndex);
@@ -1157,7 +1158,7 @@ const TabRxCanvas = forwardRef(({
                       disabled={pagesMetadata.length <= 1}
                       title="Delete Page"
                     >
-                      <DeleteOutlined />
+                      <img src={deleteIcon} alt="Delete" />
                     </button>
 
                     <Dropdown
@@ -1167,11 +1168,11 @@ const TabRxCanvas = forwardRef(({
                       overlayClassName="page-add-dropdown"
                     >
                       <button
-                        className="page-action-btn add-btn"
+                        className="page-action-btn transparent-btn"
                         onClick={(e) => e.stopPropagation()}
                         title="Add Page"
                       >
-                        <PlusOutlined />
+                        <i className="icon-Add text-primary" />
                       </button>
                     </Dropdown>
                   </div>

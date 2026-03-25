@@ -22,25 +22,25 @@ $divider-color: #d0d5dd;
         height: 100%;
 
         .back-btn-wrapper {
-            width: 80px;
-            height: 100%;
-            background-color: white;
+            width: 75px;
+            // height: 100%;
+            // background-color: white;
             border: none;
             border-right: 0.5px solid $border-color;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            outline: none;
+            // display: flex;
+            // justify-content: center;
+            // align-items: center;
+            // cursor: pointer;
+            // outline: none;
 
-            i {
-                font-size: 18px;
-                color: #171725;
-            }
+            // i {
+            //     font-size: 18px;
+            //     color: #171725;
+            // }
 
-            &:hover {
-                background-color: #f8f8fb;
-            }
+            // &:hover {
+            //     background-color: #f8f8fb;
+            // }
         }
 
         .user-info-container {
