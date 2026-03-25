@@ -560,7 +560,7 @@ function TabRx() {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [canvasInitialTemplateId, setCanvasInitialTemplateId] = useState('blank');
   const [canvasLoader, setCanvasLoader] = useState(false);
-  const [showTemplateDrawer, setShowTemplateDrawer] = useState(true);
+  const [showTemplateDrawer, setShowTemplateDrawer] = useState(false);
   const [hasCanvasContent, setHasCanvasContent] = useState(false);
   const [isEndVisitLoading, setIsEndVisitLoading] = useState(false);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
@@ -569,6 +569,7 @@ function TabRx() {
 
   // Welcome popup state
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [metadataLoaded, setMetadataLoaded] = useState(false);
   const [isSelectLetterHead, setIsSelectLetterHead] = useState(false);
   const [userFormatPref, setUserFormatPref] = useState(null);
 
@@ -672,6 +673,10 @@ function TabRx() {
         }
       } catch (error) {
         console.error("Error fetching metadata format:", error);
+      } finally {
+        if (isMounted) {
+          setMetadataLoaded(true);
+        }
       }
     };
     checkWelcomePopup();
@@ -2226,6 +2231,9 @@ function TabRx() {
                 lockedTemplateId={customSSDataForCanvas?.template_id || null}
                 showTemplateDrawer={showTemplateDrawer}
                 onToggleTemplateDrawer={handleToggleTemplateDrawer}
+                metadataLoaded={metadataLoaded}
+                isSelectLetterHead={isSelectLetterHead}
+                userFormatPref={userFormatPref}
                 onContentChange={handleCanvasContentChange}
                 onTemplateChange={handleTemplateSelectionChange}
               />

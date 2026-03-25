@@ -7,7 +7,7 @@ import Toolbar from './Toolbar';
 import TemplateSidebar from './TemplateSidebar';
 import RxTemplateUploadDrawer from '../../smartSync/components/RxTemplateUploadDrawer';
 import CommonModal from '../../../common/CommonModal';
-import { getTemplates } from '../services/templateService';
+import { getTemplates, setMetadata } from '../services/templateService';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT, ZOOM_CONSTRAINTS } from '../utils/constants';
 import { generateId } from '../utils/geometry';
 import { generateStandardTemplateBackground } from '../utils/standardTemplateHelper';
@@ -37,6 +37,9 @@ const TabRxCanvas = forwardRef(({
   backgroundImages = [],
   lockTemplateSelection = false,
   lockedTemplateId = null,
+  metadataLoaded = false,
+  isSelectLetterHead = null,
+  userFormatPref = null,
   // In edit mode, backend custom_ss_data is used to initialize page metadata (page_type/template_page_index)
   // so submission payload stays consistent with what was originally rendered.
   customSSData = null,
@@ -107,6 +110,7 @@ const TabRxCanvas = forwardRef(({
   }, [selectedTemplateId, onTemplateChange]);
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
+  const hasAppliedDrawerPreferenceRef = useRef(false);
 
   // Prevent re-hydrating from edit backend metadata after the user switches templates/pages.
   const didHydrateFromEditRef = useRef(false);
@@ -396,6 +400,28 @@ const TabRxCanvas = forwardRef(({
     };
     loadTemplates();
   }, []);
+
+  // Apply first-time/returning-user drawer default from metadata fetched in TabRx.
+  // First-time users (isSelectLetterHead === false) should see expanded sidebar once.
+  useEffect(() => {
+    if (!metadataLoaded || hasAppliedDrawerPreferenceRef.current) return;
+
+    const shouldShowDrawer = isSelectLetterHead === false;
+
+    if (shouldShowDrawer && !showTemplateDrawer && onToggleTemplateDrawer) {
+      onToggleTemplateDrawer();
+    } else if (!shouldShowDrawer && showTemplateDrawer && onToggleTemplateDrawer) {
+      onToggleTemplateDrawer();
+    }
+
+    if (isSelectLetterHead === false) {
+      setMetadata(userFormatPref, true).catch((error) => {
+        console.error('Error updating isSelectLetterHead metadata:', error);
+      });
+    }
+
+    hasAppliedDrawerPreferenceRef.current = true;
+  }, [metadataLoaded, isSelectLetterHead, userFormatPref, showTemplateDrawer, onToggleTemplateDrawer]);
 
   // Get background image for a specific page metadata
   const getBackgroundForPage = useCallback((pageMeta) => {

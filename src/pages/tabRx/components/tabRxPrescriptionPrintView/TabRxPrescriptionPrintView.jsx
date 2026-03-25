@@ -230,14 +230,6 @@ function TabRxPrescriptionPrintView() {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
 
-  // Effect to update printUrl when showDigitalRx changes
-  useEffect(() => {
-    if (printUrl) {
-      const updatedUrl = updateRxDigitizeInUrl(printUrl, showDigitalRx);
-      setPreviewUrl(updatedUrl);
-      setPrintUrl(updatedUrl);
-    }
-  }, [showDigitalRx]);
 
   // Initialize smart Rx files when coming from flows that pass smartRxFilesData in navigation state
   useEffect(() => {
@@ -380,12 +372,13 @@ function TabRxPrescriptionPrintView() {
       return;
     }
     const encodedData = btoa(selectedLang.toString());
-    const nextUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
+    const langUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
+    const nextUrl = updateRxDigitizeInUrl(langUrl, showDigitalRx);
     if (nextUrl !== printUrl) {
       setPrintUrl(nextUrl);
       setPreviewUrl(nextUrl);
     }
-  }, [selectedLang, state?.print_url, pam_id, printUrl]);
+  }, [selectedLang, state?.print_url, pam_id, printUrl, showDigitalRx]);
 
   const shouldSkipAutoFetch = Boolean(currentSessionRx) && !isPageReload;
 
@@ -1209,7 +1202,7 @@ function TabRxPrescriptionPrintView() {
                             {"Failed to load PDF file."}
                           </div>
                         }
-                        file={!showDigitalRx ? pdfFile : previewUrl}
+                        file={previewUrl}
                         onLoadError={(err) => {
                           console.error("PDF load error:", err);
                           setCurrentSessionRx(null);
