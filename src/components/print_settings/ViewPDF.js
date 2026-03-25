@@ -202,6 +202,62 @@ const styles = StyleSheet.create({
     table: {
         marginTop: PX_TO_PT * 4,
     },
+
+    dentalSection: {
+        marginTop: PX_TO_PT * 12,
+    },
+    dentalTable: {
+        borderTop: '1px solid #171725',
+        borderRadius: PX_TO_PT * 4,
+        overflow: 'hidden',
+    },
+    dentalRow: {
+        flexDirection: 'row',
+        borderBottom: '1px solid #171725',
+        borderLeft: '1px solid #171725',
+    },
+    dentalHeaderRow: {
+        flexDirection: 'row',
+        borderBottom: '1px solid #171725',
+        borderLeft: '1px solid #171725',
+    },
+    dentalCellLabel: {
+        width: '35%',
+        padding: 6,
+        borderRight: '1px solid #171725',
+    },
+    dentalCellValue: {
+        flex: 1,
+        padding: 6,
+        borderRight: '1px solid #171725',
+    },
+    dentalHeaderCell: {
+        flex: 1,
+        padding: 6,
+        borderRight: '1px solid #171725',
+    },
+    dentalQuadrantGrid: {
+        marginTop: PX_TO_PT * 6,
+        border: '1px solid #171725',
+        borderRadius: PX_TO_PT * 4,
+        overflow: 'hidden',
+    },
+    dentalQuadrantRow: {
+        flexDirection: 'row',
+    },
+    dentalQuadrantCell: {
+        flex: 1,
+        borderRight: '1px solid #171725',
+        borderBottom: '1px solid #171725',
+        padding: 6,
+    },
+    dentalQuadrantTitle: {
+        marginBottom: 4,
+        textAlign: 'center'
+    },
+    dentalListItem: {
+        marginBottom: 2,
+    },
     row: {
         flexDirection: 'row',
         borderBottom: '1px solid #171725',
@@ -295,7 +351,182 @@ function getAiFlowMedicationDisplayList(medicine) {
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData } = props
+    const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
+    const baseFontFamily = printSettings?.page_format?.font_family || 'Roboto';
+    const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
+    const dentalPdfData = dentalData;
+    const structuralTeethDiagramImgUrl =
+        typeof dentalData?.structuralTeethDiagramImgUrl === "string"
+            ? dentalData.structuralTeethDiagramImgUrl.trim()
+            : "";
+    const dentalComplaints = dentalPdfData?.complaints || {};
+    const dentalDiagnosis = dentalPdfData?.diagnosis || {};
+    const dentalTreatmentItems = dentalPdfData?.treatmentPlans?.items || [];
+    const dentalWorkDone = dentalPdfData?.workDone || { items: [], notes: "" };
+    const dentalMedicationOption = printSettings?.prescription?.case_option?.find((o) => o?.id === 4) || {};
+    const dentalMedicationItems = getAiFlowMedicationDisplayList(dentalPdfData?.medications);
+    const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
+    const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
+    const buildWorkDoneText = (item) => {
+        const workDone = item?.workDone ?? "";
+        const nextAppointment = item?.nextAppointment ?? "";
+        const workDoneText = String(workDone ?? "");
+        const nextText = String(nextAppointment ?? "").trim();
+        if (!nextText) return workDoneText;
+        const normalized = workDoneText.toLowerCase();
+        if (normalized.includes("next appointment")) return workDoneText;
+        const suffix = `Next Appointment: ${nextText}`;
+        if (!workDoneText.trim()) return suffix;
+        return `${workDoneText}\n${suffix}`;
+    };
+    const dentalTeethBySection = dentalTeeth.reduce(
+        (acc, tooth) => {
+            const section = tooth?.toothSection;
+            if (section && acc[section]) acc[section].push(tooth);
+            return acc;
+        },
+        {
+            UPPER_LEFT: [],
+            UPPER_RIGHT: [],
+            LOWER_LEFT: [],
+            LOWER_RIGHT: [],
+        },
+    );
+    const diagnosisFieldOrder = [
+        "stains",
+        "calculus",
+        "oralHygieneStatus",
+        "periodontalseverity",
+        "orthodonticFindings",
+        "orthodonticInterventionRequired",
+        "habitsPedo",
+    ];
+    const camelCaseToTitle = (str) => {
+        if (str === "periodontalseverity" || str === "Periodontalseverity") {
+            return "Periodontal Severity";
+        }
+        return String(str || "")
+            .replace(/([A-Z])/g, " $1")
+            .replace(/^./, (first) => first.toUpperCase())
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+            .trim();
+    };
+    const formatDiagnosisValue = (val) => {
+        if (Array.isArray(val)) {
+            return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
+        }
+        if (val && typeof val === "object") {
+            return Object.entries(val)
+                .filter(([, v]) => !!v)
+                .map(([k]) => k)
+                .join(", ");
+        }
+        if (val == null) return "";
+        return String(val);
+    };
+    const dentalDiagnosisRows = diagnosisFieldOrder
+        .filter((key) => key in dentalDiagnosis)
+        .map((key) => ({
+            key,
+            label: camelCaseToTitle(key),
+            value: formatDiagnosisValue(dentalDiagnosis?.[key]),
+        }))
+        .filter((row) => String(row.value || "").trim() !== "");
+    const dentalToothDiagramNotes = (() => {
+        const notes = dentalDiagnosis?.toothDiagramNotes;
+        if (Array.isArray(notes)) {
+            return notes
+                .filter((note) => note != null && String(note).trim() !== "")
+                .map((note) => String(note))
+                .join("\n");
+        }
+        if (notes == null) return "";
+        return String(notes);
+    })();
+    const hasToothDiagramNotes = String(dentalToothDiagramNotes || "").trim() !== "";
+    const dentalComplaintRows = [
+        { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
+        { key: "symptom", label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER" },
+        { key: "otherDiseases", label: "OTHER DISEASES" },
+        { key: "medications", label: "MEDICATION" },
+        { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
+        { key: "pregnancy", label: "PREGNANCY" },
+        { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
+        { key: "dentalHistory", label: "DENTAL HISTORY" },
+        { key: "pain", label: "HEAD/JAW/NECK PAIN" },
+        { key: "notes", label: "NOTES" },
+    ];
+    const isNonEmptyDentalValue = (val) => {
+        if (val === 0 || val === "0") return true;
+        if (val === true) return true;
+        if (Array.isArray(val)) {
+            return val.some((item) => isNonEmptyDentalValue(item));
+        }
+        if (val && typeof val === "object") {
+            return Object.values(val).some((item) => isNonEmptyDentalValue(item));
+        }
+        return val != null && String(val).trim() !== "";
+    };
+    const dentalMedicationRowsFiltered = Array.isArray(dentalMedicationItems)
+        ? dentalMedicationItems.filter((item) =>
+            [
+                item?.tmm_medicine_name,
+                item?.name,
+                item?.groundedMedicineName,
+                item?.tmm_dosage,
+                item?.frequency,
+                item?.schedule,
+                item?.tmm_remarks,
+                item?.display_qty,
+            ].some((val) => isNonEmptyDentalValue(val)),
+        )
+        : [];
+    const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) => {
+        const value = dentalComplaints?.[row.key];
+        return isNonEmptyDentalValue(value);
+    });
+    const hasTeethData = Object.values(dentalTeethBySection || {}).some(
+        (arr) => Array.isArray(arr) && arr.length > 0,
+    );
+    const dentalTreatmentRowsFiltered = Array.isArray(dentalTreatmentItems)
+        ? dentalTreatmentItems.filter((item) =>
+            [item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].some(
+                (val) => isNonEmptyDentalValue(val),
+            ),
+        )
+        : [];
+    const dentalWorkDoneRowsFiltered = Array.isArray(dentalWorkDoneItems)
+        ? dentalWorkDoneItems.filter((item) =>
+            [
+                item?.date,
+                buildWorkDoneText(item),
+                item?.ptr,
+                item?.ttReview,
+                item?.payment,
+                item?.balance,
+                item?.remarks,
+            ].some((val) => isNonEmptyDentalValue(val)),
+        )
+        : [];
+    const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+    const hasDentalSectionData =
+        dentalComplaintRowsFiltered.length > 0 ||
+        dentalMedicationRowsFiltered.length > 0 ||
+        hasTeethData ||
+        dentalDiagnosisRows.length > 0 ||
+        dentalTreatmentRowsFiltered.length > 0 ||
+        hasToothDiagramNotes ||
+        dentalWorkDoneRowsFiltered.length > 0 ||
+        hasWorkDoneNotes;
+    const shouldHideMedicationModuleBecauseDentalMedicationShown =
+        isRxDigitizeBool && dentalMedicationRowsFiltered.length > 0;
+    const dentalQuadrantSections = [
+        { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+        { key: "UPPER_LEFT", label: "UPPER LEFT" },
+        { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
+        { key: "LOWER_LEFT", label: "LOWER LEFT" },
+    ];
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
 
     const medicationCaseOption = printSettings?.prescription?.case_option?.find(o => o.id === 4);
@@ -1364,6 +1595,278 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         
                         return (
                             <>
+                            {isRxDigitizeBool && hasDentalSectionData && (
+                                    <View style={styles.dentalSection}>
+                                        {dentalComplaintRowsFiltered.length > 0 && (
+                                            <View style={styles.dentalTable}>
+                                                {dentalComplaintRowsFiltered.map((row) => (
+                                                    <View key={row.key} style={styles.dentalRow}>
+                                                        <View style={styles.dentalCellLabel}>
+                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                                {row.label}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={styles.dentalCellValue}>
+                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                {dentalComplaints?.[row.key] || ""}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                        {dentalMedicationRowsFiltered.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 6 }}>
+                                                <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, marginBottom: PX_TO_PT * 6 }}>Medication (Rx):&nbsp;</Text>
+                                                <View style={styles.table}>
+                                                    <View style={styles.headerRow} fixed>
+                                                        <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("S.NO")}</Text>
+                                                        <Text style={[styles.headerCell, { fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("MEDICINE")}</Text>
+                                                        <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4 }}>
+                                                            <View style={{ flexGrow: 1, flexDirection: 'row' }}>
+                                                                {dentalMedicationOption?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.45, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DOSE")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.6, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("FREQUENCY")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.53, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("DURATION")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.18, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("QTY")}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.headerCell, { flex: 0.7, fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>{medicineHeaderLang("NOTES")}</Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                    {dentalMedicationRowsFiltered.map((item, i) => (
+                                                        <View style={styles.row} key={item.tmm_id || item.unique_id || i} wrap={false}>
+                                                            <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
+                                                            <View style={styles.cell}>
+                                                                <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.tmm_medicine_name || item.name || ''}</Text>
+                                                                {dentalMedicationOption?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
+                                                                ) : null}
+                                                            </View>
+                                                            <View style={{ flex: dentalMedicationOption?.medicine_option?.length === 0 ? 0.25 : dentalMedicationOption?.medicine_option?.length === 1 ? 0.8 : dentalMedicationOption?.medicine_option?.length === 2 ? 1.2 : dentalMedicationOption?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
+                                                                {dentalMedicationOption?.medicine_option?.includes('dose') && (
+                                                                    <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                        {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, dentalMedicationOption?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('frequency') && (
+                                                                    <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {item.tmf_block === 0 || item.tmf_block === ''
+                                                                            ? ((item.tcm_tmm_freq_morning || item.tcm_tmm_freq_afternoon || item.tcm_tmm_freq_evening || item.tcm_tmm_freq_night)
+                                                                                ? (dentalMedicationOption?.numeric_frequency
+                                                                                    ? `${item.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, dentalMedicationOption?.is_dosage_decimal) : 0} - ${item.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, dentalMedicationOption?.is_dosage_decimal) : 0}${item.tcm_tmm_freq_evening ? ' - ' + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, dentalMedicationOption?.is_dosage_decimal) : ''} - ${item.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, dentalMedicationOption?.is_dosage_decimal) : 0}`
+                                                                                    : formatFrequency(item.tcm_tmm_freq_morning, item.tcm_tmm_freq_afternoon, item.tcm_tmm_freq_evening, item.tcm_tmm_freq_night, dentalMedicationOption?.is_dosage_decimal))
+                                                                                : '-')
+                                                                            : `(${frequencyList?.find((x) => x.tmf_id === item.tmm_freq_type)?.[frequencyLang()] || ''})`}
+                                                                        {'\n'}
+                                                                        {item?.schedule || ""}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('duration') && (
+                                                                    <Text style={[styles.cell, { flex: 0.53, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type) ? durationLang(capitalize(item.tmm_duration_type, true)) : isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'}
+                                                                    </Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('quantity') && (
+                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>{item.display_qty ? item.display_qty : '-'}</Text>
+                                                                )}
+                                                                {dentalMedicationOption?.medicine_option?.includes('note') && (
+                                                                    <Text style={[styles.cell, { flex: 0.7, color: '#171725', fontFamily: getIndianLanguageFont(item.tmm_remarks, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
+                                                                        {item.tmm_remarks ? item.tmm_remarks : '-'}
+                                                                    </Text>
+                                                                )}
+                                                            </View>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {hasTeethData && (
+                                            <View style={styles.dentalQuadrantGrid}>
+                                                {[0, 1].map((rowIndex) => (
+                                                    <View key={`dq-row-${rowIndex}`} style={styles.dentalQuadrantRow} wrap={false}>
+                                                        {dentalQuadrantSections.slice(rowIndex * 2, rowIndex * 2 + 2).map((section, idx) => {
+                                                            const isLastCol = idx === 1;
+                                                            const isLastRow = rowIndex === 1;
+                                                            return (
+                                                                <View
+                                                                    key={section.key}
+                                                                    style={{
+                                                                        ...styles.dentalQuadrantCell,
+                                                                        borderRight: isLastCol ? "0px solid #171725" : styles.dentalQuadrantCell.borderRight,
+                                                                        borderBottom: isLastRow ? "0px solid #171725" : styles.dentalQuadrantCell.borderBottom,
+                                                                    }}
+                                                                >
+                                                                    <Text style={{ ...styles.dentalQuadrantTitle, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
+                                                                        {section.label}
+                                                                    </Text>
+                                                                    {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                                                                        <Text key={`${section.key}-${i}`} style={{ ...styles.dentalListItem, fontFamily: baseFontFamily, fontSize: baseFontSize }}>
+                                                                            {`Tooth ${tooth?.toothNum ?? ""}: ${tooth?.diagnose ?? ""}`}
+                                                                        </Text>
+                                                                    ))}
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+
+                                        {dentalDiagnosisRows.length > 0 && (
+                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                <View style={styles.dentalHeaderRow}>
+                                                    <View style={styles.dentalHeaderCell}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Diagnosis Field</Text>
+                                                    </View>
+                                                    <View style={styles.dentalHeaderCell}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>Selected Values</Text>
+                                                    </View>
+                                                </View>
+                                                {dentalDiagnosisRows.map((row) => (
+                                                    <View key={`dx-${row.key}`} style={styles.dentalRow}>
+                                                        <View style={styles.dentalCellLabel}>
+                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                                {row.label}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={styles.dentalCellValue}>
+                                                            <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                {row.value}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+
+                                        {hasToothDiagramNotes && (
+                                            <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                <View style={styles.dentalRow}>
+                                                    <View style={styles.dentalCellLabel}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                            TOOTH DIAGRAM NOTES
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.dentalCellValue}>
+                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                            {dentalToothDiagramNotes}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {dentalTreatmentRowsFiltered.length > 0 && (
+                                            <>
+                                                <Text style={{ marginTop: PX_TO_PT * 6, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
+                                                    TREATMENT PLAN(S)
+                                                </Text>
+                                                <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                    <View style={styles.dentalHeaderRow}>
+                                                        {["S NO", "TREATMENT", "TOOTH NUMBER", "RATE", "COUNT", "ESTIMATE"].map((label) => (
+                                                            <View key={label} style={styles.dentalHeaderCell}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>{label}</Text>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                    {dentalTreatmentRowsFiltered.map((item, i) => (
+                                                        <View key={`tp-${i}`} style={styles.dentalRow}>
+                                                            {[item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].map((val, idx) => (
+                                                                <View key={`${i}-${idx}`} style={styles.dentalCellValue}>
+                                                                    <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                        {val ?? ""}
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </>
+                                        )}
+
+                                        {(dentalWorkDoneRowsFiltered.length > 0 || hasWorkDoneNotes) && (
+                                            <>
+                                                <Text style={{ marginTop: PX_TO_PT * 6, fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>
+                                                    WORK DONE
+                                                </Text>
+                                                {dentalWorkDoneRowsFiltered.length > 0 && (
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                        <View style={styles.dentalHeaderRow}>
+                                                            {[
+                                                                "DATE",
+                                                                "WORK DONE",
+                                                                "PTR",
+                                                                "PAYMENT",
+                                                                "BALANCE",
+                                                                "REMARKS",
+                                                            ].map((label, idx) => (
+                                                                <View
+                                                                    key={label}
+                                                                    style={{
+                                                                        ...styles.dentalHeaderCell,
+                                                                        flex: idx === 1 ? 4 : 1,
+                                                                    }}
+                                                                >
+                                                                    <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 600 }}>{label}</Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                        {dentalWorkDoneRowsFiltered.map((item, i) => (
+                                                            <View key={`wd-${i}`} style={styles.dentalRow}>
+                                                                {[
+                                                                    item?.date,
+                                                                    buildWorkDoneText(item),
+                                                                    item?.ptr,
+                                                                    item?.payment,
+                                                                    item?.balance,
+                                                                    item?.remarks,
+                                                                ].map((val, idx) => (
+                                                                    <View
+                                                                        key={`${i}-${idx}`}
+                                                                        style={{
+                                                                            ...styles.dentalCellValue,
+                                                                            flex: idx === 1 ? 4 : 1,
+                                                                        }}
+                                                                    >
+                                                                        <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                            {val ?? ""}
+                                                                        </Text>
+                                                                    </View>
+                                                                ))}
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                )}
+                                                {hasWorkDoneNotes && (
+                                                    <View style={{...styles.dentalTable, marginTop: PX_TO_PT * 6}}>
+                                                        <View style={styles.dentalRow}>
+                                                            <View style={styles.dentalCellLabel}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 500 }}>
+                                                                    WORK DONE NOTES
+                                                                </Text>
+                                                            </View>
+                                                            <View style={styles.dentalCellValue}>
+                                                                <Text style={{ fontFamily: baseFontFamily, fontSize: baseFontSize, fontWeight: 400 }}>
+                                                                    {dentalWorkDone?.notes ?? ""}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                )}
+                                            </>
+                                        )}
+                                    </View>
+                                )}
                                 {printSettings?.prescription?.case_option?.map((option, index) => {
                             const customModule = caseManagerData?.moduleContents?.find(e => {
                                 return e.module_id === option?.id
@@ -1732,7 +2235,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             })()
                                         )}
                                     </>
-                                ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                ) : option?.id === 4 && option?.enable === 'Y' && option?.custom_status === 'Y' && !shouldHideMedicationModuleBecauseDentalMedicationShown ? (
                                     <>
                                         {isAiFlowMedication && aiFlowMedicationList.length > 0 ? (
                                             <>
@@ -6983,6 +7486,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       {printSettings?.page_format?.pagination === true && <PageNumberFooter />}
                              
                       </Page>
+                      )}
+                      {structuralTeethDiagramImgUrl && (
+                        <Page
+                            size="A4"
+                            style={{
+                                paddingTop: 0,
+                                paddingBottom: 0,
+                                paddingLeft: 0,
+                                paddingRight: 0,
+                            }}
+                            wrap={false}
+                        >
+                            <View style={{ width: "100%", height: "100%" }}>
+                                <Image
+                                    style={{ width: "100%", height: "100%" }}
+                                    src={structuralTeethDiagramImgUrl}
+                                    objectFit="contain"
+                                />
+                            </View>
+                        </Page>
                       )}
                       </Document>
                           )

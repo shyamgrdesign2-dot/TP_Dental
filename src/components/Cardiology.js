@@ -1736,8 +1736,10 @@ function Cardiology(props) {
   };
 
   // Render medications in tabular format
-  const renderMedicationsTable = () => {
-    const medications = genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
+  const renderMedicationsTable = (customMedications = null) => {
+    const medications = Array.isArray(customMedications)
+      ? customMedications
+      : genRxData?.medications || snapRxDigitisedData?.medications || rxDigitisedData?.editedData?.medications || [];
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
@@ -2217,6 +2219,369 @@ function Cardiology(props) {
           </>
       );
     });
+
+  const rxEditedData = rxDigitisedData?.editedData || {};
+  const rawDentalData = rxEditedData?.dynamicFields?.[0]?.dentalData;
+  const isPlainObject = (value) =>
+    value && typeof value === "object" && !Array.isArray(value);
+  const dentalComplaintKeys = [
+    "chiefComplaint",
+    "symptom",
+    "otherDiseases",
+    "medications",
+    "drugAllergy",
+    "pregnancy",
+    "habits",
+    "dentalHistory",
+    "pain",
+    "notes",
+  ];
+  const diagnosisFieldOrder = [
+    "stains",
+    "calculus",
+    "oralHygieneStatus",
+    "periodontalseverity",
+    "orthodonticFindings",
+    "orthodonticInterventionRequired",
+    "habitsPedo",
+  ];
+  const isDentalComplaintsShape = (value) =>
+    isPlainObject(value) && dentalComplaintKeys.some((key) => key in value);
+  const isDentalDiagnosisShape = (value) =>
+    isPlainObject(value) &&
+    (Array.isArray(value?.teeth) ||
+      value?.toothDiagramNotes != null ||
+      diagnosisFieldOrder.some((key) => key in value));
+  const dentalDataSource =
+    rawDentalData && typeof rawDentalData === "object" && !Array.isArray(rawDentalData)
+      ? rawDentalData
+      : rxEditedData?.dentalData ??
+        rxEditedData?.results ??
+        rxEditedData?.data?.results ??
+        null;
+  const hasDentaldata = !!(rawDentalData || rxEditedData?.dentalData || dentalDataSource);
+  const dentalComplaints = isDentalComplaintsShape(rxEditedData?.complaints)
+    ? rxEditedData.complaints
+    : dentalDataSource?.complaints ?? {};
+  const dentalDiagnosis = isDentalDiagnosisShape(rxEditedData?.diagnosis)
+    ? rxEditedData.diagnosis
+    : dentalDataSource?.diagnosis ?? {};
+  const dentalTreatmentItems =
+    rxEditedData?.treatmentPlans?.items ?? dentalDataSource?.treatmentPlans?.items ?? [];
+  const dentalWorkDone =
+    rxEditedData?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
+  const dentalMedications =
+    rxEditedData?.medications ?? dentalDataSource?.medications ?? [];
+  const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
+  const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
+  const dentalQuadrantSections = [
+    { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+    { key: "UPPER_LEFT", label: "UPPER LEFT" },
+    { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
+    { key: "LOWER_LEFT", label: "LOWER LEFT" },
+  ];
+  const dentalTeethBySection = dentalTeeth.reduce(
+    (acc, tooth) => {
+      const section = tooth?.toothSection;
+      if (section && acc[section]) acc[section].push(tooth);
+      return acc;
+    },
+    {
+      UPPER_LEFT: [],
+      UPPER_RIGHT: [],
+      LOWER_LEFT: [],
+      LOWER_RIGHT: [],
+    }
+  );
+  const dentalComplaintRows = [
+    { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
+    { key: "symptom", label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER" },
+    { key: "otherDiseases", label: "OTHER DISEASES" },
+    { key: "medications", label: "MEDICATION" },
+    { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
+    { key: "pregnancy", label: "PREGNANCY" },
+    { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
+    { key: "dentalHistory", label: "DENTAL HISTORY" },
+    { key: "pain", label: "HEAD/JAW/NECK PAIN" },
+    { key: "notes", label: "NOTES" },
+  ];
+  const camelCaseToTitle = (str) => {
+    if (str === "periodontalseverity" || str === "Periodontalseverity") {
+      return "Periodontal Severity";
+    }
+    return String(str || "")
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (first) => first.toUpperCase())
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+  };
+  const formatDentalDiagnosisValue = (val) => {
+    if (Array.isArray(val)) {
+      return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, v]) => !!v)
+        .map(([k]) => k)
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  };
+  const isNonEmptyDentalValue = (val) => {
+    if (val === 0 || val === "0") return true;
+    if (val === true) return true;
+    if (Array.isArray(val)) {
+      return val.some((item) => isNonEmptyDentalValue(item));
+    }
+    if (val && typeof val === "object") {
+      return Object.values(val).some((item) => isNonEmptyDentalValue(item));
+    }
+    return val != null && String(val).trim() !== "";
+  };
+  const formatDentalValue = (val) => {
+    if (Array.isArray(val)) {
+      return val
+        .map((item) => (item == null ? "" : String(item).trim()))
+        .filter(Boolean)
+        .join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, value]) => isNonEmptyDentalValue(value))
+        .map(([key, value]) => (value === true ? key : `${key}: ${value}`))
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  };
+  const dentalMedicationRowsFiltered = Array.isArray(dentalMedications)
+    ? dentalMedications.filter((item) =>
+        [
+          item?.groundedMedicineName,
+          item?.groundingMedicineName,
+          item?.name,
+          item?.refinedName,
+          item?.lineItem,
+          item?.dosage,
+          item?.frequency,
+          item?.schedule,
+          item?.duration,
+          item?.quantity,
+          item?.notes,
+        ].some((val) => isNonEmptyDentalValue(val))
+      )
+    : [];
+  const dentalComplaintRowsFiltered = dentalComplaintRows.filter((row) =>
+    isNonEmptyDentalValue(dentalComplaints?.[row.key])
+  );
+  const dentalDiagnosisRows = diagnosisFieldOrder
+    .filter((key) => key in dentalDiagnosis)
+    .map((key) => ({
+      key,
+      label: camelCaseToTitle(key),
+      value: formatDentalDiagnosisValue(dentalDiagnosis?.[key]),
+    }))
+    .filter((row) => String(row.value || "").trim() !== "");
+  const dentalToothDiagramNotes = (() => {
+    const notes = dentalDiagnosis?.toothDiagramNotes;
+    if (Array.isArray(notes)) {
+      return notes
+        .filter((note) => note != null && String(note).trim() !== "")
+        .map((note) => String(note))
+        .join("\n");
+    }
+    if (notes == null) return "";
+    return String(notes);
+  })();
+  const hasToothDiagramNotes = String(dentalToothDiagramNotes || "").trim() !== "";
+  const hasTeethData = Object.values(dentalTeethBySection || {}).some(
+    (arr) => Array.isArray(arr) && arr.length > 0
+  );
+  const dentalTreatmentRowsFiltered = Array.isArray(dentalTreatmentItems)
+    ? dentalTreatmentItems.filter((item) =>
+        [item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].some(
+          (val) => isNonEmptyDentalValue(val)
+        )
+      )
+    : [];
+  const buildDentalWorkDoneText = (item) => {
+    const workDone = item?.workDone ?? "";
+    const nextAppointment = item?.nextAppointment ?? "";
+    const workDoneText = String(workDone ?? "");
+    const nextText = String(nextAppointment ?? "").trim();
+    if (!nextText) return workDoneText;
+    const normalized = workDoneText.toLowerCase();
+    if (normalized.includes("next appointment")) return workDoneText;
+    const suffix = `Next Appointment: ${nextText}`;
+    if (!workDoneText.trim()) return suffix;
+    return `${workDoneText}\n${suffix}`;
+  };
+  const dentalWorkDoneRowsFiltered = Array.isArray(dentalWorkDoneItems)
+    ? dentalWorkDoneItems.filter((item) =>
+        [
+          item?.date,
+          buildDentalWorkDoneText(item),
+          item?.ptr,
+          item?.ttReview,
+          item?.payment,
+          item?.balance,
+          item?.remarks,
+        ].some((val) => isNonEmptyDentalValue(val))
+      )
+    : [];
+  const hasWorkDoneNotes = isNonEmptyDentalValue(dentalWorkDone?.notes);
+  const hasDentalSectionData =
+    dentalComplaintRowsFiltered.length > 0 ||
+    dentalMedicationRowsFiltered.length > 0 ||
+    hasTeethData ||
+    dentalDiagnosisRows.length > 0 ||
+    dentalTreatmentRowsFiltered.length > 0 ||
+    hasToothDiagramNotes ||
+    dentalWorkDoneRowsFiltered.length > 0 ||
+    hasWorkDoneNotes;
+
+  const renderDentalDigitisedSection = () => {
+    if (!hasDentaldata || !hasDentalSectionData) return null;
+
+    return (
+      <div className="digitised-section-rx dental-section mb-3">
+        {dentalComplaintRowsFiltered.length > 0 && (
+          <table className="dental-table dental-complaints-table" style={{ marginTop: 10 }}>
+            <tbody>
+              {dentalComplaintRowsFiltered.map((row) => (
+                <tr key={`dental-c-${row.key}`}>
+                  <td className="dental-label-cell">{row.label}</td>
+                  <td>{formatDentalValue(dentalComplaints?.[row.key])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {dentalMedicationRowsFiltered.length > 0 && (
+          <>
+            <div className="dental-table-title">MEDICATION (RX)</div>
+            {renderMedicationsTable(dentalMedicationRowsFiltered)}
+          </>
+        )}
+
+        {hasTeethData && (
+          <div className="dental-quadrant-grid">
+            {dentalQuadrantSections.map((section) => (
+              <div className="dental-quadrant-cell" key={`dental-q-${section.key}`}>
+                <div className="dental-quadrant-title">{section.label}</div>
+                <div className="dental-quadrant-list">
+                  {(dentalTeethBySection?.[section.key] || []).map((tooth, i) => (
+                    <div className="dental-tooth-row" key={`${section.key}-${i}`}>
+                      <span className="dental-tooth-label">{`Tooth ${tooth?.toothNum ?? ""}`}</span>
+                      <span className="dental-tooth-sep">:</span>
+                      <span>{tooth?.diagnose ?? ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {dentalDiagnosisRows.length > 0 && (
+          <table className="dental-table dental-diagnosis-table">
+            <thead>
+              <tr>
+                <th>Diagnosis Field</th>
+                <th>Selected Values</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dentalDiagnosisRows.map((row) => (
+                <tr key={`dental-dx-${row.key}`}>
+                  <td className="dental-label-cell">{row.label}</td>
+                  <td>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {hasToothDiagramNotes && (
+          <table className="dental-table dental-tooth-diagram-table" style={{ marginTop: 16 }}>
+            <tbody>
+              <tr>
+                <td className="dental-label-cell">TOOTH DIAGRAM NOTES</td>
+                <td style={{ whiteSpace: "pre-line" }}>{dentalToothDiagramNotes}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+
+        {dentalTreatmentRowsFiltered.length > 0 && (
+          <>
+            <div className="dental-table-title">TREATMENT PLAN(S)</div>
+            <table className="dental-table dental-treatment-table">
+              <thead>
+                <tr>
+                  {["S NO", "TREATMENT", "TOOTH NUMBER", "RATE", "COUNT", "ESTIMATE"].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dentalTreatmentRowsFiltered.map((item, i) => (
+                  <tr key={`dental-tp-${i}`}>
+                    {[item?.srno, item?.treatment, item?.toothNum, item?.rate, item?.count, item?.estimate].map(
+                      (val, idx) => (
+                        <td key={`dental-tp-${i}-${idx}`}>{val ?? ""}</td>
+                      )
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {(dentalWorkDoneRowsFiltered.length > 0 || hasWorkDoneNotes) && (
+          <>
+            <div className="dental-table-title">WORK DONE</div>
+            {dentalWorkDoneRowsFiltered.length > 0 && (
+              <table className="dental-table dental-workdone-table">
+                <thead>
+                  <tr>
+                    {["DATE", "WORK DONE", "PTR", "PAYMENT", "BALANCE", "REMARKS"].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dentalWorkDoneRowsFiltered.map((item, i) => (
+                    <tr key={`dental-wd-${i}`}>
+                      {[item?.date, buildDentalWorkDoneText(item), item?.ptr, item?.payment, item?.balance, item?.remarks].map(
+                        (val, idx) => (
+                          <td key={`dental-wd-${i}-${idx}`} style={{ whiteSpace: idx === 1 ? "pre-line" : "normal" }}>
+                            {val ?? ""}
+                          </td>
+                        )
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {hasWorkDoneNotes && (
+              <table className="dental-table dental-workdone-notes-table" style={{ marginTop: 16 }}>
+                <tbody>
+                  <tr>
+                    <td className="dental-label-cell">WORK DONE NOTES</td>
+                    <td>{formatDentalValue(dentalWorkDone?.notes)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   // Add this helper function at the top of the component
   const hasValidContent = (data, type) => {
@@ -2859,7 +3224,7 @@ function Cardiology(props) {
                       )}
 
                     {genRxData?.medications &&
-                      genRxData?.medications.length > 0 && (
+                      genRxData?.medications.length > 0 && !dentalMedicationRowsFiltered?.length && (
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
@@ -3020,6 +3385,7 @@ function Cardiology(props) {
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
+                    {renderDentalDigitisedSection()}
                     {((rxDigitisedData?.editedData?.vitals &&
                       Object.values(rxDigitisedData.editedData.vitals).some(
                         (value) => value != null && String(value).trim()
@@ -3138,7 +3504,7 @@ function Cardiology(props) {
                         </>
                       )}
 
-                    {rxDigitisedData?.editedData?.medications &&
+                    {rxDigitisedData?.editedData?.medications && !dentalMedicationRowsFiltered?.length &&
                       hasValidContent(
                         rxDigitisedData.editedData,
                         "medications"
@@ -3236,7 +3602,8 @@ function Cardiology(props) {
                         </>
                       )}
 
-                    {rxDigitisedData?.editedData?.dynamicFields &&
+                    {!hasDentaldata &&
+                      rxDigitisedData?.editedData?.dynamicFields &&
                       hasValidContent(rxDigitisedData.editedData, "dynamicFields") && (
                         <>
                           <div className="d-flex align-items-start">
@@ -3442,7 +3809,7 @@ function Cardiology(props) {
                       )}
 
                     {snapRxDigitisedData?.medications &&
-                      hasValidContent(snapRxDigitisedData, "medications") && (
+                      hasValidContent(snapRxDigitisedData, "medications") && !dentalMedicationRowsFiltered?.length && (
                         <>
                           <div className="d-flex align-items-start">
                             <img

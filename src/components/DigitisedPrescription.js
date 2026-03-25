@@ -41,6 +41,7 @@ import alertIcon from "../assets/images/alertIcon.svg";
 import documentIcon from "../assets/images/document-normal.svg";
 import warningIcon from "../assets/images/danger.svg";
 import genRxBg from "../assets/images/gen-rx-bg.gif";
+import { setDentalData } from "../redux/dentalRxSlice";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -119,6 +120,12 @@ const getPrimaryText = (type, item) => {
   if (type === "diagnosis") return String(item?.lineItem ?? item?.name ?? (item?.status ? `${item?.name ?? ""}, ${item.status}`.trim() : "") ?? item?.notes ?? "").trim();
   if (type === "examinations") return String(item?.lineItem ?? item?.name ?? item?.findings ?? item?.notes ?? "").trim();
   return item?.name || "";
+};
+
+const getDentalMedicationArray = (rootMedications, dentalMedications) => {
+  if (Array.isArray(rootMedications)) return rootMedications;
+  if (Array.isArray(dentalMedications)) return dentalMedications;
+  return [];
 };
 
 /** Normalize dynamicFields to always be an object { moduleName: row[] }. Backend may send array of modules. Skips empty modules and empty rows. */
@@ -201,12 +208,327 @@ const DigitisedPrescription = ({
   const { parentOptionsList: testOptionsList } = useSelector(
     (state) => state.investigation
   );
+  const dentalDataFromStore = useSelector((state) => state.dentalRx?.dentalData);
   // Fuzzy search run-once guards for meds and tests
   const hasFuzzyRunMedsRef = useRef(false);
   const hasFuzzyRunTestsRef = useRef(false);
   const lastFuzzyNamesRef = useRef("");
   const lastFuzzyCallRef = useRef({ sig: "", ts: 0 });
   const tokenData = getTokenData();
+  const toothInputRefs = useRef({});
+  const pendingToothFocusRef = useRef(null);
+  const dentalComplaintRows = useMemo(
+    () => [
+      { key: "chiefComplaint", label: "CHIEF COMPLAINT" },
+      {
+        key: "symptom",
+        label: "HTN/DM/ASTHMA/CARDIAC STATUS/BLOOD DISORDER",
+      },
+      { key: "otherDiseases", label: "OTHER DISEASES" },
+      // { key: "medications", label: "MEDICATION" },
+      { key: "drugAllergy", label: "H/O DRUG ALLERGY" },
+      { key: "pregnancy", label: "PREGNANCY" },
+      { key: "habits", label: "HABITS (Tobacco/Smoking/Grinding Teeth)" },
+      { key: "dentalHistory", label: "DENTAL HISTORY" },
+      { key: "pain", label: "HEAD/JAW/NECK PAIN" },
+      { key: "notes", label: "NOTES" },
+    ],
+    []
+  );
+  const dentalQuadrantSections = useMemo(
+    () => [
+      { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
+      { key: "UPPER_LEFT", label: "UPPER LEFT" },
+      { key: "LOWER_RIGHT", label: "LOWER RIGHT" },
+      { key: "LOWER_LEFT", label: "LOWER LEFT" },
+    ],
+    []
+  );
+  const dentalDataSource = useMemo(() => {
+    return (
+      data?.dentalData ??
+      dentalDataFromStore ??
+      data?.results ??
+      data?.data?.results ??
+      null
+    );
+  }, [data, dentalDataFromStore]);
+  const dentalComplaints = useMemo(() => {
+    return data?.complaints ?? dentalDataSource?.complaints ?? {};
+  }, [data, dentalDataSource]);
+  const dentalTreatmentPlans = useMemo(() => {
+    return data?.treatmentPlans ?? dentalDataSource?.treatmentPlans ?? { items: [] };
+  }, [data, dentalDataSource]);
+  const dentalWorkDone = useMemo(() => {
+    return data?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
+  }, [data, dentalDataSource]);
+  const dentalMedications = useMemo(() => {
+    return dentalDataSource?.medications;
+  }, [dentalDataSource]);
+  const hasDentalMedications = useMemo(() => {
+    if (!Array.isArray(dentalMedications) || dentalMedications.length === 0) return false;
+    return dentalMedications.some((item) => {
+      if (item == null) return false;
+      if (typeof item === "string") return String(item).trim() !== "";
+      return [
+        "groundedMedicineName",
+        "name",
+        "refinedName",
+        "frequency",
+        "dosage",
+        "schedule",
+        "duration",
+        "notes",
+      ].some((field) => item?.[field] != null && String(item[field]).trim() !== "");
+    });
+  }, [dentalMedications]);
+  const dentalWorkDoneItems = useMemo(() => {
+    return Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
+  }, [dentalWorkDone]);
+  const dentalDiagnosis = useMemo(() => {
+    return dentalDataSource?.diagnosis || {};
+  }, [dentalDataSource]);
+  const dentalToothDiagramNotes = useMemo(() => {
+    const notes = dentalDiagnosis?.toothDiagramNotes;
+    if (Array.isArray(notes)) {
+      return notes
+        .filter((note) => note != null && String(note).trim() !== "")
+        .map((note) => String(note))
+        .join("\n");
+    }
+    if (notes == null) return "";
+    return String(notes);
+  }, [dentalDiagnosis]);
+  const hasToothDiagramNotes = useMemo(() => {
+    return String(dentalToothDiagramNotes || "").trim() !== "";
+  }, [dentalToothDiagramNotes]);
+  const dentalDiagnosisFields = useMemo(() => {
+    const order = [
+      "stains",
+      "calculus",
+      "oralHygieneStatus",
+      "periodontalseverity",
+      "orthodonticFindings",
+      "orthodonticInterventionRequired",
+      "habitsPedo",
+    ];
+    function camelCaseToTitle(str) {
+      if (str === "periodontalseverity" || str === "Periodontalseverity") {
+        return "Periodontal Severity";
+      }
+      return str
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (first) => first.toUpperCase())
+        .replace(/\b\w/g, (char) => char.toUpperCase())
+        .trim();
+    }
+
+    return order
+      .filter((key) => key in (dentalDiagnosis || {}))
+      .map((key) => ({
+        key,
+        label: camelCaseToTitle(key),
+      }));
+  }, [dentalDiagnosis]);
+  const formatDentalDiagnosisValue = useCallback((val) => {
+    if (Array.isArray(val)) {
+      return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
+    }
+    if (val && typeof val === "object") {
+      return Object.entries(val)
+        .filter(([, v]) => !!v)
+        .map(([k]) => k)
+        .join(", ");
+    }
+    if (val == null) return "";
+    return String(val);
+  }, []);
+  const dentalDiagnosisRows = useMemo(() => {
+    return dentalDiagnosisFields
+      .map((field) => {
+        const value = formatDentalDiagnosisValue(dentalDiagnosis?.[field.key]);
+        return { ...field, value };
+      })
+      .filter((row) => String(row.value || "").trim() !== "");
+  }, [dentalDiagnosisFields, dentalDiagnosis, formatDentalDiagnosisValue]);
+
+  const updateDentalDiagnosisField = useCallback(
+    (fieldKey, rawValue) => {
+      let nextDentalData = null;
+      const nextValue = String(rawValue ?? "");
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const diagnosis = { ...(prevDentalData?.diagnosis || {}) };
+        // Once user edits, store only the raw string they typed.
+        diagnosis[fieldKey] = nextValue;
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          diagnosis,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+  const updateDentalToothDiagramNotes = useCallback(
+    (rawValue) => {
+      let nextDentalData = null;
+      const nextValue = String(rawValue ?? "");
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const diagnosis = { ...(prevDentalData?.diagnosis || {}) };
+        diagnosis.toothDiagramNotes = nextValue;
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          diagnosis,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+  const dentalTeeth = useMemo(() => {
+    const teeth = dentalDataSource?.diagnosis?.teeth;
+    return Array.isArray(teeth) ? teeth : [];
+  }, [dentalDataSource]);
+  const dentalTeethBySection = useMemo(() => {
+    const buckets = {
+      UPPER_LEFT: [],
+      UPPER_RIGHT: [],
+      LOWER_LEFT: [],
+      LOWER_RIGHT: [],
+    };
+    dentalTeeth.forEach((tooth, idx) => {
+      const section = tooth?.toothSection;
+      if (section && buckets[section]) {
+        buckets[section].push({ ...tooth, _index: idx });
+      }
+    });
+    return buckets;
+  }, [dentalTeeth]);
+  const hasDentalSection = useMemo(() => {
+    const hasComplaints = Object.values(dentalComplaints || {}).some(
+      (val) => val != null && String(val).trim() !== ""
+    );
+    const hasPlans = Array.isArray(dentalTreatmentPlans?.items) && dentalTreatmentPlans.items.length > 0;
+    const hasTeeth = Array.isArray(dentalTeeth) && dentalTeeth.length > 0;
+    const hasWorkDone =
+      (Array.isArray(dentalWorkDoneItems) && dentalWorkDoneItems.length > 0) ||
+      (dentalWorkDone?.notes != null && String(dentalWorkDone?.notes).trim() !== "");
+    const hasDentalMedicationContext =
+      data?.dental === true ||
+      !!dentalDataSource ||
+      !!data?.complaints ||
+      !!data?.treatmentPlans ||
+      !!data?.workDone;
+    return (
+      data?.dental === true ||
+      !!dentalDataSource ||
+      hasComplaints ||
+      hasPlans ||
+      hasTeeth ||
+      hasToothDiagramNotes ||
+      hasWorkDone ||
+      (hasDentalMedicationContext && hasDentalMedications)
+    );
+  }, [
+    data,
+    dentalDataSource,
+    dentalComplaints,
+    dentalTreatmentPlans,
+    dentalTeeth,
+    hasToothDiagramNotes,
+    dentalWorkDoneItems,
+    dentalWorkDone,
+    hasDentalMedications,
+  ]);
+
+  useEffect(() => {
+    if (dentalDataSource && !dentalDataFromStore) {
+      dispatch(setDentalData(dentalDataSource));
+    }
+  }, [dentalDataSource, dentalDataFromStore, dispatch]);
+
+  useEffect(() => {
+    if (!setData) return;
+    if (dentalDataFromStore && !data?.dentalData) {
+      const complaints = dentalDataFromStore?.complaints ?? {};
+      const treatmentPlans = dentalDataFromStore?.treatmentPlans ?? { items: [] };
+      setData((prev) => {
+        const medications = getDentalMedicationArray(
+          prev?.medications,
+          dentalDataFromStore?.medications
+        );
+        return {
+          ...prev,
+          dental: true,
+          dentalData: dentalDataFromStore,
+          complaints,
+          treatmentPlans,
+          medications,
+        };
+      });
+    }
+  }, [dentalDataFromStore, data?.dentalData, setData]);
+
+  useEffect(() => {
+    const pending = pendingToothFocusRef.current;
+    if (!pending) return;
+    const key = `${pending.index}-${pending.field}`;
+    const el = toothInputRefs.current[key];
+    if (el) {
+      el.focus();
+      pendingToothFocusRef.current = null;
+    }
+  }, [dentalTeeth]);
 
   const labResultsUpdater = useMemo(
     () => (arr) => {
@@ -1517,12 +1839,465 @@ const DigitisedPrescription = ({
     }));
   }, []);
 
+  const handleDentalMedicationsUpdate = useCallback(
+    (medicationsArray) => {
+      let nextDentalData = null;
+      const nextMedications = Array.isArray(medicationsArray) ? medicationsArray : [];
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextWorkDone = prev?.workDone ?? prevDentalData?.workDone ?? { items: [], notes: "" };
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
   const handleInvestigationUpdate = useCallback((investigationArray) => {
     setData((prevData) => ({
       ...prevData,
       labInvestigation: investigationArray,
     }));
   }, []);
+
+  const updateDentalComplaintField = useCallback(
+    (key, value) => {
+      let nextDentalData = null;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const nextComplaints = {
+          ...(prev?.complaints ?? prevDentalData?.complaints ?? {}),
+          [key]: value,
+        };
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
+  const updateDentalTreatmentItem = useCallback(
+    (rowIndex, field, value) => {
+      let nextDentalData = null;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const currentTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const items = Array.isArray(currentTreatmentPlans.items)
+          ? [...currentTreatmentPlans.items]
+          : [];
+        while (items.length <= rowIndex) {
+          items.push({
+            srno: "",
+            treatment: "",
+            toothNum: "",
+            rate: "",
+            count: "",
+            estimate: "",
+          });
+        }
+        const currentItem = items[rowIndex] || {};
+        items[rowIndex] = { ...currentItem, [field]: value };
+        const nextTreatmentPlans = { ...currentTreatmentPlans, items };
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
+  const addDentalTreatmentRow = useCallback(() => {
+    let nextDentalData = null;
+    setData((prev) => {
+      const prevDentalData =
+        prev?.dentalData ??
+        prev?.results ??
+        prev?.data?.results ??
+        dentalDataFromStore ??
+        {};
+      const currentTreatmentPlans =
+        prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+      const items = Array.isArray(currentTreatmentPlans.items)
+        ? [...currentTreatmentPlans.items]
+        : [];
+      items.push({
+        srno: items.length + 1,
+        treatment: "",
+        toothNum: "",
+        rate: "",
+        count: "",
+        estimate: "",
+      });
+      const nextTreatmentPlans = { ...currentTreatmentPlans, items };
+      const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+      const nextMedications = getDentalMedicationArray(
+        prev?.medications,
+        prevDentalData?.medications
+      );
+      nextDentalData = {
+        ...prevDentalData,
+        complaints: nextComplaints,
+        treatmentPlans: nextTreatmentPlans,
+        medications: nextMedications,
+      };
+      return {
+        ...prev,
+        dental: true,
+        complaints: nextComplaints,
+        treatmentPlans: nextTreatmentPlans,
+        medications: nextMedications,
+        dentalData: nextDentalData,
+      };
+    });
+    if (nextDentalData) dispatch(setDentalData(nextDentalData));
+    if (typeof onRxEdited === "function") onRxEdited(true);
+  }, [dispatch, dentalDataFromStore, onRxEdited, setData]);
+
+  const updateDentalWorkDoneItem = useCallback(
+    (rowIndex, field, value) => {
+      let nextDentalData = null;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const currentWorkDone = prev?.workDone ?? prevDentalData?.workDone ?? { items: [], notes: "" };
+        const items = Array.isArray(currentWorkDone.items) ? [...currentWorkDone.items] : [];
+        while (items.length <= rowIndex) {
+          items.push({
+            date: "",
+            workDone: "",
+            ptr: "",
+            ttReview: "",
+            payment: "",
+            balance: "",
+            remarks: "",
+          });
+        }
+        const currentItem = items[rowIndex] || {};
+        const nextItem = { ...currentItem, [field]: value };
+        if (field === "workDone") {
+          nextItem.nextAppointment = "";
+        }
+        items[rowIndex] = nextItem;
+        const nextWorkDone = { ...currentWorkDone, items };
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
+  const addDentalWorkDoneRow = useCallback(() => {
+    let nextDentalData = null;
+    setData((prev) => {
+      const prevDentalData =
+        prev?.dentalData ??
+        prev?.results ??
+        prev?.data?.results ??
+        dentalDataFromStore ??
+        {};
+      const currentWorkDone = prev?.workDone ?? prevDentalData?.workDone ?? { items: [], notes: "" };
+      const items = Array.isArray(currentWorkDone.items) ? [...currentWorkDone.items] : [];
+      items.push({
+        date: "",
+        workDone: "",
+        ptr: "",
+        ttReview: "",
+        payment: "",
+        balance: "",
+        remarks: "",
+      });
+      const nextWorkDone = { ...currentWorkDone, items };
+      const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+      const nextTreatmentPlans =
+        prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+      const nextMedications = getDentalMedicationArray(
+        prev?.medications,
+        prevDentalData?.medications
+      );
+      nextDentalData = {
+        ...prevDentalData,
+        complaints: nextComplaints,
+        treatmentPlans: nextTreatmentPlans,
+        workDone: nextWorkDone,
+        medications: nextMedications,
+      };
+      return {
+        ...prev,
+        dental: true,
+        complaints: nextComplaints,
+        treatmentPlans: nextTreatmentPlans,
+        workDone: nextWorkDone,
+        medications: nextMedications,
+        dentalData: nextDentalData,
+      };
+    });
+    if (nextDentalData) dispatch(setDentalData(nextDentalData));
+    if (typeof onRxEdited === "function") onRxEdited(true);
+  }, [dispatch, dentalDataFromStore, onRxEdited, setData]);
+
+  const updateDentalWorkDoneNotes = useCallback(
+    (value) => {
+      let nextDentalData = null;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const currentWorkDone = prev?.workDone ?? prevDentalData?.workDone ?? { items: [], notes: "" };
+        const nextWorkDone = { ...currentWorkDone, notes: value };
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          workDone: nextWorkDone,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
+  const buildWorkDoneText = useCallback((item) => {
+    const workDone = item?.workDone ?? "";
+    const nextAppointment = item?.nextAppointment ?? "";
+    const workDoneText = String(workDone ?? "");
+    const nextText = String(nextAppointment ?? "").trim();
+    if (!nextText) return workDoneText;
+    const normalized = workDoneText.toLowerCase();
+    if (normalized.includes("next appointment")) return workDoneText;
+    const suffix = `Next Appointment: ${nextText}`;
+    if (!workDoneText.trim()) return suffix;
+    return `${workDoneText}\n${suffix}`;
+  }, []);
+
+  const addDentalToothEntry = useCallback(
+    (sectionKey) => {
+      let nextDentalData = null;
+      let newIndex = -1;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const diagnosis = { ...(prevDentalData?.diagnosis || {}) };
+        const teeth = Array.isArray(diagnosis.teeth) ? [...diagnosis.teeth] : [];
+        newIndex = teeth.length;
+        teeth.push({
+          toothNum: "",
+          toothSection: sectionKey,
+          diagnose: "",
+        });
+        diagnosis.teeth = teeth;
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          diagnosis,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (newIndex >= 0) {
+        pendingToothFocusRef.current = { index: newIndex, field: "toothNum" };
+      }
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
+
+  const updateDentalToothEntry = useCallback(
+    (toothIndex, field, value) => {
+      let nextDentalData = null;
+      setData((prev) => {
+        const prevDentalData =
+          prev?.dentalData ??
+          prev?.results ??
+          prev?.data?.results ??
+          dentalDataFromStore ??
+          {};
+        const diagnosis = { ...(prevDentalData?.diagnosis || {}) };
+        const teeth = Array.isArray(diagnosis.teeth) ? [...diagnosis.teeth] : [];
+        const current = teeth[toothIndex] || {};
+        let toothNum = current.toothNum ?? "";
+        let diagnose = current.diagnose ?? "";
+        if (field === "toothNum") {
+          const cleaned = String(value ?? "").replace(/\\D/g, "");
+          toothNum = cleaned === "" ? "" : Number(cleaned);
+        }
+        if (field === "diagnose") {
+          diagnose = String(value ?? "");
+        }
+        teeth[toothIndex] = {
+          ...current,
+          toothNum,
+          diagnose,
+        };
+        diagnosis.teeth = teeth;
+        const nextComplaints = prev?.complaints ?? prevDentalData?.complaints ?? {};
+        const nextTreatmentPlans =
+          prev?.treatmentPlans ?? prevDentalData?.treatmentPlans ?? { items: [] };
+        const nextMedications = getDentalMedicationArray(
+          prev?.medications,
+          prevDentalData?.medications
+        );
+        nextDentalData = {
+          ...prevDentalData,
+          diagnosis,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+        };
+        return {
+          ...prev,
+          dental: true,
+          complaints: nextComplaints,
+          treatmentPlans: nextTreatmentPlans,
+          medications: nextMedications,
+          dentalData: nextDentalData,
+        };
+      });
+      if (nextDentalData) dispatch(setDentalData(nextDentalData));
+      if (typeof onRxEdited === "function") onRxEdited(true);
+    },
+    [dispatch, dentalDataFromStore, onRxEdited, setData]
+  );
 
   const dynamicFieldsObject = useMemo(
     () => getDynamicFieldsAsObject(data?.dynamicFields),
@@ -1639,6 +2414,377 @@ const DigitisedPrescription = ({
             </div>
           )}
           <>
+          {hasDentalSection && (
+            <div className="digitised-section-rx dental-section">
+              <table className="dental-table dental-complaints-table">
+                <tbody>
+                  {dentalComplaintRows.map((row) => (
+                    <tr key={row.key}>
+                      <td className="dental-label-cell">{row.label}</td>
+                      <td>
+                        <textarea
+                          className="dental-table-input dental-textarea"
+                          rows={row.key === "notes" ? 2 : 1}
+                          value={dentalComplaints?.[row.key] ?? ""}
+                          onChange={(e) =>
+                            updateDentalComplaintField(row.key, e.target.value)
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {hasDentalMedications ? (
+                <MedicationsTable
+                  medications={dentalMedications}
+                  onUpdate={handleDentalMedicationsUpdate}
+                  isProcessing={false}
+                  isMedInvestigationFeatureOn={isMedInvestigationOn}
+                />
+              ): null}
+
+
+              {dentalDiagnosisRows.length > 0 && (
+                <table className="dental-table dental-diagnosis-table">
+                  <thead>
+                    <tr>
+                      <th>Diagnosis Field</th>
+                      <th>Selected Values</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dentalDiagnosisRows.map((row) => (
+                      <tr key={`dental-dx-${row.key}`}>
+                        <td className="dental-label-cell">{row.label}</td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-selected-input"
+                            value={row.value}
+                            onChange={(e) =>
+                              updateDentalDiagnosisField(
+                                row.key,
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {(hasToothDiagramNotes || dentalDiagnosis?.toothDiagramNotes != null) && (
+                <table className="dental-table dental-tooth-diagram-table">
+                  <tbody>
+                    <tr>
+                      <td className="dental-label-cell">TOOTH DIAGRAM NOTES</td>
+                      <td>
+                        <textarea
+                          className="dental-table-input dental-textarea"
+                          value={dentalToothDiagramNotes}
+                          onChange={(e) => updateDentalToothDiagramNotes(e.target.value)}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+
+              <div className="dental-quadrant-grid">
+                {dentalQuadrantSections.map((section) => {
+                  const items = dentalTeethBySection?.[section.key] || [];
+                  return (
+                    <div className="dental-quadrant-cell" key={section.key}>
+                      <div className="dental-quadrant-title">
+                        {section.label}
+                      </div>
+                      <div className="dental-quadrant-list">
+                        {items.map((item) => {
+                          const toothNum = item?.toothNum ?? "";
+                          const diagnose = item?.diagnose ?? "";
+                          return (
+                            <div
+                              className="dental-tooth-row"
+                              key={`tooth-${section.key}-${item._index}`}
+                            >
+                              <span className="dental-tooth-label">Tooth</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                className="dental-tooth-num"
+                                value={toothNum}
+                                ref={(el) => {
+                                  const key = `${item._index}-toothNum`;
+                                  if (el) toothInputRefs.current[key] = el;
+                                  else delete toothInputRefs.current[key];
+                                }}
+                                onChange={(e) =>
+                                  updateDentalToothEntry(
+                                    item._index,
+                                    "toothNum",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              <span className="dental-tooth-sep">:</span>
+                              <input
+                                type="text"
+                                className="dental-tooth-diagnose"
+                                value={diagnose}
+                                ref={(el) => {
+                                  const key = `${item._index}-diagnose`;
+                                  if (el) toothInputRefs.current[key] = el;
+                                  else delete toothInputRefs.current[key];
+                                }}
+                                onChange={(e) =>
+                                  updateDentalToothEntry(
+                                    item._index,
+                                    "diagnose",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          className="btn dental-add-tooth"
+                          onClick={() => addDentalToothEntry(section.key)}
+                        >
+                          Add Tooth
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+
+              <div className="dental-table-title">TREATMENT PLAN(S)</div>
+              <table className="dental-table dental-treatment-table">
+                <thead>
+                  <tr>
+                    <th>S NO</th>
+                    <th>TREATMENT</th>
+                    <th>TOOTH NUMBER</th>
+                    <th>RATE</th>
+                    <th>COUNT</th>
+                    <th>ESTIMATE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dentalTreatmentPlans?.items?.length > 0 &&
+                    dentalTreatmentPlans.items.map((row, index) => (
+                      <tr key={`dental-plan-${index}`}>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.srno ?? index + 1}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "srno",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.treatment ?? ""}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "treatment",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.toothNum ?? ""}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "toothNum",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="dental-table-input"
+                            value={row?.rate ?? ""}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "rate",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="dental-table-input"
+                            value={row?.count ?? ""}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "count",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="dental-table-input"
+                            value={row?.estimate ?? ""}
+                            onChange={(e) =>
+                              updateDentalTreatmentItem(
+                                index,
+                                "estimate",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              <div className="dental-table-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline-digitise"
+                  onClick={addDentalTreatmentRow}
+                >
+                  Add Row
+                </button>
+              </div>
+
+              <div className="dental-table-title">WORK DONE</div>
+              <table className="dental-table dental-workdone-table">
+                <thead>
+                  <tr>
+                    <th>DATE</th>
+                    <th>WORK DONE</th>
+                    <th>PTR</th>
+                    <th>PAYMENT</th>
+                    <th>BALANCE</th>
+                    <th>REMARKS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dentalWorkDoneItems.length > 0 &&
+                    dentalWorkDoneItems.map((row, index) => (
+                      <tr key={`dental-workdone-${index}`}>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.date ?? ""}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "date", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="dental-table-input dental-textarea"
+                            value={buildWorkDoneText(row)}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "workDone", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.ptr ?? ""}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "ptr", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="dental-table-input"
+                            value={row?.payment ?? ""}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "payment", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            className="dental-table-input"
+                            value={row?.balance ?? ""}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "balance", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="dental-table-input dental-textarea"
+                            value={row?.remarks ?? ""}
+                            onChange={(e) =>
+                              updateDentalWorkDoneItem(index, "remarks", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              <div className="dental-table-actions">
+                <button
+                  type="button"
+                  className="btn btn-outline-digitise"
+                  onClick={addDentalWorkDoneRow}
+                >
+                  Add Row
+                </button>
+              </div>
+              {dentalWorkDone?.notes?.length > 0 ? (<table className="dental-table dental-workdone-notes-table">
+                <tbody>
+                  <tr>
+                    <td className="dental-label-cell">WORK DONE NOTES</td>
+                    <td>
+                      <textarea
+                        className="dental-table-input dental-textarea"
+                        value={dentalWorkDone?.notes ?? ""}
+                        onChange={(e) => updateDentalWorkDoneNotes(e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>): null}
+            </div>
+          )}
           {hasValidContent("vitalsAndBodyComposition") && (
             <VitalsRichTextEditor
               vitalsAndBodyComposition={sectionData.vitalsAndBodyComposition || {}}
@@ -1692,7 +2838,7 @@ const DigitisedPrescription = ({
             />
           )}
 
-          {((sectionData.medications?.length > 0 && hasValidContent("medications")) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && (
+          {((sectionData.medications?.length > 0 && hasValidContent("medications")) || (!skipAutoLabResultsLogic && isMedInvestigationOn)) && !hasDentalMedications && (
               <MedicationsTable
                 medications={sectionData.medications || []}
                 onUpdate={handleMedicationsUpdate}
