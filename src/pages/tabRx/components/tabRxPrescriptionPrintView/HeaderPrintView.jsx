@@ -25,7 +25,7 @@ import {
 } from "../../../../utils/constants";
 import profileImg from "../../../../assets/images/profile-img.svg";
 import playIcon from "../../../../assets/images/h-play-icon.svg";
-import videorotate from "../../../../assets/images/videorotate.gif";
+import tutorial2 from "../../../../assets/images/tutorial.svg";
 import settingsIcon from "../../../../assets/images/settings.svg";
 import languageIcon from "../../../../assets/images/language-icon.svg";
 import shadedArrow from "../../../../assets/images/shaded-arrow.svg";
@@ -41,6 +41,7 @@ function HeaderPrintView({
   isVoiceOrAmbientFlow,
   onOpenPrintSettings,
   onSelectLanguage,
+  showDigitalRx,
 }) {
   const navigate = useNavigate();
   const { state } = useLocation();
@@ -167,14 +168,18 @@ function HeaderPrintView({
           </div>
         </div>
         <div className="align-items-center d-flex">
-          <div
-            //   onClick={handleDrawervideo}
-            className="cursor-pointer me-3 video-animat border-end"
-            style={{ paddingRight: 10 }}
-          >
-            <img src={playIcon} alt="Play" />
-            <img src={videorotate} alt="Video Rotate" />
-          </div>
+          {/* <Popover
+              open={popOverVideo}
+              onOpenChange={showHideVideoListPopover}
+              content={VIDEO_CONTENT}
+              trigger="click"
+              overlayClassName="pop-430 pp-0 videoTutorial"
+              placement="bottom"
+          > */}
+              <button className="icon-btn bg-transparent border-0 p-0">
+                  <img src={tutorial2} alt="Tutorial" style={{ width: 42, height: 42 }} />
+              </button>
+          {/* </Popover> */}
           {!isReceptionist && onOpenPrintSettings && (
             <button
               type="button"
@@ -203,7 +208,7 @@ function HeaderPrintView({
               </span>
             </button>
           )}
-          <div className="d-flex align-items-center me-3">
+          {showDigitalRx && <div className="d-flex align-items-center me-3">
             <Dropdown
               trigger={["click"]}
               menu={{
@@ -257,7 +262,7 @@ function HeaderPrintView({
                 <i className="fs-3 icon-right iconrotate270" />
               </div>
             </Dropdown>
-          </div>
+          </div>}
           <Button
             onClick={onEndVisitClick}
             loading={loadingEndVisit}

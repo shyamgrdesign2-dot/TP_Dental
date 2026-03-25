@@ -949,6 +949,7 @@ function TabRxPrescriptionPrintView() {
         selectedLang={selectedLang}
         onOpenPrintSettings={configurePrintUrl}
         onSelectLanguage={onSelect}
+        showDigitalRx={showDigitalRx}
       />
       <div className={`${isMobile ? "p-0" : ""} w-100 bg-body`}>
         <Row gutter={{ xl: 40, lg: 0 }}>
