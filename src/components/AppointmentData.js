@@ -230,7 +230,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [pageNo, setPageNo] = useState(0);
   const [visitTypeFilters, setVisitTypeFilters] = useState("");
   const [openRowIndex, setOpenRowIndex] = useState(null);
-  const [pendingDigitisation, setPendingDigitisation] = useState(null);
+  const [pendingDigitisation, setPendingDigitisation] = useState(null); // not in use as of now (if require will add it in future)
   const consultButtonRef = useRef(null);
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -523,36 +523,36 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   }, []);
 
-  const fetchPendingDigitisationRx = async () => {
-    try {
-      const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const cleanedToken = token.replace(/['"]+/g, "");
-      const decodedToken = getDecodedToken();
-      const doctorId = decodedToken?.result?.user_id;
+  // const fetchPendingDigitisationRx = async () => {
+  //   try {
+  //     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  //     const cleanedToken = token.replace(/['"]+/g, "");
+  //     const decodedToken = getDecodedToken();
+  //     const doctorId = decodedToken?.result?.user_id;
 
-      // API call for Rx Digitisation
-      const response = await axios.get(
-        `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cleanedToken}`,
-          },
-        }
-      );
+  //     // API call for Rx Digitisation
+  //     const response = await axios.get(
+  //       `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${cleanedToken}`,
+  //         },
+  //       }
+  //     );
 
-      const pendingDigitisationRx = response?.data;
+  //     const pendingDigitisationRx = response?.data;
 
-      if (pendingDigitisationRx) {
-        setPendingDigitisation(pendingDigitisationRx);
-      }
-    } catch (error) {
-      console.error(
-        "Error fetching the pending Digitisation prescriptions:",
-        error
-      );
-    }
-  };
+  //     if (pendingDigitisationRx) {
+  //       setPendingDigitisation(pendingDigitisationRx);
+  //     }
+  //   } catch (error) {
+  //     console.error(
+  //       "Error fetching the pending Digitisation prescriptions:",
+  //       error
+  //     );
+  //   }
+  // };
 
   // Initialize items in state
   const [items, setItems] = useState([
@@ -687,7 +687,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     // Update the items state with new data
     setItems(updatedItems);
   }, [
-    pendingDigitisation,
     queueCount,
     finishedCount,
     cancelledCount,
