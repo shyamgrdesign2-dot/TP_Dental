@@ -70,7 +70,7 @@ import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
-import templateTimeIcon from "../assets/images/template-time-icon.png";
+import templateTimeIcon from "../assets/images/template-time-icon.svg";
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
   ADD,
