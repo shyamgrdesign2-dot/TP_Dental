@@ -25,7 +25,7 @@ import {
 } from "../../../../utils/constants";
 import profileImg from "../../../../assets/images/profile-img.svg";
 import playIcon from "../../../../assets/images/h-play-icon.svg";
-import videorotate from "../../../../assets/images/videorotate.gif";
+import tutorial2 from "../../../../assets/images/tutorial.svg";
 import settingsIcon from "../../../../assets/images/settings.svg";
 import languageIcon from "../../../../assets/images/language-icon.svg";
 import shadedArrow from "../../../../assets/images/shaded-arrow.svg";
@@ -41,6 +41,7 @@ function HeaderPrintView({
   isVoiceOrAmbientFlow,
   onOpenPrintSettings,
   onSelectLanguage,
+  showDigitalRx,
 }) {
   const navigate = useNavigate();
   const { state } = useLocation();
@@ -167,19 +168,33 @@ function HeaderPrintView({
           </div>
         </div>
         <div className="align-items-center d-flex">
+          {/* <Popover
+              open={popOverVideo}
+              onOpenChange={showHideVideoListPopover}
+              content={VIDEO_CONTENT}
+              trigger="click"
+              overlayClassName="pop-430 pp-0 videoTutorial"
+              placement="bottom"
+          > */}
+          <button className="icon-btn bg-transparent border-0 p-0">
+            <img
+              src={tutorial2}
+              alt="Tutorial"
+              style={{ width: 42, height: 42 }}
+            />
+          </button>
+          {/* </Popover> */}
+
           <div
-            //   onClick={handleDrawervideo}
-            className="cursor-pointer me-3 video-animat border-end"
-            style={{ paddingRight: 10 }}
-          >
-            <img src={playIcon} alt="Play" />
-            <img src={videorotate} alt="Video Rotate" />
-          </div>
+            className="rx-header-divider"
+            style={{ margin: "0 14px 0 8px" }}
+          />
+
           {!isReceptionist && onOpenPrintSettings && (
             <button
               type="button"
               onClick={onOpenPrintSettings}
-              className="d-flex align-items-center me-3"
+              className="d-flex align-items-center"
               style={{
                 border: "none",
                 outline: "none",
@@ -189,6 +204,7 @@ function HeaderPrintView({
                 display: "inline-flex",
                 alignItems: "center",
                 cursor: "pointer",
+                height: "42px",
               }}
             >
               <img className="me-2" src={settingsIcon} alt="Settings" />
@@ -203,61 +219,69 @@ function HeaderPrintView({
               </span>
             </button>
           )}
-          <div className="d-flex align-items-center me-3">
-            <Dropdown
-              trigger={["click"]}
-              menu={{
-                items: languageMenuItems,
-                onClick: ({ key }) => {
-                  if (onSelectLanguage) {
-                    onSelectLanguage(Number(key));
-                  }
-                },
-              }}
-            >
-              <div
-                style={{
-                  borderRadius: 10,
-                  backgroundColor: "#F3F4F6",
-                  padding: "8px 16px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 9,
-                    // border: "1px solid #D1D5DB",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 8,
+
+          {showDigitalRx && (
+            <>
+              <div className="rx-header-divider mx-3" />
+              <div className="d-flex align-items-center" style={{ height: "42px" }}>
+                <Dropdown
+                  trigger={["click"]}
+                  menu={{
+                    items: languageMenuItems,
+                    onClick: ({ key }) => {
+                      if (onSelectLanguage) {
+                        onSelectLanguage(Number(key));
+                      }
+                    },
                   }}
                 >
-                  <img
-                    className="me-1"
-                    src={languageIcon}
-                    alt="Language"
-                    // style={{ width: 16, height: 16 }}
-                  />
-                </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "#374151",
-                    marginRight: 6,
-                  }}
-                >
-                  {currentLanguageLabel}
-                </span>
-                <i className="fs-3 icon-right iconrotate270" />
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      backgroundColor: "#F3F4F6",
+                      padding: "8px 16px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 9,
+                        // border: "1px solid #D1D5DB",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <img
+                        className="me-1"
+                        src={languageIcon}
+                        alt="Language"
+                        // style={{ width: 16, height: 16 }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "#374151",
+                        marginRight: 6,
+                      }}
+                    >
+                      {currentLanguageLabel}
+                    </span>
+                    <i className="fs-3 icon-right iconrotate270" />
+                  </div>
+                </Dropdown>
               </div>
-            </Dropdown>
-          </div>
+            </>
+          )}
+
+          <div className="rx-header-divider mx-3" />
+
           <Button
             onClick={onEndVisitClick}
             loading={loadingEndVisit}

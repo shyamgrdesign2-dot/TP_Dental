@@ -1162,3 +1162,13 @@ body {
     border-bottom: 25px solid transparent;
     border-left: 27px solid #ffffff;
 }
+
+.rx-header-divider {
+    width: 1.05px;
+    height: 42px;
+    background: linear-gradient(180deg, rgba(208, 213, 221, 0.2) 0%, #d0d5dd 50%, rgba(208, 213, 221, 0.2) 100%);
+    opacity: 0.8;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
