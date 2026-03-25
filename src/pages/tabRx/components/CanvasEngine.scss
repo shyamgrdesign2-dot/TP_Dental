@@ -14,6 +14,11 @@
   &.embedded-in-scroll {
     touch-action: pan-y;
     flex: none; /* Don't grow - parent controls size */
+
+    /* Also override the canvas element so inline style stays consistent */
+    .canvas-wrapper canvas {
+      touch-action: pan-y;
+    }
   }
 
   .canvas-wrapper {
@@ -48,13 +53,6 @@
     user-drag: none;
     // Ensure canvas always receives pointer events
     pointer-events: auto !important;
-  }
-
-  /* When embedded in a vertical scroll view, allow finger scroll on the canvas area */
-  &.embedded-in-scroll {
-    canvas {
-      touch-action: pan-y;
-    }
   }
 
     .text-layer {

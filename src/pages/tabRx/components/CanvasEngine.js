@@ -1219,7 +1219,9 @@ const CanvasEngine = React.forwardRef(({
           style={{
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            touchAction: 'none',
+            // Allow vertical finger-scroll when this canvas is inside a scroll container.
+            // Pen/stylus still draws because internalPointerDown calls preventDefault() for pen events.
+            touchAction: embeddedInScroll ? 'pan-y' : 'none',
             WebkitTouchCallout: 'none',
             WebkitTapHighlightColor: 'transparent'
           }}
