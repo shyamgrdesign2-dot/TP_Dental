@@ -12,18 +12,20 @@ export const ZOOM_CONSTRAINTS = {
 
 export const CLINICAL_COLORS = [
   { name: 'Black',      hex: '#000000' },
-  { name: 'Blue',       hex: '#2563EB' }, // Brighter standard blue
-  { name: 'Red',        hex: '#DC2626' },
-  { name: 'Green',      hex: '#16A34A' },
-  { name: 'Primary',    hex: '#4B4AD5' }, // Updated to New Primary
-  { name: 'Pink',       hex: '#DB2777' }, // Brand Pink
+  { name: 'Grey',       hex: '#545460' }, // Brighter standard blue
+  { name: 'LightGrey',        hex: '#A2A2A8' },
+  { name: 'Red',      hex: '#EF4444' },
+  { name: 'Yellow',    hex: '#F59E0B' }, // Updated to New Primary
+  { name: 'Green',       hex: '#10B981' }, // Brand Pink
 ];
 
 export const HIGHLIGHTER_COLORS = [
-  { name: 'Yellow', hex: '#FCD34D' }, // More pastel
-  { name: 'Green', hex: '#86EFAC' },
-  { name: 'Blue', hex: '#93C5FD' },
-  { name: 'Pink', hex: '#F9A8D4' }
+  { name: 'Yellow',      hex: '#FCD34D' },
+  { name: 'Pint',       hex: '#FCA5A5' }, // Brighter standard blue
+  { name: 'Green',        hex: '#86EFAC' },
+  { name: 'Grey',      hex: '#94A3B8' },
+  { name: 'LightGrey',    hex: '#D1D5DB' }, // Updated to New Primary
+  { name: 'White',       hex: '#E5E7EB' }
 ];
 
 export const THICKNESS_LEVELS = [1, 2, 4, 8, 14, 24];
