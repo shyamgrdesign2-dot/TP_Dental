@@ -2666,9 +2666,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     return matchedAppointment.filter((item) => {
       if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
-        if (statusFilters && statusFilters.length > 0) {
-          return statusFilters.includes(item.appointmentStatus);
-        }
+        // In this branch we don't use appointment status filtering;
+        // keep only the basic "exclude cancelled" behavior.
         return !(
           item.appointmentStatus &&
           item.appointmentStatus.toLowerCase().includes("cancel")
@@ -2676,7 +2675,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       }
       return true;
     });
-  }, [appointmentsData, matchedAppointment, selectedTab, statusFilters]);
+  }, [appointmentsData, matchedAppointment, selectedTab]);
 
   // useEffect(() => {
   //   const renderedAppointmentDetails = (renderedAppointments || []).map(
@@ -2691,11 +2690,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   //     })
   //   );
 
-  //   // console.log("UI rendered appointment details", {
-  //   //   selectedTab,
-  //   //   totalRendered: renderedAppointmentDetails.length,
-  //   //   renderedAppointmentDetails,
-  //   // });
+  //   console.log("UI rendered appointment details", {
+  //     selectedTab,
+  //     totalRendered: renderedAppointmentDetails.length,
+  //     renderedAppointmentDetails,
+  //   });
   // }, [renderedAppointments, allUnDigitisedAppointments, selectedTab]);
 
   const emptyText = (
