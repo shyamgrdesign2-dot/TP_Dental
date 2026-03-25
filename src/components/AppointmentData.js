@@ -977,11 +977,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
-  useEffect(() => {
-    if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
-      fetchPendingDigitisationRx();
-    }
-  }, [isSmartSyncAccessableFromGB]);
+  // useEffect(() => {
+  //   if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
+  //     fetchPendingDigitisationRx();
+  //   }
+  // }, [isSmartSyncAccessableFromGB]);
 
   useEffect(() => {
     if (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable || isTabRxCVTAccessableFromGB) {
