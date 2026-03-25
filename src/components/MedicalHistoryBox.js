@@ -32,6 +32,12 @@ import { jwtDecode } from "jwt-decode";
 import { CLOTS_LIST, CYCLE_KEY_LIST, FLOW_LIST, GYNEC_SECTION_ENABLE_LIST, PAIN_LIST, PAIN_OCCURANCE_LIST, REPRODUCTIVE_LIFE_STAGES_LIST, TYPES_REPRODUCTIVE_STAGES } from "../utils/gynec_constants";
 import { useAccess } from "../pages/vaccination/useAccess";
 import { getClinicName } from "../utils/utils";
+import {
+    ensureFiveSections,
+    findMatchingMedicalHistoryTag,
+    mergeMedicalHistoryTagsBySection,
+    tagsAreDuplicateForHistoryMerge,
+} from "../utils/medicalHistoryUtils";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
 
@@ -55,7 +61,6 @@ function MedicalHistoryBox(props) {
     const { medicalHistoryData, setMedicalHistoryData } = useContext(CashManagerContext);
     // const [ medicalHistoryData, setMedicalHistoryData] = useState([]);
     const [cloneMedicalHistoryData, setCloneMedicalHistoryData] = useState([])
-    console.log({overrideMedicalHistoryData, cloneMedicalHistoryData});
 
     const MEDICAL_PROBLEM = {
         since: '',
@@ -301,80 +306,90 @@ function MedicalHistoryBox(props) {
 
 
     useEffect(() => {
-      if (defaultList?.length > 0) {
-        try {
-            const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
-            const isPrescriptionOnly = overrideMedicalHistoryData != null;
-            let data2;
-            if (isPrescriptionOnly) {
-                // Merge context (patient's history) with override (prescription) so sidebar shows all chips
-                const ctx = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
-                const ovr = overrideMedicalHistoryData ? JSON.parse(JSON.stringify(overrideMedicalHistoryData)) : [];
-                const combinedBySection = (a, b) => {
-                    const byId = (arr) => (arr || []).reduce((acc, s) => ({ ...acc, [s.tmmhs_id]: s }), {});
-                    const aMap = byId(a);
-                    const bMap = byId(b);
-                    const ids = new Set([...Object.keys(aMap), ...Object.keys(bMap)]);
-                    return Array.from(ids, (id) => {
-                        const sa = aMap[id];
-                        const sb = bMap[id];
-                        if (!sa) return sb;
-                        if (!sb) return sa;
-                        const existingIds = new Set((sa.tags || []).map((t) => t.tmmhst_id));
-                        const newTags = (sb.tags || []).filter((t) => !existingIds.has(t.tmmhst_id));
-                        return { ...sa, ...sb, tags: [...(sa.tags || []), ...newTags] };
-                    });
-                };
-                data2 = combinedBySection(ctx, ovr);
-            } else {
-                const sourceData = medicalHistoryData;
-                data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
-            }
-            const mergedArray = data1?.map(e => {
-                const sectionFromSource = data2?.find(x => x?.tmmhs_id === e?.tmmhs_id);
+        const isPrescriptionOnly = overrideMedicalHistoryData != null;
+        let data2 = [];
+        if (isPrescriptionOnly) {
+            const ctx = medicalHistoryData ? JSON.parse(JSON.stringify(medicalHistoryData)) : [];
+            const ovr = overrideMedicalHistoryData ? JSON.parse(JSON.stringify(overrideMedicalHistoryData)) : [];
+            const combinedBySection = (a, b) => {
+                const byId = (arr) => (arr || []).reduce((acc, s) => ({ ...acc, [s.tmmhs_id]: s }), {});
+                const aMap = byId(a);
+                const bMap = byId(b);
+                const ids = new Set([...Object.keys(aMap), ...Object.keys(bMap)]);
+                return Array.from(ids, (id) => {
+                    const sa = aMap[id];
+                    const sb = bMap[id];
+                    if (!sa) return sb;
+                    if (!sb) return sa;
+                    const secId = Number(id) || sa?.tmmhs_id || sb?.tmmhs_id;
+                    return { ...sa, ...sb, tags: mergeMedicalHistoryTagsBySection(sa.tags, sb.tags, secId) };
+                });
+            };
+            data2 = combinedBySection(ctx, ovr);
+        } else {
+            const sourceData = medicalHistoryData;
+            data2 = sourceData ? JSON.parse(JSON.stringify(sourceData)) : [];
+        }
+
+        const buildMergedArray = (data1) =>
+            data1?.map((e) => {
+                const sectionFromSource = data2?.find((x) => x?.tmmhs_id === e?.tmmhs_id);
                 if (isPrescriptionOnly) {
-                    // Voice/ambient/snap/smart: same as consult – merge defaultList section with prescription so all chips show
                     if (!sectionFromSource || !data2?.length) {
                         return { ...e, ...(sectionFromSource || {}), tags: e?.tags ?? [] };
                     }
+                    const mergedTags = [
+                        ...(e?.tags || [])?.map((tag) => ({
+                            ...tag,
+                            ...(findMatchingMedicalHistoryTag(tag, sectionFromSource?.tags, e?.tmmhs_id) || {}),
+                        })),
+                        ...(sectionFromSource?.tags || [])?.filter(
+                            (item2) =>
+                                !(e?.tags || [])?.some((item1) =>
+                                    tagsAreDuplicateForHistoryMerge(item1, item2, e?.tmmhs_id)
+                                )
+                        ),
+                    ];
                     return {
                         ...e,
                         ...(sectionFromSource || {}),
-                        tags: [
-                            ...(e?.tags || [])?.map(tag => ({
-                                ...tag,
-                                ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
-                            })),
-                            ...(sectionFromSource?.tags || [])?.filter(item2 =>
-                                !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
-                            )
-                        ],
+                        tags: mergeMedicalHistoryTagsBySection(mergedTags, [], e?.tmmhs_id),
                     };
                 }
-                // Consult: merge defaultList with context (prod behavior)
                 if (!data2?.length) {
                     return e;
                 }
+                const mergedTagsConsult = [
+                    ...(e?.tags || [])?.map((tag) => ({
+                        ...tag,
+                        ...(findMatchingMedicalHistoryTag(tag, sectionFromSource?.tags, e?.tmmhs_id) || {}),
+                    })),
+                    ...(sectionFromSource?.tags || [])?.filter(
+                        (item2) =>
+                            !(e?.tags || [])?.some((item1) =>
+                                tagsAreDuplicateForHistoryMerge(item1, item2, e?.tmmhs_id)
+                            )
+                    ),
+                ];
                 return {
                     ...e,
                     ...(sectionFromSource || {}),
-                    tags: [
-                        ...(e?.tags || [])?.map(tag => ({
-                            ...tag,
-                            ...(sectionFromSource?.tags?.find(x1 => x1?.tmmhst_id === tag?.tmmhst_id) || {})
-                        })),
-                        ...(sectionFromSource?.tags || [])?.filter(item2 =>
-                            !(e?.tags || [])?.find(item1 => item1?.tmmhst_id === item2?.tmmhst_id)
-                        )
-                    ],
+                    tags: mergeMedicalHistoryTagsBySection(mergedTagsConsult, [], e?.tmmhs_id),
                 };
             }) ?? data1;
-            setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
+
+        try {
+            if (defaultList?.length > 0) {
+                const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
+                const mergedArray = buildMergedArray(data1);
+                setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
+            } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
+                setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));
+            }
         } catch (error) {
             console.error("Error merging medical history data:", error);
             setCloneMedicalHistoryData([]);
         }
-      }
     // defaultList always; overrideMedicalHistoryData for voice/snap/smart; medicalHistoryData for voice merge and consult.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultList, overrideMedicalHistoryData, medicalHistoryData]);
