@@ -994,12 +994,6 @@ function ConfigurePrintSetting() {
             }
             // Use digitised-style print config for: digitised snap/smart OR voice/ambient (same as digitised, not written Rx)
             const useDigitisedStyleConfig = isAfterDigitization || !!dataForPrescription?.isVoiceAmbientRx;
-            // Remove SmartRx option for digitised and voice/ambient – only snap/smart written Rx should have it
-            if (useDigitisedStyleConfig && copyPrintSettings?.prescription?.case_option) {
-                copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.filter(
-                    option => option?.id !== 11
-                );
-            }
 
             // After digitization or voice/ambient: ensure ALL modules that have data are in print config (same as digitised snap/smart). Use dataForPrescription so voice/ambient API vaccinations are included.
             if (useDigitisedStyleConfig && copyPrintSettings?.prescription?.case_option) {
