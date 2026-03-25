@@ -31,6 +31,7 @@ const initialState = {
   patients_details: null,
   categoriesList: [],
   snapRxUnDigitisedIds: [],
+  allUnDigitisedAppointmentsList: [],
 };
 
 export const getCaseTypes = createAsyncThunk(
@@ -80,6 +81,20 @@ export const getSnapRxUnDigitisedIds = createAsyncThunk(
       } else {
         throw Error(result.error);
       }
+    } catch (error) {
+      console.log("error: ", error);
+      throw Error(error);
+    }
+  }
+);
+
+export const getAllUnDigitisedAppointmentsList = createAsyncThunk(
+  "records/getAllUnDigitisedAppointmentsList",
+  async () => {
+    try {
+      const result =
+        await ApiAppointments.getAllUnDigitisedAppointmentsList();
+      return result;
     } catch (error) {
       console.log("error: ", error);
       throw Error(error);
@@ -707,6 +722,15 @@ const appointmentsSlice = createSlice({
       })
       .addCase(getSnapRxUnDigitisedIds.rejected, (state, action) => {
         state.snapRxUnDigitisedIds = [];
+      })
+      .addCase(
+        getAllUnDigitisedAppointmentsList.fulfilled,
+        (state, action) => {
+          state.allUnDigitisedAppointmentsList = action.payload || [];
+        }
+      )
+      .addCase(getAllUnDigitisedAppointmentsList.rejected, (state) => {
+        state.allUnDigitisedAppointmentsList = [];
       });
   },
 });
