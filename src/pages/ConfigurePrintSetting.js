@@ -75,7 +75,6 @@ function ConfigurePrintSetting() {
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
-    const footerImageShowRef = useRef(false);
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
@@ -1223,14 +1222,9 @@ function ConfigurePrintSetting() {
     }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length, labParamsData?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
 
     useEffect(() => {
-        // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true
-        if (fileFooter?.showFile && fileFooter?.imageShow && !footerImageShowRef.current) {
-            updateFooterImageHeight(fileFooter, setFileFooter, true);
-            footerImageShowRef.current = true; // Mark as handled
-        } else if (!fileFooter?.imageShow) {
-            footerImageShowRef.current = false; // Reset when imageShow becomes false
-        }
-    }, [printSettings, fileFooter?.imageShow, fileFooter?.showFile])
+        if (!fileFooter?.showFile) return;
+        updateFooterImageHeight(fileFooter, setFileFooter);
+    }, [fileFooter?.showFile])
 
     const onTabChange = useCallback(
         (key) => {
