@@ -46,11 +46,6 @@ export const getTabRxFiles = async (tcmId, patientUniqueId) => {
 // Upload files for tab-rx
 // files: Array of File/Blob objects or { file: File/Blob, fieldName?: string }
 export const uploadTabRxFiles = async (files, onProgress) => {
-  console.log('📤 [tabRxService] uploadTabRxFiles called', { 
-    filesCount: files?.length || 0,
-    fileNames: files?.map(f => f?.name || 'unnamed') || [],
-    fileSizes: files?.map(f => f?.size ? `${(f.size / 1024).toFixed(2)}KB` : 'unknown') || []
-  });
   
   try {
     // Validate files
@@ -84,12 +79,6 @@ export const uploadTabRxFiles = async (files, onProgress) => {
       // Some browsers/network inspectors may not show empty field names, but the API accepts them
       formData.append('', file);
       
-      console.log(`📎 [tabRxService] Appended file ${index + 1}:`, { 
-        name: file.name, 
-        size: `${(file.size / 1024).toFixed(2)}KB`,
-        type: file.type,
-        fieldName: '(empty as per API requirement)'
-      });
     });
     
     // Debug: Log FormData entries to verify they're being added
@@ -112,22 +101,18 @@ export const uploadTabRxFiles = async (files, onProgress) => {
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.lengthComputable) {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log(`📊 [tabRxService] Upload progress: ${percentCompleted}%`);
           onProgress(percentCompleted);
         }
       },
       ...baseUrl
     };
     
-    console.log('🚀 [tabRxService] Calling POST /api/v1/tab-rx/upload-files...');
     const response = await api.post('/api/v1/tab-rx/upload-files', formData, requestConfig);
     const responseData = response.data || response;
-    console.log('✅ [tabRxService] Upload successful:', responseData);
     
     // Extract uploaded file names from response
     // Response format: { uploaded_files: ["tab_rx_1772688725577_6124949174.jpeg", ...] }
     const uploadedFileNames = responseData?.uploaded_files || responseData?.data?.uploaded_files || [];
-    console.log('📋 [tabRxService] Uploaded file names from API:', uploadedFileNames);
     
     return {
       success: true,
@@ -136,12 +121,6 @@ export const uploadTabRxFiles = async (files, onProgress) => {
     };
   } catch (error) {
     console.error('❌ [tabRxService] Failed to upload tab-rx files:', error);
-    console.error('❌ [tabRxService] Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      stack: error.stack
-    });
     let errorMessage = 'Upload failed. Please try again.';
     
     if (error.response?.data?.message) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
-import { Dropdown, message, Button } from 'antd';
+import { Dropdown, message, Button, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import CanvasEngine from './CanvasEngine';
@@ -233,13 +233,17 @@ const TabRxCanvas = forwardRef(({
   const [isTemplateSwitchModalOpen, setIsTemplateSwitchModalOpen] = useState(false);
   const [pendingTemplateId, setPendingTemplateId] = useState(null);
 
+  // Loading states for templates API call and per-page background images
+  const [isTemplatesLoading, setIsTemplatesLoading] = useState(true); // true on mount — loadTemplates runs immediately
+  const [pageImageLoading, setPageImageLoading] = useState({});       // { [pageId]: boolean }
+  const preloadedUrls = useRef(new Set());                            // avoid re-preloading the same URL
+
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
 
   // Expose export method via ref
   useImperativeHandle(ref, () => ({
     exportToImages: async () => {
-      console.log('📤 [TabRxCanvas] exportToImages called', { pagesCount: pagesMetadata.length });
       const files = [];
       const blobs = [];
 
@@ -247,13 +251,6 @@ const TabRxCanvas = forwardRef(({
         const pageMeta = pagesMetadata[i];
         const pageId = pageMeta.id;
         const canvasEngineRef = canvasRefsByPage.current[pageId];
-
-        console.log(`📄 [TabRxCanvas] Processing page ${i + 1} (${pageId}):`, {
-          hasRef: !!canvasEngineRef,
-          hasGetCanvas: !!(canvasEngineRef?.getCanvas),
-          refType: typeof canvasEngineRef,
-          refKeys: canvasEngineRef ? Object.keys(canvasEngineRef) : []
-        });
 
         if (!canvasEngineRef || typeof canvasEngineRef.getCanvas !== 'function') {
           console.warn(`⚠️ [TabRxCanvas] No valid ref for page ${i + 1}:`, {
@@ -272,15 +269,6 @@ const TabRxCanvas = forwardRef(({
           console.warn(`⚠️ [TabRxCanvas] No canvas element for page ${i + 1}`);
           continue;
         }
-
-        console.log(`✅ [TabRxCanvas] Got canvas for page ${i + 1}:`, {
-          width: canvas.width,
-          height: canvas.height,
-          hasStrokes: strokesByPage[pageId]?.length > 0,
-          strokesCount: strokesByPage[pageId]?.length || 0,
-          hasText: textElementsByPage[pageId]?.length > 0,
-          textCount: textElementsByPage[pageId]?.length || 0
-        });
 
         try {
           // Try to convert canvas to blob directly
@@ -308,14 +296,6 @@ const TabRxCanvas = forwardRef(({
           const fileName = `${uuidv4()}.jpeg`;
           const file = new File([blob], fileName, { type: 'image/jpeg' });
 
-          console.log(`📦 [TabRxCanvas] Page ${i + 1} converted:`, {
-            fileName,
-            fileSize: `${(file.size / 1024).toFixed(2)}KB`,
-            sizeInBytes: file.size,
-            threshold: 5 * 1000,
-            passesThreshold: file.size > 5 * 1000
-          });
-
           // Check if file has meaningful content (5KB threshold)
           // OR if there are actual strokes/text elements (even if file is small)
           const hasStrokes = strokesByPage[pageId]?.length > 0;
@@ -323,27 +303,14 @@ const TabRxCanvas = forwardRef(({
           const hasContent = hasStrokes || hasText;
 
           if (file.size > 5 * 1000 || hasContent) {
-            console.log(`✅ [TabRxCanvas] Including page ${i + 1} in export:`, {
-              reason: file.size > 5 * 1000 ? 'file size' : 'has content',
-              hasStrokes,
-              hasText
-            });
             blobs.push(blob);
             files.push(file);
           } else {
-            console.log(`⏭️ [TabRxCanvas] Skipping page ${i + 1}: blank canvas (no content and size < 5KB)`);
           }
         } catch (error) {
           console.error(`❌ [TabRxCanvas] Error converting canvas for page ${i + 1}:`, error);
         }
       }
-
-      console.log(`✅ [TabRxCanvas] Export complete:`, {
-        filesCount: files.length,
-        blobsCount: blobs.length,
-        fileNames: files.map(f => f.name),
-        fileSizes: files.map(f => `${(f.size / 1024).toFixed(2)}KB`)
-      });
 
       return { files, blobs };
     },
@@ -390,6 +357,7 @@ const TabRxCanvas = forwardRef(({
   // Load templates on mount
   useEffect(() => {
     const loadTemplates = async () => {
+      setIsTemplatesLoading(true);
       try {
         const result = await getTemplates();
         if (result.success) {
@@ -397,6 +365,8 @@ const TabRxCanvas = forwardRef(({
         }
       } catch (error) {
         console.error('Error loading templates:', error);
+      } finally {
+        setIsTemplatesLoading(false);
       }
     };
     loadTemplates();
@@ -458,14 +428,26 @@ const TabRxCanvas = forwardRef(({
     return null;
   }, [templates]);
 
+  // Preload background image for every page that has one.
+  // Runs whenever pagesMetadata or templates change (templates affect getBackgroundForPage).
+  // Each URL is only preloaded once (tracked via preloadedUrls ref).
+  useEffect(() => {
+    pagesMetadata.forEach((pageMeta) => {
+      const bgUrl = pageMeta.customImage || getBackgroundForPage(pageMeta);
+      if (!bgUrl || preloadedUrls.current.has(bgUrl)) return;
+
+      preloadedUrls.current.add(bgUrl);
+      setPageImageLoading((prev) => ({ ...prev, [pageMeta.id]: true }));
+
+      const img = new Image();
+      img.onload  = () => setPageImageLoading((prev) => ({ ...prev, [pageMeta.id]: false }));
+      img.onerror = () => setPageImageLoading((prev) => ({ ...prev, [pageMeta.id]: false }));
+      img.src = bgUrl;
+    });
+  }, [pagesMetadata, getBackgroundForPage]);
+
   // Fallback export method: Create a new canvas and redraw everything to avoid tainted canvas errors
   const exportCanvasWithFallback = useCallback(async (pageMeta, strokes, textElements) => {
-    console.log(`🔄 [TabRxCanvas] Using fallback export for page with template:`, {
-      templateId: pageMeta.templateId,
-      imageIndex: pageMeta.templateImageIndex,
-      strokesCount: strokes.length,
-      textCount: textElements.length
-    });
 
     // Create a new canvas
     const exportCanvas = document.createElement('canvas');
@@ -1019,6 +1001,23 @@ const TabRxCanvas = forwardRef(({
           This works even when TabRxCanvas is embedded inside a layout with its 
           own left sidebar, because we only adjust the internal right padding.
         */}
+        {/* Viewport-centred loading overlay — shown while the templates API call is in flight */}
+        {isTemplatesLoading && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.75)',
+              zIndex: 2000,
+            }}
+          >
+            <Spin size="large" tip="Loading templates…" />
+          </div>
+        )}
         <div
           className="canvas-pages-scroll"
           style={{
@@ -1035,7 +1034,6 @@ const TabRxCanvas = forwardRef(({
                 pageMeta?.type === 'blank' ||
                 pageMeta?.templateId === 'blank'||
                 pageMeta?.templateId === null;
-              console.log(isBlankPage,"isBlankPage")
               const getAddPageMenuItems = () => [
                 {
                   key: 'same',
@@ -1065,6 +1063,24 @@ const TabRxCanvas = forwardRef(({
                   <div className="page-number-label">
                     Page {pageIndex + 1}
                   </div>
+
+                  {/* Per-page background-image loading spinner */}
+                  {pageImageLoading[pageId] && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.80)',
+                        zIndex: 10,
+                        borderRadius: 4,
+                      }}
+                    >
+                      <Spin size="large" />
+                    </div>
+                  )}
 
                   <CanvasEngine
                     ref={(canvasRef) => {

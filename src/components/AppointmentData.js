@@ -1975,7 +1975,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       const matchedItem = allUnDigitisedAppointments?.find(
         (item) => item?.appointmentId === record?.pam_id
       );
-      console.log("isUnreviewedRx comparison", { record, matchedItem });
       return (
         ["snap-rx", "tab-rx"].includes(matchedItem?.source) &&
         matchedItem?.isDigitize === true &&
@@ -2722,26 +2721,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       return true;
     });
   }, [appointmentsData, matchedAppointment, selectedTab, statusFilters]);
-
-  // useEffect(() => {
-  //   const renderedAppointmentDetails = (renderedAppointments || []).map(
-  //     (record) => ({
-  //       pam_id: record?.pam_id,
-  //       pm_fullname: record?.pm_fullname,
-  //       apDate: record?.apDate,
-  //       apTime: record?.apTime,
-  //       matchedItem: allUnDigitisedAppointments?.find(
-  //         (item) => item?.appointmentId === record?.pam_id
-  //       ),
-  //     })
-  //   );
-
-  //   // console.log("UI rendered appointment details", {
-  //   //   selectedTab,
-  //   //   totalRendered: renderedAppointmentDetails.length,
-  //   //   renderedAppointmentDetails,
-  //   // });
-  // }, [renderedAppointments, allUnDigitisedAppointments, selectedTab]);
 
   const emptyText = (
     <div

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { AiOutlineExpand } from 'react-icons/ai';
 import { CgClose } from 'react-icons/cg';
+import { GiAnticlockwiseRotation } from "react-icons/gi";
 import { LuPen, LuHighlighter, LuEraser, LuUndo2, LuRedo2, LuPlus, LuMinus } from 'react-icons/lu';
 import { CLINICAL_COLORS, HIGHLIGHTER_COLORS } from '../utils/constants';
 import './Toolbar.scss';
@@ -24,9 +25,16 @@ const Toolbar = ({
   const [orientation, setOrientation] = useState('vertical');
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  // Android fires BOTH pointerdown AND a synthetic click for a single tap.
+  // iOS/iPad respects e.preventDefault() in pointerdown and suppresses the click.
+  // Recording the pointerdown timestamp and skipping onClick when it fires within
+  // 500 ms prevents the double-invocation that causes the settings panel to
+  // flash open then immediately close on Android.
+  const lastPointerDownTs = useRef(0);
   
   const activeColors = toolSettings.activeTool === 'highlighter' ? HIGHLIGHTER_COLORS : CLINICAL_COLORS;
   const isTextTool = toolSettings.activeTool === 'text';
+  const zoomPercent = Math.round((zoomLevel || 1) * 100);
 
   const handlePointerDown = (e) => {
     const target = e.target;
@@ -145,14 +153,15 @@ const Toolbar = ({
     <button
       type="button"
       onPointerDown={(e) => {
-        // Fire on pointer down so tablet taps work on first tap (no click synthesis delay)
         e.preventDefault();
         e.stopPropagation();
+        lastPointerDownTs.current = performance.now();
         if (!isDragging) handleToolSelect(tool);
       }}
       onClick={(e) => {
-        // Desktop fallback
         e.stopPropagation();
+        // Android double-fire guard: pointerDown already handled this tap
+        if (performance.now() - lastPointerDownTs.current < 500) return;
         if (!isDragging) handleToolSelect(tool);
       }}
       className={`tool-button ${toolSettings.activeTool === tool ? 'active' : ''}`}
@@ -198,10 +207,12 @@ const Toolbar = ({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
             if (!isDragging) onUndo?.();
           }}
           onClick={(e) => {
             e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
             if (!isDragging) onUndo?.();
           }}
           disabled={!canUndo}
@@ -215,10 +226,12 @@ const Toolbar = ({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
             if (!isDragging) onRedo?.();
           }}
           onClick={(e) => {
             e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
             if (!isDragging) onRedo?.();
           }}
           disabled={!canRedo}
@@ -234,10 +247,35 @@ const Toolbar = ({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
+            if (!isDragging) onZoomOut?.();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
+            if (!isDragging) onZoomOut?.();
+          }}
+          className="action-button"
+          title="Zoom Out"
+        >
+          <LuMinus size={18} />
+        </button>
+
+        <div className="zoom-level" title={`Zoom ${zoomPercent}%`}>
+          {zoomPercent}%
+        </div>
+
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
             if (!isDragging) onZoomIn?.();
           }}
           onClick={(e) => {
             e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
             if (!isDragging) onZoomIn?.();
           }}
           className="action-button"
@@ -251,34 +289,20 @@ const Toolbar = ({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (!isDragging) onZoomOut?.();
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isDragging) onZoomOut?.();
-          }}
-          className="action-button"
-          title="Zoom Out"
-        >
-          <LuMinus size={18} />
-        </button>
-
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
             if (!isDragging) onFit?.();
           }}
           onClick={(e) => {
             e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
             if (!isDragging) onFit?.();
           }}
           className="action-button"
           title="Fit to Screen"
         >
-          <AiOutlineExpand size={18} />
+          <GiAnticlockwiseRotation size={18} />
         </button>
+
 
         <div className={`divider ${orientation}`} />
 
@@ -287,10 +311,12 @@ const Toolbar = ({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            lastPointerDownTs.current = performance.now();
             if (!isDragging) setIsMinimized(true);
           }}
           onClick={(e) => {
             e.stopPropagation();
+            if (performance.now() - lastPointerDownTs.current < 500) return;
             if (!isDragging) setIsMinimized(true);
           }}
           className="close-button"

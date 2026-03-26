@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Radio, Dropdown, message, Button } from 'antd';
 import { MoreOutlined, PlusOutlined, FileTextOutlined, CloseOutlined } from '@ant-design/icons';
+import eyePreview from '../../../assets/images/eye-preview.svg';
+import TemplatePreviewModal from '../../smartSync/components/TemplatePreviewModal';
 import { getTemplates } from '../services/templateService';
 import { deleteCustomSyncPadTemplate } from '../../smartSync/services/uploadService';
 import EditTemplateModal from '../../smartSync/components/EditTemplateModal';
@@ -37,6 +39,8 @@ const TemplateSidebar = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [editTemplate, setEditTemplate] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     // If templates are provided from parent, use them; otherwise load
@@ -327,10 +331,40 @@ const TemplateSidebar = ({
     }
   };
 
+  // ── Preview handlers ──────────────────────────────────────────────────────
+  const handleTemplatePreview = (template) => {
+    setPreviewTemplate(template);
+    setShowPreview(true);
+  };
+
+  const handleClosePreview = () => {
+    setShowPreview(false);
+    setPreviewTemplate(null);
+  };
+
+  const handlePreviewTemplateDelete = async () => {
+    handleClosePreview();
+    await loadTemplates();
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const getTemplateMenuItems = (template) => {
     const isDownloading = downloadingTemplateId === template.id;
 
     return [
+      {
+        key: 'preview',
+        label: (
+          <div>
+            <img src={eyePreview} alt="preview" className="me-2" />
+            Preview
+          </div>
+        ),
+        onClick: (e) => {
+          e.domEvent?.stopPropagation();
+          handleTemplatePreview(template);
+        }
+      },
       {
         key: 'download',
         label: (
@@ -572,6 +606,31 @@ const TemplateSidebar = ({
           template={editTemplate}
           onSave={handleEditSave}
         />
+      )}
+
+      {/* Template Preview Drawer */}
+      {showPreview && previewTemplate && (
+        <Drawer
+          closeIcon={false}
+          placement="right"
+          bodyStyle={{ backgroundColor: "#222222" }}
+          onClose={handleClosePreview}
+          open={showPreview}
+          width="100%"
+          height="100%"
+          push={false}
+        >
+          <TemplatePreviewModal
+            template={previewTemplate}
+            onClose={handleClosePreview}
+            onEdit={(templateId) => {
+              handleClosePreview();
+              handleEditTemplate(templateId);
+            }}
+            onDelete={handlePreviewTemplateDelete}
+            onDownload={handleDownloadTemplate}
+          />
+        </Drawer>
       )}
     </Drawer>
   );
