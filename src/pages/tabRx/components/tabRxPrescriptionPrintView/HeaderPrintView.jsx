@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { Navbar } from "react-bootstrap";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Dropdown } from "antd";
@@ -51,9 +51,29 @@ function HeaderPrintView({
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
 
-  const currentLanguageLabel =
-    LANGUAGE_LIST.find((item) => item.value === selectedLang)?.label ||
-    "English";
+  const selectedLangValueRaw =
+    typeof selectedLang === "object" && selectedLang !== null
+      ? selectedLang.value
+      : selectedLang;
+
+  const selectedLangValue =
+    typeof selectedLangValueRaw === "string" && selectedLangValueRaw.trim() !== ""
+      ? Number(selectedLangValueRaw)
+      : selectedLangValueRaw;
+
+  const currentLanguageLabel = useMemo(() => {
+    if (
+      typeof selectedLang === "object" &&
+      selectedLang !== null &&
+      selectedLang.label
+    ) {
+      return selectedLang.label;
+    }
+    return (
+      LANGUAGE_LIST.find((item) => item.value == selectedLangValue)?.label ||
+      "English"
+    );
+  }, [selectedLang, selectedLangValue]);
 
   const languageMenuItems = LANGUAGE_LIST.map((item) => ({
     key: String(item.value),
