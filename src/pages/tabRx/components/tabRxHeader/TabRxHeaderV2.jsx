@@ -1543,12 +1543,6 @@ function TabRxHeaderV2({
                     if (canvasRef && canvasRef.current) {
                         try {
                             freshCanvasData = canvasRef.current.getCanvasData();
-                            console.log('📋 [TabRxHeaderV2] Fresh canvas data:', {
-                                selectedTemplateId: freshCanvasData?.selectedTemplateId,
-                                pagesCount: freshCanvasData?.pagesMetadata?.length,
-                                hasStrokes: freshCanvasData?.strokesByPage && Object.values(freshCanvasData.strokesByPage).some(s => Array.isArray(s) && s.length > 0),
-                                hasText: freshCanvasData?.textElementsByPage && Object.values(freshCanvasData.textElementsByPage).some(t => Array.isArray(t) && t.length > 0)
-                            });
                         } catch (err) {
                             console.error('❌ [TabRxHeaderV2] Error getting fresh canvas data:', err);
                         }
@@ -1558,24 +1552,13 @@ function TabRxHeaderV2({
                     // Continue with end visit even if canvas submission fails
                 }
             } else {
-                console.log('⚠️ [TabRxHeaderV2] No onCanvasSubmit handler provided');
             }
 
             // Use uploaded canvas files if available, otherwise fall back to smartRxFiles prop
             const finalSmartRxFiles = canvasFiles.length > 0 ? canvasFiles : smartRxFiles;
-            console.log('📦 [TabRxHeaderV2] Final smartRxFiles:', {
-                source: canvasFiles.length > 0 ? 'uploaded' : 'prop',
-                count: finalSmartRxFiles?.length || 0,
-                fileNames: finalSmartRxFiles?.map(f => f.name) || []
-            });
 
             // Use fresh canvas data if available, otherwise use prop
             const finalCanvasData = freshCanvasData || canvasData;
-            console.log('📋 [TabRxHeaderV2] Final canvas data:', {
-                source: freshCanvasData ? 'fresh' : 'prop',
-                pagesCount: finalCanvasData?.pagesMetadata?.length,
-                selectedTemplateId: finalCanvasData?.selectedTemplateId
-            });
 
             // Validation checks - return early if validation fails
             if (
@@ -1691,13 +1674,11 @@ function TabRxHeaderV2({
                 smart_prescription_filename: finalSmartRxFiles?.map(f => f.name) || [],
                 isCustomSSRX: ((finalSmartRxFiles && finalSmartRxFiles.length > 0) || isCustomSSRX) ? "1" : "0",
                 custom_ss_data: (() => {
-                    console.log('🔍 [TabRxHeaderV2] Checking custom_ss_data conditions...');
 
                     // Only send custom_ss_data if:
                     // 1. Files were uploaded (finalSmartRxFiles.length > 0), OR
                     // 2. There's actual canvas content (strokes or text)
                     const hasUploadedFiles = finalSmartRxFiles && finalSmartRxFiles.length > 0;
-                    console.log('📦 [TabRxHeaderV2] Has uploaded files:', hasUploadedFiles, { count: finalSmartRxFiles?.length || 0 });
 
                     // Check if there's actual canvas content using fresh data
                     let hasCanvasContent = false;
@@ -1712,18 +1693,15 @@ function TabRxHeaderV2({
                                 textElements.some(el => el.content && el.content.trim().length > 0)
                             );
                         hasCanvasContent = hasStrokes || hasTextElements;
-                        console.log('🎨 [TabRxHeaderV2] Has canvas content:', hasCanvasContent, { hasStrokes, hasTextElements });
                     }
 
                     // Don't send custom_ss_data if no files uploaded and no canvas content
                     if (!hasUploadedFiles && !hasCanvasContent) {
-                        console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no files and no content');
                         return null;
                     }
 
                     // Only send if we have pages metadata
                     if (!finalCanvasData || !finalCanvasData.pagesMetadata || finalCanvasData.pagesMetadata.length === 0) {
-                        console.log('❌ [TabRxHeaderV2] Not sending custom_ss_data: no pages metadata');
                         return null;
                     }
 
@@ -1737,7 +1715,6 @@ function TabRxHeaderV2({
                             }))
                     };
 
-                    // console.log('✅ [TabRxHeaderV2] Sending custom_ss_data:', customSSData);
                     return customSSData;
                 })(),
             };

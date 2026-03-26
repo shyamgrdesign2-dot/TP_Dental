@@ -306,7 +306,6 @@ const TabRxCanvas = forwardRef(({
             blobs.push(blob);
             files.push(file);
           } else {
-            console.log(`⏭️ [TabRxCanvas] Skipping page ${i + 1}: blank canvas (no content and size < 5KB)`);
           }
         } catch (error) {
           console.error(`❌ [TabRxCanvas] Error converting canvas for page ${i + 1}:`, error);

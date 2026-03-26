@@ -412,10 +412,6 @@ function WalkInConsultationZydus() {
                         >
                             Patient Details
                         </Button>
-                        {/* {console.log(isSnapRxAccessable,"isSnapRxAccessable")}
-                        {console.log(isSmartSyncAccessableFromGB,"isSmartSyncAccessableFromGB")}
-                        {console.log(isFreeVoiceRxUser,"isFreeVoiceRxUser")}
-                        {console.log(tp_monetization_enable,"tp_monetization_enable")} */}
                         {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                             <PrimaryActionButton
                                 isSmartRxAccessible={isSmartSyncAccessableFromGB}
