@@ -232,7 +232,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [visitTypeFilters, setVisitTypeFilters] = useState("");
   const [statusFilters, setStatusFilters] = useState([]);
   const [openRowIndex, setOpenRowIndex] = useState(null);
-  const [pendingDigitisation, setPendingDigitisation] = useState(null);
+  const [pendingDigitisation, setPendingDigitisation] = useState(null); // not in use as of now (if require will add it in future)
   const consultButtonRef = useRef(null);
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -525,36 +525,36 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   }, []);
 
-  const fetchPendingDigitisationRx = async () => {
-    try {
-      const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const cleanedToken = token.replace(/['"]+/g, "");
-      const decodedToken = getDecodedToken();
-      const doctorId = decodedToken?.result?.user_id;
+  // const fetchPendingDigitisationRx = async () => {
+  //   try {
+  //     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  //     const cleanedToken = token.replace(/['"]+/g, "");
+  //     const decodedToken = getDecodedToken();
+  //     const doctorId = decodedToken?.result?.user_id;
 
-      // API call for Rx Digitisation
-      const response = await axios.get(
-        `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cleanedToken}`,
-          },
-        }
-      );
+  //     // API call for Rx Digitisation
+  //     const response = await axios.get(
+  //       `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${cleanedToken}`,
+  //         },
+  //       }
+  //     );
 
-      const pendingDigitisationRx = response?.data;
+  //     const pendingDigitisationRx = response?.data;
 
-      if (pendingDigitisationRx) {
-        setPendingDigitisation(pendingDigitisationRx);
-      }
-    } catch (error) {
-      console.error(
-        "Error fetching the pending Digitisation prescriptions:",
-        error
-      );
-    }
-  };
+  //     if (pendingDigitisationRx) {
+  //       setPendingDigitisation(pendingDigitisationRx);
+  //     }
+  //   } catch (error) {
+  //     console.error(
+  //       "Error fetching the pending Digitisation prescriptions:",
+  //       error
+  //     );
+  //   }
+  // };
 
   // Initialize items in state
   const [items, setItems] = useState([
@@ -689,7 +689,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     // Update the items state with new data
     setItems(updatedItems);
   }, [
-    pendingDigitisation,
     queueCount,
     finishedCount,
     cancelledCount,
@@ -981,11 +980,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
-  useEffect(() => {
-    if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
-      fetchPendingDigitisationRx();
-    }
-  }, [isSmartSyncAccessableFromGB]);
+  // useEffect(() => {
+  //   if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
+  //     fetchPendingDigitisationRx();
+  //   }
+  // }, [isSmartSyncAccessableFromGB]);
 
   useEffect(() => {
     if (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable || isTabRxCVTAccessableFromGB) {
@@ -2700,27 +2699,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setStatusFilters(filters.appointmentStatus || []);
   };
 
-  const renderedAppointments = useMemo(() => {
-    if (
-      selectedTab !== TAB_ZYDUS_ENCOUNTER &&
-      selectedTab !== TAB_ZYDUS_APPOINTMENT
-    ) {
-      return appointmentsData;
-    }
-
-    return matchedAppointment.filter((item) => {
-      if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
-        if (statusFilters && statusFilters.length > 0) {
-          return statusFilters.includes(item.appointmentStatus);
-        }
-        return !(
-          item.appointmentStatus &&
-          item.appointmentStatus.toLowerCase().includes("cancel")
-        );
-      }
-      return true;
-    });
-  }, [appointmentsData, matchedAppointment, selectedTab, statusFilters]);
 
   const emptyText = (
     <div
@@ -3381,7 +3359,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   <Table
                     className="px-xl-4 px-0"
                     columns={columns}
-                    dataSource={renderedAppointments}
+                    dataSource={
+                      selectedTab !== TAB_ZYDUS_ENCOUNTER &&
+                      selectedTab !== TAB_ZYDUS_APPOINTMENT
+                        ? appointmentsData
+                        : matchedAppointment
+                    }
                     onChange={handleChange}
                     pagination={false}
                     loading={loading && pageNo === 0}

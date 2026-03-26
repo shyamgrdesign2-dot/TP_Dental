@@ -388,12 +388,16 @@ function medicalHistoryToHtmlList(items) {
           const tagSince = tag.since ?? "";
           const tagStatus = tag.status ?? "";
           const tagMeds = tag.medication ?? "";
+          const tagNote = tag.note ?? "";
           const tagParts = [];
+          
           if (tagSince) tagParts.push(`Since: ${escapeHtml(tagSince)}`);
           if (tagStatus) tagParts.push(`Status: ${escapeHtml(tagStatus)}`);
           if (tagMeds) tagParts.push(`Medication: ${escapeHtml(tagMeds)}`);
+          if (tagNote) tagParts.push(escapeHtml(tagNote));
           if (tagDetails) tagParts.push(escapeHtml(tagDetails));
           const tagDetailsStr = tagParts.join(" | ");
+          
           return `<li><p><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</p></li>`;
         })
         .join("");
@@ -485,6 +489,7 @@ export function buildReportContentFromGroupedData(
       : data && typeof data === "object"
         ? [data]
         : [];
+    let addedAdditionalForEntry = false;
     items.forEach((item) => {
       const title = (item?.title ?? item?.name ?? "").trim();
       if (!title && !item?.tags) return;
@@ -493,16 +498,32 @@ export function buildReportContentFromGroupedData(
           (r) => r.toLowerCase() === title.toLowerCase()
         ) ?? title;
       if (!historyByRowName[rowName]) historyByRowName[rowName] = [];
+      const formattedMedicalHistoryRemarks = (() => {
+        const remarks = item?.medical_history_remarks;
+        if (remarks === null || remarks === undefined) return "";
+        return String(remarks).trim();
+      })();
+
+      if (
+        rowName === "Medical Condition" &&
+        formattedMedicalHistoryRemarks
+      ) {
+        historyByRowName["Additional History"].push({
+          tags: [
+            {
+              title: formattedMedicalHistoryRemarks,
+            },
+          ],
+        });
+        addedAdditionalForEntry = true;
+
+        const { medical_history_remarks: _, ...rest } = item || {};
+        historyByRowName[rowName].push(rest);
+        return;
+      }
+
       historyByRowName[rowName].push(item);
     });
-    if (entry?.data?.medical_history_remarks) {
-      const formatted = String(entry.data.medical_history_remarks).trim();
-      if (formatted)
-        historyByRowName["Additional History"].push({
-          name: "Note",
-          remarks: formatted,
-        });
-    }
   });
 
   const historyRows = PATIENT_HISTORY_ROW_NAMES.map((rowName) => {

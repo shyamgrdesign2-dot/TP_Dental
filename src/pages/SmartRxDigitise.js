@@ -273,7 +273,11 @@ function SmartRxDigitise() {
   );
 
   useEffect(() => {
-    if (smartRxFile?.length > 0 && token && state.type === "new") {
+    if (!token) {
+      return;
+    }
+
+    if (smartRxFile?.length > 0 && state.type === "new") {
       uploadFiles();
     } else if (state.type === "edit" && digitisedData) {
       uploadFiles();
@@ -681,6 +685,7 @@ function SmartRxDigitise() {
 
   // Navigate back to Smart Rx preview without saving: pass state WITHOUT page "digitise" so preview shows Written Rx + Digitise Now (not Digital Rx)
   const handleBackToPreview = useCallback(() => {
+    clearSmartRxDentalState();
     navigate("/print-smart-rx", {
       replace: true,
       state: {
@@ -695,7 +700,7 @@ function SmartRxDigitise() {
         // Do NOT pass page: "digitise" — only save flow sets that; back-without-save should show Written Rx + Digitise Now
       },
     });
-  }, [navigate, patient_data, smartRxFile, smartRxFilesData, tcm_id, pam_id, printUrl, state?.print_url, state?.print_rx_url]);
+  }, [navigate, patient_data, smartRxFile, smartRxFilesData, tcm_id, pam_id, printUrl, state?.print_url, state?.print_rx_url, clearSmartRxDentalState]);
 
   // Resolve display URL: native File/Blob use object URL; API-shaped use smart_prescription_file or fallbacks
   const getDisplayUrl = useCallback((file, index) => {
@@ -721,51 +726,10 @@ function SmartRxDigitise() {
   const uploadFiles = async () => {
     try {
       setIsLoading(true);
-      const formData = new FormData();
-
-      // Build list of File objects: native File use as-is; Blob wrap as File; API-shaped fetch from URL
-      const files = await Promise.all(
-        smartRxFile.map(async (file, index) => {
-          if (file instanceof File) {
-            return file;
-          }
-          if (file instanceof Blob) {
-            return new File([file], file.name || `rx-${index}-${Date.now()}.jpg`, { type: file.type });
-          }
-          const fileUrl = file.smart_prescription_file ?? file.fileUrl ?? file.url ?? file.smart_prescription_file_url;
-          const fileName = file.smart_prescription_filename ?? file.name ?? `rx-${index}-${Date.now()}.jpg`;
-          return await fetchImageAsFile(fileUrl, fileName);
-        })
-      );
-
-      const validCount = files.filter(Boolean).length;
-      if (validCount === 0) {
-        setIsLoading(false);
-        return;
-      }
-
-      files.forEach((file) => {
-        if (file) {
-          formData.append("files", file);
-        }
-      });
-
-      // Append other required fields
-      formData.append("doctorId", tokenData.user_id);
-      formData.append("patientId", patient_data.patient_unique_id);
-      formData.append("appointmentId", pam_id || patient_data?.pam_id);
-      formData.append("caseId", tcm_id);
-
-      // Append ocrModelSelected only if isCustomSSRX is true
-      // if (isCustomSSRX) {
-      formData.append("ocrModelSelected", "zyvelor");
-      // }
-
-      const cleanedToken = token.replace(/['"]+/g, "");
       let response;
 
       if (shouldUseCustomRxDigitize) {
-        const cleanedToken = token.replace(/['"]+/g, "");
+        const cleanedToken = token?.replace(/['"]+/g, "");
         if (!tcm_id || !patient_data?.patient_unique_id) {
           setIsLoading(false);
           return;
@@ -785,6 +749,7 @@ function SmartRxDigitise() {
         );
       } else {
         const formData = new FormData();
+        const cleanedToken = token.replace(/['"]+/g, "");
 
         // Build list of File objects: native File use as-is; Blob wrap as File; API-shaped fetch from URL
         const files = await Promise.all(
@@ -922,7 +887,7 @@ function SmartRxDigitise() {
         } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise`}
         style={{ position: "relative" }}
       >
-        <Row gutter={0} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false} align="stretch">
           <Col
             md={17}
             lg={17}
@@ -987,6 +952,7 @@ function SmartRxDigitise() {
                   showInstructionMessage={false}
                   patient_data={patient_data}
                   vitalsFlow="smart"
+                  digitiseSplitLayout
                 />
               </div>
             </div>
