@@ -735,7 +735,7 @@ function Cardiology(props) {
   // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
   const getMobilePdfUrl = useCallback(() => {
     // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
-    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
+    if ((isSmartRxFile || isTabRx) && isRxdigitised && !isSnapRx) {
       return showDigitalRx 
         ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
         : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
@@ -749,7 +749,7 @@ function Cardiology(props) {
     }
     
     // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
-    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+    if (showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
       if (!viewCaseManagerData?.print_url) return null;
       try {
         const urlObj = new URL(viewCaseManagerData.print_url);
@@ -768,7 +768,7 @@ function Cardiology(props) {
     
     // Default: use print_rx_url for regular prescriptions
     return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
-  }, [isSmartRxFile, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
+  }, [isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
 
   // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
   // This prevents the effect from running unnecessarily when unrelated dependencies change
@@ -1253,7 +1253,7 @@ function Cardiology(props) {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
-    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
       if (isAmbientRx) {
         urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
@@ -1315,7 +1315,7 @@ function Cardiology(props) {
           return;
         }
         downloadUrl = `${printUrl}&lg=${selectedLang}`;
-      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
         if (!viewCaseManagerData?.print_url) {
           errorMessage('Download URL is missing.');
           return;
@@ -1427,7 +1427,7 @@ function Cardiology(props) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
+  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isTabRx, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
 
   const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
@@ -1835,7 +1835,7 @@ function Cardiology(props) {
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
-    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || !isSmartRxFile);
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx));
     
     const getColumnStyle = (column) => {
       const baseStyle = { 
@@ -2903,7 +2903,7 @@ function Cardiology(props) {
                   >
                     <i className="icon-Print"></i>
                   </button>
-                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx) &&
+                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
                     ) && (
@@ -3067,7 +3067,7 @@ function Cardiology(props) {
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
-              !isSmartRxFile &&
+              !isSmartRxFile && !isTabRx && 
               !loading && (
                 <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
                   <button
@@ -3248,7 +3248,7 @@ function Cardiology(props) {
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
-              (!isSmartRxFile || !isTabRx) ? (
+              (!isSmartRxFile && !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
                   <div className="m-4">
