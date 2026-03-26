@@ -90,6 +90,49 @@ body {
     .tab-rx-header {
         background: linear-gradient(92deg, #3736A6 -2.01%, #262688 83.76%), #FFF !important;
     }
+    .tab-rx-sider-empty {
+        min-height: calc(100vh - 220px);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        text-align: center;
+    }
+    .tab-rx-sider-empty__illustration {
+        width: 80px;
+        height: 80px;
+    }
+    .tab-rx-sider-empty__content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+    }
+    .tab-rx-sider-empty__title {
+        color: #454551 !important;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 18px;
+        letter-spacing: 0.012px;
+    }
+    .tab-rx-sider-empty__description {
+        color: #717179 !important;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 18px;
+        letter-spacing: 0.012px;
+        max-width: 202px;
+    }
+    .tab-rx-sider-empty__button {
+        min-height: 36px;
+        min-width: 208px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 22px;
+        font-weight: 500;
+    }
     .fs-8 {
         font-size: 8px !important;
     }

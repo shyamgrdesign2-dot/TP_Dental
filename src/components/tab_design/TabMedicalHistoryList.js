@@ -9,6 +9,7 @@ import TabGynecHistoryList from "./TabGynecHistoryList";
 import { useAccess } from "../../pages/vaccination/useAccess";
 import { useSelector } from "react-redux";
 import genRxBg from "../../assets/images/gen-rx-bg.gif";
+import TabSiderEmptyState from "./TabSiderEmptyState";
 
 // Read More content
 const ReadMore = ({ children }) => {
@@ -204,6 +205,7 @@ function TabMedicalHistoryList(props) {
 
     const hasGynecHistory = gynecHistory && Object.keys(filteredGynecHistory).length > 0;
     const hasMedicalHistory = medicalHistoryData && medicalHistoryData.length > 0;
+    const hasHistoryContent = (hasGynecHistory && isGynaecHistoryAccessable) || hasMedicalHistory;
 
     return (
         <>
@@ -215,11 +217,12 @@ function TabMedicalHistoryList(props) {
             </div>
             <div className="overflow-y-auto" style={{ height: "calc(100vh - 108px)" }}>
                 <div className="p-10">
-                    <Button className='btn btn-input d-flex w-100 align-items-center btn-41' onClick={handleDrawerMedicalHistory}>
-                        <i className='icon-Add me-2 fs-21'></i>
-                        Add or Edit History
-                    </Button>
-                    {showShimmer ? <MedicalHistoryShimmer /> : ((hasGynecHistory && isGynaecHistoryAccessable) || hasMedicalHistory) && (
+                    {showShimmer ? <MedicalHistoryShimmer /> : hasHistoryContent ? (
+                        <>
+                        <Button className='btn btn-input d-flex w-100 align-items-center btn-41' onClick={handleDrawerMedicalHistory}>
+                            <i className='icon-Add me-2 fs-21'></i>
+                            Add or Edit History
+                        </Button>
                         <div className="border rounded-3 bg-body mt-3 p-10">
                             {hasGynecHistory && isGynaecHistoryAccessable && (
                                 <TabGynecHistoryList gynecHistory={gynecHistory} />
@@ -233,6 +236,14 @@ function TabMedicalHistoryList(props) {
                                 />
                             )}
                         </div>
+                        </>
+                    ) : (
+                        <TabSiderEmptyState
+                            title="No History!"
+                            description="It looks like there is no medical history added for this patient yet."
+                            actionLabel="Add History"
+                            onAction={handleDrawerMedicalHistory}
+                        />
                     )}
                 </div>
             </div>
