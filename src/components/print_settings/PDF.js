@@ -748,7 +748,7 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
                     {caseManagerData.investigation.length > 0 && printSettings?.prescription?.case_option[5]?.enable === 'Y' && (
                         printSettings?.prescription?.case_option[5]?.format === 'inline' ? (
                             <Text style={{ marginTop: PX_TO_PT * 15, lineHeight: 1.4 }}>
-                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Investigation:&nbsp;</Text>
+                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
                                 {caseManagerData.investigation.map((item, i) => {
                                     return (
                                         <Text key={i}>
@@ -764,7 +764,7 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
                             </Text>
                         ) : printSettings?.prescription?.case_option[5]?.format === 'listview' ? (
                             <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Investigation:&nbsp;</Text>
+                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
                                 {caseManagerData.investigation.map((item, i) => {
                                     return (
                                         <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
@@ -779,7 +779,7 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
                             </View>
                         ) : (
                             <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Investigation:&nbsp;</Text>
+                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Lab Investigation:&nbsp;</Text>
                                 <View style={styles.table}>
                                     <View style={styles.row}>
                                         <Text style={[styles.cell, { fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, color: '#000' }]}>NAME</Text>
@@ -1290,4 +1290,3 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
         </Document>
     )
 }
-

@@ -485,7 +485,7 @@ function PrintHtmlPage() {
       key: "7",
       name: `General RBS (mg/dl)`,
     },
-    {
+     {
       key: "8",
       name: `FIB4`,
     },
@@ -563,7 +563,7 @@ function PrintHtmlPage() {
       initialRows[12][index] = item.bmi ? parseFloat(item.bmi).toFixed(2) : "-";
       initialRows[13][index] = item.bmr ? parseFloat(item.bmr).toFixed(2) : "-";
       initialRows[14][index] = item.bsa ? parseFloat(item.bsa).toFixed(2) : "-";
-
+     
     });
 
   const patientDataShow = (id) => {
@@ -609,7 +609,7 @@ function PrintHtmlPage() {
     } else if (id == 11) {
       value = `${caseManagerData?.patient_data?.patinet_reference_id}`;
     }
-
+    
     return value;
   };
 
@@ -2624,7 +2624,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Investigation:&nbsp;
+                              Lab Investigation:&nbsp;
                             </label>
                             {caseManagerData.investigation.map((item, i) => {
                               return (
@@ -2685,7 +2685,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Investigation:&nbsp;
+                              Lab Investigation:&nbsp;
                             </label>{" "}
                             <br />
                             <label
@@ -2741,7 +2741,7 @@ function PrintHtmlPage() {
                                 fontSize: printSettings.page_format.font_size,
                               }}
                             >
-                              Investigation:&nbsp;
+                              Lab Investigation:&nbsp;
                             </label>
                             <table
                               className="w-100 mb-15 print_table"
