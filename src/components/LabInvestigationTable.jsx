@@ -21,6 +21,7 @@ import CommonModal from '../common/CommonModal';
 import config from '../config';
 import { useLocation } from 'react-router-dom';
 import { useGrounding } from '../hooks/useGrounding';
+import { INVESTIGATION_TITLE } from '../utils/constants';
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -696,7 +697,7 @@ const LabInvestigationTable = ({
           <div className={styles['investigation-icon']}>
             <img src={investigationIcon} alt="Investigation" />
           </div>
-          <span className={styles['investigation-title']}>Lab Investigation</span>
+          <span className={styles['investigation-title']}>{INVESTIGATION_TITLE}</span>
         </div>
         <div className={styles['investigation-editor-container']}>
           <div className={styles['investigation-shimmer-container']}>
@@ -716,7 +717,7 @@ const LabInvestigationTable = ({
         <div className={styles['investigation-icon']}>
           <img src={investigationIcon} alt="Investigation" />
         </div>
-        <span className={styles['investigation-title']}>Lab Investigation</span>
+        <span className={styles['investigation-title']}>{INVESTIGATION_TITLE}</span>
       </div>
       
             <DragDropContext onDragEnd={onDragEnd}>
