@@ -47,7 +47,6 @@ import CarePlanBox from '../../../components/CarePlanBox';
 import Cardiology from '../../../components/Cardiology';
 import CertificateDetails from '../../../components/medical_certificate/CertificateDetails';
 import VisitMedicalRecords from '../../medicalRecords/components/visitMedicalRecords/VisitMedicalRecords';
-import BillingDashboard from '../../opdBilling/components/billingDashboard/BillingDashboard';
 import UploadDocPopup from '../../medicalRecords/components/uploadDocPopup/UploadDocPopup';
 import CommonModal from '../../../common/CommonModal';
 import UploadDocument from '../../medicalRecords/UploadDocument';

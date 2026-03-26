@@ -430,6 +430,29 @@
     color: white !important;
   }
 }
+.btn-manage-bill-all-patients {
+  .btn-manage-bill {
+    cursor: pointer !important;
+    display: flex;
+    height: 41px;
+    padding: 10px 24px;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--P-CTA-100, #4b4ad5);
+    background: var(--S-BG-50, #ffe8ae);
+  
+    &:hover,
+    &:focus {
+      background-color: var(--S-BG-50, #ffe8ae) !important;
+      border: 1px solid var(--P-CTA-100, #4b4ad5);
+    }
+  
+    span {
+      color: #4b4ad5 !important;
+    }
+  }
+}
 
 .receptionist-btn {
   border-radius: 10px !important;

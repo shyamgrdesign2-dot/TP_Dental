@@ -994,7 +994,7 @@ const AllPatients = () => {
                     />
                   </>
                 </div>
-                <div className="d-flex gap-3">
+                <div className="d-flex gap-3 btn-manage-bill-all-patients">
                   {dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
                       <Button

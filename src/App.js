@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import {
   Routes,
   Route,
@@ -95,9 +95,11 @@ const growthbook = new GrowthBook({
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
 });
 
-const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
-
 function App() {
+  const SentryRoutes = useMemo(
+    () => Sentry.withSentryReactRouterV6Routing(Routes),
+    []
+  );
   const [redirectReady, setRedirectReady] = useState(false);
   const [searchParams] = useSearchParams();
   const location = useLocation();

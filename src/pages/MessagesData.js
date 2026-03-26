@@ -20,6 +20,8 @@ import { ReactComponent as MailMessage } from '../assets/images/mail-message.svg
 import { ReactComponent as TextMessage } from '../assets/images/text-message.svg';
 import { ReactComponent as RecieptMessage } from '../assets/images/mail-reciept.svg';
 import LoopingVideo from "../components/common/LoopingVideo";
+import "../components/bulk_messages/messages.scss";
+import "../components/common/dateRangePill.scss";
 
 import DetailedView from "../components/bulk_messages/DetailedView";
 import CommonModal from "../common/CommonModal";

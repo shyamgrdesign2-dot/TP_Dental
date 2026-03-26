@@ -23,6 +23,7 @@ import {
 import { Col, Container, Row } from "react-bootstrap";
 import { v4 as uuidv4 } from "uuid";
 import "./AddForm3cBills.scss";
+import "../../../../components/common/dateRangePill.scss";
 
 import locale from "antd/es/date-picker/locale/en_US";
 
