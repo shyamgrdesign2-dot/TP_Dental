@@ -2270,8 +2270,7 @@ function Cardiology(props) {
     rxEditedData?.treatmentPlans?.items ?? dentalDataSource?.treatmentPlans?.items ?? [];
   const dentalWorkDone =
     rxEditedData?.workDone ?? dentalDataSource?.workDone ?? { items: [], notes: "" };
-  const dentalMedications =
-    rxEditedData?.medications ?? dentalDataSource?.medications ?? [];
+  const dentalMedications = dentalDataSource?.medications ?? [];
   const dentalWorkDoneItems = Array.isArray(dentalWorkDone?.items) ? dentalWorkDone.items : [];
   const dentalTeeth = Array.isArray(dentalDiagnosis?.teeth) ? dentalDiagnosis.teeth : [];
   const dentalQuadrantSections = [
