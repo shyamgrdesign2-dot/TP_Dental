@@ -107,6 +107,7 @@ import {
 import useTabletViewport from "../../../../hooks/useTabletViewport";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
+import { setDefaultCustomSyncPadTemplate } from "../../../smartSync/services/uploadService";
 
 var oneClickCosultationTemplateId = 0;
 
@@ -1527,6 +1528,12 @@ function TabRxHeaderV2({
         }
 
         try {
+            // Persist the selected template as the default template for Custom Sync Pad
+            // (same behavior as SmartRx end-visit flow)
+            if (selectedTemplateId && selectedTemplateId !== "none") {
+                setDefaultCustomSyncPadTemplate(selectedTemplateId);
+            }
+
             // Handle canvas submission before end visit if canvas submit handler is provided
             // This should match SmartPrescription flow: upload files first, then use them in case manager
             let canvasFiles = [];
