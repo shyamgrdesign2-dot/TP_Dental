@@ -770,12 +770,34 @@ function Cardiology(props) {
     }
   }, [isMobile, isTablet, mobilePdfUrl]);
 
-  const shouldUsePrintRxPayload = !showDigitalRx && !showDigitalSnapRx;
+  const shouldUsePrintRxPayload =
+    showDigitalGenRx &&
+    !isSmartRxFile &&
+    !isSnapRx &&
+    !showDigitalRx &&
+    !showDigitalSnapRx;
 
-  const printRxUrlWithLang = useMemo(() => {
+  const printUrlWithLang = useMemo(() => {
     if (!viewCaseManagerData?.print_url) return null;
     return `${viewCaseManagerData.print_url}&lg=${selectedLang}`;
   }, [viewCaseManagerData?.print_url, selectedLang]);
+
+  const printRxUrlWithLang = useMemo(() => {
+    if (!viewCaseManagerData?.print_rx_url) return null;
+    return `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+  }, [viewCaseManagerData?.print_rx_url, selectedLang]);
+
+  const {
+    printBlob: printPayloadBlob,
+    isGenerating: isPrintPayloadGenerating,
+    error: printPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl: printUrlWithLang,
+    selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !printUrlWithLang,
+  });
 
   const {
     printBlob: printRxPayloadBlob,
@@ -990,7 +1012,7 @@ function Cardiology(props) {
       return;
     }
     if (printRxPayloadError) {
-      message.error("Failed to load prescription data.");
+      message.error("Something went wrong, please try again.");
       return;
     }
     if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
@@ -1018,7 +1040,7 @@ function Cardiology(props) {
       return;
     }
     if (printRxPayloadError) {
-      message.error("Failed to load prescription data.");
+      message.error("Something went wrong, please try again.");
       return;
     }
     if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
@@ -1254,34 +1276,44 @@ function Cardiology(props) {
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
     } else if (shouldUsePrintRxPayload) {
-      if (!printRxUrlWithLang) {
+      if (!printUrlWithLang) {
         errorMessage("Print URL is missing.");
         return;
       }
-      if (printRxPayloadError) {
-        message.error("Failed to load prescription data.");
+      if (printPayloadError) {
+        message.error("Something went wrong, please try again.");
         return;
       }
       if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
         message.error("The PDF is not ready yet. Please wait a moment and try again.");
         return;
       }
-      const blobURL = URL.createObjectURL(printRxPayloadBlob);
+      const blobURL = URL.createObjectURL(printPayloadBlob);
       window.open(blobURL, "_blank");
+    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      const urlObj = new URL(viewCaseManagerData?.print_url);
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
+      const updatedUrl = urlObj.toString();
+      await window.open(`${updatedUrl}&lg=${selectedLang}`);
     } else {
-      message.error("Unable to determine print mode.");
+      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`);
     }
   };
 
   const printInAppContent = async () => {
     let voiceRxUrl;
     const sendPayloadBlobToParent = async () => {
-      if (!printRxUrlWithLang) {
+      if (!printUrlWithLang) {
         errorMessage("Print URL is missing.");
         return;
       }
-      if (printRxPayloadError) {
-        message.error("Failed to load prescription data.");
+      if (printPayloadError) {
+        message.error("Something went wrong, please try again.");
         return;
       }
       if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
@@ -1289,7 +1321,7 @@ function Cardiology(props) {
         return;
       }
       const file = new File(
-        [printRxPayloadBlob],
+        [printPayloadBlob],
         `${new Date().toISOString().split("T")[0]}.pdf`,
         { type: "application/pdf" }
       );
