@@ -2243,7 +2243,7 @@ body {
 }
 
 .title-digitise-card-inside-loader {
-  position: absolute;
+  position: absolute !important;
   top: 20px;
   left: 20px;
   font-size: 1rem;
