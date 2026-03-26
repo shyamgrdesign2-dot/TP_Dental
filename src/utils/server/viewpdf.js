@@ -10196,7 +10196,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 500,
                                     }}
                                   >
-                                    Lab Investigation:
+                                    {INVESTIGATION_TITLE}:
                                   </Text>
                                 </Text>
                                 {isVoiceOrAmbientV2 ? (
@@ -11798,7 +11798,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     )?.map((item, i) => {
                                       const name =
                                         (item?.name || "").trim() ||
-                                        "Lab Investigation";
+                                        INVESTIGATION_TITLE;
                                       const details = (
                                         item?.note ||
                                         item?.notes ||
