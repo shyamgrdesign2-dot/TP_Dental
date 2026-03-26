@@ -33,10 +33,12 @@ RUN npm run build
 RUN find /app/build -name "*.map" -type f -delete
 
 # Use Nginx as the production server
-FROM nginx:stable-alpine
+# Pin to a version compatible with the brotli module in Alpine repos.
+FROM nginx:1.28.2-alpine
 
-# Enable Brotli module
-RUN apk add --no-cache nginx-mod-http-brotli
+# Enable Brotli module (from Alpine community repo)
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories \
+  && apk add --no-cache nginx-mod-http-brotli
 
 # Copy the built React app to Nginx's web server directory
 COPY --from=build /app/build /usr/share/nginx/html
