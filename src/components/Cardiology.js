@@ -775,7 +775,7 @@ function Cardiology(props) {
     !isSmartRxFile &&
     !isSnapRx &&
     !showDigitalRx &&
-    !showDigitalSnapRx;
+    !showDigitalSnapRx && !isTabRx;
 
   const printUrlWithLang = useMemo(() => {
     if (!viewCaseManagerData?.print_url) return null;
@@ -1290,7 +1290,7 @@ function Cardiology(props) {
       }
       const blobURL = URL.createObjectURL(printPayloadBlob);
       window.open(blobURL, "_blank");
-    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
       if (isAmbientRx) {
         urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
