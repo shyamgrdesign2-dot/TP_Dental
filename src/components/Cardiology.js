@@ -74,6 +74,7 @@ import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import draftIcon from "../assets/images/draft-document.svg";
+import { uploadDocsToAzure } from "../pages/medicalRecords/service";
 
 import {
   getSnapRxDigitization,
@@ -87,6 +88,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 import PrimaryActionButton from "./PrimaryActionButton";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 
 const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -767,6 +770,25 @@ function Cardiology(props) {
     }
   }, [isMobile, isTablet, mobilePdfUrl]);
 
+  const shouldUsePrintRxPayload = !showDigitalRx && !showDigitalSnapRx;
+
+  const printRxUrlWithLang = useMemo(() => {
+    if (!viewCaseManagerData?.print_url) return null;
+    return `${viewCaseManagerData.print_url}&lg=${selectedLang}`;
+  }, [viewCaseManagerData?.print_url, selectedLang]);
+
+  const {
+    printBlob: printRxPayloadBlob,
+    isGenerating: isPrintRxPayloadGenerating,
+    error: printRxPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl: printRxUrlWithLang,
+    selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !printRxUrlWithLang,
+  });
+
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
     if (res?.settings?.defaultLanguage && res.settings.defaultLanguage !== "English") {
@@ -963,15 +985,48 @@ function Cardiology(props) {
   );
 
   async function printRxInAppContent() {
-    sendMessageToParent(EVENTS.PRINT, { url: `${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}` });
-    // navigate(
-    //   `/patient_details/?url=${viewCaseManagerData?.print_rx_url}&lg=${encodedData}&key=print`,
-    //   { replace: true, state: { patient_data: patient_data } }
-    // );
-    // navigate(0, { replace: true });
+    if (!printRxUrlWithLang) {
+      errorMessage("Print URL is missing.");
+      return;
+    }
+    if (printRxPayloadError) {
+      message.error("Failed to load prescription data.");
+      return;
+    }
+    if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    const file = new File(
+      [printRxPayloadBlob],
+      `${new Date().toISOString().split("T")[0]}.pdf`,
+      { type: "application/pdf" }
+    );
+    const formData = new FormData();
+    formData.append(file?.name, file);
+    const res = await uploadDocsToAzure(formData);
+    const uploadedUrl = res?.[0]?.url;
+    if (!uploadedUrl) {
+      message.error("Failed to upload PDF.");
+      return;
+    }
+    sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
   }
   async function printRxContent() {
-    await window.open(viewCaseManagerData?.print_rx_url);
+    if (!printRxUrlWithLang) {
+      errorMessage("Print URL is missing.");
+      return;
+    }
+    if (printRxPayloadError) {
+      message.error("Failed to load prescription data.");
+      return;
+    }
+    if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+      message.error("The PDF is not ready yet. Please wait a moment and try again.");
+      return;
+    }
+    const blobURL = URL.createObjectURL(printRxPayloadBlob);
+    window.open(blobURL, "_blank");
   }
 
   const handleChange = (pagination, filters, sorter) => {
@@ -1198,23 +1253,61 @@ function Cardiology(props) {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
-    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
-      const urlObj = new URL(viewCaseManagerData?.print_url);
-      if (isAmbientRx) {
-        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-        urlObj.searchParams.set("rxDigitize", "false");
-      } else {
-        urlObj.searchParams.set("voiceRxDigitize", "true");
+    } else if (shouldUsePrintRxPayload) {
+      if (!printRxUrlWithLang) {
+        errorMessage("Print URL is missing.");
+        return;
       }
-      const updatedUrl = urlObj.toString();
-      await window.open(`${updatedUrl}&lg=${selectedLang}`);
+      if (printRxPayloadError) {
+        message.error("Failed to load prescription data.");
+        return;
+      }
+      if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+        message.error("The PDF is not ready yet. Please wait a moment and try again.");
+        return;
+      }
+      const blobURL = URL.createObjectURL(printRxPayloadBlob);
+      window.open(blobURL, "_blank");
     } else {
-      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`);
+      message.error("Unable to determine print mode.");
     }
   };
 
   const printInAppContent = async () => {
     let voiceRxUrl;
+    const sendPayloadBlobToParent = async () => {
+      if (!printRxUrlWithLang) {
+        errorMessage("Print URL is missing.");
+        return;
+      }
+      if (printRxPayloadError) {
+        message.error("Failed to load prescription data.");
+        return;
+      }
+      if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+        message.error("PDF is not ready yet.");
+        return;
+      }
+      const file = new File(
+        [printRxPayloadBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        { type: "application/pdf" }
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const res = await uploadDocsToAzure(formData);
+      const uploadedUrl = res?.[0]?.url;
+      if (!uploadedUrl) {
+        message.error("Failed to upload PDF.");
+        return;
+      }
+      sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
+    };
+
+    if (shouldUsePrintRxPayload) {
+      await sendPayloadBlobToParent();
+      return;
+    }
     if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
