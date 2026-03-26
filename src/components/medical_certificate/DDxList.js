@@ -16,6 +16,7 @@ import { useContext, useState } from "react";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
+import { isMobile, isTablet } from "react-device-detect";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../utils/utils";
 import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
 import CampaignDiscount from "../../pages/monetization/components/CampaignDiscount";
@@ -197,7 +198,7 @@ const DDxList = ({
                       Request a call back
                     </Button>
                   </div>
-                  {tp_monetization_enable &&
+                  {tp_monetization_enable && !(isMobile && !isTablet) &&
                     <div>
                       <Button className="mt-3 btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex" onClick={() => clickBuyNow(DDX_planDetails?.service_name)}>
                         <img className="me-2" src={crown} alt="Crown" />

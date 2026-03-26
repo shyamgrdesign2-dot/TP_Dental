@@ -257,12 +257,70 @@ function formatConsultationAsPrintViewNotes(consultation) {
   ) {
     parts.push("Visit Advice:\n" + visitAdvice.trim());
   }
+
+  const moduleContents = consultation.moduleContents ?? [];
+  if (moduleContents.length > 0) {
+    moduleContents.forEach((mod) => {
+      const modName = mod.module_name || "Custom Module";
+      const contentArr = mod.content || [];
+      if (!Array.isArray(contentArr) || contentArr.length === 0) return;
+
+      const lines = contentArr.map(item => {
+        if (!item || typeof item !== "object") return String(item);
+        
+        if (mod.module_version === "v1") {
+          const title = item.title ? String(item.title).trim() : "";
+          const notes = item.notes ? String(item.notes).trim() : "";
+          return [title, notes].filter(Boolean).join(" - ");
+        } else {
+          // For v2 and others, extract all stringable key-value pairs
+          return Object.entries(item)
+            .map(([key, val]) => {
+              if (val === null || val === undefined || val === '') return null;
+              if (typeof val === 'object') return null;
+              // Formatting key: e.g. "blood_pressure" -> "Blood Pressure"
+              const formattedKey = key
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, l => l.toUpperCase());
+              return `${formattedKey}: ${val}`;
+            })
+            .filter(Boolean)
+            .join(", ");
+        }
+      }).filter(Boolean);
+
+      if (lines.length > 0) {
+        parts.push(`${modName}:\n` + lines.join("\n"));
+      }
+    });
+  }
+
   return parts.join("\n\n");
 }
 
 function symptomsToHtmlList(symptoms) {
   if (!symptoms || symptoms.length === 0) return "<p>&nbsp;</p>";
+
+  const seenIds = new Set();
+  const seenFallback = new Set();
+
   const items = symptoms
+    .filter((item) => {
+      if (item.symptom_name) {
+        if (seenIds.has(item.symptom_name)) return false;
+        seenIds.add(item.symptom_name);
+        return true;
+      }
+      const name = item.symptom_name ?? item.name ?? item.value ?? "";
+      const duration = item.duration ?? item.since ?? "";
+      const severity = item.severity ?? item.status ?? "";
+      const notes = item.notes ?? item.remark ?? "";
+      
+      const fallbackKey = name + "|" + duration + "|" + severity + "|" + notes;
+      if (seenFallback.has(fallbackKey)) return false;
+      seenFallback.add(fallbackKey);
+      return true;
+    })
     .map((item) => {
       const name = escapeHtml(
         item.symptom_name ?? item.name ?? item.value ?? ""
@@ -281,8 +339,13 @@ function symptomsToHtmlList(symptoms) {
 function medicalHistoryToHtmlList(items) {
   if (!items || items.length === 0) return "<p>&nbsp;</p>";
 
+  const seenIds = new Set();
+  const seenFallback = new Set();
+
   const flatten = (item) => {
     if (typeof item === "string") {
+      if (seenFallback.has(item)) return "";
+      seenFallback.add(item);
       return `<li><p>${escapeHtml(item)}</p></li>`;
     }
     const title = item.title ?? item.name ?? item.conditionName ?? "";
@@ -305,6 +368,18 @@ function medicalHistoryToHtmlList(items) {
 
     if (Array.isArray(item.tags) && item.tags.length > 0) {
       return item.tags
+        .filter((tag) => {
+          if (tag.tmmhst_id) {
+            if (seenIds.has(tag.tmmhst_id)) return false;
+            seenIds.add(tag.tmmhst_id);
+            return true;
+          }
+          const tagName = tag.title ?? tag.conditionName ?? tag.name ?? "";
+          const fallbackKey = tagName + "|" + (tag.details ?? tag.value ?? "");
+          if (seenFallback.has(fallbackKey)) return false;
+          seenFallback.add(fallbackKey);
+          return true;
+        })
         .map((tag) => {
           const tagName = escapeHtml(
             tag.title ?? tag.conditionName ?? tag.name ?? ""
@@ -313,17 +388,30 @@ function medicalHistoryToHtmlList(items) {
           const tagSince = tag.since ?? "";
           const tagStatus = tag.status ?? "";
           const tagMeds = tag.medication ?? "";
+          const tagNote = tag.note ?? "";
           const tagParts = [];
+          
           if (tagSince) tagParts.push(`Since: ${escapeHtml(tagSince)}`);
           if (tagStatus) tagParts.push(`Status: ${escapeHtml(tagStatus)}`);
           if (tagMeds) tagParts.push(`Medication: ${escapeHtml(tagMeds)}`);
+          if (tagNote) tagParts.push(escapeHtml(tagNote));
           if (tagDetails) tagParts.push(escapeHtml(tagDetails));
           const tagDetailsStr = tagParts.join(" | ");
+          
           return `<li><p><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</p></li>`;
         })
         .join("");
     }
-    return `<li><p><strong>${escapeHtml(title)}</strong>${details ? ` (${details})` : ""}</p></li>`;
+
+    if (item.tmmhst_id) {
+      if (seenIds.has(item.tmmhst_id)) return "";
+      seenIds.add(item.tmmhst_id);
+    } else {
+      const fallbackKey = title + "|" + details;
+      if (seenFallback.has(fallbackKey)) return "";
+      seenFallback.add(fallbackKey);
+    }
+    return `<p>&nbsp;</p>`;
   };
 
   const lis = items.map(flatten).flat().join("");
@@ -401,6 +489,7 @@ export function buildReportContentFromGroupedData(
       : data && typeof data === "object"
         ? [data]
         : [];
+    let addedAdditionalForEntry = false;
     items.forEach((item) => {
       const title = (item?.title ?? item?.name ?? "").trim();
       if (!title && !item?.tags) return;
@@ -409,16 +498,32 @@ export function buildReportContentFromGroupedData(
           (r) => r.toLowerCase() === title.toLowerCase()
         ) ?? title;
       if (!historyByRowName[rowName]) historyByRowName[rowName] = [];
+      const formattedMedicalHistoryRemarks = (() => {
+        const remarks = item?.medical_history_remarks;
+        if (remarks === null || remarks === undefined) return "";
+        return String(remarks).trim();
+      })();
+
+      if (
+        rowName === "Medical Condition" &&
+        formattedMedicalHistoryRemarks
+      ) {
+        historyByRowName["Additional History"].push({
+          tags: [
+            {
+              title: formattedMedicalHistoryRemarks,
+            },
+          ],
+        });
+        addedAdditionalForEntry = true;
+
+        const { medical_history_remarks: _, ...rest } = item || {};
+        historyByRowName[rowName].push(rest);
+        return;
+      }
+
       historyByRowName[rowName].push(item);
     });
-    if (entry?.data?.medical_history_remarks) {
-      const formatted = String(entry.data.medical_history_remarks).trim();
-      if (formatted)
-        historyByRowName["Additional History"].push({
-          name: "Note",
-          remarks: formatted,
-        });
-    }
   });
 
   const historyRows = PATIENT_HISTORY_ROW_NAMES.map((rowName) => {
@@ -431,7 +536,6 @@ export function buildReportContentFromGroupedData(
   const patientHistorySection = `
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTE</p></th></tr></thead>
   <tbody>
 ${historyRows}
   </tbody>
@@ -476,41 +580,52 @@ ${historyRows}
   ).join("\n");
 
   const radiologySection = `
-<h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
+<h2 class="report-section-title print-page-break">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
 </table>`;
 
-  const consultationRows = CONSULTATIONS_DEPARTMENT_ROW_NAMES.map(
-    (rowDeptName) => {
-      const matching = consultations.filter(
-        (c) => getDepartmentRowName(c) === rowDeptName
-      );
-      const latest =
-        matching.length > 0
-          ? matching.reduce((a, b) =>
-            (a?.tcm_id ?? 0) >= (b?.tcm_id ?? 0) ? a : b
-          )
-          : null;
-      let doctorName = "";
-      let notesCell = "<p>&#8203;</p>";
-      if (latest) {
-        const docData = latest.doctor_data || latest.doctorData || {};
-        const docName =
-          docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
-        if (docName) doctorName = docName;
-        const notes = formatConsultationAsPrintViewNotes(latest);
-        if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
-      }
-      return `<tr><td><p>${escapeHtml(rowDeptName) + " " + escapeHtml(doctorName)}</p></td><td>${notesCell}</td></tr>`;
+  const consultationsByDept = {};
+  consultations.forEach((c) => {
+    const docData = c.doctor_data || c.doctorData || {};
+    let dpName = (docData.dp_name ?? docData.department_name ?? docData.specialty ?? "").trim();
+    if (!dpName) dpName = "Consultation";
+    if (!consultationsByDept[dpName]) {
+      consultationsByDept[dpName] = [];
     }
-  ).join("\n");
+    consultationsByDept[dpName].push(c);
+  });
+
+  const consultationRows = Object.keys(consultationsByDept).length > 0
+    ? Object.keys(consultationsByDept).map(
+      (deptName) => {
+        const matching = consultationsByDept[deptName];
+        const latest =
+          matching.length > 0
+            ? matching.reduce((a, b) =>
+              (a?.tcm_id ?? 0) >= (b?.tcm_id ?? 0) ? a : b
+            )
+            : null;
+        let doctorName = "";
+        let notesCell = "<p>&#8203;</p>";
+        if (latest) {
+          const docData = latest.doctor_data || latest.doctorData || {};
+          const docName =
+            docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
+          if (docName) doctorName = docName;
+          const notes = formatConsultationAsPrintViewNotes(latest);
+          if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
+        }
+        return `<tr><td><p>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</p></td><td>${notesCell}</td></tr>`;
+      }
+    ).join("\n")
+    : `<tr><td><p>&#8203;</p></td><td><p>&#8203;</p></td></tr>`;
 
   const consultationsSection = `
-<h2 class="report-section-title">Consultations</h2>
+<h2 class="report-section-title print-page-break">Consultations</h2>
 <table class="report-data-table">
   <thead><tr><th><p>DEPARTMENT & DOCTOR NAME</p></th><th><p>NOTES</p></th></tr></thead>
   <tbody>
@@ -534,7 +649,7 @@ ${consultationRows}
 
   // General Recommendations (fixed text)
   const generalRecSection = `
-<h2 class="report-section-title">General Recommendations</h2>
+<h2 class="report-section-title print-page-break">General Recommendations</h2>
 <div class="report-section-box"><p>${escapeHtml(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
 
 

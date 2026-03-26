@@ -18,6 +18,7 @@ import CashManagerContext from "../../context/CashManagerContext";
 import { setIsDiagnosisBox } from "../../redux/ddxSlice";
 import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux";
+import { isMobile, isTablet } from "react-device-detect";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../utils/utils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
@@ -212,7 +213,7 @@ const TabDDxList = ({
                       Request a call back
                     </Button>
                   </div>
-                  {tp_monetization_enable &&
+                  {tp_monetization_enable && !(isMobile && !isTablet) &&
                     <div>
                       <Button className="mt-3 btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex" onClick={() => clickBuyNow(DDX_planDetails?.service_name)}>
                         <img className="me-2" src={crown} alt="Crown" />

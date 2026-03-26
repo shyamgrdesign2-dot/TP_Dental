@@ -15,6 +15,10 @@ import { EVENTS } from "./events.js";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../utils/constants";
 import { env } from "../EnvironmentConfig.js";
 import { uploadDocsToAzure } from "../pages/medicalRecords/service.js";
+
+/** True when running inside the native app WebView (Android/iOS). Use for in-app download/print; when false, use browser download. */
+export const isInNativeApp = () => browserName === "Chrome WebView" || browserName === "WebKit";
+
 // export const validateEmail = (email) => {
 //   return String(email)
 //     .toLowerCase()

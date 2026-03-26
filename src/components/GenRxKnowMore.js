@@ -332,13 +332,13 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
             >
               Tips for Better Rx
             </span>
-            <div className="know-more-section-tilte mb-4">
+            <div className="know-more-section-tilte mb-3">
               Tips to dictate/write an Rx for better Rx Digitisation
             </div>
             <GenRxTips isKnowMore />
           </div>
 
-          <div className="section">
+          <div className="section section--contact-after-tips">
             <ContactSupport refs={sectionsRef} />
             <div
               style={{

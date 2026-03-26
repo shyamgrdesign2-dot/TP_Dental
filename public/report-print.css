@@ -454,6 +454,11 @@ li p {
     break-after: avoid;
   }
 
+  .print-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
   .report-data-table {
     break-inside: avoid;
   }

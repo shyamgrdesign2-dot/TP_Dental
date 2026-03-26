@@ -137,25 +137,16 @@ function toStubSections(medicalHistory) {
  */
 export async function resolveMedicalHistoryForCaseManager(medicalHistory, { getSectionsWithTags, addTag: addTagApi, searchTag: searchTagApi }) {
   const sections = toStubSections(medicalHistory);
-  const hasAnyTags = sections.some((s) => (s.tags || []).length > 0);
-  if (!hasAnyTags) {
-    const byIdEmpty = {};
-    sections.forEach((section) => {
-      byIdEmpty[section.tmmhs_id] = {
-        title: section.title || SECTION_TITLES[section.tmmhs_id],
-        tmmhs_id: section.tmmhs_id,
-        no_know_history: section.no_know_history !== undefined ? section.no_know_history : false,
-        tags: [],
-        tmpmh_remarks: section.tmpmh_remarks ?? '',
-      };
-    });
-    return SECTION_ORDER.map((tmmhs_id) => byIdEmpty[tmmhs_id] ?? {
-      title: SECTION_TITLES[tmmhs_id],
-      tmmhs_id,
-      no_know_history: false,
-      tags: [],
-      tmpmh_remarks: '',
-    });
+  const hasAnyMedicalHistoryData = sections.some((s) => {
+    const hasTags = (s.tags || []).length > 0;
+    const hasNoKnownHistory = s.no_know_history === true;
+    const hasRemarks =
+      String(s.tmpmh_remarks || '').trim().length > 0 ||
+      String(s.medical_history_remarks || '').trim().length > 0;
+    return hasTags || hasNoKnownHistory || hasRemarks;
+  });
+  if (!hasAnyMedicalHistoryData) {
+    return [];
   }
 
   let master = [];

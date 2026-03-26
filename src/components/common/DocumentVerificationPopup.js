@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
+import { isMobile, isTablet } from "react-device-detect";
 import axios from "axios";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
 import styles from "./DocumentVerificationPopup.module.css";
@@ -86,10 +87,11 @@ const DocumentVerificationPopup = () => {
           daysLeft: daysLeft > 0 ? daysLeft : 0,
         });
 
-        // Show popup if any document is missing and dismiss timeout has passed
+        // Show popup if any document is missing and dismiss timeout has passed (desktop/tablet only, not mobile)
         if (!mrcExists || !idProofExists) {
           const shouldShowPopup = checkDismissTimeout();
-          if (shouldShowPopup) {
+          const isDesktopOrTablet = !(isMobile && !isTablet);
+          if (shouldShowPopup && isDesktopOrTablet) {
             setVisible(true);
           }
         }

@@ -1,5 +1,6 @@
 import { Button, Card } from "antd";
 import emptyDocument from "./../../../../assets/images/empty-document.webp";
+import emptyIllustration from "./../../../../assets/mobile/empty_illustration.svg";
 import { useDispatch, useSelector } from "react-redux";
 import { setUploadDocCategories } from "../../../../redux/uploadDocSlice";
 import { fetchAllDocumentCategories } from "../../service";
@@ -7,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Col, Row } from "react-bootstrap";
 import "./../../MedicalRecords.scss";
 import RecordCard from "../recordCard/RecordCard";
-import { isAndroid, isBrowser } from "react-device-detect";
+import { isAndroid, isBrowser, isMobile } from "react-device-detect";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -113,10 +114,51 @@ const VisitMedicalRecords = ({
           }}
         >
           {allUploadedDocs.length === 0 ? (
-            <div
-              className="d-flex align-items-center justify-content-center text-center flex-column"
-              style={{ rowGap: "24px" }}
-            >
+            isMobile ? (
+              // Mobile Empty State
+              <div className="medical-records-empty-state-mobile">
+                <div className="medical-records-empty-state">
+                  <img
+                    src={emptyIllustration}
+                    alt="No medical records"
+                    className="medical-records-empty-icon"
+                  />
+                  <div className="medical-records-empty-message">
+                    You haven't added any medical records yet!
+                  </div>
+                  <Button
+                    className="btn btn-primary3 btn-text-white px-5 btn-41 medical-records-empty-upload-btn"
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "5px",
+                      width: "100%",
+                      maxWidth: "343px",
+                      marginTop: "24px",
+                    }}
+                    onClick={handleAddClick}
+                  >
+                    <input
+                      type="file"
+                      multiple
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
+                      style={{ display: "none" }}
+                      disabled={filesData.length >= 5}
+                    />
+                    <i className="icon-upload" />
+                    Upload new report
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Desktop Empty State
+              <div
+                className="d-flex align-items-center justify-content-center text-center flex-column"
+                style={{ rowGap: "24px" }}
+              >
               <div>
                 <img
                   src={emptyDocument}
@@ -164,12 +206,22 @@ const VisitMedicalRecords = ({
                 <i className="icon-upload" />
                 {"Upload new report"}
               </Button>
-            </div>
+              </div>
+            )
           ) : (
             <div className="d-flex justify-content-center flex-column medical-records">
               <div
-                className="d-flex flex-wrap"
-                style={{ padding: "24px", columnGap: "16px" }}
+                className={`d-flex ${isMobile ? 'category-buttons-scrollable' : 'flex-wrap'}`}
+                style={{
+                  padding: isMobile ? "12px" : "24px",
+                  columnGap: "16px",
+                  ...(isMobile && {
+                    flexWrap: "nowrap",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                  }),
+                }}
               >
                 {updatedCategory.map((item) => (
                   <Button
@@ -200,7 +252,10 @@ const VisitMedicalRecords = ({
                 md={3}
                 lg={4}
                 className="gy-4 w-100"
-                style={{ paddingLeft: "24px" }}
+                style={{ 
+                  paddingLeft: isMobile ? "12px" : "24px", 
+                  ...(isMobile && { paddingTop: "12px" })
+                }}
               >
                 {activeCategoryDocs.map((cardData, index) => {
                   return (

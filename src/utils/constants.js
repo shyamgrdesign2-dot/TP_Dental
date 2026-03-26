@@ -86,6 +86,7 @@ export const GB_SMARTSYNC_CVT = "smartsync-cvt";
 export const GB_TALKATIVE = "Talkative";
 export const GB_GYNEC_HISTORY = "obs-gynec-history";
 export const GB_ZYDUS_USER = "zydus-hospital-user";
+export const GB_MANYA_DENTAL = 'manya-dental';
 export const GB_PILLUP_MEDICINE = "pillup-medicine-switch";
 export const GB_APOLLO_DISABLE_FEATURE = "apollo-disable-feature";
 export const GB_DISABLE_GROUNDING = "disable-grounding";
@@ -114,6 +115,8 @@ export const GB_DISABLE_MSG91_OTP_FLOW = "disable-msg91-otp-flow";
 export const GB_CARE_PLAN = "care-plan-dropdown";
 export const GB_VIDEO_CONSULT = "video-consult";
 export const GB_TELE_CONSULT = "tele-consult";
+export const GB_TAB_RX = "tab-rx";
+export const GB_TAB_RX_CVT = "tab-rx-cvt";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
@@ -456,7 +459,9 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
   "9825023998",
   "9978957799",
   "9167437770",
-  "8980019439"
+  "8980019439",
+  "9574850310",
+  "9825334682"
 ];
 
 // Custom Canvas Size Increased upto 20 

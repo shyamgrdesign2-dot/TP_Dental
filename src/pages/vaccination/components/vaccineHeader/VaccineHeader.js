@@ -2,6 +2,7 @@ import React, { useState, useCallback, useContext } from "react";
 import { Container, Navbar, Row, Col } from "react-bootstrap";
 import { Button, Dropdown, Menu, Popover, Spin, Radio, Checkbox, Divider } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
+import { isMobile, isTablet } from "react-device-detect";
 import { VaccinationCategoryEnum } from "../../VaccinationHelper";
 
 import CashManagerContext from "../../../../context/CashManagerContext";
@@ -330,8 +331,12 @@ function VaccineHeader({
         backgroundColor: "white",
       }}
     >
-      <DemoExpirationBanner />
-      <PlanExpirationBanner/>
+      {!(isMobile && !isTablet) && (
+        <>
+          <DemoExpirationBanner />
+          <PlanExpirationBanner />
+        </>
+      )}
       <Navbar className="headerprescription p-0">
         <Container fluid className="h-100 gx-0 w-100">
           <Row className="h-100 align-items-center w-100 justify-content-between">

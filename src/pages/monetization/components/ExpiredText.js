@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Button } from "antd";
+import { isMobile, isTablet } from "react-device-detect";
 import { Col, Row } from "react-bootstrap";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -143,7 +144,7 @@ function ExpiredText({ title, onRedirect }) {
                                 Request a call back
                             </Button>
                         </Col>
-                        {tp_monetization_enable && (
+                        {tp_monetization_enable && !(isMobile && !isTablet) && (
                             <Col lg={6}>
                                 <Button className="btn btn-proceed btn-primary3 w-100 align-items-center justify-content-center d-flex" onClick={() => clickBuyNow(title)}>
                                     <img className="me-2" src={crown} alt="Crown" />

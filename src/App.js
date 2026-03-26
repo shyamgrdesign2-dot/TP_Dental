@@ -2,13 +2,15 @@ import React, { Suspense, useEffect, useState } from "react";
 import {
   Routes,
   Route,
+  Navigate,
   useSearchParams,
   useNavigate,
   useLocation,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
-import { isMobile, isChrome, isSafari } from "react-device-detect";
+import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
 import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
@@ -81,6 +83,10 @@ const BottomSheetManager = React.lazy(
 const UpgradeServicesModal = React.lazy(
   () => import("./pages/monetization/components/UpgradeServicesModal")
 );
+const MobilePatientDetails = React.lazy(() => import("./pages/mobile/PatientDetails/PatientDetails"));
+const MobileAllPatients = React.lazy(() => import("./pages/mobile/AllPatients/AllPatients"));
+const MobileVoiceRxConsult = React.lazy(() => import("./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult"));
+const MobileVoiceRecording = React.lazy(() => import("./pages/mobile/VoiceRecording/MobileVoiceRecording"));
 const AppStoreProvider = React.lazy(() => import("./redux/AppStoreProvider"));
 
 const growthbook = new GrowthBook({
@@ -102,6 +108,7 @@ function App() {
   const medecoToken = searchParams.get("medecoToken");
   const fromNative = searchParams.get("fromNative");
   const navigate = useNavigate();
+  const { isMobile: isMobileDevice, isPWA } = useDeviceType();
   const [getToken, setToken] = useLocalStorage(
     PERSISTANT_STORAGE_KEY_AUTH_TOKEN
   );
@@ -114,6 +121,7 @@ function App() {
   const isLoginPage = location.pathname === "/login";
   const isRootPath = location.pathname === "/";
   const token = getToken();
+  const isMobileOrPWA = isMobileDevice || isPWA;
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -272,12 +280,59 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Handle authToken in URL
-    if (authToken) {
+    // Handle authToken in URL (e.g. from Medeco redirect)
+    if (!authToken) return;
+    let isEffectActive = true;
+
+    const syncProfileForAuthToken = async () => {
       setToken(authToken);
       localStorage.removeItem(PERSISTANT_STORAGE_KEY_BILL_TOKEN);
-    }
-  }, [authToken]);
+      
+      if (isReceptionist) return;
+
+      // Only clear cached profile and fetch when the user actually changed
+      // so we show the new user and avoid stale data; skip if same user to avoid loading flash
+      let tokenDoctorId = null;
+      try {
+        const decoded = jwtDecode(authToken);
+        tokenDoctorId =
+          decoded?.result?.doctor_unique_id ?? decoded?.result?.user_id ?? null;
+      } catch (_) {
+        console.warn("[TP Medeco] Failed to decode authToken");
+      }
+
+      try {
+        const [{ store }, { clearDoctorProfile, getProfile }] =
+          await Promise.all([
+            import("./redux/store"),
+            import("./redux/doctorsSlice"),
+          ]);
+
+        if (!isEffectActive) return;
+
+        const currentProfile = store.getState()?.doctors?.profile;
+        const currentDoctorId =
+          currentProfile?.doctor_unique_id ?? currentProfile?.user_id ?? null;
+        const isSameUser =
+          tokenDoctorId &&
+          currentDoctorId &&
+          String(tokenDoctorId) === String(currentDoctorId);
+
+        if (!isSameUser) {
+          store.dispatch(clearDoctorProfile());
+          store.dispatch(getProfile());
+        }
+      } catch (error) {
+        console.warn("[TP Medeco] Failed to sync profile for authToken", error);
+      }
+    };
+
+    syncProfileForAuthToken();
+
+    return () => {
+      isEffectActive = false;
+    };
+  }, [authToken, setToken]);
 
   useTncConsent({
     authToken,
@@ -292,11 +347,12 @@ function App() {
     if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
       params.delete("authToken");
+      const afterSearch = params.toString();
       if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
         navigate(
           {
             pathname: "/",
-            search: params.toString(),
+            search: afterSearch,
           },
           { replace: true }
         );
@@ -382,6 +438,27 @@ function App() {
       return;
     }
 
+    if (isMobileOrPWA) {
+      if (localRedirectTo && localRedirectTo !== "/" && localRedirectTo !== "") {
+        if (localRedirectTo === "profile") {
+          navigate("/doctor_profile");
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else if (redirectReady && localRedirectTo) {
+          navigate(localRedirectTo);
+          localStorage.removeItem("redirectTo");
+          setRedirectReady(false);
+        } else {
+          navigate("/");
+        }
+      } else {
+        if (location.pathname !== "/") {
+          navigate("/");
+        }
+      }
+      return;
+    }
+
     if (isChrome || isSafari) {
       // Determine and execute redirection
       const redirectPath =
@@ -399,7 +476,7 @@ function App() {
 
       navigate(redirectPath);
     }
-  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady]);
+  }, [isRootPath, token, authToken, navigate, redirectTo, redirectReady, isMobileOrPWA, location.pathname]);
 
   //Upgraded Services Modal
   const upgrade_services = searchParams.get("upgrade_services");
@@ -446,7 +523,16 @@ function App() {
             path="create-campaign"
             element={<MessageCreateCampaign />}
           />
-          <Route path="patient_details" element={<PatientDetails />} />
+          <Route 
+            path="patient_details" 
+            element={
+              isMobileDevice && !isTablet ? (
+                <MobilePatientDetails />
+              ) : (
+                <PatientDetails />
+              )
+            } 
+          />
           <Route
             path="prescription"
             element={isMobile ? <TabPrescription /> : <Prescription />}
@@ -487,17 +573,28 @@ function App() {
             path="billing-dashboard"
             element={<BillingDashboard />}
           />
-          <Route path="all_patients" element={<AllPatients />} />
+          <Route 
+            path="all_patients" 
+            element={(isMobile && !isTablet) ? <MobileAllPatients /> : <AllPatients />} 
+          />
           <Route path="billing-settings" element={<BillingSettings />} />
           <Route path="add-appointment" element={<AddAppointment />} />
-          {isReceptionist ? (
-            <Route path="add_patient" element={<AddNewPatient />} />
-          ) : null}
+          {(isReceptionist || (isMobile && !isTablet)) ? <Route path="add_patient" element={<AddNewPatient />} /> : null}
           <Route path="snap-rx" element={<SnapRx />} />
           <Route path="snap-rx/preview" element={<SnapRxPreview />} />
           <Route path="snap-rx/digitise" element={<SnapRxDigitise />} />
           <Route path="ophthal-snap-rx" element={<OphthalSnapRx />} />
-          <Route path="voice-rx-consult" element={<VoiceRxConsult />} />
+          <Route 
+            path="voice-rx-consult" 
+            element={
+              isMobileDevice && !isTablet ? (
+                <MobileVoiceRxConsult />
+              ) : (
+                <VoiceRxConsult />
+              )
+            } 
+          />
+          <Route path="voice-recording" element={<MobileVoiceRecording />} />
           <Route
             path="get-unlimited-access"
             element={<GetUnlimitedAccess />}
@@ -520,6 +617,7 @@ function App() {
     </Suspense>
   );
 
+
   return (
     <GrowthBookProvider growthbook={growthbook}>
       <ErrorBoundary
@@ -533,8 +631,8 @@ function App() {
           // Reset the state of your app so the error doesn't happen again
           console.error(details);
         }}
-      >
-        {!isLoginPage && (
+      > 
+        {!isLoginPage && !isMobileOrPWA && (
           <Suspense fallback={null}>
             <TalkativeWidget
               region="au"
@@ -558,9 +656,13 @@ function App() {
                     zIndex: 199,
                   }}
                 >
-                  <DemoExpirationBanner />
-                  <PlanExpirationBanner />
-                  <ExpiredPlanCard />
+                  {!isMobileOrPWA && (
+                    <>
+                      <DemoExpirationBanner />
+                      <PlanExpirationBanner />
+                      <ExpiredPlanCard />
+                    </>
+                  )}
                   <DoctorModal />
                   <BottomSheetManager />
                 </div>

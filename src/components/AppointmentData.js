@@ -84,6 +84,7 @@ import {
   GB_APPT_SEQUENCE,
   GB_HEALTH_CHECKUP_REPORT,
   PATIENT_DETAILS_SIDEBAR_KEYS,
+  GB_TAB_RX_CVT,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -127,7 +128,7 @@ import {
   viewPatient,
   copyGetAllAppointment1,
   zydusAppointment,
-  getSnapRxUnDigitisedIds,
+  getAllUnDigitisedAppointmentsList
 } from "../redux/appointmentsSlice";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
@@ -215,8 +216,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setOnLoad,
     finishedData,
     zydusAappointmentData,
-    snapRxUnDigitisedIds,
     draftRxCount,
+    allUnDigitisedAppointmentsList
   } = useSelector((state) => state.records);
   const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId } = useSelector(
     (state) => state.teleconsultNotification
@@ -231,7 +232,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [pageNo, setPageNo] = useState(0);
   const [visitTypeFilters, setVisitTypeFilters] = useState("");
   const [openRowIndex, setOpenRowIndex] = useState(null);
-  const [pendingDigitisation, setPendingDigitisation] = useState(null);
+  const [pendingDigitisation, setPendingDigitisation] = useState(null); // not in use as of now (if require will add it in future)
   const consultButtonRef = useRef(null);
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
@@ -244,6 +245,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     useFeatureIsOn("appointment-agent");
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
+  const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
 
   const [zydusSearchQuery, setZydusSearchQuery] = useState("");
   const [matchedAppointment, setMatchedAppointment] = useState([]);
@@ -259,6 +261,20 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [patientData, setPatientData] = useState(null);
   const [unDigitizedUnReviewedIds, setAllUnDigitisedIds] = useState([]);
   const fileInputRef = useRef(null);
+  
+  const allUnDigitisedAppointments = useMemo(() => {
+    if (Array.isArray(allUnDigitisedAppointmentsList)) {
+      return allUnDigitisedAppointmentsList;
+    }
+    return allUnDigitisedAppointmentsList?.undigitizedAppointments || [];
+  }, [allUnDigitisedAppointmentsList]);
+  const allUnDigitisedAppointmentIds = useMemo(
+    () =>
+      allUnDigitisedAppointments
+        ?.map((item) => item?.appointmentId)
+        ?.filter((id) => id !== null && id !== undefined),
+    [allUnDigitisedAppointments]
+  );
 
   const { planDetails } = useSelector((state) => state.subscription);
   const { service_mappings } = planDetails || {};
@@ -516,36 +532,36 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   }, []);
 
-  const fetchPendingDigitisationRx = async () => {
-    try {
-      const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
-      const cleanedToken = token.replace(/['"]+/g, "");
-      const decodedToken = getDecodedToken();
-      const doctorId = decodedToken?.result?.user_id;
+  // const fetchPendingDigitisationRx = async () => {
+  //   try {
+  //     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
+  //     const cleanedToken = token.replace(/['"]+/g, "");
+  //     const decodedToken = getDecodedToken();
+  //     const doctorId = decodedToken?.result?.user_id;
 
-      // API call for Rx Digitisation
-      const response = await axios.get(
-        `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cleanedToken}`,
-          },
-        }
-      );
+  //     // API call for Rx Digitisation
+  //     const response = await axios.get(
+  //       `${baseUrl}/api/v1/casemanager/unfinished-digitize-rx/${doctorId}`,
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Authorization: `Bearer ${cleanedToken}`,
+  //         },
+  //       }
+  //     );
 
-      const pendingDigitisationRx = response?.data;
+  //     const pendingDigitisationRx = response?.data;
 
-      if (pendingDigitisationRx) {
-        setPendingDigitisation(pendingDigitisationRx);
-      }
-    } catch (error) {
-      console.error(
-        "Error fetching the pending Digitisation prescriptions:",
-        error
-      );
-    }
-  };
+  //     if (pendingDigitisationRx) {
+  //       setPendingDigitisation(pendingDigitisationRx);
+  //     }
+  //   } catch (error) {
+  //     console.error(
+  //       "Error fetching the pending Digitisation prescriptions:",
+  //       error
+  //     );
+  //   }
+  // };
 
   // Initialize items in state
   const [items, setItems] = useState([
@@ -680,7 +696,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     // Update the items state with new data
     setItems(updatedItems);
   }, [
-    pendingDigitisation,
     queueCount,
     finishedCount,
     cancelledCount,
@@ -793,15 +808,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           selectedTab != TAB_ZYDUS_ENCOUNTER &&
           selectedTab != TAB_ZYDUS_APPOINTMENT
         ) {
-          const undigitisedIds = pendingDigitisation?.data?.split(",");
-          const snapRxUnDigitisedUnReviewedIds = [
-            ...(snapRxUnDigitisedIds?.unDigitizedAppointmentIds || []),
-            ...(snapRxUnDigitisedIds?.unReviewedAppointmentIds || []),
-          ];
-          const allUnDigitisedIds = [
-            ...(undigitisedIds || []),
-            ...(snapRxUnDigitisedUnReviewedIds || []),
-          ];
+          const allUnDigitisedIds = [...(allUnDigitisedAppointmentIds || [])];
           setAllUnDigitisedIds(allUnDigitisedIds);
           var sendData = {
             startDate: date.startDate,
@@ -857,8 +864,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     siteId,
     createBillDrawer,
     advancedSettings?.billingStatusInAppointmentScreen,
-    pendingDigitisation?.data,
-    snapRxUnDigitisedIds,
+    allUnDigitisedAppointmentIds,
     isAppointmentSequenceFromGB,
   ]);
 
@@ -874,15 +880,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         selectedTab != TAB_ZYDUS_ENCOUNTER &&
         selectedTab != TAB_ZYDUS_APPOINTMENT
       ) {
-        const undigitisedIds = pendingDigitisation?.data?.split(",");
-        const snapRxUnDigitisedUnReviewedIds = [
-          ...(snapRxUnDigitisedIds?.unDigitizedAppointmentIds || []),
-          ...(snapRxUnDigitisedIds?.unReviewedAppointmentIds || []),
-        ];
-        const allUnDigitisedIds = [
-          ...(undigitisedIds || []),
-          ...(snapRxUnDigitisedUnReviewedIds || []),
-        ];
+        const allUnDigitisedIds = [...(allUnDigitisedAppointmentIds || [])];
         setAllUnDigitisedIds(allUnDigitisedIds);
         var sendData = {
           startDate: date.startDate,
@@ -988,17 +986,17 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
-  useEffect(() => {
-    if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
-      fetchPendingDigitisationRx();
-    }
-  }, [isSmartSyncAccessableFromGB]);
+  // useEffect(() => {
+  //   if (isSmartSyncAccessableFromGB && isSmartSyncCVTAccessableFromGB) {
+  //     fetchPendingDigitisationRx();
+  //   }
+  // }, [isSmartSyncAccessableFromGB]);
 
   useEffect(() => {
-    if (isSnapRxDigitizationAccessable) {
-      dispatch(getSnapRxUnDigitisedIds());
+    if (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable || isTabRxCVTAccessableFromGB) {
+      dispatch(getAllUnDigitisedAppointmentsList());
     }
-  }, [isSnapRxDigitizationAccessable]);
+  }, [isSmartSyncCVTAccessableFromGB, isSnapRxDigitizationAccessable,isTabRxCVTAccessableFromGB]);
 
   useEffect(() => {
     if (date.startDate === date.endDate) {
@@ -1896,7 +1894,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
   };
 
-  const handleSnapRxDigitiseAndReview = async (record, isReview) => {
+  const handleSnapRxDigitiseAndReview = async (
+    record,
+    isReview,
+    routePath = "/snap-rx/digitise"
+  ) => {
     const formattedDate = formatDate(record.apDate);
 
     const payload = {
@@ -1932,7 +1934,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         pam_status_type_appointment: record.pam_status_type_appointment,
       } : undefined;
 
-      navigate("/snap-rx/digitise", {
+      navigate(routePath, {
         state: {
           patient_data: record,
           smartRxFilesData: smartRxData?.uploaded_files,
@@ -1952,11 +1954,42 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const isUnreviewedRx = useCallback(
     (record) => {
-      return snapRxUnDigitisedIds?.unReviewedAppointmentIds?.includes(
-        record?.pam_id
+      const matchedItem = allUnDigitisedAppointments?.find(
+        (item) => item?.appointmentId === record?.pam_id
+      );
+      return (
+        ["snap-rx", "tab-rx"].includes(matchedItem?.source) &&
+        matchedItem?.isDigitize === true &&
+        matchedItem?.isVerified === false
       );
     },
-    [snapRxUnDigitisedIds?.unReviewedAppointmentIds]
+    [allUnDigitisedAppointments]
+  );
+
+  const getUnDigitisedAppointmentMeta = useCallback(
+    (record) =>
+      allUnDigitisedAppointments?.find(
+        (item) => item?.appointmentId === record?.pam_id
+      ),
+    [allUnDigitisedAppointments]
+  );
+
+  const handleDigitisationTabAction = useCallback(
+    (record) => {
+      const source = getUnDigitisedAppointmentMeta(record)?.source;
+      if (source === "snap-rx" || source === "tab-rx") {
+        const routePath =
+          source === "tab-rx" ? "/tabrx-digitization" : "/snap-rx/digitise";
+        return handleSnapRxDigitiseAndReview(
+          record,
+          isUnreviewedRx(record),
+          routePath
+        );
+      }
+      // For tab-rx and entries with no source, use default digitise flow.
+      return handleDigitiseRx(record);
+    },
+    [getUnDigitisedAppointmentMeta, isUnreviewedRx]
   );
 
   const updateRxDigitizeInUrl = async ({print_rx_url, patient_unique_id, tcm_id}) => {
@@ -2407,11 +2440,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             shouldShowVoiceRx() &&
             selectedTab != TAB_ZYDUS_ENCOUNTER ? (
               (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB)) ? (
+                ["snap-rx", "tab-rx"].includes(
+                  getUnDigitisedAppointmentMeta(record)?.source
+                ) &&
                 isUnreviewedRx(record) ? (
                   <button
                     className="btn btn-outline-primary"
                     style={{ fontSize: "13px !important" }}
-                    onClick={() => handleSnapRxDigitiseAndReview(record, true)}
+                    onClick={() => handleDigitisationTabAction(record)}
                   >
                     {"Review & Save Rx"}
                   </button>
@@ -2420,16 +2456,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     <button
                       className="btn btn-outline-primary"
                       style={{ fontSize: "13px !important" }}
-                      onClick={() =>
-                        handleSnapRxDigitiseAndReview(record, false)
-                      }
+                      onClick={() => handleDigitisationTabAction(record)}
                     >
                       {"Digitise Rx"}
                     </button>
                   </>
                 )
               ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
@@ -2477,18 +2518,26 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             ) : (((isSmartSyncAccessableFromGB || isFreeVoiceRxUser || tp_monetization_enable) && selectedTab === TAB_ZYDUS_ENCOUNTER) || 
             (isSmartSyncAccessableFromGB || isFreeVoiceRxUser || tp_monetization_enable)) &&
               shouldShowVoiceRx() ? (
-              isDigitisationTab ? (
-                <>
-                  <button
-                    className="btn btn-outline-primary"
-                    style={{ fontSize: "13px !important" }}
-                    onClick={() => handleDigitiseRx(record, index)}
-                  >
-                    {"Digitise Rx"}
-                  </button>
-                </>
-              ) : (
-                (selectedTab === TAB_QUEUE || selectedTab === TAB_ZYDUS_ENCOUNTER) && (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+              // isDigitisationTab ? (
+              //   <>
+              //     <button
+              //       className="btn btn-outline-primary"
+              //       style={{ fontSize: "13px !important" }}
+              //       onClick={() => handleDigitiseRx(record, index)}
+              //     >
+              //       {"Digitise Rx"}
+              //     </button>
+              //   </>
+              // ) :
+               (
+                (selectedTab === TAB_QUEUE ||
+                  (selectedTab === TAB_ZYDUS_ENCOUNTER &&
+                    !finishedData.some(
+                      (x) => x.pam_ref_id == record.encounterId
+                    ))) &&
+                (isSnapRxAccessable ||
+                  isSmartSyncAccessableFromGB ||
+                  (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                   <PrimaryActionButton
                     isSmartRxAccessible={isSmartSyncAccessableFromGB}
                     isSnapRxAccessible={isSnapRxAccessable}
@@ -2616,6 +2665,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const handleChange = (pagination, filters, sorter, extra) => {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");
   };
+
 
   const emptyText = (
     <div

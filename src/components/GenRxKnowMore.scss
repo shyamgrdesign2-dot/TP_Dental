@@ -347,6 +347,10 @@ $border-radius-small: 8.03px;
       width: 100%;
       min-height: 200px;
 
+      &.section--contact-after-tips {
+        margin-top: -40px;
+      }
+
       .basic-info-section {
         @include flex-center;
         padding: 24px;

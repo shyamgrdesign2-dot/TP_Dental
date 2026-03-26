@@ -50,7 +50,7 @@ function ConfigurePrintSetting() {
     const { defaultPrintSettings, userId, profile } = useSelector((state) => state.doctors);
 
     const { state } = useLocation();
-    const { caseManagerData, certificateData, smartRxFile, pam_id, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
+    const { caseManagerData, certificateData, smartRxFile, pam_id, dentalData, isAmbientRx, rxId, page, session_id: stateSessionId, sessionId: stateSessionIdAlt } = state;
     const isAfterDigitization = page === "digitise";
     const snapRxSessionId = stateSessionId ?? stateSessionIdAlt ?? caseManagerData?.session_id;
 
@@ -69,13 +69,12 @@ function ConfigurePrintSetting() {
     const medicalHistoryCheckboxOptions = caseManagerData?.medical_history?.map(e => {
         return { label: e?.title, value: e?.tmmhs_id }
     })
-    const [labParamsData, setLabParamsData] = useState(caseManagerData?.labParamsData || []);
+    const [labParamsData, setLabParamsData] = useState([]);
     const [prescriptionDataFromApi, setPrescriptionDataFromApi] = useState(null);
     const [patientBills, setPatientBills] = useState([]);
     const [advanceReceipts, setAdvanceReceipts] = useState([]);
     const [patientWalletBalance, setPatientWalletBalance] = useState(0);
     const [carePlanAssignments, setCarePlanAssignments] = useState([]);
-    const footerImageShowRef = useRef(false);
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
@@ -86,6 +85,13 @@ function ConfigurePrintSetting() {
 
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
     const { isGynaecHistoryAccessable } = useAccess(caseManagerData?.patient_data?.patient_age);
+
+    const getTodayLabParams = (labResults = []) => {
+        const todayStr = moment().format("YYYY-MM-DD");
+        return (Array.isArray(labResults) ? labResults : []).filter(
+            (labResult) => (labResult?.date || labResult?.createdAt) && moment(labResult.date || labResult.createdAt).format("YYYY-MM-DD") === todayStr
+        );
+    };
 
 
     useEffect(() => {
@@ -119,9 +125,8 @@ function ConfigurePrintSetting() {
         const fetchVoiceAmbientData = async () => {
             if (!isAfterDigitization && smartRxFile && smartRxFile.length > 0 && caseManagerData?.tcm_id && caseManagerData?.patient_data?.patient_unique_id) {
                 const hasVitals = caseManagerData?.vitals && Array.isArray(caseManagerData.vitals) && caseManagerData.vitals.length > 0;
-                const hasLabResults = caseManagerData?.labParamsData && Array.isArray(caseManagerData.labParamsData) && caseManagerData.labParamsData.length > 0;
                 const hasMedicalHistory = caseManagerData?.medical_history && Array.isArray(caseManagerData.medical_history) && caseManagerData.medical_history.length > 0;
-                if (!hasVitals || !hasLabResults || !hasMedicalHistory) {
+                if (!hasVitals || !hasMedicalHistory) {
                     try {
                         const sendData = {
                             patient_unique_id: caseManagerData.patient_data.patient_unique_id,
@@ -141,7 +146,7 @@ function ConfigurePrintSetting() {
                                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                                     );
                                     const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
-                                    const labArray = Array.isArray(labResults) ? labResults : [];
+                                    const labArray = getTodayLabParams(labResults);
                                     setLabParamsData(labArray);
                                 } catch (error) {
                                     console.error('[ConfigurePrintSetting] lab-parameters/results API error (path 1)', error?.message, error?.response?.status);
@@ -668,7 +673,7 @@ function ConfigurePrintSetting() {
                         { headers: { Authorization: `Bearer ${cleanedToken}` } }
                     );
                     const labResults = response?.data?.data?.results ?? response?.data?.results ?? [];
-                    const labArray = Array.isArray(labResults) ? labResults : [];
+                    const labArray = getTodayLabParams(labResults);
                     setLabParamsData(labArray);
                 } catch (error) {
                     // Lab API optional; leave labParamsData unchanged on error
@@ -741,7 +746,7 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData };
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
@@ -831,12 +836,7 @@ function ConfigurePrintSetting() {
                 const vitalsForConsultation = allVitals.filter(
                     (v) => (v?.date || v?.createdAt) && moment(v.date || v.createdAt).format("YYYY-MM-DD") === consultationDate
                 );
-                // Lab results come only from Lab Results API (state labParamsData), not from case manager
-                const rawLabParams = (labParamsData && labParamsData.length > 0) ? labParamsData : (caseManagerData?.labParamsData || []);
-                const labParamsToday = rawLabParams.filter(
-                    (l) => (l?.date || l?.createdAt) && moment(l.date || l.createdAt).format("YYYY-MM-DD") === todayStr
-                );
-                const hasLabData = labParamsToday.length > 0;
+                const hasLabData = labParamsData.length > 0;
                 const defaultOptions = defaultPrintSettings?.prescription?.case_option || [];
                 const medicalHistoryLen = caseManagerData?.medical_history?.length ?? 0;
                 const hasMedicalHistory = medicalHistoryLen > 0;
@@ -1222,14 +1222,9 @@ function ConfigurePrintSetting() {
     }, [defaultPrintSettings, zydusSelectedLabParams?.length, isAmbientRx, caseManagerData?.isVoiceAmbientRx, caseManagerData?.vaccinations?.length, caseManagerData?.labParamsData?.length, labParamsData?.length, caseManagerData?.medical_history?.length, caseManagerData?.gynecHistoryData, caseManagerData?.obsHistoryData, obstetricDetails, smartRxFile, caseManagerData?.smart_prescription_filename, isAfterDigitization, state?.from, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl, prescriptionDataFromApi, prescriptionDataFromApi?.vaccinations?.length, rxId]);
 
     useEffect(() => {
-        // Only run if fileFooter.showFile exists, imageShow is true, and it's the first time imageShow becomes true
-        if (fileFooter?.showFile && fileFooter?.imageShow && !footerImageShowRef.current) {
-            updateFooterImageHeight(fileFooter, setFileFooter, true);
-            footerImageShowRef.current = true; // Mark as handled
-        } else if (!fileFooter?.imageShow) {
-            footerImageShowRef.current = false; // Reset when imageShow becomes false
-        }
-    }, [printSettings, fileFooter?.imageShow, fileFooter?.showFile])
+        if (!fileFooter?.showFile) return;
+        updateFooterImageHeight(fileFooter, setFileFooter);
+    }, [fileFooter?.showFile])
 
     const onTabChange = useCallback(
         (key) => {
@@ -1306,7 +1301,7 @@ function ConfigurePrintSetting() {
                                 <div className="titleprint mt-20">Preview</div>
                                 <div ref={divRef} className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div className="position-relative printheight">
-                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} /> : <QuixoteCertificate mode={NORMAL} />}
+                                        {caseManagerData !== undefined ? <Quixote mode={NORMAL} todayVaccines={todayVaccines} growthChartDetails={growthChartDetails} obstetricDetails={obstetricDetails} patientBills={patientBills} advanceReceipts={advanceReceipts} patientWalletBalance={patientWalletBalance} ophthalModuleData={opthalModuleData} abhaDetails={abhaDetails} dentalData={dentalData} /> : <QuixoteCertificate mode={NORMAL} />}
                                     </div>
                                 </div>
                             </div>

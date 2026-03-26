@@ -39,6 +39,7 @@ import slitLampTemplateSlice from "./slitLampTemplateSlice";
 import fundusTemplateSlice from "./fundusTemplateSlice";
 import teleconsultNotificationReducer from "./teleconsultNotificationSlice";
 import healthCheckupReportSlice from "./healthCheckupReportSlice";
+import dentalRxSlice from "./dentalRxSlice";
 
 const persistConfig = {
   key: "root",
@@ -83,6 +84,7 @@ const rootReducer = combineReducers({
   fundusTemplates: fundusTemplateSlice,
   teleconsultNotification: teleconsultNotificationReducer,
   healthCheckupReport: healthCheckupReportSlice,
+  dentalRx: dentalRxSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
