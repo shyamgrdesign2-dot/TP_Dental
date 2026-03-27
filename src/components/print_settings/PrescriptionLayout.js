@@ -1008,7 +1008,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   className={`icon-Preview ${record.enable === "N" && "disable-preview"
                     } me-3`}
                 ></i>
-                <span style={{ wordBreak: "break-word" }}>{record?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : record.title}</span>
+                <span style={{ wordBreak: "break-word" }}>{record?.id === 11 && caseManagerData?.smart_prescription_filename?.includes("tab_rx") ? "Tab Rx" : record?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : record.title}</span>
               </div>
               <div className="d-flex align-items-center gap-2">
                 <Form.Item className="mb-0 form_addnewpatient ">
