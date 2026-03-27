@@ -3363,7 +3363,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       selectedTab !== TAB_ZYDUS_ENCOUNTER &&
                       selectedTab !== TAB_ZYDUS_APPOINTMENT
                         ? appointmentsData
-                        : matchedAppointment
+                        : matchedAppointment.filter((item) => {
+                            if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
+                              if (statusFilters && statusFilters.length > 0) {
+                                return statusFilters.includes(item.appointmentStatus);
+                              }
+                              return !(
+                                item.appointmentStatus &&
+                                item.appointmentStatus.toLowerCase().includes("cancel")
+                              );
+                            }
+                            return true;
+                          })
                     }
                     onChange={handleChange}
                     pagination={false}
