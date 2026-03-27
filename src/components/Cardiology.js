@@ -775,7 +775,7 @@ function Cardiology(props) {
     !isSmartRxFile &&
     !isSnapRx &&
     !showDigitalRx &&
-    !showDigitalSnapRx && !isTabRx;
+    !showDigitalSnapRx;
 
   const printUrlWithLang = useMemo(() => {
     if (!viewCaseManagerData?.print_url) return null;
@@ -1275,33 +1275,39 @@ function Cardiology(props) {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
-    } else if (shouldUsePrintRxPayload) {
-      if (!printUrlWithLang) {
-        errorMessage("Print URL is missing.");
-        return;
-      }
-      if (printPayloadError) {
-        message.error("Something went wrong, please try again.");
-        return;
-      }
-      if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
-        message.error("The PDF is not ready yet. Please wait a moment and try again.");
-        return;
-      }
-      const blobURL = URL.createObjectURL(printPayloadBlob);
-      window.open(blobURL, "_blank");
-    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
-      const urlObj = new URL(viewCaseManagerData?.print_url);
-      if (isAmbientRx) {
-        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-        urlObj.searchParams.set("rxDigitize", "false");
-      } else {
-        urlObj.searchParams.set("voiceRxDigitize", "true");
-      }
-      const updatedUrl = urlObj.toString();
-      await window.open(`${updatedUrl}&lg=${selectedLang}`);
+    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
+      if (genRxData &&
+        isValidMongoId(
+          viewCaseManagerData?.smart_prescription_filename
+        ) &&
+        !isSmartRxFile) {
+          const urlObj = new URL(viewCaseManagerData?.print_url);
+          if (isAmbientRx) {
+            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+            urlObj.searchParams.set("rxDigitize", "false");
+          } else {
+            urlObj.searchParams.set("voiceRxDigitize", "true");
+          }
+          const updatedUrl = urlObj.toString();
+          await window.open(`${updatedUrl}&lg=${selectedLang}`);
+        } else {
+          if (!printUrlWithLang) {
+            errorMessage("Print URL is missing.");
+            return;
+          }
+          if (printPayloadError) {
+            message.error("Something went wrong, please try again.");
+            return;
+          }
+          if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+            message.error("The PDF is not ready yet. Please wait a moment and try again.");
+            return;
+          }
+          const blobURL = URL.createObjectURL(printPayloadBlob);
+          window.open(blobURL, "_blank");
+        }
     } else {
-      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`);
+      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`); 
     }
   };
 
@@ -1316,7 +1322,7 @@ function Cardiology(props) {
         message.error("Something went wrong, please try again.");
         return;
       }
-      if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+      if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
         message.error("PDF is not ready yet.");
         return;
       }
@@ -1369,7 +1375,6 @@ function Cardiology(props) {
 
   const downloadContent = async () => {
     try {
-      let downloadUrl;
       if (showDigitalRx || showDigitalSnapRx) {
         if (showDigitalRx) {
           window.Moengage.track_event("TP_Digitised_Prescription_Download", {
@@ -1382,25 +1387,69 @@ function Cardiology(props) {
           errorMessage('Download URL is missing.');
           return;
         }
-        downloadUrl = `${printUrl}&lg=${selectedLang}`;
+        const downloadUrl = `${printUrl}&lg=${selectedLang}`;
+        const response = await axios({
+          url: downloadUrl,
+          method: 'GET',
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], { 
+          type: response.headers['content-type'] || 'application/pdf' 
+        });
+        const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+        saveAs(blob, fileName);
+        return;
       } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
-        if (!viewCaseManagerData?.print_url) {
-          errorMessage('Download URL is missing.');
-          return;
-        }
-        try {
-          const urlObj = new URL(viewCaseManagerData.print_url);
-          if (isAmbientRx) {
-            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-            urlObj.searchParams.set("rxDigitize", "false");
-          } else {
-            urlObj.searchParams.set("voiceRxDigitize", "true");
+        if (genRxData &&
+          isValidMongoId(
+            viewCaseManagerData?.smart_prescription_filename
+          ) &&
+          !isSmartRxFile) {
+            if (!viewCaseManagerData?.print_url) {
+              errorMessage('Download URL is missing.');
+              return;
+            }
+            try {
+              const urlObj = new URL(viewCaseManagerData.print_url);
+              if (isAmbientRx) {
+                urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+                urlObj.searchParams.set("rxDigitize", "false");
+              } else {
+                urlObj.searchParams.set("voiceRxDigitize", "true");
+              }
+              const updatedUrl = urlObj.toString();
+              const downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
+              const response = await axios({
+                url: downloadUrl,
+                method: 'GET',
+                responseType: 'blob',
+              });
+              const blob = new Blob([response.data], { 
+                type: response.headers['content-type'] || 'application/pdf' 
+              });
+              const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+              saveAs(blob, fileName);
+              return;
+            } catch (error) {
+              console.error("Invalid download URL:", error);
+              errorMessage('Failed to generate download URL.');
+              return;
+            }
+        } else {
+          if (!printUrlWithLang) {
+            errorMessage("Download URL is missing.");
+            return;
           }
-          const updatedUrl = urlObj.toString();
-          downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
-        } catch (error) {
-          console.error("Invalid download URL:", error);
-          errorMessage('Failed to generate download URL.');
+          if (printPayloadError) {
+            message.error("Something went wrong, please try again.");
+            return;
+          }
+          if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+            message.error("The PDF is not ready yet. Please wait a moment and try again.");
+            return;
+          }
+          const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+          saveAs(printPayloadBlob, fileName);
           return;
         }
       } else {
@@ -1408,21 +1457,19 @@ function Cardiology(props) {
           errorMessage('Download URL is missing.');
           return;
         }
-        downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+        const downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+        const response = await axios({
+          url: downloadUrl,
+          method: 'GET',
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], { 
+          type: response.headers['content-type'] || 'application/pdf' 
+        });
+        const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+        saveAs(blob, fileName);
+        return;
       }
-
-      if (!downloadUrl) return;
-
-      const response = await axios({
-        url: downloadUrl,
-        method: 'GET',
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { 
-        type: response.headers['content-type'] || 'application/pdf' 
-      });
-      const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
-      saveAs(blob, fileName);
     } catch (error) {
       console.error('Error downloading file:', error);
       errorMessage('Failed to download prescription');
