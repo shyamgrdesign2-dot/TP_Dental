@@ -888,6 +888,17 @@ export const trackEvent = (eventName, attributes) => {
   window.Moengage.track_event(eventName, attributes);
 };
 
+export const getDraftMoengageDoctorAttributes = (profile, userId) => {
+  const tokenData = getDecodedToken()?.result;
+
+  return {
+    doctor_name: profile?.um_name || "",
+    doctor_number: profile?.um_contact || "",
+    doctor_specialty: profile?.dp_name || "",
+    doctor_um_id: tokenData?.user_id || userId || profile?.um_id || "",
+  };
+};
+
 export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
   // Devanagari (Hindi, Marathi, Sanskrit, Nepali, etc.)
   if (/[\u0900-\u097F]/.test(text)) {

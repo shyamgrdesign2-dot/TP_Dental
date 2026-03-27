@@ -1,26 +1,25 @@
 name: Trigger auto deployment for pm-uat-doctor-portal
 
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
     branches: 
-      [ uat ]
+      - uat
     paths:
-    - '**'
-    - '.github/workflows/pm-uat-doctor-portal-AutoDeployTrigger-3dd659af-0107-4d2c-aac9-a802200095da.yml'
+      - '**'
+      - '.github/workflows/pm-uat-doctor-portal-AutoDeployTrigger-3dd659af-0107-4d2c-aac9-a802200095da.yml'
 
-  # Allow manual trigger 
-  workflow_dispatch:      
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     env:
       REACT_APP_ENV: uat
+
     permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout to the branch
@@ -49,4 +48,3 @@ jobs:
             REACT_APP_MOENGAGE_LOGS_UAT=1
             GENERATE_SOURCEMAP=true
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-  

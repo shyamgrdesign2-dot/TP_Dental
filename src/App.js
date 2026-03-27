@@ -85,6 +85,10 @@ import HealthRecords from "./pages/abhaRecords/HealthRecords";
 import AbhaStandalone from "./pages/abha/AbhaStandalone";
 import AddNewPatient from "./pages/AddNewPatient";
 import AppTeleconsultBootstrap from "./components/AppTeleconsultBootstrap";
+import TabRx from "./pages/tabRx/TabRx";
+import TabRxCanvas from "./pages/tabRx/components/TabRxCanvas";
+import TabRxPrescriptionPrintView from "./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView";
+import TabRxDigitization from "./pages/tabRx/components/Digitization";
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -561,6 +565,7 @@ function App() {
                   path="smart-prescription"
                   element={<SmartPrescription />}
                 />
+                <Route path="tab-rx-prescription" element={<TabRxPrescriptionPrintView />} />
                 <Route path="print-smart-rx" element={<SmartRxPreview />} />
                 <Route path="doctor_profile" element={<DoctorProfile />} />
                 <Route
@@ -617,6 +622,12 @@ function App() {
                 <Route
                   path="abha-records/health-records"
                   element={<HealthRecords />}
+                />
+                <Route path="tab-rx" element={<TabRx />} />
+                <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
+                <Route
+                  path="tabrx-digitization"
+                  element={<TabRxDigitization />}
                 />
               </Route>
               <Route path="opd-bill" element={<OpdBill />} />
