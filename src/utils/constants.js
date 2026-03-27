@@ -468,7 +468,3 @@ export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
 export const CUSTOM_CANVAS_DOCTORS_USER_ID = [
   524,25734,30098
 ];
-
-export const INVESTIGATION_TITLE = "Investigation";
-export const INVESTIGATION_PRINT_ID = 6;
-export const INVESTIGATION_MODULE_ID = 14;

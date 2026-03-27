@@ -2,12 +2,10 @@ import { Button, Divider } from "antd";
 import React, { useEffect, useState } from "react";
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import TabSiderEmptyState from "./TabSiderEmptyState";
 
-const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabParamsDrawer, handleViewLabParamsDrawer, isTabRx }) => {
+const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabParamsDrawer, handleViewLabParamsDrawer }) => {
 
   const [labParamsdeatils, setLabParamsdeatils] = useState([]);
-  const hasLabParams = labParamsData?.length > 0;
 
   useEffect(() => {
     const updatedLabParamsData= labParamsData?.sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -69,7 +67,7 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
 
   return (
     <div>
-      <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
+      <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
         Lab Results
         <Button
           type="text"
@@ -84,42 +82,31 @@ const TabLabParametersList = ({ handleCollapsed, labParamsData, handleAddLabPara
         style={{ height: "calc(100vh - 108px)" }}
       >
         <div className="p-10">
-          {hasLabParams ? (
-            <>
-              <Button
-                className="btn btn-input d-flex w-100 align-items-center justify-content-center btn-41"
-                onClick={handleAddLabParamsDrawer}
-              >
-                <i className="icon-Add me-2 fs-21"></i>
-                Add or Edit
-              </Button>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  rowGap: "16px",
-                  padding: "16px 0",
-                }}
-              >
-                {measurementDetails()}
-              </div>
-              <Divider dashed style={{ color: "#D0D5DD", margin: "0 0 16px" }} />
-              <div
-                className="d-flex align-items-center"
-                onClick={handleViewLabParamsDrawer}
-              >
-                <span className="view-all-txt">View All</span>
-                <i className="icon-right view-all-icon" />
-              </div>
-            </>
-          ) : (
-            <TabSiderEmptyState
-              title="No Lab Results!"
-              description="It looks like there are no lab results added for this patient yet."
-              actionLabel="Add Lab Results"
-              onAction={handleAddLabParamsDrawer}
-            />
-          )}
+          <Button
+            className="btn btn-input d-flex w-100 align-items-center justify-content-center btn-41"
+            onClick={handleAddLabParamsDrawer}
+          >
+            <i className="icon-Add me-2 fs-21"></i>
+            Add or Edit
+          </Button>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              rowGap: "16px",
+              padding: "16px 0",
+            }}
+          >
+            {measurementDetails()}
+          </div>
+          <Divider dashed style={{ color: "#D0D5DD", margin: "0 0 16px" }} />
+          <div
+            className="d-flex align-items-center"
+            onClick={handleViewLabParamsDrawer}
+          >
+            <span className="view-all-txt">View All</span>
+            <i className="icon-right view-all-icon" />
+          </div>
         </div>
       </div>
     </div>

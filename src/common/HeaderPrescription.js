@@ -24,7 +24,7 @@ import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent } from "../utils/utils";
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
@@ -56,7 +56,6 @@ import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 import videoSvg from '../assets/images/video.svg';
-import { EVENTS } from '../utils/events';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
 import {
@@ -131,12 +130,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false} = useLocation().state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
-
-    const trackSaveDraftEvent = useCallback(() => {
-        window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
-            ...getDraftMoengageDoctorAttributes(profile),
-        });
-    }, [profile]);
     
     useEffect(() => {
         dispatch(oneClickTemplatesList());
@@ -1236,7 +1229,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
-        trackSaveDraftEvent();
         setSaveDraftLoading(true);
 
         try {

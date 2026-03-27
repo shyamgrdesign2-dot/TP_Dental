@@ -72,6 +72,9 @@ export const setupReceptionist = async function (payload) {
       cleanPayload.clinicName = payload.clinicName;
     }
 
+    // Debug: log the clean payload data
+    // console.log('Final payload data being sent:', cleanPayload);
+
     const formData = new FormData();
     formData.append('clinicId', cleanPayload.clinicId);
     formData.append('name', cleanPayload.receptionistName);

@@ -381,9 +381,6 @@ function PatientForm({ mode = ADD, patient_data }) {
     const onConsultClick = (patient) => {
         navigate("/prescription", { state: { patient_data: patient } });
     };
-    const onTabRxClick = (patient) => {
-        navigate("/tab-rx", { state: { patient_data: patient } });
-    };
 
     return (
         <>
@@ -530,7 +527,6 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                         onSmartRxClick={onSmartRxClick}
                                                         onSnapRxClick={onSnapRxClick}
                                                         onVoiceRxClick={onVoiceRxClick}
-                                                        onTabRxClick={onTabRxClick}
                                                         onConsultClick={onConsultClick}
                                                         patient={patientData}
                                                         buttonStyle="walkin"

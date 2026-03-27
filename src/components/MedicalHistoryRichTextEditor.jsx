@@ -25,8 +25,7 @@ const MedicalHistoryRichTextEditor = ({
   caseManagerData: caseManagerDataProp,
   isVoiceAmbientSnapSmartFlow = false,
 }) => {
-  const { isMobile, isTablet } = useDeviceType();
-  
+  const { isMobile } = useDeviceType();
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     medical_condition: true,
@@ -477,7 +476,7 @@ const MedicalHistoryRichTextEditor = ({
       </div>
 
       {/* Mobile: Use bottom sheets, Web: Use right drawer */}
-      {isMobile && !isTablet ? (
+      {isMobile ? (
         <MobileMedicalHistoryManager
           visible={medicalHistoryDrawer}
           onClose={() => setMedicalHistoryDrawer(false)}

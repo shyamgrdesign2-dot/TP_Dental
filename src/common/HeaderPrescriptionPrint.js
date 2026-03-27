@@ -44,19 +44,11 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
             };
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
             if (pam_id || tcm_id) {
-              let sanitizedPrintUrl = printUrl;
-              try {
-                const urlObj = new URL(printUrl, window.location.origin);
-                urlObj.searchParams.delete("rxDigitize");
-                sanitizedPrintUrl = urlObj.toString();
-              } catch (error) {
-                sanitizedPrintUrl = printUrl;
-              }
               updateVisitStatus({
                 status: 3,
                 isSnapRx,
                 appointment_id: pam_id,
-                prescriptionUrl: sanitizedPrintUrl,
+                prescriptionUrl: printUrl,
                 tcm_id: tcm_id,
               });
               if (state?.page === "digitise") {

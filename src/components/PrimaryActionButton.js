@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
 import smartPad from "../assets/images/smartPad.svg";
-import { isMobile, isTablet } from "react-device-detect";
+import { isMobile } from "react-device-detect";
 import { isZydus } from "../utils/utils";
-import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX } from "../utils/constants";
 
 /**
  * PrimaryActionButton Component
  * 
  * A reusable component that renders a primary action button with dropdown for additional options.
- * Handles the priority-based rendering: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+ * Handles the priority-based rendering: SmartRx > VoiceRx > SnapRx > Consult
  * Special case: For Zydus accounts, Consult is always primary and other options go to dropdown
  * 
  * @param {Object} props
@@ -18,11 +16,9 @@ import { GB_TAB_RX } from "../utils/constants";
  * @param {boolean} props.isSnapRxAccessible - Whether SnapRx is accessible
  * @param {boolean} props.isVoiceRxAccessible - Whether VoiceRx is accessible (isFreeVoiceRxUser || tp_monetization_enable)
  * @param {boolean} props.isVoiceRxPaid - Whether VoiceRx is paid (affects button text)
- * @param {boolean} props.isTabRxAccessible - Whether TabRx is accessible
  * @param {Function} props.onSmartRxClick - Handler for SmartRx click
  * @param {Function} props.onSnapRxClick - Handler for SnapRx click
  * @param {Function} props.onVoiceRxClick - Handler for VoiceRx click
- * @param {Function} props.onTabRxClick - Handler for TabRx click
  * @param {Function} props.onConsultClick - Handler for Consult click
  * @param {Object} props.patient - Patient/record data to pass to handlers
  * @param {Function} props.setAutoCompleteFlag - Optional: Function to set auto complete flag (for WalkInConsultation)
@@ -35,11 +31,9 @@ const PrimaryActionButton = ({
   isSnapRxAccessible = false,
   isVoiceRxAccessible = false,
   isVoiceRxPaid = false,
-  // isTabRxAccessible = false,
   onSmartRxClick,
   onSnapRxClick,
   onVoiceRxClick,
-  onTabRxClick,
   onConsultClick,
   patient,
   setAutoCompleteFlag,
@@ -86,18 +80,12 @@ const PrimaryActionButton = ({
   // Check if this is a Zydus account
   const isZydusAccount = isZydus();
 
-  // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  // Determine available options based on priority: SmartRx > VoiceRx > SnapRx > Consult
   // Special handling: 
   // 1. If VoiceRx is accessible but not paid, Consult becomes primary and VoiceRx goes to dropdown
   // 2. For Zydus accounts, Consult is always primary and all other options go to dropdown
   const allAvailableOptions = [];
   const dropdownOptionsList = [];
-
-  // TabRx should be shown only on tablet devices (not on laptops or mobiles)
-
-  const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
-  const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
-  // const isTabRxVisible = isTabRxEnabledFromGB ;
   
   if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown
@@ -110,13 +98,10 @@ const PrimaryActionButton = ({
     if (isSnapRxAccessible) {
       dropdownOptionsList.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
     }
-    if (isTabRxVisible) {
-      dropdownOptionsList.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
-    }
     // Consult is always primary for Zydus
     allAvailableOptions.push({ type: "consult", label: "Consult", handler: onConsultClick });
   } else {
-    // Normal priority logic: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+    // Normal priority logic: SmartRx > VoiceRx > SnapRx > Consult
     if (isSmartRxAccessible && !isMobile) {
       allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
     }
@@ -128,11 +113,6 @@ const PrimaryActionButton = ({
     
     if (isSnapRxAccessible) {
       allAvailableOptions.push({ type: "snaprx", label: "SnapRx", handler: onSnapRxClick });
-    }
-    
-    // TabRx comes before Consult
-    if (isTabRxVisible) {
-      allAvailableOptions.push({ type: "tabrx", label: "TabRx", handler: onTabRxClick });
     }
     
     // Consult is always available as fallback
@@ -150,7 +130,7 @@ const PrimaryActionButton = ({
   // Dropdown options: For Zydus, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
   const dropdownOptions = isZydusAccount ? dropdownOptionsList : allAvailableOptions.slice(1);
 
-  // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > TabRx > Consult
+  // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > Consult
   const getMenuItems = () => {
     if (dropdownOptions.length === 0) return [];
 
@@ -195,7 +175,7 @@ const PrimaryActionButton = ({
 
   // Get primary button text
   const getPrimaryButtonText = () => {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return primaryOption.label;
     }
     if (primaryOption.type === "voicerx") {
@@ -206,7 +186,7 @@ const PrimaryActionButton = ({
 
   // If mobile screen, show simple button without dropdown
   if (isMobileScreen) {
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return (
         <div style={{ paddingLeft: "6px" }} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
@@ -236,7 +216,7 @@ const PrimaryActionButton = ({
         }
       : { paddingLeft: "6px" };
     
-    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
+    if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx") {
       return (
         <div 
           ref={buttonRef}
@@ -313,7 +293,6 @@ const PrimaryActionButton = ({
             if (option.type === "smartrx") return "Start New SmartRx";
             if (option.type === "snaprx") return "Start New SnapRx";
             if (option.type === "voicerx") return "Start Voice Rx";
-            if (option.type === "tabrx") return "Start TabRx";
             return "Start New Consult";
           };
 
@@ -364,7 +343,7 @@ const PrimaryActionButton = ({
       className="d-flex btn btn-smart-rx-walkin"
       style={{ ...containerStyle, position: "relative", zIndex: 1 }}
     >
-      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx" ? (
+      {primaryOption.type === "smartrx" || primaryOption.type === "snaprx" ? (
         <div style={dropdownOptions.length === 0 ? { ...primaryButtonStyle, width: fullWidth ? "100%" : undefined } : primaryButtonStyle} onClick={handlePrimaryClick}>
           {/* <img src={smartPad} alt="vitals" /> */}
           <button 

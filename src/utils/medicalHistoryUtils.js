@@ -11,83 +11,6 @@ function normalizeTitleForMatch(title) {
   return (title || '').trim().toLowerCase();
 }
 
-/**
- * Normalises tag titles within a section so master-list labels (e.g. "Allergies, Nuts") match digitised rows ("Nuts").
- */
-export function canonicalTagTitleKey(title, tmmhs_id) {
-  let t = normalizeTitleForMatch(title);
-  if (!t) return '';
-  const id = Number(tmmhs_id);
-  if (Number.isNaN(id)) return t;
-  if (id === 4) {
-    t = t
-      .replace(/^allergies?\s*,\s*/i, '')
-      .replace(/^food\s+allergies?\s*,\s*/i, '')
-      .replace(/^allergy\s*,\s*/i, '')
-      .replace(/^allergy\s+to\s+/i, '')
-      .trim();
-  }
-  if (id === 3) {
-    t = t.replace(/^family\s*history\s*,\s*/i, '').trim();
-  }
-  if (id === 2) {
-    t = t.replace(/^medical\s*(condition|problem)?\s*,\s*/i, '').trim();
-  }
-  if (id === 1) {
-    t = t.replace(/^lifestyle\s*,\s*/i, '').trim();
-  }
-  if (id === 5) {
-    t = t.replace(/^surgical\s*history\s*,\s*/i, '').trim();
-  }
-  return t;
-}
-
-/** Dedupe tags in a section: same master id, or same canonical title (incl. one with id, one without). */
-export function tagsAreDuplicateForHistoryMerge(item1, item2, tmmhs_id) {
-  const id1 = item1?.tmmhst_id;
-  const id2 = item2?.tmmhst_id;
-  const hasId1 = id1 != null && id1 !== '' && id1 !== 0;
-  const hasId2 = id2 != null && id2 !== '' && id2 !== 0;
-  if (hasId1 && hasId2) return id1 === id2;
-  const c1 = canonicalTagTitleKey(item1?.title, tmmhs_id);
-  const c2 = canonicalTagTitleKey(item2?.title, tmmhs_id);
-  return !!(c1 && c2 && c1 === c2);
-}
-
-export function findMatchingMedicalHistoryTag(tag, sourceTags, tmmhs_id) {
-  if (!sourceTags?.length) return null;
-  const tid = tag?.tmmhst_id;
-  if (tid != null && tid !== '' && tid !== 0) {
-    const byId = sourceTags.find((x) => x?.tmmhst_id === tid);
-    if (byId) return byId;
-  }
-  const key = canonicalTagTitleKey(tag?.title, tmmhs_id);
-  if (!key) return null;
-  return sourceTags.find((x) => canonicalTagTitleKey(x?.title, tmmhs_id) === key) ?? null;
-}
-
-/** Merge two tag lists for the same section; sb overlays sa. Keys by canonical title so prefixed labels do not duplicate. */
-export function mergeMedicalHistoryTagsBySection(saTags, sbTags, tmmhs_id) {
-  let unkeyed = 0;
-  const keyOf = (t) => {
-    const c = canonicalTagTitleKey(t?.title, tmmhs_id);
-    if (c) return `canon:${c}`;
-    const id = t?.tmmhst_id;
-    if (id != null && id !== '' && id !== 0) return `id:${id}`;
-    unkeyed += 1;
-    return `untitled:${unkeyed}`;
-  };
-  const map = new Map();
-  const push = (t) => {
-    const k = keyOf(t);
-    const prev = map.get(k);
-    map.set(k, prev ? { ...prev, ...t } : { ...t });
-  };
-  (saTags || []).forEach(push);
-  (sbTags || []).forEach(push);
-  return Array.from(map.values());
-}
-
 function buildTagForCaseManager(tag, tmmhs_id) {
   const title = (tag.title || '').trim();
   const base = {
@@ -172,7 +95,7 @@ function flatToSections(flatItems) {
   return Object.values(groupedByType);
 }
 
-export function ensureFiveSections(sections) {
+function ensureFiveSections(sections) {
   const byId = {};
   (sections || []).forEach((s) => { byId[s.tmmhs_id] = s; });
   return SECTION_ORDER.map((tmmhs_id) => {

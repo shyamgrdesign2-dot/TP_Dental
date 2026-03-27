@@ -26,7 +26,6 @@ import {
   PAEDIATRICS_DP_ID,
   WHATSAPP,
   WEIGHT_HEIGHT_TITLE,
-  INVESTIGATION_TITLE,
 } from "../constants";
 import moment from "moment";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
@@ -4965,7 +4964,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                {INVESTIGATION_TITLE}:&nbsp;
+                                Lab Investigation:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5055,7 +5054,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                {INVESTIGATION_TITLE}:&nbsp;
+                                Lab Investigation:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5138,7 +5137,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   marginBottom: PX_TO_PT * 6,
                                 }}
                               >
-                                {INVESTIGATION_TITLE}:&nbsp;
+                                Lab Investigation:&nbsp;
                               </Text>
                               <View style={styles.table}>
                                 <View style={styles.headerRow} fixed>
@@ -10196,7 +10195,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 500,
                                     }}
                                   >
-                                    {INVESTIGATION_TITLE}:
+                                    Lab Investigation:
                                   </Text>
                                 </Text>
                                 {isVoiceOrAmbientV2 ? (
@@ -11664,7 +11663,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     fontWeight: 500,
                                   }}
                                 >
-                                  {INVESTIGATION_TITLE}:
+                                  Lab Investigation:
                                 </Text>
 
                                 {isVoiceOrAmbientV2 ? (
@@ -11798,7 +11797,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     )?.map((item, i) => {
                                       const name =
                                         (item?.name || "").trim() ||
-                                        INVESTIGATION_TITLE;
+                                        "Lab Investigation";
                                       const details = (
                                         item?.note ||
                                         item?.notes ||
@@ -14569,7 +14568,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }}
                             wrap
                           >
-                            {INVESTIGATION_TITLE}
+                            Investigation
                           </Text>
                         </View>
 

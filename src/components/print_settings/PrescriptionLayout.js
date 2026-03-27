@@ -20,7 +20,6 @@ import { useAccess } from "../../pages/vaccination/useAccess";
 import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
-import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -1008,7 +1007,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   className={`icon-Preview ${record.enable === "N" && "disable-preview"
                     } me-3`}
                 ></i>
-                <span style={{ wordBreak: "break-word" }}>{record?.id === 11 && caseManagerData?.smart_prescription_filename?.includes("tab_rx") ? "Tab Rx" : record?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : record.title}</span>
+                <span style={{ wordBreak: "break-word" }}>{record.title}</span>
               </div>
               <div className="d-flex align-items-center gap-2">
                 <Form.Item className="mb-0 form_addnewpatient ">
@@ -1497,7 +1496,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                           display: 'block',
                           width: '100%'
                         }}>
-                          {option?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : option.title}
+                          {option.title}
                         </span>
                       )}
                     </div>

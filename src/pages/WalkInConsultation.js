@@ -395,7 +395,6 @@ function WalkInConsultation() {
                 onSmartRxClick={onSmartRxClick}
                 onSnapRxClick={onSnapRxClick}
                 onVoiceRxClick={onVoiceRxClick}
-                onTabRxClick={onTabRxClick}
                 onConsultClick={onConsultClick}
                 patient={patient}
                 setAutoCompleteFlag={setAutoCompleteFlag}
@@ -580,10 +579,6 @@ function WalkInConsultation() {
     });
   };
 
-  const onTabRxClick = async (patient) => {
-    navigate("/tab-rx", { state: { patient_data: patient } });
-  };
-
   const COMMON_MODAL = useMemo(() => {
     return (
       <CommonModal
@@ -643,7 +638,6 @@ function WalkInConsultation() {
                     onSmartRxClick={onSmartRxClick}
                     onSnapRxClick={onSnapRxClick}
                     onVoiceRxClick={onVoiceRxClick}
-                    onTabRxClick={onTabRxClick}
                     onConsultClick={(patient) => {
                       const clinic_name = getClinicName(profile?.hospital_data);
                       window.Moengage.track_event("TP_Consult_started", {

@@ -198,16 +198,6 @@ function WalkInConsultationZydus() {
         }
     };
 
-    const onTabRxClick = async (record) => {
-        const action = await dispatch(synczyduspatient(record));
-        if (action.meta.requestStatus === "fulfilled") {
-            const result = action.payload;
-            navigate("/tab-rx", { state: { patient_data: { ...result, mrno: record.mrno } } });
-        } else {
-            errorMessage(action.error);
-        }
-    };
-
     const getMenuItems = (record) => {
         const items = [];
 
@@ -412,6 +402,10 @@ function WalkInConsultationZydus() {
                         >
                             Patient Details
                         </Button>
+                        {/* {console.log(isSnapRxAccessable,"isSnapRxAccessable")}
+                        {console.log(isSmartSyncAccessableFromGB,"isSmartSyncAccessableFromGB")}
+                        {console.log(isFreeVoiceRxUser,"isFreeVoiceRxUser")}
+                        {console.log(tp_monetization_enable,"tp_monetization_enable")} */}
                         {(isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                             <PrimaryActionButton
                                 isSmartRxAccessible={isSmartSyncAccessableFromGB}
@@ -421,7 +415,6 @@ function WalkInConsultationZydus() {
                                 onSmartRxClick={onSmartRxClick}
                                 onSnapRxClick={onSnapRxClick}
                                 onVoiceRxClick={onVoiceRxClick}
-                                onTabRxClick={onTabRxClick}
                                 onConsultClick={onConsultClick}
                                 patient={patient}
                                 buttonStyle="walkin"
@@ -551,7 +544,6 @@ function WalkInConsultationZydus() {
                                             onSmartRxClick={onSmartRxClick}
                                             onSnapRxClick={onSnapRxClick}
                                             onVoiceRxClick={onVoiceRxClick}
-                                            onTabRxClick={onTabRxClick}
                                             onConsultClick={onConsultClick}
                                             patient={clickedPatient}
                                             setAutoCompleteFlag={setAutoCompleteFlag}
