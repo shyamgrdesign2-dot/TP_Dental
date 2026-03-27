@@ -1832,11 +1832,13 @@ function TabRxHeaderV2({
                     duration: 5,
                 });
 
-                const upsertTabRxRxPromise = await upsertTabRxRx({
-                    patient_unique_id: patient_data?.patient_unique_id,
-                    tcm_id: action.payload?.tcm_id,
-                    pam_id: action.payload?.pam_id,
-                })
+                if (tcmId == 0) {
+                    await upsertTabRxRx({
+                        patient_unique_id: patient_data?.patient_unique_id,
+                        tcm_id: action.payload?.tcm_id,
+                        pam_id: action.payload?.pam_id,
+                    });
+                }
 
                 if (isAutofillSelected) {
                     await setAddToRx({
@@ -1852,6 +1854,7 @@ function TabRxHeaderV2({
                     state: {
                         ...action.payload,
                         patient_data: patient_data,
+                        page: "tabrx",
                         // smartRxFilesData: canvasFiles.length > 0 ? canvasFiles : smartRxFiles,
                     },
                 });
