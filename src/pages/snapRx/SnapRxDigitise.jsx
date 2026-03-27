@@ -29,7 +29,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 
-function SnapRxDigitise() {
+function SnapRxDigitise({isTabRx = false}) {
   const divRef = useRef(null);
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
@@ -60,6 +60,7 @@ function SnapRxDigitise() {
   const [divWidth, setDivWidth] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
 
   const baseUrlRxDigitise = env.digitization_api_url;
@@ -314,6 +315,7 @@ function SnapRxDigitise() {
   }, []);
 
   const handleSave = async () => {
+    setIsSaveLoading(true);
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
@@ -630,7 +632,7 @@ function SnapRxDigitise() {
         //     },
         //   });
         // } else {
-        navigate("/snap-rx/preview", {
+        navigate(isTabRx ? "/tab-rx-prescription" : "/snap-rx/preview", {
           replace: true,
           state: {
             patient_data,
@@ -640,12 +642,15 @@ function SnapRxDigitise() {
             print_url,
             showProgressbar: false,
             page: "digitise",
+            ...(isTabRx && { digitisedData: {editedData: data} })
           },
         });
         // }
       }
     } catch (error) {
       console.error("Error saving data:", error);
+    } finally {
+      setIsSaveLoading(false);
     }
   };
 
@@ -709,15 +714,16 @@ function SnapRxDigitise() {
         isDigitiseRxLoading={isLoading}
         patient_data={patient_data}
         isSnapRx={true}
+        isSaveLoading={isSaveLoading}
       />
       <div
         ref={splitRef}
         className={`${
           isMobile ? "p-0" : ""
-        } w-100 bg-body prescription-wrapper prescription-wrapper-digitise srx-drx-container`}
+        } w-100 bg-body wrapper2 prescription-wrapper prescription-wrapper-digitise srx-drx-container`}
         style={{ position: "relative" }}
       >
-        <Row gutter={0} justify="center" wrap={false}>
+        <Row gutter={0} justify="center" wrap={false} align="stretch">
           <Col
             md={17}
             lg={17}
@@ -739,15 +745,9 @@ function SnapRxDigitise() {
                   smartRxFile?.map(
                     ({ fileUrl, smart_prescription_file }) => (
                       <div key={fileUrl || smart_prescription_file}>
-                        {(isCustomSSRX
-                          ? smart_prescription_file
-                          : fileUrl) && (
+                        {(smart_prescription_file || fileUrl) && (
                           <img
-                            src={
-                              isCustomSSRX
-                                ? smart_prescription_file
-                                : fileUrl
-                            }
+                            src={smart_prescription_file || fileUrl}
                             alt="Smart Rx"
                             className="written-rx-image"
                             width="100%"
@@ -787,6 +787,7 @@ function SnapRxDigitise() {
                   showInstructionMessage={false}
                   patient_data={patient_data}
                   vitalsFlow="snap"
+                  digitiseSplitLayout
                 />
               </div>
             </div>

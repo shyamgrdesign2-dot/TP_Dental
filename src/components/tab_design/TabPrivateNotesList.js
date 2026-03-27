@@ -4,6 +4,7 @@ import moment from "moment";
 
 import { useSelector, useDispatch } from "react-redux";
 import { updatePrivateNotesList } from "../../redux/medicalhistorySlice";
+import TabSiderEmptyState from "./TabSiderEmptyState";
 
 import CashManagerContext from '../../context/CashManagerContext';
 
@@ -26,11 +27,12 @@ const ReadMore = ({ children }) => {
 
 function TabPrivateNotesList(props) {
 
-    const { handleDrawerPrivateNotes, handleCollapsed } = props
+    const { handleDrawerPrivateNotes, handleCollapsed, isTabRx } = props
     const { privateNotesList } = useSelector((state) => state.medicalhistory);
     const dispatch = useDispatch();
 
     const { privateNotesData } = useContext(CashManagerContext);
+    const hasPrivateNotes = privateNotesList?.length > 0;
 
     const onExpandCollapseClick = (i) => {
         dispatch(updatePrivateNotesList({ index: i }));
@@ -38,7 +40,7 @@ function TabPrivateNotesList(props) {
 
     return (
         <>
-            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
                 Private Notes
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>
@@ -46,13 +48,7 @@ function TabPrivateNotesList(props) {
             </div>
             <div className="overflow-y-auto" style={{ height: "calc(100vh - 108px)" }}>
                 <div className={`${privateNotesData && "pt-0"} p-10`}>
-                    {!privateNotesData && (
-                        <Button className='btn btn-input d-flex w-100 align-items-center btn-41' onClick={handleDrawerPrivateNotes}>
-                            <i className='icon-Add me-2 fs-21'></i>
-                            Add Private Notes
-                        </Button>
-                    )}
-                    {privateNotesList?.length > 0 && privateNotesList?.map((e, i) => {
+                    {hasPrivateNotes ? privateNotesList?.map((e, i) => {
                         return (
                             <div className="border rounded-3 bg-body mt-3 p-10" key={i}>
                                 <div>
@@ -81,7 +77,14 @@ function TabPrivateNotesList(props) {
                                 </div>
                             </div>
                         )
-                    })}
+                    }) : (
+                        <TabSiderEmptyState
+                            title="No Private Notes!"
+                            description="It looks like there are no private notes added for this patient yet."
+                            actionLabel="Add Private Notes"
+                            onAction={handleDrawerPrivateNotes}
+                        />
+                    )}
                 </div>
             </div>
         </>

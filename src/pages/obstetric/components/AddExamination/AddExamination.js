@@ -124,6 +124,7 @@ function AddExamination({
     if (examinationHistory?.length > 0 && editIndex >= 0) {
       newExaminationHistory[editIndex] = {
         ...data,
+        date: new Date(data?.date).toISOString(),
         modifiedAt: new Date().toISOString(),
         modifiedBy: userId,
       };

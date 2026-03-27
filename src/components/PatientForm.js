@@ -2,18 +2,16 @@ import React, {
     useState,
     useEffect,
     useCallback,
-    useMemo,
-    useContext,
 } from "react";
-import { isMobile } from "react-device-detect";
 import { Col, Row } from "react-bootstrap";
-import { Form, Tabs, Button } from "antd";
+import { Form, Tabs, Button, Collapse } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID } from "../utils/constants";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
+import { useDeviceType } from "../utils/deviceDetection";
 
 import TabHeader from "../components/tab_design/TabHeader";
 import PersonalDetails from "../components/PersonalDetails";
@@ -28,7 +26,7 @@ import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 import ApiAbha from "../api/services/ApiAbha";
 import GreenTick from "../assets/images/green_tick.svg";
-// import '../components/PatientForm.mobile.scss';
+import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
 
 const { TabPane } = Tabs;
@@ -46,6 +44,9 @@ function PatientForm({ mode = ADD, patient_data }) {
         linkedAddress: abhaLinkedAddress = "",
         insertId: abhaInsertId = "",
     } = abhaDetails || {};
+    const { isMobile: isMobileDevice, isTablet } = useDeviceType();
+    const isMobileOnly = isMobileDevice && !isTablet;
+    const isMobile = isMobileDevice;
 
     const [form] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,12 +79,13 @@ function PatientForm({ mode = ADD, patient_data }) {
 
     useEffect(() => {
         const getEditData = async () => {
+            if (!patient_data?.patient_unique_id) return;
             var sendData = {
                 patient_unique_id: patient_data.patient_unique_id
             };
             await dispatch(viewPatient(sendData));
         }
-        mode === EDIT && getEditData()
+        mode === EDIT && getEditData();
     }, []);
 
     useEffect(() => {
@@ -139,7 +141,11 @@ function PatientForm({ mode = ADD, patient_data }) {
             delete finalValues['pm_dob_show'];
 
             if (mode === EDIT) {
-                finalValues['patient_unique_id'] = patient_data.patient_unique_id
+                if (!patient_data?.patient_unique_id) {
+                    errorMessage('Unable to update: invalid context.');
+                    return;
+                }
+                finalValues['patient_unique_id'] = patient_data.patient_unique_id;
             }
 
             const action = mode === EDIT ? await dispatch(editPatient(finalValues)) : await dispatch(addPatient(finalValues));
@@ -212,7 +218,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                 }
                 if (
                     mode === EDIT &&
-                    patient_data.pm_dob !== finalValues.pm_dob
+                    patient_data?.pm_dob !== finalValues.pm_dob
                 ) {
                     const payload = {
                         patient_uid: patient_data?.patient_unique_id,
@@ -245,20 +251,39 @@ function PatientForm({ mode = ADD, patient_data }) {
                         }
                     });
                 } else {
+                    // For EDIT → patient_details: preserve pm_blood_group when API returns empty (RCA: overwrite was losing it)
+                    let mergedPatientForDetails = null;
+                    if (mode === EDIT) {
+                        mergedPatientForDetails = { ...patient_data, ...action.payload };
+                        const fromPayload = action.payload?.pm_blood_group || action.payload?.patient_blood_group;
+                        const fromPatient = patient_data?.pm_blood_group || patient_data?.patient_blood_group;
+                        if ((!fromPayload || fromPayload === '') && fromPatient) {
+                            mergedPatientForDetails.pm_blood_group = patient_data?.pm_blood_group || patient_data?.patient_blood_group;
+                        }
+                    }
+
                     // Show modal if any of SmartRx, SnapRx, or VoiceRx is enabled (and not mobile)
                     const hasRxOptions = isSmartSyncAccessableFromGB || isSnapRxAccessable || isFreeVoiceRxUser || tp_monetization_enable;
+                    const fromWalkIn = location.state?.from === 'walk_in_consultation';
+                    const fromWalkInMobile = fromWalkIn && isMobileOnly;
                     if (isMobile || !hasRxOptions) {
-                        mode === EDIT ?
+                        if (mode === EDIT) {
                             navigate("/patient_details", {
                                 replace: true,
-                                state: {
-                                    patient_data: { ...patient_data, ...action.payload }
-                                }
-                            }) :
+                                state: { patient_data: mergedPatientForDetails }
+                            });
+                        } else if (fromWalkIn && isMobileOnly) {
+                            // Mobile + from Start Walk-in: redirect to Voice Rx consult (same as web flow)
+                            navigate("/voice-rx-consult", {
+                                replace: true,
+                                state: { patient_data: action.payload, isFromTabView: true }
+                            });
+                        } else {
                             navigate("/prescription", {
                                 replace: true,
-                                state: { patient_data: action.payload }
+                                state: { patient_data: action.payload, ...(fromWalkInMobile ? { fromWalkInMobile: true } : {}) }
                             });
+                        }
                     } else {
                         if (mode !== EDIT) {
                             setIsModalOpen(true);
@@ -267,9 +292,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                         if (mode === EDIT) {
                             navigate("/patient_details", {
                                 replace: true,
-                                state: {
-                                    patient_data: { ...patient_data, ...action.payload }
-                                }
+                                state: { patient_data: mergedPatientForDetails }
                             });
                         }
                     }
@@ -358,10 +381,13 @@ function PatientForm({ mode = ADD, patient_data }) {
     const onConsultClick = (patient) => {
         navigate("/prescription", { state: { patient_data: patient } });
     };
+    const onTabRxClick = (patient) => {
+        navigate("/tab-rx", { state: { patient_data: patient } });
+    };
 
     return (
         <>
-            {isMobile && (
+            {isMobileOnly && (
                 <TabHeader
                     flag={2}
                     mode={mode}
@@ -372,42 +398,85 @@ function PatientForm({ mode = ADD, patient_data }) {
             <Form
                 form={form}
                 layout="vertical"
-                className="form_addnewpatient patient-form"
+                className={`form_addnewpatient patient-form ${isMobileOnly ? 'mobile-patient-form' : ''}`}
                 style={isFromStandalone ? { paddingTop: "40px" } : {}}>
-                <div className={isMobile ? "" : "border rounded-4 appointment-wrap"}>
-                    <div className={isMobile ? "p-30 pt-0" : "p-30 overflow-y-auto"} style={{ height: 'calc(100vh - 242px)' }}>
-                        <Row className="justify-content-between">
-                            <Col sm={8}>
-                                {isMobile ? (
-                                    <div className="tabs-patient">
-                                        <Tabs defaultActiveKey="1">
-                                            <TabPane tab="Personal Details" key="1">
-                                                <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
-                                            </TabPane>
-                                            <TabPane tab="Secondary Details" key="2">
-                                                <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
-                                            </TabPane>
-                                            <TabPane tab="Address Details" key="3">
-                                                <AddressDetails form={form} />
-                                            </TabPane>
-                                        </Tabs>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
-                                        <hr className="mb-3 mt-3" />
-                                        <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
-                                        <hr className="mb-3 mt-3" />
-                                        <AddressDetails form={form} />
-                                    </>
-                                )}
-                            </Col>
-                            <Col sm={3} className="mt-5">
-                                <UploadProfile form={form} mode={mode} />
-                            </Col>
-                        </Row>
+                {isMobileOnly ? (
+                    // Mobile-specific layout
+                    <div className="mobile-patient-form-container">
+                        <div className="mobile-patient-form-content">
+                            {/* Upload Profile at top */}
+                            <div className="mobile-upload-profile-section">
+                                <UploadProfile form={form} mode={mode} isMobile={isMobileOnly} />
+                            </div>
+                            
+                            {/* Accordions for form sections */}
+                            <div className="mobile-accordions-section">
+                                <Collapse
+                                    items={accordionItems}
+                                    defaultActiveKey={['1']}
+                                    expandIconPosition="end"
+                                    className="mobile-patient-accordions"
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Fixed bottom button */}
+                        <div className="mobile-patient-form-footer">
+                            <div className="mobile-footer-content">
+                                <div className="mobile-button-wrapper">
+                                    <Button
+                                        className="mobile-add-patient-button"
+                                        type="primary"
+                                        onClick={onFinish}
+                                        loading={loading}
+                                        block>
+                                        {mode === EDIT
+                                            ? 'Save'
+                                            : (isFromAllPatients || isFromAddAppointment)
+                                                ? 'Add Patient'
+                                                : 'Add Patient to Consult'
+                                        }
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    {!isMobile && (
+                ) : (
+                    // Web/Tablet layout
+                    <div className={isMobileOnly ? "" : "border rounded-4 appointment-wrap"}>
+                        <div className={isMobileOnly ? "p-30 pt-0" : "p-30 overflow-y-auto"} style={{ height: 'calc(100vh - 242px)' }}>
+                            <Row className="justify-content-between">
+                                <Col sm={8}>
+                                    {isMobile ? (
+                                        <div className="tabs-patient">
+                                            <Tabs defaultActiveKey="1">
+                                                <TabPane tab="Personal Details" key="1">
+                                                    <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
+                                                </TabPane>
+                                                <TabPane tab="Secondary Details" key="2">
+                                                    <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
+                                                </TabPane>
+                                                <TabPane tab="Address Details" key="3">
+                                                    <AddressDetails form={form} />
+                                                </TabPane>
+                                            </Tabs>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <PersonalDetails form={form} mode={mode} patient_data={patient_data} />
+                                            <hr className="mb-3 mt-3" />
+                                            <SecondaryDetails form={form} mode={mode} patient_data={patient_data} />
+                                            <hr className="mb-3 mt-3" />
+                                            <AddressDetails form={form} />
+                                        </>
+                                    )}
+                                </Col>
+                                <Col sm={3} className="mt-5">
+                                    <UploadProfile form={form} mode={mode} />
+                                </Col>
+                            </Row>
+                        </div>
+                        {!isMobileOnly && (
                         <>
                             <hr className="my-0" />
                             <div className="text-end p-20">
@@ -461,6 +530,7 @@ function PatientForm({ mode = ADD, patient_data }) {
                                                         onSmartRxClick={onSmartRxClick}
                                                         onSnapRxClick={onSnapRxClick}
                                                         onVoiceRxClick={onVoiceRxClick}
+                                                        onTabRxClick={onTabRxClick}
                                                         onConsultClick={onConsultClick}
                                                         patient={patientData}
                                                         buttonStyle="walkin"
@@ -495,7 +565,8 @@ function PatientForm({ mode = ADD, patient_data }) {
                             />
                         </>
                     )}
-                </div>
+                    </div>
+                )}
             </Form>
             {showSuccessMessage && (
                 <div style={{

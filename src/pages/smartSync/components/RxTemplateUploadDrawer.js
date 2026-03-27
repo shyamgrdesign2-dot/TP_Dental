@@ -40,7 +40,9 @@ import { useSelector } from 'react-redux';
 import { getDecodedToken } from '../../../utils/localStorage';
 import { CUSTOM_CANVAS_DOCTORS_USER_ID } from '../../../utils/constants';
 
-const RxTemplateUploadDrawer = ({ visible, onClose, onSave }) => {
+// Optional `source` prop allows callers (e.g. tabRx) to tag uploads with a source,
+// which will be forwarded to the upload API (added to FormData).
+const RxTemplateUploadDrawer = ({ visible, onClose, onSave, source }) => {
   const [file, setFile] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [isFileFormatModalOpen, setIsFileFormatModalOpen] = useState(false);
@@ -547,7 +549,8 @@ const RxTemplateUploadDrawer = ({ visible, onClose, onSave }) => {
     
     const templateData = {
       title: file.name.trim(),
-      files: filesForUpload
+      files: filesForUpload,
+      ...(source ? { source } : {})
     };
         
     // Upload template via API

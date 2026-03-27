@@ -352,7 +352,7 @@ const uat = {
     4851751290017377, 754811713438773, 912841712741834, 7591750931025038, 396741719906700
   ],
   munshi_hospital_business_ids: [749611704175237],
-  medeco_webview_url: "https://pm-doctor-tatva-pwa-qa.tatvacare.in",
+  medeco_webview_url: "https://pm-doctor-tatva-pwa-uat.tatvacare.in",
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://pm-uat-doctor-portal.tatvacare.in",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
@@ -475,7 +475,7 @@ const prod = {
   FREE_VOICE_RX_APOLLO_USER_IDS: [
     12469, 12475, 12476, 12477, 12576, 21044, 14754, 11766, 11762, 16588, 23472,
     16443, 16442, 21184, 28038, 28036, 28035, 28034, 28033, 28032, 28031, 28029,
-    28028, 28027, 17242, 14756, 17248, 16588, 14755
+    28028, 28027, 17242, 14756, 17248, 16588, 14755, 30274, 16586
   ], // added 21044 zydus id for testing one zydus user in prod
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
   ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",

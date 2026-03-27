@@ -70,6 +70,7 @@ import doctorAvatar from "../assets/images/doctor-avatar.png";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
+import templateTimeIcon from "../assets/images/template-time-icon.svg";
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
   ADD,
@@ -3117,7 +3118,7 @@ const ConsultationDrawer = ({
           weight: String(cleanVitals.weight || cleanVitals.Weight || '').trim(),
           ofc: String(cleanVitals.ofc || cleanVitals.OFC || cleanVitals.Ofc || '').trim(),
           sugar: String(cleanVitals.sugar || cleanVitals.Sugar || '').trim(),
-          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.GeneralRBS || '').trim(),
+          general_rbs: String(cleanVitals['General RBS'] || cleanVitals.general_rbs || cleanVitals.generalRBS || cleanVitals.genralRBS || '').trim(),
           fib4: String(cleanVitals.FIB4 || cleanVitals.fib4 || cleanVitals.Fib4 || '').trim(),
           waist_circumference: String(cleanVitals['Waist Circumference'] || cleanVitals.waist_circumference || cleanVitals.WaistCircumference || '').trim(),
           bmi: String(cleanVitals.BMI || cleanVitals.bmi || '').trim(),
@@ -3951,7 +3952,6 @@ const ConsultationDrawer = ({
                     className={`${styles.splitView} w-100`}
                     ref={splitRef}
                      style={{
-                       padding: "0 0 24px 0",
                        "--divider-left": `${leftWidthPercent}%`,
                      }}
                   >
@@ -4023,7 +4023,7 @@ const ConsultationDrawer = ({
                                         if (isFirstAudio && firstDuration) {
                                           return (
                                     <div className={styles.transcriptDuration}>
-                                      <i className="icon-time"></i>
+                                      <img src={templateTimeIcon} alt="time" className={styles.transcriptDurationIcon} />
                                               <span>{formatTime(Math.floor(firstDuration))}</span>
                                             </div>
                                           );
@@ -4081,7 +4081,7 @@ const ConsultationDrawer = ({
 
                                                 {/* Show "Your Rx is ready!" message after first transcript */}
                         {!isFirstTranscriptJSON && !isProcessing && ((Array.isArray(queries) && queries.length > 0) || !!fullTranscript || !!genRxDetails?.source || (isAmbientMode && conversations?.length > 0)) && (
-                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: "0 20px" }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
                                 Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
@@ -4129,7 +4129,7 @@ const ConsultationDrawer = ({
                                 </div>
                                 {/* Show "Your Rx is ready!" message after each additional transcript - only when not processing */}
                                 {!isProcessing && (
-                                  <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                                  <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: "0 20px" }}>
                                     <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                                     <div className={styles.prescriptionReadyMessage}>
                                       Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!
@@ -4167,7 +4167,7 @@ const ConsultationDrawer = ({
                                           if (isAudio && queryDuration) {
                                             return (
                                               <div className={styles.transcriptDuration}>                                                                       
-                                                <i className="icon-time"></i>
+                                                <img src={templateTimeIcon} alt="time" className={styles.transcriptDurationIcon} />
                                                 <span>{formatTime(Math.floor(queryDuration))}</span>                                                            
                                               </div>
                                             );
@@ -4214,7 +4214,7 @@ const ConsultationDrawer = ({
                               </div>
                               {/* Show "Your Rx is ready!" message after each additional transcript - only when not processing */}
                               {!isProcessing && (
-                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: '0 5px' }}>
+                            <div className="d-flex align-items-start gap-2 mt-3" style={{ padding: "0 20px" }}>
                               <img src={doctorAvatar} alt="doctor" width={36} height={36} style={{ borderRadius: 18 }} />
                               <div className={styles.prescriptionReadyMessage}>
                                 Your <strong>Rx is ready</strong>! You can review it in the <strong>Rx Pad</strong>. You can also make changes using <strong>VoiceRx</strong> or by simply <strong>typing below</strong>!

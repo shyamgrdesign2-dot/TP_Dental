@@ -492,6 +492,24 @@
   &.prescription-wrapper-digitise {
     padding: 0;
     margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 60px);
+    box-sizing: border-box;
+    overflow: hidden;
+
+    > .ant-row {
+      flex: 1 1 auto;
+      min-height: 0;
+      align-items: stretch !important;
+      overflow: hidden;
+    }
+
+    > .ant-row > .ant-col {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
 
     .drx-written-container .card,
     .drx-digitize-container {
@@ -1820,6 +1838,258 @@ body {
 
 .digitised-section-rx {
   background: #fff;
+}
+
+.dental-section {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dental-table-title {
+  margin: 16px 0 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  color: #3f3f46;
+}
+
+.dental-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #cfcfd6;
+  background: #fff;
+
+  th,
+  td {
+    border: 1px solid #cfcfd6;
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+
+  th {
+    background: #f6f6f8;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #4b4b57;
+  }
+
+  td:not(.dental-label-cell) {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.4;
+    color: #4b4b57;
+  }
+}
+
+.dental-table.dental-complaints-table,
+.dental-table.dental-diagnosis-table,
+.dental-table.dental-tooth-diagram-table,
+.dental-table.dental-treatment-table,
+.dental-table.dental-workdone-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+
+  th,
+  td {
+    border: 0;
+    border-right: 1px solid #cfcfd6;
+    border-bottom: 1px solid #cfcfd6;
+  }
+
+  tr > *:last-child {
+    border-right: 0;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.dental-workdone-table {
+  table-layout: fixed;
+
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 40%;
+  }
+
+  th:nth-child(1),
+  td:nth-child(1),
+  th:nth-child(3),
+  td:nth-child(3),
+  th:nth-child(4),
+  td:nth-child(4),
+  th:nth-child(5),
+  td:nth-child(5),
+  th:nth-child(6),
+  td:nth-child(6),
+  th:nth-child(7),
+  td:nth-child(7) {
+    width: 10%;
+  }
+}
+
+.dental-label-cell {
+  width: 38%;
+  background: #fafafa;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: #4b4b57;
+  text-transform: uppercase;
+}
+
+.dental-table-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #2f2f38;
+  outline: none;
+}
+
+.dental-textarea {
+  resize: vertical;
+  min-height: 28px;
+}
+
+.dental-diagnosis-table {
+  margin-top: 16px;
+
+  th {
+    text-align: left;
+  }
+}
+
+.dental-selected-input {
+  width: 100%;
+  border: 2px solid #9f9fa6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #2f2f38;
+  background: #fff;
+}
+
+.dental-quadrant-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #cfcfd6;
+  margin-top: 16px;
+  border-radius: 12px;
+}
+
+.dental-quadrant-cell {
+  border-right: 1px solid #cfcfd6;
+  border-bottom: 1px solid #cfcfd6;
+  padding: 12px;
+  min-height: 180px;
+}
+
+.dental-quadrant-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.dental-quadrant-cell:nth-child(3),
+.dental-quadrant-cell:nth-child(4) {
+  border-bottom: none;
+}
+
+.dental-quadrant-title {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+  color: #2f2f38;
+  justify-content: center;
+  text-align: center;
+}
+
+.dental-quadrant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dental-tooth-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c1c1c8;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.dental-tooth-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f2f38;
+}
+
+.dental-tooth-num {
+  width: 56px;
+  border: 1px solid #d3d3da;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+  text-align: center;
+}
+
+.dental-tooth-sep {
+  font-weight: 600;
+  color: #2f2f38;
+}
+
+.dental-tooth-diagnose {
+  flex: 1;
+  border: 1px solid #d3d3da;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.dental-tooth-num:focus,
+.dental-tooth-diagnose:focus {
+  outline: none;
+  border-color: #4b4ad5;
+  box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
+}
+
+.dental-quadrant-list {
+  .btn {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #4b4ad5;
+    color: #4b4ad5;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+}
+
+.dental-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+
+  .btn {
+    background: #fff;
+    border: 1px solid #4b4ad5;
+    color: #4b4ad5;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+  }
 }
 
 .digitised-data-section {
@@ -3195,7 +3465,10 @@ body {
 }
 
 .drx-h-full {
-  height: calc(100dvh - 170px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
   position: relative;
   overflow: hidden;
   .card {
@@ -3249,17 +3522,38 @@ body {
 }
 
 .srx-drx-container {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+  box-sizing: border-box;
+  overflow: hidden;
+
+  > .ant-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch !important;
+    overflow: hidden;
+  }
+
+  > .ant-row > .ant-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .card {
     margin-bottom: 0 !important;
   }
 }
 
 .snap-smart-left-panel {
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: #f5f4f8;
+  align-self: stretch;
 }
 .snap-smart-left-content {
   flex: 1;
@@ -3304,6 +3598,9 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .newpage-btn{

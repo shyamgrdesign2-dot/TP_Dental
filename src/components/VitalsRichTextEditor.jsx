@@ -336,4 +336,3 @@ const VitalsRichTextEditor = ({
 };
 
 export default VitalsRichTextEditor;
-

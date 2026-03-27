@@ -22,6 +22,14 @@ import { useDispatch } from "react-redux";
 import { detectOperatingSystem } from "../../utils/utils";
 import { useLocalStorage } from "../../utils/localStorage";
 
+/** Strip leading 91 so onboarding APIs receive mobile without country code. */
+const phoneWithoutCountryCode = (phone) => {
+  if (phone == null || typeof phone !== "string") return phone ?? "";
+  const s = String(phone).trim();
+  if (s.startsWith("91") && s.length > 2) return s.slice(2);
+  return s;
+};
+
 const DoctorOnboarding = ({
   visible,
   onClose,
@@ -178,7 +186,7 @@ const DoctorOnboarding = ({
     const phoneNumber = getUserMobileNumber()?.length > 0 ? getUserMobileNumber() : (mobileFromUrl ?? "");
     const utm = getUtmParams();
     try {
-      const response = await initOnboarding(phoneNumber, utm);
+      const response = await initOnboarding(phoneWithoutCountryCode(phoneNumber), utm);
 
       // Store the onboarding ID for future API calls
       setUserOnboardingId(response.id);
@@ -272,7 +280,7 @@ const DoctorOnboarding = ({
           if (res) {
             const doctorData = {
               id: res,
-              phone_number: getUserMobileNumber()?.length > 0 ? getUserMobileNumber() : (mobileFromUrl ?? ""),
+              phone_number: phoneWithoutCountryCode(getUserMobileNumber()?.length > 0 ? getUserMobileNumber() : (mobileFromUrl ?? "")),
               doctorName: formData.fullName,
               departmentId: formData.speciality,
               // Use real UTM data
@@ -388,7 +396,7 @@ const DoctorOnboarding = ({
       // Use real user data from context/token
       const doctorData = {
         id: userOnboardingId,
-        phone_number: userMobileNumber ?? mobileFromUrl,
+        phone_number: phoneWithoutCountryCode(userMobileNumber ?? mobileFromUrl),
         doctorName: formData.fullName,
         departmentId: formData.speciality,
         // Use real UTM data
@@ -437,7 +445,7 @@ const DoctorOnboarding = ({
       // Combine all the data for the finalize API
       const finalizeData = {
         id: userOnboardingId,
-        phone_number: userMobileNumber ?? mobileFromUrl,
+        phone_number: phoneWithoutCountryCode(userMobileNumber ?? mobileFromUrl),
         doctorName: formData.fullName,
         departmentId: formData.speciality,
         // UTM data

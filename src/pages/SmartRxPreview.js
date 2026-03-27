@@ -48,6 +48,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 function SmartRxPreview() {
 
     const divRef = useRef(null);
+    const [editedData, setEditedData] = useState(null);
     const printRef = useRef();
 
     const { servicesList, profile, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -58,10 +59,9 @@ function SmartRxPreview() {
     const dispatch = useDispatch();
 
     const navigate = useNavigate();
-
     const location = useLocation();
-    const { state } = useLocation();
-    const { patient_data, isDigitiseRxSubmit } = state || {};
+    const state = location?.state || {};
+    const { patient_data, isDigitiseRxSubmit } = state;
 
     const buildUrlWithLanguage = (url, language) => {
         if (!url) return null;
@@ -92,7 +92,7 @@ function SmartRxPreview() {
 
     const [printUrl, setPrintUrl] = useState(initialUrl);
     const [previewUrl, setPreviewUrl] = useState(initialUrl);
-    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx || null);
+    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx);
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
@@ -106,7 +106,7 @@ function SmartRxPreview() {
     const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
     const [rxDigitiseApiResponse, setRxDigitiseApiResponse] = useState(null);
     const [showProgressbar, setShowProgressbar] = useState(false);
-    const [isEditedData, setIsEditedData] = useState(null);
+    // const [isEditedData, setIsEditedData] = useState(null);
     const [rxDigitisedData, setRxDigitisedData] = useState(null);
     // API may return isRxDigitize as "1"/"0"; only "1" or true means digitised (avoid "0" being truthy)
     const isRxDigitisedForTabs = viewCaseManagerData?.isRxDigitize === true || viewCaseManagerData?.isRxDigitize === "1";
@@ -181,7 +181,7 @@ function SmartRxPreview() {
         try {
             const sendData = {
                 patient_unique_id: patient_data?.patient_unique_id || 0,
-                tcm_id: state?.tcm_id
+                tcm_id: state.tcm_id
             };
             const action = await dispatch(viewCaseManager(sendData));
             setViewCaseManagerData(action.payload);
@@ -194,44 +194,27 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (state?.tcm_id && patient_data?.patient_unique_id) {
+            if(state.tcm_id && patient_data?.patient_unique_id){
                 const viewCaseManagerData = await getCaseManagerData();
-                setViewCaseManagerData(viewCaseManagerData);
+                setViewCaseManagerData(viewCaseManagerData)
             }
         };
         fetchData();
-    }, [state?.tcm_id, patient_data?.patient_unique_id]);
+    }, [state.tcm_id, patient_data?.patient_unique_id]);
 
-    // Redirect when page is opened without navigation state (e.g. direct URL or refresh)
-    useEffect(() => {
-        if (!state) {
-            navigate(-1);
-        }
-    }, [state, navigate]);
-
-    // After digitisation: default to Digital Rx so digitised URL (rxDigitize=true) is used and toggle is visible
-    useEffect(() => {
+     // After digitisation: default to Digital Rx so digitised URL (rxDigitize=true) is used and toggle is visible
+     useEffect(() => {
         if (isBackFromDigitise) {
             setShowDigitalRx(true);
         }
     }, [isBackFromDigitise]);
-
-    // Update smartRxFile when state changes (e.g., when coming back from print config)
-    // Update smartRxFile when state changes (e.g., when coming back from print config)
-    useEffect(() => {
-        if (state?.smartRxFile && state.smartRxFile.length > 0) {
-            setSmartRxFile(state.smartRxFile);
-        } else if (state?.files && state.files.length > 0) {
-            setSmartRxFile(state.files);
-        }
-    }, [state?.smartRxFile, state?.files, state?.from]);
 
     const fetchRxDigitisedData = async () => {
         try {
             const cleanedToken = token.replace(/['"]+/g, '');
     
                 // API call for Rx Digitisation
-                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state?.tcm_id}`, {
+                const response = await axios.get(`${baseUrlRxDigitise}/api/v1/rxdigitize/rx/${state.tcm_id}`, {
                     headers: {
                         'Authorization': `Bearer ${cleanedToken}`,
                     },
@@ -266,20 +249,13 @@ function SmartRxPreview() {
                     Doctor_Unique_Id: profile?.doctor_unique_id,
                 });
             }
-            if (currentSessionRx) {
-                const blob = currentSessionRx instanceof Blob
-                    ? currentSessionRx
-                    : await (await fetch(currentSessionRx)).blob();
-                saveAs(blob, `${Date.now()}.pdf`);
-            } else {
-                const response = await axios({
-                    url: printUrl,
-                    method: 'GET',
-                    responseType: 'blob', // Important for binary data
-                });
-                const blob = new Blob([response.data], { type: response.headers['content-type'] });
-                saveAs(blob, `${Date.now()}.pdf`);
-            }
+            const response = await axios({
+                url: printUrl,
+                method: 'GET',
+                responseType: 'blob', // Important for binary data
+            });
+            const blob = new Blob([response.data], { type: response.headers['content-type'] });
+            saveAs(blob, `${Date.now()}.pdf`);
         } catch (error) {
             console.error('Error downloading file:', error);
             // Handle errors gracefully, e.g., display an error message to the user
@@ -294,8 +270,7 @@ function SmartRxPreview() {
                 Doctor_Unique_Id: profile?.doctor_unique_id,
             });
         }
-        const urlToUse = currentSessionRx || printUrl;
-        navigate(`/prescription_print_view/?url=${urlToUse}&key=download`, { replace: true, state: { ...state, currentSessionRx } });
+        navigate(`/prescription_print_view/?url=${printUrl}&key=download`, { replace: true, state: state })
         navigate(0, { replace: true });
     };
 
@@ -388,11 +363,6 @@ function SmartRxPreview() {
 
     useEffect(() => {
         const fetchData = async () => {
-          // Only fetch if we don't have smartRxFile from state
-          if (state?.smartRxFile?.length > 0 || state?.files?.length > 0) {
-              return;
-          }
-          
           const payload = {
             tcm_id: state?.tcm_id,
           };
@@ -410,13 +380,7 @@ function SmartRxPreview() {
           }
         };
         fetchData();
-    }, [state?.tcm_id, state?.smartRxFile, state?.files]);
-
-    useEffect(() => {
-        if (state?.from === "/configure_print_setting" && state?.currentSessionRx) {
-            setCurrentSessionRx(state?.currentSessionRx);
-        }
-    }, [state?.from, state?.currentSessionRx]);
+    }, []);
 
     const tempRxDigitise = async () => {
     
@@ -425,6 +389,7 @@ function SmartRxPreview() {
 
         const digitisedData = await fetchRxDigitisedData();
         const appointmentId = digitisedData?.data?.appointmentId;
+        setEditedData(digitisedData?.data?.editedData);
 
         // Only proceed if digitisedData is null
         if (!digitisedData?.data) {
@@ -432,7 +397,7 @@ function SmartRxPreview() {
             formData.append('doctorId', data.result.user_id);
             formData.append('patientId', patient_data.patient_unique_id);
             formData.append('appointmentId', state?.pam_id);
-            formData.append('caseId', state?.tcm_id);
+            formData.append('caseId', state.tcm_id);
         
             try {
                 const cleanedToken = token.replace(/['"]+/g, '');
@@ -490,9 +455,9 @@ function SmartRxPreview() {
                             const navState = {
                                 patient_data: patient_data,
                                 smartRxFilesData: smartRxFile,
-                                tcm_id: state?.tcm_id,
+                                tcm_id: state.tcm_id,
                                 pam_id: state?.pam_id,
-                                print_url: state?.print_url,                                // digitisedData: rxDigitiseApiResponse,
+                                print_url: state.print_url,                                // digitisedData: rxDigitiseApiResponse,
                                 type: "new",
                                 isCustomSSRX : isCustomSSRX
                             };
@@ -507,7 +472,7 @@ function SmartRxPreview() {
                                   doctor_specialty: profile?.dp_name,
                                   clinic_id: tokenData?.clinic_id,
                                   clinic_name: clinic?.hm_name,
-                                  rx_id: state?.tcm_id || " ",
+                                  rx_id: state.tcm_id || " ",
                                   type: type,
                                   source: "print Preview page",
                                   device_details: navigator.userAgent
@@ -592,14 +557,7 @@ function SmartRxPreview() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            let filesForPrint = smartRxFile;
-            if (smartRxFile?.length > 0 && typeof smartRxFile[0] === "string") {
-                try {
-                    const response = await api.post(FETCH_SMART_RX, { tcm_id: state?.tcm_id }, baseUrl);
-                    if (response?.data?.length) filesForPrint = response.data;
-                } catch (e) {}
-            }
-            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile: filesForPrint, from: "/print-smart-rx", page: state?.page } })
+            navigate('/configure_print_setting', { state: { ...state, caseManagerData: action.payload , smartRxFile, from: "/print-smart-rx" , dentalData: editedData?.dynamicFields?.[0]?.dentalData } })
         } else {
             errorMessage(action.error)
         }
@@ -658,8 +616,8 @@ function SmartRxPreview() {
                             state: {
                                 patient_data: patient_data,
                                 smartRxFilesData: smartRxFile,
-                                tcm_id: state?.tcm_id,
-                                print_url: state?.print_url,
+                                tcm_id: state.tcm_id,
+                                print_url: state.print_url,
                                 digitisedData: response?.data,
                                 pam_id: state?.pam_id,
                                 type:"edit",
@@ -691,17 +649,15 @@ function SmartRxPreview() {
             state: {
                 patient_data: patient_data,
                 smartRxFilesData: smartRxFile,
-                tcm_id: state?.tcm_id,
+                tcm_id: state.tcm_id,
                 pam_id: state?.pam_id,
-                print_url: state?.print_url,
+                print_url: state.print_url,
                 digitisedData: rxDigitiseApiResponse,
                 type:"new",
                 isCustomSSRX : isCustomSSRX
             },
         })
     };
-
-    if (!state) return null;
 
     return (
         <>
