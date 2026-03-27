@@ -201,3 +201,5 @@ self.addEventListener('message', (event) => {
     );
   }
 });
+
+console.log('[Service Worker] Loaded');

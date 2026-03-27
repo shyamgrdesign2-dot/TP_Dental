@@ -2802,7 +2802,6 @@ const DigitisedPrescription = ({
               onUpdate={(arr) => setData((prev) => ({ ...prev, medicalHistory: arr || [] }))}
               isProcessing={loading}
               isVoiceAmbientSnapSmartFlow={!skipAutoLabResultsLogic}
-              patient_data={patient_data}
             />
           )}
 

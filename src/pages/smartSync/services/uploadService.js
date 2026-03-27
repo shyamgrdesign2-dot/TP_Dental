@@ -53,11 +53,6 @@ export const uploadCustomSyncPadTemplate = async (templateData, onProgress) => {
     const formData = new FormData();
     formData.append('title', templateData.title);
     
-    // If a source is provided (e.g. 'tab-rx' from TabRxCanvas), include it in the upload
-    if (templateData.source) {
-      formData.append('source', templateData.source);
-    }
-    
     templateData.files.forEach((file, index) => {
       if (!file) {
         throw new Error(`File at index ${index} is undefined`);

@@ -29,7 +29,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 
-function SnapRxDigitise({isTabRx = false}) {
+function SnapRxDigitise() {
   const divRef = useRef(null);
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
@@ -60,7 +60,6 @@ function SnapRxDigitise({isTabRx = false}) {
   const [divWidth, setDivWidth] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
 
   const baseUrlRxDigitise = env.digitization_api_url;
@@ -315,7 +314,6 @@ function SnapRxDigitise({isTabRx = false}) {
   }, []);
 
   const handleSave = async () => {
-    setIsSaveLoading(true);
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
@@ -632,7 +630,7 @@ function SnapRxDigitise({isTabRx = false}) {
         //     },
         //   });
         // } else {
-        navigate(isTabRx ? "/tab-rx-prescription" : "/snap-rx/preview", {
+        navigate("/snap-rx/preview", {
           replace: true,
           state: {
             patient_data,
@@ -642,15 +640,12 @@ function SnapRxDigitise({isTabRx = false}) {
             print_url,
             showProgressbar: false,
             page: "digitise",
-            ...(isTabRx && { digitisedData: {editedData: data} })
           },
         });
         // }
       }
     } catch (error) {
       console.error("Error saving data:", error);
-    } finally {
-      setIsSaveLoading(false);
     }
   };
 
@@ -714,7 +709,6 @@ function SnapRxDigitise({isTabRx = false}) {
         isDigitiseRxLoading={isLoading}
         patient_data={patient_data}
         isSnapRx={true}
-        isSaveLoading={isSaveLoading}
       />
       <div
         ref={splitRef}
@@ -745,9 +739,15 @@ function SnapRxDigitise({isTabRx = false}) {
                   smartRxFile?.map(
                     ({ fileUrl, smart_prescription_file }) => (
                       <div key={fileUrl || smart_prescription_file}>
-                        {(smart_prescription_file || fileUrl) && (
+                        {(isCustomSSRX
+                          ? smart_prescription_file
+                          : fileUrl) && (
                           <img
-                            src={smart_prescription_file || fileUrl}
+                            src={
+                              isCustomSSRX
+                                ? smart_prescription_file
+                                : fileUrl
+                            }
                             alt="Smart Rx"
                             className="written-rx-image"
                             width="100%"

@@ -19,7 +19,7 @@ import fullicon from '../assets/images/full-icon.svg';
 import VideoModal from './VideoModal';
 import { useAccess } from '../pages/vaccination/useAccess';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_CARE_PLAN, GB_ISCRIBE, INVESTIGATION_MODULE_ID, INVESTIGATION_TITLE } from '../utils/constants';
+import { GB_CARE_PLAN, GB_ISCRIBE } from '../utils/constants';
 import customModuleIcon from '../assets/images/custom-module.svg';
 import editIcon from '../assets/images/edit-icon-blue.svg';
 import deleteIcon from '../assets/images/delete-icon-blue.svg';
@@ -80,7 +80,7 @@ const CustomRow = ({ children, ...props }) => {
   );
 };
 
-function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowthChartEnabled, page, isTabRx }) {
+function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowthChartEnabled, page }) {
 
   const { setSymptomsData, setExaminationData, setDiagnosisData, setAdviceData, setInvestigationData, setMedicationData, setVitalsData, setMedicalHistoryData, setPrivateNotesData, setFollowUpDate, setAdditionalNote } = useContext(CashManagerContext);
   const { loading, customizedPadLeftList, customizedPadRightList, videoList, profile, userId, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -175,7 +175,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       title: 'ENABLE/DISABLE',
       dataIndex: 'tmdpm_status',
       key: 'tmdpm_status',
-      render: (text, record) => <div className={`${page !== "normal-rx-page" ? "text-left" : ""}`}><Switch defaultChecked onChange={(checked) => onChangeLeft(checked, record)} checked={text ? false : true} /></div>,
+      render: (text, record) => <Switch defaultChecked onChange={(checked) => onChangeLeft(checked, record)} checked={text ? false : true} />,
     },
   ];
 
@@ -457,7 +457,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       colSpan: 0,
       dataIndex: 'tmdpm_name',
       key: 'tmdpm_name',
-      render: (text, record) => <div className='align-items-center d-flex'><img src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{record?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : record.tmdpm_name}</div>
+      render: (text, record) => <div className='align-items-center d-flex'><img src={record.is_custom_module ? customModuleIcon : record.tmdpm_icon_url} className='me-3' style={{ marginLeft: -12 }} />{record.tmdpm_name}</div>
     },
     {
       title: 'ENABLE/DISABLE',
@@ -642,7 +642,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
               <div className="d-flex align-items-center">
                 <img className="me-3" src={alertIcon} alt="Warning" />
                 <span>
-                  Deleting this "<b>{moduleToDelete?.tmdpm_id === INVESTIGATION_MODULE_ID ? INVESTIGATION_TITLE : moduleToDelete?.tmdpm_name}</b>" module will permanently
+                  Deleting this "<b>{moduleToDelete?.tmdpm_name}</b>" module will permanently
                   remove all saved templates and data associated with it. This
                   action cannot be undone.
                 </span>
@@ -756,12 +756,6 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           </div>
           <div className='d-flex align-items-center justify-content-end w-100'>
 
-            {isTabRx && (
-              <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
-                <span>Default Settings</span>
-              </button>
-            )}
-
             <Popover
               open={popOverVideo}
               onOpenChange={showHideVideoListPopover}
@@ -770,19 +764,15 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
               overlayClassName="pop-430 pp-0 videoTutorial"
               placement="bottom"
             >
-              <button className={`btn d-flex align-items-center btn-text tutorial ${isTabRx ? "me-14" : "me-10"}`}>
-                <span className={`text-decoration-none rounded-5 bg-white shadow2 ${isTabRx ? "" : "pe-3"}`}>
-                  <img height={42} src={tutorial} alt="" />
-                  {!isTabRx && "Tutorial"}
-                </span>
+              <button className='btn d-flex align-items-center btn-text me-10 tutorial'>
+                {/* onClick={showHideVideoListPopover} */}
+                <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
               </button>
             </Popover>
 
-            {!isTabRx && (
-              <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
-                <span>Default Settings</span>
-              </button>
-            )}
+            <button className='btn d-flex align-items-center btn-text me-14' onClick={onDefaultPadClick}>
+              <span>Default Settings</span>
+            </button>
             <Button type='button' className="btn-41 btn px-4 btn-primary3 me-4" onClick={onCustomizePadClick} loading={loading}>
               Save
             </Button>
@@ -791,7 +781,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
       </Card>
 
       <Row className='p-4'>
-        <Col lg={page === "normal-rx-page" ? 12 : 24} sm={page === "normal-rx-page" ? 12 : 24} className='pe-3'>
+        <Col lg={12} sm={12} className='pe-3'>
           <DndContext modifiers={[restrictToVerticalAxis]} onDragEnd={onDragEndLeft}>
             <SortableContext
               // rowKey array

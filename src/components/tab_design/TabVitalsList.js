@@ -8,13 +8,12 @@ import CashManagerContext from '../../context/CashManagerContext';
 import moment from "moment";
 import { useLocation } from "react-router-dom";
 import { useAccess } from "../../pages/vaccination/useAccess";
-import TabSiderEmptyState from "./TabSiderEmptyState";
 
 const showDateFormat = 'DD MMM, YY'
 
 function TabVitalsList(props) {
 
-    const { handleDrawerVital, handleCollapsed, isTabRx } = props
+    const { handleDrawerVital, handleCollapsed } = props
     const { state } = useLocation();
     const { patient_data } = state;
     const { isPediatricAccessable } = useAccess();
@@ -23,25 +22,6 @@ function TabVitalsList(props) {
     );
 
     const { vitalsData } = useContext(CashManagerContext);
-    const hasTodayVitals = vitalsData?.some((item) =>
-      item?.temp ||
-      item?.pres ||
-      item?.resp_rate ||
-      item?.blood_press ||
-      item?.spo2 ||
-      item?.ofc ||
-      item?.height ||
-      item?.weight ||
-      item?.bmi ||
-      item?.bmr ||
-      item?.bsa ||
-      item?.fib4 ||
-      item?.waist_circumference
-    );
-    const hasBirthWeight = patient_data?.ageMonths <= 12 &&
-      patient_data?.ageYears === 0 &&
-      (vitalsData?.[0]?.patient_birth_weight || patientBirthWeight);
-    const hasAnyVitalsData = hasTodayVitals || vitalsPastList.length > 0 || hasBirthWeight;
 
     const PAST_VITALS = useMemo(() => {
         return (
@@ -313,15 +293,13 @@ function TabVitalsList(props) {
 
     return (
         <>
-            <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? "tab-rx-header" : ""}`}>
+            <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
                 Vitals
                 <Button type="text" className="btn p-0 btn-outline" onClick={handleCollapsed}>
                     <i className='icon-Contract fs-21 text-white p-0'></i>
                 </Button>
             </div>
             <div className="overflow-y-auto" style={{ height: "calc(100vh - 109px)" }}>
-                {hasAnyVitalsData ? (
-                    <>
                 <div className="p-10 pb-0">
                     <span className="title-common">Today’s Data</span>
                     <Button className='btn btn-input mt-3 d-flex justify-content-center align-items-center btn-41' onClick={handleDrawerVital}>
@@ -329,7 +307,7 @@ function TabVitalsList(props) {
                         Add or Edit Vitals
                     </Button>
                 </div>
-                {hasBirthWeight && (
+                {patient_data?.ageMonths <= 12 && patient_data?.ageYears === 0 && (vitalsData?.[0]?.patient_birth_weight || patientBirthWeight) && (
                     <div className="d-flex align-items-center justify-content-between mb-12 border-bottom" style={{padding: "15px 10px"}}>
                         <div className="fontroboto">Patient Birth weight(kgs)</div>
                         <div className="fontroboto">{vitalsData?.[0]?.patient_birth_weight || patientBirthWeight}</div>
@@ -339,17 +317,6 @@ function TabVitalsList(props) {
                 {vitalsPastList.length > 0 && (
                     <div>
                         <Collapse items={accordionItems} defaultActiveKey={['1']} className="prescriptiontab-accordian" expandIconPosition={'end'} />
-                    </div>
-                )}
-                    </>
-                ) : (
-                    <div className="p-10">
-                        <TabSiderEmptyState
-                            title="No Vitals!"
-                            description="It looks like there are no vitals added for this patient yet."
-                            actionLabel="Add Vitals"
-                            onAction={handleDrawerVital}
-                        />
                     </div>
                 )}
             </div>

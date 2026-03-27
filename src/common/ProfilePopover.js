@@ -234,7 +234,7 @@ function ProfilePopover(props) {
             className='cursor-pointer'
             overlayClassName="pop-260 pp-20"
         >
-            {props.children ? props.children : locationPath == '/patient_details' ? (
+            {locationPath == '/patient_details' ? (
                 <div className={'align-items-center d-flex h-100'}>
                     <div className='align-items-center d-flex'>
                         <div className='patientName'>{`${getPatientName()},`}</div>

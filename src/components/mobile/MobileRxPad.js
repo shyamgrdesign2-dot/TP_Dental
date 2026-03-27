@@ -2070,3 +2070,4 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
 
 export default MobileRxPad;
 
+

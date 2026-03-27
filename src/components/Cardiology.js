@@ -53,9 +53,6 @@ import {
   S_VOICE_RX,
   PAID,
   GB_SAVE_AS_DRAFT_RX,
-  INVESTIGATION_TITLE,
-  GB_TAB_RX,
-  GB_TAB_RX_CVT,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -77,7 +74,6 @@ import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import draftIcon from "../assets/images/draft-document.svg";
-import { getTabRxFiles } from "../pages/tabRx/services/tabRxService";
 
 import {
   getSnapRxDigitization,
@@ -531,7 +527,6 @@ function Cardiology(props) {
   const [smartRxFile, setSmartRxFile] = useState([]);
   const [isSmartRxFile, setIsSmartRxFile] = useState(false);
   const [isSnapRx, setIsSnapRx] = useState(false);
-  const [isTabRx, setIsTabRx] = useState(false);
   const [snapRxFile, setSnapRxFile] = useState([]);
   const [isSnapRxdigitised, setIsSnapRxdigitised] = useState(null);
   const [showDigitalSnapRx, setShowDigitalSnapRx] = useState(null);
@@ -564,8 +559,6 @@ function Cardiology(props) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
     GB_SNAP_RX_DIGITIZATION
   );
-  const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
-  const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
   const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -581,54 +574,10 @@ function Cardiology(props) {
     setShowDigitalGenRx(true);
     if (viewCaseManagerData?.tcm_id) {
       fetchCustomModules();
-      if(!viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx")){
-       fetchData();
-      }
+      fetchData();
       if (isVideoConsultAccessibleFromGB) {
         checkVideoConsultStatus(viewCaseManagerData.tcm_id);
       }
-    }
-    if (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx")) {
-      setIsTabRx(true);
-
-      const fetchTabRxFile = async () => {
-        try {
-          const tcmId = viewCaseManagerData?.tcm_id;
-          const patientUniqueId = patient_data?.patient_unique_id;
-          if (!tcmId || !patientUniqueId) return;
-
-          const res = await getTabRxFiles(tcmId, patientUniqueId);
-          if (res?.success) {
-            const tabRxData = res?.data;
-            const tabRxFiles = tabRxData?.prescription_files;
-            const tabRxDigitisedData = tabRxData?.digitization;
-            const normalized = Array.isArray(tabRxFiles)
-              ? tabRxFiles.map((item) => {
-                  return {
-                    smart_prescription_file: item?.fileUrl,
-                    smart_prescription_filename: item?.filename,
-                  };
-                })
-              : [];
-            setSmartRxFile(normalized);
-            setRxDigitisedData(tabRxDigitisedData);
-            if (tabRxDigitisedData.isDigitize && tabRxDigitisedData.isVerified ) {
-              setIsRxdigitised(true);
-            } else {
-              setIsRxdigitised(false);
-            }
-          } else {
-            setSmartRxFile([]);
-          }
-        } catch (e) {
-          console.error("Failed to fetch tab-rx files:", e);
-          setSmartRxFile([]);
-        }
-      };
-
-      fetchTabRxFile();
-    }else{
-      setIsTabRx(false);
     }
     if (
       isSnapRxAccessableFromGB &&
@@ -648,7 +597,6 @@ function Cardiology(props) {
       viewCaseManagerData?.smart_prescription_filename !== null &&
       viewCaseManagerData?.smart_prescription_filename?.includes(".jpeg") &&
       !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") &&
-      !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") &&
       !isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
       // viewCaseManagerData.medicine?.length === 0 &&
       // viewCaseManagerData.symptoms?.length === 0 &&
@@ -732,7 +680,7 @@ function Cardiology(props) {
   // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
   const getMobilePdfUrl = useCallback(() => {
     // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
-    if ((isSmartRxFile || isTabRx) && isRxdigitised && !isSnapRx) {
+    if (isSmartRxFile && isRxdigitised && !isSnapRx) {
       return showDigitalRx 
         ? (printUrl ? `${printUrl}&lg=${selectedLang}` : null)
         : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
@@ -746,7 +694,7 @@ function Cardiology(props) {
     }
     
     // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
-    if (showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
+    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
       if (!viewCaseManagerData?.print_url) return null;
       try {
         const urlObj = new URL(viewCaseManagerData.print_url);
@@ -765,7 +713,7 @@ function Cardiology(props) {
     
     // Default: use print_rx_url for regular prescriptions
     return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
-  }, [isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
+  }, [isSmartRxFile, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
 
   // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
   // This prevents the effect from running unnecessarily when unrelated dependencies change
@@ -1250,7 +1198,7 @@ function Cardiology(props) {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
-    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
+    } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
       const urlObj = new URL(viewCaseManagerData?.print_url);
       if (isAmbientRx) {
         urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
@@ -1282,13 +1230,11 @@ function Cardiology(props) {
       }
       voiceRxUrl = urlObj.toString();
     }
-    const printUrlRx =
-      showDigitalRx || showDigitalSnapRx
-        ? printUrl
-        : showDigitalGenRx && voiceRxUrl && !isTabRx
-          ? voiceRxUrl
-          : viewCaseManagerData?.print_url;
-    sendMessageToParent(EVENTS.PRINT, { url: `${printUrlRx}&lg=${selectedLang}` });
+    const printUrl =
+      showDigitalGenRx && voiceRxUrl
+        ? voiceRxUrl
+        : viewCaseManagerData?.print_url;
+    sendMessageToParent(EVENTS.PRINT, { url: `${printUrl}&lg=${selectedLang}` });
     // navigate(`/patient_details/?url=${printUrl}&lg=${selectedLang}&key=print`, {
     //   replace: true,
     //   state: { patient_data: patient_data },
@@ -1312,7 +1258,7 @@ function Cardiology(props) {
           return;
         }
         downloadUrl = `${printUrl}&lg=${selectedLang}`;
-      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
+      } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx) {
         if (!viewCaseManagerData?.print_url) {
           errorMessage('Download URL is missing.');
           return;
@@ -1424,7 +1370,7 @@ function Cardiology(props) {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isTabRx, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
+  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
 
   const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
@@ -1433,18 +1379,6 @@ function Cardiology(props) {
         patient_data !== undefined ? patient_data.patient_unique_id : 0,
       rx_date: viewCaseManagerData?.consultation_date,
     });
-
-    if (isTabRx) {
-      return navigate("/tab-rx", {
-        state: {
-          patient_data: patient_data,
-          tcm_id: viewCaseManagerData?.tcm_id,
-          pam_id: viewCaseManagerData?.pam_id,
-          fromEditRx: true,
-          smartRxFilesData: smartRxFile,
-        },
-      });
-    }
 
     if (isSnapRx && isSnapRxAccessableFromGB) {
       return navigate("/snap-rx", {
@@ -1502,29 +1436,6 @@ function Cardiology(props) {
         });
     }
   };
-
-  // Edit button visibility rules:
-  // 1) SmartRx (non-tab_rx): only on mobile (not tablet)
-  // 2) TabRx: show on tablet or mobile
-  // 3) Everything else (SnapRx, VoiceRx, SmartRx null): show
-  const shouldShowEditButton = useCallback(() => {
-    const isVoiceRx = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
-    if(isVoiceRx){
-      return true;
-    }
-
-    if (isSmartRxFile && !isTabRx) {
-      return !isMobile && !isTablet;
-    }
-
-    if (isTabRx) {
-      return isTablet || isMobile;
-    }
-
-    // !(isSmartRxFile && (isMobile && !isTablet))
-
-    return true;
-  }, [isSmartRxFile, isTabRx]);
 
   const fetchRxDigitisedData = async (caseId) => {
     try {
@@ -1613,7 +1524,7 @@ function Cardiology(props) {
     type: type,
     device_details: navigator.userAgent
   });
-    navigate(isTabRx ? "/tabrx-digitization" : "/smart-rx-digitise", {
+    navigate("/smart-rx-digitise", {
       state: {
         patient_data: patient_data,
         smartRxFilesData: smartRxFile,
@@ -1832,7 +1743,7 @@ function Cardiology(props) {
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
-    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx));
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || !isSmartRxFile);
     
     const getColumnStyle = (column) => {
       const baseStyle = { 
@@ -2748,12 +2659,6 @@ function Cardiology(props) {
     });
   };
 
-  const handleStartTabRx = () => {
-    navigate("/tab-rx", {
-      state: { patient_data: patient_data },
-    });
-  };
-
   const DraftRxAlert = () => {
     return (
       <div className="draft-rx-alert">
@@ -2769,9 +2674,6 @@ function Cardiology(props) {
       </div>
     );
   };
-
-
-
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
@@ -2872,7 +2774,7 @@ function Cardiology(props) {
                     style={{
                       visibility:
                         viewCaseManagerData?.doctor_data?.editCase &&
-                        shouldShowEditButton()
+                        !(isSmartRxFile && (isMobile && !isTablet))
                           ? "visible"
                           : "hidden",
                     }}
@@ -2899,7 +2801,7 @@ function Cardiology(props) {
                   >
                     <i className="icon-Print"></i>
                   </button>
-                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) &&
+                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
                     ) && (
@@ -2918,8 +2820,8 @@ function Cardiology(props) {
             </Card.Header>
             )}
 
-            {(isSmartSyncCVTAccessableFromGB || isTabRxAccessableFromGB) &&
-              (isSmartRxFile || isTabRx) &&
+            {isSmartSyncCVTAccessableFromGB &&
+              isSmartRxFile &&
               viewCaseManagerData?.smart_prescription_filename?.length > 0 &&
               rxDigitisedData &&
               !isSnapRx &&
@@ -3063,7 +2965,7 @@ function Cardiology(props) {
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
-              !isSmartRxFile && !isTabRx && 
+              !isSmartRxFile &&
               !loading && (
                 <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
                   <button
@@ -3244,7 +3146,7 @@ function Cardiology(props) {
               isValidMongoId(
                 viewCaseManagerData?.smart_prescription_filename
               ) &&
-              (!isSmartRxFile && !isTabRx) ? (
+              !isSmartRxFile ? (
               <div>
                 {showDigitalGenRx ? (
                   <div className="m-4">
@@ -3340,7 +3242,7 @@ function Cardiology(props) {
                         <>
                           <div className="d-flex align-items-start">
                             <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
+                              Lab Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3478,7 +3380,7 @@ function Cardiology(props) {
                   </div>
                 )}
               </div>
-            ) : !(isMobile && !isTablet) && (isSmartRxFile || isTabRx) && !isSnapRx ? (
+            ) : !(isMobile && !isTablet) && isSmartRxFile && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
                   <div className="m-4">
@@ -3636,7 +3538,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
+                              Lab Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -3937,7 +3839,7 @@ function Cardiology(props) {
                               alt="Tests"
                             />
                             <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
+                              Lab Investigation
                             </div>
                           </div>
                           {isGenRxTableView
@@ -4224,7 +4126,7 @@ function Cardiology(props) {
                           alt="Advice"
                         />
                         <div>
-                          <div className="title">{INVESTIGATION_TITLE}</div>
+                          <div className="title">Lab Investigation</div>
                           {viewCaseManagerData.investigation.map((item, i) => {
                             return (
                               <span key={i}>
@@ -4437,7 +4339,6 @@ function Cardiology(props) {
                       onSmartRxClick={() => handleStartSmartRx()}
                       onSnapRxClick={() => handleStartSnapRx()}
                       onVoiceRxClick={() => handleStartVoiceRx()}
-                      onTabRxClick={() => handleStartTabRx()}
                       onConsultClick={() => handleStartConsult()}
                       patient={patient_data}
                       buttonStyle="walkin"
