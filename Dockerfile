@@ -16,7 +16,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
@@ -25,7 +25,7 @@ RUN NODE_OPTIONS="--max-old-space-size=6144" npm run build
 
 # Keep sourcemaps (since you're using Sentry)
 # Optional cleanup if needed:
-# RUN find /app/build -name "*.map" -type f -delete
+RUN find /app/build -name "*.map" -type f -delete
 
 # ---- PRODUCTION STAGE ----
 FROM nginx:stable-alpine
