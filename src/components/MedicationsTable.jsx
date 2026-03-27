@@ -1588,7 +1588,7 @@ const MedicationsTable = ({
                     />
                   ) : (
                     <span className={styles['quantity-text']}>
-                      {isContinuation ? '-' : (item.quantity || '-')}
+                      {item.quantity || '-'}
                     </span>
                   )}
                 </td>

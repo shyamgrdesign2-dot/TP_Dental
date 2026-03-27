@@ -1981,7 +1981,7 @@ function Cardiology(props) {
                   {item?.duration || '-'}
                 </td>
                 <td style={getColumnStyle('quantity')}>
-                  {isContinuation[index] ? '-' : (item?.quantity || item?.qty || '-')}
+                  {item?.quantity || item?.qty || '-'}
                 </td>
                 <td style={getColumnStyle('note')}>
                   {item?.notes || item?.note || '-'}
