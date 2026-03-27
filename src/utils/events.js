@@ -9,6 +9,13 @@ export const EVENTS = {
     digitalRxPrinted: "CVT_Digital_Rx_Printed",
     digitalRxWhatsappSent: "CVT_Digital_Rx_Whatsapp_Sent",
   },
+  SAVE_DRAFT: {
+    save: "TP_SD_Save",
+    viewSection: "TP_SD_ViewSection",
+    resume: "TP_SD_Resume",
+    printDraft: "TP_SD_PrintDraft",
+    repeatDraft: "TP_SD_RepeatDraft",
+  },
   PRINT: "print",
   DOWNLOAD: "download",
   SHARE: "share",

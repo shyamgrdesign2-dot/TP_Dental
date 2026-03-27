@@ -3,9 +3,10 @@ import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './InvestigationRichTextEditor.scss';
 import investigationIcon from '../assets/images/Lab.svg';
+import { INVESTIGATION_TITLE } from '../utils/constants';
 
 /**
- * InvestigationRichTextEditor - Rich text editor specifically for Lab Investigation section
+ * InvestigationRichTextEditor - Rich text editor specifically for Investigation section
  * Converts between array format [{name: "investigation name"}] and Slate.js format
  */
 const InvestigationRichTextEditor = ({
@@ -22,16 +23,16 @@ const InvestigationRichTextEditor = ({
     const formattedInvestigations = labInvestigation.map(investigation => {
       const name = investigation.name || '';
       const parts = [];
-      
+
       if (investigation.notes) parts.push(investigation.notes);
-      
+
       if (parts.length > 0) {
         return `${name} (${parts.join(', ')})`;
       }
-      
+
       return name || investigation.lineItem || '';
     }).filter(text => text.trim() !== '');
-    
+
     if (formattedInvestigations.length === 0) {
       return [{ type: 'paragraph', children: [{ text: '' }] }];
     }
@@ -42,7 +43,7 @@ const InvestigationRichTextEditor = ({
   const handleChange = useCallback((value) => {
     const items = slateBulletListToArray(value);
     const investigationArray = items.map(text => ({ name: text }));
-    
+
     if (onUpdate) {
       onUpdate(investigationArray);
     }
@@ -52,10 +53,10 @@ const InvestigationRichTextEditor = ({
     return (
       <div className={`investigation-rich-text-editor ${className}`}>
         <div className="investigation-header">
-        <div className="investigation-icon">
-          <img src={investigationIcon} alt="Investigation" />
-        </div>
-          <span className="investigation-title">Lab Investigation</span>
+          <div className="investigation-icon">
+            <img src={investigationIcon} alt="Investigation" />
+          </div>
+          <span className="investigation-title">{INVESTIGATION_TITLE}</span>
         </div>
         <div className="editor-container">
           <div className="shimmer-container">
@@ -72,13 +73,13 @@ const InvestigationRichTextEditor = ({
         <div className="investigation-icon">
           <img src={investigationIcon} alt="Investigation" />
         </div>
-        <span className="investigation-title">Lab Investigation</span>
+        <span className="investigation-title">{INVESTIGATION_TITLE}</span>
       </div>
       <div className="editor-container">
         <RichTextEditor
           initialValue={initialSlateValue}
           onChange={handleChange}
-          placeholder="Add lab investigations..."
+          placeholder="Add investigations..."
           spellCheck={true}
           autoFocus={false}
           showToolbar={false}

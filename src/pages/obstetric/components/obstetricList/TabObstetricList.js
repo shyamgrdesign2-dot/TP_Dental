@@ -7,8 +7,9 @@ import { obstetricTabListColumns } from "../../utils/constants";
 import { isPrimigravida } from "../../utils/helper";
 import moment from "moment";
 import AncImmunisationList from "./AncImmunisationList";
+import TabSiderEmptyState from "../../../../components/tab_design/TabSiderEmptyState";
 
-const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
+const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric, isTabRx }) => {
   const { obstetricDetails: allObstetricDetails } = useSelector(
     (state) => state.obstetric
   );
@@ -33,6 +34,11 @@ const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
         item?.notes ||
         item?.enablePrint)
   );
+  const hasObstetricData =
+    infoAccordionItems?.length > 0 ||
+    accordionItems?.length > 0 ||
+    shouldShowAncHistory ||
+    shouldShowImmunisation;
 
   const today = moment();
   const lmpDate = obstetricDetails?.lmp ? moment(obstetricDetails.lmp) : null;
@@ -322,7 +328,7 @@ const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
 
   return (
     <>
-      <div className="text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2">
+      <div className={`text-white align-items-center bg-secondary d-flex justify-content-between lh-lg px-2 py-2 ${isTabRx ? 'tab-rx-header' : ''}`}>
         Obstetric History
         <Button
           type="text"
@@ -337,13 +343,15 @@ const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
         style={{ height: "calc(100vh - 108px)" }}
       >
         <div className="p-10">
-          <Button
-            className="btn btn-input d-flex w-100 align-items-center btn-41"
-            onClick={handleDrawerObstetric}
-          >
-            <i className="icon-Add me-2 fs-21"></i>
-            Add or Edit History
-          </Button>
+          {hasObstetricData ? (
+            <>
+            <Button
+              className="btn btn-input d-flex w-100 align-items-center btn-41"
+              onClick={handleDrawerObstetric}
+            >
+              <i className="icon-Add me-2 fs-21"></i>
+              Add or Edit History
+            </Button>
           {(infoAccordionItems?.length > 0 || accordionItems?.length > 0) && (
             <div
               className="border rounded-3 bg-body mt-3"
@@ -415,6 +423,15 @@ const TabObstetricList = ({ handleCollapsed, handleDrawerObstetric }) => {
                 expandIconPosition={"end"}
               />
             </div>
+          )}
+            </>
+          ) : (
+            <TabSiderEmptyState
+              title="No Obstetric History!"
+              description="It looks like there is no obstetric history added for this patient yet."
+              actionLabel="Add Obstetric History"
+              onAction={handleDrawerObstetric}
+            />
           )}
         </div>
       </div>
