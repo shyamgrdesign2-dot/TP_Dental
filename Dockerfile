@@ -26,11 +26,10 @@ RUN npm install --legacy-peer-deps
 # Copy the entire application code to the container
 COPY . .
 
-ENV NODE_OPTIONS="--max-old-space-size=6144"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Force memory again at build time (extra safety)
-RUN NODE_OPTIONS="--max-old-space-size=6144" npm run build
-
+# Build the React app for production
+RUN npm run build
 RUN find /app/build -name "*.map" -type f -delete
 
 # Use Nginx as the production server
