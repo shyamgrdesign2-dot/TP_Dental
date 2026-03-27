@@ -1290,4 +1290,3 @@ export const PDF = ({ mode = NORMAL, ...props }) => {
         </Document>
     )
 }
-
