@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { Button, Row, Col, Spin, Select } from "antd";
+import { Button, Row, Col, Spin, Select, message } from "antd";
 import { isMobile, isChrome, isSafari } from "react-device-detect";
-import axios from "axios";
 import { saveAs } from "file-saver";
 import { jwtDecode } from "jwt-decode";
 
@@ -31,6 +30,7 @@ import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../ap
 import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -48,9 +48,11 @@ const buildUrlWithParams = (baseUrl, isAmbient) => {
   return url.toString();
 };
 
+
 function GenRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
+  const sessionRxUrlRef = useRef(null);
 
   const { loading } = useSelector((state) => state.caseManager);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
@@ -60,6 +62,7 @@ function GenRxPrescriptionPrintView() {
 
   const location = useLocation();
   const { state } = location;
+  const cameFromConfigureRef = useRef(Boolean(state?.currentSessionRx));
   const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
   const initialLanguage =
@@ -76,7 +79,13 @@ function GenRxPrescriptionPrintView() {
       ? `${state.print_url}&pam_id=${pam_id}&lg=${initialEncodedLang}`
       : null
   );
-  const [currentSessionRx, setCurrentSessionRx] = useState(state !== undefined ? state.currentSessionRx : null);
+  const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+    if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
+    if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
+      return state.currentSessionRx;
+    }
+    return null;
+  });
   const [tokenData, setTokenData] = useState(null);
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
@@ -127,25 +136,83 @@ function GenRxPrescriptionPrintView() {
     }
   }, [state?.currentSessionRx]);
 
+  useEffect(() => {
+    let isCancelled = false;
+    const hydrateSessionPdf = async () => {
+      if (typeof currentSessionRx !== "string" || !currentSessionRx.startsWith("blob:")) return;
+      try {
+        const res = await fetch(currentSessionRx);
+        const blob = await res.blob();
+        if (!isCancelled && blob instanceof Blob) {
+          setCurrentSessionRx(blob);
+        }
+      } catch (err) {
+        console.error("Failed to restore session PDF from URL", err);
+        if (!isCancelled) {
+          setCurrentSessionRx(null);
+        }
+      }
+    };
+    hydrateSessionPdf();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentSessionRx]);
+
+  useEffect(() => {
+    if (typeof currentSessionRx === "string" && currentSessionRx.startsWith("blob:")) {
+      sessionRxUrlRef.current = currentSessionRx;
+    }
+    if (currentSessionRx instanceof Blob && sessionRxUrlRef.current) {
+      URL.revokeObjectURL(sessionRxUrlRef.current);
+      sessionRxUrlRef.current = null;
+    }
+  }, [currentSessionRx]);
+
+  useEffect(() => {
+    return () => {
+      if (sessionRxUrlRef.current) {
+        URL.revokeObjectURL(sessionRxUrlRef.current);
+      }
+    };
+  }, []);
+
+  const shouldSkipAutoFetch = Boolean(currentSessionRx) && cameFromConfigureRef.current;
+  const {
+    printBlob: generatedPrintBlob,
+    error: printPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl,
+    selectedLang,
+    payloadOverride: null,
+    skipFetch: shouldSkipAutoFetch,
+  });
+
+  useEffect(() => {
+    if (generatedPrintBlob) {
+      if (!cameFromConfigureRef.current || !currentSessionRx) {
+        setPrintBlob(generatedPrintBlob);
+        setCurrentSessionRx(generatedPrintBlob);
+      }
+    }
+  }, [generatedPrintBlob, currentSessionRx]);
+
+  useEffect(() => {
+    if (cameFromConfigureRef.current && currentSessionRx) return;
+    if (printPayloadError) {
+      message.error("Failed to load prescription data.");
+    }
+  }, [printPayloadError, currentSessionRx]);
+
   const handleDownload = async () => {
     setDownloadLoading(true);
     try {
-      if (currentSessionRx) {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        saveAs(blob, `${Date.now()}.pdf`);
+      const sourceFile = printBlob || currentSessionRx;
+      const pdfBlob = await asBlob(sourceFile);
+      if (pdfBlob instanceof Blob) {
+        saveAs(pdfBlob, `${Date.now()}.pdf`);
       } else {
-        const response = await axios({
-          url: printUrl,
-          method: "GET",
-          responseType: "blob", // Important for binary data
-        });
-        const blob = new Blob([response.data], {
-          type: response.headers["content-type"],
-        });
-        saveAs(blob, `${Date.now()}.pdf`);
+        message.error("PDF is not ready yet.");
       }
     } catch (error) {
       console.error("Error downloading file:", error);
@@ -161,42 +228,45 @@ function GenRxPrescriptionPrintView() {
     //   state: state,
     // });
     // navigate(0, { replace: true });
-    if (currentSessionRx) {
-      try {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+    const sourceFile = printBlob || currentSessionRx;
+    if (!sourceFile) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    const pdfBlob = await asBlob(sourceFile);
+    if (!(pdfBlob instanceof Blob)) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    try {
+      const file = new File(
+        [pdfBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        {
           type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("./medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const downloadUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
-      } catch (error) {
-        console.error("Error uploading PDF for download:", error);
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-      }
-    } else {
-      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        },
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const { uploadDocsToAzure } = await import("./medicalRecords/service");
+      const res = await uploadDocsToAzure(formData);
+      const downloadUrl = res?.[0]?.url;
+      sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+    } catch (error) {
+      console.error("Error uploading PDF for download:", error);
     }
   };
 
   async function onDocumentLoadSuccess(successEvent) {
     setNumPages(successEvent?.numPages);
-    const data = await successEvent.getData();
-    const blob = new Blob([data], { type: "application/pdf" });
-    setPrintBlob(blob);
   }
 
   const onSelect = useCallback(
     (data) => {
       const encodedData = btoa(data.toString());
-      const urlBase = typeof currentSessionRx === "string" ? currentSessionRx : state?.print_url || "";
-      setPrintUrl(`${urlBase}&pam_id=${pam_id}&lg=${encodedData}`);
+      if (state?.print_url) {
+        setPrintUrl(`${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`);
+      }
       setSelectedLang(data);
       updatePatientDefaultLanguage({
         patientId: patient_data?.patient_unique_id,
@@ -204,7 +274,7 @@ function GenRxPrescriptionPrintView() {
       });
       setCurrentSessionRx(null);
     },
-    [currentSessionRx, state?.print_url, pam_id, patient_data?.patient_unique_id]
+    [state?.print_url, pam_id, patient_data?.patient_unique_id]
   );
 
   const handleSendToWhatsapp = async () => {
@@ -319,13 +389,34 @@ function GenRxPrescriptionPrintView() {
     }
   };
 
+  const asBlob = async (fileLike) => {
+    if (fileLike instanceof Blob) return fileLike;
+    if (typeof fileLike === "string") {
+      try {
+        const res = await fetch(fileLike);
+        return await res.blob();
+      } catch (e) {
+        console.error("Failed to convert URL to Blob", e);
+        return null;
+      }
+    }
+    return null;
+  };
+
   const printContent = async () => {
     try {
-      if (!printBlob) {
-        throw new Error("Print blob is not available");
+      const sourceFile = printBlob || currentSessionRx;
+      if (!sourceFile) {
+        message.error("PDF is not ready yet.");
+        return;
+      }
+      const pdfBlob = await asBlob(sourceFile);
+      if (!(pdfBlob instanceof Blob)) {
+        message.error("PDF is not ready yet.");
+        return;
       }
 
-      const blobURL = URL.createObjectURL(printBlob);
+      const blobURL = URL.createObjectURL(pdfBlob);
 
       // Clean up existing iframes
       document.querySelectorAll("iframe").forEach((iframe) => iframe.remove());
@@ -368,29 +459,40 @@ function GenRxPrescriptionPrintView() {
     //   state,
     // });
     // navigate(0, { replace: true });
-    if (currentSessionRx) {
-      try {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+    const sourceFile = printBlob || currentSessionRx;
+    if (!sourceFile) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    const pdfBlob = await asBlob(sourceFile);
+    if (!(pdfBlob instanceof Blob)) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    try {
+      const file = new File(
+        [pdfBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        {
           type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("./medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-      } catch (error) {
-        console.error("Error uploading PDF for print:", error);
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-      }
-    } else {
+        },
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const { uploadDocsToAzure } = await import("./medicalRecords/service");
+      const res = await uploadDocsToAzure(formData);
+      const printUrl = res?.[0]?.url;
       sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    } catch (error) {
+      console.error("Error uploading PDF for print:", error);
     }
   };
+
+  const pdfFile = currentSessionRx || printBlob;
+  const hasPdfBlob = Boolean(
+    (pdfFile instanceof Blob && pdfFile.size > 0) ||
+      (typeof pdfFile === "string" && pdfFile.length > 0)
+  );
 
   return (
     <>
@@ -523,63 +625,62 @@ function GenRxPrescriptionPrintView() {
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
                   <div ref={printRef} className="position-relative h-100">
-                    <Document
-                      loading={
-                        <Spin
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "50%",
-                            top: "50%",
-                          }}
-                        />
-                      }
-                      error={
-                        <div
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "42%",
-                            top: "50%",
-                          }}
-                        >
-                          {"Failed to load PDF file."}
-                        </div>
-                      }
-                      noData={
-                        <div
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "50%",
-                            top: "50%",
-                          }}
-                        >
-                          {"No PDF file specified."}
-                        </div>
-                      }
-                      file={currentSessionRx || printUrl}
-                      onLoadError={() => {
-                        setCurrentSessionRx(null);
-                      }}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                    >
-                      {Array.apply(null, Array(numPages))
-                        .map((x, i) => i + 1)
-                        .map((page) => (
-                          <Page
-                            key={Math.random()}
-                            className={
-                              printBlob ? "react-pdf__Page_afterload" : null
-                            }
-                            loading={null}
-                            width={divWidth}
-                            pageNumber={page}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
+                    {hasPdfBlob ? (
+                      <Document
+                        loading={
+                          <Spin
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "50%",
+                              top: "50%",
+                            }}
                           />
-                        ))}
-                    </Document>
+                        }
+                        error={
+                          <div
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "42%",
+                              top: "50%",
+                            }}
+                          >
+                            {"Failed to load PDF file."}
+                          </div>
+                        }
+                        file={pdfFile}
+                        onLoadError={() => {
+                          setCurrentSessionRx(null);
+                        }}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                      >
+                        {Array.apply(null, Array(numPages))
+                          .map((x, i) => i + 1)
+                          .map((page) => (
+                            <Page
+                              key={Math.random()}
+                              className={
+                                printBlob ? "react-pdf__Page_afterload" : null
+                              }
+                              loading={null}
+                              width={divWidth}
+                              pageNumber={page}
+                              renderTextLayer={false}
+                              renderAnnotationLayer={false}
+                            />
+                          ))}
+                      </Document>
+                    ) : (
+                      <Spin
+                        style={{
+                          position: "absolute",
+                          zIndex: 0,
+                          left: "50%",
+                          top: "50%",
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

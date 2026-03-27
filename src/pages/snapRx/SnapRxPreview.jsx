@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, Row, Col, Spin, message, Select } from "antd";
 import "./SnapRxPreview.scss";
@@ -45,6 +45,7 @@ import { env } from "../../EnvironmentConfig";
 import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -93,6 +94,7 @@ function SnapRxPreview() {
 
   const [printUrl, setPrintUrl] = useState(initialUrl);
   const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx || null);
+  const fromConfigurePrintSetting = state?.from === "/configure_print_setting";
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
@@ -107,6 +109,7 @@ function SnapRxPreview() {
   const [showProgressbar, setShowProgressbar] = useState(false);
   const [showDigitalRx, setShowDigitalRx] = useState(false);
   const progressRef = useRef(null);
+  const hasToggledRef = useRef(false);
 
   useEffect(() => {
     if (state?.smartRxFile && state.smartRxFile.length > 0) {
@@ -122,6 +125,17 @@ function SnapRxPreview() {
       setCurrentSessionRx(state.currentSessionRx);
     }
   }, [state?.from, state?.currentSessionRx]);
+
+  useEffect(() => {
+    // Switching between Digital/Written should force a fresh fetch/render
+    if (!hasToggledRef.current) {
+      hasToggledRef.current = true;
+      return;
+    }
+    setCurrentSessionRx(null);
+    setPrintBlob(null);
+    setNumPages(undefined);
+  }, [showDigitalRx]);
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlDigitization = env.digitization_api_url;
@@ -303,20 +317,34 @@ function SnapRxPreview() {
     }
   }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, state?.currentSessionRx, viewCaseManagerData?.isRxDigitize]);
 
-  // Ensure Document always gets the correct URL for current mode so the first request is correct (no wrong rxDigitize)
-  const fileUrlForDocument = useMemo(() => {
-    if (currentSessionRx) return currentSessionRx;
-    if (!printUrl) return null;
-    if (showDigitalRx) return printUrl;
-    try {
-      const u = new URL(printUrl);
-      u.searchParams.delete("rxDigitize");
-      u.searchParams.delete("voiceRxDigitize");
-      return u.toString();
-    } catch (e) {
-      return printUrl.replace(/[?&]rxDigitize=[^&]*/g, "").replace(/[?&]voiceRxDigitize=[^&]*/g, "");
+  const shouldSkipAutoFetch = Boolean(currentSessionRx) && fromConfigurePrintSetting;
+  const {
+    printBlob: generatedPrintBlob,
+    isGenerating: isPdfGenerating,
+    error: printPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl,
+    selectedLang,
+    payloadOverride: null,
+    skipFetch: shouldSkipAutoFetch,
+  });
+
+  useEffect(() => {
+    if (generatedPrintBlob) {
+      if (!fromConfigurePrintSetting || !currentSessionRx) {
+        setPrintBlob(generatedPrintBlob);
+        setCurrentSessionRx(generatedPrintBlob);
+      }
     }
-  }, [currentSessionRx, printUrl, showDigitalRx]);
+  }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
+
+  useEffect(() => {
+    if (fromConfigurePrintSetting && currentSessionRx) return;
+    if (printPayloadError) {
+      message.error("Failed to load prescription data.");
+    }
+  }, [printPayloadError, fromConfigurePrintSetting, currentSessionRx]);
+
 
   const handleDownload = async () => {
     try {
@@ -327,22 +355,12 @@ function SnapRxPreview() {
           Doctor_Unique_Id: profile?.doctor_unique_id,
         });
       }
-      if (currentSessionRx) {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        saveAs(blob, `${Date.now()}.pdf`);
+      const sourceFile = printBlob || currentSessionRx;
+      const pdfBlob = await asBlob(sourceFile);
+      if (pdfBlob instanceof Blob) {
+        saveAs(pdfBlob, `${Date.now()}.pdf`);
       } else {
-        const response = await axios({
-          url: printUrl,
-          method: "GET",
-          responseType: "blob",
-        });
-        const blob = new Blob([response.data], {
-          type: response.headers["content-type"],
-        });
-        saveAs(blob, `${Date.now()}.pdf`);
+        message.error("PDF is not ready yet.");
       }
     } catch (error) {
       console.error("Error downloading file:", error);
@@ -357,35 +375,37 @@ function SnapRxPreview() {
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
     }
-    if (currentSessionRx) {
-      try {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
+    const sourceFile = printBlob || currentSessionRx;
+    if (!sourceFile) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    const pdfBlob = await asBlob(sourceFile);
+    if (!(pdfBlob instanceof Blob)) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    try {
+      const file = new File(
+        [pdfBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        {
           type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("../medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const downloadUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
-      } catch (error) {
-        console.error("Error uploading PDF for download:", error);
-        sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
-      }
-    } else {
-      sendMessageToParent(EVENTS.DOWNLOAD, { url: printUrl });
+        },
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const { uploadDocsToAzure } = await import("../medicalRecords/service");
+      const res = await uploadDocsToAzure(formData);
+      const downloadUrl = res?.[0]?.url;
+      sendMessageToParent(EVENTS.DOWNLOAD, { url: downloadUrl });
+    } catch (error) {
+      console.error("Error uploading PDF for download:", error);
     }
   };
 
   async function onDocumentLoadSuccess(successEvent) {
     setNumPages(successEvent?.numPages);
-    const data = await successEvent.getData();
-    const blob = new Blob([data], { type: "application/pdf" });
-    setPrintBlob(blob);
   }
 
   const handleDigitiseRx = async () => {
@@ -508,38 +528,64 @@ function SnapRxPreview() {
     }
   };
 
-  const printInAppContent = async () => {
-    if (currentSessionRx) {
+  const asBlob = async (fileLike) => {
+    if (fileLike instanceof Blob) return fileLike;
+    if (typeof fileLike === "string") {
       try {
-        const blob =
-          currentSessionRx instanceof Blob
-            ? currentSessionRx
-            : await (await fetch(currentSessionRx)).blob();
-        const file = new File([blob], `${new Date().toISOString().split("T")[0]}.pdf`, {
-          type: "application/pdf",
-        });
-        const formData = new FormData();
-        formData.append(file?.name, file);
-        const { uploadDocsToAzure } = await import("../medicalRecords/service");
-        const res = await uploadDocsToAzure(formData);
-        const printUrl = res?.[0]?.url;
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
-      } catch (error) {
-        console.error("Error uploading PDF for print:", error);
-        sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+        const res = await fetch(fileLike);
+        return await res.blob();
+      } catch (e) {
+        console.error("Failed to convert URL to Blob", e);
+        return null;
       }
-    } else {
+    }
+    return null;
+  };
+
+  const printInAppContent = async () => {
+    const sourceFile = printBlob || currentSessionRx;
+    if (!sourceFile) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    const pdfBlob = await asBlob(sourceFile);
+    if (!(pdfBlob instanceof Blob)) {
+      message.error("PDF is not ready yet.");
+      return;
+    }
+    try {
+      const file = new File(
+        [pdfBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        {
+          type: "application/pdf",
+        },
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const { uploadDocsToAzure } = await import("../medicalRecords/service");
+      const res = await uploadDocsToAzure(formData);
+      const printUrl = res?.[0]?.url;
       sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+    } catch (error) {
+      console.error("Error uploading PDF for print:", error);
     }
   };
 
   const printContent = async () => {
     try {
-      if (!printBlob) {
-        throw new Error("Print blob is not available");
+      const sourceFile = printBlob || currentSessionRx;
+      if (!sourceFile) {
+        message.error("PDF is not ready yet.");
+        return;
+      }
+      const pdfBlob = await asBlob(sourceFile);
+      if (!(pdfBlob instanceof Blob)) {
+        message.error("PDF is not ready yet.");
+        return;
       }
 
-      const blobURL = URL.createObjectURL(printBlob);
+      const blobURL = URL.createObjectURL(pdfBlob);
 
       document.querySelectorAll("iframe").forEach((iframe) => iframe.remove());
 
@@ -611,6 +657,14 @@ function SnapRxPreview() {
       errorMessage(action.error);
     }
   };
+
+  const pdfFile = currentSessionRx || printBlob;
+  const hasPdfBlob = Boolean(
+    (pdfFile instanceof Blob && pdfFile.size > 0) ||
+      (typeof pdfFile === "string" && pdfFile.length > 0)
+  );
+  const documentFile = pdfFile;
+  const canRenderDocument = hasPdfBlob;
 
   return (
     <>
@@ -814,6 +868,7 @@ function SnapRxPreview() {
                           }`}
                           onClick={() => {
                             setCurrentSessionRx(null); // Clear cached session Rx to force reload with new URL
+                            setPrintBlob(null);
                             setShowDigitalRx(true);
                           }}
                         >
@@ -827,6 +882,7 @@ function SnapRxPreview() {
                           }`}
                           onClick={() => {
                             setCurrentSessionRx(null);
+                            setPrintBlob(null);
                             setShowDigitalRx(false);
                           }}
                         >
@@ -851,64 +907,77 @@ function SnapRxPreview() {
               <div className="rounded-20px bg-white mt-20 overflow-hidden">
                 <div ref={divRef} className="printheight">
                   <div ref={printRef} className="position-relative h-100">
-                    <Document
-                      key={showDigitalRx ? 'digital' : `written-${typeof fileUrlForDocument === 'string' ? (fileUrlForDocument || '').split('?')[0] : 'blob'}`}
-                      loading={
-                        <Spin
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "50%",
-                            top: "50%",
-                          }}
-                        />
-                      }
-                      error={
-                        <div
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "42%",
-                            top: "50%",
-                          }}
-                        >
-                          {"Failed to load PDF file."}
-                        </div>
-                      }
-                      noData={
-                        <div
-                          style={{
-                            position: "absolute",
-                            zIndex: 0,
-                            left: "50%",
-                            top: "50%",
-                          }}
-                        >
-                          {"No PDF file specified."}
-                        </div>
-                      }
-                      file={fileUrlForDocument}
-                      onLoadError={() => {
-                        setCurrentSessionRx(null);
-                      }}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                    >
-                      {Array.apply(null, Array(numPages))
-                        .map((x, i) => i + 1)
-                        .map((page) => (
-                          <Page
-                            key={Math.random()}
-                            className={
-                              printBlob ? "react-pdf__Page_afterload" : null
-                            }
-                            loading={null}
-                            width={divWidth}
-                            pageNumber={page}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
+                    {isPdfGenerating && (
+                      <div
+                        className="d-flex flex-column align-items-center justify-content-center"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          zIndex: 1,
+                          background: "rgba(255, 255, 255, 0.6)",
+                        }}
+                      >
+                        <Spin />
+                        <div className="mt-2">PDF is getting generated</div>
+                      </div>
+                    )}
+                    {canRenderDocument ? (
+                      <Document
+                        key={showDigitalRx ? 'digital' : `written-${typeof documentFile === 'string' ? (documentFile || '').split('?')[0] : 'blob'}`}
+                        loading={
+                          <Spin
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "50%",
+                              top: "50%",
+                            }}
                           />
-                        ))}
-                    </Document>
+                        }
+                        error={
+                          <div
+                            style={{
+                              position: "absolute",
+                              zIndex: 0,
+                              left: "42%",
+                              top: "50%",
+                            }}
+                          >
+                            {"Failed to load PDF file."}
+                          </div>
+                        }
+                        file={documentFile}
+                        onLoadError={() => {
+                          setCurrentSessionRx(null);
+                        }}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                      >
+                        {Array.apply(null, Array(numPages))
+                          .map((x, i) => i + 1)
+                          .map((page) => (
+                            <Page
+                              key={Math.random()}
+                              className={
+                                printBlob ? "react-pdf__Page_afterload" : null
+                              }
+                              loading={null}
+                              width={divWidth}
+                              pageNumber={page}
+                              renderTextLayer={false}
+                              renderAnnotationLayer={false}
+                            />
+                          ))}
+                      </Document>
+                    ) : (
+                      <Spin
+                        style={{
+                          position: "absolute",
+                          zIndex: 0,
+                          left: "50%",
+                          top: "50%",
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

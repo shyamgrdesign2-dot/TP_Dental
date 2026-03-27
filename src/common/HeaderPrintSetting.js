@@ -191,9 +191,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     });
                 } else {
                     if (previousPage) {
-                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx } });
+                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: null } });
                     } else {
-                        navigate(-1, { replace: true, state: { ...state, currentSessionRx } });
+                        navigate(-1, { replace: true, state: { ...state, currentSessionRx: null } });
                     }
                 }
             } else {
@@ -288,6 +288,18 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files,
                         files: state?.files || state?.smartRxFile
+                    } 
+                });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
                     } 
                 });
             } else {
