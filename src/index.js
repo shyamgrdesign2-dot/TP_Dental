@@ -40,7 +40,7 @@ const isProd = appEnv === "prod";
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
-      (isProd ? 0.2 : 1.0)
+      (isProd ? 0.4 : 1.0)
   ) || 1.0;
 
 Sentry.init({

@@ -72,7 +72,7 @@ function MedicalCertificate() {
         'align', 'bold', 'italic', 'underline', 'ul', 'ol',
         {
             name: 'Insert',
-            // iconURL: 'https://img.icons8.com/ios-glyphs/30/000000/menu.webp',
+            // iconURL: 'https://img.icons8.com/ios-glyphs/30/000000/menu.png',
             list: {
                 option1: `Doctor Name`,
                 option2: `Patient Name`,
