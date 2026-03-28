@@ -358,7 +358,7 @@ export const DDX_KNOW_MORE_DATA = {
   },
   videoLink: {
     link: "https://www.youtube.com/embed/mAZ7Sa86PnQ",
-    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/mAZ7Sa86PnQ/hqdefault.jpg",
   },
   tips: {
     title: "Tips to get the best results",
@@ -409,7 +409,7 @@ export const SNAP_RX_KNOW_MORE_DATA = {
   },
   videoLink: {
     link: "https://www.youtube.com/embed/xXPsyTPSNHA",
-    thumbnail: "https://i.ytimg.com/vi/xXPsyTPSNHA/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/xXPsyTPSNHA/hqdefault.jpg",
   },
   tips: {
     smallTitle: "Tips",

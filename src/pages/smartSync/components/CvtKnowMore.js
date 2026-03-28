@@ -44,7 +44,7 @@ const CvtKnowMore = ({ handleCollapsed }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
-    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
   };
 
   return (

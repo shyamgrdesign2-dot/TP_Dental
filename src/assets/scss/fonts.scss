@@ -129,6 +129,9 @@
 .icon-Expand:before { content: "\e90d"; }
 .icon-Print:before, .icon-print:before { content: "\e90e"; }
 .icon-Visit-Summary-with-unfilled:before { content: "\e90f"; }
+.icon-Visit-Summary:before {
+  content: "\e90f";
+}
 .icon-Medical-Certificate:before, .icon-medical-certificate:before { content: "\e910"; }
 .icon-Discharge-Summary:before, .icon-discharge-summary:before { content: "\e911"; }
 .icon-Report:before { content: "\e912"; }
@@ -177,7 +180,7 @@
 .icon-group:before { content: "\e92f"; }
 .icon-profile:before { content: "\e930"; }
 .icon-certificate-profile:before { content: "\e931"; }
-.icon-New-Window-1:before { content: "\e932"; }
+.icon-New-Window:before { content: "\e932"; }
 .icon-eraser1:before { content: "\e933"; }
 .icon-copy-icon:before { content: "\e934"; }
 

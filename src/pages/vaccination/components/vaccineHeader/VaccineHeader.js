@@ -44,19 +44,19 @@ function VaccineHeader({
 }) {
   const vaccinationVideo = {
     link: "https://www.youtube.com/embed/o6ALwX9hPMM",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
     tmv_description: "Vaccination",
     tmv_title: "Vaccination",
   };
   const obstetricVideo = {
     link: "https://www.youtube.com/embed/KWIi-p3fXRk",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
     tmv_description: "Obstetric History",
     tmv_title: "Obstetric History",
   };
   const growthChartVideo = {
     link: "https://www.youtube.com/embed/ZpfTsX_f2LM",
-    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
     tmv_description: "Growth Chart",
     tmv_title: "Growth Chart",
   };

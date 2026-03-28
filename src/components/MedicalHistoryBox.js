@@ -82,7 +82,7 @@ function MedicalHistoryBox(props) {
 
     const videoLink = {
         link: "https://www.youtube.com/embed/Y91zuWBeao4",
-        thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.webp",
+        thumbnail: "https://i.ytimg.com/vi/o6ALwX9hPMM/hqdefault.jpg",
         tmv_description: "Gynec History",
         tmv_title: "Gynec History",
     };

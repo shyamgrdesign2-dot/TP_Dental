@@ -55,7 +55,7 @@ const GenRxKnowMore = ({ handleGenRxKnowMore }) => {
 
   const videoLink = {
     link: "https://www.youtube.com/embed/vIeSUFJ7JgE",
-    thumbnail: "https://i.ytimg.com/vi/vIeSUFJ7JgE/maxresdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/vIeSUFJ7JgE/maxresdefault.jpg",
     title: "Ambient Voice Rx Tutorial",
   };
 

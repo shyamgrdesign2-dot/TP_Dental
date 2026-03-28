@@ -10,7 +10,7 @@ const CustomSSknowMore = () => {
 
   const videoLink = {
     link: "https://www.youtube.com/embed/afrPzkTTl78",
-    thumbnail: "https://i.ytimg.com/vi/afrPzkTTl78/hqdefault.webp",
+    thumbnail: "https://i.ytimg.com/vi/afrPzkTTl78/hqdefault.jpg",
   };
 
   return (
