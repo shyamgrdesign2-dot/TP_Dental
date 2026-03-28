@@ -16,9 +16,24 @@ import './assets/scss/app.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
-// Provide a harmless MoEngage stub so early calls don't crash if the SDK loads late.
+// Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
   window.Moengage = window.Moengage || {};
+  window.__moeQueue = window.__moeQueue || [];
+  window.__flushMoeQueue = window.__flushMoeQueue || ((moeInstance) => {
+    if (!moeInstance || !window.__moeQueue) return;
+    const queue = window.__moeQueue;
+    window.__moeQueue = [];
+    queue.forEach(({ fn, args }) => {
+      try {
+        if (typeof moeInstance?.[fn] === "function") {
+          moeInstance[fn](...args);
+        }
+      } catch (_) {
+        // no-op: avoid breaking app on analytics errors
+      }
+    });
+  });
   [
     "track_event",
     "add_user_attribute",
@@ -30,7 +45,12 @@ if (typeof window !== "undefined") {
     "destroy_session",
   ].forEach((fn) => {
     if (!window.Moengage[fn]) {
-      window.Moengage[fn] = () => {};
+      window.Moengage[fn] = (...args) => {
+        const q = window.__moeQueue;
+        if (!q) return;
+        if (q.length >= 50) q.shift();
+        q.push({ fn, args });
+      };
     }
   });
 }

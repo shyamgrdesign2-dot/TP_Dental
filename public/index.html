@@ -25,6 +25,7 @@
         var debugLogs = environment === "prod" ? 0 : 1;
         var clarityId = environment === "prod" ? "n9d6pfs5wc" : "n93vwh8yqg";
         Moengage = moe({ app_id: moeAppID, debug_logs: debugLogs });
+        if (window.__flushMoeQueue) window.__flushMoeQueue(Moengage);
         (function(c,l,a,r,i,t,y){
           c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
           t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
