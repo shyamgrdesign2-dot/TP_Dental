@@ -34,6 +34,7 @@ import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
+let genRxMountCount = 0;
 const buildUrlWithParams = (baseUrl, isAmbient) => {
   if (!baseUrl) return null;
   const url = new URL(baseUrl);
@@ -62,7 +63,18 @@ function GenRxPrescriptionPrintView() {
 
   const location = useLocation();
   const { state } = location;
-  const cameFromConfigureRef = useRef(Boolean(state?.currentSessionRx));
+
+  // Detect a hard refresh on the first mount after document load.
+  const isFirstMountAfterLoad = genRxMountCount === 0;
+  useEffect(() => {
+    genRxMountCount += 1;
+  }, []);
+  const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
+  const didHardReload = navigationEntry?.type === "reload";
+  const treatAsReload = didHardReload && isFirstMountAfterLoad;
+
+  // If the page was reloaded, treat it as not coming from Configure Print Setting
+  const fromConfigurePrintSetting = Boolean(state?.currentSessionRx) && !treatAsReload;
   const { patient_data, rxId, pam_id, isAmbientRx } = state || {};
 
   const initialLanguage =
@@ -80,6 +92,9 @@ function GenRxPrescriptionPrintView() {
       : null
   );
   const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+    if (!fromConfigurePrintSetting) {
+      return null;
+    }
     if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
     if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
       return state.currentSessionRx;
@@ -131,10 +146,10 @@ function GenRxPrescriptionPrintView() {
 
   // When returning from Configure Print Setting with "Apply only on this Rx", state has hydrated Blob
   useEffect(() => {
-    if (state?.currentSessionRx !== undefined) {
+    if (fromConfigurePrintSetting && state?.currentSessionRx !== undefined) {
       setCurrentSessionRx(state.currentSessionRx);
     }
-  }, [state?.currentSessionRx]);
+  }, [fromConfigurePrintSetting, state?.currentSessionRx]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -177,7 +192,7 @@ function GenRxPrescriptionPrintView() {
     };
   }, []);
 
-  const shouldSkipAutoFetch = Boolean(currentSessionRx) && cameFromConfigureRef.current;
+  const shouldSkipAutoFetch = Boolean(currentSessionRx) && fromConfigurePrintSetting;
   const {
     printBlob: generatedPrintBlob,
     error: printPayloadError,
@@ -190,19 +205,19 @@ function GenRxPrescriptionPrintView() {
 
   useEffect(() => {
     if (generatedPrintBlob) {
-      if (!cameFromConfigureRef.current || !currentSessionRx) {
+      if (!fromConfigurePrintSetting || !currentSessionRx) {
         setPrintBlob(generatedPrintBlob);
         setCurrentSessionRx(generatedPrintBlob);
       }
     }
-  }, [generatedPrintBlob, currentSessionRx]);
+  }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
 
   useEffect(() => {
-    if (cameFromConfigureRef.current && currentSessionRx) return;
+    if (fromConfigurePrintSetting && currentSessionRx) return;
     if (printPayloadError) {
       message.error("Failed to load prescription data.");
     }
-  }, [printPayloadError, currentSessionRx]);
+  }, [printPayloadError, fromConfigurePrintSetting, currentSessionRx]);
 
   const handleDownload = async () => {
     setDownloadLoading(true);

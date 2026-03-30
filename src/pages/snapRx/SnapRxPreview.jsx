@@ -49,6 +49,7 @@ import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
+let snapRxMountCount = 0;
 function SnapRxPreview() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -93,8 +94,34 @@ function SnapRxPreview() {
     : null;
 
   const [printUrl, setPrintUrl] = useState(initialUrl);
-  const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx || null);
-  const fromConfigurePrintSetting = state?.from === "/configure_print_setting";
+
+  // Detect a hard refresh on the first mount after document load.
+  const isFirstMountAfterLoad = snapRxMountCount === 0;
+  useEffect(() => {
+    snapRxMountCount += 1;
+  }, []);
+  const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
+  const didHardReload = navigationEntry?.type === "reload";
+  const treatAsReload = didHardReload && isFirstMountAfterLoad;
+
+  // If the page was reloaded, treat it as not coming from Configure Print Setting
+  const fromConfigurePrintSetting =
+    state?.from === "/configure_print_setting" &&
+    Boolean(state?.currentSessionRx) &&
+    !treatAsReload;
+
+  const [useSessionRx, setUseSessionRx] = useState(fromConfigurePrintSetting);
+
+  const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+    if (!fromConfigurePrintSetting) {
+      return null;
+    }
+    if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
+    if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
+      return state.currentSessionRx;
+    }
+    return null;
+  });
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
   const [token, setToken] = useState(null);
@@ -110,6 +137,7 @@ function SnapRxPreview() {
   const [showDigitalRx, setShowDigitalRx] = useState(false);
   const progressRef = useRef(null);
   const hasToggledRef = useRef(false);
+  const skipNextToggleResetRef = useRef(false);
 
   useEffect(() => {
     if (state?.smartRxFile && state.smartRxFile.length > 0) {
@@ -121,17 +149,22 @@ function SnapRxPreview() {
 
   // When returning from Configure Print Setting with "No, Apply on This Rx Only", use the PDF blob so print reflects user's config
   useEffect(() => {
-    if (state?.from === "/configure_print_setting" && state?.currentSessionRx) {
+    if (fromConfigurePrintSetting && state?.currentSessionRx) {
       setCurrentSessionRx(state.currentSessionRx);
     }
-  }, [state?.from, state?.currentSessionRx]);
+  }, [fromConfigurePrintSetting, state?.currentSessionRx]);
 
   useEffect(() => {
     // Switching between Digital/Written should force a fresh fetch/render
+    if (skipNextToggleResetRef.current) {
+      skipNextToggleResetRef.current = false;
+      return;
+    }
     if (!hasToggledRef.current) {
       hasToggledRef.current = true;
       return;
     }
+    setUseSessionRx(false);
     setCurrentSessionRx(null);
     setPrintBlob(null);
     setNumPages(undefined);
@@ -225,13 +258,16 @@ function SnapRxPreview() {
         if (state?.from === "/configure_print_setting") {
           // Only use page state to determine if we were configuring for digitized Rx
           // Don't use viewCaseManagerData?.isRxDigitize as it can be true even when configuring written Rx
+          skipNextToggleResetRef.current = true;
           setShowDigitalRx(state?.page === "digitise");
         } else if (state?.page === "digitise") {
           // After digitization, show digitised Rx first by default
+          skipNextToggleResetRef.current = true;
           setShowDigitalRx(true);
         } else {
           // Default: show digitized Rx only if it's digitized and page is "digitise"
           const shouldShowDigital = viewCaseManagerData?.isRxDigitize && state?.page === "digitise";
+          skipNextToggleResetRef.current = true;
           setShowDigitalRx(shouldShowDigital);
         }
       }
@@ -285,7 +321,7 @@ function SnapRxPreview() {
     if (!baseUrl) return;
 
     // When returning from Configure Print Setting with "No, Apply on This Rx Only", we have a blob in state.currentSessionRx – don't clear it so the preview/print uses the configured PDF
-    const keepSessionBlob = state?.from === "/configure_print_setting" && state?.currentSessionRx;
+    const keepSessionBlob = fromConfigurePrintSetting && state?.currentSessionRx;
 
     try {
       const urlObj = new URL(baseUrl);
@@ -303,7 +339,10 @@ function SnapRxPreview() {
       
       const newUrl = urlObj.toString();
       setPrintUrl(newUrl);
-      if (!keepSessionBlob) setCurrentSessionRx(null);
+      if (!keepSessionBlob) {
+        setUseSessionRx(false);
+        setCurrentSessionRx(null);
+      }
     } catch (error) {
       let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
       // Remove rxDigitize parameter completely
@@ -313,11 +352,14 @@ function SnapRxPreview() {
         url += (url.includes('?') ? '&' : '?') + "rxDigitize=true";
       }
       setPrintUrl(url);
-      if (!keepSessionBlob) setCurrentSessionRx(null);
+      if (!keepSessionBlob) {
+        setUseSessionRx(false);
+        setCurrentSessionRx(null);
+      }
     }
   }, [selectedLang, state?.print_rx_url, state?.print_url, pam_id, showDigitalRx, state?.page, state?.from, state?.currentSessionRx, viewCaseManagerData?.isRxDigitize]);
 
-  const shouldSkipAutoFetch = Boolean(currentSessionRx) && fromConfigurePrintSetting;
+  const shouldSkipAutoFetch = Boolean(currentSessionRx) && useSessionRx;
   const {
     printBlob: generatedPrintBlob,
     isGenerating: isPdfGenerating,
@@ -331,19 +373,19 @@ function SnapRxPreview() {
 
   useEffect(() => {
     if (generatedPrintBlob) {
-      if (!fromConfigurePrintSetting || !currentSessionRx) {
+      if (!useSessionRx) {
         setPrintBlob(generatedPrintBlob);
         setCurrentSessionRx(generatedPrintBlob);
       }
     }
-  }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
+  }, [generatedPrintBlob, useSessionRx]);
 
   useEffect(() => {
-    if (fromConfigurePrintSetting && currentSessionRx) return;
+    if (useSessionRx && currentSessionRx) return;
     if (printPayloadError) {
       message.error("Failed to load prescription data.");
     }
-  }, [printPayloadError, fromConfigurePrintSetting, currentSessionRx]);
+  }, [printPayloadError, useSessionRx, currentSessionRx]);
 
 
   const handleDownload = async () => {
@@ -921,7 +963,7 @@ function SnapRxPreview() {
                         <div className="mt-2">PDF is getting generated</div>
                       </div>
                     )}
-                    {canRenderDocument ? (
+                    {(canRenderDocument && !isPdfGenerating) ? (
                       <Document
                         key={showDigitalRx ? 'digital' : `written-${typeof documentFile === 'string' ? (documentFile || '').split('?')[0] : 'blob'}`}
                         loading={
@@ -968,16 +1010,7 @@ function SnapRxPreview() {
                             />
                           ))}
                       </Document>
-                    ) : (
-                      <Spin
-                        style={{
-                          position: "absolute",
-                          zIndex: 0,
-                          left: "50%",
-                          top: "50%",
-                        }}
-                      />
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
