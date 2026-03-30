@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
-import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles } from '../../utils/utils'
+import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence } from '../../utils/utils'
 import { EXTRA_OPTIONS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP } from '../../utils/constants';
 import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
@@ -402,16 +402,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         "orthodonticInterventionRequired",
         "habitsPedo",
     ];
-    const camelCaseToTitle = (str) => {
-        if (str === "periodontalseverity" || str === "Periodontalseverity") {
-            return "Periodontal Severity";
-        }
-        return String(str || "")
-            .replace(/([A-Z])/g, " $1")
-            .replace(/^./, (first) => first.toUpperCase())
-            .replace(/\b\w/g, (char) => char.toUpperCase())
-            .trim();
-    };
+
     const formatDiagnosisValue = (val) => {
         if (Array.isArray(val)) {
             return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -419,7 +410,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         if (val && typeof val === "object") {
             return Object.entries(val)
                 .filter(([, v]) => !!v)
-                .map(([k]) => k)
+                .map(([k]) => camelToSentence(k))
                 .join(", ");
         }
         if (val == null) return "";
