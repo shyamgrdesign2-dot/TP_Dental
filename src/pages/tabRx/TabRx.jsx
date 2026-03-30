@@ -149,7 +149,7 @@ import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
 import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
 import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
-import { getTemplates } from "./services/templateService";
+import { getMetadata, getTemplates } from "./services/templateService";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
@@ -175,7 +175,6 @@ import {
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
 import VideoConsultModal from "../../components/VideoConsultModal";
-import { getMetadata } from "./services/templateService";
 import { viewCaseManager } from "../../redux/caseManagerSlice";
 import {
   setAppointmentTeleconsultStatus,
@@ -627,7 +626,7 @@ function TabRx() {
   }, [smartRxFilesData, caseManagerData]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // New consult (no smartRxFilesData): pick default template like SmartPrescription.js.
+  // New consult (no smartRxFilesData): metadata format 1=blank, 2=standard, 3=API default template.
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const isNew = !Array.isArray(smartRxFilesData) || smartRxFilesData.length === 0;
@@ -636,18 +635,52 @@ function TabRx() {
     let isCancelled = false;
     const initDefaultTemplate = async () => {
       try {
-        const result = await getTemplates();
+        const [metaResult, templatesResult] = await Promise.all([
+          getMetadata(),
+          getTemplates(),
+        ]);
         if (isCancelled) return;
-        if (result?.success && Array.isArray(result?.data) && result.data.length > 0) {
-          const defaultTemplate = result.data.find((t) => t?.default === true);
-          const chosen = defaultTemplate || result.data[0];
-          if (chosen?.id) {
-            setIsCustomSSRX(false);
-            setSelectedTemplateId(chosen.id);
-            setCanvasInitialTemplateId(chosen.id);
-            setCustomSSDataForCanvas(null);
-            setIsTemplateSelectionLocked(false);
+
+        let formatNum = null;
+        if (metaResult?.success && metaResult?.data) {
+          const raw = metaResult.data.format;
+          if (raw !== null && raw !== undefined && raw !== "") {
+            const n = Number(raw);
+            if (Number.isFinite(n)) {
+              formatNum = n;
+            }
           }
+        }
+
+        const list =
+          templatesResult?.success && Array.isArray(templatesResult?.data)
+            ? templatesResult.data
+            : [];
+        const defaultTemplate = list.find((t) => t?.default === true);
+        const fallbackCustom = defaultTemplate || list[0];
+
+        if (formatNum === 1) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId("blank");
+          setCanvasInitialTemplateId("blank");
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
+          return;
+        }
+        if (formatNum === 2) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId("standard");
+          setCanvasInitialTemplateId("standard");
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
+          return;
+        }
+        if (fallbackCustom?.id) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId(fallbackCustom.id);
+          setCanvasInitialTemplateId(fallbackCustom.id);
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
         }
       } catch (e) {
         console.error("TabRx default template init failed:", e);
@@ -2110,6 +2143,7 @@ function TabRx() {
             onTeleconsultClick={handleTeleconsultClick}
             isTeleconsultJoinLoading={isTeleconsultJoinLoading}
             isTeleconsultActive={!!joinToken}
+            isSelectLetterHead={isSelectLetterHead}
           />
           <div 
             className="w-100 bg-body wrapper2 prescription-wrapper p-0"
