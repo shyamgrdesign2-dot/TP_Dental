@@ -6,7 +6,7 @@ export const A4_BASE_HEIGHT = 1123;
 
 export const ZOOM_CONSTRAINTS = {
   MIN: 0.5,
-  MAX: 4.0, // Increased max zoom for detailed work
+  MAX: 1.5, // 150% max zoom (prod requirement)
   WARN: 1.5
 };
 

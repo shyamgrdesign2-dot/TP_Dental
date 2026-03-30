@@ -89,18 +89,43 @@ const MedicationsTable = ({
     { value: "Year(s)", label: "Years" },
   ];
   
-  // Default unit options if medicineUnit is not available
-  const DEFAULT_UNIT_OPTIONS = useMemo(() => [
-    { tmu_id: 1, tmu_title: 'Tablet' },
-    { tmu_id: 2, tmu_title: 'Tablets' },
-    { tmu_id: 3, tmu_title: 'units' },
-    { tmu_id: 4, tmu_title: 'unit' },
-    { tmu_id: 5, tmu_title: 'ml' },
-    { tmu_id: 6, tmu_title: 'mg' },
-    { tmu_id: 7, tmu_title: 'g' },
-    { tmu_id: 8, tmu_title: 'capsule' },
-    { tmu_id: 9, tmu_title: 'capsules' },
-  ], []);
+  const HARDCODED_MEDICATION_UNITS = useMemo(
+    () => [
+      "Ampule(s)",
+      "Tablet(s)",
+      "mg",
+      "ml",
+      "unit(s)",
+      "Capsule(s)",
+      "Fingertip(s)",
+      "Pea sized",
+      "gm",
+      "palm sized",
+      "tsp",
+      "Kit(s)",
+      "Drop(s)",
+      "Spray",
+      "Sachet(s)",
+      "Cup(s)",
+      "Scoop(s)",
+      "Suppository(s)",
+      "Soap(s)",
+      "Bottle(s)",
+      "patch(s)",
+      "Respule(s)",
+      "Puff(s)",
+      "mcg",
+      "tbsp(s)",
+      "Globule(s)",
+      "Pill(s)",
+      "Containers",
+      "Liniment(s)",
+      "transcap(s)",
+      "I/V",
+      "I/M",
+    ],
+    []
+  );
   
   const filteredTitles = frequencyList ? frequencyList.filter((item) => item.tmf_block !== 0) : [];
 
@@ -928,13 +953,12 @@ const MedicationsTable = ({
         return med;
       });
       onUpdate(updatedMedications);
-      const medicineUnit = item?.metadata?.medicineUnit || item?.medicineUnit || DEFAULT_UNIT_OPTIONS;
+      const medicineUnit = HARDCODED_MEDICATION_UNITS;
       if (updateQuery && medicineUnit.length > 0) {
         const options = medicineUnit.map((e) => {
           return {
-            key: JSON.stringify({ ...e, tmm_dosage: updateQuery, unique_id: uuidv4() }),
-            value: `${updateQuery} ${e.tmu_title}`,
-            label: <>{`${updateQuery} ${e.tmu_title}`}</>,
+            value: `${updateQuery} ${e}`,
+            label: <>{`${updateQuery} ${e}`}</>,
           };
         });
         setUnitPerDoseOptions(options);
@@ -942,7 +966,7 @@ const MedicationsTable = ({
         setUnitPerDoseOptions([]);
       }
     },
-    [medications, onUpdate, DEFAULT_UNIT_OPTIONS]
+    [medications, onUpdate, HARDCODED_MEDICATION_UNITS]
   );
 
   const onBlurUnitPerDoseChild = useCallback(
@@ -1196,6 +1220,7 @@ const MedicationsTable = ({
                       onSearch={(query) => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('dosage', query);
+                          onSearchUnitPerDoseChild(query, item.id);
                         } else {
                           setEditValue(query);
                           onSearchUnitPerDoseChild(query, item.id);
@@ -1218,11 +1243,11 @@ const MedicationsTable = ({
                         }
                       }}
                       onFocus={() => {
+                        const currentDosage = item.dosage || '';
                         if (!isTablet) {
-                          const currentDosage = item.dosage || '';
                           setEditValue(currentDosage);
-                          onSearchUnitPerDoseChild(currentDosage, item.id);
                         }
+                        onSearchUnitPerDoseChild(currentDosage, item.id);
                       }}
                       onBlur={() => {
                         if (!isTablet) {
@@ -1272,14 +1297,13 @@ const MedicationsTable = ({
                       onSearch={(query) => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('frequency', query);
+                          onSearchFrequencyChild(query, item.id);
                         } else {
                           onSearchFrequencyChild(query, item.id);
                         }
                       }}
                       onFocus={() => {
-                        if (!isTablet) {
-                          onSearchFrequencyChild(item.frequency || '', item.id);
-                        }
+                        onSearchFrequencyChild(item.frequency || '', item.id);
                       }}
                       onBlur={() => {
                         if (!isTablet) {
@@ -1375,9 +1399,13 @@ const MedicationsTable = ({
                       onSearch={(query) => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('duration', query);
+                          onSearchSinceChild(query, item.id);
                         } else {
                           onSearchSinceChild(query, item.id);
                         }
+                      }}
+                      onFocus={() => {
+                        onSearchSinceChild(item.duration || '', item.id);
                       }}
                       options={sinceOptions}
                       className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
@@ -1393,6 +1421,7 @@ const MedicationsTable = ({
                       onClear={() => {
                         if (isTablet && editingRow === item.id) {
                           handleRowFieldChange('duration', '');
+                          onSearchSinceChild("", item.id);
                         } else {
                           onSearchSinceChild("", item.id);
                         }

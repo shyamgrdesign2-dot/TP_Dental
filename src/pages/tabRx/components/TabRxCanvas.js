@@ -343,7 +343,7 @@ const TabRxCanvas = forwardRef(({
     const availableWidth = window.innerWidth - (drawerWidth + 90);
 
     let optimalZoom = availableWidth / A4_BASE_WIDTH;
-    optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), 1.2);
+    optimalZoom = Math.min(Math.max(optimalZoom, ZOOM_CONSTRAINTS.MIN), ZOOM_CONSTRAINTS.MAX);
 
     setZoomLevel(optimalZoom);
     const centeredX = (availableWidth - (A4_BASE_WIDTH * optimalZoom)) / 2 + 20;

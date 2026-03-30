@@ -28,7 +28,7 @@ import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { useGrounding } from "../hooks/useGrounding";
-import { getTokenData, getHmTypeIndicator } from "../utils/utils";
+import { getTokenData, getHmTypeIndicator, camelCaseToTitle, camelToSentence } from "../utils/utils";
 import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -312,16 +312,6 @@ const DigitisedPrescription = ({
       "orthodonticInterventionRequired",
       "habitsPedo",
     ];
-    function camelCaseToTitle(str) {
-      if (str === "periodontalseverity" || str === "Periodontalseverity") {
-        return "Periodontal Severity";
-      }
-      return str
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, (first) => first.toUpperCase())
-        .replace(/\b\w/g, (char) => char.toUpperCase())
-        .trim();
-    }
 
     return order
       .filter((key) => key in (dentalDiagnosis || {}))
@@ -337,7 +327,7 @@ const DigitisedPrescription = ({
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";
