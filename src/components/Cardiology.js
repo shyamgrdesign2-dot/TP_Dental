@@ -39,6 +39,8 @@ import {
   getClinicName,
   isVoiceRxFree,
   shouldMonetizationDisabled,
+  camelCaseToTitle,
+  camelToSentence,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -2393,16 +2395,7 @@ function Cardiology(props) {
     { key: "pain", label: "HEAD/JAW/NECK PAIN" },
     { key: "notes", label: "NOTES" },
   ];
-  const camelCaseToTitle = (str) => {
-    if (str === "periodontalseverity" || str === "Periodontalseverity") {
-      return "Periodontal Severity";
-    }
-    return String(str || "")
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (first) => first.toUpperCase())
-      .replace(/\b\w/g, (char) => char.toUpperCase())
-      .trim();
-  };
+
   const formatDentalDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -2410,7 +2403,7 @@ function Cardiology(props) {
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";

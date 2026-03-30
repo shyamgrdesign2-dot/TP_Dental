@@ -1793,3 +1793,22 @@ export const filterCustomModuleContent = (customModuleContents = []) => {
     })
     .filter(Boolean);
 };
+
+export const camelCaseToTitle = (str)  => {
+  if (!str) return "";
+  if (str === "periodontalseverity" || str === "Periodontalseverity") {
+    return "Periodontal Severity";
+  }
+  return str
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (first) => first.toUpperCase())
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+}
+
+export const camelToSentence = (str) => {
+  if (!str) return "";
+  const withSpaces = str.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  const lower = withSpaces.toLowerCase();
+  return lower[0].toUpperCase() + lower.slice(1);
+}

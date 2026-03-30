@@ -18,6 +18,8 @@ import {
   getDurationTitle,
   getRxTitle,
   formatHeightWeight,
+  camelCaseToTitle,
+  camelToSentence,
 } from "../utils";
 import {
   EXTRA_OPTIONS,
@@ -1074,16 +1076,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     "orthodonticInterventionRequired",
     "habitsPedo",
   ];
-  const camelCaseToTitle = (str) => {
-    if (str === "periodontalseverity" || str === "Periodontalseverity") {
-      return "Periodontal Severity";
-    }
-    return String(str || "")
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (first) => first.toUpperCase())
-      .replace(/\b\w/g, (char) => char.toUpperCase())
-      .trim();
-  };
+
   const formatDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -1091,7 +1084,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";
