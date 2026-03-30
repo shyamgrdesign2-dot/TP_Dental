@@ -46,6 +46,7 @@ import {
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 
+let smartRxMountCount = 0;
 function SmartRxPreview() {
 
     const divRef = useRef(null);
@@ -93,8 +94,34 @@ function SmartRxPreview() {
 
     const [printUrl, setPrintUrl] = useState(initialUrl);
     const [previewUrl, setPreviewUrl] = useState(initialUrl);
-    const [currentSessionRx, setCurrentSessionRx] = useState(state?.currentSessionRx);
-    const fromConfigurePrintSetting = state?.from === "/configure_print_setting";
+
+    // Detect a hard refresh on the first mount after document load.
+    const isFirstMountAfterLoad = smartRxMountCount === 0;
+    useEffect(() => {
+        smartRxMountCount += 1;
+    }, []);
+    const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
+    const didHardReload = navigationEntry?.type === "reload";
+    const treatAsReload = didHardReload && isFirstMountAfterLoad;
+
+    // If the page was reloaded, treat it as not coming from Configure Print Setting
+    const fromConfigurePrintSetting =
+        state?.from === "/configure_print_setting" &&
+        Boolean(state?.currentSessionRx) &&
+        !treatAsReload;
+
+    const [useSessionRx, setUseSessionRx] = useState(fromConfigurePrintSetting);
+
+    const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+        if (!fromConfigurePrintSetting) {
+            return null;
+        }
+        if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
+        if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
+            return state.currentSessionRx;
+        }
+        return null;
+    });
     const [viewCaseManagerData, setViewCaseManagerData] = useState(null);
     const [token, setToken] = useState(null);
     const [tokenData, setTokenData] = useState(null);
@@ -120,6 +147,7 @@ function SmartRxPreview() {
     const progressRef = useRef(null);
     const progressValue = useRef(0);
     const hasToggledRef = useRef(false);
+    const skipNextToggleResetRef = useRef(false);
 
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
 
@@ -208,16 +236,22 @@ function SmartRxPreview() {
     // After digitisation: default to Digital Rx so digitised URL (rxDigitize=true) is used and toggle is visible
     useEffect(() => {
         if (isBackFromDigitise) {
+            skipNextToggleResetRef.current = true;
             setShowDigitalRx(true);
         }
     }, [isBackFromDigitise]);
 
     useEffect(() => {
         // Switching between Digital/Written should force a fresh fetch/render
+        if (skipNextToggleResetRef.current) {
+            skipNextToggleResetRef.current = false;
+            return;
+        }
         if (!hasToggledRef.current) {
             hasToggledRef.current = true;
             return;
         }
+        setUseSessionRx(false);
         setCurrentSessionRx(null);
         setPrintBlob(null);
         setNumPages(undefined);
@@ -567,7 +601,7 @@ function SmartRxPreview() {
         }
     }, [showDigitalRx]);
 
-    const shouldSkipAutoFetch = Boolean(currentSessionRx) && fromConfigurePrintSetting;
+    const shouldSkipAutoFetch = Boolean(currentSessionRx) && useSessionRx;
     const {
         printBlob: generatedPrintBlob,
         isGenerating: isPdfGenerating,
@@ -581,19 +615,19 @@ function SmartRxPreview() {
 
     useEffect(() => {
         if (generatedPrintBlob) {
-            if (!fromConfigurePrintSetting || !currentSessionRx) {
+            if (!useSessionRx) {
                 setPrintBlob(generatedPrintBlob);
                 setCurrentSessionRx(generatedPrintBlob);
             }
         }
-    }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
+    }, [generatedPrintBlob, useSessionRx]);
 
     useEffect(() => {
-        if (fromConfigurePrintSetting && currentSessionRx) return;
+        if (useSessionRx && currentSessionRx) return;
         if (printPayloadError) {
             message.error("Failed to load prescription data.");
         }
-    }, [printPayloadError, fromConfigurePrintSetting, currentSessionRx]);
+    }, [printPayloadError, useSessionRx, currentSessionRx]);
 
     const handleLanguageSelect = useCallback((data) => {
         const newUrl = buildUrlWithLanguage(basePrintUrl, data);
@@ -601,6 +635,7 @@ function SmartRxPreview() {
         setPrintUrl(urlWithDigitize);
         setPreviewUrl(urlWithDigitize);
         setSelectedLang(data);
+        setUseSessionRx(false);
         setCurrentSessionRx(null);
     }, [basePrintUrl, showDigitalRx]);
 
@@ -913,7 +948,7 @@ function SmartRxPreview() {
                                                 <div className="mt-2">PDF is getting generated</div>
                                             </div>
                                         )}
-                                        {canRenderDocument ? (
+                                        {(canRenderDocument && !isPdfGenerating) ? (
                                             <Document
                                             key={showDigitalRx ? 'digital' : `written-${typeof documentFile === 'string' ? (documentFile || '').split('?')[0] : 'blob'}`}
                                             loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
@@ -934,9 +969,7 @@ function SmartRxPreview() {
                                                 />
                                                 ))}
                                             </Document>
-                                        ) : (
-                                            <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
-                                        )}
+                                        ) : null}
                                     </div>
                                     {/* keeping this code for future reference */}
                                     {/* { showDigitalRx && 
