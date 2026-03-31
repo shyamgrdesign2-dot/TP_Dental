@@ -59,7 +59,7 @@ export default function VisitObstetric({ doctorId }) {
     if (!isObstetricDetailsFetched && doctorId) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, doctorId]);
+  }, [doctorId]);
 
   useEffect(() => {
     if (obstetricDetails?.examinationHistory?.[0]) {
