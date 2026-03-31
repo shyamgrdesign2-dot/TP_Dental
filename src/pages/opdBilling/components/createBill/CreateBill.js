@@ -1048,7 +1048,7 @@ const CreateBill = ({
         paidAmount: paidAmount,
         includeInRx: includeInRx,
         isForm3C: shouldAddBillTo3C,
-        date: moment().format("YYYY-MM-DD"),
+        date: editBillData?.createdAt ? moment(editBillData?.createdAt).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD"),
         notes: patientBillNotes,
         // dueFromPreviousBill: patientDueAmount,
         appointmentId: pam_id || patientData?.pam_id,
@@ -1842,7 +1842,7 @@ const CreateBill = ({
                   <Input
                     className="input-create-bill"
                     style={{ width: 125, height: 38 }}
-                    value={moment().format("DD-MM-YYYY")}
+                    value={editBillData?.createdAt ? moment(editBillData?.createdAt).format("DD-MM-YYYY") : moment().format("DD-MM-YYYY")}
                     onInput={(e) => {
                       e.target.value = e.target.value.replace(/[^0-9]/g, "");
                     }}
