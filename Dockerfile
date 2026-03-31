@@ -10,7 +10,7 @@ ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 
 # 🔥 Increased memory (main fix)
-ENV NODE_OPTIONS="--max-old-space-size=6144"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Force memory again at build time (extra safety)
-RUN NODE_OPTIONS="--max-old-space-size=6144" npm run build
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm run build
 
 # Keep sourcemaps (since you're using Sentry)
 # Optional cleanup if needed:
