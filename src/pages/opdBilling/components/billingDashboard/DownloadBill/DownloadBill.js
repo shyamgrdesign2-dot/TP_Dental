@@ -11,6 +11,10 @@ const DownloadBill = ({
   dateRange,
   isDoctorDashboard,
   paymentSummary,
+  tableRowNumberStart = 0,
+  omitPaymentSummary = false,
+  omitBillsTable = false,
+  hidePrintHeader = false,
 }) => {
   const { profile } = useSelector((state) => state.doctors);
   const { doctorList } = useSelector((state) => state.bulkMessages);
@@ -344,10 +348,18 @@ const DownloadBill = ({
     if (!col.render) {
       return record[col.dataIndex] || "";
     }
-    return col.render(record[col.dataIndex], record, index, { startIndex: 0 });
+    return col.render(record[col.dataIndex], record, index, {
+      startIndex: tableRowNumberStart,
+    });
   };
 
-  if (!downloadData || downloadData.length === 0) {
+  const hasBills = Array.isArray(downloadData) && downloadData.length > 0;
+  const showPaymentSummaryBlock =
+    !omitPaymentSummary &&
+    Array.isArray(paymentSummary) &&
+    paymentSummary.length > 0;
+
+  if (!hasBills && (!omitBillsTable || !showPaymentSummaryBlock)) {
     return (
       <div className="printable-bill-content">
         <div className="header">
@@ -374,81 +386,84 @@ const DownloadBill = ({
 
   return (
     <div className="printable-content">
-      {/* Header - shown only once */}
-      <div className="header">
-        <h1>{hm_name}</h1>
-        <p>
-          {hm_address ?? ""}
-          {hm_address && hm_address1 ? `, ${hm_address1}` : ""}
-          {hm_state} {um_contact ? ` • ${um_contact}` : ""}
-          {um_email ? ` • ${um_email}` : ""}
-        </p>
+      {!hidePrintHeader && (
+        <>
+          <div className="header">
+            <h1>{hm_name}</h1>
+            <p>
+              {hm_address ?? ""}
+              {hm_address && hm_address1 ? `, ${hm_address1}` : ""}
+              {hm_state} {um_contact ? ` • ${um_contact}` : ""}
+              {um_email ? ` • ${um_email}` : ""}
+            </p>
+            <Divider />
+            <p>
+              Bill between{" "}
+              {moment(dateRange?.startDate).format("DD/MM/YYYY")} -{" "}
+              {moment(dateRange?.endDate).format("DD/MM/YYYY")}
+            </p>
+          </div>
+          {patient_data ? <PatientPlank /> : null}
+        </>
+      )}
 
-        <Divider />
-
-        <p>
-          Bill between{" "}
-          {moment(dateRange?.startDate).format("DD/MM/YYYY")} -{" "}
-          {moment(dateRange?.endDate).format("DD/MM/YYYY")}
-        </p>
-      </div>
-
-      {patient_data ? <PatientPlank /> : null}
-
-      {/* Render all data in a single table - CSS will handle page breaks */}
-      <div>
-        <table className="bill-table print-bill-table" style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-          <thead>
-            <tr>
-              {tableColumns.map((col, colIndex) => (
-                <th
-                  key={colIndex}
-                  style={{
-                    padding: "8px 6px",
-                    textAlign: col.align || "center",
-                    fontWeight: 600,
-                    border: "1px solid #ddd",
-                    fontSize: "12px",
-                    backgroundColor: "#fafafa",
-                    width: col.width || "auto",
-                  }}
-                >
-                  {col.title}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {downloadData.map((record, index) => (
-              <tr 
-                key={index} 
-                style={{ 
-                  pageBreakInside: "avoid",
-                  breakInside: "avoid"
-                }}
-              >
+      {hasBills && !omitBillsTable && (
+        <div>
+        <table
+          className="bill-table print-bill-table"
+          style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
+        >
+            <thead>
+              <tr>
                 {tableColumns.map((col, colIndex) => (
-                  <td
+                  <th
                     key={colIndex}
                     style={{
-                      padding: "6px 8px",
-                      border: "1px solid #d9d9d9",
-                      fontSize: "12px",
+                      padding: "8px 6px",
                       textAlign: col.align || "center",
+                      fontWeight: 600,
+                      border: "1px solid #ddd",
+                      fontSize: "12px",
+                      backgroundColor: "#fafafa",
                       width: col.width || "auto",
                     }}
                   >
-                    {renderCell(col, record, index)}
-                  </td>
+                    {col.title}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {downloadData.map((record, index) => (
+                <tr
+                  key={index}
+                  style={{
+                    pageBreakInside: "avoid",
+                    breakInside: "avoid",
+                  }}
+                >
+                  {tableColumns.map((col, colIndex) => (
+                    <td
+                      key={colIndex}
+                      style={{
+                        padding: "6px 8px",
+                        border: "1px solid #d9d9d9",
+                        fontSize: "12px",
+                        textAlign: col.align || "center",
+                        width: col.width || "auto",
+                      }}
+                    >
+                      {renderCell(col, record, index)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Render payment summary - CSS will handle page breaks */}
-      {paymentSummary && paymentSummary?.length > 0 && (
+      {showPaymentSummaryBlock && (
         <div style={{ marginTop: "30px", paddingTop: "20px" }}>
           <div className="header">
             <h2 style={{ margin: "0", fontWeight: "bold", color: "#4B4AD5" }}>

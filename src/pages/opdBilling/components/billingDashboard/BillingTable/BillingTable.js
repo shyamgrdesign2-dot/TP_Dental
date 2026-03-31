@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { flushSync } from "react-dom";
+import { PDFDocument } from "pdf-lib";
 import {
   Select,
   Checkbox,
@@ -36,6 +38,130 @@ import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
 const { RangePicker } = DatePicker;
 
 const { Option } = Select;
+
+// Off-screen (not display:none) + onclone so html2canvas can paint.
+const PRINTABLE_OFFSCREEN_STYLE = {
+  position: "fixed",
+  left: 0,
+  top: 0,
+  width: "1200px",
+  maxWidth: "1200px",
+  overflow: "visible",
+  pointerEvents: "none",
+  zIndex: 2,
+  transform: "translate3d(-12000px, 0, 0)",
+  WebkitTransform: "translate3d(-12000px, 0, 0)",
+};
+
+const HTML2PDF_IMAGE = { type: "jpeg", quality: 0.92 };
+
+function fixHtml2PdfClone(clonedDoc) {
+  const docEl = clonedDoc.documentElement;
+  if (docEl) {
+    docEl.style.overflow = "visible";
+  }
+  const body = clonedDoc.body;
+  if (body) {
+    body.style.overflow = "visible";
+    body.style.margin = "0";
+    body.style.backgroundColor = "#ffffff";
+  }
+  const root = clonedDoc.querySelector("[data-html2pdf-capture-root]");
+  if (!root) return;
+  let el = root;
+  while (el && el !== body) {
+    if (el.style) {
+      const s = el.style;
+      s.position = "relative";
+      s.left = "0";
+      s.top = "0";
+      s.right = "auto";
+      s.bottom = "auto";
+      s.transform = "none";
+      s.webkitTransform = "none";
+      s.filter = "none";
+      s.opacity = "1";
+      s.visibility = "visible";
+      s.zIndex = "auto";
+      s.clipPath = "none";
+      s.overflow = "visible";
+    }
+    el = el.parentElement;
+  }
+  clonedDoc.querySelectorAll(".printable-content, .itemized-bill-chart").forEach((node) => {
+    node.style.overflow = "visible";
+  });
+}
+
+async function mergePdfBlobs(blobs) {
+  const out = await PDFDocument.create();
+  for (const blob of blobs) {
+    const src = await PDFDocument.load(await blob.arrayBuffer());
+    const pages = await out.copyPages(src, src.getPageIndices());
+    pages.forEach((p) => out.addPage(p));
+  }
+  const bytes = await out.save();
+  return new Blob([bytes], { type: "application/pdf" });
+}
+
+const PATIENT_PDF_ROW_CHUNK = 300;
+
+const initialPatientPdfUi = () => ({
+  rowStart: 0,
+  omitPaymentSummary: false,
+  omitBillsTable: false,
+  hidePrintHeader: false,
+});
+
+const getSharpPdfScale = (scrollHeight) => {
+  const MAX_PX = 12000;
+  if (!scrollHeight || scrollHeight < 1) return 1.75;
+  const fit = MAX_PX / scrollHeight;
+  return Math.min(2, Math.max(1.15, fit));
+};
+
+function buildHtml2CanvasPdfOptions(element) {
+  const scale = getSharpPdfScale(element.scrollHeight);
+  const w = Math.max(1, Math.ceil(element.scrollWidth));
+  const h = Math.max(1, Math.ceil(element.scrollHeight));
+  return {
+    scale,
+    useCORS: true,
+    letterRendering: true,
+    logging: false,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    allowTaint: true,
+    backgroundColor: "#ffffff",
+    windowWidth: w,
+    windowHeight: h,
+    onclone: fixHtml2PdfClone,
+  };
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const doubleRaf = () =>
+  new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  );
+
+async function waitUntilTableRowCount(getElement, expectedRows, maxAttempts, pollMs) {
+  for (let a = 0; a < maxAttempts; a++) {
+    const element = getElement();
+    if (element) {
+      const tableElement = element.querySelector(
+        ".print-bill-table, .ant-table, table"
+      );
+      const n =
+        tableElement?.querySelectorAll("tbody tr, .ant-table-tbody tr")
+          ?.length || 0;
+      if (n >= expectedRows) return true;
+    }
+    await sleep(pollMs);
+  }
+  return false;
+}
 
 const cardsStaticData = [
   {
@@ -111,6 +237,7 @@ export default function BillingTable({
   const [downloadData, setDownloadData] = useState([]);
   const [itemizedBillData, setItemizedBillData] = useState(null);
   const [patientLevelBillData, setPatientLevelBillData] = useState(null);
+  const [patientPdfUi, setPatientPdfUi] = useState(initialPatientPdfUi);
   const printableRef = useRef(null);
   const [tabLoader, setTabLoader] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -253,49 +380,35 @@ export default function BillingTable({
           // Handle the itemized bill data response
           setItemizedBillData(response);
 
-          // Wait for state update and then generate PDF
+          // Wait for DOM (longer when table is large)
+          const itemDelay = 800;
           setTimeout(() => {
             const element = printableRef.current;
+            if (!element) {
+              setDownloading(false);
+              return;
+            }
             const tableElement = element.querySelector(
               ".print-bill-table, .ant-table, table"
             );
             const tableRows = tableElement?.querySelectorAll(
               "tbody tr, .ant-table-tbody tr"
             );
-
             const renderedRowCount = tableRows?.length || 0;
-            // Use the larger of the two to determine if it's a large dataset
-            const isLargeDataset = renderedRowCount > 500;
+            const tallContent = renderedRowCount > 400 || element.scrollHeight > 9000;
             const options = {
               filename: `billing_item_level_${userId || "report"}.pdf`,
-              image: {
-                type: "jpeg",
-                quality: 0.8,
-              },
-              html2canvas: {
-                scale: isLargeDataset ? 0.8 : 1, // Lower scale for large datasets to reduce canvas size
-                useCORS: true,
-                letterRendering: true,
-                logging: false,
-                scrollY: 0,
-                allowTaint: true,
-                // Only set dimensions for smaller datasets to avoid canvas size limits
-                ...(isLargeDataset
-                  ? {}
-                  : {
-                      windowWidth: element.scrollWidth,
-                      windowHeight: element.scrollHeight,
-                    }),
-              },
+              image: HTML2PDF_IMAGE,
+              html2canvas: buildHtml2CanvasPdfOptions(element),
               margin: [0.3, 0.3, 0.2, 0.3],
               jsPDF: {
                 unit: "in",
                 format: "letter",
                 orientation: "portrait",
-                compress: true, // Enable compression for large PDFs
+                compress: true,
               },
               pagebreak: {
-                mode: isLargeDataset
+                mode: tallContent
                   ? ["css", "legacy"]
                   : ["avoid-all", "css", "legacy"],
               },
@@ -320,7 +433,7 @@ export default function BillingTable({
                 console.error("Error generating PDF:", err);
                 setDownloading(false);
               });
-          }, 500);
+          }, itemDelay);
         } else {
           message.open({
             key: MESSAGE_KEY,
@@ -359,7 +472,7 @@ export default function BillingTable({
         }
         
         // Fetch all data for the selected options
-        const allBills = await fetchAllData(optionsToFetch, 1000);
+        const allBills = await fetchAllData(optionsToFetch);
         
         if (!allBills || allBills.length === 0) {
           message.open({
@@ -385,111 +498,138 @@ export default function BillingTable({
           return;
         }
         
-        // Set patient level bill data (similar to itemizedBillData)
-        setPatientLevelBillData([...allBills]);
-        
-        // Wait for component to render with polling to ensure content is ready
-        let attempts = 0;
-        const maxAttempts = 60; // 6 seconds max wait (60 * 100ms)
-        
-        const checkAndGeneratePDF = () => {
-          const element = printableRef.current;
-          
-          if (!element) {
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(checkAndGeneratePDF, 100);
-            } else {
-              console.error("PDF element not found");
-              setDownloading(false);
-              message.error("Failed to generate PDF. Please try again.");
-            }
-            return;
-          }
-          
-          // Check if table is rendered with actual data rows
-          const tableElement = element.querySelector('.print-bill-table, .ant-table, table');
-          const tableRows = tableElement?.querySelectorAll('tbody tr, .ant-table-tbody tr');
-          const hasTableContent = tableElement && tableRows && tableRows.length > 0;
-          
-          // Also check for meaningful text content
-          const hasTextContent = element.textContent && 
-            element.textContent.trim().length > 200 && 
-            (element.textContent.includes('Bill') || element.textContent.includes('Patient'));
-          
-          if (!hasTableContent && !hasTextContent) {
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(checkAndGeneratePDF, 100);
-            } else {
-              console.error("PDF content not ready after multiple attempts");
-              setDownloading(false);
-              message.error("Failed to generate PDF. Content not ready.");
-            }
-            return;
-          }
-          
-          // Content is ready, generate PDF with optimized settings for large data
-          const dataSize = allBills?.length || 0;
-          const renderedRowCount = tableRows?.length || 0;
-          // Use the larger of the two to determine if it's a large dataset
-          const actualDataSize = Math.max(dataSize, renderedRowCount);
-          const isLargeDataset = actualDataSize > 500;
-          const options = {
-            filename: `billing_patient_level_${userId || "report"}.pdf`,
-            image: { 
-              type: "jpeg", 
-              quality: 0.8
-            },
-            html2canvas: { 
-              scale: isLargeDataset ? 0.8 : 1, // Lower scale for large datasets to reduce canvas size
-              useCORS: true, 
-              letterRendering: true,
-              logging: false,
-              scrollY: 0,
-              allowTaint: true,
-              // Only set dimensions for smaller datasets to avoid canvas size limits
-              ...(isLargeDataset ? {} : {
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
-              })
-            },
-            margin: [0.3, 0.3, 0.2, 0.3],
-            jsPDF: { 
-              unit: "in", 
-              format: "letter", 
-              orientation: "portrait",
-              compress: true // Enable compression for large PDFs
-            },
-            pagebreak: { 
-              mode: isLargeDataset ? ['css', 'legacy'] : ['avoid-all', 'css', 'legacy']
-            }
-          };
+        const dataSize = allBills.length;
 
+        const buildPatientPdfOptions = (element, multiPage) => ({
+          filename: `billing_patient_level_${userId || "report"}.pdf`,
+          image: HTML2PDF_IMAGE,
+          html2canvas: buildHtml2CanvasPdfOptions(element),
+          margin: [0.3, 0.3, 0.2, 0.3],
+          jsPDF: {
+            unit: "in",
+            format: "letter",
+            orientation: "portrait",
+            compress: true,
+          },
+          pagebreak: {
+            mode: multiPage
+              ? ["css", "legacy"]
+              : ["avoid-all", "css", "legacy"],
+          },
+        });
+
+        const outputPatientPdfBlob = async (element, multiPage) =>
           html2pdf()
-            ?.from(element)
-            ?.set(options)
-            ?.output("blob")
-            ?.then((blob) => {
-              const url = URL.createObjectURL(blob);
-              handleDownload(
-                url,
-                blob,
-                patientData ? patientData.patient_unique_id : userId,
-                setStartLoader,
-                !patientData
-              );
-              setDownloading(false);
-            })
-            .catch((err) => {
-              console.error("Error generating PDF:", err);
-              setDownloading(false);
-              message.error("Failed to generate PDF. Please try again.");
+            .from(element)
+            .set(buildPatientPdfOptions(element, multiPage))
+            .output("blob");
+
+        const capturePatientPdfChunk = async (slice, rowStart) => {
+          const chunkLen = slice.length;
+          flushSync(() => {
+            setPatientPdfUi({
+              rowStart,
+              omitPaymentSummary: true,
+              omitBillsTable: false,
+              hidePrintHeader: rowStart > 0,
             });
+            setPatientLevelBillData([...slice]);
+          });
+          const pollMs = 40 + Math.ceil(chunkLen / 12);
+          const maxAttempts = Math.min(800, 80 + Math.ceil(chunkLen / 2));
+          await sleep(Math.min(1800, 250 + chunkLen * 3));
+          await waitUntilTableRowCount(
+            () => printableRef.current,
+            chunkLen,
+            maxAttempts,
+            pollMs
+          );
+          await sleep(Math.min(6000, 180 + chunkLen * 5));
+          await doubleRaf();
+          const element = printableRef.current;
+          if (!element) throw new Error("Print target missing");
+          const multiPage =
+            chunkLen > 80 || element.scrollHeight > 5000;
+          return outputPatientPdfBlob(element, multiPage);
         };
-        
-        // Start checking after initial delay to allow React to render
-        setTimeout(checkAndGeneratePDF, 500);
+
+        try {
+          let blob;
+          if (dataSize > PATIENT_PDF_ROW_CHUNK) {
+            const parts = [];
+            for (let i = 0; i < dataSize; i += PATIENT_PDF_ROW_CHUNK) {
+              parts.push(
+                await capturePatientPdfChunk(
+                  allBills.slice(i, i + PATIENT_PDF_ROW_CHUNK),
+                  i
+                )
+              );
+            }
+            const paymentModes = data?.summary?.paymentModeSummary;
+            if (paymentModes?.length > 0) {
+              flushSync(() => {
+                setPatientPdfUi({
+                  rowStart: 0,
+                  omitPaymentSummary: false,
+                  omitBillsTable: true,
+                  hidePrintHeader: false,
+                });
+                setPatientLevelBillData([]);
+              });
+              await sleep(500);
+              await doubleRaf();
+              const summaryEl = printableRef.current;
+              if (!summaryEl) throw new Error("Print target missing");
+              parts.push(await outputPatientPdfBlob(summaryEl, false));
+            }
+            blob = await mergePdfBlobs(parts);
+          } else {
+            flushSync(() => {
+              setPatientPdfUi(initialPatientPdfUi());
+              setPatientLevelBillData([...allBills]);
+            });
+            const pollMs = 40 + Math.ceil(dataSize / 12);
+            const maxAttempts = Math.min(
+              1200,
+              100 + Math.ceil(dataSize / 2)
+            );
+            await sleep(Math.min(2000, 350 + Math.ceil(dataSize / 2.5)));
+            const ready = await waitUntilTableRowCount(
+              () => printableRef.current,
+              dataSize,
+              maxAttempts,
+              pollMs
+            );
+            if (!ready) {
+              console.warn(
+                "PDF: row count still below expected; proceeding",
+                dataSize
+              );
+            }
+            await sleep(Math.min(10000, 200 + dataSize * 5));
+            await doubleRaf();
+            const element = printableRef.current;
+            if (!element) throw new Error("Print target missing");
+            const multiPage =
+              dataSize > 80 || element.scrollHeight > 5000;
+            blob = await outputPatientPdfBlob(element, multiPage);
+          }
+          const url = URL.createObjectURL(blob);
+          handleDownload(
+            url,
+            blob,
+            patientData ? patientData.patient_unique_id : userId,
+            setStartLoader,
+            !patientData
+          );
+        } catch (pdfErr) {
+          console.error("Error generating patient PDF:", pdfErr);
+          message.error("Failed to generate PDF. Please try again.");
+        } finally {
+          setPatientLevelBillData(null);
+          setPatientPdfUi(initialPatientPdfUi());
+          setDownloading(false);
+        }
       } catch (error) {
         console.error("Error fetching all bills for download:", error);
         message.error("Failed to prepare download data. Please try again.");
@@ -871,19 +1011,23 @@ export default function BillingTable({
     }
   };
 
-  // Add this new function to fetch all data
-  const fetchAllData = async (selectedOptions, limit=100) => {
+  // Paginate until a short page. Must use the same page size the API actually returns;
+  // if we ask for 1000 but the API caps at 100, `batch === 1000` is never true and we stop after one page.
+  const fetchAllData = async (selectedOptions, pageSize = 25) => {
     let allBills = [];
     let currentPage = 1;
     let hasMoreData = true;
+    const size = Math.min(Math.max(Number(pageSize) || 25, 1), 500);
+    let pagesFetched = 0;
+    const maxPages = 2500;
 
-    while (hasMoreData) {
+    while (hasMoreData && pagesFetched < maxPages) {
       const params = {
         status: selectedOptions,
         sortBy: sortConfig?.field || "date",
         sortOrder: sortConfig?.order || "desc",
         page: currentPage,
-        limit: limit, // Maximum limit per page
+        limit: size,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
         doctorIds:
@@ -901,12 +1045,14 @@ export default function BillingTable({
               billType
             )
           : await fetchBillingDashboard(params, billType);
-        if (response?.bills?.length > 0) {
+        const batch = response?.bills?.length ?? 0;
+        pagesFetched += 1;
+        if (batch === 0) {
+          hasMoreData = false;
+        } else {
           allBills = [...allBills, ...response.bills];
           currentPage += 1;
-          hasMoreData = response.bills.length === 1000; // Check if we got maximum records
-        } else {
-          hasMoreData = false;
+          hasMoreData = batch === size;
         }
       } catch (error) {
         console.error("Error fetching all bills:", error);
@@ -1200,14 +1346,22 @@ export default function BillingTable({
 
         {/* Patient-Level Bill Summary PDF generation */}
         {selectedSummaryType === "patient-level" && patientLevelBillData && (
-          <div style={{ display: "none" }}>
-            <div ref={printableRef}>
+          <div style={PRINTABLE_OFFSCREEN_STYLE}>
+            <div
+              ref={printableRef}
+              data-html2pdf-capture-root
+              style={{ backgroundColor: "#ffffff" }}
+            >
               <DownloadBill
                 downloadData={patientLevelBillData}
                 parent={"billing"}
                 dateRange={dateRange}
                 isDoctorDashboard={!patientData}
                 paymentSummary={data?.summary?.paymentModeSummary}
+                tableRowNumberStart={patientPdfUi.rowStart}
+                omitPaymentSummary={patientPdfUi.omitPaymentSummary}
+                omitBillsTable={patientPdfUi.omitBillsTable}
+                hidePrintHeader={patientPdfUi.hidePrintHeader}
               />
             </div>
           </div>
@@ -1215,8 +1369,12 @@ export default function BillingTable({
 
         {/* Hidden div for Itemized Bill Chart PDF generation */}
         {selectedSummaryType === "item-level" && itemizedBillData && (
-          <div style={{ display: "none" }}>
-            <div ref={printableRef}>
+          <div style={PRINTABLE_OFFSCREEN_STYLE}>
+            <div
+              ref={printableRef}
+              data-html2pdf-capture-root
+              style={{ backgroundColor: "#ffffff" }}
+            >
               <ItemizedBillChart
                 billData={itemizedBillData}
                 profile={profile}
