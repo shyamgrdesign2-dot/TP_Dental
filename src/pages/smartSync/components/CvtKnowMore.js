@@ -14,7 +14,7 @@ import intersect from "../../../assets/images/intersect.svg";
 import healthIcon from "../../../assets/images/health-care.svg";
 import growIcon from "../../../assets/images/grow.svg";
 import accuracyIcon from "../../../assets/images/accuracy.svg";
-import structuredRxGif from "../../../assets/images/structuredRx.gif";
+import structuredRxGif from "../../../assets/images/structuredRx.mp4";
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "../../monetization/components/ContactSupport";
 import ExpiredText from "../../monetization/components/ExpiredText";
