@@ -732,10 +732,10 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (isCarePlanEnabled) {
