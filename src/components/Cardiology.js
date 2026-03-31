@@ -2975,15 +2975,6 @@ function Cardiology(props) {
             {renderItems("others", data)}
           </>
         )}
-        {data?.followUp && (
-          <>
-            <div className="d-flex align-items-start">
-              <img className="me-2" src={followUp} alt="Follow Up" />
-              <div className="title-digitise-section mb-1">Follow Up</div>
-            </div>
-            {renderItems("followUp", data)}
-          </>
-        )}
       </div>
     );
   };

@@ -3159,6 +3159,46 @@ const ConsultationDrawer = ({
     }
 
     const patientId = patient_data?.patient_unique_id ?? 0;
+
+    const rawFollowUp = prescriptionData?.followUp;
+    let followUpDateValue = "";
+    if (rawFollowUp && typeof rawFollowUp === "string" && rawFollowUp.trim()) {
+      const followUpText = rawFollowUp.trim();
+      const baseDate = moment(consultationDate).isValid()
+        ? moment(consultationDate)
+        : moment();
+
+      // Persist a concrete YYYY-MM-DD date (consult flow also sends formatted date)
+      if (moment(followUpText, moment.ISO_8601, true).isValid()) {
+        followUpDateValue = moment(followUpText).format("YYYY-MM-DD");
+      } else {
+        const relativeDateMatch = followUpText.match(
+          /(\d+)\s*(day|days|week|weeks|month|months|year|years)/i
+        );
+        if (relativeDateMatch) {
+          const value = parseInt(relativeDateMatch[1], 10);
+          const unit = relativeDateMatch[2].toLowerCase();
+
+          if (unit.includes("year")) {
+            followUpDateValue = baseDate
+              .add(value, "years")
+              .format("YYYY-MM-DD");
+          } else if (unit.includes("month")) {
+            followUpDateValue = baseDate
+              .add(value, "months")
+              .format("YYYY-MM-DD");
+          } else if (unit.includes("week")) {
+            followUpDateValue = baseDate
+              .add(value, "weeks")
+              .format("YYYY-MM-DD");
+          } else {
+            followUpDateValue = baseDate
+              .add(value, "days")
+              .format("YYYY-MM-DD");
+          }
+        }
+      }
+    }
     const sendData = {
       action: tcmId === 0 ? "add" : "edit",
       tcm_id: tcmId,
@@ -3175,6 +3215,7 @@ const ConsultationDrawer = ({
       labReportID: resolvedLabReportID,
       medical_history: medicalHistoryForApi,
       private_notes_id: 0,
+      ...(followUpDateValue && { follow_up_date: followUpDateValue }),
       ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
     };
 
