@@ -132,7 +132,11 @@ import {
 import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { changeSortOrder } from "../redux/doctorsSlice";
-import { setJoinToken } from "../redux/teleconsultNotificationSlice";
+import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import {
+  setAppointmentTeleconsultStatus,
+  setJoinToken,
+} from "../redux/teleconsultNotificationSlice";
 import CreateCertificate from "./medical_certificate/CreateCertificate";
 import { resetVaccineState } from "../redux/vaccineSlice";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
@@ -218,7 +222,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     draftRxCount,
     allUnDigitisedAppointmentsList
   } = useSelector((state) => state.records);
-  const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId } = useSelector(
+  const { appointmentStatusByAppointmentId, activeTeleconsultAppointmentId, activeTeleconsultConsultationId } = useSelector(
     (state) => state.teleconsultNotification
   );
   const dispatch = useDispatch();
@@ -2988,7 +2992,21 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     const action = await dispatch(cancelAppointments(sendData));
                     if (action.meta.requestStatus === "fulfilled") {
                       if (activeTeleconsultAppointmentId != null && String(sendData.pam_id) === String(activeTeleconsultAppointmentId)) {
-                        dispatch(setJoinToken(null));
+                        try {
+                          if (activeTeleconsultConsultationId) {
+                            await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
+                          }
+                        } catch (error) {
+                          console.log("[teleconsult] doctorLeft during cancel failed", { consultationId: activeTeleconsultConsultationId, message: error?.message } );
+                        } finally {
+                          dispatch(
+                            setAppointmentTeleconsultStatus({
+                              appointmentId: sendData.pam_id,
+                              status: "ENDED",
+                            })
+                          );
+                          dispatch(setJoinToken(null));
+                        }
                       }
                       handleConfirmationModal();
                       message.open({
@@ -3026,7 +3044,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         }
       />
     );
-  }, [isConfirmationModalOpen, activeTeleconsultAppointmentId]);
+  }, [
+    isConfirmationModalOpen,
+    handleConfirmationModal,
+    appointmentSelectedFromMenu,
+    loading,
+    dispatch,
+    activeTeleconsultAppointmentId,
+    activeTeleconsultConsultationId,
+  ]);
 
   const END_VISIT_REASON_DISPLAY_MODAL = useMemo(() => {
     return (

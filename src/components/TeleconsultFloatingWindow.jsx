@@ -33,8 +33,11 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const dragOffset = useRef({ x: 0, y: 0 });
-  const modalRef = useRef(null);
   const durationInterval = useRef(null);
+  const leaveWrappedRef = useRef(false);
+  const originalLeaveRef = useRef(null);
+  const closingRef = useRef(false);
+  const originalMeetingMethodsRef = useRef({});
 
   useEffect(() => {
     if (authToken) {
@@ -59,6 +62,69 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
     const t = setTimeout(setDisplayName, 1500);
     return () => clearTimeout(t);
   }, [meeting, doctorName]);
+
+  // Best-effort: try to publish mic audio so backend recording isn't empty.
+  useEffect(() => {
+    if (!meeting) return;
+    try {
+      // Different SDK versions expose different method names; try the common ones.
+      meeting.enableAudio?.().catch?.(() => {});
+      meeting.setAudioEnabled?.(true);
+      meeting.setMicrophoneEnabled?.(true);
+
+      meeting.self?.setAudioEnabled?.(true);
+      meeting.self?.setMicrophoneEnabled?.(true);
+      meeting.self?.setMicEnabled?.(true);
+      meeting.self?.unmuteAudio?.();
+      meeting.self?.unmute?.();
+    } catch (_e) {
+      // Ignore; user may deny permissions or SDK may not expose these methods.
+    }
+  }, [meeting]);
+
+  // Ensure "Leave/End meeting" inside RtkMeeting UI closes floating window too.
+  useEffect(() => {
+    if (!meeting || leaveWrappedRef.current) return;
+    leaveWrappedRef.current = true;
+    const wrap = (methodName) => {
+      const fn = meeting?.[methodName];
+      if (typeof fn !== "function") return;
+      const original = fn.bind(meeting);
+      originalMeetingMethodsRef.current[methodName] = original;
+      if (methodName === "leave") {
+        originalLeaveRef.current = original;
+      }
+      meeting[methodName] = async (...args) => {
+        const alreadyClosing = closingRef.current;
+        closingRef.current = true;
+        try {
+          return await original(...args);
+        } finally {
+          // Only close the window for user-initiated "end/leave" actions.
+          // If we're already closing, don't re-trigger.
+          if (!alreadyClosing) onClose?.();
+        }
+      };
+    };
+
+    // Most common variants across SDKs/UI for leaving/ending a call.
+    wrap("leave");
+    wrap("endMeeting");
+    wrap("endMeetingForAll");
+    wrap("end");
+    wrap("terminate");
+
+    return () => {
+      // Restore all wrapped methods we touched.
+      const originals = originalMeetingMethodsRef.current || {};
+      Object.keys(originals).forEach((name) => {
+        try {
+          meeting[name] = originals[name];
+        } catch (_e) {}
+      });
+      originalMeetingMethodsRef.current = {};
+    };
+  }, [meeting, onClose]);
 
   const height = isHeightCollapsed ? COLLAPSED_HEIGHT : DEFAULT_HEIGHT;
   const width = isSidebar ? SIDEBAR_WIDTH : DEFAULT_WIDTH;
@@ -116,14 +182,6 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
     };
   }, [authToken]);
 
-  useEffect(() => {
-    return () => {
-      if (meeting?.leave) {
-        meeting.leave().catch(() => {});
-      }
-    };
-  }, [meeting]);
-
   const formatDuration = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -149,7 +207,9 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
   const handleClose = async () => {
     if (meeting?.leave) {
       try {
-        await meeting.leave();
+        closingRef.current = true;
+        const leaveFn = originalLeaveRef.current || meeting.leave;
+        await leaveFn();
       } catch (_) {}
     }
     onClose?.();
@@ -159,7 +219,6 @@ const TeleconsultFloatingWindow = ({ authToken, doctorName, onClose }) => {
 
   const content = (
     <div
-      ref={modalRef}
       className={`teleconsult-floating ${isSidebar ? "sidebar" : ""} ${isDragging ? "dragging" : ""}`}
       style={{
         position: "fixed",
