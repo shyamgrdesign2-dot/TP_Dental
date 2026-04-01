@@ -2436,7 +2436,7 @@ function Prescription() {
             className=".modalWidth-800"
             width={825}
           >
-            <DDxKnowMore handleKnowMore={handleDDxKnowMore} />
+            <DDxKnowMore handleDDxKnowMore={handleDDxKnowMore} />
           </Drawer>
         )}
         {ddxDrawer && (
