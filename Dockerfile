@@ -1,4 +1,6 @@
 # ---- BUILD STAGE ----
+# CRA often prints nothing for a long time during "Creating an optimized production build..." — that is normal.
+# Faster builds: pass GENERATE_SOURCEMAP=false from CI (see workflows). Smaller image: .map files removed after Sentry upload in npm run build.
 FROM node:20 AS build
 
 ARG REACT_APP_ENV
@@ -9,8 +11,9 @@ ENV REACT_APP_ENV=$REACT_APP_ENV
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ENV GENERATE_SOURCEMAP=$GENERATE_SOURCEMAP
 
-# 🔥 Increased memory (main fix)
 ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV DISABLE_ESLINT_PLUGIN=true
+ENV CI=false
 
 WORKDIR /app
 
@@ -20,11 +23,8 @@ RUN npm install --legacy-peer-deps
 
 COPY . .
 
-# Force memory again at build time (extra safety)
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm run build
+RUN npm run build
 
-# Keep sourcemaps (since you're using Sentry)
-# Optional cleanup if needed:
 RUN find /app/build -name "*.map" -type f -delete
 
 # ---- PRODUCTION STAGE ----
