@@ -13,6 +13,8 @@ import reportWebVitals from './reportWebVitals';
 
 import './index.css';
 import './assets/scss/app.scss';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
 
