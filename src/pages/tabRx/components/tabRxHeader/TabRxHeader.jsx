@@ -29,7 +29,7 @@ import CustomizeSetting from "../../../../common/CustomizeSetting";
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
 import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial2 from "../../../../assets/images/tutorial2.png";
+import tutorial2 from "../../../../assets/images/tutorial2.webp";
 // import videoimg1 from '../assets/images/tutorial-img1.png';
 // import videoimg2 from '../assets/images/tutorial-img2.png';
 import playIcons from "../../../../assets/images/tube-icon.svg";
