@@ -3,7 +3,23 @@ import moment from "moment";
 import "./ItemizedBillChart.scss";
 import { getClinic } from "../../../../../utils/utils";
 
-const ItemizedBillChart = ({ billData, profile, dateRange }) => {
+const ItemizedBillChart = ({
+  billData,
+  profile,
+  dateRange,
+  hideReportHeader = false,
+  includeDiscountSection = true,
+  includePaymentSummarySection = true,
+  /** Rows skipped before this slice (continuous # in chunked PDFs). */
+  billRowOffset = 0,
+  /** When set (e.g. discount-only appendix), first discount row #. */
+  firstDiscountRowNumber = null,
+  /**
+   * Chunked PDF: map serviceKey -> { show, amount }. Subtotal row only when `show`;
+   * `amount` is full-service total. Omit for normal single-page view.
+   */
+  serviceSubtotalDisplay = null,
+}) => {
   const {
     billSummary = [],
     additionalDiscountSummary = [],
@@ -31,16 +47,14 @@ const ItemizedBillChart = ({ billData, profile, dateRange }) => {
     return `₹${amount.toFixed(2)}`;
   };
 
-  // Calculate global index for continuous numbering across all sections
   const getGlobalIndex = (serviceIndex, billIndex) => {
-    let globalIndex = 1;
+    let globalIndex = billRowOffset + 1;
     for (let i = 0; i < serviceIndex; i++) {
       globalIndex += billSummary[i].bills.length;
     }
     return globalIndex + billIndex;
   };
 
-  // Calculate starting index for discount section
   const getDiscountStartingIndex = () => {
     let totalBills = 0;
     billSummary.forEach((service) => {
@@ -49,29 +63,38 @@ const ItemizedBillChart = ({ billData, profile, dateRange }) => {
     return totalBills + 1;
   };
 
+  const discountSerial = (index) =>
+    firstDiscountRowNumber != null
+      ? firstDiscountRowNumber + index
+      : getDiscountStartingIndex() + index;
+
+  const serviceKey = (svc) =>
+    `${svc.serviceName}__${svc.serviceId ?? ""}`;
+
   return (
     <div className="itemized-bill-chart">
-      {/* Header */}
-      <div className="report-header">
-        <div>
-          <div className="clinic-name">
-            {clinic?.hm_name || "Tatvacare Clinic"}
+      {!hideReportHeader && (
+        <div className="report-header">
+          <div>
+            <div className="clinic-name">
+              {clinic?.hm_name || "Tatvacare Clinic"}
+            </div>
+            <div className="clinic-location">
+              {clinic?.hm_city || "HRS Bangalore"}
+            </div>
           </div>
-          <div className="clinic-location">
-            {clinic?.hm_city || "HRS Bangalore"}
+          <h1>ITEMIZED BILLING REPORT</h1>
+          <div className="report-details">
+            <div className="report-period">
+              Period: {moment(dateRange?.startDate).format("MMMM DD")} -{" "}
+              {moment(dateRange?.endDate).format("MMMM DD, YYYY")}
+            </div>
+            <div className="report-date">
+              Generated on: {moment().format("DD/MM/YYYY, HH:mm")}
+            </div>
           </div>
         </div>
-        <h1>ITEMIZED BILLING REPORT</h1>
-        <div className="report-details">
-          <div className="report-period">
-            Period: {moment(dateRange?.startDate).format("MMMM DD")} -{" "}
-            {moment(dateRange?.endDate).format("MMMM DD, YYYY")}
-          </div>
-          <div className="report-date">
-            Generated on: {moment().format("DD/MM/YYYY, HH:mm")}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Bill Summary Sections */}
       <div
@@ -122,18 +145,34 @@ const ItemizedBillChart = ({ billData, profile, dateRange }) => {
               </table>
             </div>
 
-            <div className="service-subtotal">
-              <div>
-                {service.serviceName} Sub Total:{" "}
-                {formatAmount(service.subTotal)}
-              </div>
-            </div>
+            {(() => {
+              const sub = serviceSubtotalDisplay?.[serviceKey(service)];
+              const showSubtotalRow =
+                serviceSubtotalDisplay == null
+                  ? true
+                  : sub
+                    ? sub.show
+                    : true;
+              if (!showSubtotalRow) return null;
+              const amount =
+                serviceSubtotalDisplay != null && sub?.show
+                  ? sub.amount
+                  : service.subTotal;
+              return (
+                <div className="service-subtotal">
+                  <div>
+                    {service.serviceName} Sub Total: {formatAmount(amount)}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
 
-      {/* Additional Discount Details */}
-      {additionalDiscountSummary && additionalDiscountSummary.length > 0 && (
+      {includeDiscountSection &&
+        additionalDiscountSummary &&
+        additionalDiscountSummary.length > 0 && (
         <div className="discount-section" style={{ paddingTop: "20px" }}>
           <h2 className="section-title">Additional Discount Details</h2>
 
@@ -155,7 +194,7 @@ const ItemizedBillChart = ({ billData, profile, dateRange }) => {
               <tbody>
                 {additionalDiscountSummary.map((discount, index) => (
                   <tr key={index}>
-                    <td>{getDiscountStartingIndex() + index}</td>
+                    <td>{discountSerial(index)}</td>
                     <td>{discount.createdBy}</td>
                     <td>{formatDate(discount.date)}</td>
                     <td>{discount.billNumber}</td>
@@ -185,8 +224,9 @@ const ItemizedBillChart = ({ billData, profile, dateRange }) => {
         </div>
       )}
 
-      {/* Payment Summary */}
-      {paymentSummary && paymentSummary.length > 0 && (
+      {includePaymentSummarySection &&
+        paymentSummary &&
+        paymentSummary.length > 0 && (
         <div className="payment-summary-section" style={{ paddingTop: "20px" }}>
           <h2>Payment Summary</h2>
           <div className="payment-table">

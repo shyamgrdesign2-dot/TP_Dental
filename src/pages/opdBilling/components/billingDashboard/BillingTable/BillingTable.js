@@ -105,6 +105,105 @@ async function mergePdfBlobs(blobs) {
 }
 
 const PATIENT_PDF_ROW_CHUNK = 300;
+const ITEMIZED_PDF_ROW_CHUNK = 300;
+
+function itemizedServiceKey(svc) {
+  return `${svc.serviceName}__${svc.serviceId ?? ""}`;
+}
+
+/** For chunked PDFs: show each service subtotal only on the chunk whose range includes that service's last bill; amount is the full-service total. */
+function buildItemizedSubtotalMeta(fullBillData, chunkStart, chunkEndExclusive) {
+  const billSummary = fullBillData?.billSummary || [];
+  let row = 0;
+  const meta = {};
+  for (const service of billSummary) {
+    const key = itemizedServiceKey(service);
+    const bills = service.bills || [];
+    const len = bills.length;
+    const fullAmount = bills.reduce(
+      (sum, b) => sum + (Number(b.paidAmount) || 0),
+      0
+    );
+    if (len > 0) {
+      const lastGlobalIndex = row + len - 1;
+      meta[key] = {
+        show:
+          lastGlobalIndex >= chunkStart &&
+          lastGlobalIndex < chunkEndExclusive,
+        amount: fullAmount,
+      };
+    }
+    row += len;
+  }
+  return meta;
+}
+
+function countItemizedBillRows(billData) {
+  const list = billData?.billSummary || [];
+  return list.reduce((n, s) => n + (s.bills?.length || 0), 0);
+}
+
+function sliceItemizedBillData(billData, startRow, endRowExclusive) {
+  const billSummary = billData?.billSummary || [];
+  const flat = [];
+  billSummary.forEach((service) => {
+    (service.bills || []).forEach((bill) => {
+      flat.push({ service, bill });
+    });
+  });
+  const slice = flat.slice(startRow, endRowExclusive);
+  const buckets = [];
+  const keys = [];
+  slice.forEach(({ service, bill }) => {
+    const k = itemizedServiceKey(service);
+    let i = keys.indexOf(k);
+    if (i === -1) {
+      buckets.push({ ...service, bills: [] });
+      keys.push(k);
+      i = buckets.length - 1;
+    }
+    buckets[i].bills.push(bill);
+  });
+  return {
+    ...billData,
+    billSummary: buckets.map((svc) => ({
+      ...svc,
+      subTotal: (svc.bills || []).reduce(
+        (sum, b) => sum + (Number(b.paidAmount) || 0),
+        0
+      ),
+    })),
+  };
+}
+
+async function waitUntilItemizedTbodyRows(
+  getElement,
+  expectedRows,
+  maxAttempts,
+  pollMs
+) {
+  for (let a = 0; a < maxAttempts; a++) {
+    const el = getElement();
+    if (el) {
+      const n = el.querySelectorAll(".itemized-bill-chart tbody tr").length;
+      if (n >= expectedRows) return true;
+    }
+    await sleep(pollMs);
+  }
+  return false;
+}
+
+function expectedItemizedTbodyRows(session) {
+  if (!session) return 0;
+  let n = countItemizedBillRows(session.billData);
+  if (session.includeDiscountSection) {
+    n += session.billData?.additionalDiscountSummary?.length || 0;
+  }
+  if (session.includePaymentSummarySection) {
+    n += session.billData?.paymentSummary?.length || 0;
+  }
+  return Math.max(n, 1);
+}
 
 const initialPatientPdfUi = () => ({
   rowStart: 0,
@@ -236,6 +335,7 @@ export default function BillingTable({
     useState("patient-level");
   const [downloadData, setDownloadData] = useState([]);
   const [itemizedBillData, setItemizedBillData] = useState(null);
+  const [itemizedPrintSession, setItemizedPrintSession] = useState(null);
   const [patientLevelBillData, setPatientLevelBillData] = useState(null);
   const [patientPdfUi, setPatientPdfUi] = useState(initialPatientPdfUi);
   const printableRef = useRef(null);
@@ -367,7 +467,6 @@ export default function BillingTable({
 
   const handleDownloadData = async () => {
     if (selectedSummaryType === "item-level") {
-      // Call fetchItemizedBillData API for Item-Level Bill Summary
       try {
         setDownloading(true);
         const response = await fetchItemizedBillData(
@@ -377,63 +476,163 @@ export default function BillingTable({
         );
 
         if (response?.totalPaidAmount > 0) {
-          // Handle the itemized bill data response
-          setItemizedBillData(response);
+          flushSync(() => {
+            setItemizedPrintSession(null);
+            setItemizedBillData(response);
+          });
 
-          // Wait for DOM (longer when table is large)
-          const itemDelay = 800;
-          setTimeout(() => {
-            const element = printableRef.current;
-            if (!element) {
-              setDownloading(false);
-              return;
-            }
-            const tableElement = element.querySelector(
-              ".print-bill-table, .ant-table, table"
-            );
-            const tableRows = tableElement?.querySelectorAll(
-              "tbody tr, .ant-table-tbody tr"
-            );
-            const renderedRowCount = tableRows?.length || 0;
-            const tallContent = renderedRowCount > 400 || element.scrollHeight > 9000;
-            const options = {
-              filename: `billing_item_level_${userId || "report"}.pdf`,
-              image: HTML2PDF_IMAGE,
-              html2canvas: buildHtml2CanvasPdfOptions(element),
-              margin: [0.3, 0.3, 0.2, 0.3],
-              jsPDF: {
-                unit: "in",
-                format: "letter",
-                orientation: "portrait",
-                compress: true,
-              },
-              pagebreak: {
-                mode: tallContent
-                  ? ["css", "legacy"]
-                  : ["avoid-all", "css", "legacy"],
-              },
-            };
+          const buildItemizedPdfOptions = (element, multiPage) => ({
+            filename: `billing_item_level_${userId || "report"}.pdf`,
+            image: HTML2PDF_IMAGE,
+            html2canvas: buildHtml2CanvasPdfOptions(element),
+            margin: [0.3, 0.3, 0.2, 0.3],
+            jsPDF: {
+              unit: "in",
+              format: "letter",
+              orientation: "portrait",
+              compress: true,
+            },
+            pagebreak: {
+              mode: multiPage
+                ? ["css", "legacy"]
+                : ["avoid-all", "css", "legacy"],
+            },
+          });
 
+          const outputItemizedPdfBlob = async (element, multiPage) =>
             html2pdf()
-              ?.from(element)
-              ?.set(options)
-              ?.output("blob")
-              ?.then((blob) => {
-                const url = URL.createObjectURL(blob);
-                handleDownload(
-                  url,
-                  blob,
-                  patientData ? patientData.patient_unique_id : userId,
-                  setStartLoader,
-                  !patientData
+              .from(element)
+              .set(buildItemizedPdfOptions(element, multiPage))
+              .output("blob");
+
+          const captureItemizedSession = async (session) => {
+            flushSync(() => setItemizedPrintSession(session));
+            const expected = expectedItemizedTbodyRows(session);
+            const rowHint = countItemizedBillRows(session.billData);
+            const pollMs = 50 + Math.ceil(rowHint / 15);
+            const maxAttempts = Math.min(900, 80 + Math.ceil(rowHint / 2));
+            await sleep(Math.min(2000, 300 + rowHint * 2));
+            const rowsReady = await waitUntilItemizedTbodyRows(
+              () => printableRef.current,
+              expected,
+              maxAttempts,
+              pollMs
+            );
+            if (!rowsReady) {
+              console.warn(
+                "Itemized PDF: tbody row count still below expected; proceeding",
+                { expected, rowHint }
+              );
+            }
+            await sleep(Math.min(5000, 200 + rowHint * 3));
+            await doubleRaf();
+            const element = printableRef.current;
+            if (!element) throw new Error("Print target missing");
+            const multiPage =
+              rowHint > 80 || element.scrollHeight > 5000;
+            return outputItemizedPdfBlob(element, multiPage);
+          };
+
+          try {
+            const totalBillRows = countItemizedBillRows(response);
+            const hasDiscount =
+              (response.additionalDiscountSummary?.length || 0) > 0;
+            const hasPayment = (response.paymentSummary?.length || 0) > 0;
+            let blob;
+
+            if (totalBillRows >= ITEMIZED_PDF_ROW_CHUNK) {
+              const parts = [];
+              for (
+                let start = 0;
+                start < totalBillRows;
+                start += ITEMIZED_PDF_ROW_CHUNK
+              ) {
+                const end = Math.min(
+                  start + ITEMIZED_PDF_ROW_CHUNK,
+                  totalBillRows
                 );
-                setDownloading(false);
-              })
-              .catch((err) => {
-                console.error("Error generating PDF:", err);
-                setDownloading(false);
-              });
-          }, itemDelay);
+                parts.push(
+                  await captureItemizedSession({
+                    billData: sliceItemizedBillData(response, start, end),
+                    hideReportHeader: start > 0,
+                    includeDiscountSection: false,
+                    includePaymentSummarySection: false,
+                    billRowOffset: start,
+                    firstDiscountRowNumber: null,
+                    serviceSubtotalDisplay: buildItemizedSubtotalMeta(
+                      response,
+                      start,
+                      end
+                    ),
+                  })
+                );
+              }
+              if (hasDiscount || hasPayment) {
+                const mainCount = totalBillRows;
+                parts.push(
+                  await captureItemizedSession({
+                    billData: {
+                      ...response,
+                      billSummary: [],
+                    },
+                    hideReportHeader: false,
+                    includeDiscountSection: hasDiscount,
+                    includePaymentSummarySection: hasPayment,
+                    billRowOffset: 0,
+                    firstDiscountRowNumber:
+                      hasDiscount && mainCount > 0 ? mainCount + 1 : null,
+                  })
+                );
+              }
+              blob = await mergePdfBlobs(parts);
+            } else {
+              flushSync(() => setItemizedPrintSession(null));
+              await sleep(Math.min(2000, 400 + totalBillRows * 2));
+              const pollMs = 50 + Math.ceil(totalBillRows / 15);
+              const maxAttempts = Math.min(
+                900,
+                80 + Math.ceil(totalBillRows / 2)
+              );
+              const rowsReady = await waitUntilItemizedTbodyRows(
+                () => printableRef.current,
+                expectedItemizedTbodyRows({
+                  billData: response,
+                  includeDiscountSection: true,
+                  includePaymentSummarySection: true,
+                }),
+                maxAttempts,
+                pollMs
+              );
+              if (!rowsReady) {
+                console.warn(
+                  "Itemized PDF: tbody row count still below expected; proceeding",
+                  totalBillRows
+                );
+              }
+              await sleep(Math.min(8000, 250 + totalBillRows * 4));
+              await doubleRaf();
+              const element = printableRef.current;
+              if (!element) throw new Error("Print target missing");
+              const multiPage =
+                totalBillRows > 80 || element.scrollHeight > 5000;
+              blob = await outputItemizedPdfBlob(element, multiPage);
+            }
+
+            const url = URL.createObjectURL(blob);
+            handleDownload(
+              url,
+              blob,
+              patientData ? patientData.patient_unique_id : userId,
+              setStartLoader,
+              !patientData
+            );
+          } catch (pdfErr) {
+            console.error("Error generating itemized PDF:", pdfErr);
+            message.error("Failed to generate PDF. Please try again.");
+          } finally {
+            setItemizedPrintSession(null);
+            setDownloading(false);
+          }
         } else {
           message.open({
             key: MESSAGE_KEY,
@@ -1376,9 +1575,27 @@ export default function BillingTable({
               style={{ backgroundColor: "#ffffff" }}
             >
               <ItemizedBillChart
-                billData={itemizedBillData}
+                billData={
+                  itemizedPrintSession?.billData ?? itemizedBillData
+                }
                 profile={profile}
                 dateRange={dateRange}
+                hideReportHeader={
+                  itemizedPrintSession?.hideReportHeader ?? false
+                }
+                includeDiscountSection={
+                  itemizedPrintSession?.includeDiscountSection ?? true
+                }
+                includePaymentSummarySection={
+                  itemizedPrintSession?.includePaymentSummarySection ?? true
+                }
+                billRowOffset={itemizedPrintSession?.billRowOffset ?? 0}
+                firstDiscountRowNumber={
+                  itemizedPrintSession?.firstDiscountRowNumber ?? null
+                }
+                serviceSubtotalDisplay={
+                  itemizedPrintSession?.serviceSubtotalDisplay
+                }
               />
             </div>
           </div>
