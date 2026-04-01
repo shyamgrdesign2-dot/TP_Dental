@@ -1216,3 +1216,136 @@ body {
     padding: 0;
     margin: 0;
 }
+
+.examinationTableViewContainer {
+    padding: 20px 40px;
+    gap: 24px;
+  
+    .tableWrappwer {
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+    .editIcon {
+      display: flex;
+      color: #4b4ad5 !important;
+      cursor: pointer;
+      align-items: center;
+  
+      .editText {
+        font-size: 14px;
+        color: #4b4ad5 !important;
+        font-weight: 400;
+        text-decoration: underline;
+      }
+    }
+  }
+  
+  .anotherVisit {
+    padding: 0 0 40px 40px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  
+    .anotherVisitBtn {
+      width: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+  
+      .completePregnancy {
+        color: #fc5a5a !important;
+      }
+    }
+  
+    .completePregnancyBtn {
+      border-radius: 10px;
+      border: 1px solid #fc5a5a !important;
+    }
+  }
+  
+  .obstetricTcell {
+    border: 1px solid #ddd;
+    padding: 8px !important;
+    vertical-align: middle;
+    height: 48px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    background-color: #fff;
+  
+    @media only screen and (min-width: 1200px) {
+      padding: 6px 20px !important;
+    }
+  
+    .visitStyle {
+      font-size: 12px;
+      color: #a2a2a8 !important;
+    }
+  }
+  
+  .labParamsTcell {
+    border-left: 1px solid #ddd;
+    padding: 8px !important;
+    vertical-align: middle;
+    height: 48px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    background-color: #fff;
+  
+    @media only screen and (min-width: 1200px) {
+      padding: 6px 20px !important;
+    }
+  
+    .visitStyle {
+      font-size: 12px;
+      color: #a2a2a8 !important;
+    }
+  }
+  
+  .column-border {
+    border: 1px solid white;
+  }
+  
+  .immunisationRemarks {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0px !important;
+  }
+  
+  .custom-immunisation-select {
+    .ant-select-selector {
+      width: 136px !important;
+      height: 40px !important;
+      line-height: 40px;
+      border: none !important;
+      padding: 0px !important;
+    }
+  
+    &.ant-select-single .ant-select-selector .ant-select-selection-item {
+      color: #ed8a00 !important;
+    }
+  }
+  
+  .custom-immunisation-given-select {
+    &.ant-select-single .ant-select-selector .ant-select-selection-item {
+      color: #19bb7a !important;
+    }
+  }
+  
+  .weekRange {
+    padding: 6px !important;
+  }
+  
+  .anc-custom-checkbox {
+    .ant-checkbox .ant-checkbox-inner {
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+    }
+    .ant-checkbox-checked .ant-checkbox-inner:after {
+      width: 6px;
+      height: 10px;
+    }
+  }
