@@ -1,16 +1,26 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { message } from "antd";
+import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import TeleconsultNotificationHandler from "./TeleconsultNotificationHandler";
 import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
-import { setJoinToken } from "../redux/teleconsultNotificationSlice";
+import {
+  setAppointmentTeleconsultStatus,
+  setJoinToken,
+} from "../redux/teleconsultNotificationSlice";
 
 export default function AppTeleconsultBootstrap() {
   const dispatch = useDispatch();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
+  const activeTeleconsultAppointmentId = useSelector(
+    (state) => state.teleconsultNotification?.activeTeleconsultAppointmentId
+  );
+  const activeTeleconsultConsultationId = useSelector(
+    (state) => state.teleconsultNotification?.activeTeleconsultConsultationId
+  );
   const profile = useSelector((state) => state.doctors?.profile);
 
   const isLoginPage = location.pathname === "/login";
@@ -19,18 +29,58 @@ export default function AppTeleconsultBootstrap() {
   const showFloatingWindow = joinToken && !isLoginPage && !isReceptionist && !isVoiceRxRoute;
   const doctorName = profile?.um_name || profile?.doctor_name || "Doctor";
 
+  const doctorLeftFiredRef = useRef(false);
+  useEffect(() => {
+    if (joinToken) doctorLeftFiredRef.current = false;
+  }, [joinToken]);
+
+  const leaveTeleconsult = useCallback(async () => {
+    if (doctorLeftFiredRef.current) {
+      if (activeTeleconsultAppointmentId != null) {
+        dispatch(
+          setAppointmentTeleconsultStatus({
+            appointmentId: activeTeleconsultAppointmentId,
+            status: "ENDED",
+          })
+        );
+      }
+      dispatch(setJoinToken(null));
+      return;
+    }
+    doctorLeftFiredRef.current = true;
+    try {
+      if (activeTeleconsultConsultationId) {
+        await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
+      }
+    } catch (error) {
+      console.log("[teleconsult] doctorLeft during close failed", {
+        consultationId: activeTeleconsultConsultationId,
+        message: error?.message,
+      });
+    } finally {
+      if (activeTeleconsultAppointmentId != null) {
+        dispatch(
+          setAppointmentTeleconsultStatus({
+            appointmentId: activeTeleconsultAppointmentId,
+            status: "ENDED",
+          })
+        );
+      }
+      dispatch(setJoinToken(null));
+    }
+  }, [activeTeleconsultAppointmentId, activeTeleconsultConsultationId, dispatch]);
+
   // If user navigates into any Voice Rx consult route while a teleconsult call is active,
   // automatically drop the video call so they can proceed with the Voice Rx flow.
   useEffect(() => {
     if (isVoiceRxRoute && joinToken) {
       message.info("Voice Rx does not support tele consultation", 3);
-      dispatch(setJoinToken(null));
+      console.log("[AppTeleconsultBootstrap] Clearing joinToken on Voice Rx route.", {
+        path: location.pathname,
+      });
+      leaveTeleconsult();
     }
-  }, [isVoiceRxRoute, joinToken, dispatch]);
-
-  const handleCloseFloatingWindow = () => {
-    dispatch(setJoinToken(null));
-  };
+  }, [isVoiceRxRoute, joinToken, leaveTeleconsult, location.pathname]);
 
   return (
     <>
@@ -39,7 +89,7 @@ export default function AppTeleconsultBootstrap() {
         <TeleconsultFloatingWindow
           authToken={joinToken}
           doctorName={doctorName}
-          onClose={handleCloseFloatingWindow}
+          onClose={leaveTeleconsult}
         />
       )}
     </>
