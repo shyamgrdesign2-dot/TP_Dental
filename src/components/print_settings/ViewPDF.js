@@ -320,16 +320,16 @@ const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: '
 function getAiFlowMedicationDisplayList(medicine) {
     if (!Array.isArray(medicine) || medicine.length === 0) return [];
     return medicine.map((item, index) => {
-        const tmm_unit = item.tmm_unit ?? item.unit_id ?? 2;
-        const unitTitle = AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] || 'Unit';
+        const tmm_unit = item.tmm_unit ?? item.unit_id;
+        const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : '';
         const medicineUnit = Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
             ? item.medicineUnit
-            : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
+            : (tmm_unit && unitTitle ? [{ tmu_id: tmm_unit, tmu_title: unitTitle }] : []);
         return {
             ...item,
             index,
             tmm_id: item.tmm_id ?? item.unique_id ?? `ai-${index}`,
-            tmm_medicine_name: item.tmm_medicine_name || item.name || item.medicine_name || item.lineItem || '',
+            tmm_medicine_name: item.tmm_medicine_name || item.name || item.groundedMedicineName || item.groundingMedicineName || item.medicine_name || item.lineItem || '',
             tmm_generic: item.tmm_generic ?? item.corrected_name ?? item.metadata?.tmm_generic ?? item.generic ?? '',
             tmm_unit: tmm_unit,
             medicineUnit,
@@ -340,9 +340,9 @@ function getAiFlowMedicationDisplayList(medicine) {
             tcm_tmm_freq_night: item.tcm_tmm_freq_night ?? item.freqNight,
             tmf_block: item.tmf_block ?? 0,
             tmm_freq_type: item.tmm_freq_type ?? item.freq_type,
-            tmm_time: item.tmm_time ?? item.time_id ?? 1,
+            tmm_time: item.tmm_time ?? item.time_id,
             tmm_days: item.tmm_days ?? item.days,
-            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? 'day(s)',
+            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? '',
             display_qty: item.display_qty ?? item.quantity ?? item.qty ?? '',
             tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? '',
         };
@@ -774,7 +774,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
 
         console.log('[ViewPDF][AIMedication][FrequencyTextDebug]', {
-            medicine: item?.tmm_medicine_name || item?.name || '',
+            medicine: item?.tmm_medicine_name || item?.name || item?.groundedMedicineName || item?.groundingMedicineName || '',
             numeric_frequency: option?.numeric_frequency,
             tmf_block: item?.tmf_block,
             tmm_freq_type: item?.tmm_freq_type,
@@ -2266,22 +2266,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         .toLowerCase();
                                                                 const key = getKey(item);
                                                                 const prevKey = i > 0 ? getKey(aiFlowMedicationList[i - 1]) : "";
+                                                                const nextKey = i < aiFlowMedicationList.length - 1 ? getKey(aiFlowMedicationList[i + 1]) : "";
                                                                 const isTaper = !!key && key === prevKey;
+                                                                const isGroupEnd = !key || key !== nextKey;
                                                                 const aiComputedFrequency = getAiMedicationFrequencyDisplay(item, option);
                                                                 const aiTimingDisplay = getAiMedicationTimingDisplay(item);
 
                                                                 return (
-                                                                <View style={styles.row} key={item.tmm_id || item.unique_id || i} wrap={false}>
-                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
-                                                                    <View style={styles.cell}>
-                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
-                                                                            {isTaper ? "" : (item.tmm_medicine_name || item.name || '')}
-                                                                        </Text>
-                                                                        {option?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
-                                                                            <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
-                                                                        ) : null}
+                                                                <View style={[styles.row, !isGroupEnd ? { borderBottom: '0px' } : null]} key={item.tmm_id || item.unique_id || i} wrap={false}>
+                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }, !isGroupEnd ? { borderBottom: '0px' } : null]}>{isTaper ? '' : (i + 1)}</Text>
+                                                                    <View style={[styles.cell, !isGroupEnd ? { borderBottom: '0px' } : null]}>
+                                                                            <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                                {isTaper ? '' : (item.tmm_medicine_name || item.name || item.groundedMedicineName || item.groundingMedicineName || '')}
+                                                                            </Text>
+                                                                            {!isTaper && option?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
+                                                                                <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
+                                                                            ) : null}
                                                                     </View>
-                                                                    <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
+                                                                    <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row', ...(!isGroupEnd ? { borderBottom: '1px solid #171725' } : {}) }}>
                                                                         {option?.medicine_option?.includes('dose') && (
                                                                             <View style={[styles.cell, { flex: 0.45, position: 'relative' }]}>
                                                                                 {isTaper ? (
@@ -2361,7 +2363,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         if (last && last.key === key && key) {
                                                                             last.items.push(med);
                                                                         } else {
-                                                                            groups.push({ key, name: med?.tmm_medicine_name || med?.name || '', items: [med] });
+                                                                            groups.push({
+                                                                                key,
+                                                                                name: med?.tmm_medicine_name || med?.name || med?.groundedMedicineName || med?.groundingMedicineName || '',
+                                                                                items: [med],
+                                                                            });
                                                                         }
                                                                     }
                                                                     const buildDetailsParts = (item) => {
@@ -2432,7 +2438,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         if (last && last.key === key && key) {
                                                                             last.items.push(med);
                                                                         } else {
-                                                                            groups.push({ key, name: med?.tmm_medicine_name || med?.name || '', items: [med] });
+                                                                            groups.push({
+                                                                                key,
+                                                                                name: med?.tmm_medicine_name || med?.name || med?.groundedMedicineName || med?.groundingMedicineName || '',
+                                                                                items: [med],
+                                                                            });
                                                                         }
                                                                     }
                                                                     const buildDetailsParts = (item) => {
@@ -2499,7 +2509,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     {medicationData?.map((pItem, i) => {
                                                         return (
                                                             <Text key={i}>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -2592,7 +2602,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -2718,7 +2728,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={styles.row} key={i} wrap={false}>
                                                                 <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
                                                                 <View style={styles.cell}>
-                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || ''}</Text>
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}</Text>
                                                                     {option?.medicine_with_generic && (
                                                                         <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic || pItem.corrected_name || pItem.metadata?.tmm_generic || ''}</Text>
                                                                     )}

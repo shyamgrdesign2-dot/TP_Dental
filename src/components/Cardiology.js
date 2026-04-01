@@ -1645,6 +1645,19 @@ function Cardiology(props) {
     });
   };
 
+  const getLabInvestigationNote = (item) => {
+    const name = String(item?.name || "").trim();
+    const instruction = String(item?.instruction || "").trim();
+    const rawNote = String(item?.note || item?.notes || "").trim();
+    if (instruction) return instruction;
+    if (!rawNote) return "";
+    if (!name) return rawNote;
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const namePrefixRegex = new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i");
+    const cleanedNote = rawNote.replace(namePrefixRegex, "").trim();
+    return cleanedNote || rawNote;
+  };
+
   // Render items for each type (medications, tests, etc.)
   // Supports both old (vitals, examination, tests) and new (vitalsAndBodyComposition, examinations, labInvestigation) structure
   // When dataOverride is provided (voice/ambient/snap/smart unified view), use it; else use snap vs smart source
@@ -1746,7 +1759,7 @@ function Cardiology(props) {
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
                           ? (item?.refinedName || item?.name || item?.groundedMedicineName || item?.groundingMedicineName || item?.lineItem)
-                          : (item?.refinedName || item?.name || item?.lineItem))
+                          : (item?.refinedName || item?.name))
                       : type === "labResults"
                       ? (() => {
                           const lineItem =
@@ -1797,6 +1810,27 @@ function Cardiology(props) {
                     type === "diagnosis") && (() => {
                     if ((type === "symptoms" || type === "diagnosis" || type === "examination" || type === "examinations") && (item?.lineItem || "").trim()) {
                         return null;
+                    }
+                    if (type === "labInvestigation") {
+                      const labNote = getLabInvestigationNote(item);
+                      return labNote ? <span> ({labNote})</span> : null;
+                    }
+                    if (type === "vaccinations") {
+                      const vaccineName = String(item?.name || "").trim();
+                      const rawLineItem = String(item?.lineItem || "").trim();
+                      const escapedName = vaccineName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                      const namePrefixRegex = vaccineName ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+                      const detailsFromLineItem = rawLineItem && namePrefixRegex
+                        ? (rawLineItem.replace(namePrefixRegex, "").trim() || rawLineItem)
+                        : rawLineItem;
+                      const details = [
+                        detailsFromLineItem,
+                        String(item?.schedule || "").trim(),
+                        String(item?.brand || "").trim(),
+                        String(item?.notes || "").trim(),
+                      ].filter(Boolean);
+                      const uniqueDetails = [...new Set(details)];
+                      return uniqueDetails.length > 0 ? <span> ({uniqueDetails.join(", ")})</span> : null;
                     }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
@@ -2015,7 +2049,7 @@ function Cardiology(props) {
                   {item?.name || 'N/A'}
                 </td>
                 <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
-                  {item?.lineItem || item?.instruction || item?.note || item?.notes || '-'}
+                  {getLabInvestigationNote(item) || '-'}
                 </td>
               </tr>
             ))}
@@ -2260,6 +2294,36 @@ function Cardiology(props) {
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") && (() => {
+                    if (type === "vaccinations") {
+                      const vaccineName = String(item?.name || "").trim();
+                      const rawLineItem = String(item?.lineItem || "").trim();
+                      const escapedName = vaccineName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                      const namePrefixRegex = vaccineName ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+                      const detailsFromLineItem = rawLineItem && namePrefixRegex
+                        ? (rawLineItem.replace(namePrefixRegex, "").trim() || rawLineItem)
+                        : rawLineItem;
+                      const details = [
+                        detailsFromLineItem,
+                        String(item?.schedule || "").trim(),
+                        String(item?.brand || "").trim(),
+                        String(item?.notes || "").trim(),
+                      ].filter(Boolean);
+                      const uniqueDetails = [...new Set(details)];
+                      return uniqueDetails.length > 0 ? (
+                        <span> ({uniqueDetails.join(", ")})</span>
+                      ) : null;
+                    }
+                    if (type === "labInvestigation") {
+                      const labName = String(item?.name || "").trim();
+                      const labNote = getLabInvestigationNote(item);
+                      if (!labName && !labNote) return <span>{typeof item === "string" ? item : ""}</span>;
+                      return (
+                        <span>
+                          {labName}
+                          {labNote ? ` (${labNote})` : ""}
+                        </span>
+                      );
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -3600,6 +3664,27 @@ function Cardiology(props) {
                     )}
                   </div>
                 )}
+                <div
+                  className={`d-flex align-items-center mb-14 ${
+                    viewCaseManagerData?.follow_up_date
+                      ? "follow-up-detailsPage"
+                      : ""
+                  }`}
+                >
+                  {viewCaseManagerData?.follow_up_date && (
+                    <>
+                      <img className="me-3" src={followUp} alt="Symptoms" />
+                      <div className="title-common">Follow-up:</div>
+                      <div className="follow-up-date-text">
+                        {viewCaseManagerData?.follow_up_date
+                          ? moment(viewCaseManagerData.follow_up_date).format(
+                              "DD/MM/YYYY"
+                            )
+                          : ""}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             ) : !(isMobile && !isTablet) && (isSmartRxFile || isTabRx) && !isSnapRx ? (
               <div>
@@ -3608,11 +3693,11 @@ function Cardiology(props) {
                 ) : (
                   <>
                     {smartRxFile?.length > 0 &&
-                      smartRxFile?.map(({ smart_prescription_file }) => (
+                      smartRxFile?.map((fileItem) => (
                         <div style={{ padding: "5px" }}>
-                          {smart_prescription_file && (
+                          {fileItem?.smart_prescription_file && (
                             <img
-                              src={smart_prescription_file}
+                              src={fileItem?.smart_prescription_file}
                               alt="Smart Rx"
                               width="100%"
                               height="660px"

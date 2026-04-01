@@ -593,7 +593,23 @@ const DigitisedPrescription = ({
     const vitals = data?.vitalsAndBodyComposition || data?.vitals;
     const examinationsRaw = data?.examinations || data?.examination;
     const medications = data?.medications || data?.medicine;
-    const labInvestigation = data?.labInvestigation || data?.tests;
+    const labInvestigationRaw = data?.labInvestigation || data?.tests;
+    const labInvestigation = !Array.isArray(labInvestigationRaw)
+      ? []
+      : labInvestigationRaw.map((item) => {
+          if (item == null) return { name: "", instruction: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, instruction: "", notes: "", lineItem: "" };
+          }
+          const name = String(item?.name ?? "").trim();
+          const instruction = String(item?.instruction ?? "").trim();
+          const rawNotes = String(item?.notes ?? item?.note ?? "").trim();
+          const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const namePrefixRegex = name ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+          const notes = !instruction && namePrefixRegex ? (rawNotes.replace(namePrefixRegex, "").trim() || rawNotes) : rawNotes;
+          return { ...item, name, instruction, notes, lineItem: "" };
+        });
     const examinations = !Array.isArray(examinationsRaw)
       ? []
       : examinationsRaw.map((item) => {
@@ -1651,8 +1667,7 @@ const DigitisedPrescription = ({
                     {(type === "medications" ||
                       type === "symptoms" ||
                       type === "vaccinations" ||
-                      type === "medicalHistory" ||
-                      type === "labInvestigation") &&
+                      type === "medicalHistory") &&
                       item?.lineItem &&
                       (activeIndex === index &&
                       activeType === `${type}-lineItem` ? (
