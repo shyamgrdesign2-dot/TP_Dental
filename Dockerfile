@@ -27,9 +27,8 @@ RUN npm run build
 
 RUN find /app/build -name "*.map" -type f -delete
 
-FROM alpine:3.21
-
-RUN apk add --no-cache nginx nginx-mod-http-brotli
+# ---- PRODUCTION STAGE ----
+FROM nginx:stable-alpine
 
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
