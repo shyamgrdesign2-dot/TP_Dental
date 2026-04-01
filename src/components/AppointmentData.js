@@ -3203,7 +3203,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) ? (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
@@ -3230,7 +3230,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   />
                 )}
               </div>
-            )}
+            ): null}
           </div>
           <div className="appointment-data">
             <Row className="justify-content-between align-items-center my-3 px-4">
