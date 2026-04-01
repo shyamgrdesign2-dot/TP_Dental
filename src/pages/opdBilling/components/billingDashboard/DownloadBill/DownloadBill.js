@@ -1,12 +1,9 @@
 import React from "react";
-import { Divider, Table } from "antd";
+import { Divider } from "antd";
 import { useSelector } from "react-redux";
 import moment from "moment";
 import { useLocation } from "react-router-dom";
 import "./DownloadBill.scss";
-
-const ITEMS_PER_PAGE = 12;
-const ITEMS_FOR_FIRST_PAGE = 10;
 
 const DownloadBill = ({
   downloadData,
@@ -14,6 +11,10 @@ const DownloadBill = ({
   dateRange,
   isDoctorDashboard,
   paymentSummary,
+  tableRowNumberStart = 0,
+  omitPaymentSummary = false,
+  omitBillsTable = false,
+  hidePrintHeader = false,
 }) => {
   const { profile } = useSelector((state) => state.doctors);
   const { doctorList } = useSelector((state) => state.bulkMessages);
@@ -54,6 +55,7 @@ const DownloadBill = ({
       key: "key",
       align: "center",
       height: 20,
+      width: "5%",
       render: (text, record, index, { startIndex = 0 } = {}) => (
         <div style={{ fontSize: 12 }}>{startIndex + index + 1}</div>
       ),
@@ -64,6 +66,7 @@ const DownloadBill = ({
       key: "billNo",
       align: "center",
       height: 20,
+      width: "13%",
       render: (text, record) => (
         <div>
           <div style={{ fontSize: 12 }}>{record.billNumber}</div>
@@ -80,6 +83,7 @@ const DownloadBill = ({
           key: "patientName",
           align: "left",
           height: 20,
+          width: "17%",
           render: (text, record) => (
             <div style={{ fontSize: 12 }}>{record?.patient?.name}</div>
           ),
@@ -92,6 +96,7 @@ const DownloadBill = ({
           key: "doctorId",
           align: "left",
           height: 20,
+          width: "17%",
           render: (text, record) => (
             <div style={{ fontSize: 12 }}>
               {getDoctorNameById(record?.doctorId)}
@@ -106,6 +111,7 @@ const DownloadBill = ({
           key: "patientDetails",
           align: "center",
           height: 20,
+          width: "11%",
           render: (text, record) => (
             <div>
               <span style={{ fontSize: 12 }}>{record?.patient?.phone}</span>
@@ -119,6 +125,7 @@ const DownloadBill = ({
       key: "payableAmount",
       align: "center",
       height: 20,
+      width: "9%",
       render: (text, record) => (
         <div style={{ fontSize: 12 }}>₹{record?.payableAmount}</div>
       ),
@@ -129,6 +136,7 @@ const DownloadBill = ({
       key: "paidAmount",
       align: "center",
       height: 20,
+      width: "10%",
       render: (text, record) => (
         <div style={{ fontSize: 12 }}>₹{record?.paidAmount}</div>
       ),
@@ -139,6 +147,7 @@ const DownloadBill = ({
       key: "status",
       align: "center",
       height: 20,
+      width: "10%",
       render: (text, record) => (
         <span style={{ fontSize: 12 }}>{record?.paymentStatus}</span>
       ),
@@ -299,20 +308,6 @@ const DownloadBill = ({
     },
   ];
 
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-
-    const day = date.getDate();
-    const month = date.toLocaleString("default", { month: "short" }); // Get the short month name
-    const year = date.getFullYear();
-
-    const suffix = ["th", "st", "nd", "rd"][
-      day % 10 > 3 || (day % 100 >= 11 && day % 100 <= 13) ? 0 : day % 10
-    ]; // Determine the suffix (st, nd, rd, th)
-
-    return `${day}${suffix} ${month} ${year}`;
-  }
-
   const PatientPlank = () => {
     return (
       <div
@@ -343,90 +338,133 @@ const DownloadBill = ({
     );
   };
 
-  // Build pages: first page with ITEMS_FOR_FIRST_PAGE, subsequent with ITEMS_PER_PAGE
-  const tablePages = (() => {
-    if (!downloadData || downloadData.length === 0) return [[]];
-    const pages = [];
-    const firstPage = downloadData.slice(0, ITEMS_FOR_FIRST_PAGE);
-    if (firstPage.length) pages.push(firstPage);
-    for (
-      let i = ITEMS_FOR_FIRST_PAGE;
-      i < downloadData.length;
-      i += ITEMS_PER_PAGE
-    ) {
-      pages.push(downloadData.slice(i, i + ITEMS_PER_PAGE));
-    }
-    return pages;
-  })();
-
-  // Compute start index per page for correct row numbering
-  const getPageStartIndex = (pageIndex) => {
-    if (pageIndex === 0) return 0;
-    return ITEMS_FOR_FIRST_PAGE + (pageIndex - 1) * ITEMS_PER_PAGE;
+  // Get the columns to use based on parent type
+  const getColumns = () => {
+    return parent === "advance" ? advanceColumns : columns;
   };
+
+  // Render table cell content
+  const renderCell = (col, record, index) => {
+    if (!col.render) {
+      return record[col.dataIndex] || "";
+    }
+    return col.render(record[col.dataIndex], record, index, {
+      startIndex: tableRowNumberStart,
+    });
+  };
+
+  const hasBills = Array.isArray(downloadData) && downloadData.length > 0;
+  const showPaymentSummaryBlock =
+    !omitPaymentSummary &&
+    Array.isArray(paymentSummary) &&
+    paymentSummary.length > 0;
+
+  if (!hasBills && (!omitBillsTable || !showPaymentSummaryBlock)) {
+    return (
+      <div className="printable-bill-content">
+        <div className="header">
+          <h1>{hm_name}</h1>
+          <p>
+            {hm_address ?? ""}
+            {hm_address && hm_address1 ? `, ${hm_address1}` : ""}
+            {hm_state} {um_contact ? ` • ${um_contact}` : ""}
+            {um_email ? ` • ${um_email}` : ""}
+          </p>
+          <Divider />
+          <p>
+            Bill between{" "}
+            {moment(dateRange?.startDate).format("DD/MM/YYYY")} -{" "}
+            {moment(dateRange?.endDate).format("DD/MM/YYYY")}
+          </p>
+        </div>
+        <div>No data available</div>
+      </div>
+    );
+  }
+
+  const tableColumns = getColumns();
 
   return (
     <div className="printable-content">
-      {/* First render all the data tables */}
-      {tablePages?.length > 0 &&
-        tablePages[0]?.length > 0 &&
-        tablePages?.map((pageData, pageIndex) => (
-          <div key={pageIndex} className="print-template">
-            {/* Show header info only on first page */}
-            {pageIndex === 0 && (
-              <>
-                <div className="header">
-                  <h1>{hm_name}</h1>
-                  <p>
-                    {hm_address ?? ""}
-                    {hm_address && hm_address1 ? `, ${hm_address1}` : ""}
-                    {hm_state} {um_contact ? ` • ${um_contact}` : ""}
-                    {um_email ? ` • ${um_email}` : ""}
-                  </p>
-
-                  <Divider />
-
-                  <p>
-                    Bill between{" "}
-                    {moment(dateRange?.startDate).format("DD/MM/YYYY")} -{" "}
-                    {moment(dateRange?.endDate).format("DD/MM/YYYY")}
-                  </p>
-                </div>
-
-                {patient_data ? <PatientPlank /> : null}
-              </>
-            )}
-
-            <div>
-              <Table
-                className="print-bill-table"
-                dataSource={pageData}
-                columns={(parent === "advance" ? advanceColumns : columns).map(
-                  (col) => ({
-                    ...col,
-                    render: col.render
-                      ? (text, record, index) =>
-                          col.render(text, record, index, {
-                            startIndex: getPageStartIndex(pageIndex),
-                          })
-                      : col.render,
-                  })
-                )}
-                pagination={false}
-                bordered
-                style={{
-                  boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-                  borderRadius: "10px",
-                  width: "100%",
-                }}
-              />
-            </div>
+      {!hidePrintHeader && (
+        <>
+          <div className="header">
+            <h1>{hm_name}</h1>
+            <p>
+              {hm_address ?? ""}
+              {hm_address && hm_address1 ? `, ${hm_address1}` : ""}
+              {hm_state} {um_contact ? ` • ${um_contact}` : ""}
+              {um_email ? ` • ${um_email}` : ""}
+            </p>
+            <Divider />
+            <p>
+              Bill between{" "}
+              {moment(dateRange?.startDate).format("DD/MM/YYYY")} -{" "}
+              {moment(dateRange?.endDate).format("DD/MM/YYYY")}
+            </p>
           </div>
-        ))}
+          {patient_data ? <PatientPlank /> : null}
+        </>
+      )}
 
-      {/* Render payment summary on a separate page */}
-      {paymentSummary && paymentSummary?.length > 0 && (
-        <div className="print-template">
+      {hasBills && !omitBillsTable && (
+        <div>
+        <table
+          className="bill-table print-bill-table"
+          style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
+        >
+            <thead>
+              <tr>
+                {tableColumns.map((col, colIndex) => (
+                  <th
+                    key={colIndex}
+                    style={{
+                      padding: "8px 6px",
+                      textAlign: col.align || "center",
+                      fontWeight: 600,
+                      border: "1px solid #ddd",
+                      fontSize: "12px",
+                      backgroundColor: "#fafafa",
+                      width: col.width || "auto",
+                    }}
+                  >
+                    {col.title}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {downloadData.map((record, index) => (
+                <tr
+                  key={index}
+                  style={{
+                    pageBreakInside: "avoid",
+                    breakInside: "avoid",
+                  }}
+                >
+                  {tableColumns.map((col, colIndex) => (
+                    <td
+                      key={colIndex}
+                      style={{
+                        padding: "6px 8px",
+                        border: "1px solid #d9d9d9",
+                        fontSize: "12px",
+                        textAlign: col.align || "center",
+                        width: col.width || "auto",
+                      }}
+                    >
+                      {renderCell(col, record, index)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showPaymentSummaryBlock && (
+        <div style={{ marginTop: "30px", paddingTop: "20px" }}>
           <div className="header">
             <h2 style={{ margin: "0", fontWeight: "bold", color: "#4B4AD5" }}>
               Payment Summary
@@ -435,16 +473,49 @@ const DownloadBill = ({
           </div>
 
           <div>
-            <Table
-              dataSource={paymentSummaryWithTotal}
-              columns={summaryColumns}
-              pagination={false}
-              bordered
-              style={{
-                boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-                borderRadius: "10px",
-              }}
-            />
+            <table className="bill-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {summaryColumns.map((col, colIndex) => (
+                    <th
+                      key={colIndex}
+                      style={{
+                        padding: "8px 12px",
+                        textAlign: col.align || "center",
+                        fontWeight: 600,
+                        border: "1px solid #ddd",
+                        fontSize: "12px",
+                        backgroundColor: "#fafafa",
+                      }}
+                    >
+                      {col.title}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paymentSummaryWithTotal.map((record, index) => (
+                  <tr key={index}>
+                    {summaryColumns.map((col, colIndex) => (
+                      <td
+                        key={colIndex}
+                        style={{
+                          padding: "8px 12px",
+                          border: "1px solid #d9d9d9",
+                          fontSize: "12px",
+                          textAlign: col.align || "center",
+                          fontWeight: record.paymentMode === "Total" ? "medium" : "normal",
+                        }}
+                      >
+                        {col.render
+                          ? col.render(record[col.dataIndex], record, index)
+                          : record[col.dataIndex]}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

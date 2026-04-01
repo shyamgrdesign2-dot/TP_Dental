@@ -85,6 +85,12 @@ const UpdateVaccine = ({
     { label: "2 months", value: 60 },
     { label: "3 months", value: 90 },
     { label: "6 months", value: 180 },
+    { label: "12 months", value: 365 },
+    { label: "2 years", value: 730 },
+    { label: "3 years", value: 1095 },
+    { label: "5 years", value: 1825 },
+    { label: "10 years", value: 3650 },
+
   ];
   const initialVaccineDetails = useMemo(
     () =>

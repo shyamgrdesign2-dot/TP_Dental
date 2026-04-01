@@ -18,6 +18,8 @@ import {
   getDurationTitle,
   getRxTitle,
   formatHeightWeight,
+  camelCaseToTitle,
+  camelToSentence,
 } from "../utils";
 import {
   EXTRA_OPTIONS,
@@ -26,6 +28,7 @@ import {
   PAEDIATRICS_DP_ID,
   WHATSAPP,
   WEIGHT_HEIGHT_TITLE,
+  INVESTIGATION_TITLE,
 } from "../constants";
 import moment from "moment";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
@@ -737,29 +740,31 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const dateC = moment(end_date);
 
     const days = dateB.diff(dateC, "days");
-    const weeks = dateB.diff(dateC, "weeks");
-    const months = dateB.diff(dateC, "months");
+    const weeks = Math.floor(days / 7);
+    const remainingDays = days % 7;
 
-    if (weeks >= 48 && weeks % 48 === 0) {
+    if (weeks >= 48 && weeks % 48 === 0 && remainingDays === 0) {
       const yearsValue = Math.floor(weeks / 48);
       return `${yearsValue} ${yearsValue <= 1 ? "Year" : "Years"}`;
-    } else if (weeks === 5) {
+    } else if (weeks === 5 && remainingDays === 0) {
       return "1 Month";
-    } else if (weeks === 7 || weeks === 9) {
+    } else if ((weeks === 7 || weeks === 9) && remainingDays === 0) {
       return "2 Months";
-    } else if (weeks === 11 || weeks === 13) {
+    } else if ((weeks === 11 || weeks === 13) && remainingDays === 0) {
       return "3 Months";
-    } else if (weeks === 17) {
+    } else if (weeks === 17 && remainingDays === 0) {
       return "4 Months";
-    } else if (weeks === 19 || weeks === 21) {
+    } else if ((weeks === 19 || weeks === 21) && remainingDays === 0) {
       return "5 Months";
-    } else if (weeks === 23 || weeks === 25) {
+    } else if ((weeks === 23 || weeks === 25) && remainingDays === 0) {
       return "6 Months";
-    } else if (weeks === 27 || weeks === 29) {
+    } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
       return "7 Months";
-    } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48) {
+    } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
       const monthsValue = Math.floor(weeks / 4);
       return `${monthsValue} ${monthsValue <= 1 ? "Month" : "Months"}`;
+    } else if (weeks > 0 && remainingDays > 0) {
+      return `${weeks} ${weeks <= 1 ? "Week" : "Weeks"} ${remainingDays} ${remainingDays <= 1 ? "Day" : "Days"}`;
     } else if (weeks > 0) {
       return `${weeks} ${weeks <= 1 ? "Week" : "Weeks"}`;
     } else {
@@ -1073,16 +1078,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     "orthodonticInterventionRequired",
     "habitsPedo",
   ];
-  const camelCaseToTitle = (str) => {
-    if (str === "periodontalseverity" || str === "Periodontalseverity") {
-      return "Periodontal Severity";
-    }
-    return String(str || "")
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (first) => first.toUpperCase())
-      .replace(/\b\w/g, (char) => char.toUpperCase())
-      .trim();
-  };
+
   const formatDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -1090,7 +1086,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";
@@ -4964,7 +4960,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5054,7 +5050,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   fontWeight: 700,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               {caseManagerData?.investigation?.map(
                                 (item, i) => {
@@ -5137,7 +5133,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   marginBottom: PX_TO_PT * 6,
                                 }}
                               >
-                                Lab Investigation:&nbsp;
+                                {INVESTIGATION_TITLE}:&nbsp;
                               </Text>
                               <View style={styles.table}>
                                 <View style={styles.headerRow} fixed>
@@ -10195,7 +10191,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 500,
                                     }}
                                   >
-                                    Lab Investigation:
+                                    {INVESTIGATION_TITLE}:
                                   </Text>
                                 </Text>
                                 {isVoiceOrAmbientV2 ? (
@@ -11663,7 +11659,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     fontWeight: 500,
                                   }}
                                 >
-                                  Lab Investigation:
+                                  {INVESTIGATION_TITLE}:
                                 </Text>
 
                                 {isVoiceOrAmbientV2 ? (
@@ -11797,7 +11793,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     )?.map((item, i) => {
                                       const name =
                                         (item?.name || "").trim() ||
-                                        "Lab Investigation";
+                                        INVESTIGATION_TITLE;
                                       const details = (
                                         item?.note ||
                                         item?.notes ||
@@ -14568,7 +14564,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             }}
                             wrap
                           >
-                            Investigation
+                            {INVESTIGATION_TITLE}
                           </Text>
                         </View>
 

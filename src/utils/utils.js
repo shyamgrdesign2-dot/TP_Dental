@@ -890,6 +890,17 @@ export const trackEvent = (eventName, attributes) => {
   }
 };
 
+export const getDraftMoengageDoctorAttributes = (profile, userId) => {
+  const tokenData = getDecodedToken()?.result;
+
+  return {
+    doctor_name: profile?.um_name || "",
+    doctor_number: profile?.um_contact || "",
+    doctor_specialty: profile?.dp_name || "",
+    doctor_um_id: tokenData?.user_id || userId || profile?.um_id || "",
+  };
+};
+
 export const getIndianLanguageFont = (text, defaultFont = "Roboto") => {
   // Devanagari (Hindi, Marathi, Sanskrit, Nepali, etc.)
   if (/[\u0900-\u097F]/.test(text)) {
@@ -1784,3 +1795,22 @@ export const filterCustomModuleContent = (customModuleContents = []) => {
     })
     .filter(Boolean);
 };
+
+export const camelCaseToTitle = (str)  => {
+  if (!str) return "";
+  if (str === "periodontalseverity" || str === "Periodontalseverity") {
+    return "Periodontal Severity";
+  }
+  return str
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (first) => first.toUpperCase())
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+}
+
+export const camelToSentence = (str) => {
+  if (!str) return "";
+  const withSpaces = str.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  const lower = withSpaces.toLowerCase();
+  return lower[0].toUpperCase() + lower.slice(1);
+}

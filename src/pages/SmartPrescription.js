@@ -441,10 +441,10 @@ function SmartPrescription() {
   };
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (uploadDocCategories?.length === 0) {

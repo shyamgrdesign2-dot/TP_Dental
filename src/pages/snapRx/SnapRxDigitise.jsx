@@ -29,7 +29,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 
-function SnapRxDigitise() {
+function SnapRxDigitise({isTabRx = false}) {
   const divRef = useRef(null);
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
@@ -60,6 +60,7 @@ function SnapRxDigitise() {
   const [divWidth, setDivWidth] = useState(0);
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
 
   const baseUrlRxDigitise = env.digitization_api_url;
@@ -314,6 +315,7 @@ function SnapRxDigitise() {
   }, []);
 
   const handleSave = async () => {
+    setIsSaveLoading(true);
     try {
       const cleanedToken = token.replace(/['"]+/g, "");
 
@@ -586,6 +588,46 @@ function SnapRxDigitise() {
             // fallback failed
           }
         }
+        const rawFollowUpDateValue = String(
+          updatedPrescriptionData?.followUp ??
+            updatedPrescriptionData?.follow_up_date ??
+            ""
+        ).trim();
+        let followUpDateValue = "";
+        if (rawFollowUpDateValue) {
+          // Align with consult flow payload: always persist a concrete YYYY-MM-DD date.
+          if (moment(rawFollowUpDateValue, moment.ISO_8601, true).isValid()) {
+            followUpDateValue = moment(rawFollowUpDateValue).format("YYYY-MM-DD");
+          } else {
+            const relativeDateMatch = rawFollowUpDateValue.match(
+              /(\d+)\s*(day|days|week|weeks|month|months|year|years)/i
+            );
+            if (relativeDateMatch) {
+              const value = parseInt(relativeDateMatch[1], 10);
+              const unit = relativeDateMatch[2].toLowerCase();
+              const baseDate = consultationDate
+                ? moment(consultationDate)
+                : moment();
+              if (unit.includes("year")) {
+                followUpDateValue = baseDate
+                  .add(value, "years")
+                  .format("YYYY-MM-DD");
+              } else if (unit.includes("month")) {
+                followUpDateValue = baseDate
+                  .add(value, "months")
+                  .format("YYYY-MM-DD");
+              } else if (unit.includes("week")) {
+                followUpDateValue = baseDate
+                  .add(value, "weeks")
+                  .format("YYYY-MM-DD");
+              } else {
+                followUpDateValue = baseDate
+                  .add(value, "days")
+                  .format("YYYY-MM-DD");
+              }
+            }
+          }
+        }
         const sendData = {
           action: tcm_id === 0 ? "add" : "edit",
           tcm_id: tcm_id,
@@ -596,6 +638,7 @@ function SnapRxDigitise() {
           medical_history: medicalHistoryForApi,
           private_notes_id: 0,
           smart_prescription_filename: smartPrescriptionFilenames,
+          ...(followUpDateValue && { follow_up_date: followUpDateValue }),
           ...(vitalsForCase.length > 0 && { vitals: vitalsForCase }),
         };
         const caseAction = tcm_id === 0
@@ -630,7 +673,7 @@ function SnapRxDigitise() {
         //     },
         //   });
         // } else {
-        navigate("/snap-rx/preview", {
+        navigate(isTabRx ? "/tab-rx-prescription" : "/snap-rx/preview", {
           replace: true,
           state: {
             patient_data,
@@ -640,12 +683,15 @@ function SnapRxDigitise() {
             print_url,
             showProgressbar: false,
             page: "digitise",
+            ...(isTabRx && { digitisedData: {editedData: data} })
           },
         });
         // }
       }
     } catch (error) {
       console.error("Error saving data:", error);
+    } finally {
+      setIsSaveLoading(false);
     }
   };
 
@@ -709,6 +755,7 @@ function SnapRxDigitise() {
         isDigitiseRxLoading={isLoading}
         patient_data={patient_data}
         isSnapRx={true}
+        isSaveLoading={isSaveLoading}
       />
       <div
         ref={splitRef}
@@ -739,15 +786,9 @@ function SnapRxDigitise() {
                   smartRxFile?.map(
                     ({ fileUrl, smart_prescription_file }) => (
                       <div key={fileUrl || smart_prescription_file}>
-                        {(isCustomSSRX
-                          ? smart_prescription_file
-                          : fileUrl) && (
+                        {(smart_prescription_file || fileUrl) && (
                           <img
-                            src={
-                              isCustomSSRX
-                                ? smart_prescription_file
-                                : fileUrl
-                            }
+                            src={smart_prescription_file || fileUrl}
                             alt="Smart Rx"
                             className="written-rx-image"
                             width="100%"

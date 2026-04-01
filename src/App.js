@@ -88,6 +88,10 @@ const MobileAllPatients = React.lazy(() => import("./pages/mobile/AllPatients/Al
 const MobileVoiceRxConsult = React.lazy(() => import("./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult"));
 const MobileVoiceRecording = React.lazy(() => import("./pages/mobile/VoiceRecording/MobileVoiceRecording"));
 const AppStoreProvider = React.lazy(() => import("./redux/AppStoreProvider"));
+const TabRx = React.lazy(() => import("./pages/tabRx/TabRx"));
+const TabRxCanvas = React.lazy(() => import("./pages/tabRx/components/TabRxCanvas"));
+const TabRxPrescriptionPrintView = React.lazy(() => import("./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView"));
+const TabRxDigitization = React.lazy(() => import("./pages/tabRx/components/Digitization"));
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -556,6 +560,7 @@ function App() {
             path="smart-prescription"
             element={<SmartPrescription />}
           />
+          <Route path="tab-rx-prescription" element={<TabRxPrescriptionPrintView />} />
           <Route path="print-smart-rx" element={<SmartRxPreview />} />
           <Route path="doctor_profile" element={<DoctorProfile />} />
           <Route
@@ -612,6 +617,12 @@ function App() {
           <Route
             path="abha-records/health-records"
             element={<HealthRecords />}
+          />
+          <Route path="tab-rx" element={<TabRx />} />
+          <Route path="tab-rx-canvas" element={<TabRxCanvas />} />
+          <Route
+            path="tabrx-digitization"
+            element={<TabRxDigitization />}
           />
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />

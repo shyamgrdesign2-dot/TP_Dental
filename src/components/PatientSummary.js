@@ -1969,4 +1969,3 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
 };
 
 export default PatientSummary;
-

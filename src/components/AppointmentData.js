@@ -45,6 +45,7 @@ import {
   isVoiceRxFree,
   shouldMonetizationDisabled,
   handleAdmitToIpd,
+  getDraftMoengageDoctorAttributes,
 } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import {
@@ -231,6 +232,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [pageNo, setPageNo] = useState(0);
   const [visitTypeFilters, setVisitTypeFilters] = useState("");
+  const [statusFilters, setStatusFilters] = useState([]);
   const [openRowIndex, setOpenRowIndex] = useState(null);
   const [pendingDigitisation, setPendingDigitisation] = useState(null); // not in use as of now (if require will add it in future)
   const consultButtonRef = useRef(null);
@@ -770,6 +772,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }, [appointmentsData, matchedAppointment, selectedTab]);
 
   const decodedToken = getDecodedToken();
+  const isAdmin = decodedToken?.result?.admin;
 
   const showHideBackModal = () => {
     setIsBackModalOpen(!isBackModalOpen);
@@ -1020,8 +1023,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const onChange = useCallback(
     (key) => {
+      if (key === TAB_DRAFT_RX) {
+        window?.Moengage?.track_event(
+          EVENTS.SAVE_DRAFT.viewSection,
+          getDraftMoengageDoctorAttributes(profile, userId)
+        );
+      }
       setPageNo(0);
       setVisitTypeFilters("");
+      setStatusFilters([]);
       setSelectedCalanderOptions(1);
       setSelectedTab(key);
 
@@ -1041,7 +1051,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         });
       }
     },
-    [selectedTab]
+    [selectedTab, profile, userId]
   );
 
   const onSearch = useCallback(
@@ -1201,6 +1211,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             : e.toct_type,
       };
     });
+  };
+
+  const getZydusStatusFilters = () => {
+    const statuses = new Set(
+      appointmentsData
+        ?.map((item) => item.appointmentStatus)
+        .filter((status) => status && typeof status === "string")
+    );
+    return Array.from(statuses).map((status) => ({
+      text: status,
+      value: status,
+    }));
   };
 
   const tokenData = decodedToken?.result;
@@ -1713,6 +1735,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   navigate("/smart-prescription", { state: { patient_data: record, videoConsultData: videoConsultData } });
   };
 
+  const onTabRxClick = async (record) => {
+    navigate("/tab-rx", { state: { patient_data: record } });
+  };
+
   const onAppointmentAgentClick = async () => {
     // window.Moengage.track_event("patient_search_consult", {
     //     "doctor_id": profile?.doctor_unique_id,
@@ -2022,6 +2048,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onPrintRxUrlClick = async (record) => {
+    if (selectedTab === TAB_DRAFT_RX) {
+      window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.printDraft, {
+        ...getDraftMoengageDoctorAttributes(profile, userId),
+        tcm_id: record?.tcm_id || 0,
+      });
+    }
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
     const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
     if (record.print_rx_url) {
@@ -2141,6 +2173,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   }
 
   const handleResumeDraftRx = async (record) => {
+    window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.resume, {
+      ...getDraftMoengageDoctorAttributes(profile, userId),
+      tcm_id: record?.tcm_id || 0,
+      source: 1,
+    });
     const sendData = {
       patient_unique_id: record !== undefined ? record.patient_unique_id : 0,
       tcm_id: record?.tcm_id
@@ -2258,9 +2295,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           ? "toct_type"
           : "appointmentStatus",
       ellipsis: true,
-      filteredValue: visitTypeFilters.split(",") || "",
+      filteredValue:
+        selectedTab !== TAB_ZYDUS_APPOINTMENT
+          ? visitTypeFilters.split(",") || ""
+          : statusFilters || [],
       filters:
-        selectedTab !== TAB_ZYDUS_APPOINTMENT ? getVisitTypeFilters() : null,
+        selectedTab !== TAB_ZYDUS_APPOINTMENT
+          ? getVisitTypeFilters()
+          : getZydusStatusFilters(),
       render: (text, record) => (
         <div className="d-flex">
           <div>
@@ -2479,6 +2521,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSmartRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSmartRxClick : onSmartRxClick}
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
+                    onTabRxClick={onTabRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"
@@ -2546,6 +2589,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                     onSmartRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSmartRxClick : onSmartRxClick}
                     onSnapRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusSnapRxClick : handleSnapRxClick}
                     onVoiceRxClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusVoiceRxClick : onVoiceRxClick}
+                    onTabRxClick={onTabRxClick}
                     onConsultClick={selectedTab === TAB_ZYDUS_ENCOUNTER ? onZydusConsultClick : onConsultClick}
                     patient={record}
                     buttonStyle="walkin"
@@ -2664,6 +2708,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const handleChange = (pagination, filters, sorter, extra) => {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");
+    setStatusFilters(filters.appointmentStatus || []);
   };
 
 
@@ -3216,7 +3261,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && isUserInAgentsData && (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) ? (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}
@@ -3243,7 +3288,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   />
                 )}
               </div>
-            )}
+            ): null}
           </div>
           <div className="appointment-data">
             <Row className="justify-content-between align-items-center my-3 px-4">
@@ -3376,7 +3421,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                       selectedTab !== TAB_ZYDUS_ENCOUNTER &&
                       selectedTab !== TAB_ZYDUS_APPOINTMENT
                         ? appointmentsData
-                        : matchedAppointment
+                        : matchedAppointment.filter((item) => {
+                            if (selectedTab === TAB_ZYDUS_APPOINTMENT) {
+                              if (statusFilters && statusFilters.length > 0) {
+                                return statusFilters.includes(item.appointmentStatus);
+                              }
+                              return !(
+                                item.appointmentStatus &&
+                                item.appointmentStatus.toLowerCase().includes("cancel")
+                              );
+                            }
+                            return true;
+                          })
                     }
                     onChange={handleChange}
                     pagination={false}
