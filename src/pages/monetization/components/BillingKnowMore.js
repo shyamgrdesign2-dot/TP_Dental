@@ -28,7 +28,7 @@ const BillingKnowMore = ({ handleBillingKnowMore }) => {
 
   const video_link = {
     link: "https://www.youtube.com/embed/luR2CgP9dBs",
-    thumbnail: "https://img.youtube.com/vi/luR2CgP9dBs/hqdefault.webp",
+    thumbnail: "https://img.youtube.com/vi/luR2CgP9dBs/hqdefault.jpg",
   };
 
   return (
