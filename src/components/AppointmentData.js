@@ -1722,7 +1722,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   });
 
   // Create video consultation data object with only necessary fields
-  const videoConsultData = record.pam_status_type_appointment === 1 ? {
+  const videoConsultData = (record.pam_status_type_appointment === 1 || record.pam_status_type_appointment === 2) ? {
     pam_id: record.pam_id,
     pam_status_type_appointment: record.pam_status_type_appointment,
   } : undefined;
@@ -1731,7 +1731,16 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   };
 
   const onTabRxClick = async (record) => {
-    navigate("/tab-rx", { state: { patient_data: record } });
+    const videoConsultData =
+      record.pam_status_type_appointment === 1 ||
+      record.pam_status_type_appointment === 2
+        ? {
+            pam_id: record.pam_id,
+            pam_status_type_appointment: record.pam_status_type_appointment,
+          }
+        : undefined;
+
+    navigate("/tab-rx", { state: { patient_data: record, videoConsultData } });
   };
 
   const onAppointmentAgentClick = async () => {
@@ -1950,7 +1959,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       );
 
       // Create video consultation data object with only necessary fields
-      const videoConsultData = record.pam_status_type_appointment === 1 ? {
+      const videoConsultData = (record.pam_status_type_appointment === 1 || record.pam_status_type_appointment === 2) ? {
         pam_id: record.pam_id,
         pam_status_type_appointment: record.pam_status_type_appointment,
       } : undefined;
@@ -3183,7 +3192,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     });
 
     // Create video consultation data object with only necessary fields
-    const videoConsultData = record.pam_status_type_appointment === 1 ? {
+    const videoConsultData = (record.pam_status_type_appointment === 1 || record.pam_status_type_appointment === 2) ? {
       pam_id: record.pam_id,
       pam_status_type_appointment: record.pam_status_type_appointment,
       pam_teleconsultation_url: record.pam_teleconsultation_url,

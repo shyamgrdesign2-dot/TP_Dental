@@ -43,6 +43,7 @@ import smartSyncDisconnected from "../assets/images/smart-sync-disconnected.svg"
 import tagNew from '../assets/images/tag-new.svg';
 import Pillup from '../assets/images/pillup.svg';
 import EazyDoseLogo from '../assets/images/EazyDose Logo.png';
+import videoSvg from "../assets/images/video.svg";
 
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
 
@@ -82,7 +83,11 @@ function HeaderPrescription({
   selectedCarePlan,
   setBuildNumber,
   handleVideoConsult,
-  isVideoConsultLoading
+  isVideoConsultLoading,
+  showTeleconsultIcon,
+  onTeleconsultClick,
+  isTeleconsultJoinLoading,
+  isTeleconsultActive,
 }) {
   const { templates, loading } = useSelector((state) => state.caseManager);
   const { profile, videoList } = useSelector((state) => state.doctors);
@@ -1015,6 +1020,28 @@ function HeaderPrescription({
                   onClick={handleVideoConsult} 
                   loading={isVideoConsultLoading}
                 />
+              )}
+              {showTeleconsultIcon && (
+                <Tooltip
+                  placement="bottom"
+                  title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}
+                  destroyTooltipOnHide
+                >
+                  <span className={isTeleconsultActive ? "d-inline-block" : ""}>
+                    <button
+                      type="button"
+                      className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
+                      onClick={onTeleconsultClick}
+                      disabled={isTeleconsultJoinLoading || isTeleconsultActive}
+                    >
+                      {isTeleconsultJoinLoading ? (
+                        <LoadingOutlined style={{ fontSize: 24 }} />
+                      ) : (
+                        <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
+                      )}
+                    </button>
+                  </span>
+                </Tooltip>
               )}
               <Button
                 type="button"
