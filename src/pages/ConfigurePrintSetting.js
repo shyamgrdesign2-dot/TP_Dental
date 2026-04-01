@@ -602,6 +602,14 @@ function ConfigurePrintSetting() {
                 const smartRxOption = copyPrintSettings.prescription.case_option.find((o) => o.id === 11);
                 if (smartRxOption) {
                     smartRxOption.title = writtenRxOptionTitle;
+                } else {
+                    copyPrintSettings.prescription.case_option.push({
+                        id: 11,
+                        title: writtenRxOptionTitle,
+                        format: "inline",
+                        enable: "Y",
+                        custom_status: "Y",
+                    });
                 }
             }
             // Lab Investigation (id 15): default print section for lab parameters/investigations from backend.
