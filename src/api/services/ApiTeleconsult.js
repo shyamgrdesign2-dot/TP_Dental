@@ -29,4 +29,12 @@ ApiTeleconsult.checkVideoAvailability = function (appointmentId) {
   return api.get(`/api/v1/teleconsult/check-video-availability?${params.toString()}`, baseUrl);
 };
 
+ApiTeleconsult.doctorLeft = function (consultationId) {
+  return api.post(
+    `/api/v1/teleconsult/doctor-left`,
+    { consultationId },
+    baseUrl
+  );
+};
+
 export default ApiTeleconsult;
