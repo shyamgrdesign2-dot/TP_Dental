@@ -14,11 +14,12 @@ import intersect from "../../../assets/images/intersect.svg";
 import healthIcon from "../../../assets/images/health-care.svg";
 import growIcon from "../../../assets/images/grow.svg";
 import accuracyIcon from "../../../assets/images/accuracy.svg";
-import structuredRxGif from "../../../assets/images/structuredRx.gif";
+import structuredRxGif from "../../../assets/images/structuredRx.mp4";
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "../../monetization/components/ContactSupport";
 import ExpiredText from "../../monetization/components/ExpiredText";
 import { S_RX_DIGITIZATION } from "../../../utils/constants";
+import { isZydus } from "../../../utils/utils";
 import FreeTrialButton from "../../monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../../monetization/components/ExpiredSubModal";
 
@@ -44,6 +45,7 @@ const CvtKnowMore = ({ handleCollapsed }) => {
     link: "https://www.youtube.com/embed//UgeyXlHItXI",
     thumbnail: "https://i.ytimg.com/vi/UgeyXlHItXI/maxresdefault.jpg",
   };
+  console.log(isZydus,"isZydus")
 
   return (
     <div className="drawer-container">
@@ -72,7 +74,9 @@ const CvtKnowMore = ({ handleCollapsed }) => {
             <TabPane tab="Basic Info" key="basicInfo" />
             <TabPane tab="Benefits" key="benefits" />
             <TabPane tab="Digitisation Process" key="digitisationProcess" />
-            <TabPane tab="AI Data Engine" key="aiDataEngine" />
+            {isZydus() && (
+              <TabPane tab="AI Data Engine" key="aiDataEngine" />
+            )}
             <TabPane tab="Tips for Rx writing" key="tipsForRxWriting" />
             <TabPane tab="Contact Support" key="contactSupport" />
           </Tabs>
@@ -180,71 +184,73 @@ const CvtKnowMore = ({ handleCollapsed }) => {
           </div>
         </div>
 
-        <div className="section" style={{ minHeight: "auto" }}>
-          <span id="aiDataEngine" className="section-side-header">
-            AI Data Engine
-          </span>
-          <div className="know-more-section-tilte">
-            What is Zydus Data Engine
-          </div>
-          <div className="know-more-section-content basic-info-section align-items-flex-start">
-            <img src={intersect} alt="intersect" width={72} height={72} />
-            <div>
+        {isZydus() && (
+          <div className="section" style={{ minHeight: "auto" }}>
+            <span id="aiDataEngine" className="section-side-header">
+              AI Data Engine
+            </span>
+            <div className="know-more-section-tilte">
+              What is Zydus Data Engine
+            </div>
+            <div className="know-more-section-content basic-info-section align-items-flex-start">
+              <img src={intersect} alt="intersect" width={72} height={72} />
               <div>
-                With a curated list of{" "}
-                <span className="semi-bold-text">medicines</span> and{" "}
-                <span className="semi-bold-text">lab tests</span>
-                from the{" "}
-                <span className="semi-bold-text">Zydus Data Engine</span>, our
-                AI adapts to your prescribing style, surfacing the most
-                <span className="semi-bold-text">
-                  relevant suggestions
-                </span>{" "}
-                while you prescribe, and helps to
-              </div>
-              <div className="d-flex align-items-center gap-3 mt-3">
-                <div
-                  className="d-flex align-items-center gap-1 p-2 rounded-20px"
-                  style={{ background: "rgba(220, 186, 246, 0.4)" }}
-                >
-                  <img src={healthIcon} alt="health-icon" />
-                  Boosting Patient Fulfilment
-                  <img src={growIcon} alt="grow-icon" />
+                <div>
+                  With a curated list of{" "}
+                  <span className="semi-bold-text">medicines</span> and{" "}
+                  <span className="semi-bold-text">lab tests</span>
+                  from the{" "}
+                  <span className="semi-bold-text">Zydus Data Engine</span>, our
+                  AI adapts to your prescribing style, surfacing the most
+                  <span className="semi-bold-text">
+                    relevant suggestions
+                  </span>{" "}
+                  while you prescribe, and helps to
                 </div>
-                <div
-                  className="d-flex align-items-center gap-1 p-2 rounded-20px"
-                  style={{ background: "rgba(220, 186, 246, 0.4)" }}
-                >
-                  <img src={accuracyIcon} alt="accuracy-icon" />
-                  Improve Rx Accuracy by{" "}
-                  <span className="semi-bold-text">80%</span>
+                <div className="d-flex align-items-center gap-3 mt-3">
+                  <div
+                    className="d-flex align-items-center gap-1 p-2 rounded-20px"
+                    style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                  >
+                    <img src={healthIcon} alt="health-icon" />
+                    Boosting Patient Fulfilment
+                    <img src={growIcon} alt="grow-icon" />
+                  </div>
+                  <div
+                    className="d-flex align-items-center gap-1 p-2 rounded-20px"
+                    style={{ background: "rgba(220, 186, 246, 0.4)" }}
+                  >
+                    <img src={accuracyIcon} alt="accuracy-icon" />
+                    Improve Rx Accuracy by{" "}
+                    <span className="semi-bold-text">80%</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="know-more-section-content">
-            <div className="instruction-cvt-tutorial">
-              Please watch this video to know how AI Data Engine works👇
-            </div>
+            <div className="know-more-section-content">
+              <div className="instruction-cvt-tutorial">
+                Please watch this video to know how AI Data Engine works👇
+              </div>
 
-            <div
-              className="d-flex align-items-center justify-content-center"
-              style={{
-                background: `url(${video_link.thumbnail})`,
-                width: 447,
-                height: 252,
-                borderRadius: 24,
-                cursor: "pointer",
-                backgroundSize: "cover",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-              }}
-              onClick={() => setVideoLink(true)}
-            >
-              <img width={55} height={55} src={playIcons} alt="play-icon" />
+              <div
+                className="d-flex align-items-center justify-content-center"
+                style={{
+                  background: `url(${video_link.thumbnail})`,
+                  width: 447,
+                  height: 252,
+                  borderRadius: 24,
+                  cursor: "pointer",
+                  backgroundSize: "cover",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+                onClick={() => setVideoLink(true)}
+              >
+                <img width={55} height={55} src={playIcons} alt="play-icon" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div
           id="tipsForRxWriting"

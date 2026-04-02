@@ -9,6 +9,8 @@ const initialState = {
   joinToken: null,
   /** pam_id of the appointment for which the current floating-window call is active (used to close window when that appointment is cancelled) */
   activeTeleconsultAppointmentId: null,
+  /** consultationId for the active floating-window call (used to notify backend on doctor-left) */
+  activeTeleconsultConsultationId: null,
   /** Last status+consultationId we showed toast for (avoid duplicate toasts) */
   lastShownStatusKey: null,
 };
@@ -42,10 +44,14 @@ const teleconsultNotificationSlice = createSlice({
       state.joinToken = action.payload;
       if (action.payload == null) {
         state.activeTeleconsultAppointmentId = null;
+        state.activeTeleconsultConsultationId = null;
       }
     },
     setActiveTeleconsultAppointmentId: (state, action) => {
       state.activeTeleconsultAppointmentId = action.payload;
+    },
+    setActiveTeleconsultConsultationId: (state, action) => {
+      state.activeTeleconsultConsultationId = action.payload;
     },
     setLastShownStatusKey: (state, action) => {
       state.lastShownStatusKey = action.payload;
@@ -55,6 +61,7 @@ const teleconsultNotificationSlice = createSlice({
       state.appointmentStatusByAppointmentId = {};
       state.joinToken = null;
       state.activeTeleconsultAppointmentId = null;
+      state.activeTeleconsultConsultationId = null;
       state.lastShownStatusKey = null;
     },
   },
@@ -66,6 +73,7 @@ export const {
   setAppointmentTeleconsultStatus,
   setJoinToken,
   setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
   setLastShownStatusKey,
   clearTeleconsultNotification,
 } = teleconsultNotificationSlice.actions;

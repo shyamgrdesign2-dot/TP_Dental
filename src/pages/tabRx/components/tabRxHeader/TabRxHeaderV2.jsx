@@ -42,6 +42,7 @@ import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton
 import endIcon from "../../../../assets/images/end-icon.svg";
 import notesMultiple from "../../../../assets/images/notes-multiple.svg";
 import settingsNew from "../../../../assets/images/settings-new.svg";
+import videoSvg from "../../../../assets/images/video.svg";
 
 import {
     errorMessage,
@@ -133,6 +134,10 @@ function TabRxHeaderV2({
     onToggleTemplateDrawer = null,
     isEndVisitLoading = false,
     setIsEndVisitLoading = null,
+    showTeleconsultIcon,
+    onTeleconsultClick,
+    isTeleconsultJoinLoading,
+    isTeleconsultActive,
 }) {
     const {
         profile,
@@ -2217,6 +2222,34 @@ function TabRxHeaderV2({
                     >
                         <img src={notesMultiple} alt="Notes" />
                     </button>
+
+                    {showTeleconsultIcon && (
+                        <Tooltip
+                            placement="bottom"
+                            title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}
+                            destroyTooltipOnHide
+                        >
+                            <span className={isTeleconsultActive ? "d-inline-block" : ""}>
+                                <button
+                                    type="button"
+                                    className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
+                                    onClick={onTeleconsultClick}
+                                    disabled={isTeleconsultJoinLoading || isTeleconsultActive}
+                                >
+                                    {isTeleconsultJoinLoading ? (
+                                        <LoadingOutlined style={{ fontSize: 24 }} />
+                                    ) : (
+                                        <img
+                                            src={videoSvg}
+                                            alt="Tele-Consultation"
+                                            width={26}
+                                            height={26}
+                                        />
+                                    )}
+                                </button>
+                            </span>
+                        </Tooltip>
+                    )}
 
                     <div className="divider"></div>
 

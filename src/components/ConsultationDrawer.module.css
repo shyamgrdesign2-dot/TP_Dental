@@ -952,6 +952,7 @@
 
 /* Rich Text Editor Styles - All Parameters */
 .symptoms-rich-text-editor,
+.surgeries-rich-text-editor,
 .examination-rich-text-editor,
 .diagnosis-rich-text-editor,
 .medications-rich-text-editor,
@@ -966,6 +967,7 @@
 }
 
 .symptoms-content-box,
+.surgeries-content-box,
 .examination-content-box,
 .diagnosis-content-box,
 .medications-content-box,
@@ -1042,6 +1044,7 @@
 
 /* Header styles for all parameters */
 .symptoms-header,
+.surgeries-header,
 .examination-header,
 .diagnosis-header,
 .medications-header,
@@ -1100,6 +1103,7 @@
 }
 
 .symptoms-icon,
+.surgeries-icon,
 .examination-icon,
 .diagnosis-icon,
 .medications-icon,
@@ -1119,6 +1123,7 @@
 }
 
 .symptoms-icon img,
+.surgeries-icon img,
 .examination-icon img,
 .diagnosis-icon img,
 .medications-icon img,
@@ -1135,6 +1140,7 @@
 }
 
 .symptoms-title,
+.surgeries-title,
 .examination-title,
 .diagnosis-title,
 .medications-title,
@@ -1163,6 +1169,7 @@
 
 /* Editor container styles for all parameters */
 .symptoms-editor-container,
+.surgeries-editor-container,
 .examination-editor-container,
 .diagnosis-editor-container,
 .medications-editor-container,
@@ -1180,6 +1187,7 @@
 }
 
 .symptoms-shimmer-container,
+.surgeries-shimmer-container,
 .examination-shimmer-container,
 .diagnosis-shimmer-container,
 .medications-shimmer-container,
@@ -1198,6 +1206,7 @@
 }
 
 .symptoms-shimmer,
+.surgeries-shimmer,
 .examination-shimmer,
 .diagnosis-shimmer,
 .medications-shimmer,
@@ -1218,6 +1227,7 @@
 
 /* Rich Text Editor Toolbar Footer - All Parameters */
 .symptoms-rich-text-editor [data-test-id='menu'],
+.surgeries-rich-text-editor [data-test-id='menu'],
 .examination-rich-text-editor [data-test-id='menu'],
 .diagnosis-rich-text-editor [data-test-id='menu'],
 .medications-rich-text-editor [data-test-id='menu'],
@@ -1672,10 +1682,10 @@
 .medications-table-container {
   margin-bottom: 16px;
   border-radius: 8px;
-  overflow-x: auto;
-  overflow-y: auto;
+  /* No internal scroller inside medications box */
+  overflow: visible;
   border: 1px solid #E5E7EB;
-  max-height: calc(100vh - 400px);
+  max-height: none;
 }
 
 /* Custom scrollbar for medications table */
@@ -1700,7 +1710,8 @@
 
 .medications-table {
   width: 100%;
-  min-width: 1000px;
+  /* Allow table to fit container (keep delete visible without horizontal scroll) */
+  min-width: 0;
   border-collapse: collapse;
   background: white;
   table-layout: fixed;
@@ -1708,10 +1719,10 @@
 
 .medications-table th {
   background: #F9FAFB;
-  padding: 12px 8px;
+  padding: 14px 10px;
   text-align: left;
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #374151;
   border-bottom: 2px solid #E5E7EB;
@@ -1726,11 +1737,11 @@
 }
 
 .medications-table td {
-  padding: 12px 8px;
+  padding: 14px 10px;
   border-bottom: 1px solid #E5E7EB;
   border-right: 1px solid #E5E7EB;
   vertical-align: top;
-  min-height: 50px;
+  min-height: 64px;
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: normal;
@@ -1744,41 +1755,126 @@
   background: #F9FAFB;
 }
 
+/* Tapering Dose & Dose Calculator badges - blue, show on row hover (same as consult flow) */
+.medications-table .taper-dose {
+  position: relative;
+}
+
+/* Cell must be positioning context so badge sits at bottom-left of cell */
+.medications-table .medicine-cell-with-badge,
+.medications-table .unit-dose-cell-with-badge {
+  position: relative;
+  min-height: 64px;
+}
+
+.medications-table .taper-dose .badge-tapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  color: #4B4AD5 !important;
+  display: none;
+  align-items: center;
+  z-index: 9;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.medications-table .taper-dose .badge-tapper i {
+  font-size: 12px;
+}
+
+.medications-table .taper-dose:hover .badge-tapper {
+  display: inline-flex;
+}
+
+.medications-table .taper-dose .badge-tapper img {
+  width: 14px;
+  height: 14px;
+}
+
+/* Tapering dose: one medicine name spanning two rows, "Then" in UNIT PER DOSE area (same as Prescription) */
+.medications-table .medicine-cell-rowspan-2 {
+  vertical-align: top;
+}
+
+/* "Then" pill inside UNIT PER DOSE cell of taper row - left side, between the two rows visually */
+.medications-table .unit-dose-cell-with-then {
+  position: relative;
+  padding-top: 20px;
+}
+
+.medications-table .medications-then-pill-inline {
+  position: absolute;
+  left: 0%;
+  top: -10px;
+  transform: translateX(-50%);
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+  background-color: #F3F4F6;
+  color: #6B7280;
+  line-height: 1.5;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  z-index: 2;
+}
+
+.medications-table .taper-row {
+  background: #FAFAFA;
+}
+
 /* Medications specific column widths */
 .medications-table .drag-column {
-  width: 50px;
+  width: 44px;
 }
 
 .medications-table .medicine-column {
-  width: 200px;
-  min-width: 200px;
+  width: 170px;
+  min-width: 170px;
 }
 
 .medications-table .unit-dose-column,
 .medications-table .frequency-column {
-  width: 100px;
-  min-width: 100px;
+  width: 95px;
+  min-width: 95px;
   font-size: 12px;
 }
 
 .medications-table .quantity-column {
-  width: 100px;
-  min-width: 100px;
+  width: 70px;
+  min-width: 70px;
   font-size: 12px;
 }
 
 .medications-table .when-column,
 .medications-table .duration-column,
 .medications-table .note-column {
-  width: 140px;
-  min-width: 140px;
+  width: 120px;
+  min-width: 120px;
   font-size: 12px;
 }
 
 .medications-table .action-column {
-  width: 80px;
-  max-width: 80px;
-  min-width: 80px;
+  width: 44px;
+  max-width: 44px;
+  min-width: 44px;
+  position: sticky;
+  right: 0;
+  z-index: 11;
+}
+
+/* Keep the delete cell pinned and visible */
+.medications-table td.action-cell {
+  position: sticky;
+  right: 0;
+  background: white;
+  z-index: 10;
 }
 
 .medications-table .drag-cell {
@@ -1793,7 +1889,7 @@
 .medications-table .duration-cell,
 .medications-table .note-cell {
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   color: #374151;
 }
 
@@ -1805,11 +1901,11 @@
 
 .medications-table .medicine-name {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .medications-table .medicine-subtitle {
-  font-size: 11px;
+  font-size: 12px;
   color: #6B7280;
   font-style: italic;
 }
