@@ -8,6 +8,11 @@
   border: 1px solid #dce4e8 !important;
   position: relative;
 }
+.all-patients {
+  .appointment-data .ant-table table thead{
+    z-index:  1 !important;
+  }
+}
 
 .all-patients-date-wrapper .all-patients-date-input {
   width: 100%;

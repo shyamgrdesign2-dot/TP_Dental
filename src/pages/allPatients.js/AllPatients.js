@@ -1019,7 +1019,7 @@ const AllPatients = () => {
             </div>
           </>
 
-          <div className="border rounded-4 appointment-wrap dateborder mb-4">
+          <div className="border rounded-4 appointment-wrap dateborder mb-4 all-patients">
             <div className="billing-table-wrapper mt-2">
               <Row className="justify-content-between align-items-center my-4 px-4">
                 <div className="d-flex align-items-center gap-3">
