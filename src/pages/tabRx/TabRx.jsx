@@ -2111,7 +2111,13 @@ function TabRx() {
             isTeleconsultJoinLoading={isTeleconsultJoinLoading}
             isTeleconsultActive={!!joinToken}
           />
-          <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
+          <div 
+            className="w-100 bg-body wrapper2 prescription-wrapper p-0"
+            style={{
+              overflowY: "hidden",
+              overflowX: "hidden"
+            }}
+          >
             <Layout>
               <TabRxNavPanel
                 isApexAISelected={isApexAISelected}

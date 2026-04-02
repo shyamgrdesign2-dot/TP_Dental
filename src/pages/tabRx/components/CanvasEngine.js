@@ -1162,9 +1162,10 @@ const CanvasEngine = React.forwardRef(({
           style={{
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            // Allow vertical finger-scroll when this canvas is inside a scroll container.
-            // Pen/stylus still draws because internalPointerDown calls preventDefault() for pen events.
-            touchAction: embeddedInScroll ? 'pan-y' : 'none',
+            // Always disable native panning/scrolling on the canvas element.
+            // Finger scrolling is handled by the parent pages scroller to avoid Chrome
+            // treating vertical stylus strokes as viewport scroll (which cancels pen events).
+            touchAction: 'none',
             WebkitTouchCallout: 'none',
             WebkitTapHighlightColor: 'transparent'
           }}

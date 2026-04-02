@@ -240,6 +240,67 @@ const TabRxCanvas = forwardRef(({
 
   // Refs to access canvas elements for export
   const canvasRefsByPage = useRef({});
+  const scrollPagesRef = useRef(null);
+  const touchScrollRef = useRef({ active: false, pointerId: null, lastY: 0 });
+  const scrollLockRef = useRef({
+    locked: false,
+    prevOverflowY: '',
+    prevTouchAction: '',
+    lockedScrollTop: 0,
+    scrollEl: null,
+    scrollHandler: null,
+    lockedAncestors: [],
+    // Viewport (Chrome page) scroll lock
+    prevBodyPosition: '',
+    prevBodyTop: '',
+    prevBodyLeft: '',
+    prevBodyRight: '',
+    prevBodyWidth: '',
+    prevBodyOverscroll: '',
+    prevHtmlOverscroll: '',
+    prevHtmlScrollBehavior: '',
+    lockedWindowScrollY: 0,
+  });
+
+  // Finger-scroll on the pages scroller (works even when starting on the canvas).
+  // We keep native touch-action disabled on the canvas to prevent Chrome from scrolling
+  // the viewport during vertical stylus strokes.
+  useEffect(() => {
+    const el = scrollPagesRef.current;
+    if (!el) return;
+
+    const onPointerDown = (e) => {
+      if (e.pointerType !== 'touch') return;
+      touchScrollRef.current = { active: true, pointerId: e.pointerId, lastY: e.clientY };
+    };
+
+    const onPointerMove = (e) => {
+      const s = touchScrollRef.current;
+      if (!s.active || s.pointerId !== e.pointerId) return;
+      const dy = e.clientY - s.lastY;
+      s.lastY = e.clientY;
+      el.scrollTop -= dy;
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const end = (e) => {
+      const s = touchScrollRef.current;
+      if (s.pointerId !== e.pointerId) return;
+      touchScrollRef.current = { active: false, pointerId: null, lastY: 0 };
+    };
+
+    el.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
+    el.addEventListener('pointermove', onPointerMove, { capture: true, passive: false });
+    window.addEventListener('pointerup', end, { capture: true, passive: true });
+    window.addEventListener('pointercancel', end, { capture: true, passive: true });
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown, true);
+      el.removeEventListener('pointermove', onPointerMove, true);
+      window.removeEventListener('pointerup', end, true);
+      window.removeEventListener('pointercancel', end, true);
+    };
+  }, []);
 
   // Expose export method via ref
   useImperativeHandle(ref, () => ({
@@ -549,6 +610,132 @@ const TabRxCanvas = forwardRef(({
 
   const handleInteractionStart = useCallback(() => {
     setShowToolbarSettings(false);
+
+    // CanvasEngine only calls onInteractionStart for pen/stylus.
+    // Lock the surrounding scroll container so Android stylus drag can't scroll mid-stroke,
+    // even if the event doesn't bubble up (CanvasEngine stops propagation for pen).
+    const el = scrollPagesRef.current;
+    if (!el) return;
+
+    const state = scrollLockRef.current;
+    if (!state.locked) {
+      state.locked = true;
+      state.scrollEl = el;
+      state.prevOverflowY = el.style.overflowY;
+      state.prevTouchAction = el.style.touchAction;
+      state.lockedScrollTop = el.scrollTop;
+      el.style.overflowY = 'hidden';
+      el.style.touchAction = 'none';
+
+      // Freeze the viewport/page scroll (Chrome scrolling the whole screen on pen vertical strokes).
+      // This is more reliable than canceling move events and doesn't interfere with canvas drawing.
+      state.lockedWindowScrollY = window.scrollY || 0;
+      const body = document.body;
+      const html = document.documentElement;
+      state.prevBodyPosition = body.style.position;
+      state.prevBodyTop = body.style.top;
+      state.prevBodyLeft = body.style.left;
+      state.prevBodyRight = body.style.right;
+      state.prevBodyWidth = body.style.width;
+      state.prevBodyOverscroll = body.style.overscrollBehavior;
+      state.prevHtmlOverscroll = html.style.overscrollBehavior;
+      state.prevHtmlScrollBehavior = html.style.scrollBehavior;
+
+      body.style.position = 'fixed';
+      body.style.top = `-${state.lockedWindowScrollY}px`;
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+      body.style.overscrollBehavior = 'none';
+      html.style.overscrollBehavior = 'none';
+      html.style.scrollBehavior = 'auto';
+
+      const getScrollableAncestors = (startEl) => {
+        const res = [];
+        let node = startEl?.parentElement;
+        while (node && node !== document.body && node !== document.documentElement) {
+          const cs = window.getComputedStyle(node);
+          const overflowY = cs.overflowY;
+          // only consider real scroll containers
+          const scrollable =
+            (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+            node.scrollHeight > node.clientHeight + 1;
+          if (scrollable) res.push(node);
+          node = node.parentElement;
+        }
+        return res;
+      };
+
+      // Lock any scrollable parents (e.g. TabRx outer wrapper) so pen drag can't scroll them.
+      state.lockedAncestors = getScrollableAncestors(el).map((ancestor) => ({
+        el: ancestor,
+        prevOverflowY: ancestor.style.overflowY,
+        prevOverscroll: ancestor.style.overscrollBehavior,
+      }));
+      state.lockedAncestors.forEach(({ el: ancestorEl }) => {
+        ancestorEl.style.overflowY = 'hidden';
+        ancestorEl.style.overscrollBehavior = 'none';
+      });
+
+      state.scrollHandler = () => {
+        const s = scrollLockRef.current;
+        if (!s.locked || !s.scrollEl) return;
+        if (s.scrollEl.scrollTop !== s.lockedScrollTop) {
+          s.scrollEl.scrollTop = s.lockedScrollTop;
+        }
+      };
+      el.addEventListener('scroll', state.scrollHandler, { passive: true });
+    }
+
+    const unlock = () => {
+      const s = scrollLockRef.current;
+      if (!s.locked) return;
+      s.locked = false;
+      const targetEl = s.scrollEl || el;
+      if (s.scrollHandler && targetEl) {
+        targetEl.removeEventListener('scroll', s.scrollHandler);
+      }
+      if (targetEl) {
+        targetEl.style.overflowY = s.prevOverflowY;
+        targetEl.style.touchAction = s.prevTouchAction;
+      }
+
+      // Restore viewport/page scroll.
+      const body = document.body;
+      const html = document.documentElement;
+      body.style.position = s.prevBodyPosition;
+      body.style.top = s.prevBodyTop;
+      body.style.left = s.prevBodyLeft;
+      body.style.right = s.prevBodyRight;
+      body.style.width = s.prevBodyWidth;
+      body.style.overscrollBehavior = s.prevBodyOverscroll;
+      html.style.overscrollBehavior = s.prevHtmlOverscroll;
+      html.style.scrollBehavior = s.prevHtmlScrollBehavior;
+      if (typeof window.scrollTo === 'function') {
+        window.scrollTo(0, s.lockedWindowScrollY || 0);
+      }
+
+      if (Array.isArray(s.lockedAncestors) && s.lockedAncestors.length > 0) {
+        s.lockedAncestors.forEach(({ el: ancestorEl, prevOverflowY, prevOverscroll }) => {
+          if (!ancestorEl) return;
+          ancestorEl.style.overflowY = prevOverflowY;
+          ancestorEl.style.overscrollBehavior = prevOverscroll;
+        });
+      }
+
+      s.scrollEl = null;
+      s.scrollHandler = null;
+      s.lockedAncestors = [];
+      window.removeEventListener('pointerup', unlock, true);
+      window.removeEventListener('pointercancel', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+      window.removeEventListener('touchcancel', unlock, true);
+    };
+
+    window.addEventListener('pointerup', unlock, true);
+    window.addEventListener('pointercancel', unlock, true);
+    window.addEventListener('touchend', unlock, true);
+    window.addEventListener('touchcancel', unlock, true);
   }, []);
 
   const handleStrokeComplete = useCallback((pageId, newStroke) => {
@@ -1020,6 +1207,7 @@ const TabRxCanvas = forwardRef(({
         )}
         <div
           className="canvas-pages-scroll"
+          ref={scrollPagesRef}
           style={{
             paddingRight: showTemplateDrawer ? 320 : 0
           }}
