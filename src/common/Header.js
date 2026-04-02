@@ -19,7 +19,7 @@ import playIcons from '../assets/images/tube-icon.svg';
 import qrIcon from '../assets/images/qr-icon.svg';
 import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
-import QrPrintDownloadModal from "./QrPrintDownloadModal";
+import QrPrintDownloadModal from "./QrPrintDownloadModal.jsx";
 import videorotate from '../assets/images/videorotate.gif';
 import upgradeIcon from "../assets/images/upgrade.svg";
 import profileBg from "../assets/images/profile-bg.svg";

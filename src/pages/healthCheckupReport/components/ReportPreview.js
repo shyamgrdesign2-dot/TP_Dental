@@ -9,7 +9,6 @@ import "./HealthCheckupReportEditor.scss";
 
 import "./ReportPreview.scss";
 import editIconWhite from "../../../assets/images/edit-white.png";
-import { MdChevronLeft } from "react-icons/md";
 
 function ReportPreview({
   open,
@@ -82,7 +81,7 @@ function ReportPreview({
               onClick={onClose}
               aria-label="Back"
             >
-              <MdChevronLeft />
+              <i className="icon-right" />
             </button>
             <div className="report-preview__header-info">
               <h2 className="report-preview__title">Health Check-up Report</h2>
