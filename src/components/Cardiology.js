@@ -11,6 +11,7 @@ import api from "../api/services/axiosService";
 import PrescriptionSkeleton from "./mobile/PrescriptionSkeleton";
 
 import Symptomsicon from "../assets/images/Symptoms.svg";
+import surgeryIcon from "../assets/images/surgery.svg";
 import Examinationsicon from "../assets/images/Examination.svg";
 import Diagnosisicon from "../assets/images/Diagnosis.svg";
 import Medicationicon from "../assets/images/Medication.svg";
@@ -39,6 +40,8 @@ import {
   getClinicName,
   isVoiceRxFree,
   shouldMonetizationDisabled,
+  camelCaseToTitle,
+  camelToSentence,
 } from "../utils/utils";
 import {
   EXTRA_OPTIONS,
@@ -56,6 +59,7 @@ import {
   INVESTIGATION_TITLE,
   GB_TAB_RX,
   GB_TAB_RX_CVT,
+  GB_TELE_CONSULT,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -569,7 +573,9 @@ function Cardiology(props) {
   );
   const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
   const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
-  const isVideoConsultAccessibleFromGB = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
+  const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isFreeVoiceRxUser = isVoiceRxFree();
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -711,7 +717,7 @@ function Cardiology(props) {
     setIsLoadingVideoStatus(true);
     try {
       const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-      if (response?.data?.pam_status_type_appointment === 1) {
+      if (response?.data?.pam_status_type_appointment === 1 || response?.data?.pam_status_type_appointment === 2) {
         setHasVideoConsult(true);
       } else {
         setHasVideoConsult(false);
@@ -1814,16 +1820,32 @@ function Cardiology(props) {
     });
   };
 
+  const getLabInvestigationNote = (item) => {
+    const name = String(item?.name || "").trim();
+    const instruction = String(item?.instruction || "").trim();
+    const rawNote = String(item?.note || item?.notes || "").trim();
+    if (instruction) return instruction;
+    if (!rawNote) return "";
+    if (!name) return rawNote;
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const namePrefixRegex = new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i");
+    const cleanedNote = rawNote.replace(namePrefixRegex, "").trim();
+    return cleanedNote || rawNote;
+  };
+
   // Render items for each type (medications, tests, etc.)
   // Supports both old (vitals, examination, tests) and new (vitalsAndBodyComposition, examinations, labInvestigation) structure
-  const renderItems = (type) => {
+  // When dataOverride is provided (voice/ambient/snap/smart unified view), use it; else use snap vs smart source
+  const renderItems = (type, dataOverride) => {
     const data =
-      isSnapRxDigitizationAccessable &&
-      isSnapRx &&
-      showDigitalSnapRx &&
-      snapRxDigitisedData
-        ? snapRxDigitisedData
-        : rxDigitisedData?.editedData;
+      dataOverride !== undefined && dataOverride !== null
+        ? dataOverride
+        : isSnapRxDigitizationAccessable &&
+          isSnapRx &&
+          showDigitalSnapRx &&
+          snapRxDigitisedData
+          ? snapRxDigitisedData
+          : rxDigitisedData?.editedData;
 
     if (type === "gynecHistory") {
       const gynec = getNormalizedGynecHistory(data ?? {});
@@ -1903,10 +1925,16 @@ function Cardiology(props) {
                           }
                           return lineItem || "";
                         })()
+                      : type === "surgeries"
+                      ? (() => {
+                          const name = (item?.name || "").trim();
+                          const notes = (item?.notes || "").trim();
+                          return notes ? `${name} (${notes})` : name;
+                        })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
                           ? (item?.refinedName || item?.name || item?.groundedMedicineName || item?.groundingMedicineName || item?.lineItem)
-                          : (item?.refinedName || item?.name || item?.lineItem))
+                          : (item?.refinedName || item?.name))
                       : type === "labResults"
                       ? (() => {
                           const lineItem =
@@ -1958,6 +1986,27 @@ function Cardiology(props) {
                     if ((type === "symptoms" || type === "diagnosis" || type === "examination" || type === "examinations") && (item?.lineItem || "").trim()) {
                         return null;
                     }
+                    if (type === "labInvestigation") {
+                      const labNote = getLabInvestigationNote(item);
+                      return labNote ? <span> ({labNote})</span> : null;
+                    }
+                    if (type === "vaccinations") {
+                      const vaccineName = String(item?.name || "").trim();
+                      const rawLineItem = String(item?.lineItem || "").trim();
+                      const escapedName = vaccineName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                      const namePrefixRegex = vaccineName ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+                      const detailsFromLineItem = rawLineItem && namePrefixRegex
+                        ? (rawLineItem.replace(namePrefixRegex, "").trim() || rawLineItem)
+                        : rawLineItem;
+                      const details = [
+                        detailsFromLineItem,
+                        String(item?.schedule || "").trim(),
+                        String(item?.brand || "").trim(),
+                        String(item?.notes || "").trim(),
+                      ].filter(Boolean);
+                      const uniqueDetails = [...new Set(details)];
+                      return uniqueDetails.length > 0 ? <span> ({uniqueDetails.join(", ")})</span> : null;
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -2004,7 +2053,29 @@ function Cardiology(props) {
     if (!medications || medications.length === 0) return null;
 
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
-    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx));
+    const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx ));
+    const getKey = (m) =>
+      String(m?.groundedMedicineName || m?.groundingMedicineName || m?.name || '').trim().toLowerCase();
+    const isContinuation = medications.map((m, idx) => {
+      if (idx === 0) return false;
+      const k = getKey(m);
+      return k !== '' && k === getKey(medications[idx - 1]);
+    });
+    const rowSpanAt = new Map();
+    for (let i = 0; i < medications.length; i++) {
+      if (isContinuation[i]) continue;
+      const k = getKey(medications[i]);
+      if (!k) {
+        rowSpanAt.set(i, 1);
+        continue;
+      }
+      let span = 1;
+      for (let j = i + 1; j < medications.length; j++) {
+        if (getKey(medications[j]) !== k) break;
+        span++;
+      }
+      rowSpanAt.set(i, span);
+    }
     
     const getColumnStyle = (column) => {
       const baseStyle = { 
@@ -2058,27 +2129,56 @@ function Cardiology(props) {
           <tbody>
             {medications.map((item, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #171725' }}>
-                <td style={{ ...getColumnStyle('name'), fontWeight: 500 }}>
-                  {capitalize(
-                    (() => {
-                      if (item?.metadata?.selectedValue) {
-                        return item.metadata.selectedValue;
-                      }
-                      const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
-                      if (isGroundingAccessable) {
-                        const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
-                        if (isFuzzySearchEmpty) {
-                          return grounded || item?.name || "";
+                {!isContinuation[index] && (
+                  <td
+                    rowSpan={rowSpanAt.get(index) || 1}
+                    style={{ ...getColumnStyle('name'), fontWeight: 500, verticalAlign: 'top' }}
+                  >
+                    {capitalize(
+                      (() => {
+                        if (item?.metadata?.selectedValue) {
+                          return item.metadata.selectedValue;
                         }
-                        return item?.name || grounded || "";
-                      }
-                      return grounded || item?.name || item?.refinedName || item?.lineItem || "";
-                    })().trim() || '-', 
-                    true
-                  )}
-                </td>
+                        const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
+                        if (isGroundingAccessable) {
+                          const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
+                          if (isFuzzySearchEmpty) {
+                            return grounded || item?.name || "";
+                          }
+                          return item?.name || grounded || "";
+                        }
+                        return grounded || item?.name || item?.refinedName || item?.lineItem || "";
+                      })().trim() || '-',
+                      true
+                    )}
+                  </td>
+                )}
                 <td style={getColumnStyle('unit')}>
-                  {item?.unitPerDose || item?.dosage || '-'}
+                  {isContinuation[index] ? (
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '0%',
+                          top: -14,
+                          transform: 'translateX(-50%)',
+                          padding: '2px 8px',
+                          fontSize: 12,
+                          borderRadius: 10,
+                          border: '1px solid #E5E7EB',
+                          background: '#F3F4F6',
+                          color: '#6B7280',
+                          lineHeight: 1.5,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Then
+                      </span>
+                      <div style={{ paddingTop: 10 }}>{item?.unitPerDose || item?.dosage || '-'}</div>
+                    </div>
+                  ) : (
+                    item?.unitPerDose || item?.dosage || '-'
+                  )}
                 </td>
                 <td style={getColumnStyle('frequency')}>
                   {item?.frequency || '-'}
@@ -2124,7 +2224,7 @@ function Cardiology(props) {
                   {item?.name || 'N/A'}
                 </td>
                 <td style={{ padding: '8px', border: '1px solid #171725', textAlign: 'left', fontSize: '11px' }}>
-                  {item?.lineItem || item?.instruction || item?.note || item?.notes || '-'}
+                  {getLabInvestigationNote(item) || '-'}
                 </td>
               </tr>
             ))}
@@ -2354,6 +2454,14 @@ function Cardiology(props) {
             );
           })()
                 )}
+
+                {type === "surgeries" && (
+                  (() => {
+                    const name = (item?.name || "").trim();
+                    const notes = (item?.notes || "").trim();
+                    return <span>{notes ? `${name} (${notes})` : name}</span>;
+                  })()
+                )}
               
                 {(type === "vaccinations" ||
                   type === "medicalHistory" ||
@@ -2361,6 +2469,36 @@ function Cardiology(props) {
                   type === "symptoms" ||
                   type === "examinations" ||
                   type === "diagnosis") && (() => {
+                    if (type === "vaccinations") {
+                      const vaccineName = String(item?.name || "").trim();
+                      const rawLineItem = String(item?.lineItem || "").trim();
+                      const escapedName = vaccineName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                      const namePrefixRegex = vaccineName ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+                      const detailsFromLineItem = rawLineItem && namePrefixRegex
+                        ? (rawLineItem.replace(namePrefixRegex, "").trim() || rawLineItem)
+                        : rawLineItem;
+                      const details = [
+                        detailsFromLineItem,
+                        String(item?.schedule || "").trim(),
+                        String(item?.brand || "").trim(),
+                        String(item?.notes || "").trim(),
+                      ].filter(Boolean);
+                      const uniqueDetails = [...new Set(details)];
+                      return uniqueDetails.length > 0 ? (
+                        <span> ({uniqueDetails.join(", ")})</span>
+                      ) : null;
+                    }
+                    if (type === "labInvestigation") {
+                      const labName = String(item?.name || "").trim();
+                      const labNote = getLabInvestigationNote(item);
+                      if (!labName && !labNote) return <span>{typeof item === "string" ? item : ""}</span>;
+                      return (
+                        <span>
+                          {labName}
+                          {labNote ? ` (${labNote})` : ""}
+                        </span>
+                      );
+                    }
                     const hasIndividualFields = (item?.severity && item?.severity !== '') ||
                                                (item?.duration && item?.duration !== '') ||
                                                (item?.notes && item?.notes !== '') ||
@@ -2565,16 +2703,7 @@ function Cardiology(props) {
     { key: "pain", label: "HEAD/JAW/NECK PAIN" },
     { key: "notes", label: "NOTES" },
   ];
-  const camelCaseToTitle = (str) => {
-    if (str === "periodontalseverity" || str === "Periodontalseverity") {
-      return "Periodontal Severity";
-    }
-    return String(str || "")
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (first) => first.toUpperCase())
-      .replace(/\b\w/g, (char) => char.toUpperCase())
-      .trim();
-  };
+
   const formatDentalDiagnosisValue = (val) => {
     if (Array.isArray(val)) {
       return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -2582,7 +2711,7 @@ function Cardiology(props) {
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";
@@ -2854,6 +2983,7 @@ function Cardiology(props) {
       const relevantFields = {
         medications: ["refinedName", "name", "groundedMedicineName", "groundingMedicineName", "lineItem"],
         symptoms: ["name", "lineItem"],
+        surgeries: ["name", "notes"],
         examination: ["name", "findings", "notes", "lineItem"],
         examinations: ["name", "findings", "notes", "lineItem"],
         diagnosis: ["name", "notes", "lineItem"],
@@ -2870,7 +3000,224 @@ function Cardiology(props) {
       return fieldsToCheck.some((field) => item[field]?.trim?.().length > 0);
     });
   };
-  
+
+  const hasVitalsContent = (data) =>
+    data &&
+    typeof data === "object" &&
+    ((data.vitals && Object.values(data.vitals).some((v) => v != null && String(v).trim() !== "")) ||
+      (data.vitalsAndBodyComposition &&
+        Object.values(data.vitalsAndBodyComposition).some((v) => v != null && String(v).trim() !== "")));
+
+  // Medical history grouped by type (Medical condition, Family History, Lifestyle, Surgical History, etc.); uses name, duration, relation, enable, notes in parentheses (no lineItem). Each type stacked one after another. No partition lines; same text style as rest of digitised sections.
+  const renderMedicalHistoryGroupedByType = (data) => {
+    const list = data?.medicalHistory;
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const grouped = list.reduce((acc, item) => {
+      const t = String(item?.type || "").trim() || "Other";
+      if (!acc[t]) acc[t] = [];
+      acc[t].push(item);
+      return acc;
+    }, {});
+    const typeOrder = [
+      "Medical condition",
+      "Family History",
+      "Lifestyle",
+      "Surgical History",
+      "Allergy",
+      "Allergies",
+      "Other",
+      "others",
+    ];
+    const orderedKeys = [
+      ...typeOrder.filter((k) => grouped[k]?.length),
+      ...Object.keys(grouped).filter((k) => !typeOrder.includes(k)),
+    ];
+    return (
+      <div className="digitised-data-section medical-history-grouped" style={{ display: "block", width: "100%" }}>
+        {orderedKeys.map((typeName) => {
+          const items = grouped[typeName] || [];
+          if (items.length === 0) return null;
+          return (
+            <div key={typeName} style={{ display: "block", width: "100%", marginBottom: "12px" }}>
+              <div className="title-digitise-section mb-1" style={{ marginLeft: 0 }}>
+                {typeName}
+              </div>
+              <ul style={{ marginLeft: "16px", marginBottom: 0, paddingLeft: "20px" }}>
+                {items.map((item, idx) => {
+                  const name = String(item?.name || "").trim();
+                  if (!name) return null;
+                  const parts = [];
+                  if (item?.duration != null && String(item.duration).trim())
+                    parts.push(String(item.duration).trim());
+                  if (item?.relation != null && String(item.relation).trim())
+                    parts.push(String(item.relation).trim());
+                  if (item?.enable != null && String(item.enable).trim())
+                    parts.push(String(item.enable).trim());
+                  if (item?.notes != null && String(item.notes).trim())
+                    parts.push(String(item.notes).trim());
+                  const inParens = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+                  return (
+                    <li key={idx} className="medicine-item">
+                      <span>• {name}{inParens}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Shared digitised sections UI with icons for voice, ambient, snap, and smart
+  const renderDigitisedSections = (data) => {
+    if (!data) return null;
+    return (
+      <div className="m-4">
+        {hasVitalsContent(data) && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={vitalsIcon} alt="Vitals" />
+              <div className="title-digitise-section mb-1">Vitals and Body compositions</div>
+            </div>
+            {renderItems("vitals", data)}
+          </>
+        )}
+        {data?.medicalHistory && hasValidContent(data, "medicalHistory") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={medicalHistoryIcon} alt="MedicalHistory" />
+              <div className="title-digitise-section mb-1">Medical History</div>
+            </div>
+            {renderMedicalHistoryGroupedByType(data)}
+          </>
+        )}
+        {data && !isGynecDataEmpty(getNormalizedGynecHistory(data)) && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={medicalHistoryIcon} alt="GynecHistory" />
+              <div className="title-digitise-section mb-1">Gynec History</div>
+            </div>
+            {renderItems("gynecHistory", data)}
+          </>
+        )}
+        {data?.symptoms && hasValidContent(data, "symptoms") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Symptomsicon} alt="Symptoms" />
+              <div className="title-digitise-section mb-1">Symptoms</div>
+            </div>
+            {renderItems("symptoms", data)}
+          </>
+        )}
+        {data?.surgeries && hasValidContent(data, "surgeries") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={surgeryIcon} alt="Surgeries/Procedures" />
+              <div className="title-digitise-section mb-1">Surgeries/Procedures</div>
+            </div>
+            {renderItems("surgeries", data)}
+          </>
+        )}
+        {((data?.examination && hasValidContent(data, "examination")) ||
+          (data?.examinations && hasValidContent(data, "examinations"))) && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Examinationsicon} alt="Examination" />
+              <div className="title-digitise-section mb-1">Examinations</div>
+            </div>
+            {renderItems("examination", data)}
+          </>
+        )}
+        {data?.diagnosis && hasValidContent(data, "diagnosis") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Diagnosisicon} alt="Diagnosis" />
+              <div className="title-digitise-section mb-1">Diagnosis</div>
+            </div>
+            {renderItems("diagnosis", data)}
+          </>
+        )}
+        {data?.medications && hasValidContent(data, "medications") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Medicationicon} alt="Medications" />
+              <div className="title-digitise-section mb-1">Medication</div>
+            </div>
+            {isGenRxTableView ? renderMedicationsTable() : renderItems("medications", data)}
+          </>
+        )}
+        {renderOpthalSummary()}
+        {((data?.tests && hasValidContent(data, "tests")) ||
+          (data?.labInvestigation && hasValidContent(data, "labInvestigation"))) && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Investigationicon} alt="Tests" />
+              <div className="title-digitise-section mb-1">Lab Investigation</div>
+            </div>
+            {isGenRxTableView ? renderLabInvestigationTable() : renderItems("tests", data)}
+          </>
+        )}
+        {data?.labResults && hasValidContent(data, "labResults") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Investigationicon} alt="Lab Results" />
+              <div className="title-digitise-section mb-1">Lab Results</div>
+            </div>
+            {renderItems("labResults", data)}
+          </>
+        )}
+        {data?.advice && hasValidContent(data, "advice") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={Frameicon} alt="Advice" />
+              <div className="title-digitise-section mb-1">Advices</div>
+            </div>
+            {renderItems("advice", data)}
+          </>
+        )}
+        {data?.vaccinations && hasValidContent(data, "vaccinations") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={vaccinationIcon} alt="Vaccination" />
+              <div className="title-digitise-section mb-1">Vaccination</div>
+            </div>
+            {renderItems("vaccinations", data)}
+          </>
+        )}
+        {data?.dynamicFields &&
+          (hasValidContent(data, "dynamicFields") ||
+            (typeof data.dynamicFields === "object" &&
+              !Array.isArray(data.dynamicFields) &&
+              Object.keys(data.dynamicFields).length > 0)) && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={customModuleIcon} alt="Dynamic Fields" />
+              <div className="title-digitise-section mb-1">Dynamic Fields</div>
+            </div>
+            {data === genRxData &&
+            typeof data.dynamicFields === "object" &&
+            !Array.isArray(data.dynamicFields) ? (
+              renderGenRxCustomModules()
+            ) : (
+              renderItems("dynamicFields", data)
+            )}
+          </>
+        )}
+        {data?.others && hasValidContent(data, "others") && (
+          <>
+            <div className="d-flex align-items-start">
+              <img className="me-2" src={notesicon} alt="Others" />
+              <div className="title-digitise-section mb-1">Others</div>
+            </div>
+            {renderItems("others", data)}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const handleStartConsult = () => {
     window.Moengage.track_event("start_new_visit_click", {
       doctor_id: profile?.doctor_unique_id,
@@ -3419,164 +3766,7 @@ function Cardiology(props) {
               (!isSmartRxFile && !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
-                  <div className="m-4">
-                    {genRxData?.vitalsAndBodyComposition &&
-                      Object.values(genRxData?.vitalsAndBodyComposition).some(
-                        (value) => value
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Vitals and Body compositions
-                            </div>
-                          </div>
-                          {renderGenRxItems("vitalsAndBodyComposition")}
-                        </>
-                      )}
-
-                    {genRxData?.medicalHistory &&
-                      genRxData?.medicalHistory.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
-                              Medical History:
-                            </div>
-                          </div>
-                          {renderGenRxItems("medicalHistory")}
-                        </>
-                      )}
-
-                    {genRxData && !isGynecDataEmpty(getNormalizedGynecHistory(genRxData)) && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <div className="title-digitise-section mb-1" style={{ fontWeight: 400 }}>
-                            Gynec History
-                          </div>
-                        </div>
-                        {renderGenRxItems("gynecHistory")}
-                      </>
-                    )}
-
-                    {genRxData?.symptoms && genRxData?.symptoms.length > 0 && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <div className="title-digitise-section mb-1">
-                            Symptoms
-                          </div>
-                        </div>
-                        {renderGenRxItems("symptoms")}
-                      </>
-                    )}
-
-                    {genRxData?.examinations &&
-                      genRxData?.examinations.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Examinations
-                            </div>
-                          </div>
-                          {renderGenRxItems("examinations")}
-                        </>
-                      )}
-
-                    {genRxData?.diagnosis &&
-                      genRxData?.diagnosis.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Diagnosis
-                            </div>
-                          </div>
-                          {renderGenRxItems("diagnosis")}
-                        </>
-                      )}
-
-                    {genRxData?.medications &&
-                      genRxData?.medications.length > 0 && !dentalMedicationRowsFiltered?.length && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Medication
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderMedicationsTable()
-                            : renderGenRxItems("medications")}
-                        </>
-                      )}
-                    {renderOpthalSummary()}
-
-                    {genRxData?.labInvestigation &&
-                      genRxData?.labInvestigation.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderLabInvestigationTable()
-                            : renderGenRxItems("labInvestigation")}
-                        </>
-                      )}
-
-                    {genRxData?.labResults &&
-                      genRxData?.labResults.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Lab Results
-                            </div>
-                          </div>
-                          {renderGenRxItems("labResults")}
-                        </>
-                      )}
-
-                    {genRxData?.advice && genRxData?.advice.length > 0 && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <div className="title-digitise-section mb-1">
-                            Advices
-                          </div>
-                        </div>
-                        {renderGenRxItems("advice")}
-                      </>
-                    )}
-
-                    {genRxData?.vaccinations &&
-                      genRxData?.vaccinations.length > 0 && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <div className="title-digitise-section mb-1">
-                              Vaccination
-                            </div>
-                          </div>
-                          {renderGenRxItems("vaccinations")}
-                        </>
-                      )}
-                    {genRxData?.others && genRxData.others.length > 0 && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <div className="title-digitise-section mb-1">
-                            Others
-                          </div>
-                        </div>
-                        {renderGenRxItems("others")}
-                      </>
-                    )}
-                    {genRxData.dynamicFields && renderGenRxCustomModules()}
-                    {genRxData?.followUp && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <div className="title-digitise-section mb-1">
-                            Follow Up
-                          </div>
-                        </div>
-                        {renderGenRxItems("followUp")}
-                      </>
-                    )}
-                  </div>
+                  renderDigitisedSections(genRxData)
                 ) : (
                   <div className="m-4">
                     {isAmbientRx ? (
@@ -3649,287 +3839,40 @@ function Cardiology(props) {
                     )}
                   </div>
                 )}
+                <div
+                  className={`d-flex align-items-center mb-14 ${
+                    viewCaseManagerData?.follow_up_date
+                      ? "follow-up-detailsPage"
+                      : ""
+                  }`}
+                >
+                  {viewCaseManagerData?.follow_up_date && (
+                    <>
+                      <img className="me-3" src={followUp} alt="Symptoms" />
+                      <div className="title-common">Follow-up:</div>
+                      <div className="follow-up-date-text">
+                        {viewCaseManagerData?.follow_up_date
+                          ? moment(viewCaseManagerData.follow_up_date).format(
+                              "DD/MM/YYYY"
+                            )
+                          : ""}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             ) : !(isMobile && !isTablet) && (isSmartRxFile || isTabRx) && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
-                  <div className="m-4">
-                    {renderDentalDigitisedSection()}
-                    {((rxDigitisedData?.editedData?.vitals &&
-                      Object.values(rxDigitisedData.editedData.vitals).some(
-                        (value) => value != null && String(value).trim()
-                      )) ||
-                      (rxDigitisedData?.editedData?.vitalsAndBodyComposition &&
-                      Object.values(rxDigitisedData.editedData.vitalsAndBodyComposition).some(
-                        (value) => value != null && String(value).trim()
-                      ))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={vitalsIcon}
-                              alt="Vitals"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Vitals and Body compositions
-                            </div>
-                          </div>
-                          {renderItems("vitals")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.medicalHistory &&
-                      hasValidContent(
-                        rxDigitisedData.editedData,
-                        "medicalHistory"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={medicalHistoryIcon}
-                              alt="MedicalHistory"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Medical History
-                            </div>
-                          </div>
-                          {renderItems("medicalHistory")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData && !isGynecDataEmpty(getNormalizedGynecHistory(rxDigitisedData.editedData)) && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <img
-                            className="me-2"
-                            src={medicalHistoryIcon}
-                            alt="GynecHistory"
-                          />
-                          <div className="title-digitise-section mb-1">
-                            Gynec History
-                          </div>
-                        </div>
-                        {renderItems("gynecHistory")}
-                      </>
-                    )}
-
-                    {rxDigitisedData?.editedData?.symptoms &&
-                      hasValidContent(
-                        rxDigitisedData.editedData,
-                        "symptoms"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Symptomsicon}
-                              alt="Symptoms"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Symptoms
-                            </div>
-                          </div>
-                          {renderItems("symptoms")}
-                        </>
-                      )}
-
-                    {((rxDigitisedData?.editedData?.examination &&
-                      hasValidContent(rxDigitisedData.editedData, "examination")) ||
-                      (rxDigitisedData?.editedData?.examinations &&
-                      hasValidContent(rxDigitisedData.editedData, "examinations"))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Examinationsicon}
-                              alt="Examination"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Examinations
-                            </div>
-                          </div>
-                          {renderItems("examination")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.diagnosis &&
-                      hasValidContent(
-                        rxDigitisedData.editedData,
-                        "diagnosis"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Diagnosisicon}
-                              alt="Diagnosis"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Diagnosis
-                            </div>
-                          </div>
-                          {renderItems("diagnosis")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.medications && !dentalMedicationRowsFiltered?.length &&
-                      hasValidContent(
-                        rxDigitisedData.editedData,
-                        "medications"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Medicationicon}
-                              alt="Medications"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Medication
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderMedicationsTable()
-                            : renderItems("medications")}
-                        </>
-                      )}
-                    {renderOpthalSummary()}
-
-                    {((rxDigitisedData?.editedData?.tests &&
-                      hasValidContent(rxDigitisedData.editedData, "tests")) ||
-                      (rxDigitisedData?.editedData?.labInvestigation &&
-                      hasValidContent(rxDigitisedData.editedData, "labInvestigation"))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Investigationicon}
-                              alt="Tests"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderLabInvestigationTable()
-                            : renderItems("tests")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.advice &&
-                      hasValidContent(rxDigitisedData.editedData, "advice") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Frameicon}
-                              alt="Advice"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Advices
-                            </div>
-                          </div>
-                          {renderItems("advice")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.vaccinations &&
-                      hasValidContent(
-                        rxDigitisedData.editedData,
-                        "vaccinations"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={vaccinationIcon}
-                              alt="vaccinations"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Vaccinations
-                            </div>
-                          </div>
-                          {renderItems("vaccinations")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.labResults &&
-                      hasValidContent(rxDigitisedData.editedData, "labResults") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Investigationicon}
-                              alt="Lab Results"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Lab Results
-                            </div>
-                          </div>
-                          {renderItems("labResults")}
-                        </>
-                      )}
-
-                    {!hasDentaldata &&
-                      rxDigitisedData?.editedData?.dynamicFields &&
-                      hasValidContent(rxDigitisedData.editedData, "dynamicFields") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={customModuleIcon}
-                              alt="Dynamic Fields"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Dynamic Fields
-                            </div>
-                          </div>
-                          {renderItems("dynamicFields")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.others &&
-                      hasValidContent(rxDigitisedData.editedData, "others") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={notesicon}
-                              alt="Others"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Others
-                            </div>
-                          </div>
-                          {renderItems("others")}
-                        </>
-                      )}
-
-                    {rxDigitisedData?.editedData?.followUp && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <img
-                            className="me-2"
-                            src={followUp}
-                            alt="Follow Up"
-                          />
-                          <div className="title-digitise-section mb-1">
-                            Follow Up
-                          </div>
-                        </div>
-                        {renderItems("followUp")}
-                      </>
-                    )}
-                  </div>
+                  renderDigitisedSections(rxDigitisedData?.editedData)
                 ) : (
                   <>
                     {smartRxFile?.length > 0 &&
-                      smartRxFile?.map(({ smart_prescription_file }) => (
+                      smartRxFile?.map((fileItem) => (
                         <div style={{ padding: "5px" }}>
-                          {smart_prescription_file && (
+                          {fileItem?.smart_prescription_file && (
                             <img
-                              src={smart_prescription_file}
+                              src={fileItem?.smart_prescription_file}
                               alt="Smart Rx"
                               width="100%"
                               height="660px"
@@ -3964,261 +3907,7 @@ function Cardiology(props) {
             ) : !(isMobile && !isTablet) && isSnapRx && isSnapRxAccessableFromGB ? (
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
-                  <div className="m-4">
-                    {((snapRxDigitisedData?.vitals &&
-                      Object.values(snapRxDigitisedData.vitals).some(
-                        (value) => value != null && String(value).trim()
-                      )) ||
-                      (snapRxDigitisedData?.vitalsAndBodyComposition &&
-                      Object.values(snapRxDigitisedData.vitalsAndBodyComposition).some(
-                        (value) => value != null && String(value).trim()
-                      ))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={vitalsIcon}
-                              alt="Vitals"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Vitals and Body compositions
-                            </div>
-                          </div>
-                          {renderItems("vitals")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.medicalHistory &&
-                      hasValidContent(
-                        snapRxDigitisedData,
-                        "medicalHistory"
-                      ) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={medicalHistoryIcon}
-                              alt="MedicalHistory"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Medical History
-                            </div>
-                          </div>
-                          {renderItems("medicalHistory")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData && !isGynecDataEmpty(getNormalizedGynecHistory(snapRxDigitisedData)) && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <img
-                            className="me-2"
-                            src={medicalHistoryIcon}
-                            alt="GynecHistory"
-                          />
-                          <div className="title-digitise-section mb-1">
-                            Gynec History
-                          </div>
-                        </div>
-                        {renderItems("gynecHistory")}
-                      </>
-                    )}
-
-                    {snapRxDigitisedData?.symptoms &&
-                      hasValidContent(snapRxDigitisedData, "symptoms") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Symptomsicon}
-                              alt="Symptoms"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Symptoms
-                            </div>
-                          </div>
-                          {renderItems("symptoms")}
-                        </>
-                      )}
-
-                    {((snapRxDigitisedData?.examination &&
-                      hasValidContent(snapRxDigitisedData, "examination")) ||
-                      (snapRxDigitisedData?.examinations &&
-                      hasValidContent(snapRxDigitisedData, "examinations"))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Examinationsicon}
-                              alt="Examination"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Examinations
-                            </div>
-                          </div>
-                          {renderItems("examination")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.diagnosis &&
-                      hasValidContent(snapRxDigitisedData, "diagnosis") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Diagnosisicon}
-                              alt="Diagnosis"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Diagnosis
-                            </div>
-                          </div>
-                          {renderItems("diagnosis")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.medications &&
-                      hasValidContent(snapRxDigitisedData, "medications") && !dentalMedicationRowsFiltered?.length && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Medicationicon}
-                              alt="Medications"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Medication
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderMedicationsTable()
-                            : renderItems("medications")}
-                        </>
-                      )}
-                    {renderOpthalSummary()}
-
-                    {((snapRxDigitisedData?.tests &&
-                      hasValidContent(snapRxDigitisedData, "tests")) ||
-                      (snapRxDigitisedData?.labInvestigation &&
-                      hasValidContent(snapRxDigitisedData, "labInvestigation"))) && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Investigationicon}
-                              alt="Tests"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              {INVESTIGATION_TITLE}
-                            </div>
-                          </div>
-                          {isGenRxTableView
-                            ? renderLabInvestigationTable()
-                            : renderItems("tests")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.advice &&
-                      hasValidContent(snapRxDigitisedData, "advice") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Frameicon}
-                              alt="Advice"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Advices
-                            </div>
-                          </div>
-                          {renderItems("advice")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.vaccinations &&
-                      hasValidContent(snapRxDigitisedData, "vaccinations") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={vaccinationIcon}
-                              alt="vaccinations"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Vaccinations
-                            </div>
-                          </div>
-                          {renderItems("vaccinations")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.labResults &&
-                      hasValidContent(snapRxDigitisedData, "labResults") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={Investigationicon}
-                              alt="Lab Results"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Lab Results
-                            </div>
-                          </div>
-                          {renderItems("labResults")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.dynamicFields &&
-                      hasValidContent(snapRxDigitisedData, "dynamicFields") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={customModuleIcon}
-                              alt="Dynamic Fields"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Dynamic Modules
-                            </div>
-                          </div>
-                          {renderItems("dynamicFields")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.others &&
-                      hasValidContent(snapRxDigitisedData, "others") && (
-                        <>
-                          <div className="d-flex align-items-start">
-                            <img
-                              className="me-2"
-                              src={notesicon}
-                              alt="Others"
-                            />
-                            <div className="title-digitise-section mb-1">
-                              Others
-                            </div>
-                          </div>
-                          {renderItems("others")}
-                        </>
-                      )}
-
-                    {snapRxDigitisedData?.followUp && (
-                      <>
-                        <div className="d-flex align-items-start">
-                          <img
-                            className="me-2"
-                            src={followUp}
-                            alt="Follow Up"
-                          />
-                          <div className="title-digitise-section mb-1">
-                            Follow Up
-                          </div>
-                        </div>
-                        {renderItems("followUp")}
-                      </>
-                    )}
-                  </div>
+                  renderDigitisedSections(snapRxDigitisedData)
                 ) : (
                   <>
                     {!!snapRxFile?.length &&

@@ -98,7 +98,12 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
-import { setJoinToken, setActiveTeleconsultAppointmentId } from "../../redux/teleconsultNotificationSlice";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../../redux/teleconsultNotificationSlice";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -438,8 +443,11 @@ function TabPrescription() {
       if (videoConsultData?.pam_id != null) {
         dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
       }
+      if (teleconsultAutoJoin?.consultationId) {
+        dispatch(setActiveTeleconsultConsultationId(teleconsultAutoJoin.consultationId));
+      }
     }
-  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
+  }, [teleconsultAutoJoin?.token, teleconsultAutoJoin?.consultationId, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -732,10 +740,10 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (isCarePlanEnabled) {
@@ -1588,7 +1596,7 @@ function TabPrescription() {
   };
 
   const handleTeleconsultClick = async () => {
-    const appointmentId = pamId || patient_data?.pam_id;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
     if (!appointmentId) {
       message.error("No appointment selected");
       return;
@@ -1601,6 +1609,12 @@ function TabPrescription() {
       if (token) {
         dispatch(setJoinToken(token));
         dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }

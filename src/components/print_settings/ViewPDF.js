@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
-import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles } from '../../utils/utils'
+import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence } from '../../utils/utils'
 import { EXTRA_OPTIONS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP } from '../../utils/constants';
 import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
@@ -320,16 +320,16 @@ const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: '
 function getAiFlowMedicationDisplayList(medicine) {
     if (!Array.isArray(medicine) || medicine.length === 0) return [];
     return medicine.map((item, index) => {
-        const tmm_unit = item.tmm_unit ?? item.unit_id ?? 2;
-        const unitTitle = AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] || 'Unit';
+        const tmm_unit = item.tmm_unit ?? item.unit_id;
+        const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : '';
         const medicineUnit = Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
             ? item.medicineUnit
-            : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
+            : (tmm_unit && unitTitle ? [{ tmu_id: tmm_unit, tmu_title: unitTitle }] : []);
         return {
             ...item,
             index,
             tmm_id: item.tmm_id ?? item.unique_id ?? `ai-${index}`,
-            tmm_medicine_name: item.tmm_medicine_name || item.name || item.medicine_name || item.lineItem || '',
+            tmm_medicine_name: item.tmm_medicine_name || item.name || item.groundedMedicineName || item.groundingMedicineName || item.medicine_name || item.lineItem || '',
             tmm_generic: item.tmm_generic ?? item.corrected_name ?? item.metadata?.tmm_generic ?? item.generic ?? '',
             tmm_unit: tmm_unit,
             medicineUnit,
@@ -340,9 +340,9 @@ function getAiFlowMedicationDisplayList(medicine) {
             tcm_tmm_freq_night: item.tcm_tmm_freq_night ?? item.freqNight,
             tmf_block: item.tmf_block ?? 0,
             tmm_freq_type: item.tmm_freq_type ?? item.freq_type,
-            tmm_time: item.tmm_time ?? item.time_id ?? 1,
+            tmm_time: item.tmm_time ?? item.time_id,
             tmm_days: item.tmm_days ?? item.days,
-            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? 'day(s)',
+            tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? '',
             display_qty: item.display_qty ?? item.quantity ?? item.qty ?? '',
             tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? '',
         };
@@ -402,16 +402,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         "orthodonticInterventionRequired",
         "habitsPedo",
     ];
-    const camelCaseToTitle = (str) => {
-        if (str === "periodontalseverity" || str === "Periodontalseverity") {
-            return "Periodontal Severity";
-        }
-        return String(str || "")
-            .replace(/([A-Z])/g, " $1")
-            .replace(/^./, (first) => first.toUpperCase())
-            .replace(/\b\w/g, (char) => char.toUpperCase())
-            .trim();
-    };
+
     const formatDiagnosisValue = (val) => {
         if (Array.isArray(val)) {
             return val.filter((v) => v != null && String(v).trim() !== "").join(", ");
@@ -419,7 +410,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         if (val && typeof val === "object") {
             return Object.entries(val)
                 .filter(([, v]) => !!v)
-                .map(([k]) => k)
+                .map(([k]) => camelToSentence(k))
                 .join(", ");
         }
         if (val == null) return "";
@@ -783,7 +774,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         }
 
         console.log('[ViewPDF][AIMedication][FrequencyTextDebug]', {
-            medicine: item?.tmm_medicine_name || item?.name || '',
+            medicine: item?.tmm_medicine_name || item?.name || item?.groundedMedicineName || item?.groundingMedicineName || '',
             numeric_frequency: option?.numeric_frequency,
             tmf_block: item?.tmf_block,
             tmm_freq_type: item?.tmm_freq_type,
@@ -843,29 +834,31 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         const dateC = moment(end_date);
 
         const days = dateB.diff(dateC, 'days');
-        const weeks = dateB.diff(dateC, 'weeks');
-        const months = dateB.diff(dateC, 'months');
+        const weeks = Math.floor(days / 7);
+        const remainingDays = days % 7;
 
-        if (weeks >= 48 && weeks % 48 === 0) {
+        if (weeks >= 48 && weeks % 48 === 0 && remainingDays === 0) {
             const yearsValue = Math.floor(weeks / 48);
             return `${yearsValue} ${yearsValue <= 1 ? 'Year' : 'Years'}`;
-        } else if (weeks === 5) {
+        } else if (weeks === 5 && remainingDays === 0) {
             return "1 Month";
-        } else if (weeks === 7 || weeks === 9) {
+        } else if ((weeks === 7 || weeks === 9) && remainingDays === 0) {
             return "2 Months";
-        } else if (weeks === 11 || weeks === 13) {
+        } else if ((weeks === 11 || weeks === 13) && remainingDays === 0) {
             return "3 Months";
-        } else if (weeks === 17) {
+        } else if (weeks === 17 && remainingDays === 0) {
             return "4 Months";
-        } else if (weeks === 19 || weeks === 21) {
+        } else if ((weeks === 19 || weeks === 21) && remainingDays === 0) {
             return "5 Months";
-        } else if (weeks === 23 || weeks === 25) {
+        } else if ((weeks === 23 || weeks === 25) && remainingDays === 0) {
             return "6 Months";
-        } else if (weeks === 27 || weeks === 29) {
+        } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
             return "7 Months";
-        } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48) {
+        } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
             const monthsValue = Math.floor(weeks / 4);
             return `${monthsValue} ${monthsValue <= 1 ? 'Month' : 'Months'}`;
+        } else if (weeks > 0 && remainingDays > 0) {
+            return `${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'} ${remainingDays} ${remainingDays <= 1 ? 'Day' : 'Days'}`;
         } else if (weeks > 0) {
             return `${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'}`;
         } else {
@@ -2267,23 +2260,64 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 </View>
                                                             </View>
                                                             {aiFlowMedicationList.map((item, i) => {
+                                                                const getKey = (m) =>
+                                                                    String(m?.groundedMedicineName || m?.tmm_medicine_name || m?.name || "")
+                                                                        .trim()
+                                                                        .toLowerCase();
+                                                                const key = getKey(item);
+                                                                const prevKey = i > 0 ? getKey(aiFlowMedicationList[i - 1]) : "";
+                                                                const nextKey = i < aiFlowMedicationList.length - 1 ? getKey(aiFlowMedicationList[i + 1]) : "";
+                                                                const isTaper = !!key && key === prevKey;
+                                                                const isGroupEnd = !key || key !== nextKey;
                                                                 const aiComputedFrequency = getAiMedicationFrequencyDisplay(item, option);
                                                                 const aiTimingDisplay = getAiMedicationTimingDisplay(item);
 
                                                                 return (
-                                                                <View style={styles.row} key={item.tmm_id || item.unique_id || i} wrap={false}>
-                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
-                                                                    <View style={styles.cell}>
-                                                                        <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{item.tmm_medicine_name || item.name || ''}</Text>
-                                                                        {option?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
-                                                                            <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
-                                                                        ) : null}
-                                                                    </View>
-                                                                    <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row' }}>
-                                                                        {option?.medicine_option?.includes('dose') && (
-                                                                            <Text style={[styles.cell, { flex: 0.45, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
-                                                                                {item.tmm_dosage && item.tmm_unit ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}` : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
+                                                                <View style={[styles.row, !isGroupEnd ? { borderBottom: '0px' } : null]} key={item.tmm_id || item.unique_id || i} wrap={false}>
+                                                                    <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }, !isGroupEnd ? { borderBottom: '0px' } : null]}>{isTaper ? '' : (i + 1)}</Text>
+                                                                    <View style={[styles.cell, !isGroupEnd ? { borderBottom: '0px' } : null]}>
+                                                                            <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>
+                                                                                {isTaper ? '' : (item.tmm_medicine_name || item.name || item.groundedMedicineName || item.groundingMedicineName || '')}
                                                                             </Text>
+                                                                            {!isTaper && option?.medicine_with_generic && (item.tmm_generic || item.corrected_name) ? (
+                                                                                <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic || ''}</Text>
+                                                                            ) : null}
+                                                                    </View>
+                                                                    <View style={{ flex: option?.medicine_option?.length === 0 ? 0.25 : option?.medicine_option?.length === 1 ? 0.8 : option?.medicine_option?.length === 2 ? 1.2 : option?.medicine_option?.length === 3 ? 1.4 : 2.4, flexDirection: 'row', ...(!isGroupEnd ? { borderBottom: '1px solid #171725' } : {}) }}>
+                                                                        {option?.medicine_option?.includes('dose') && (
+                                                                            <View style={[styles.cell, { flex: 0.45, position: 'relative' }]}>
+                                                                                {isTaper ? (
+                                                                                    <Text
+                                                                                        style={{
+                                                                                            position: 'absolute',
+                                                                                            left: -PX_TO_PT * 12,
+                                                                                            top: -PX_TO_PT * 9,
+                                                                                            paddingHorizontal: PX_TO_PT * 6,
+                                                                                            paddingVertical: PX_TO_PT * 2,
+                                                                                            borderRadius: PX_TO_PT * 10,
+                                                                                            borderWidth: 1,
+                                                                                            borderColor: '#B5B5B5',
+                                                                                            backgroundColor: '#FFFFFF',
+                                                                                            zIndex: 2,
+                                                                                            color: '#171725',
+                                                                                            fontFamily: printSettings?.page_format?.font_family,
+                                                                                            fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2,
+                                                                                            fontWeight: 500,
+                                                                                        }}
+                                                                                    >
+                                                                                        Then
+                                                                                    </Text>
+                                                                                ) : null}
+                                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, marginTop: isTaper ? PX_TO_PT * 2 : 0 }}>
+                                                                                    {(() => {
+                                                                                        const baseDose =
+                                                                                            item.tmm_dosage && item.tmm_unit
+                                                                                                ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
+                                                                                                : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-');
+                                                                                        return baseDose;
+                                                                                    })()}
+                                                                                </Text>
+                                                                            </View>
                                                                         )}
                                                                         {option?.medicine_option?.includes('frequency') && (
                                                                             <Text style={[styles.cell, { flex: 0.6, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
@@ -2317,121 +2351,152 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         {option?.format === 'inline' ? (
                                                             <Text style={{ marginTop: PX_TO_PT * 15, marginBottom: PX_TO_PT * 15, lineHeight: 1.4 }}>
                                                                 <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
-                                                                {aiFlowMedicationList.map((item, i) => {
-                                                                    const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
-                                                                    const aiTimingDisplay = getAiMedicationTimingDisplay(item);
-
-                                                                    const detailsParts = Object.values(
-                                                                        Object.fromEntries(
-                                                                            Object.entries({
-                                                                                generic: option?.medicine_with_generic && (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
-                                                                                    ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
-                                                                                    : '',
-                                                                                dose: option?.medicine_option?.includes('dose')
-                                                                                    ? (item.tmm_dosage && item.tmm_unit
-                                                                                        ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
-                                                                                        : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
-                                                                                    : '',
-                                                                                frequency: option?.medicine_option?.includes('frequency')
-                                                                                    ? aiInlineFrequency
-                                                                                    : '',
-                                                                                timing: aiTimingDisplay,
-                                                                                duration: option?.medicine_option?.includes('duration')
-                                                                                    ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
-                                                                                        ? durationLang(capitalize(item.tmm_duration_type, true))
-                                                                                        : (isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'))
-                                                                                    : '',
-                                                                                qty: option?.medicine_option?.includes('quantity') && item.display_qty
-                                                                                    ? `${item.display_qty} qty`
-                                                                                    : '',
-                                                                            }).filter(([, v]) => v)
+                                                                {(() => {
+                                                                    const getKey = (m) =>
+                                                                        String(m?.groundedMedicineName || m?.tmm_medicine_name || m?.name || "")
+                                                                            .trim()
+                                                                            .toLowerCase();
+                                                                    const groups = [];
+                                                                    for (const med of aiFlowMedicationList) {
+                                                                        const key = getKey(med);
+                                                                        const last = groups[groups.length - 1];
+                                                                        if (last && last.key === key && key) {
+                                                                            last.items.push(med);
+                                                                        } else {
+                                                                            groups.push({
+                                                                                key,
+                                                                                name: med?.tmm_medicine_name || med?.name || med?.groundedMedicineName || med?.groundingMedicineName || '',
+                                                                                items: [med],
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                    const buildDetailsParts = (item) => {
+                                                                        const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
+                                                                        const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+                                                                        return Object.values(
+                                                                            Object.fromEntries(
+                                                                                Object.entries({
+                                                                                    generic: option?.medicine_with_generic && (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
+                                                                                        ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
+                                                                                        : '',
+                                                                                    dose: option?.medicine_option?.includes('dose')
+                                                                                        ? (item.tmm_dosage && item.tmm_unit
+                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
+                                                                                            : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
+                                                                                        : '',
+                                                                                    frequency: option?.medicine_option?.includes('frequency') ? aiInlineFrequency : '',
+                                                                                    timing: aiTimingDisplay,
+                                                                                    duration: option?.medicine_option?.includes('duration')
+                                                                                        ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
+                                                                                            ? durationLang(capitalize(item.tmm_duration_type, true))
+                                                                                            : (isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'))
+                                                                                        : '',
+                                                                                    qty: option?.medicine_option?.includes('quantity') && item.display_qty
+                                                                                        ? `${item.display_qty} qty`
+                                                                                        : '',
+                                                                                }).filter(([, v]) => v)
+                                                                            )
                                                                         )
-                                                                    )
-                                                                        .filter(Boolean)
-                                                                        .join(', ');
-
-                                                                    const remarks = option?.medicine_option?.includes('note') && item.tmm_remarks
-                                                                        ? `, ${item.tmm_remarks}`
-                                                                        : '';
-
-                                                                    return (
-                                                                        <Text key={item.tmm_id || item.unique_id || i}>
+                                                                            .filter(Boolean)
+                                                                            .join(', ');
+                                                                    };
+                                                                    const buildRemarks = (item) =>
+                                                                        option?.medicine_option?.includes('note') && item.tmm_remarks ? `, ${item.tmm_remarks}` : '';
+                                                                    return groups.map((group, gi) => (
+                                                                        <Text key={`${group.key || group.name || 'med'}-${gi}`}>
                                                                             <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {item.tmm_medicine_name || item.name || ''}&nbsp;
+                                                                                {group.name}&nbsp;
                                                                             </Text>
-                                                                            <Text style={{
-                                                                                color: '#171725',
-                                                                                fontFamily: getFont(),
-                                                                                fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                                fontWeight: 400,
-                                                                            }}>
-                                                                                ({detailsParts}{remarks})
-                                                                                {i !== aiFlowMedicationList.length - 1 ? ', ' : ''}
+                                                                            <Text style={{ color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                                {group.items.map((item, ii) => (
+                                                                                    <Text key={item.tmm_id || item.unique_id || ii}>
+                                                                                        {ii !== 0 ? 'then ' : ''}
+                                                                                        ({buildDetailsParts(item)}{buildRemarks(item)})
+                                                                                        {ii !== group.items.length - 1 ? ' ' : ''}
+                                                                                    </Text>
+                                                                                ))}
+                                                                                {gi !== groups.length - 1 ? ', ' : ''}
                                                                                 &nbsp;
                                                                             </Text>
                                                                         </Text>
-                                                                    );
-                                                                })}
+                                                                    ));
+                                                                })()}
                                                             </Text>
                                                         ) : (
                                                             // list view for AI flow
                                                             <View style={{ marginTop: PX_TO_PT * 15 }}>
                                                                 <Text fixed style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }}>Medication (Rx):&nbsp;</Text>
-                                                                {aiFlowMedicationList.map((item, i) => {
-                                                                    const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
-                                                                    const aiTimingDisplay = getAiMedicationTimingDisplay(item);
-                                                                    const detailsParts = Object.values(
-                                                                        Object.fromEntries(
-                                                                            Object.entries({
-                                                                                generic: option?.medicine_with_generic && (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
-                                                                                    ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
-                                                                                    : '',
-                                                                                dose: option?.medicine_option?.includes('dose')
-                                                                                    ? (item.tmm_dosage && item.tmm_unit
-                                                                                        ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
-                                                                                        : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
-                                                                                    : '',
-                                                                                frequency: option?.medicine_option?.includes('frequency')
-                                                                                    ? aiInlineFrequency
-                                                                                    : '',
-                                                                                timing: aiTimingDisplay,
-                                                                                duration: option?.medicine_option?.includes('duration')
-                                                                                    ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
-                                                                                        ? durationLang(capitalize(item.tmm_duration_type, true))
-                                                                                        : (isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'))
-                                                                                    : '',
-                                                                                qty: option?.medicine_option?.includes('quantity') && item.display_qty
-                                                                                    ? `${item.display_qty} qty`
-                                                                                    : '',
-                                                                            }).filter(([, v]) => v)
+                                                                {(() => {
+                                                                    const getKey = (m) =>
+                                                                        String(m?.groundedMedicineName || m?.tmm_medicine_name || m?.name || "")
+                                                                            .trim()
+                                                                            .toLowerCase();
+                                                                    const groups = [];
+                                                                    for (const med of aiFlowMedicationList) {
+                                                                        const key = getKey(med);
+                                                                        const last = groups[groups.length - 1];
+                                                                        if (last && last.key === key && key) {
+                                                                            last.items.push(med);
+                                                                        } else {
+                                                                            groups.push({
+                                                                                key,
+                                                                                name: med?.tmm_medicine_name || med?.name || med?.groundedMedicineName || med?.groundingMedicineName || '',
+                                                                                items: [med],
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                    const buildDetailsParts = (item) => {
+                                                                        const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
+                                                                        const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+                                                                        return Object.values(
+                                                                            Object.fromEntries(
+                                                                                Object.entries({
+                                                                                    generic: option?.medicine_with_generic && (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
+                                                                                        ? (item.tmm_generic || item.corrected_name || item.metadata?.tmm_generic)
+                                                                                        : '',
+                                                                                    dose: option?.medicine_option?.includes('dose')
+                                                                                        ? (item.tmm_dosage && item.tmm_unit
+                                                                                            ? `${formatUnitPerDose(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
+                                                                                            : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || ''))
+                                                                                        : '',
+                                                                                    frequency: option?.medicine_option?.includes('frequency') ? aiInlineFrequency : '',
+                                                                                    timing: aiTimingDisplay,
+                                                                                    duration: option?.medicine_option?.includes('duration')
+                                                                                        ? (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)
+                                                                                            ? durationLang(capitalize(item.tmm_duration_type, true))
+                                                                                            : (isNumeric(item.tmm_days) ? `${item.tmm_days} ${durationLang(item.tmm_duration_type)}` : '-'))
+                                                                                        : '',
+                                                                                    qty: option?.medicine_option?.includes('quantity') && item.display_qty
+                                                                                        ? `${item.display_qty} qty`
+                                                                                        : '',
+                                                                                }).filter(([, v]) => v)
+                                                                            )
                                                                         )
-                                                                    )
-                                                                        .filter(Boolean)
-                                                                        .join(', ');
-
-                                                                    const remarks = option?.medicine_option?.includes('note') && item.tmm_remarks
-                                                                        ? `, ${item.tmm_remarks}`
-                                                                        : '';
-
-                                                                    return (
-                                                                        <Text key={item.tmm_id || item.unique_id || i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
+                                                                            .filter(Boolean)
+                                                                            .join(', ');
+                                                                    };
+                                                                    const buildRemarks = (item) =>
+                                                                        option?.medicine_option?.includes('note') && item.tmm_remarks ? `, ${item.tmm_remarks}` : '';
+                                                                    return groups.map((group, gi) => (
+                                                                        <Text key={`${group.key || group.name || 'med'}-${gi}`} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
                                                                             <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                &nbsp;{i + 1}.&nbsp;
+                                                                                &nbsp;{gi + 1}.&nbsp;
                                                                             </Text>
                                                                             <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {item.tmm_medicine_name || item.name || ''}&nbsp;
+                                                                                {group.name}&nbsp;
                                                                             </Text>
-                                                                            <Text style={{
-                                                                                color: '#171725',
-                                                                                fontFamily: getFont(),
-                                                                                fontSize: PX_TO_PT * printSettings?.page_format?.font_size,
-                                                                                fontWeight: 400,
-                                                                            }}>
-                                                                                ({detailsParts}{remarks})
+                                                                            <Text style={{ color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
+                                                                                {group.items.map((item, ii) => (
+                                                                                    <Text key={item.tmm_id || item.unique_id || ii}>
+                                                                                        {ii !== 0 ? 'then ' : ''}
+                                                                                        ({buildDetailsParts(item)}{buildRemarks(item)})
+                                                                                        {ii !== group.items.length - 1 ? ' ' : ''}
+                                                                                    </Text>
+                                                                                ))}
                                                                             </Text>
                                                                         </Text>
-                                                                    );
-                                                                })}
+                                                                    ));
+                                                                })()}
                                                             </View>
                                                         )}
                                                     </>
@@ -2444,7 +2509,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     {medicationData?.map((pItem, i) => {
                                                         return (
                                                             <Text key={i}>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -2537,7 +2602,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                         return (
                                                             <Text key={i} style={{ marginTop: PX_TO_PT * 5, lineHeight: 1.4 }}>
                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || ''}&nbsp;</Text>
+                                                                <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}&nbsp;</Text>
                                                                 {innerMedication(pItem.index).map((item, ii) => {
                                                                     return (
                                                                         <Text key={ii}>
@@ -2663,7 +2728,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             <View style={styles.row} key={i} wrap={false}>
                                                                 <Text style={[styles.cell, { flex: 0.18, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{i + 1}</Text>
                                                                 <View style={styles.cell}>
-                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || ''}</Text>
+                                                                    <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{pItem.tmm_medicine_name || pItem.name || pItem.groundedMedicineName || pItem.groundingMedicineName || ''}</Text>
                                                                     {option?.medicine_with_generic && (
                                                                         <Text style={[{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: (PX_TO_PT * printSettings?.page_format?.font_size) - 2, fontWeight: 400 }]}>{pItem.tmm_generic || pItem.corrected_name || pItem.metadata?.tmm_generic || ''}</Text>
                                                                     )}

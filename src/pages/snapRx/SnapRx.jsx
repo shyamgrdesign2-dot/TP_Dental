@@ -16,6 +16,7 @@ import {
 import UploadMoreDrawer from "./components/UploadMoreDrawer";
 import UploadWrittenRx from "./components/UploadWrittenRx";
 import { message } from "antd";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
   createSnapRx,
   editSnapRx,
@@ -32,6 +33,14 @@ import {
 import { useDispatch } from "react-redux";
 import PreviewDrawer from "./components/PreviewDrawer";
 import { clearExpiredTokensFromStorage } from "../../utils/utils";
+import ApiTeleconsult from "../../api/services/ApiTeleconsult";
+import { GB_TELE_CONSULT } from "../../utils/constants";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../../redux/teleconsultNotificationSlice";
 const UPLOADED_FILES_DOMAIN = "iscribe.blob.core.windows.net";
 
 function SnapRxContent() {
@@ -41,6 +50,7 @@ function SnapRxContent() {
   const { uploadedFiles: uploadedFilesFromStore, fileUploadToken } =
     useSelector((state) => state.snapRx);
   const { userId } = useSelector((state) => state.doctors);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { sessionId, refreshSessionId } = useSnapRxSession();
   const uploadWrittenRxRef = useRef(null);
   const timerForLoadingRef = useRef(null);
@@ -53,7 +63,12 @@ function SnapRxContent() {
   const previewDrawerRef = useRef(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isWaitingForFiles, setIsWaitingForFiles] = useState(false);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const { patient_data, send_path, caseManagerData, pam_id } = state || {};
+  const videoConsultData = state?.videoConsultData;
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
+  const showTeleconsultIcon =
+    isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const tcmId = caseManagerData?.tcm_id || 0;
   const pamId = pam_id
     ? pam_id
@@ -66,6 +81,37 @@ function SnapRxContent() {
     send_path,
     tcmId,
     pamId,
+  };
+
+  const handleTeleconsultClick = async () => {
+    if (joinToken) return;
+    const appointmentId = pam_id || patient_data?.pam_id || videoConsultData?.pam_id;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+      if (token) {
+        dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (_error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -449,6 +495,10 @@ function SnapRxContent() {
           onUploadMore={handleUploadMore}
           showUploadMoreButton={uploadedFilesFromStore?.length}
           handleTutorial={handleKnowMore}
+          showTeleconsultIcon={!!showTeleconsultIcon}
+          onTeleconsultClick={handleTeleconsultClick}
+          isTeleconsultJoinLoading={isTeleconsultJoinLoading}
+          isTeleconsultActive={!!joinToken}
         />
         <div className="snap-rx-content">
           <ErrorBoundary>

@@ -16,6 +16,7 @@ import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
 import CommonModal from "../common/CommonModal";
 import VitalsRichTextEditor from "./VitalsRichTextEditor";
 import SymptomsRichTextEditor from "./SymptomsRichTextEditor";
+import SurgeriesRichTextEditor from "./SurgeriesRichTextEditor";
 import MedicalHistoryRichTextEditor from "./MedicalHistoryRichTextEditor";
 import ExaminationRichTextEditor from "./ExaminationRichTextEditor";
 import DiagnosisRichTextEditor from "./DiagnosisRichTextEditor";
@@ -28,7 +29,7 @@ import AdditionalNotesRichTextEditor from "./AdditionalNotesRichTextEditor";
 import ApiMedication from "../api/services/ApiMedication";
 import ApiInvestigation from "../api/services/ApiInvestigation";
 import { useGrounding } from "../hooks/useGrounding";
-import { getTokenData, getHmTypeIndicator } from "../utils/utils";
+import { getTokenData, getHmTypeIndicator, camelCaseToTitle, camelToSentence } from "../utils/utils";
 import { getNormalizedGynecHistory } from "../utils/gynecHistoryUtils";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -45,6 +46,7 @@ import { setDentalData } from "../redux/dentalRxSlice";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
+  "surgeries",
   "medicalHistory",
   "examinations",
   "diagnosis",
@@ -106,7 +108,10 @@ export const normalizeNewItem = (type, text = "") => {
     return { testname: t, value: "", notes: "" };
   }
 
-  
+  if (type === "surgeries") {
+    return { name: t, notes: "" };
+  }
+
   return { name: t, lineItem: "" };
 };
 
@@ -119,6 +124,7 @@ const getPrimaryText = (type, item) => {
   if (type === "labResults") return item?.testname || "";
   if (type === "diagnosis") return String(item?.lineItem ?? item?.name ?? (item?.status ? `${item?.name ?? ""}, ${item.status}`.trim() : "") ?? item?.notes ?? "").trim();
   if (type === "examinations") return String(item?.lineItem ?? item?.name ?? item?.findings ?? item?.notes ?? "").trim();
+  if (type === "surgeries") return String(item?.name ?? "").trim() || "";
   return item?.name || "";
 };
 
@@ -312,16 +318,6 @@ const DigitisedPrescription = ({
       "orthodonticInterventionRequired",
       "habitsPedo",
     ];
-    function camelCaseToTitle(str) {
-      if (str === "periodontalseverity" || str === "Periodontalseverity") {
-        return "Periodontal Severity";
-      }
-      return str
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, (first) => first.toUpperCase())
-        .replace(/\b\w/g, (char) => char.toUpperCase())
-        .trim();
-    }
 
     return order
       .filter((key) => key in (dentalDiagnosis || {}))
@@ -337,7 +333,7 @@ const DigitisedPrescription = ({
     if (val && typeof val === "object") {
       return Object.entries(val)
         .filter(([, v]) => !!v)
-        .map(([k]) => k)
+        .map(([k]) => camelToSentence(k))
         .join(", ");
     }
     if (val == null) return "";
@@ -597,7 +593,23 @@ const DigitisedPrescription = ({
     const vitals = data?.vitalsAndBodyComposition || data?.vitals;
     const examinationsRaw = data?.examinations || data?.examination;
     const medications = data?.medications || data?.medicine;
-    const labInvestigation = data?.labInvestigation || data?.tests;
+    const labInvestigationRaw = data?.labInvestigation || data?.tests;
+    const labInvestigation = !Array.isArray(labInvestigationRaw)
+      ? []
+      : labInvestigationRaw.map((item) => {
+          if (item == null) return { name: "", instruction: "", notes: "", lineItem: "" };
+          if (typeof item === "string") {
+            const t = String(item).trim();
+            return { name: t, instruction: "", notes: "", lineItem: "" };
+          }
+          const name = String(item?.name ?? "").trim();
+          const instruction = String(item?.instruction ?? "").trim();
+          const rawNotes = String(item?.notes ?? item?.note ?? "").trim();
+          const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const namePrefixRegex = name ? new RegExp(`^${escapedName}\\s*[,:-]?\\s*`, "i") : null;
+          const notes = !instruction && namePrefixRegex ? (rawNotes.replace(namePrefixRegex, "").trim() || rawNotes) : rawNotes;
+          return { ...item, name, instruction, notes, lineItem: "" };
+        });
     const examinations = !Array.isArray(examinationsRaw)
       ? []
       : examinationsRaw.map((item) => {
@@ -633,6 +645,7 @@ const DigitisedPrescription = ({
       medications,
       labInvestigation,
       symptoms: data?.symptoms,
+      surgeries: data?.surgeries,
       medicalHistory: data?.medicalHistory,
       diagnosis,
       vaccinations: data?.vaccinations,
@@ -1654,8 +1667,7 @@ const DigitisedPrescription = ({
                     {(type === "medications" ||
                       type === "symptoms" ||
                       type === "vaccinations" ||
-                      type === "medicalHistory" ||
-                      type === "labInvestigation") &&
+                      type === "medicalHistory") &&
                       item?.lineItem &&
                       (activeIndex === index &&
                       activeType === `${type}-lineItem` ? (
@@ -1805,6 +1817,7 @@ const DigitisedPrescription = ({
       const relevant = {
         medications: ["groundedMedicineName", "name", "refinedName", "lineItem"],
         symptoms: ["name", "lineItem"],
+        surgeries: ["name", "notes"],
         examinations: ["name", "findings", "notes", "lineItem"],
         diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
@@ -2819,6 +2832,14 @@ const DigitisedPrescription = ({
             <SymptomsRichTextEditor
               symptoms={data.symptoms}
               onUpdate={(arr) => setData((prev) => ({ ...prev, symptoms: arr || [] }))}
+              isProcessing={loading}
+            />
+          )}
+
+          {data?.surgeries && hasValidContent("surgeries") && (
+            <SurgeriesRichTextEditor
+              surgeries={data.surgeries}
+              onUpdate={(arr) => setData((prev) => ({ ...prev, surgeries: arr || [] }))}
               isProcessing={loading}
             />
           )}

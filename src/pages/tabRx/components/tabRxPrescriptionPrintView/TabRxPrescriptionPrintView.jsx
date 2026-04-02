@@ -241,7 +241,7 @@ function TabRxPrescriptionPrintView() {
     const fetchTabRxFiles = async () => {
       try {
         const response = await getTabRxFiles(state.tcm_id, patient_data?.patient_unique_id);
-        setRxDigitiseComplete(!!response?.data?.digitization?.isDigitize)
+        setRxDigitiseComplete(!!response?.data?.digitization?.isVerified)
         setSmartRxFile(response?.data?.prescription_files || []);
       } catch (error) {
         console.error("Error fetching tab Rx files in TabRxPrescriptionPrintView:", error);

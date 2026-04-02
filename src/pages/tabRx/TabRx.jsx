@@ -31,6 +31,7 @@ import {
   OPTHAL_PAD_MODULE,
   GB_OPTHAL_MODULE,
   GB_VIDEO_CONSULT,
+  GB_TELE_CONSULT,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
 
@@ -150,6 +151,7 @@ import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
 import { getTemplates } from "./services/templateService";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
+import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
@@ -175,6 +177,12 @@ import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup"
 import VideoConsultModal from "../../components/VideoConsultModal";
 import { getMetadata } from "./services/templateService";
 import { viewCaseManager } from "../../redux/caseManagerSlice";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../../redux/teleconsultNotificationSlice";
 
 function TabRx() {
   const {
@@ -198,6 +206,8 @@ function TabRx() {
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
@@ -547,11 +557,14 @@ function TabRx() {
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
 
   // Check if video consultation is available for this patient
   const isVideoConsultAvailable =
     isVideoConsultAccessible &&
     videoConsultData?.pam_status_type_appointment === 1;
+  const isTeleConsultAvailableType2 =
+    isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
 
   // Canvas state
   const canvasRef = useRef(null);
@@ -1067,10 +1080,10 @@ function TabRx() {
   }, []);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (isCarePlanEnabled) {
@@ -2001,6 +2014,48 @@ function TabRx() {
     }
   };
 
+
+
+  const handleTeleconsultClick = async () => {
+    if (joinToken) return;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
+
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+
+      if (token) {
+        dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+
+        if (data?.status) {
+          dispatch(
+            setAppointmentTeleconsultStatus({
+              appointmentId,
+              status: data.status,
+            })
+          );
+        }
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (_error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
+    }
+  };
+
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
   const showOnlyDrawer =
     isGenRxDrawerVisible &&
@@ -2051,6 +2106,10 @@ function TabRx() {
             onToggleTemplateDrawer={handleToggleTemplateDrawer}
             isEndVisitLoading={isEndVisitLoading}
             setIsEndVisitLoading={setIsEndVisitLoading}
+            showTeleconsultIcon={!!isTeleConsultAvailableType2}
+            onTeleconsultClick={handleTeleconsultClick}
+            isTeleconsultJoinLoading={isTeleconsultJoinLoading}
+            isTeleconsultActive={!!joinToken}
           />
           <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
             <Layout>

@@ -125,7 +125,12 @@ import GroundingBox from "../components/GroundingBox";
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
-import { setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
+import {
+  setAppointmentTeleconsultStatus, 
+  setActiveTeleconsultAppointmentId, 
+  setActiveTeleconsultConsultationId, 
+  setJoinToken
+} from "../redux/teleconsultNotificationSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
@@ -433,8 +438,11 @@ function Prescription() {
       if (videoConsultData?.pam_id != null) {
         dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
       }
+      if (teleconsultAutoJoin?.consultationId) {
+        dispatch(setActiveTeleconsultConsultationId(teleconsultAutoJoin.consultationId));
+      }
     }
-  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
+  }, [teleconsultAutoJoin?.token, teleconsultAutoJoin?.consultationId, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -703,6 +711,12 @@ function Prescription() {
       if (token) {
         dispatch(setJoinToken(token));
         dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }
@@ -809,10 +823,10 @@ function Prescription() {
   ]);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (uploadDocCategories.length === 0) {
