@@ -32,7 +32,7 @@ import {
 } from "../../redux/snapRxDigitizationSlice";
 import { useDispatch } from "react-redux";
 import PreviewDrawer from "./components/PreviewDrawer";
-import { clearExpiredTokensFromStorage } from "../../utils/utils";
+import { clearExpiredTokensFromStorage, getTokenData } from "../../utils/utils";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import { GB_TELE_CONSULT } from "../../utils/constants";
 import {
@@ -49,7 +49,7 @@ function SnapRxContent() {
   const dispatch = useDispatch();
   const { uploadedFiles: uploadedFilesFromStore, fileUploadToken } =
     useSelector((state) => state.snapRx);
-  const { userId } = useSelector((state) => state.doctors);
+  const { userId, profile } = useSelector((state) => state.doctors);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { sessionId, refreshSessionId } = useSnapRxSession();
   const uploadWrittenRxRef = useRef(null);
@@ -101,6 +101,15 @@ function SnapRxContent() {
         if (data?.consultationId) {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
+
+        const tokenData = getTokenData();
+        window.Moengage.track_event("TP_TC_StartCall", {
+          doctor_name: profile?.um_name,
+          doctor_number: profile?.um_contact,
+          doctor_specialty: profile?.dp_name,
+          um_id: tokenData?.user_id,
+        });
+
         if (data?.status) {
           dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
         }
