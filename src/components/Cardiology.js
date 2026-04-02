@@ -1065,32 +1065,7 @@ function Cardiology(props) {
   );
 
   async function printRxInAppContent() {
-    if (!printRxUrlWithLang) {
-      errorMessage("Print URL is missing.");
-      return;
-    }
-    if (printRxPayloadError) {
-      message.error("Something went wrong, please try again.");
-      return;
-    }
-    if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
-      message.error("PDF is not ready yet.");
-      return;
-    }
-    const file = new File(
-      [printRxPayloadBlob],
-      `${new Date().toISOString().split("T")[0]}.pdf`,
-      { type: "application/pdf" }
-    );
-    const formData = new FormData();
-    formData.append(file?.name, file);
-    const res = await uploadDocsToAzure(formData);
-    const uploadedUrl = res?.[0]?.url;
-    if (!uploadedUrl) {
-      message.error("Failed to upload PDF.");
-      return;
-    }
-    sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
+    sendMessageToParent(EVENTS.PRINT, { url: `${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}` });
   }
   async function printRxContent() {
     if (!printRxUrlWithLang) {
