@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import Card from "react-bootstrap/Card";
-import { Table, Dropdown, Button, Spin, Drawer } from "antd";
+import { Table, Dropdown, Button, Spin, Drawer, Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { isChrome, isMobile, isTablet, isSafari } from "react-device-detect";
 import { useSelector } from "react-redux";
@@ -1369,6 +1369,24 @@ function Cardiology(props) {
     }
   };
 
+  const isPrintPayloadNeeded =
+    showDigitalGenRx &&
+    !isSmartRxFile &&
+    !isSnapRx &&
+    !isTabRx &&
+    !(
+      genRxData &&
+      isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
+    );
+
+  const isPrintDisabled =
+    isPrintPayloadNeeded &&
+    (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob));
+
+  const printDisabledTooltip = isPrintDisabled
+    ? "PDF is getting created. wait a moment."
+    : "";
+
   const printInAppContent = async () => {
     let voiceRxUrl;
     const sendPayloadBlobToParent = async () => {
@@ -1400,10 +1418,10 @@ function Cardiology(props) {
       sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
     };
 
-    if (shouldUsePrintRxPayload) {
-      await sendPayloadBlobToParent();
-      return;
-    }
+    // if (shouldUsePrintRxPayload) {
+    //   await sendPayloadBlobToParent();
+    //   return;
+    // }
     if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
@@ -3399,25 +3417,37 @@ function Cardiology(props) {
                   >
                     <i className="icon-Edit"></i>
                   </button>}
-                  <button
-                    className="btn p-0 ms-3"
-                    onClick={() =>
-                      !isChrome && !isSafari
-                        ? printInAppContent()
-                        : printContent()
-                    }
-                    style={{
-                      visibility:
-                        !showDigitalGenRx &&
-                        isValidMongoId(
-                          viewCaseManagerData?.smart_prescription_filename
-                        )
-                          ? "hidden"
-                          : "visible",
-                    }}
+                  <Tooltip
+                    title={printDisabledTooltip}
+                    placement="bottom"
+                    open={isPrintDisabled ? undefined : false}
                   >
-                    <i className="icon-Print"></i>
-                  </button>
+                    <span className="d-inline-flex">
+                      <button
+                        className="btn p-0 ms-3"
+                        onClick={() =>
+                          !isChrome && !isSafari
+                            ? printInAppContent()
+                            : printContent()
+                        }
+                        disabled={isPrintDisabled}
+                        style={{
+                          visibility:
+                            !showDigitalGenRx &&
+                            isValidMongoId(
+                              viewCaseManagerData?.smart_prescription_filename
+                            )
+                              ? "hidden"
+                              : "visible",
+                          border: "none",
+                          background: "transparent",
+                          boxShadow: "none",
+                        }}
+                      >
+                        <i className="icon-Print"></i>
+                      </button>
+                    </span>
+                  </Tooltip>
                   {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
