@@ -339,7 +339,7 @@ function BillingDashboard({ patientData, fromPath }) {
                       </div>
                       {!isReceptionist && (
                         <img
-                          src={require("../../../../assets/images/bg-welcome.png")}
+                          src={require("../../../../assets/images/bg-welcome.webp")}
                           className="welcomeig d-inline-block align-top"
                           alt="Welcome"
                         />

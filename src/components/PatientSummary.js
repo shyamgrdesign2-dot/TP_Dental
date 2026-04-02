@@ -6,7 +6,7 @@ import axios from "axios";
 import moment from "moment";
 import dayjs from "dayjs";
 import ddxIcon from "../assets/images/ddx.svg";
-import scStrip from "../assets/images/sc-banner-strip.png";
+import scStrip from "../assets/images/sc-banner-strip.webp";
 import labIcon from "../assets/images/Lab.svg";
 import vitalsIcon from "../assets/images/Vitals.svg";
 import noteIcon from "../assets/images/vuesax/bulk/note.svg";

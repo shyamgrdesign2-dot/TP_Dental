@@ -25,6 +25,7 @@ import {
 import { Col, Container, Row } from "react-bootstrap";
 import { v4 as uuidv4 } from "uuid";
 import "./Manage3cBills.scss";
+import "../../../../components/common/dateRangePill.scss";
 import { useReactToPrint } from "react-to-print";
 import {
   getClinic,

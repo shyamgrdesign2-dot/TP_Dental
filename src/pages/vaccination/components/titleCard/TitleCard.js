@@ -6,7 +6,7 @@ const TitleCard = () => {
       <img
         className={styles.frameChild}
         alt="Baby"
-        src={require("../../../../assets/images/babyImage.png")}
+        src={require("../../../../assets/images/babyImage.webp")}
       />
       <div className={styles.frameGroup}>
         <div className={styles.productsListParent}>

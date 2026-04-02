@@ -4,16 +4,16 @@ import "./FeatureTabCard.scss";
 import Emr from "../../../../assets/images/Emr.svg";
 import Practice from "../../../../assets/images/Practice.svg";
 import Ai from "../../../../assets/images/AIsymbol.svg";
-import Abdm from "../../../../assets/images/website-images/LP_ABDM.png";
-import AdminTasks from "../../../../assets/images/website-images/LP_AdminTasks.png";
-import Analytics from "../../../../assets/images/website-images/LP_Analytics.png";
-import ClinicCare from "../../../../assets/images/website-images/LP_ClinicCare.png";
-import TatvaAssist from "../../../../assets/images/website-images/LP_Ddx.png";
-import DigitalCare from "../../../../assets/images/website-images/LP_DigitalCare.png";
-import RemoteCare from "../../../../assets/images/website-images/LP_RemoteCare.png";
-import SmartSync from "../../../../assets/images/website-images/LP_SmartSync.png";
-import TatvaAi from "../../../../assets/images/website-images/LP_TatvaAi.png";
-import VoiceRx from "../../../../assets/images/website-images/LP_VoiceRx.png";
+import Abdm from "../../../../assets/images/website-images/LP_ABDM.webp";
+import AdminTasks from "../../../../assets/images/website-images/LP_AdminTasks.webp";
+import Analytics from "../../../../assets/images/website-images/LP_Analytics.webp";
+import ClinicCare from "../../../../assets/images/website-images/LP_ClinicCare.webp";
+import TatvaAssist from "../../../../assets/images/website-images/LP_Ddx.webp";
+import DigitalCare from "../../../../assets/images/website-images/LP_DigitalCare.webp";
+import RemoteCare from "../../../../assets/images/website-images/LP_RemoteCare.webp";
+import SmartSync from "../../../../assets/images/website-images/LP_SmartSync.webp";
+import TatvaAi from "../../../../assets/images/website-images/LP_TatvaAi.webp";
+import VoiceRx from "../../../../assets/images/website-images/LP_VoiceRx.webp";
 
 // Import all landing page icons for the feature tab cards
 import briefcase from "../../../../assets/images/onboard-page-icons/briefcase.svg";

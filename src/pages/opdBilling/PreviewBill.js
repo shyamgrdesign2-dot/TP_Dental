@@ -25,7 +25,7 @@ import { deleteDocsUploadedFromAndroid } from "../medicalRecords/service";
 import RefundBill from "./components/billingDashboard/RefundBill/RefundBill";
 import { getClinic, trackEvent } from "../../utils/utils";
 import wtsp from "./../../assets/images/wtsp.svg";
-import loadingImg from "./../../assets/images/loading.png";
+import loadingImg from "./../../assets/images/loading.webp";
 import refundActive from "./../../assets/images/Refund_active.svg";
 import refundInactive from "./../../assets/images/Refund_inactive.svg";
 import { PERSISTANT_STORAGE_KEY_BILL_TOKEN } from "../../utils/constants";

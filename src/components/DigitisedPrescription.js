@@ -41,7 +41,6 @@ import styles from "./ConsultationDrawer.module.css";
 import alertIcon from "../assets/images/alertIcon.svg";
 import documentIcon from "../assets/images/document-normal.svg";
 import warningIcon from "../assets/images/danger.svg";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
 import { setDentalData } from "../redux/dentalRxSlice";
 
 export const ARRAY_SECTIONS = [
@@ -2394,7 +2393,6 @@ const DigitisedPrescription = ({
       {loading ? (
         <div
           className={`${rightSectionClass} ${styles.gradientBorder} ${styles.loaderFullBleed}`}
-          style={{ background: `url(${genRxBg})` }}
           ref={containerRef}
         >
           <GenRXLoaders

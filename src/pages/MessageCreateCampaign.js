@@ -28,6 +28,7 @@ import AvailableCredits from "../components/bulk_messages/AvailableCredits";
 import CommonModal from "../common/CommonModal";
 
 import "../components/bulk_messages/messages.scss";
+import "../components/common/dateRangePill.scss";
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { fetchAgents, fetchGoogleMapsLink } from "../pages/appointmentAgent/service";
 import { getDecodedToken } from "../utils/localStorage";

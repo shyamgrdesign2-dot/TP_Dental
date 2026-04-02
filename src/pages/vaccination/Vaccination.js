@@ -747,7 +747,7 @@ function Vaccination({ handleDrawerVaccination, source }) {
               </p>
             </div>
             <img
-              src={require("../../assets/images/vaccine.png")}
+              src={require("../../assets/images/vaccine.webp")}
               className="vaccineImg d-inline-block align-top ms-4"
               alt="Vaccine"
               width={220}

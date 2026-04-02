@@ -77,7 +77,9 @@ import { isMobile } from "react-device-detect";
 
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import tutorial from "../../../../assets/images/tutorial-icon.svg";
-import videorotate from "../../../../assets/images/videorotate.gif";
+import videorotateWebm from "../../../../assets/images/videorotate.webm";
+import videorotateMp4 from "../../../../assets/images/videorotate.mp4";
+import LoopingVideo from "../../../../components/common/LoopingVideo";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 import BillTemplate from "./BillTemplate";
@@ -1612,7 +1614,11 @@ const CreateBill = ({
                       <button className="btn d-flex align-items-center btn-text tutorial p-0 opd-billing">
                         <div className="cursor-pointer video-animat">
                           <img src={tutorial} />
-                          <img src={videorotate} />
+                          <LoopingVideo
+                            webm={videorotateWebm}
+                            mp4={videorotateMp4}
+                            ariaLabel="Video"
+                          />
                         </div>
                       </button>
                     </Popover>

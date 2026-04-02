@@ -8,7 +8,7 @@ import ddxIcon from '../../assets/mobile/ddx.svg';
 import dictateActiveIcon from '../../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../../assets/images/ambient-mode-active.svg';
 import startVoiceIcon from '../../assets/mobile/start_voice.svg';
-import doctorAvatar from '../../assets/images/doctor-avatar.png';
+import doctorAvatar from '../../assets/images/doctor-avatar.webp';
 import genRxSendCta from '../../assets/images/genRxSendCta.svg';
 import fullScreenIcon from '../../assets/mobile/Full Screen.svg';
 import { S_AMBIENT_VOICE_RX } from '../../utils/constants';

@@ -1,7 +1,10 @@
 import React from "react";
 import genRxIcon from "../assets/images/receptionistIcon.svg";
+import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
 import styles from "./GenRxButton.module.scss";
 import { isMobile } from "react-device-detect";
+import LoopingVideo from "./common/LoopingVideo";
 
 const AiReceptionistButton = ({ onClick, className = "", customText, agetnsData}) => {
   const defaultText = agetnsData ? "Your AI Receptionist" : "Setup Your AI Receptionist";
@@ -9,14 +12,22 @@ const AiReceptionistButton = ({ onClick, className = "", customText, agetnsData}
   
   return (
     <button onClick={onClick} className={`${styles.AiReceptionistButton} ${className} ${isMobile ? styles.AiReceptionistButtonMobile : ""}`}>
-      { !isMobile && 
-        <div className={styles.iconContainer}>
-          <img src={genRxIcon} alt="Ai Receptionist" loading="lazy" className={styles.AiReceptionistButtonicon} />
+      <LoopingVideo
+        webm={genRxBgWebm}
+        mp4={genRxBgMp4}
+        className={styles.buttonVideo}
+        ariaLabel="AI Receptionist background"
+      />
+      <div className={styles.buttonContent}>
+        { !isMobile && 
+          <div className={styles.iconContainer}>
+            <img src={genRxIcon} alt="Ai Receptionist" loading="lazy" className={styles.AiReceptionistButtonicon} />
+          </div>
+        }
+        <span className={styles.receptionistText}>{buttonText}</span>
+        <div className='iconrotate180 align-self-start mt-1'>
+          <i className='icon-right' style={{ color: "#943CD7" }}></i>
         </div>
-      }
-      <span className={styles.receptionistText}>{buttonText}</span>
-      <div className='iconrotate180 align-self-start mt-1'>
-        <i className='icon-right' style={{ color: "#943CD7" }}></i>
       </div>
     </button>
   );

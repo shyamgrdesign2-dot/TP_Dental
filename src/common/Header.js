@@ -12,7 +12,7 @@ import { useQrPrintDownloadHandlers } from './qrPrintDownloadHelper';
 import Slider from "react-slick";
 
 import playIcon from '../assets/images/h-play-icon.svg';
-import playIconutube from '../assets/images/play-icon.png';
+import playIconutube from '../assets/images/play-icon.webp';
 import fullicon from '../assets/images/full-icon.svg';
 import tutorial from '../assets/images/tutorial-icon.svg';
 import playIcons from '../assets/images/tube-icon.svg';
@@ -20,12 +20,14 @@ import qrIcon from '../assets/images/qr-icon.svg';
 import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
 import QrPrintDownloadModal from "./QrPrintDownloadModal";
-import videorotate from '../assets/images/videorotate.gif';
+import videorotateWebm from '../assets/images/videorotate.webm';
+import videorotateMp4 from '../assets/images/videorotate.mp4';
+import LoopingVideo from "../components/common/LoopingVideo";
 import upgradeIcon from "../assets/images/upgrade.svg";
 import profileBg from "../assets/images/profile-bg.svg";
 import goldCrown from "../assets/images/gold-crown.svg";
 import crownIcon from "../assets/images/crown.svg";
-import AISuite from "../assets/images/ai-suite.png";
+import AISuite from "../assets/images/ai-suite.webp";
 import Notification from "../assets/images/navbar-icons/notification.svg";
 import ReceiptText from "../assets/images/navbar-icons/receipt-text.svg";
 import iconMobile from "../assets/images/icon-mobile.svg";
@@ -164,7 +166,7 @@ function Header({ locationPath }) {
   useEffect(() => {
     if (profile) {
       if (profile.moengage_b2c_send === undefined) {
-        window.Moengage.add_unique_user_id(profile?.b2c)
+        window.Moengage?.add_unique_user_id?.(profile?.b2c);
         dispatch(updateStatusMoengageB2C());
       }
       // setSwitchCheckbox(profile.switchtoOld != 0 ? true : false)
@@ -1128,7 +1130,7 @@ function Header({ locationPath }) {
               window.Moengage.track_event("TP_Tatvapedia_clicked");
               showHideLogoModal()
             }}
-              src={require("../assets/images/logo.png")}
+              src={require("../assets/images/logo.webp")}
               className={`d-inline-block align-top cursor-pointer`}
               style={{ width: '110px' }}
               alt="Logo"
@@ -1402,7 +1404,11 @@ function Header({ locationPath }) {
             {locationPath == "/" || locationPath == "/bulk_messages" ? (
               <div onClick={handleDrawervideo} className="cursor-pointer me-2 video-animat">
                 <img src={playIcon} />
-                <img src={videorotate} />
+                <LoopingVideo
+                  webm={videorotateWebm}
+                  mp4={videorotateMp4}
+                  ariaLabel="Video"
+                />
               </div>) : locationPath == "/billing-dashboard" ? (
                 <Popover
                   open={popOverVideo}
@@ -1414,7 +1420,11 @@ function Header({ locationPath }) {
                 >
                   <div className="cursor-pointer me-2 video-animat">
                     <img src={playIcon} />
-                    <img src={videorotate} />
+                    <LoopingVideo
+                      webm={videorotateWebm}
+                      mp4={videorotateMp4}
+                      ariaLabel="Video"
+                    />
                   </div>
                 </Popover>
               ) : (

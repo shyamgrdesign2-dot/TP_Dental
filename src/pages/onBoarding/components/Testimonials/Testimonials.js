@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import "./Testimonials.scss";
 import testimonialIcon from "../../../../assets/images/onboard-page-icons/LP-Testimonial-icon.svg";
 import profile from "../../../../assets/images/default-profile.svg";
-import Dr_Nisheet from "../../../../assets/images/onboard-page-icons/Doc_Nisheet_Dave.png";
-import Dr_Kautuk from "../../../../assets/images/onboard-page-icons/Doc_Kautuk_Patel.png";
-import Dr_Amit from "../../../../assets/images/onboard-page-icons/Doc_Amit_Madan.png";
-import Dr_Pratibha from "../../../../assets/images/onboard-page-icons/Doc_Pratibha_Singh.png";
-import Dr_Sneha from "../../../../assets/images/onboard-page-icons/Doc_Sneha_Jhadhav.png";
-import Dr_Deep from "../../../../assets/images/onboard-page-icons/Doc_Deep_Fultera.png";
-import Dr_Garima from "../../../../assets/images/onboard-page-icons/Doc_Garima.png";
+import Dr_Nisheet from "../../../../assets/images/onboard-page-icons/Doc_Nisheet_Dave.webp";
+import Dr_Kautuk from "../../../../assets/images/onboard-page-icons/Doc_Kautuk_Patel.webp";
+import Dr_Amit from "../../../../assets/images/onboard-page-icons/Doc_Amit_Madan.webp";
+import Dr_Pratibha from "../../../../assets/images/onboard-page-icons/Doc_Pratibha_Singh.webp";
+import Dr_Sneha from "../../../../assets/images/onboard-page-icons/Doc_Sneha_Jhadhav.webp";
+import Dr_Deep from "../../../../assets/images/onboard-page-icons/Doc_Deep_Fultera.webp";
+import Dr_Garima from "../../../../assets/images/onboard-page-icons/Doc_Garima.webp";
 
 const Testimonials = () => {
   const testimonials = [

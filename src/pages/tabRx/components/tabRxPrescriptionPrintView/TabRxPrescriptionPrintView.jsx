@@ -20,7 +20,7 @@ import {
 } from "../../../../utils/utils";
 
 import wtsp from "../../../../assets/images/wtsp.svg";
-import loadingImg from "../../../../assets/images/loading.png";
+import loadingImg from "../../../../assets/images/loading.webp";
 
 import { useSelector, useDispatch } from "react-redux";
 import { useAccess } from "../../../vaccination/useAccess";
@@ -70,7 +70,7 @@ import { usePrintPayloadPdf } from "../../../../hooks/usePrintPayloadPdf";
 import HeaderPrintView from "./HeaderPrintView";
 import ReceiptText from "../../../../assets/images/navbar-icons/receipt-text.svg";
 import EditIconPrimary from "../../../../assets/images/edit-icon-blue.svg";
-import EditIcon from "../../../../assets/images/edit-white.png";
+import EditIcon from "../../../../assets/images/edit-white.webp";
 import ReceiptTextPrimary from "../../../../assets/images/receipt-text-white.svg";
 import DownloadIcon from "../../../../assets/images/download.svg";
 import printIcon from "../../../../assets/images/printer.svg";

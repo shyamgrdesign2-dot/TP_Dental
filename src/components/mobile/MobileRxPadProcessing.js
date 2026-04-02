@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import genRxBg from '../../assets/images/gen-rx-bg.gif';
 import GradientProgressBar from '../GradientProgressbar';
 import genRxInputProcessing from '../../assets/lotties/genRxInputProcessing.lottie';
 import genRxConvertingData from '../../assets/lotties/genRxConvertingData.lottie';
 import genRxStructuringData from '../../assets/lotties/genRxStructuringData.lottie';
 import genRxFinalizingRx from '../../assets/lotties/genRxFinalizingRx.lottie';
+import genRxBgWebm from '../../assets/images/gen-rx-bg.webm';
+import genRxBgMp4 from '../../assets/images/gen-rx-bg.mp4';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import LoopingVideo from '../common/LoopingVideo';
 import './MobileRxPadProcessing.scss';
 
 const CREEP_START = 60;
@@ -81,7 +83,14 @@ const MobileRxPadProcessing = ({ isProcessing = true }) => {
 
   return (
     <div className="mobile-rx-pad-processing">
-      <div className="processing-background" />
+      <div className="processing-background">
+        <LoopingVideo
+          className="processing-background-video"
+          webm={genRxBgWebm}
+          mp4={genRxBgMp4}
+          ariaLabel="Processing background animation"
+        />
+      </div>
       <div className="processing-content">
         {currentStep === 0 && (
           <div className="processing-step">

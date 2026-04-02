@@ -1,8 +1,11 @@
 import { Button, Divider, Spin, Card } from "antd";
 import arrow from "../../assets/images/shaded-arrow.svg";
 import selectedTick from "../../assets/images/tick.svg";
-import loading from "../../assets/images/loading.gif";
-import cdssWallpaper from "../../assets/images/cdss-wallpaper.gif";
+import loadingWebm from "../../assets/images/loading.webm";
+import loadingMp4 from "../../assets/images/loading.mp4";
+import cdssWallpaperWebm from "../../assets/images/cdss-wallpaper.webm";
+import cdssWallpaperMp4 from "../../assets/images/cdss-wallpaper.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import ddxIcon from "../../assets/images/ddxIcon.svg";
 import ddxTag from "../../assets/images/ddx-tag.svg";
 import {
@@ -21,7 +24,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
 import CampaignDiscount from "../../pages/monetization/components/CampaignDiscount";
 import crown from '../../assets/images/crown.svg'
-import SMS2 from "../../assets/images/sms-2.png";
+import SMS2 from "../../assets/images/sms-2.webp";
 import expiredInfographic2 from '../../assets/images/expired-infographic-2.svg'
 import { interest } from "../../redux/monetizationSlice";
 import { openModal } from "../../redux/doctorModalSlice";
@@ -106,7 +109,13 @@ const TabDDxList = ({
               "linear-gradient(rgba(119, 66, 254, 0.4) 0%, rgba(119, 66, 254, 0.2) 50%, rgba(119, 66, 254, 0.1) 100%)",
           }}
         >
-          <img width={105} height={105} src={loading} alt="loading" />
+          <LoopingVideo
+            webm={loadingWebm}
+            mp4={loadingMp4}
+            width={105}
+            height={105}
+            ariaLabel="Loading"
+          />
           <span style={{ textAlign: "center" }} className="title-common">
             Generating AI powered diagnosis
           </span>
@@ -114,19 +123,22 @@ const TabDDxList = ({
       ) : (
         <>
           <div
-            className="d-flex flex-column justify-content-center align-items-center"
+            className="cdss-wallpaper-container d-flex flex-column justify-content-center align-items-center"
             style={{
               rowGap: "24px",
               padding: "24px 10px",
-              background: `linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url(${cdssWallpaper})`,
               width: "100%",
-              backgroundSize: "cover",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
               borderRadius: "0 0 20px 20px",
             }}
           >
-            <div className="d-flex flex-column align-items-center gap-2">
+            <LoopingVideo
+              webm={cdssWallpaperWebm}
+              mp4={cdssWallpaperMp4}
+              className="cdss-wallpaper-video"
+              ariaLabel="Background"
+            />
+            <div className="cdss-wallpaper-overlay" />
+            <div className="cdss-wallpaper-content d-flex flex-column align-items-center gap-2">
               <img
                 src={ddxTag}
                 alt="ddx-img"
@@ -144,33 +156,33 @@ const TabDDxList = ({
               >
                 Differential Diagnosis
               </div>
-            </div>
-            {generatedDDx?.length > 0 ? (
-              <div className="d-flex justify-content-center">
-                <Button
-                  type="button"
-                  className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-between"
-                  style={{
-                    background: "white",
-                  }}
-                  onClick={() => handleDDxDrawer("apexDDx")}
+              {generatedDDx?.length > 0 ? (
+                <div className="d-flex justify-content-center">
+                  <Button
+                    type="button"
+                    className="btn-41 btn ant-btn-text btn-input d-flex align-items-center justify-content-between"
+                    style={{
+                      background: "white",
+                    }}
+                    onClick={() => handleDDxDrawer("apexDDx")}
+                  >
+                    <span>View Detailed Analysis</span>
+                  </Button>
+                </div>
+              ) : (
+                <span
+                  style={{ lineHeight: "26px", textAlign: "center" }}
+                  className={`${isDDxGenerated && generatedDDx?.length === 0
+                    ? "text-danger-custom"
+                    : ""
+                    }`}
                 >
-                  <span>View Detailed Analysis</span>
-                </Button>
-              </div>
-            ) : (
-              <span
-                style={{ lineHeight: "26px", textAlign: "center" }}
-                className={`${isDDxGenerated && generatedDDx?.length === 0
-                  ? "text-danger-custom"
-                  : ""
-                  }`}
-              >
-                {isDDxGenerated
-                  ? "No results found! We couldn't generate any diagnosis due to incomplete or inaccurate information provided. Please review and update the details, then try again."
-                  : "Enter key symptoms or examinations and patient history to generate a list of possible diagnoses and recommended tests for confirmation. Ensure accurate data for best results."}
-              </span>
-            )}
+                  {isDDxGenerated
+                    ? "No results found! We couldn't generate any diagnosis due to incomplete or inaccurate information provided. Please review and update the details, then try again."
+                    : "Enter key symptoms or examinations and patient history to generate a list of possible diagnoses and recommended tests for confirmation. Ensure accurate data for best results."}
+                </span>
+              )}
+            </div>
           </div>
           {(DDX_planDetails?.plan_tier === FREE && DDX_planDetails?.credit_balance <= 0) ? (
             <div className="voicerx-modal ddx-side text-center m-2">

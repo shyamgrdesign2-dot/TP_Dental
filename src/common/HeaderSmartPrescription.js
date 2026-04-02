@@ -42,7 +42,7 @@ import smartSyncConnected from "../assets/images/smart-sync-connected.svg";
 import smartSyncDisconnected from "../assets/images/smart-sync-disconnected.svg";
 import tagNew from '../assets/images/tag-new.svg';
 import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.png';
+import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
 import videoSvg from "../assets/images/video.svg";
 
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";

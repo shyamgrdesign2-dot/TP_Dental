@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Button, Spin, Drawer } from "antd";
 import { isMobile } from 'react-device-detect';
@@ -38,7 +38,6 @@ import VisitLabParameters from "../components/VisitLabParameters";
 import UploadDocPopup from "./medicalRecords/components/uploadDocPopup/UploadDocPopup";
 import CommonModal from "../common/CommonModal";
 import UploadDocument from "./medicalRecords/UploadDocument";
-import BillingDashboard from "./opdBilling/components/billingDashboard/BillingDashboard";
 import AbhaRecords from "./abhaRecords/AbhaRecords";
 import HealthCheckupReport from "./healthCheckupReport/HealthCheckupReport";
 import { fetchPrintSetting } from "./opdBilling/service";
@@ -46,6 +45,9 @@ import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingS
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
+const BillingDashboard = React.lazy(() =>
+    import("./opdBilling/components/billingDashboard/BillingDashboard")
+  );
 
 const { Sider, Content } = Layout;
 
@@ -430,7 +432,9 @@ function PatientDetails() {
                             </div>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.BILL_PAYMENT ? (
                             <div className="vh-100">
-                                <BillingDashboard patientData={patient_data} fromPath="patientDetails" />
+                                <Suspense fallback={<Spin />}>
+                                    <BillingDashboard patientData={patient_data} fromPath="patientDetails" />
+                                </Suspense>
                             </div>
                         ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.ABHA_RECORDS ? (
                             <div className="appointment-wrap PatientDetailswrap">

@@ -66,7 +66,7 @@ import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
 import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import doctorAvatar from "../assets/images/doctor-avatar.png";
+import doctorAvatar from "../assets/images/doctor-avatar.webp";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
@@ -97,7 +97,9 @@ import accuracyIcon from "../assets/images/accuracy.svg";
 import healthIcon from "../assets/images/health-care.svg";
 import playIcons from "../assets/images/tube-icon.svg";
 import VideoModal from "../common/VideoModal";
-import tagNew from "../assets/images/new-gif.gif";
+import tagNewWebm from "../assets/images/new-gif.webm";
+import tagNewMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import CustomMedicinePopup from "./CustomMedicinePopup";
 import {
   getFrequentlySearchedMedication,
@@ -124,7 +126,6 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
 
 const ConsultationDrawer = ({
   visible,
@@ -3870,13 +3871,14 @@ const ConsultationDrawer = ({
                           >
                             Zydus Data Engine
                           </span>
-                          <img
+                          <LoopingVideo
                             className="img-fluid"
                             width={39}
                             height={16}
                             style={{ marginLeft: 10, marginBottom: 5 }}
-                            src={tagNew}
-                            alt={"new-gif"}
+                            webm={tagNewWebm}
+                            mp4={tagNewMp4}
+                            ariaLabel="New"
                           />
                         </div>
                         <Divider style={{ margin: "15px 0px" }} />

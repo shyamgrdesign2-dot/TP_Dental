@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 
 import crownIcon from "../assets/images/crown.svg";
-import supportwhite from "../assets/images/support.png";
+import supportwhite from "../assets/images/support.webp";
 import { openModal } from "../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../redux/subscriptionSlice";
 import {

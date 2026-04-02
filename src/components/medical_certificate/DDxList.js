@@ -2,7 +2,9 @@ import { Button, Card, Collapse, Divider } from "antd";
 import arrow from "../../assets/images/shaded-arrow.svg";
 import selectedTick from "../../assets/images/tick.svg";
 import ddxIcon from "../../assets/images/ddxIcon.svg";
-import loading from "../../assets/images/loading.gif";
+import loadingWebm from "../../assets/images/loading.webm";
+import loadingMp4 from "../../assets/images/loading.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import ddxImg from "../../assets/images/ddx.svg";
 import ddxTag from "../../assets/images/ddx-tag.svg";
 import {
@@ -19,7 +21,7 @@ import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMone
 import { FAILED_VERIFICATION, FREE, S_DDX } from "../../utils/constants";
 import CampaignDiscount from "../../pages/monetization/components/CampaignDiscount";
 import crown from '../../assets/images/crown.svg'
-import SMS2 from "../../assets/images/sms-2.png";
+import SMS2 from "../../assets/images/sms-2.webp";
 import expiredInfographic2 from '../../assets/images/expired-infographic-2.svg'
 import { interest } from "../../redux/monetizationSlice";
 import { openModal } from "../../redux/doctorModalSlice";
@@ -424,7 +426,13 @@ const DDxList = ({
             padding: "10px 0 20px",
           }}
         >
-          <img width={105} height={105} src={loading} alt="loading" />
+          <LoopingVideo
+            webm={loadingWebm}
+            mp4={loadingMp4}
+            width={105}
+            height={105}
+            ariaLabel="Loading"
+          />
           <span className="title-common">Generating AI powered diagnosis</span>
         </div>
       ) : (

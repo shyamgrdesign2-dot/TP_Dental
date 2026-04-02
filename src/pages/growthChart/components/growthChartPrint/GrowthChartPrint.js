@@ -35,7 +35,7 @@ export default function GrowthChartPrint({
               </div>
               <div className="details">
                 <img
-                  src={require("../../../../assets/images/babyImage.png")}
+                  src={require("../../../../assets/images/babyImage.webp")}
                   alt="Baby"
                   width={32}
                   height={32}

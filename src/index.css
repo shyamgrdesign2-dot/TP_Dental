@@ -7,8 +7,9 @@
   -moz-osx-font-smoothing: grayscale;
 } */
 
+/* Prefer Poppins; fall back to system stack for fast first paint */
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 code {
@@ -56,7 +57,7 @@ body.drawer-open-blur #root > *:not(.ant-drawer-root) {
   z-index: 1000;
   display: flex;
   justify-content: flex-end;
-  background-image: url('./assets/images/blur-bg.png');
+  background-image: url('./assets/images/blur-bg.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

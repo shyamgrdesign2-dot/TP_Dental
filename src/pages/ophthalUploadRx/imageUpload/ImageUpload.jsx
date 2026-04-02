@@ -320,7 +320,7 @@ const ImageUpload = forwardRef(
     }, []);
 
     useEffect(() => {
-      const fetchImageAsFile = async (url, filename = "image.jpg") => {
+      const fetchImageAsFile = async (url, filename = "image.webp") => {
         const res = await fetch(url);
         const blob = await res.blob();
         const file = new File([blob], filename, { type: blob.type });

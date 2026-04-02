@@ -189,7 +189,7 @@ function SnapRxContent() {
     };
   }, []);
 
-  const fetchImageAsFile = async (url, filename = "image.jpg") => {
+  const fetchImageAsFile = async (url, filename = "image.webp") => {
     try {
       const res = await fetch(url);
       const blob = await res.blob();

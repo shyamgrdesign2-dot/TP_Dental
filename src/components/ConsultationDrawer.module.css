@@ -4269,7 +4269,7 @@
 }
 
 .animatedButton {
-  background: url("../assets/images/gen-rx-bg.gif") no-repeat;
+  background: transparent;
   background-size: 100%; /* Adjust for smoother animation */
   border-radius: 60px;
   width: 120px;

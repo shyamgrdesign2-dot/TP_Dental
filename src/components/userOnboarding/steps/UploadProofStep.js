@@ -5,8 +5,8 @@ import styles from "../DoctorOnboarding.module.css";
 import { CloudUploadOutlined } from "@ant-design/icons";
 import CommonModal from "../../../common/CommonModal";
 import alertIcon from "../../../assets/images/alertIcon.svg";
-import govId from "../../../assets/images/gov-id.png";
-import mrc from "../../../assets/images/certificate.png";
+import govId from "../../../assets/images/gov-id.webp";
+import mrc from "../../../assets/images/certificate.webp";
 
 const UploadProofStep = ({
   formData,
