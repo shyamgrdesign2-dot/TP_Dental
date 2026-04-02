@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import Card from "react-bootstrap/Card";
-import { Table, Dropdown, Button, Spin, Drawer } from "antd";
+import { Table, Dropdown, Button, Spin, Drawer, Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { isChrome, isMobile, isTablet, isSafari } from "react-device-detect";
 import { useSelector } from "react-redux";
@@ -81,6 +81,7 @@ import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import draftIcon from "../assets/images/draft-document.svg";
+import { uploadDocsToAzure } from "../pages/medicalRecords/service";
 import { getTabRxFiles } from "../pages/tabRx/services/tabRxService";
 
 import {
@@ -95,6 +96,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { useGrounding } from "../hooks/useGrounding";
 import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } from "../utils/gynecHistoryUtils";
 import PrimaryActionButton from "./PrimaryActionButton";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 
 const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -825,6 +828,47 @@ function Cardiology(props) {
     }
   }, [isMobile, isTablet, mobilePdfUrl]);
 
+  const shouldUsePrintRxPayload =
+    showDigitalGenRx &&
+    !isSmartRxFile &&
+    !isSnapRx &&
+    !showDigitalRx &&
+    !showDigitalSnapRx && !isTabRx;
+
+  const printUrlWithLang = useMemo(() => {
+    if (!viewCaseManagerData?.print_url) return null;
+    return `${viewCaseManagerData.print_url}&lg=${selectedLang}`;
+  }, [viewCaseManagerData?.print_url, selectedLang]);
+
+  const printRxUrlWithLang = useMemo(() => {
+    if (!viewCaseManagerData?.print_rx_url) return null;
+    return `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+  }, [viewCaseManagerData?.print_rx_url, selectedLang]);
+
+  const {
+    printBlob: printPayloadBlob,
+    isGenerating: isPrintPayloadGenerating,
+    error: printPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl: printUrlWithLang,
+    selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !printUrlWithLang,
+  });
+
+  const {
+    printBlob: printRxPayloadBlob,
+    isGenerating: isPrintRxPayloadGenerating,
+    error: printRxPayloadError,
+  } = usePrintPayloadPdf({
+    printUrl: printRxUrlWithLang,
+    selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !printRxUrlWithLang,
+  });
+
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
     if (res?.settings?.defaultLanguage && res.settings.defaultLanguage !== "English") {
@@ -1022,14 +1066,22 @@ function Cardiology(props) {
 
   async function printRxInAppContent() {
     sendMessageToParent(EVENTS.PRINT, { url: `${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}` });
-    // navigate(
-    //   `/patient_details/?url=${viewCaseManagerData?.print_rx_url}&lg=${encodedData}&key=print`,
-    //   { replace: true, state: { patient_data: patient_data } }
-    // );
-    // navigate(0, { replace: true });
   }
   async function printRxContent() {
-    await window.open(viewCaseManagerData?.print_rx_url);
+    if (!printRxUrlWithLang) {
+      errorMessage("Print URL is missing.");
+      return;
+    }
+    if (printRxPayloadError) {
+      message.error("Something went wrong, please try again.");
+      return;
+    }
+    if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
+      message.error("The PDF is not ready yet. Please wait a moment and try again.");
+      return;
+    }
+    const blobURL = URL.createObjectURL(printRxPayloadBlob);
+    window.open(blobURL, "_blank");
   }
 
   const handleChange = (pagination, filters, sorter) => {
@@ -1257,22 +1309,94 @@ function Cardiology(props) {
         });
       await window.open(`${printUrl}&lg=${selectedLang}`);
     } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
-      const urlObj = new URL(viewCaseManagerData?.print_url);
-      if (isAmbientRx) {
-        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-        urlObj.searchParams.set("rxDigitize", "false");
-      } else {
-        urlObj.searchParams.set("voiceRxDigitize", "true");
-      }
-      const updatedUrl = urlObj.toString();
-      await window.open(`${updatedUrl}&lg=${selectedLang}`);
+      if (genRxData &&
+        isValidMongoId(
+          viewCaseManagerData?.smart_prescription_filename
+        ) &&
+        !isSmartRxFile && !isTabRx) {
+          const urlObj = new URL(viewCaseManagerData?.print_url);
+          if (isAmbientRx) {
+            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+            urlObj.searchParams.set("rxDigitize", "false");
+          } else {
+            urlObj.searchParams.set("voiceRxDigitize", "true");
+          }
+          const updatedUrl = urlObj.toString();
+          await window.open(`${updatedUrl}&lg=${selectedLang}`);
+        } else {
+          if (!printUrlWithLang) {
+            errorMessage("Print URL is missing.");
+            return;
+          }
+          if (printPayloadError) {
+            message.error("Something went wrong, please try again.");
+            return;
+          }
+          if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+            message.error("The PDF is not ready yet. Please wait a moment and try again.");
+            return;
+          }
+          const blobURL = URL.createObjectURL(printPayloadBlob);
+          window.open(blobURL, "_blank");
+        }
     } else {
-      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`);
+      await window.open(`${viewCaseManagerData?.print_rx_url}&lg=${selectedLang}`); 
     }
   };
 
+  const isPrintPayloadNeeded =
+    showDigitalGenRx &&
+    !isSmartRxFile &&
+    !isSnapRx &&
+    !isTabRx &&
+    !(
+      genRxData &&
+      isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
+    );
+
+  const isPrintDisabled =
+    isPrintPayloadNeeded &&
+    (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob));
+
+  const printDisabledTooltip = isPrintDisabled
+    ? "PDF is getting created. wait a moment."
+    : "";
+
   const printInAppContent = async () => {
     let voiceRxUrl;
+    const sendPayloadBlobToParent = async () => {
+      if (!printUrlWithLang) {
+        errorMessage("Print URL is missing.");
+        return;
+      }
+      if (printPayloadError) {
+        message.error("Something went wrong, please try again.");
+        return;
+      }
+      if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+        message.error("PDF is not ready yet.");
+        return;
+      }
+      const file = new File(
+        [printPayloadBlob],
+        `${new Date().toISOString().split("T")[0]}.pdf`,
+        { type: "application/pdf" }
+      );
+      const formData = new FormData();
+      formData.append(file?.name, file);
+      const res = await uploadDocsToAzure(formData);
+      const uploadedUrl = res?.[0]?.url;
+      if (!uploadedUrl) {
+        message.error("Failed to upload PDF.");
+        return;
+      }
+      sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
+    };
+
+    // if (shouldUsePrintRxPayload) {
+    //   await sendPayloadBlobToParent();
+    //   return;
+    // }
     if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
@@ -1304,7 +1428,6 @@ function Cardiology(props) {
 
   const downloadContent = async () => {
     try {
-      let downloadUrl;
       if (showDigitalRx || showDigitalSnapRx) {
         if (showDigitalRx) {
           window.Moengage.track_event("TP_Digitised_Prescription_Download", {
@@ -1317,25 +1440,69 @@ function Cardiology(props) {
           errorMessage('Download URL is missing.');
           return;
         }
-        downloadUrl = `${printUrl}&lg=${selectedLang}`;
+        const downloadUrl = `${printUrl}&lg=${selectedLang}`;
+        const response = await axios({
+          url: downloadUrl,
+          method: 'GET',
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], { 
+          type: response.headers['content-type'] || 'application/pdf' 
+        });
+        const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+        saveAs(blob, fileName);
+        return;
       } else if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
-        if (!viewCaseManagerData?.print_url) {
-          errorMessage('Download URL is missing.');
-          return;
-        }
-        try {
-          const urlObj = new URL(viewCaseManagerData.print_url);
-          if (isAmbientRx) {
-            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-            urlObj.searchParams.set("rxDigitize", "false");
-          } else {
-            urlObj.searchParams.set("voiceRxDigitize", "true");
+        if (genRxData &&
+          isValidMongoId(
+            viewCaseManagerData?.smart_prescription_filename
+          ) &&
+          !isSmartRxFile && !isTabRx) {
+            if (!viewCaseManagerData?.print_url) {
+              errorMessage('Download URL is missing.');
+              return;
+            }
+            try {
+              const urlObj = new URL(viewCaseManagerData.print_url);
+              if (isAmbientRx) {
+                urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+                urlObj.searchParams.set("rxDigitize", "false");
+              } else {
+                urlObj.searchParams.set("voiceRxDigitize", "true");
+              }
+              const updatedUrl = urlObj.toString();
+              const downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
+              const response = await axios({
+                url: downloadUrl,
+                method: 'GET',
+                responseType: 'blob',
+              });
+              const blob = new Blob([response.data], { 
+                type: response.headers['content-type'] || 'application/pdf' 
+              });
+              const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+              saveAs(blob, fileName);
+              return;
+            } catch (error) {
+              console.error("Invalid download URL:", error);
+              errorMessage('Failed to generate download URL.');
+              return;
+            }
+        } else {
+          if (!printUrlWithLang) {
+            errorMessage("Download URL is missing.");
+            return;
           }
-          const updatedUrl = urlObj.toString();
-          downloadUrl = `${updatedUrl}&lg=${selectedLang}`;
-        } catch (error) {
-          console.error("Invalid download URL:", error);
-          errorMessage('Failed to generate download URL.');
+          if (printPayloadError) {
+            message.error("Something went wrong, please try again.");
+            return;
+          }
+          if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+            message.error("The PDF is not ready yet. Please wait a moment and try again.");
+            return;
+          }
+          const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+          saveAs(printPayloadBlob, fileName);
           return;
         }
       } else {
@@ -1343,21 +1510,19 @@ function Cardiology(props) {
           errorMessage('Download URL is missing.');
           return;
         }
-        downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+        const downloadUrl = `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`;
+        const response = await axios({
+          url: downloadUrl,
+          method: 'GET',
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], { 
+          type: response.headers['content-type'] || 'application/pdf' 
+        });
+        const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+        saveAs(blob, fileName);
+        return;
       }
-
-      if (!downloadUrl) return;
-
-      const response = await axios({
-        url: downloadUrl,
-        method: 'GET',
-        responseType: 'blob',
-      });
-      const blob = new Blob([response.data], { 
-        type: response.headers['content-type'] || 'application/pdf' 
-      });
-      const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
-      saveAs(blob, fileName);
     } catch (error) {
       console.error('Error downloading file:', error);
       errorMessage('Failed to download prescription');
@@ -3227,25 +3392,37 @@ function Cardiology(props) {
                   >
                     <i className="icon-Edit"></i>
                   </button>}
-                  <button
-                    className="btn p-0 ms-3"
-                    onClick={() =>
-                      !isChrome && !isSafari
-                        ? printInAppContent()
-                        : printContent()
-                    }
-                    style={{
-                      visibility:
-                        !showDigitalGenRx &&
-                        isValidMongoId(
-                          viewCaseManagerData?.smart_prescription_filename
-                        )
-                          ? "hidden"
-                          : "visible",
-                    }}
+                  <Tooltip
+                    title={printDisabledTooltip}
+                    placement="bottom"
+                    open={isPrintDisabled ? undefined : false}
                   >
-                    <i className="icon-Print"></i>
-                  </button>
+                    <span className="d-inline-flex">
+                      <button
+                        className="btn p-0 ms-3"
+                        onClick={() =>
+                          !isChrome && !isSafari
+                            ? printInAppContent()
+                            : printContent()
+                        }
+                        disabled={isPrintDisabled}
+                        style={{
+                          visibility:
+                            !showDigitalGenRx &&
+                            isValidMongoId(
+                              viewCaseManagerData?.smart_prescription_filename
+                            )
+                              ? "hidden"
+                              : "visible",
+                          border: "none",
+                          background: "transparent",
+                          boxShadow: "none",
+                        }}
+                      >
+                        <i className="icon-Print"></i>
+                      </button>
+                    </span>
+                  </Tooltip>
                   {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
