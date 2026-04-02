@@ -123,7 +123,6 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
 
 const ConsultationDrawerMobile = ({
   visible,
