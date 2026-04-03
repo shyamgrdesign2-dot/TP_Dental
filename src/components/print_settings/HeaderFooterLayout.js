@@ -403,7 +403,7 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
     const getHeaderCropData = async () => {
         if (typeof cropperHeaderRef.current?.cropper !== "undefined") {
             const trimData = cropperHeaderRef.current?.cropper.getCroppedCanvas().toDataURL(fileHeader.originalFile.type);
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "header.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "header.png", "image/png")
             setFileHeader({ ...fileHeader, crop: false, showFile: trimData, uploadFile: uploadFile })
         }
     };
@@ -447,7 +447,7 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
     const getFooterCropData = async () => {
         if (typeof cropperFooterRef.current?.cropper !== "undefined") {
             const trimData = cropperFooterRef.current?.cropper.getCroppedCanvas().toDataURL(fileFooter.originalFile.type);
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "footer.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "footer.png", "image/png")
             setFileFooter({ ...fileFooter, crop: false, showFile: trimData, uploadFile: uploadFile })
         }
     };
@@ -732,12 +732,12 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 return;
             }
             const trimData = signatureRef.current?.getTrimmedCanvas().toDataURL('image/png');
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.png", "image/png")
             setFileSignature({ ...fileSignature, preview: true, showFile: trimData, uploadFile: uploadFile })
         } else {
             if (typeof cropperSignatureRef.current?.cropper !== "undefined") {
                 const trimData = cropperSignatureRef.current?.cropper.getCroppedCanvas().toDataURL(fileSignature.originalFile.type);
-                const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.webp", "image/png")
+                const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.png", "image/png")
                 setFileSignature({ ...fileSignature, preview: true, showFile: trimData, uploadFile: uploadFile })
             }
         }
