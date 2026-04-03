@@ -5,7 +5,7 @@ export const A4_BASE_WIDTH = 794;
 export const A4_BASE_HEIGHT = 1123; 
 
 export const ZOOM_CONSTRAINTS = {
-  MIN: 0.5,
+  MIN: 0.3, // 30% — allows seeing full page height + action buttons on small / multi-page layouts
   MAX: 1.5, // 150% max zoom (prod requirement)
   WARN: 1.5
 };

@@ -108,6 +108,11 @@ import {
 import useTabletViewport from "../../../../hooks/useTabletViewport";
 import CashManagerContext from "../../../../context/CashManagerContext";
 import { getTabRxFiles, upsertTabRxRx } from "../../services/tabRxService";
+import {
+    getMetadata,
+    setMetadata,
+    getTemplates,
+} from "../../services/templateService";
 import { setDefaultCustomSyncPadTemplate } from "../../../smartSync/services/uploadService";
 
 var oneClickCosultationTemplateId = 0;
@@ -138,6 +143,7 @@ function TabRxHeaderV2({
     onTeleconsultClick,
     isTeleconsultJoinLoading,
     isTeleconsultActive,
+    isSelectLetterHead = false,
 }) {
     const {
         profile,
@@ -1533,10 +1539,74 @@ function TabRxHeaderV2({
         }
 
         try {
-            // Persist the selected template as the default template for Custom Sync Pad
-            // (same behavior as SmartRx end-visit flow)
+            // Sync pad template preference: metadata format 1/2/3 vs set-default for custom UUIDs
             if (selectedTemplateId && selectedTemplateId !== "none") {
-                setDefaultCustomSyncPadTemplate(selectedTemplateId);
+                let currentFormat = null;
+                try {
+                    const metaResult = await getMetadata();
+                    if (metaResult?.success && metaResult?.data) {
+                        const raw = metaResult.data.format;
+                        if (
+                            raw !== null &&
+                            raw !== undefined &&
+                            raw !== ""
+                        ) {
+                            const n = Number(raw);
+                            if (Number.isFinite(n)) {
+                                currentFormat = n;
+                            }
+                        }
+                    }
+                } catch (metaErr) {
+                    console.error(
+                        "[TabRxHeaderV2] getMetadata on end visit failed:",
+                        metaErr,
+                    );
+                }
+
+                const letterHeadFlag =
+                    isSelectLetterHead === true || isSelectLetterHead === 1;
+
+                if (selectedTemplateId === "blank") {
+                    if (currentFormat !== 1) {
+                        await setMetadata(1, letterHeadFlag);
+                    }
+                } else if (selectedTemplateId === "standard") {
+                    if (currentFormat !== 2) {
+                        await setMetadata(2, letterHeadFlag);
+                    }
+                } else {
+                    if (currentFormat !== 3) {
+                        await setMetadata(3, letterHeadFlag);
+                    }
+                    let defaultTemplateId = null;
+                    try {
+                        const templatesResult = await getTemplates();
+                        const list =
+                            templatesResult?.success &&
+                            Array.isArray(templatesResult?.data)
+                                ? templatesResult.data
+                                : [];
+                        const defaultTemplate = list.find(
+                            (t) => t?.default === true,
+                        );
+                        defaultTemplateId = defaultTemplate?.id ?? null;
+                    } catch (tplErr) {
+                        console.error(
+                            "[TabRxHeaderV2] getTemplates on end visit failed:",
+                            tplErr,
+                        );
+                    }
+                    const sameAsServerDefault =
+                        defaultTemplateId != null &&
+                        String(selectedTemplateId) ===
+                            String(defaultTemplateId);
+                    if (!sameAsServerDefault) {
+                        await setDefaultCustomSyncPadTemplate(
+                            selectedTemplateId,
+                        );
+                    }
+                }
             }
 
             // Handle canvas submission before end visit if canvas submit handler is provided

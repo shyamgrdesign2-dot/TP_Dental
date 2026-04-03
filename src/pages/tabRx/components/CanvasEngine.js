@@ -525,7 +525,41 @@ const CanvasEngine = React.forwardRef(({
       const events = (typeof e.getCoalescedEvents === 'function')
         ? e.getCoalescedEvents()
         : [e];
-      const newPoints = events.map(ev => getCanvasCoordinates(ev));
+      let newPoints = events.map(ev => getCanvasCoordinates(ev));
+
+      // iPad Safari: after rubber-band overscroll, the first pointermove can jump vertically
+      // and draw a huge initial segment — clamp the first step from the lone pointerdown point.
+      if (isIOS && currentStrokeRef.current.points.length === 1 && newPoints.length > 0) {
+        const p0 = currentStrokeRef.current.points[0];
+        const FIRST_MOVE_MAX = 72;
+        const p1 = newPoints[0];
+        const d = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+        if (d > FIRST_MOVE_MAX) {
+          const s = FIRST_MOVE_MAX / d;
+          newPoints = [
+            { x: p0.x + (p1.x - p0.x) * s, y: p0.y + (p1.y - p0.y) * s },
+            ...newPoints.slice(1),
+          ];
+        }
+      }
+
+      // When embedded in a scroll container, Android Chrome can inject huge coordinate jumps
+      // during overscroll — skip those segments. Do NOT apply this broadly on iOS: it drops
+      // valid points between fast strokes / coalesced events and makes lines look dashed.
+      if (embeddedInScroll && newPoints.length > 0) {
+        const MAX_SEGMENT = 140;
+        const pts = currentStrokeRef.current.points;
+        const base = pts.length > 0 ? pts[pts.length - 1] : null;
+        const filtered = [];
+        let prev = base;
+        for (const p of newPoints) {
+          if (prev && Math.hypot(p.x - prev.x, p.y - prev.y) > MAX_SEGMENT) continue;
+          filtered.push(p);
+          prev = p;
+        }
+        newPoints = filtered;
+        if (newPoints.length === 0) return;
+      }
 
       // Update ref synchronously — renderCanvas will see this immediately
       const oldPointsCount = currentStrokeRef.current.points.length;
@@ -546,7 +580,7 @@ const CanvasEngine = React.forwardRef(({
       //   console.warn(`⚠️ [CanvasEngine] pointerMove: currentStrokeRef is NULL, cannot draw`);
       // }
     }
-  }, [isIOS, setPanOffset, performErase, getCanvasCoordinates, renderCanvas]);
+  }, [isIOS, setPanOffset, performErase, getCanvasCoordinates, renderCanvas, embeddedInScroll]);
 
   // ✅ EXCALIDRAW PATTERN: Internal handler stored in ref
   // ✅ CRITICAL: Also accepts touchend events converted to pointerup-like events
@@ -1149,7 +1183,11 @@ const CanvasEngine = React.forwardRef(({
       <div
         className="canvas-wrapper"
         style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
+          // When embedded, TabRxCanvas already sizes the page to A4 * zoom — inner scale would
+          // still reserve 794×1123 layout space and clip the bottom under overflow:hidden.
+          transform: embeddedInScroll
+            ? `translate(${panOffset.x}px, ${panOffset.y}px)`
+            : `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
         }}
       >
         <canvas
@@ -1162,9 +1200,10 @@ const CanvasEngine = React.forwardRef(({
           style={{
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            // Allow vertical finger-scroll when this canvas is inside a scroll container.
-            // Pen/stylus still draws because internalPointerDown calls preventDefault() for pen events.
-            touchAction: embeddedInScroll ? 'pan-y' : 'none',
+            // Always disable native panning/scrolling on the canvas element.
+            // Finger scrolling is handled by the parent pages scroller to avoid Chrome
+            // treating vertical stylus strokes as viewport scroll (which cancels pen events).
+            touchAction: 'none',
             WebkitTouchCallout: 'none',
             WebkitTapHighlightColor: 'transparent'
           }}
