@@ -12,7 +12,7 @@ import alertIcon from "../../../../assets/images/alertIcon.svg";
 import Preview from "./../preview/Preview";
 import "./VaccineHeader.scss";
 import VideoModal from "../../../../common/VideoModal";
-import tutorial2 from "../../../../assets/images/tutorial2.png";
+import tutorial2 from "../../../../assets/images/tutorial2.webp";
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";

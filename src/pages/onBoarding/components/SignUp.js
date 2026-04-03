@@ -6,14 +6,16 @@ import "./Onboarding.scss";
 import abdmLogo from "../../../assets/images/abdm-logo.svg";
 import nhaLogo from "../../../assets/images/nha-logo.svg";
 import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
-import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.png";
+import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
 import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
 import { validateUser, checkPediaExists } from "../../auth/authService";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
-import { detectOperatingSystem } from "../../../utils/utils";
+import {
+  aisensybotInjection,
+  detectOperatingSystem,
+} from "../../../utils/loginUtils";
 import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
-import { aisensybotInjection } from "../../../utils/utils";
 
 const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }) => {
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber || "");
@@ -31,27 +33,29 @@ const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showTooltip, setShowTooltip] = useState(false);
 useEffect(() => {
-
   // Aisensy Integration
   aisensybotInjection(isLoginFlow);
+}, [isLoginFlow]);
 
+useEffect(() => {
   return () => {
-    
     aisensybotInjection(true);
+
     const dialogBox = document.querySelector(".df-chatbox");
     if (dialogBox) dialogBox.remove();
-    const dfButtons = document.querySelectorAll(".df-btn");
-    dfButtons.forEach(btn => btn.remove());
+
+    document.querySelectorAll(".df-btn").forEach((btn) => btn.remove());
+    document.querySelectorAll(".df-btn.df-closed").forEach((div) => div.remove());
+
     const existingScript = document.getElementById(AISENSY_SCRIPT_ID);
-    const aiSensiDiv = document.getElementsByClassName('df-btn df-closed');
-    aiSensiDiv.forEach(div => div.remove());
     if (existingScript) {
-      document.body.removeChild(existingScript);
+      existingScript.remove();
     }
+
     const widget = document.querySelector(AISENSY_SCRIPT_CONTAINER);
     if (widget) widget.remove();
   };
-}, [isLoginFlow]);
+}, []);
 
   const [errors, setErrors] = useState({
     password: "",

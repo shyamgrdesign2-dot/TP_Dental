@@ -19,7 +19,7 @@ import api from "../../api/services/axiosService";
 import visitEnd from "../../assets/images/end-visit.svg";
 import imgCloseVisit from "../../assets/images/close-visit.svg";
 import wtsp from "../../assets/images/wtsp.svg";
-import loadingImg from "../../assets/images/loading.png";
+import loadingImg from "../../assets/images/loading.webp";
 import successIcon from "../../assets/images/success-icon.svg";
 
 import HeaderPrescriptionPrint from "../../common/HeaderPrescriptionPrint";

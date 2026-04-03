@@ -1,6 +1,6 @@
 {
   "name": "react-thyrocare",
-  "version": "4.6.1",
+  "version": "4.6.2",
   "private": true,
   "homepage": "/",
   "dependencies": {
@@ -46,6 +46,7 @@
     "lottie-react": "^2.4.0",
     "moment": "^2.29.4",
     "numeral": "^2.0.6",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^3.11.174",
     "prop-types": "^15.8.1",
     "qrcode": "^1.5.3",
@@ -93,6 +94,7 @@
     "start": "react-scripts start",
     "start:dev": "env-cmd -f .env.dev react-scripts start",
     "build": "react-scripts build && npm run sentry:sourcemaps",
+    "lint:assets": "node scripts/check-no-raster-imports.js",
     "lint": "eslint --max-warnings=0 \"src/**/*.{js,jsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx}\"",
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",

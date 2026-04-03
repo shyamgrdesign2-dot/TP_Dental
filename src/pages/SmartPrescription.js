@@ -25,6 +25,7 @@ import {
   GB_ZYDUS_USER,
   NEO_NATOLOGISTS_DP_ID,
   GB_CARE_PLAN,
+  GB_TELE_CONSULT,
 } from "../utils/constants";
 
 import ReconnectingWebSocket from "reconnectingwebsocket";
@@ -68,7 +69,9 @@ import { MESSAGE_KEY } from "../utils/constants";
 import CommonModal from "../common/CommonModal";
 import alertIcon from "../assets/images/alertIcon.svg";
 import textLogo from "../assets/images/text-logo.svg";
-import sparkleGif from "../assets/images/aiSparkleLoader.gif";
+import sparkleWebm from "../assets/images/aiSparkleLoader.webm";
+import sparkleMp4 from "../assets/images/aiSparkleLoader.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import FullPageLoader from "./vaccination/components/Loader";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "./smartSync/components/CvtKnowMore";
@@ -131,6 +134,13 @@ import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT } from "../utils/constants";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
+import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../redux/teleconsultNotificationSlice";
 
 function SmartPrescription() {
   const {
@@ -168,6 +178,7 @@ function SmartPrescription() {
       item?.enablePrint)
   );
   const dispatch = useDispatch();
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
 
@@ -248,12 +259,16 @@ function SmartPrescription() {
   const [knowMoreDrawer, setKnowMoreDrawer] = useState(false);
 
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
+  const isTeleConsultAvailableType2 =
+    isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
 
   const handleKnowMoreDrawer = useCallback(() => {
     setKnowMoreDrawer((prev) => !prev);
@@ -438,11 +453,42 @@ function SmartPrescription() {
     }
   };
 
+  const handleTeleconsultClick = async () => {
+    if (joinToken) return;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+      if (token) {
+        dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (_error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (uploadDocCategories?.length === 0) {
@@ -1418,9 +1464,9 @@ function SmartPrescription() {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -3301,6 +3347,10 @@ function SmartPrescription() {
           setBuildNumber={setBuildNumber}
           handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
           isVideoConsultLoading={isInitiatingCall}
+          showTeleconsultIcon={!!isTeleConsultAvailableType2}
+          onTeleconsultClick={handleTeleconsultClick}
+          isTeleconsultJoinLoading={isTeleconsultJoinLoading}
+          isTeleconsultActive={!!joinToken}
         />
         
         {loading && <FullPageLoader />}
@@ -3316,7 +3366,12 @@ function SmartPrescription() {
               {isSmartSyncCVTAccessableFromGB && (
                 <div className="know-more-cvt p-14">
                   <div className="sparkle">
-                    <img src={sparkleGif} className="sparkel-loader" />
+                    <LoopingVideo
+                      webm={sparkleWebm}
+                      mp4={sparkleMp4}
+                      className="sparkel-loader"
+                      ariaLabel="Loading"
+                    />
                     <img
                       src={textLogo}
                       alt="textLogo"

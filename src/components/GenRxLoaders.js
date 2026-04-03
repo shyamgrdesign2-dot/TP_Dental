@@ -8,6 +8,9 @@ import genRxConvertingData from "../assets/lotties/genRxConvertingData.lottie";
 import genRxStructuringData from "../assets/lotties/genRxStructuringData.lottie";
 import genRxFinalizingRx from "../assets/lotties/genRxFinalizingRx.lottie";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
+import LoopingVideo from "./common/LoopingVideo";
 
 const CREEP_START = 60;
 const CREEP_RATE = 1;
@@ -94,6 +97,12 @@ const GenRXLoaders = ({ isProcessing, showAbsHeaderInsideLoader = false, isSnapR
 
   return (
     <div className={styles.backgroundContainer}>
+      <LoopingVideo
+        webm={genRxBgWebm}
+        mp4={genRxBgMp4}
+        className={styles.backgroundVideo}
+        ariaLabel="Background"
+      />
       {showAbsHeaderInsideLoader ? (
         <div className="title-digitise-card-inside-loader">
           <img src={digitiseRxIcon} alt="rx-icon2" className="me-2" />
@@ -161,4 +170,3 @@ const GenRXLoaders = ({ isProcessing, showAbsHeaderInsideLoader = false, isSnapR
 };
 
 export default GenRXLoaders;
-

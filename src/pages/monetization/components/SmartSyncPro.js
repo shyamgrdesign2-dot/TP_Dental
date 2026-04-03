@@ -2,7 +2,7 @@ import React from "react";
 import { Button, Checkbox, Popover } from "antd";
 import { useSelector } from "react-redux";
 
-import smartSyncIcon from "../../../assets/images/smart-sync-icon.png";
+import smartSyncIcon from "../../../assets/images/smart-sync-icon.webp";
 import deviderIncludes from "../../../assets/images/includes-devider.svg";
 import { formatAmount, currencyFormat } from "../../../utils/utils";
 

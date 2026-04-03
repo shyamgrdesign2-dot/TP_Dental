@@ -1,6 +1,8 @@
 import { Button } from "antd";
 import tatvaAi from "../assets/images/apexAI.svg";
-import newTag from "../assets/images/new-gif.gif";
+import newTagWebm from "../assets/images/new-gif.webm";
+import newTagMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "./common/LoopingVideo";
 
 const TatvaAiBanner = ({ setShowTatvaAiPopup, handleTatvaAiKnowMore }) => {
   return (
@@ -20,12 +22,13 @@ const TatvaAiBanner = ({ setShowTatvaAiPopup, handleTatvaAiKnowMore }) => {
           <div className="d-flex align-items-center">
             Redefine Rx & Diagnosis with{" "}
             <b style={{ marginLeft: 5 }}>TatvaAI</b>
-            <img
+            <LoopingVideo
               style={{ marginLeft: 10 }}
-              src={newTag}
-              alt="new-tag"
+              webm={newTagWebm}
+              mp4={newTagMp4}
               width={39}
               height={16}
+              ariaLabel="New"
             />
           </div>
           <div className="know-more-txt" onClick={handleTatvaAiKnowMore}>

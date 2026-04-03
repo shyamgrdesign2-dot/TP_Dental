@@ -13,7 +13,7 @@ import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from
 
 import messageSent from '../assets/images/message-sent.svg';
 import wtsp from '../assets/images/wtsp.svg';
-import loadingImg from '../assets/images/loading.png';
+import loadingImg from '../assets/images/loading.webp';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { useSelector, useDispatch } from "react-redux";

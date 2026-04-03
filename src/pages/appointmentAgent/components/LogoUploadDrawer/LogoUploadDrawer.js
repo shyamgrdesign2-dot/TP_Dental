@@ -58,7 +58,7 @@ const LogoUploadDrawer = ({ visible, onClose, onSave }) => {
         .toDataURL(file.originalFile.type);
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
-        "logo.png",
+        "logo.webp",
         "image/png"
       );
       setFile({

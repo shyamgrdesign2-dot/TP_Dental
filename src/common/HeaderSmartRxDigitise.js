@@ -60,7 +60,9 @@ import zydusDataEngineIcon from "../assets/images/intersect.svg";
 import growIcon from "../assets/images/grow.svg";
 import accuracyIcon from "../assets/images/accuracy.svg";
 import healthIcon from "../assets/images/health-care.svg";
-import tagNew from "../assets/images/new-gif.gif";
+import tagNewWebm from "../assets/images/new-gif.webm";
+import tagNewMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import VideoConsultButton from "../components/VideoConsultButton";
 
 function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmartRx = false, isDigitiseRxLoading = false, tcm_id, handleVideoConsult, isVideoConsultLoading, onBackToPreview, isSaveLoading = false }) {
@@ -301,13 +303,14 @@ function HeaderSmartRxDigitise({ onSave, patient_data, isSnapRx = false, isSmart
                             >
                               Zydus Data Engine
                             </span>
-                            <img
+                            <LoopingVideo
                               className="img-fluid"
                               width={39}
                               height={16}
                               style={{ marginLeft: 10, marginBottom: 5 }}
-                              src={tagNew}
-                              alt={"new-gif"}
+                              webm={tagNewWebm}
+                              mp4={tagNewMp4}
+                              ariaLabel="New"
                             />
                           </div>
                           <Divider style={{ margin: "15px 0px" }} />

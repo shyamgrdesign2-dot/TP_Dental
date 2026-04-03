@@ -22,12 +22,15 @@ import { useDispatch } from "react-redux";
 import { detectOperatingSystem } from "../../utils/utils";
 import { useLocalStorage } from "../../utils/localStorage";
 
-/** Strip leading 91 so onboarding APIs receive mobile without country code. */
+/** Onboarding APIs receive mobile without country code. */
 const phoneWithoutCountryCode = (phone) => {
   if (phone == null || typeof phone !== "string") return phone ?? "";
-  const s = String(phone).trim();
-  if (s.startsWith("91") && s.length > 2) return s.slice(2);
-  return s;
+  let digits = String(phone).replace(/\D/g, "");
+  if (!digits) return String(phone).trim();
+  digits = digits.replace(/^0+/, "");
+  if (!digits) return "";
+  if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+  return digits;
 };
 
 const DoctorOnboarding = ({

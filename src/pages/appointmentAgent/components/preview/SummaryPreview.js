@@ -1,9 +1,11 @@
 import { Radio } from "antd";
-import iPhoneBg from "../../../../assets/images/iPhone.png";
-import scStrip from "../../../../assets/images/sc-banner-strip.png";
+import iPhoneBg from "../../../../assets/images/iPhone.webp";
+import scStrip from "../../../../assets/images/sc-banner-strip.webp";
 import "./Preview.scss";
 import profile from "../../../../assets/images/profile-blue.svg";
-import genRxBg from "../../../../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../../../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../../../assets/images/gen-rx-bg.mp4";
+import LoopingVideo from "../../../../components/common/LoopingVideo";
 
 const getInitials = (name) => {
   if (!name) return "";
@@ -67,22 +69,23 @@ const SummaryPreview = ({ setupData }) => {
         }}
       >
         {/* Animated GIF background */}
-        <img
-          src={genRxBg}
-          alt="bg"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: 0.12,
-            zIndex: 0,
-            borderRadius: "50px",
-            paddingTop: 75,
-          }}
-        />
+          <LoopingVideo
+            webm={genRxBgWebm}
+            mp4={genRxBgMp4}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: 0.12,
+              zIndex: 0,
+              borderRadius: "50px",
+              paddingTop: 75,
+            }}
+            ariaLabel="Background"
+          />
         <div
           className="d-flex align-items-center flex-column gap-2"
           style={{ height: "85%", zIndex: 1 }}

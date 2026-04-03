@@ -10,14 +10,33 @@
   -moz-user-select: none;
   -ms-user-select: none;
 
-  /* When embedded in scroll: allow vertical scroll with touch */
+  /* When embedded in scroll: parent handles scrolling */
   &.embedded-in-scroll {
-    touch-action: pan-y;
+    touch-action: none;
     flex: none; /* Don't grow - parent controls size */
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+
+    /* Fill parent page block; zoom is applied by outer dimensions, not transform scale */
+    .canvas-wrapper {
+      width: 100% !important;
+      height: 100% !important;
+    }
 
     /* Also override the canvas element so inline style stays consistent */
     .canvas-wrapper canvas {
-      touch-action: pan-y;
+      touch-action: none;
+    }
+
+    /* While a pen is active (drawing), disable UA panning so Android stylus
+       can't scroll the surrounding pages container mid-stroke. */
+    &[data-pen-active="true"] {
+      touch-action: none;
+    }
+
+    .canvas-wrapper canvas[data-pen-active="true"] {
+      touch-action: none !important;
     }
   }
 

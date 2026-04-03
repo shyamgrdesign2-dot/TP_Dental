@@ -3,14 +3,14 @@ import { Input, Button, Form } from "antd";
 import "./Onboarding.scss";
 import abdmLogo from "../../../assets/images/abdm-logo.svg";
 import nhaLogo from "../../../assets/images/nha-logo.svg";
-import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.png";
+import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
 import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
 import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
 import { loginWithPassword, verifyAccessToken } from "../../auth/authService";
 import { isMobile } from "react-device-detect";
 import { EyeInvisibleOutlined } from "@ant-design/icons";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
-import { detectOperatingSystem } from "../../../utils/utils";
+import { detectOperatingSystem } from "../../../utils/loginUtils";
 
 
 const VerifyPassword = ({ onViewChange, mobileNumber }) => {

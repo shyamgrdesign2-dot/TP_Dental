@@ -45,7 +45,9 @@ import growthChartDark from "../../assets/images/growth-chart-dark.svg";
 import privateNotesWhite from "../../assets/images/private-notes-white.svg";
 import privateNotesDark from "../../assets/images/private-notes-dark.svg";
 import apexAIImg from "../../assets/images/apexAI.svg";
-import blinkingDot from "../../assets/images/blinkingDot.gif";
+import blinkingDotWebm from "../../assets/images/blinkingDot.webm";
+import blinkingDotMp4 from "../../assets/images/blinkingDot.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import ddxVector from "../../assets/images/ddx-tab-vector.svg";
 import ddxImg from "../../assets/images/ddx.svg";
 import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
@@ -59,7 +61,8 @@ import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
 import labParamsDark from "../../assets/images/Lab-Parameters.svg";
 import groundingImgWhite from "../../assets/images/grounding-white.svg";
 import groundingImgDark from "../../assets/images/grounding-purple.svg";
-import genRxBg from "../../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
 import carePlanIcon from "../../assets/images/Care plan.svg";
 import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
 // import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
@@ -98,7 +101,12 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
-import { setJoinToken, setActiveTeleconsultAppointmentId } from "../../redux/teleconsultNotificationSlice";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../../redux/teleconsultNotificationSlice";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
 import TabSurgicalBox from "../../components/tab_design/TabSurgicalBox";
 import TabAddCustomModule from "../../components/tab_design/TabAddCustomModule";
@@ -438,8 +446,11 @@ function TabPrescription() {
       if (videoConsultData?.pam_id != null) {
         dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
       }
+      if (teleconsultAutoJoin?.consultationId) {
+        dispatch(setActiveTeleconsultConsultationId(teleconsultAutoJoin.consultationId));
+      }
     }
-  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
+  }, [teleconsultAutoJoin?.token, teleconsultAutoJoin?.consultationId, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -732,10 +743,10 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (isCarePlanEnabled) {
@@ -1105,9 +1116,9 @@ function TabPrescription() {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -1588,7 +1599,7 @@ function TabPrescription() {
   };
 
   const handleTeleconsultClick = async () => {
-    const appointmentId = pamId || patient_data?.pam_id;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
     if (!appointmentId) {
       message.error("No appointment selected");
       return;
@@ -1601,6 +1612,12 @@ function TabPrescription() {
       if (token) {
         dispatch(setJoinToken(token));
         dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }
@@ -1894,9 +1911,9 @@ function TabPrescription() {
                       >
                         <img src={apexAIImg} alt="apex-AI" />
                         {isDDxReadyToGenerate && generatedDDx?.results?.length > 0 && (
-                          <img
-                            src={blinkingDot}
-                            alt="blinking-dot"
+                          <LoopingVideo
+                            webm={blinkingDotWebm}
+                            mp4={blinkingDotMp4}
                             width={30}
                             height={30}
                             style={{
@@ -1904,6 +1921,7 @@ function TabPrescription() {
                               top: -15,
                               right: -15,
                             }}
+                            ariaLabel="Updates available"
                           />
                         )}
                       </div>
@@ -2367,8 +2385,23 @@ function TabPrescription() {
                     }
                   }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm" style={showShimmer ? { background: `url(${genRxBg})`, padding: "2px" } : {}}>
-                     <div style={showShimmer ? {background: "white", borderRadius: "17px"} : {}}>
+                    <div
+                      key={i}
+                      className={`prescription-box-sm ${showShimmer ? "genrx-shimmer" : ""}`}
+                      style={showShimmer ? { padding: "2px" } : {}}
+                    >
+                      {showShimmer && (
+                        <LoopingVideo
+                          webm={genRxBgWebm}
+                          mp4={genRxBgMp4}
+                          className="genrx-shimmer-video"
+                          ariaLabel="Background"
+                        />
+                      )}
+                     <div
+                      className={showShimmer ? "genrx-shimmer-content" : ""}
+                      style={showShimmer ? {background: "white", borderRadius: "17px"} : {}}
+                    >
                       <TabSymptomsBox
                           handleDDxDrawer={handleDDxDrawer}
                           generatedDDx={generatedDDx?.results}

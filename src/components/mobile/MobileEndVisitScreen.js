@@ -18,7 +18,7 @@ import editIcon from '../../assets/mobile/edit.svg';
 import downloadIcon from '../../assets/mobile/Arrow Download (1).svg';
 import whatsappIcon from '../../assets/mobile/WhatsApp.svg';
 import printIcon from '../../assets/mobile/printer.svg';
-import loadingImg from '../../assets/images/loading.png';
+import loadingImg from '../../assets/images/loading.webp';
 import visitEndIcon from '../../assets/images/end-visit.svg';
 import closeVisitIcon from '../../assets/images/close-visit.svg';
 import './MobileEndVisitScreen.scss';

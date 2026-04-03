@@ -1,5 +1,5 @@
 import { Button, Card } from "antd";
-import emptyDocument from "./../../../../assets/images/empty-document.png";
+import emptyDocument from "./../../../../assets/images/empty-document.webp";
 import emptyIllustration from "./../../../../assets/mobile/empty_illustration.svg";
 import { useDispatch, useSelector } from "react-redux";
 import { setUploadDocCategories } from "../../../../redux/uploadDocSlice";
@@ -72,9 +72,9 @@ const VisitMedicalRecords = ({
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 

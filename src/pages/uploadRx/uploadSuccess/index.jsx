@@ -2,8 +2,8 @@ import React from "react";
 import { Button } from "antd";
 import PatientInfoCard from "../patientInfoCard";
 import "./styles.scss";
-import websiteLogo from "../../../assets/images/website-images/logo.png";
-import editIconWhite from "../../../assets/images/edit-white.png";
+import websiteLogo from "../../../assets/images/website-images/logo.webp";
+import editIconWhite from "../../../assets/images/edit-white.webp";
 import { trackEvent } from "../../../utils/utils";
 import { EVENTS } from "../../../utils/events";
 

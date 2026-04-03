@@ -33,22 +33,22 @@
 }
 
 .backgroundContainer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 0; /* No rounded corners */
-  background: url('../assets/images/gen-rx-bg.gif') no-repeat center center;
-  background-size: cover; /* Ensure the GIF scales properly */
-  opacity: 0.1; /* Reduce the opacity for the background */
-  z-index: -1; /* Place the background behind the content */
+  content: none;
 }
 
 .backgroundContainer > * {
   position: relative;
   z-index: 1; /* Keep the content above all pseudo-elements */
+}
+
+.backgroundVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.1;
+  z-index: 0;
 }
 
 

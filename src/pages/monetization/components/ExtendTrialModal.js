@@ -12,7 +12,7 @@ import listIcon from '../../../assets/images/list-icon.svg'
 import expiredInfographic from '../../../assets/images/expired-infographic.svg'
 import contactSupport from '../../../assets/images/messages-2.svg'
 import crown from '../../../assets/images/crown.svg'
-import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.png'
+import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.webp'
 import { extendFreeTrial, interest } from "../../../redux/monetizationSlice";
 import { services } from "../../../redux/doctorsSlice";
 import { openModal } from "../../../redux/doctorModalSlice";

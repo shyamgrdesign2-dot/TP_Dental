@@ -18,7 +18,7 @@ import imgCloseVisit from '../assets/images/close-visit.svg';
 import { MenuOutlined } from '@ant-design/icons';
 import tagNew from '../../src/assets/images/tag-new.svg';
 import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.png';
+import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 

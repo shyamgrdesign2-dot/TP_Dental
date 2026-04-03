@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useContext } from "react";
 import { Container, Navbar, Row, Col } from "react-bootstrap";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import CashManagerContext from "../../../context/CashManagerContext";
@@ -8,6 +9,7 @@ import ProfilePopover from "../../../common/ProfilePopover";
 import CommonModal from "../../../common/CommonModal";
 import alertIcon from "../../../assets/images/alertIcon.svg";
 import tutorial from "../../../assets/images/tutorial.svg";
+import videoSvg from "../../../assets/images/video.svg";
 import "./Header.scss";
 
 function Header({
@@ -18,6 +20,10 @@ function Header({
   onUploadMore,
   showUploadMoreButton,
   handleTutorial,
+  showTeleconsultIcon,
+  onTeleconsultClick,
+  isTeleconsultJoinLoading,
+  isTeleconsultActive,
 }) {
   const navigate = useNavigate();
   const { patient_data } = useContext(CashManagerContext);
@@ -159,6 +165,28 @@ function Header({
                   <span>Upload more</span>
                 </Button>
               ) : null}
+              {showTeleconsultIcon && (
+                <Tooltip
+                  placement="bottom"
+                  title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"}
+                  destroyTooltipOnHide
+                >
+                  <span className={isTeleconsultActive ? "d-inline-block" : ""}>
+                    <button
+                      type="button"
+                      className="btn align-items-center justify-content-center d-flex btn-41 teleconsult-video-btn me-20"
+                      onClick={onTeleconsultClick}
+                      disabled={isTeleconsultJoinLoading || isTeleconsultActive}
+                    >
+                      {isTeleconsultJoinLoading ? (
+                        <LoadingOutlined style={{ fontSize: 24 }} />
+                      ) : (
+                        <img src={videoSvg} alt="Tele-Consultation" width={26} height={26} />
+                      )}
+                    </button>
+                  </span>
+                </Tooltip>
+              )}
               <Button
                 type="button"
                 className="btn align-items-center d-flex btn-41 btn-primary3 me-20"

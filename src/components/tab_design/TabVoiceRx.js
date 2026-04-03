@@ -1,6 +1,8 @@
 import { Button, Divider } from "antd";
 import arrow from "../../assets/images/shaded-arrow.svg";
-import cdssWallpaper from "../../assets/images/cdss-wallpaper.gif";
+import cdssWallpaperWebm from "../../assets/images/cdss-wallpaper.webm";
+import cdssWallpaperMp4 from "../../assets/images/cdss-wallpaper.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import tryGenRxIcon from "../../assets/images/try-gen-rx.svg";
 
 const TabVoiceRx = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
@@ -11,21 +13,23 @@ const TabVoiceRx = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
         overflow: "auto",
       }}
     >
-      <>
         <div
-          className="d-flex flex-column justify-content-center align-items-center"
+          className="cdss-wallpaper-container d-flex flex-column justify-content-center align-items-center"
           style={{
             rowGap: "24px",
             padding: "24px 10px",
-            background: `linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url(${cdssWallpaper})`,
             width: "100%",
-            backgroundSize: "cover",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
             borderRadius: "0 0 20px 20px",
           }}
         >
-          <div className="d-flex flex-column align-items-center gap-2">
+          <LoopingVideo
+            webm={cdssWallpaperWebm}
+            mp4={cdssWallpaperMp4}
+            className="cdss-wallpaper-video"
+            ariaLabel="Background"
+          />
+          <div className="cdss-wallpaper-overlay" />
+          <div className="cdss-wallpaper-content d-flex flex-column align-items-center gap-2">
             <div
               style={{
                 fontSize: 24,
@@ -36,12 +40,11 @@ const TabVoiceRx = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
             >
               Voice Rx
             </div>
+            <span style={{ lineHeight: "26px", textAlign: "center" }}>
+              Quickly generate structured prescriptions by combining voice and
+              type inputs, reducing time and effort in high-volume consultations
+            </span>
           </div>
-
-          <span style={{ lineHeight: "26px", textAlign: "center" }}>
-            Quickly generate structured prescriptions by combining voice and
-            type inputs, reducing time and effort in high-volume consultations
-          </span>
         </div>
         <div
           className="d-flex flex-column justify-content-center align-items-center"
@@ -84,7 +87,6 @@ const TabVoiceRx = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
             </div>
           </div>
         </div>
-      </>
     </div>
   );
 };

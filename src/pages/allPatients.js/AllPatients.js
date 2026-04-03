@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../../common/Header";
 import SidebarDoctor from "../../common/SidebarDoctor";
+import "./AllPatients.scss";
 import { genderAge } from "../opdBilling/components/viewBillPdf/helper";
 import { fetchAllPatients } from "./service";
 import { env } from "../../EnvironmentConfig";
@@ -373,9 +374,9 @@ const AllPatients = () => {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -987,13 +988,13 @@ const AllPatients = () => {
                       <h1>All Patients</h1>
                     </div>
                     <img
-                      src={require("./../../assets/images/bg-welcome.png")}
+                      src={require("./../../assets/images/bg-welcome.webp")}
                       className="welcomeig d-inline-block align-top"
                       alt="Welcome"
                     />
                   </>
                 </div>
-                <div className="d-flex gap-3">
+                <div className="d-flex gap-3 btn-manage-bill-all-patients">
                   {dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
                       <Button
@@ -1018,7 +1019,7 @@ const AllPatients = () => {
             </div>
           </>
 
-          <div className="border rounded-4 appointment-wrap dateborder mb-4">
+          <div className="border rounded-4 appointment-wrap dateborder mb-4 all-patients">
             <div className="billing-table-wrapper mt-2">
               <Row className="justify-content-between align-items-center my-4 px-4">
                 <div className="d-flex align-items-center gap-3">
@@ -1039,7 +1040,7 @@ const AllPatients = () => {
                       onChange={(e) => onSearch(e.target.value)}
                     />
                   </div>
-                  <div className="massage-date-wrapper">
+                  <div className="all-patients-date-wrapper">
                     <div
                       className="fs-14 h-100 w-100 d-flex align-items-center justify-content-between"
                       onClick={handlePickerModal}
@@ -1077,8 +1078,8 @@ const AllPatients = () => {
                         format={showDateFormat}
                         autoAdjustOverflow={true}
                         onChange={onRangeChange}
-                        popupClassName="massage-date"
-                        className="massage-input"
+                        popupClassName="all-patients-date-popup"
+                        className="all-patients-date-input"
                         inputReadOnly
                         renderExtraFooter={() => (
                           <div className="d-flex align-items-center justify-content-between py-1">

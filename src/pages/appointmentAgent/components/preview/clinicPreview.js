@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import iPhoneBg from "../../../../assets/images/iPhone.png";
-import clinicBg from "../../../../assets/images/clinic-detail-bg.png";
+import iPhoneBg from "../../../../assets/images/iPhone.webp";
+import clinicBg from "../../../../assets/images/clinic-detail-bg.webp";
 import "./Preview.scss";
 import closeIcon from "../../../../assets/images/close-with-white-fill.svg";
 import {

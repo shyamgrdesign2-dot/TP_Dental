@@ -4,13 +4,13 @@ import Trustby from '../../../../assets/images/Trustby.svg';
 
 const TrustBy = () => {
   const logos = [
-    require('../../../../assets/images/website-images/Apollo.png'),
-    require('../../../../assets/images/website-images/ApolloCradleLogo.png'),
-    require('../../../../assets/images/onboard-page-icons/MunshiHosLogo.png'),
-    require('../../../../assets/images/website-images/ZydusLogo.png'),
-    require('../../../../assets/images/onboard-page-icons/HospitalsLogo.png'),
-    require('../../../../assets/images/onboard-page-icons/ApexOrthoHosLogo1.png'),
-    require('../../../../assets/images/onboard-page-icons/NavijivanHosLogo1.png'),
+    require('../../../../assets/images/website-images/Apollo.webp'),
+    require('../../../../assets/images/website-images/ApolloCradleLogo.webp'),
+    require('../../../../assets/images/onboard-page-icons/MunshiHosLogo.webp'),
+    require('../../../../assets/images/website-images/ZydusLogo.webp'),
+    require('../../../../assets/images/onboard-page-icons/HospitalsLogo.webp'),
+    require('../../../../assets/images/onboard-page-icons/ApexOrthoHosLogo1.webp'),
+    require('../../../../assets/images/onboard-page-icons/NavijivanHosLogo1.webp'),
   ];
 
   return (

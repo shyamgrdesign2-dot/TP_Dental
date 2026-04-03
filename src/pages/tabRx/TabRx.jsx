@@ -31,6 +31,7 @@ import {
   OPTHAL_PAD_MODULE,
   GB_OPTHAL_MODULE,
   GB_VIDEO_CONSULT,
+  GB_TELE_CONSULT,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
 
@@ -148,8 +149,9 @@ import TabRxNavPanel from "./components/tabRxNavPanel/TabRxNavPanel";
 import TabRxHeaderV2 from "./components/tabRxHeader/TabRxHeaderV2";
 import TabRxCanvas from "./components/TabRxCanvas";
 import { uploadTabRxFiles } from "./services/tabRxService";
-import { getTemplates } from "./services/templateService";
+import { getMetadata, getTemplates } from "./services/templateService";
 import ApiVideoConsult from "../../api/services/ApiVideoConsult";
+import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import TabVoiceRx from "../../components/tab_design/TabVoiceRx";
 import GenRxKnowMore from "../../components/GenRxKnowMore";
 import ConsultationDrawer from "../../components/ConsultationDrawer";
@@ -173,8 +175,13 @@ import {
 import TabRxHeader from "./components/tabRxHeader/TabRxHeader";
 import TabRxWelcomePopup from "./components/tabRxWelcomePopup/TabRxWelcomePopup";
 import VideoConsultModal from "../../components/VideoConsultModal";
-import { getMetadata } from "./services/templateService";
 import { viewCaseManager } from "../../redux/caseManagerSlice";
+import {
+  setAppointmentTeleconsultStatus,
+  setActiveTeleconsultAppointmentId,
+  setActiveTeleconsultConsultationId,
+  setJoinToken,
+} from "../../redux/teleconsultNotificationSlice";
 
 function TabRx() {
   const {
@@ -198,6 +205,8 @@ function TabRx() {
   const isFreeVoiceRxUser = isVoiceRxFree();
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
+  const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
+  const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const { selectedVitalsList, vitalsPastList, patientBirthWeight } =
     useSelector((state) => state.vitals);
   const { privateNotesList } = useSelector((state) => state.medicalhistory);
@@ -547,11 +556,14 @@ function TabRx() {
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
 
   // Check if video consultation is available for this patient
   const isVideoConsultAvailable =
     isVideoConsultAccessible &&
     videoConsultData?.pam_status_type_appointment === 1;
+  const isTeleConsultAvailableType2 =
+    isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
 
   // Canvas state
   const canvasRef = useRef(null);
@@ -614,7 +626,7 @@ function TabRx() {
   }, [smartRxFilesData, caseManagerData]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // New consult (no smartRxFilesData): pick default template like SmartPrescription.js.
+  // New consult (no smartRxFilesData): metadata format 1=blank, 2=standard, 3=API default template.
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const isNew = !Array.isArray(smartRxFilesData) || smartRxFilesData.length === 0;
@@ -623,18 +635,52 @@ function TabRx() {
     let isCancelled = false;
     const initDefaultTemplate = async () => {
       try {
-        const result = await getTemplates();
+        const [metaResult, templatesResult] = await Promise.all([
+          getMetadata(),
+          getTemplates(),
+        ]);
         if (isCancelled) return;
-        if (result?.success && Array.isArray(result?.data) && result.data.length > 0) {
-          const defaultTemplate = result.data.find((t) => t?.default === true);
-          const chosen = defaultTemplate || result.data[0];
-          if (chosen?.id) {
-            setIsCustomSSRX(false);
-            setSelectedTemplateId(chosen.id);
-            setCanvasInitialTemplateId(chosen.id);
-            setCustomSSDataForCanvas(null);
-            setIsTemplateSelectionLocked(false);
+
+        let formatNum = null;
+        if (metaResult?.success && metaResult?.data) {
+          const raw = metaResult.data.format;
+          if (raw !== null && raw !== undefined && raw !== "") {
+            const n = Number(raw);
+            if (Number.isFinite(n)) {
+              formatNum = n;
+            }
           }
+        }
+
+        const list =
+          templatesResult?.success && Array.isArray(templatesResult?.data)
+            ? templatesResult.data
+            : [];
+        const defaultTemplate = list.find((t) => t?.default === true);
+        const fallbackCustom = defaultTemplate || list[0];
+
+        if (formatNum === 1) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId("blank");
+          setCanvasInitialTemplateId("blank");
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
+          return;
+        }
+        if (formatNum === 2) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId("standard");
+          setCanvasInitialTemplateId("standard");
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
+          return;
+        }
+        if (fallbackCustom?.id) {
+          setIsCustomSSRX(false);
+          setSelectedTemplateId(fallbackCustom.id);
+          setCanvasInitialTemplateId(fallbackCustom.id);
+          setCustomSSDataForCanvas(null);
+          setIsTemplateSelectionLocked(false);
         }
       } catch (e) {
         console.error("TabRx default template init failed:", e);
@@ -1067,10 +1113,10 @@ function TabRx() {
   }, []);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (isCarePlanEnabled) {
@@ -2001,6 +2047,48 @@ function TabRx() {
     }
   };
 
+
+
+  const handleTeleconsultClick = async () => {
+    if (joinToken) return;
+    const appointmentId = pamId || patient_data?.pam_id || videoConsultData?.pam_id;
+    if (!appointmentId) {
+      message.error("No appointment selected");
+      return;
+    }
+
+    setIsTeleconsultJoinLoading(true);
+    try {
+      const response = await ApiTeleconsult.checkVideoAvailability(appointmentId);
+      const data = response?.data ?? response;
+      const token = data?.joinPayload?.token ?? data?.token;
+
+      if (token) {
+        dispatch(setJoinToken(token));
+        dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+
+        if (data?.status) {
+          dispatch(
+            setAppointmentTeleconsultStatus({
+              appointmentId,
+              status: data.status,
+            })
+          );
+        }
+      } else {
+        message.error("Teleconsult unavailable as appointment time has passed");
+      }
+    } catch (_error) {
+      message.error("Teleconsult unavailable at the moment.");
+    } finally {
+      setIsTeleconsultJoinLoading(false);
+    }
+  };
+
   // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
   const showOnlyDrawer =
     isGenRxDrawerVisible &&
@@ -2051,8 +2139,20 @@ function TabRx() {
             onToggleTemplateDrawer={handleToggleTemplateDrawer}
             isEndVisitLoading={isEndVisitLoading}
             setIsEndVisitLoading={setIsEndVisitLoading}
+            showTeleconsultIcon={!!isTeleConsultAvailableType2}
+            onTeleconsultClick={handleTeleconsultClick}
+            isTeleconsultJoinLoading={isTeleconsultJoinLoading}
+            isTeleconsultActive={!!joinToken}
+            isSelectLetterHead={isSelectLetterHead}
           />
-          <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
+          <div 
+            className="w-100 bg-body wrapper2 prescription-wrapper p-0"
+            style={{
+              overflowY: "hidden",
+              overflowX: "hidden",
+              overscrollBehavior: "contain",
+            }}
+          >
             <Layout>
               <TabRxNavPanel
                 isApexAISelected={isApexAISelected}

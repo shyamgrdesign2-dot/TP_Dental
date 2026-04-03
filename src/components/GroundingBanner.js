@@ -1,6 +1,8 @@
 import { Button } from "antd";
 import grounding from "../assets/images/grounding.svg";
-import newTag from "../assets/images/new-gif.gif";
+import newTagWebm from "../assets/images/new-gif.webm";
+import newTagMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "./common/LoopingVideo";
 
 const GroundingBanner = ({
   setShowGroundingPopup,
@@ -22,12 +24,13 @@ const GroundingBanner = ({
         <div style={{ fontSize: 16, fontWeight: 500 }}>
           <div className="d-flex align-items-center">
             AI Powered - Zydus Data Engine{" "}
-            <img
+            <LoopingVideo
               style={{ marginLeft: 10 }}
-              src={newTag}
-              alt="new-tag"
+              webm={newTagWebm}
+              mp4={newTagMp4}
               width={39}
               height={16}
+              ariaLabel="New"
             />
           </div>
           <div className="know-more-txt" onClick={handleGroundingKnowMore}>

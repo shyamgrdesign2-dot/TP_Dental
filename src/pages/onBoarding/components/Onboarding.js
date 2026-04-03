@@ -1,22 +1,24 @@
-import React, { useState, useEffect } from "react";
-import Carousel from "./OnboardCarousel";
+import React, { Suspense, useEffect, useState } from "react";
 import SignUp from "./SignUp";
 import SetPassword from "./SetPassword";
 import VerifyOTP from "./VerifyOTP";
 import VerifyPassword from "./VerifyPassword.js";
-import FeatureTabCard from "./FeatureTabCard/FeatureTabCard.js";
-import TrustBy from "./TrustBy/TrustedBy.js";
-import Testimonials from "./Testimonials/Testimonials.js";
-import FAQ from "./FAQ/FAQ.js";
-import OurScale from "./OurScale/OurScale.js";
-import Footer from "./Footer/Footer.js";
-import Hook from "../../../assets/images/website-images/Hook.png";
-import Hook2 from "../../../assets/images/website-images/Hook2.png";
-import Logo from "../../../assets/images/website-images/logo.png";
+// Below-the-fold sections are lazy-loaded to keep the login bundle small.
+import Hook from "../../../assets/images/website-images/Hook.webp";
+import Hook2 from "../../../assets/images/website-images/Hook2.webp";
+import Logo from "../../../assets/images/website-images/logo.webp";
+import WebStructureBg from "../../../assets/images/webStructure.svg";
 import "./Onboarding.scss";
 import "./FeatureTabCard/FeatureTabCard.scss";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService.js";
 import { Spin } from "antd";
+const Carousel = React.lazy(() => import("./OnboardCarousel"));
+const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
+const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));
+const Testimonials = React.lazy(() => import("./Testimonials/Testimonials.js"));
+const FAQ = React.lazy(() => import("./FAQ/FAQ.js"));
+const OurScale = React.lazy(() => import("./OurScale/OurScale.js"));
+const Footer = React.lazy(() => import("./Footer/Footer.js"));
 
 const Onboarding = () => {
   const [view, setView] = useState("signup");
@@ -59,10 +61,8 @@ const Onboarding = () => {
           setIsLoginFlow(true);
         }
       } finally {
-        // Add a small delay to ensure smooth transition
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
+        // Render immediately; removing artificial delay improves FCP/LCP
+        setIsLoading(false);
       }
     };
 
@@ -98,6 +98,19 @@ const Onboarding = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Preload the LCP background artwork with high priority to speed up first paint.
+  useEffect(() => {
+    const preloadId = "preload-webstructure-bg";
+    if (document.getElementById(preloadId)) return;
+    const link = document.createElement("link");
+    link.id = preloadId;
+    link.rel = "preload";
+    link.as = "image";
+    link.href = WebStructureBg;
+    link.fetchPriority = "high";
+    document.head.appendChild(link);
   }, []);
 
   const handleViewChange = (
@@ -171,7 +184,7 @@ const Onboarding = () => {
                       if (mobileInput) {
                         mobileInput.focus();
                       }
-                    }, 500);
+                    }, 100);
                   }
                 }}
               >
@@ -186,7 +199,9 @@ const Onboarding = () => {
       )}
       <div className="onboarding-container">
         <div className="onboarding-left">
-          <Carousel />
+          <Suspense fallback={null}>
+            <Carousel />
+          </Suspense>
         </div>
         <div className="onboarding-right">
           {(view === "signup" || view === "loginOTP") && (
@@ -230,33 +245,39 @@ const Onboarding = () => {
         </div>
       </div>
       <div className="feature-tab-card-container">
-        <TrustBy className="m-2" />
+        <Suspense fallback={null}>
+          <TrustBy className="m-2" />
+        </Suspense>
         <div className="feature-tab-card-container-inner">
-          <OurScale className="m-2" />
-          <FeatureTabCard
-            className="m-2"
-            feature="EMR Features"
-            title="An EMR that streamlines"
-            subTitle="all your needs"
-            tabs={["Clinical Care", "Admin Tasks", "Analytics"]}
-          />
-          <FeatureTabCard
-            className="m-2"
-            feature="Ai Features"
-            title="Empower your"
-            subTitle="practice with AI features"
-            tabs={["DDx", "Smart Sync", "Voice Rx", "TatvaAI"]}
-          />{" "}
-          <FeatureTabCard
-            className="m-2"
-            feature="Digital Features"
-            title="Grow your"
-            subTitle="practice with us"
-            tabs={["Digital Presence", "Remote Care", "ABDM"]}
-          />
-          <Testimonials className="m-2" />
+          <Suspense fallback={null}>
+            <OurScale className="m-2" />
+            <FeatureTabCard
+              className="m-2"
+              feature="EMR Features"
+              title="An EMR that streamlines"
+              subTitle="all your needs"
+              tabs={["Clinical Care", "Admin Tasks", "Analytics"]}
+            />
+            <FeatureTabCard
+              className="m-2"
+              feature="Ai Features"
+              title="Empower your"
+              subTitle="practice with AI features"
+              tabs={["DDx", "Smart Sync", "Voice Rx", "TatvaAI"]}
+            />{" "}
+            <FeatureTabCard
+              className="m-2"
+              feature="Digital Features"
+              title="Grow your"
+              subTitle="practice with us"
+              tabs={["Digital Presence", "Remote Care", "ABDM"]}
+            />
+            <Testimonials className="m-2" />
+          </Suspense>
         </div>
-        <FAQ className="m-2" />
+        <Suspense fallback={null}>
+          <FAQ className="m-2" />
+        </Suspense>
         <div className="onboarding-footer">
           <div className="onboarding-footer-container">
             <img src={footerImage} alt="footer banner" />
@@ -289,7 +310,7 @@ const Onboarding = () => {
                         if (mobileInput) {
                           mobileInput.focus();
                         }
-                      }, 500);
+                      }, 100);
                     }
                   }}
                 >
@@ -299,7 +320,9 @@ const Onboarding = () => {
               </div>
             </div>
           </div>
-          <Footer />
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
         </div>
       </div>
     </>

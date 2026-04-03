@@ -66,7 +66,7 @@ import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
 import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import doctorAvatar from "../assets/images/doctor-avatar.png";
+import doctorAvatar from "../assets/images/doctor-avatar.webp";
 import arrowBoxDown from "../assets/images/arrow-box-down.svg";
 import dictateActiveIcon from "../assets/images/dictate-active.svg";
 import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
@@ -123,7 +123,6 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
 
 const ConsultationDrawerMobile = ({
   visible,

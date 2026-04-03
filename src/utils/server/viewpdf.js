@@ -756,29 +756,31 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const dateC = moment(end_date);
 
     const days = dateB.diff(dateC, "days");
-    const weeks = dateB.diff(dateC, "weeks");
-    const months = dateB.diff(dateC, "months");
+    const weeks = Math.floor(days / 7);
+    const remainingDays = days % 7;
 
-    if (weeks >= 48 && weeks % 48 === 0) {
+    if (weeks >= 48 && weeks % 48 === 0 && remainingDays === 0) {
       const yearsValue = Math.floor(weeks / 48);
       return `${yearsValue} ${yearsValue <= 1 ? "Year" : "Years"}`;
-    } else if (weeks === 5) {
+    } else if (weeks === 5 && remainingDays === 0) {
       return "1 Month";
-    } else if (weeks === 7 || weeks === 9) {
+    } else if ((weeks === 7 || weeks === 9) && remainingDays === 0) {
       return "2 Months";
-    } else if (weeks === 11 || weeks === 13) {
+    } else if ((weeks === 11 || weeks === 13) && remainingDays === 0) {
       return "3 Months";
-    } else if (weeks === 17) {
+    } else if (weeks === 17 && remainingDays === 0) {
       return "4 Months";
-    } else if (weeks === 19 || weeks === 21) {
+    } else if ((weeks === 19 || weeks === 21) && remainingDays === 0) {
       return "5 Months";
-    } else if (weeks === 23 || weeks === 25) {
+    } else if ((weeks === 23 || weeks === 25) && remainingDays === 0) {
       return "6 Months";
-    } else if (weeks === 27 || weeks === 29) {
+    } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
       return "7 Months";
-    } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48) {
+    } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
       const monthsValue = Math.floor(weeks / 4);
       return `${monthsValue} ${monthsValue <= 1 ? "Month" : "Months"}`;
+    } else if (weeks > 0 && remainingDays > 0) {
+      return `${weeks} ${weeks <= 1 ? "Week" : "Weeks"} ${remainingDays} ${remainingDays <= 1 ? "Day" : "Days"}`;
     } else if (weeks > 0) {
       return `${weeks} ${weeks <= 1 ? "Week" : "Weeks"}`;
     } else {

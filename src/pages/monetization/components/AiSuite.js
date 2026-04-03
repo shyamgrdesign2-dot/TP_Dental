@@ -8,13 +8,15 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { isChrome, isSafari } from "react-device-detect";
 
-import RxVoice from "../../../assets/images/microphone-voice-rx.png";
-import AskTatvaIcon from "../../../assets/images/icon-ask-tatva.png";
-import DDXIcon from "../../../assets/images/DDX-icon.png";
-import supportwhite from "../../../assets/images/support.png";
-import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.png";
-import smartSyncIcon from "../../../assets/images/smart-sync-icon.png";
-import newGif from "../../../assets/images/new-gif.gif";
+import RxVoice from "../../../assets/images/microphone-voice-rx.webp";
+import AskTatvaIcon from "../../../assets/images/icon-ask-tatva.webp";
+import DDXIcon from "../../../assets/images/DDX-icon.webp";
+import supportwhite from "../../../assets/images/support.webp";
+import RECEPTIONISTIcon from "../../../assets/images/RECEPTIONIST-icon.webp";
+import smartSyncIcon from "../../../assets/images/smart-sync-icon.webp";
+import newGifWebm from "../../../assets/images/new-gif.webm";
+import newGifMp4 from "../../../assets/images/new-gif.mp4";
+import LoopingVideo from "../../../components/common/LoopingVideo";
 
 import { FREE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_ASK_TATVA, S_RX_DIGITIZATION, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FAILED_VERIFICATION, PENDING_VERIFICATION, GB_ZYDUS_USER } from "../../../utils/constants";
 import GenRxKnowMore from "../../../components/GenRxKnowMore";
@@ -279,12 +281,13 @@ function AiSuite({ aiModal, handleAiSuite }) {
                                 <div className="d-flex align-items-center mb-3">
                                     <img style={{ background: '#EDDFF780', padding: 6 }} className="rounded-10px me-2" src={RxVoice} alt="item.type" />
                                     <div className="fs-18 fw-semibold text-1F2933">{"Zydus Data Engine"}</div>
-                                    <img
-                                        src={newGif}
-                                        alt="New"
+                                    <LoopingVideo
+                                        webm={newGifWebm}
+                                        mp4={newGifMp4}
                                         width={40}
                                         height={18}
                                         style={{ marginLeft: 10 }}
+                                        ariaLabel="New"
                                     />
                                 </div>
                                 <div>

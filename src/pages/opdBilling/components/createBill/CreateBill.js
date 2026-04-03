@@ -77,7 +77,9 @@ import { isMobile } from "react-device-detect";
 
 import playIcons from "../../../../assets/images/tube-icon.svg";
 import tutorial from "../../../../assets/images/tutorial-icon.svg";
-import videorotate from "../../../../assets/images/videorotate.gif";
+import videorotateWebm from "../../../../assets/images/videorotate.webm";
+import videorotateMp4 from "../../../../assets/images/videorotate.mp4";
+import LoopingVideo from "../../../../components/common/LoopingVideo";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 import BillTemplate from "./BillTemplate";
@@ -1048,7 +1050,7 @@ const CreateBill = ({
         paidAmount: paidAmount,
         includeInRx: includeInRx,
         isForm3C: shouldAddBillTo3C,
-        date: moment().format("YYYY-MM-DD"),
+        date: editBillData?.createdAt ? moment(editBillData?.createdAt).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD"),
         notes: patientBillNotes,
         // dueFromPreviousBill: patientDueAmount,
         appointmentId: pam_id || patientData?.pam_id,
@@ -1612,7 +1614,11 @@ const CreateBill = ({
                       <button className="btn d-flex align-items-center btn-text tutorial p-0 opd-billing">
                         <div className="cursor-pointer video-animat">
                           <img src={tutorial} />
-                          <img src={videorotate} />
+                          <LoopingVideo
+                            webm={videorotateWebm}
+                            mp4={videorotateMp4}
+                            ariaLabel="Video"
+                          />
                         </div>
                       </button>
                     </Popover>
@@ -1842,7 +1848,7 @@ const CreateBill = ({
                   <Input
                     className="input-create-bill"
                     style={{ width: 125, height: 38 }}
-                    value={moment().format("DD-MM-YYYY")}
+                    value={editBillData?.createdAt ? moment(editBillData?.createdAt).format("DD-MM-YYYY") : moment().format("DD-MM-YYYY")}
                     onInput={(e) => {
                       e.target.value = e.target.value.replace(/[^0-9]/g, "");
                     }}

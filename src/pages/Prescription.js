@@ -38,7 +38,7 @@ import vitals from "../assets/images/Vitals.svg";
 import MedicalHistory from "../assets/images/Medical-History.svg";
 import privateNotes from "../assets/images/private-notes.svg";
 
-import hey from "../assets/images/bg-hey.png";
+import hey from "../assets/images/bg-hey.webp";
 
 import { Content } from "antd/es/layout/layout";
 import vaccinationImg from "../assets/images/Vaccination.svg";
@@ -85,7 +85,9 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DDxKnowMore from "../components/DDxKnowMore";
 import TabPane from "antd/es/tabs/TabPane";
 import apexAIImg from "../assets/images/apexAI.svg";
-import blinkingDot from "../assets/images/blinkingDot.gif";
+import blinkingDotWebm from "../assets/images/blinkingDot.webm";
+import blinkingDotMp4 from "../assets/images/blinkingDot.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import {
   setIsDDxReadyToGenerate,
@@ -111,7 +113,8 @@ import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
-import genRxBg from "../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
 import carePlanIcon from "../assets/images/Care plan_Active.svg";
@@ -125,7 +128,12 @@ import GroundingBox from "../components/GroundingBox";
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
-import { setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
+import {
+  setAppointmentTeleconsultStatus, 
+  setActiveTeleconsultAppointmentId, 
+  setActiveTeleconsultConsultationId, 
+  setJoinToken
+} from "../redux/teleconsultNotificationSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import GenRxKnowMore from "../components/GenRxKnowMore";
@@ -433,8 +441,11 @@ function Prescription() {
       if (videoConsultData?.pam_id != null) {
         dispatch(setActiveTeleconsultAppointmentId(videoConsultData.pam_id));
       }
+      if (teleconsultAutoJoin?.consultationId) {
+        dispatch(setActiveTeleconsultConsultationId(teleconsultAutoJoin.consultationId));
+      }
     }
-  }, [teleconsultAutoJoin?.token, videoConsultData?.pam_id, dispatch]);
+  }, [teleconsultAutoJoin?.token, teleconsultAutoJoin?.consultationId, videoConsultData?.pam_id, dispatch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -703,6 +714,12 @@ function Prescription() {
       if (token) {
         dispatch(setJoinToken(token));
         dispatch(setActiveTeleconsultAppointmentId(appointmentId));
+        if (data?.consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(data.consultationId));
+        }
+        if (data?.status) {
+          dispatch(setAppointmentTeleconsultStatus({ appointmentId, status: data.status }));
+        }
       } else {
         message.error("Teleconsult unavailable as appointment time has passed");
       }
@@ -809,10 +826,10 @@ function Prescription() {
   ]);
 
   useEffect(() => {
-    if (!isObstetricDetailsFetched && isGynaecHistoryAccessable) {
+    if (isGynaecHistoryAccessable) {
       getAllObstetricDetails();
     }
-  }, [isObstetricDetailsFetched, isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable]);
 
   useEffect(() => {
     if (uploadDocCategories.length === 0) {
@@ -1272,9 +1289,9 @@ function Prescription() {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -1523,10 +1540,10 @@ function Prescription() {
         </div>
       ) : e.tmdpm_id === 3 && e.tmdpm_status === 0 ? (
         <div
+          className={showShimmer ? "genrx-shimmer" : ""}
           style={
             showShimmer
               ? {
-                  background: `url(${genRxBg})`,
                   padding: "2px",
                   borderRadius: "20px",
                   marginBottom: "15px",
@@ -1534,9 +1551,17 @@ function Prescription() {
               : {}
           }
         >
+          {showShimmer && (
+            <LoopingVideo
+              webm={genRxBgWebm}
+              mp4={genRxBgMp4}
+              className="genrx-shimmer-video"
+              ariaLabel="Background"
+            />
+          )}
           <div
             key={i}
-            className="prescription-box-sm p-14"
+            className={`prescription-box-sm p-14 ${showShimmer ? "genrx-shimmer-content" : ""}`}
             style={showShimmer ? {} : { marginBottom: "15px" }}
           >
             <div style={{ background: "white", borderRadius: "17px" }}>
@@ -2041,12 +2066,13 @@ function Prescription() {
                         />
                         TatvaAI
                         {isDDxReadyToGenerate && generatedDDx?.results?.length > 0 && (
-                          <img
-                            src={blinkingDot}
-                            alt="blinking-dot"
+                          <LoopingVideo
+                            webm={blinkingDotWebm}
+                            mp4={blinkingDotMp4}
                             width={20}
                             height={20}
                             style={{ position: "absolute", top: -12, right: -15 }}
+                            ariaLabel="Updates available"
                           />
                         )}
                       </div>
@@ -2155,14 +2181,19 @@ function Prescription() {
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
                     <div
                       key={i}
-                      className="prescription-box-sm"
-                      style={
-                        showShimmer
-                          ? { background: `url(${genRxBg})`, padding: "2px" }
-                          : {}
-                      }
+                      className={`prescription-box-sm ${showShimmer ? "genrx-shimmer" : ""}`}
+                      style={showShimmer ? { padding: "2px" } : {}}
                     >
+                      {showShimmer && (
+                        <LoopingVideo
+                          webm={genRxBgWebm}
+                          mp4={genRxBgMp4}
+                          className="genrx-shimmer-video"
+                          ariaLabel="Background"
+                        />
+                      )}
                       <div
+                        className={showShimmer ? "genrx-shimmer-content" : ""}
                         style={
                           showShimmer
                             ? { background: "white", borderRadius: "17px" }
@@ -2419,7 +2450,7 @@ function Prescription() {
             className=".modalWidth-800"
             width={825}
           >
-            <DDxKnowMore handleKnowMore={handleDDxKnowMore} />
+            <DDxKnowMore handleDDxKnowMore={handleDDxKnowMore} />
           </Drawer>
         )}
         {ddxDrawer && (

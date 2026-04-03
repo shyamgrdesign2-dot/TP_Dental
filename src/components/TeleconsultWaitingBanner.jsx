@@ -7,18 +7,18 @@ import moment from "moment";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiAppointments from "../api/services/ApiAppointments";
 import videoGreenIcon from "../assets/images/video-green.svg";
-import { removeWaitingBanner, setJoinToken, setActiveTeleconsultAppointmentId } from "../redux/teleconsultNotificationSlice";
+import { removeWaitingBanner, setActiveTeleconsultAppointmentId, setActiveTeleconsultConsultationId, setJoinToken} from "../redux/teleconsultNotificationSlice";
 import { TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX } from "../utils/constants";
 import "./TeleconsultWaitingBanner.scss";
 
 const DATE_FORMAT = "YYYY-MM-DD";
 
-async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
+async function findAppointmentByPamIdInList(pamId, dateStr, apStatus) {
   try {
     const result = await ApiAppointments.getAllAppointment({
       startDate: dateStr,
       endDate: dateStr,
-      apStatue,
+      apStatue: apStatus,
       page: 0,
     });
     const list = result?.data?.app_data ?? [];
@@ -30,8 +30,7 @@ async function findAppointmentByPamIdInList(pamId, dateStr, apStatue) {
 }
 
 async function findAppointmentByPamId(pamId) {
-  const pamIdStr = String(pamId);
-  if (!pamIdStr) return null;
+  if (pamId == null || pamId === "") return null;
   const tabs = [TAB_QUEUE, TAB_FINISHED, TAB_DRAFT_RX];
   const dates = [
     moment().format(DATE_FORMAT),
@@ -39,8 +38,8 @@ async function findAppointmentByPamId(pamId) {
     moment().add(1, "day").format(DATE_FORMAT),
   ];
   for (const dateStr of dates) {
-    for (const apStatue of tabs) {
-      const record = await findAppointmentByPamIdInList(pamId, dateStr, apStatue);
+    for (const apStatus of tabs) {
+      const record = await findAppointmentByPamIdInList(pamId, dateStr, apStatus);
       if (record) return record;
     }
   }
@@ -98,16 +97,22 @@ export default function TeleconsultWaitingBanner({ payload, onClose }) {
           pam_status_type_appointment: 2,
         };
         const pamId = patientData.pam_id ?? appointmentId;
+        const consultationId = data?.consultationId;
         dispatch(setJoinToken(token));
         dispatch(setActiveTeleconsultAppointmentId(pamId));
+        if (consultationId) {
+          dispatch(setActiveTeleconsultConsultationId(consultationId));
+        }
         navigate("/prescription", {
           state: {
             patient_data: patientData,
             videoConsultData,
-            teleconsultAutoJoin: { consultationId: payload.consultationId, token },
+            teleconsultAutoJoin: { consultationId, token },
           },
         });
-        dispatch(removeWaitingBanner(payload.consultationId));
+        if (consultationId) {
+          dispatch(removeWaitingBanner(consultationId));
+        }
       } else {
         message.error(
           data?.joinWindowExpired
