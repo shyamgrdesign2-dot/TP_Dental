@@ -1391,47 +1391,29 @@ function Cardiology(props) {
     : "";
 
   const printInAppContent = async () => {
-    const sendPayloadBlobToParent = async () => {
-      if (!printUrlWithLang) {
-        errorMessage("Print URL is missing.");
-        return;
-      }
-      if (printPayloadError) {
-        message.error("Something went wrong, please try again.");
-        return;
-      }
-      if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
-        message.error("PDF is not ready yet.");
-        return;
-      }
-      const file = new File(
-        [printPayloadBlob],
-        `${new Date().toISOString().split("T")[0]}.pdf`,
-        { type: "application/pdf" }
-      );
-      const formData = new FormData();
-      formData.append(file?.name, file);
-      const res = await uploadDocsToAzure(formData);
-      const uploadedUrl = res?.[0]?.url;
-      if (!uploadedUrl) {
-        message.error("Failed to upload PDF.");
-        return;
-      }
-      sendMessageToParent(EVENTS.PRINT, { url: uploadedUrl });
-    };
-
-    // if (shouldUsePrintRxPayload) {
-    //   await sendPayloadBlobToParent();
-    //   return;
-    // }
+    let voiceRxUrl;
     if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
+      const urlObj = new URL(viewCaseManagerData?.print_url);
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
+      voiceRxUrl = urlObj.toString();
     }
-    await sendPayloadBlobToParent();
+    const printUrlRx =
+      showDigitalRx || showDigitalSnapRx
+        ? printUrl
+        : showDigitalGenRx && voiceRxUrl && !isTabRx
+          ? voiceRxUrl
+          : viewCaseManagerData?.print_url;
+    sendMessageToParent(EVENTS.PRINT, { url: `${printUrlRx}&lg=${selectedLang}` });
     // navigate(`/patient_details/?url=${printUrl}&lg=${selectedLang}&key=print`, {
     //   replace: true,
     //   state: { patient_data: patient_data },
