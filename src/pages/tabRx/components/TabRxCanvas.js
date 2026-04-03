@@ -116,26 +116,36 @@ const TabRxCanvas = forwardRef(({
   // Prevent re-hydrating from edit backend metadata after the user switches templates/pages.
   const didHydrateFromEditRef = useRef(false);
 
-  // Sync with prop when it arrives from parent component (e.g. from backend metadata fetch)
+  // Sync with prop when it arrives from parent (e.g. backend metadata). Never wipe pages/strokes
+  // once the user has real work — parent prop can update later and would otherwise clear everything.
   useEffect(() => {
-    if (initialTemplateId && initialTemplateId !== selectedTemplateId) {
-      setSelectedTemplateId(initialTemplateId);
-      setCurrentPageIndex(0);
+    if (!initialTemplateId || initialTemplateId === selectedTemplateId) return;
 
-      const newPageId = generateId();
-      if (initialTemplateId === 'blank') {
-        setPagesMetadata([{ id: newPageId, type: 'blank', templateId: 'blank', templateImageIndex: null }]);
-      } else if (initialTemplateId === 'standard') {
-        setPagesMetadata([{ id: newPageId, type: 'template', templateId: 'standard', templateImageIndex: null }]);
-      } else {
-        // If it's a custom template, we let handleTemplateSelect handle it or rely on the user.
-        // For standard and blank, we initialize directly.
-        setPagesMetadata([{ id: newPageId, type: 'template', templateId: initialTemplateId, templateImageIndex: null }]);
-      }
-      setStrokesByPage({ [newPageId]: [] });
-      setTextElementsByPage({ [newPageId]: [] });
+    const hasUserWork =
+      pagesMetadata.length > 1 ||
+      Object.values(strokesByPage).some((arr) => (arr || []).length > 0) ||
+      Object.values(textElementsByPage).some((arr) =>
+        (arr || []).some((el) => el?.content && el.content.trim().length > 0),
+      );
+    if (hasUserWork) {
+      setSelectedTemplateId(initialTemplateId);
+      return;
     }
-  }, [initialTemplateId]);
+
+    setSelectedTemplateId(initialTemplateId);
+    setCurrentPageIndex(0);
+
+    const newPageId = generateId();
+    if (initialTemplateId === 'blank') {
+      setPagesMetadata([{ id: newPageId, type: 'blank', templateId: 'blank', templateImageIndex: null }]);
+    } else if (initialTemplateId === 'standard') {
+      setPagesMetadata([{ id: newPageId, type: 'template', templateId: 'standard', templateImageIndex: null }]);
+    } else {
+      setPagesMetadata([{ id: newPageId, type: 'template', templateId: initialTemplateId, templateImageIndex: null }]);
+    }
+    setStrokesByPage({ [newPageId]: [] });
+    setTextElementsByPage({ [newPageId]: [] });
+  }, [initialTemplateId, selectedTemplateId, pagesMetadata.length, strokesByPage, textElementsByPage]);
 
   // Handle external multi-page custom background images
   const backgroundImagesStr = backgroundImages ? backgroundImages.join(',') : '';
@@ -203,6 +213,10 @@ const TabRxCanvas = forwardRef(({
       );
       if (hasInitialImages && pagesMetadata.length >= backgroundImages.length) return;
 
+      const hasDrawnStrokes = Object.values(strokesByPage).some((a) => (a || []).length > 0);
+      const userAddedPages = pagesMetadata.length > backgroundImages.length;
+      if (hasDrawnStrokes || userAddedPages) return;
+
       const newPages = backgroundImages.map((img, i) => ({
         id: generateId(),
         type: 'custom',
@@ -223,7 +237,7 @@ const TabRxCanvas = forwardRef(({
       setStrokesByPage(newStrokes);
       setTextElementsByPage(newTextElements);
     }
-  }, [backgroundImagesStr, customSSData]);
+  }, [backgroundImagesStr, customSSData, pagesMetadata, strokesByPage]);
 
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -278,8 +292,24 @@ const TabRxCanvas = forwardRef(({
       const s = touchScrollRef.current;
       if (!s.active || s.pointerId !== e.pointerId) return;
       const dy = e.clientY - s.lastY;
+      const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+      const st = el.scrollTop;
+      const nextTop = st - dy;
+      // Clamp at edges so we don't feed elastic overscroll into the browser (page scroll / spurious input).
+      if (nextTop < 0) {
+        el.scrollTop = 0;
+        s.lastY = e.clientY;
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      if (nextTop > maxScroll) {
+        el.scrollTop = maxScroll;
+        s.lastY = e.clientY;
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      el.scrollTop = nextTop;
       s.lastY = e.clientY;
-      el.scrollTop -= dy;
       if (e.cancelable) e.preventDefault();
     };
 
@@ -300,6 +330,82 @@ const TabRxCanvas = forwardRef(({
       window.removeEventListener('pointerup', end, true);
       window.removeEventListener('pointercancel', end, true);
     };
+  }, []);
+
+  // Chrome mobile browser (not in-app WebView): lock document scroll + overscroll while this screen is mounted.
+  // Inner `.canvas-pages-scroll` still scrolls; the viewport/page should not move or pull-to-refresh.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      htmlHeight: html.style.height,
+      bodyHeight: body.style.height,
+      htmlOverscroll: html.style.overscrollBehavior,
+      bodyOverscroll: body.style.overscrollBehavior,
+    };
+    html.classList.add('tab-rx-canvas-document-lock');
+    body.classList.add('tab-rx-canvas-document-lock');
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.height = '100%';
+    body.style.height = '100%';
+    html.style.overscrollBehavior = 'none';
+    body.style.overscrollBehavior = 'none';
+    return () => {
+      html.classList.remove('tab-rx-canvas-document-lock');
+      body.classList.remove('tab-rx-canvas-document-lock');
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      html.style.height = prev.htmlHeight;
+      body.style.height = prev.bodyHeight;
+      html.style.overscrollBehavior = prev.htmlOverscroll;
+      body.style.overscrollBehavior = prev.bodyOverscroll;
+    };
+  }, []);
+
+  // Capture-phase: Chrome may treat vertical pen drags as scroll unless default is prevented early.
+  useEffect(() => {
+    const inCanvasPage = (target) =>
+      target && typeof target.closest === 'function' && target.closest('.tab-rx-canvas-page');
+
+    const blockPenChromeScroll = (e) => {
+      if (e.pointerType !== 'pen') return;
+      if (!inCanvasPage(e.target)) return;
+      if (e.cancelable) e.preventDefault();
+    };
+
+    window.addEventListener('pointerdown', blockPenChromeScroll, { capture: true, passive: false });
+    window.addEventListener('pointermove', blockPenChromeScroll, { capture: true, passive: false });
+
+    return () => {
+      window.removeEventListener('pointerdown', blockPenChromeScroll, true);
+      window.removeEventListener('pointermove', blockPenChromeScroll, true);
+    };
+  }, []);
+
+  // iPad Safari: rubber-band overscroll + scroll-assist can still run on the touch pipeline.
+  // Apple Pencil often uses Touch.touchType === 'stylus' — preventDefault stops bounce/chaining
+  // so the next stroke doesn't start with a spurious vertical spike. (In-app WKWebView usually disables bounce.)
+  useEffect(() => {
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) return;
+
+    const onTouchMove = (e) => {
+      if (!e.target || typeof e.target.closest !== 'function') return;
+      if (!e.target.closest('.tab-rx-canvas-page')) return;
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (t.touchType === 'stylus' && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    return () => window.removeEventListener('touchmove', onTouchMove, true);
   }, []);
 
   // Expose export method via ref

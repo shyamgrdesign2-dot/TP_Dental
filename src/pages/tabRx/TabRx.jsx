@@ -2149,7 +2149,8 @@ function TabRx() {
             className="w-100 bg-body wrapper2 prescription-wrapper p-0"
             style={{
               overflowY: "hidden",
-              overflowX: "hidden"
+              overflowX: "hidden",
+              overscrollBehavior: "contain",
             }}
           >
             <Layout>
