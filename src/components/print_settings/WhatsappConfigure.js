@@ -265,7 +265,7 @@ function WhatsappConfigure(props) {
     const getHeaderCropData = async () => {
         if (typeof cropperHeaderRef.current?.cropper !== "undefined") {
             const trimData = cropperHeaderRef.current?.cropper.getCroppedCanvas().toDataURL(fileHeaderCopy.originalFile.type);
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "header.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "header.png", "image/png")
             setFileHeaderCopy({ ...fileHeaderCopy, crop: false, showFile: trimData, uploadFile: uploadFile })
         }
     };
@@ -309,7 +309,7 @@ function WhatsappConfigure(props) {
     const getFooterCropData = async () => {
         if (typeof cropperFooterRef.current?.cropper !== "undefined") {
             const trimData = cropperFooterRef.current?.cropper.getCroppedCanvas().toDataURL(fileFooterCopy.originalFile.type);
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "footer.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "footer.png", "image/png")
             setFileFooterCopy({ ...fileFooterCopy, crop: false, showFile: trimData, uploadFile: uploadFile })
         }
     };

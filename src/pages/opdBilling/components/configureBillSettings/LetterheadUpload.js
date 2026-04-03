@@ -75,7 +75,7 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
         .toDataURL(fileHeader.originalFile.type);
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
-        "header.webp",
+        "header.png",
         "image/png"
       );
       setFileHeader({
@@ -159,7 +159,7 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
         .toDataURL(fileFooter.originalFile.type);
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
-        "footer.webp",
+        "footer.png",
         "image/png"
       );
       setFileFooter({
