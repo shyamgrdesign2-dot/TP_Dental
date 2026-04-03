@@ -727,62 +727,12 @@ const TabRxCanvas = forwardRef(({
     if (!state.locked) {
       state.locked = true;
       state.scrollEl = el;
-      state.prevOverflowY = el.style.overflowY;
-      state.prevTouchAction = el.style.touchAction;
       state.lockedScrollTop = el.scrollTop;
-      el.style.overflowY = 'hidden';
-      el.style.touchAction = 'none';
 
-      // Freeze the viewport/page scroll (Chrome scrolling the whole screen on pen vertical strokes).
-      // This is more reliable than canceling move events and doesn't interfere with canvas drawing.
-      state.lockedWindowScrollY = window.scrollY || 0;
-      const body = document.body;
-      const html = document.documentElement;
-      state.prevBodyPosition = body.style.position;
-      state.prevBodyTop = body.style.top;
-      state.prevBodyLeft = body.style.left;
-      state.prevBodyRight = body.style.right;
-      state.prevBodyWidth = body.style.width;
-      state.prevBodyOverscroll = body.style.overscrollBehavior;
-      state.prevHtmlOverscroll = html.style.overscrollBehavior;
-      state.prevHtmlScrollBehavior = html.style.scrollBehavior;
-
-      body.style.position = 'fixed';
-      body.style.top = `-${state.lockedWindowScrollY}px`;
-      body.style.left = '0';
-      body.style.right = '0';
-      body.style.width = '100%';
-      body.style.overscrollBehavior = 'none';
-      html.style.overscrollBehavior = 'none';
-      html.style.scrollBehavior = 'auto';
-
-      const getScrollableAncestors = (startEl) => {
-        const res = [];
-        let node = startEl?.parentElement;
-        while (node && node !== document.body && node !== document.documentElement) {
-          const cs = window.getComputedStyle(node);
-          const overflowY = cs.overflowY;
-          // only consider real scroll containers
-          const scrollable =
-            (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
-            node.scrollHeight > node.clientHeight + 1;
-          if (scrollable) res.push(node);
-          node = node.parentElement;
-        }
-        return res;
-      };
-
-      // Lock any scrollable parents (e.g. TabRx outer wrapper) so pen drag can't scroll them.
-      state.lockedAncestors = getScrollableAncestors(el).map((ancestor) => ({
-        el: ancestor,
-        prevOverflowY: ancestor.style.overflowY,
-        prevOverscroll: ancestor.style.overscrollBehavior,
-      }));
-      state.lockedAncestors.forEach(({ el: ancestorEl }) => {
-        ancestorEl.style.overflowY = 'hidden';
-        ancestorEl.style.overscrollBehavior = 'none';
-      });
-
+      // We rely completely on preventDefault() in pointer events and touch-action: none.
+      // Setting body position: fixed or modifying overflowY dynamically causes
+      // severe horizontal layout shifts on Android Chrome.
+      
       state.scrollHandler = () => {
         const s = scrollLockRef.current;
         if (!s.locked || !s.scrollEl) return;
@@ -801,34 +751,7 @@ const TabRxCanvas = forwardRef(({
       if (s.scrollHandler && targetEl) {
         targetEl.removeEventListener('scroll', s.scrollHandler);
       }
-      if (targetEl) {
-        targetEl.style.overflowY = s.prevOverflowY;
-        targetEl.style.touchAction = s.prevTouchAction;
-      }
-
-      // Restore viewport/page scroll.
-      const body = document.body;
-      const html = document.documentElement;
-      body.style.position = s.prevBodyPosition;
-      body.style.top = s.prevBodyTop;
-      body.style.left = s.prevBodyLeft;
-      body.style.right = s.prevBodyRight;
-      body.style.width = s.prevBodyWidth;
-      body.style.overscrollBehavior = s.prevBodyOverscroll;
-      html.style.overscrollBehavior = s.prevHtmlOverscroll;
-      html.style.scrollBehavior = s.prevHtmlScrollBehavior;
-      if (typeof window.scrollTo === 'function') {
-        window.scrollTo(0, s.lockedWindowScrollY || 0);
-      }
-
-      if (Array.isArray(s.lockedAncestors) && s.lockedAncestors.length > 0) {
-        s.lockedAncestors.forEach(({ el: ancestorEl, prevOverflowY, prevOverscroll }) => {
-          if (!ancestorEl) return;
-          ancestorEl.style.overflowY = prevOverflowY;
-          ancestorEl.style.overscrollBehavior = prevOverscroll;
-        });
-      }
-
+      
       s.scrollEl = null;
       s.scrollHandler = null;
       s.lockedAncestors = [];
