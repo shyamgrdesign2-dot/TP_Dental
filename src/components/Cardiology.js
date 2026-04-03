@@ -1359,7 +1359,7 @@ function Cardiology(props) {
     (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob));
 
   const printDisabledTooltip = isPrintDisabled
-    ? "PDF is getting created. wait a moment."
+    ? "PDF is getting created. Please wait a moment."
     : "";
 
   const printInAppContent = async () => {
