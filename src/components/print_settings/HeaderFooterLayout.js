@@ -732,12 +732,12 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 return;
             }
             const trimData = signatureRef.current?.getTrimmedCanvas().toDataURL('image/png');
-            const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.webp", "image/png")
+            const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.png", "image/png")
             setFileSignature({ ...fileSignature, preview: true, showFile: trimData, uploadFile: uploadFile })
         } else {
             if (typeof cropperSignatureRef.current?.cropper !== "undefined") {
                 const trimData = cropperSignatureRef.current?.cropper.getCroppedCanvas().toDataURL(fileSignature.originalFile.type);
-                const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.webp", "image/png")
+                const uploadFile = await dataUrlToFileUsingFetch(trimData, "signature.png", "image/png")
                 setFileSignature({ ...fileSignature, preview: true, showFile: trimData, uploadFile: uploadFile })
             }
         }
