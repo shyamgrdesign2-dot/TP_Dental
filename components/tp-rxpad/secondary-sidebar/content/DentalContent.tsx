@@ -106,6 +106,50 @@ export function DentalContent() {
     router.push(`/dental?patientId=${patientId}`)
   }
 
+  if (entries.length === 0) {
+    // Empty state — CTA sits BELOW the message (no sticky top button)
+    return (
+      <div className="content-stretch flex flex-col items-center relative size-full">
+        <div className="flex flex-col items-center justify-center size-full gap-[16px] px-[20px] py-[32px]">
+          <div className="flex items-center justify-center w-[72px] h-[72px] rounded-full bg-tp-slate-100">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <path
+                d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
+                fill="var(--tp-slate-200)"
+              />
+              <path
+                d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
+                stroke="var(--tp-blue-400)"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <div className="flex flex-col items-center gap-[4px]">
+            <p className="font-sans font-semibold text-[13px] text-tp-slate-700 text-center leading-[20px]">
+              No dental history yet
+            </p>
+            <p className="font-sans text-[12px] text-tp-slate-400 text-center leading-[18px] max-w-[220px]">
+              Open the dental module to examine, mark findings, and plan treatments for this patient.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openDentalModule}
+            className="inline-flex items-center gap-[6px] rounded-[8px] border border-tp-blue-500 bg-white px-[14px] py-[8px] font-sans text-[13px] font-medium text-tp-blue-500 transition-colors hover:bg-tp-blue-50"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M6 12H18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+              <path d="M12 18V6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+            </svg>
+            Open dental module
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Populated state — sticky ActionButton at top + history cards
   return (
     <div className="content-stretch flex flex-col items-center relative size-full">
       <ActionButton label="Open dental module" icon="plus" onClick={openDentalModule} />
@@ -113,48 +157,21 @@ export function DentalContent() {
         className="flex-[1_0_0] min-h-px min-w-px relative w-full overflow-y-auto"
         data-sticky-scroll-root="true"
       >
-        {entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center size-full gap-[14px] px-[20px] py-[32px]">
-            <div className="flex items-center justify-center w-[72px] h-[72px] rounded-full bg-tp-slate-100">
-              <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-                <path
-                  d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
-                  fill="var(--tp-slate-200)"
-                />
-                <path
-                  d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
-                  stroke="var(--tp-blue-400)"
-                  strokeWidth="1.5"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div className="flex flex-col items-center gap-[4px]">
-              <p className="font-sans font-semibold text-[13px] text-tp-slate-700 text-center leading-[20px]">
-                No dental history yet
-              </p>
-              <p className="font-sans text-[12px] text-tp-slate-400 text-center leading-[18px] max-w-[220px]">
-                Open the dental module to examine, mark findings, and plan treatments for this patient.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="content-stretch flex flex-col gap-[12px] items-start p-[12px] w-full">
-            {entries.map((entry) => (
-              <DentalHistoryCard
-                key={entry.id}
-                entry={entry}
-                expanded={Boolean(expandedById[entry.id])}
-                onToggle={() =>
-                  setExpandedById((prev) => ({
-                    ...prev,
-                    [entry.id]: !prev[entry.id],
-                  }))
-                }
-              />
-            ))}
-          </div>
-        )}
+        <div className="content-stretch flex flex-col gap-[12px] items-start p-[12px] w-full">
+          {entries.map((entry) => (
+            <DentalHistoryCard
+              key={entry.id}
+              entry={entry}
+              expanded={Boolean(expandedById[entry.id])}
+              onToggle={() =>
+                setExpandedById((prev) => ({
+                  ...prev,
+                  [entry.id]: !prev[entry.id],
+                }))
+              }
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
